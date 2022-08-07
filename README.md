@@ -1,6 +1,6 @@
 # gax
 
-> **G**en ⊗ [J**AX**](https://github.com/google/jax)
+> [**G**en](https://www.mct.dev/assets/mct-thesis.pdf) ⊗ [J**AX**](https://github.com/google/jax)
 
 ## Implementation strategy
 
