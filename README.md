@@ -4,7 +4,7 @@
 
 ## Implementation strategy
 
-The implementation strategy is based on: [Handling effects with JAX](https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=OHUTBFIiHJu3) extend to support dynamically specified handlers.
+The implementation strategy is based on: [Handling effects with JAX](https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=OHUTBFIiHJu3) extended to support dynamically specified handlers. As in the original, handlers are staged out (and are zero-cost).
 
 Support a new `Core.Primitive` - `trace`, whose semantics are given by three interpreters: `simulate`, `generate` and `update`.
 
