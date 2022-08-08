@@ -6,9 +6,11 @@
 
 The implementation strategy is based on: [Handling effects with JAX](https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=OHUTBFIiHJu3) extended to support dynamically specified handlers. As in the original, handlers are staged out (zero-cost, not dynamically dispatched). This implementation also takes inspiration from [Zero-cost Effect Handlers by Staging](http://ps.informatik.uni-tuebingen.de/publications/schuster19zero.pdf) - without automatic insertion of staging annotations.
 
-## Example
+## Tour
 
-`gex` generative functions are pure Python functions from `(PRNGSeed, *args)` to `(PRNGSeed, retval)`. Let's study an example program in the DSL:
+`gex` generative functions are pure Python functions from `(PRNGSeed, *args)` to `(PRNGSeed, retval)`.
+
+Let's study an example program in the DSL:
 
 ```python
 # Here's a program with our primitives.
