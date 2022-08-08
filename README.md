@@ -171,7 +171,7 @@ expr = handle([r, p], expr)
 v = jax.jit(expr)(0.2)
 print(v)
 # ([DeviceArray(False, dtype=bool)], # return value
-   [DeviceArray(False, dtype=bool), DeviceArray(False, dtype=bool),
-    DeviceArray(False, dtype=bool)],  # choice map
-   DeviceArray(-0.6694306, dtype=float32, weak_type=True)) # score
+#  [DeviceArray(False, dtype=bool), DeviceArray(False, dtype=bool),
+#   DeviceArray(False, dtype=bool)],  # choice map
+#  DeviceArray(-0.6694306, dtype=float32, weak_type=True)) # score
 ```
