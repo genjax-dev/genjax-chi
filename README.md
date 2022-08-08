@@ -4,11 +4,7 @@
 
 ## Implementation strategy
 
-The implementation strategy is based on: [Handling effects with JAX](https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=OHUTBFIiHJu3) extended to support dynamically specified handlers. As in the original, handlers are staged out (and are zero-cost).
-
-Support a new `Core.Primitive` - `trace`, whose semantics are given by three interpreters: `simulate`, `generate` and `update`.
-
-- When a `gax` function is interpreted with `simulate`, the semantics of `trace` is to sample from the distribution or (or recursively interpret a `gax` function) and accumulate the log probability density for the sampled [`ChoiceMap`](https://www.gen.dev/dev/ref/choice_maps/#Choice-Maps-1)
+The implementation strategy is based on: [Handling effects with JAX](https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=OHUTBFIiHJu3) extended to support dynamically specified handlers. As in the original, handlers are staged out (and are zero-cost). This implementation also takes inspiration from [Zero-cost Effect Handlers by Staging](http://ps.informatik.uni-tuebingen.de/publications/schuster19zero.pdf) - without automatic insertion of staging annotations.
 
 ## Example
 
