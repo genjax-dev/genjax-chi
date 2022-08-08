@@ -167,7 +167,9 @@ p = PRNGProvider(50)
 r = TraceRecorder()
 expr = handle([r, p], expr)
 
-# Now we can JIT our effect-free program -- this should just be PRNG transformations, logpdf calls, and simple numerical operations.
+# Now we can JIT our effect-free program --
+# this should just be PRNG transformations, logpdf calls,
+# and simple numerical operations.
 v = jax.jit(expr)(0.2)
 print(v)
 # ([DeviceArray(False, dtype=bool)], # return value
