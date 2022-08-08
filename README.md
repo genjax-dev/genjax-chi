@@ -92,7 +92,7 @@ tr = fn(key, 0.3)
 print(tr.get_choices())
 ```
 
-We define a generative function which utilizes our primitives, then we can call a handler implementation object like `Simulate()` to stage out / jit our generative function -- _this implements the semantics of `simulate`_.
+We define a generative function which utilizes our primitives, then we can call a handler implementation object like `Simulate()` to stage out / jit our generative function - _this implements the semantics of `simulate`_.
 
 `fn` here is a JIT-backed callable which returns a `GEXTrace`.
 
