@@ -1,33 +1,15 @@
 import jax
 import jax.numpy as jnp
-from jax import grad, jit, make_jaxpr, vmap, core
+from jax import make_jaxpr, core
 from jax.util import safe_map, safe_zip
 from jax._src import abstract_arrays
 import jax.random as random
-from jax import linear_util as lu
-from jax._src import source_info_util
 import jax.scipy.stats as stats
-import functools
-from functools import partial, partialmethod, total_ordering
 from typing import (
     Any,
     Callable,
-    ClassVar,
-    DefaultDict,
     Dict,
-    Generator,
-    Iterator,
-    List,
-    NamedTuple,
-    Optional,
     Sequence,
-    Set,
-    Tuple,
-    Type,
-    Union,
-    cast,
-    Iterable,
-    Hashable,
 )
 
 map = safe_map
