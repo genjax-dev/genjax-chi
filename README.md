@@ -114,7 +114,7 @@ Inspired by effect handling, our interpreter (which walks the IR and attempts to
 
 Roughly, what this handler does is use PRNG sampling primitives to transform a `PRNGSeed` into a `prim` sample, score that sample, and then track that sample as state which we'll use later to create a trace. We call the continuation `f(key, v)` to return to the computation, handle more `trace` statements -- our object has a flag `self.return_or_continue` which helps direct codegen (we wait until we've visited all `trace` statements, and return out of the continuation -- and then we return with the data required to create a trace object from the call).
 
-> **Important (JAX Tracer time vs runtime)**
+> **JAX tracer time vs. runtime**
 >
 > It's important to understand that this handling/interpretation operates on abstract `Tracer` values -- **not runtime values**. The handler above is not something that happens at runtime -- in our interpreter, when we call this handler for `trace` -- it's inlining the traced `jax` definitions into the `Jaxpr` which we'll eventually emit to run on XLA, etc. So when you read a handler definition like `trace` above -- remember that the definition is guiding the trace/codegen process (and is not a runtime process). Note that this also means that tracking `Traced` values in a Python object (like the implementation above does with `self.score` and `self.state`) is perfectly valid, and will be completely eliminated at runtime because it is staged out in the `Jaxpr`.
 
