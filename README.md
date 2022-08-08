@@ -19,7 +19,7 @@ def f(x):
     return u + z + q
 ```
 
-To conveniently support pure JAX values, addresses are integers. `trace` is a primitive denoting a random choice - but `trace` desugars into the primitive or call argument (after the address):
+To conveniently support pure JAX values, addresses are integers (for now, this restriction can easily be lifted with a bit of sugar). `trace` is a primitive denoting a random choice - but `trace` desugars into the primitive or call argument (after the address):
 
 ```python
 { lambda ; a:f32[]. let
