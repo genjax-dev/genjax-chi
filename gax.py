@@ -313,7 +313,7 @@ def jit(expr, *args):
 #####
 
 # Declare a handler + wrap in `Handler`.
-def _handle_bernoulli(f, addr, p):
+def _sample_bernoulli(f, addr, p):
     key = seed()
     v = random.bernoulli(key, p)
     score = stats.bernoulli.logpmf(v, p)
@@ -321,7 +321,7 @@ def _handle_bernoulli(f, addr, p):
     return f(v)
 
 
-handle_bernoulli = Handler([bernoulli_p], _handle_bernoulli)
+sample_bernoulli = Handler([bernoulli_p], _sample_bernoulli)
 
 
 # Here's a hierarchical program with our primitives.
@@ -351,7 +351,7 @@ print(T(0.2)(f))
 expr = lift(f, 0.2)
 # This eliminates `bernoulli`, but raises `seed` and `state` --
 # asking for a PRNG and a place to put the choice values + scores.
-expr = handle([handle_bernoulli], expr)
+expr = handle([sample_bernoulli], expr)
 expr = lift(expr, 0.2)
 
 # To provide PRNG seeds, plus a place to put choice values + scores,
@@ -364,3 +364,36 @@ r = TraceRecorder()
 expr = handle([r, p], expr)
 v = jax.jit(expr)(0.2)
 print(v)
+
+#####
+##### Simulate
+#####
+
+
+class GAXTrace:
+    def __init__(self, args, score, choices, retval):
+        self.args = args
+        self.score = score
+        self.choices = choices
+        self.retval = retval
+
+
+__samplers__ = [sample_bernoulli]
+
+# Now, we can build the GFI on top of the primitive interfaces.
+# TODO: add decorator to models which automatically lifts them.
+# TODO: how expensive is JITing? Do you only need repeat it if the argument
+# type changes?
+def simulate(f: Callable, args):
+    expr = lift(f, *args)
+    expr = handle(__samplers__, expr)
+    expr = lift(expr, *args)
+    p = PRNGProvider(314159)
+    r = TraceRecorder()
+    expr = handle([r, p], expr)
+    (r, chm, s) = jax.jit(expr)(*args)
+    return GAXTrace(args, s, chm, r)
+
+
+tr = simulate(f, (0.2,))
+print(tr)
