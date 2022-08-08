@@ -8,58 +8,96 @@ The implementation strategy is based on: [Handling effects with JAX](https://col
 
 ## Example
 
-Let's study an example program in the DSL:
+`gex` generative functions are pure Python functions from `(PRNGSeed, *args)` to `(PRNGSeed, retval)`. Let's study an example program in the DSL:
 
 ```python
 # Here's a program with our primitives.
-def f(x):
-    u = trace(0, bernoulli, x)
-    z = trace(1, bernoulli, x)
-    q = trace(2, bernoulli, x)
-    return u + z + q
+def f(key, x):
+    key, m1 = gex.trace("m1", gex.Bernoulli)(key, x)
+    key, m2 = gex.trace("m2", gex.Bernoulli)(key, x)
+    return (key, 2 * (m1 + m2))
 ```
 
-To conveniently support pure JAX values, addresses are integers (for now, this restriction can easily be lifted with a bit of sugar). `trace` is a primitive denoting a random choice - but `trace` desugars into the primitive or call argument (after the address):
+Choices are specified using the `gex.trace(addr, primitive)(*args)` syntax. Here, our program exposes `'m1'` and `'m2'` as Bernoulli choices.
+
+We can examine our initial `Jaxpr` syntax using a `lift` operator:
 
 ```python
-{ lambda ; a:f32[]. let
-    b:bool[] = bernoulli 0 a
-    c:bool[] = bernoulli 1 a
-    d:bool[] = bernoulli 2 a
-    e:bool[] = or b c
-    f:bool[] = or e d
-  in (f,) }
+{ lambda ; a:u32[2] b:f32[]. let
+    c:u32[2] d:bool[] = trace[
+      addr=m1
+      prim=<class 'gex.distributions.Bernoulli'>
+    ] a b
+    e:u32[2] f:bool[] = trace[
+      addr=m2
+      prim=<class 'gex.distributions.Bernoulli'>
+    ] c b
+    g:bool[] = or d f
+    h:i32[] = convert_element_type[new_dtype=int32 weak_type=True] g
+    i:i32[] = mul h 2
+  in (e, i) }
 ```
 
-`bernoulli` is a primitive which must be handled by our interpreter -- it's not something which supports a JAX or XLA-native implementation. To construct a handler, we define a function which accepts the continuation `f`, as well as the arguments to `bernoulli`:
+Notice here that the primitive distribution objects are inlined into our primitive, as is the address. Later on, our handling interpreter will fetch these objects out and use them to codegen/handle at the site of `trace` -- keep this in mind.
+
+`trace` is a `core.Primitive` (from `jax`) which we've defined -- it has no XLA or native interpretation, instead we have to handle it by providing an interpretation for it, a desugaring to native `jax` constructs.
+
+Here's one way to handle `trace` (which I'll unpack!):
 
 ```python
-# Declare a handler + wrap in `Handler`.
-def _handle_bernoulli(f, addr, p):
-    key = seed()
-    v = random.bernoulli(key, p)
-    score = stats.bernoulli.logpmf(v, p)
-    state(addr, v, score)
-    return f(v)
+class Simulate(Handler):
 
+  ...
 
-handle_bernoulli = Handler(bernoulli_p, _handle_bernoulli)
+  def trace(self, f, *args, **kwargs):
+      prim = kwargs["prim"]
+      addr = kwargs["addr"]
+      prim = prim()
+      key, v = prim.sample(*args)
+      self.state[(*self.level, addr)] = v
+      score = prim.score(v, args[1])
+      self.score += score
+      if self.return_or_continue:
+          return f(key, v)
+      else:
+          self.return_or_continue = True
+          ret = f(key, v)
+          return (ret, self.state, self.score)
 ```
 
-We register `handle_bernoulli` as a `Handler` object. Before proceeding, it's worth understanding a bit about the architecture of the effect/handling interpreter.
-The signature of the interpreter:
+Inspired by effect handling, our interpreter (which walks the IR and attempts to handle the `trace` primitive) will create a continuation object (for the rest of the computation) at the `trace` site, and provide that object to our handler `trace` here (that continuation is `f` here).
+
+Roughly, what this handler does is use PRNG sampling primitives to transform a `PRNGSeed` into a `prim` sample, score that sample, and then track that sample as state which we'll use later to create a trace. We call the continuation `f(key, v)` to return to the computation, handle more `trace` statements -- our object has a flag `self.return_or_continue` which helps direct codegen (we wait until we've visited all `trace` statements, and return out of the continuation -- and then we return with the data required to create a trace object from the call).
+
+**Important**: it's important to understand that this handling/interpretation operates on abstract `Tracer` values -- **not runtime values**. The handler above is not something that happens at runtime -- in our interpreter, when we call this handler for `trace` -- it's inlining the traced `jax` definitions into the `Jaxpr` which we'll eventually emit to run on XLA, etc. So when you read a handler definition like `trace` above -- remember that the definition is guiding the trace/codegen process (and is not a runtime process). Note that this also means that tracking `Traced` values in a Python object (like the implementation above does with `self.score` and `self.state`) is perfectly valid, and will be completely eliminated at runtime because it is staged out in the `Jaxpr`.
+
+#### Using the GFI
+
+Using the GFI has a slight twist due to the staging/interpretation process above, as well as our desire to utilize `jax` JIT compilation -- here's a usage pattern:
 
 ```python
-def eval_jaxpr_handler(
-    handler_stack: Sequence[Handler], jaxpr: core.Jaxpr, consts, *args
-)
+def f(key, x):
+    key, m1 = gex.trace("m1", gex.Bernoulli)(key, x)
+    key, m2 = gex.trace("m2", gex.Bernoulli)(key, x)
+    return (key, 2 * (m1 + m2))
+
+
+key = jax.random.PRNGKey(314159)
+fn = gex.Simulate().jit(f)(key, 0.3)
+tr = fn(key, 0.3)
+print(tr.get_choices())
 ```
 
-It operates on `Jaxpr` objects, and is parametrized by a `Sequence[Handler]` a.k.a. a handler stack. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
+We define a generative function which utilizes our primitives, then we can call a handler implementation object like `Simulate()` to stage out / jit our generative function -- _this implements the semantics of `simulate`_.
+
+#### The interpreter
+
+It's worth exploring the effect/handling interpreter. It operates on `Jaxpr` objects, and is parametrized by a `Sequence[Handler]` a.k.a. a handler stack. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
 
 ```python
 if eqns:
     eqn = eqns[0]
+    kwargs = eqn.params
     in_vals = map(read, eqn.invars)
     in_vals = list(in_vals)
     subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -72,7 +110,7 @@ if eqns:
 
         for handler in reversed(handler_stack):
             if eqn.primitive == handler.handles:
-                return handler.callable(continuation, *args)
+                return handler.callable(continuation, *args, **kwargs)
         raise ValueError("Failed to find handler.")
     else:
         ans = eqn.primitive.bind(*(subfuns + in_vals), **params)
@@ -84,96 +122,3 @@ else:
 ```
 
 Here, we loop over `eqns` (roughly: SSA lines in the `Jaxpr` representation) and check if the line is a primitive which requires handling. If it is, we capture the continuation (reified syntax, plus environment, etc -- bundled with our interpreter) and pass the continuation (as well as the arguments to the operator which raised the "must be handled" flag) to the handler.
-
-Luckily, with our implementation -- we can incrementally stage out the effect primitives. Let's examine our handler for `bernoulli` once more:
-
-```python
-# Declare a handler + wrap in `Handler`.
-def _handle_bernoulli(f, addr, p):
-    key = seed()
-    v = random.bernoulli(key, p)
-    score = stats.bernoulli.logpmf(v, p)
-    state(addr, v, score)
-    return f(v)
-```
-
-Both `seed()` and `state(addr, score)` are also effectful primitives! Handlers can also raise effects!
-
-We can stage out `bernoulli` by providing a handler wrapping `_handle_bernoulli`:
-
-```python
-# Here, we use the effect interpreter after desugaring
-# `trace`, and then we stage that out to `Jaxpr` syntax.
-expr = lift(f, 0.7)
-expr = handle([handle_bernoulli], expr)
-expr = lift(expr, 0.7)
-print(expr)
-```
-
-We get a massive `Jaxpr` -- but `bernoulli` is gone (and in it's place, a whole bunch of operations have been inlined) -- but `seed` and `state` are still around!
-
-#### Stateful handlers
-
-To eliminate the `seed` and `state` requests, we need a handler which can run a separate program "on the side" every time we request `seed` and `state`. `seed` essentially asks: "give me a new PRNG key to use in a sample transformation" -- we need to provide a handler which can provide seed, and then update its own copy of seed for the next request.
-
-```python
-class PRNGProvider(Handler):
-    def __init__(self, seed: int):
-        self.handles = seed_p
-        self.state = jax.random.PRNGKey(seed)
-
-    def callable(self, f):
-        key, sub_key = jax.random.split(self.state)
-        self.state = key
-        return f(sub_key)
-```
-
-We can eliminate `seed` now, and `JAX` will track our updates in the handler. We do something similar for `state`:
-
-```python
-class TraceRecorder(Handler):
-    def __init__(self):
-        self.handles = state_p
-        self.state = []
-        self.score = 0.0
-        self.return_or_continue = False
-
-    def callable(self, f, addr, v, score):
-        self.state.append(v)
-        self.score += score
-        if self.return_or_continue:
-            return f(v)
-        else:
-            self.return_or_continue = True
-            ret = f(v)
-            return (ret, self.state, self.score)
-```
-
-Again, think of `callable` not as something which manipulates runtime values, but a code generator which puts `Tracer` values + eqns into the final `Jaxpr` which we'll compile to XLA.
-
-Here, we accumulate the score -- and we keep track of the choice values. This handler also includes a flag to correctly determine when to throw away the continuation, and just return the entire bundle of state `(ret, choices, score)` at the end.
-
-When we stage out all our effect primitives, we can `jax.jit` our staged model:
-
-```python
-# First we lift and handle `bernoulli`, which introduces
-# `seed` and `state`
-expr = lift(f, 0.2)
-expr = handle([handle_bernoulli], expr)
-
-# Now we lift and handle `seed` and `state`.
-expr = lift(expr, 0.2)
-p = PRNGProvider(50)
-r = TraceRecorder()
-expr = handle([r, p], expr)
-
-# Now we can JIT our effect-free program --
-# this should just be PRNG transformations, logpdf calls,
-# and simple numerical operations.
-v = jax.jit(expr)(0.2)
-print(v)
-# ([DeviceArray(False, dtype=bool)], # return value
-#  [DeviceArray(False, dtype=bool), DeviceArray(False, dtype=bool),
-#   DeviceArray(False, dtype=bool)],  # choice map
-#  DeviceArray(-0.6694306, dtype=float32, weak_type=True)) # score
-```
