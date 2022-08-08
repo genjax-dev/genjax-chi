@@ -1,3 +1,6 @@
+# This is a sample implementation of Gen concepts
+# using zero-cost effect staging on top of JAX.
+
 import jax
 import jax.numpy as jnp
 from jax import make_jaxpr, core
@@ -20,6 +23,10 @@ zip = safe_zip
 #####
 
 
+# A handler dispatchs a `jax.core.Primitive` - and must provide
+# a `Callable` with signature `def fn(continuation, *args)`
+# where `*args` must match the `core.Primitive` declaration
+# signature.
 class Handler:
     handles: core.Primitive
     callable: Callable
@@ -27,10 +34,6 @@ class Handler:
     def __init__(self, handles: core.Primitive, callable: Callable):
         self.handles = handles
         self.callable = callable
-
-
-class HandlerStack:
-    handlers: Sequence[Handler]
 
 
 #####
@@ -113,7 +116,7 @@ def bernoulli_abstract_eval(addr, p):
 bernoulli_p.def_abstract_eval(bernoulli_abstract_eval)
 bernoulli_p.must_handle = True
 
-
+# Wrap it in a small class.
 class Bernoulli:
     prim: core.Primitive
 
@@ -127,7 +130,8 @@ bernoulli = Bernoulli()
 trace_p = core.Primitive("trace")
 
 
-# Trace forwards bind to the primitive. This allows us to avoid encoding
+# `trace` just forwards `bind` (see: Autodidax for more info on `bind`)
+# to the primitive. This allows us to avoid encoding
 # primitives as objects that JAX understands (e.g. simple numbers, or arrays)
 # and allows us to also forward abstract evaluation to distribution primitive
 # definition.
@@ -179,7 +183,15 @@ seed_p.must_handle = True
 ##### Stateful handlers
 #####
 
+# Note: both of these handlers _do not manipulate runtime values_ --
+# the pointers they hold to objects like `v` and `score` are JAX `Tracer`
+# values. When we do computations with these values,
+# it adds to the `Jaxpr` trace.
+#
+# So the trick is write `callable` to coerce the return of the `Jaxpr`
+# to send out the accumulate state we want.
 
+# Handles `seed` -- a.k.a. give me a new split random key.
 class PRNGProvider(Handler):
     def __init__(self, seed: int):
         self.handles = seed_p
@@ -191,6 +203,7 @@ class PRNGProvider(Handler):
         return f(sub_key)
 
 
+# Handles `state` -- a.k.a. I want to lift `return a :: A` into `M A`.
 class TraceRecorder(Handler):
     def __init__(self):
         self.handles = state_p
@@ -214,6 +227,7 @@ class TraceRecorder(Handler):
 #####
 
 
+# Takes `Callable(*args)` to `Jaxpr`.
 def T(*xs):
     return lambda f: make_jaxpr(f)(*xs)
 
@@ -231,14 +245,17 @@ def I_prime(handler_stack, f):
     return lambda *xs: eval_jaxpr_handler(handler_stack, f.jaxpr, f.literals, *xs)
 
 
+# Sugar: lift a `Callable(*args)` to `Jaxpr`
 def lift(f, *args):
     return T(*args)(f)
 
 
+# Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
 def handle(handler_stack, expr):
     return I_prime(handler_stack, expr)
 
 
+# Sugar: JIT a `Jaxpr` with `*args`
 def jit(expr, *args):
     return jax.jit(expr)(*args)
 
@@ -267,7 +284,7 @@ def f(x):
     return u + z + q
 
 
-# This is the normal tracer.
+# This is the normal JAX tracer.
 # This desugars `trace` to the underlying distribution primitives here.
 print(T(0.2)(f))
 
