@@ -28,10 +28,10 @@ zip = safe_zip
 # where `*args` must match the `core.Primitive` declaration
 # signature.
 class Handler:
-    handles: core.Primitive
+    handles: Sequence[core.Primitive]
     callable: Callable
 
-    def __init__(self, handles: core.Primitive, callable: Callable):
+    def __init__(self, handles: Sequence[core.Primitive], callable: Callable):
         self.handles = handles
         self.callable = callable
 
@@ -88,8 +88,12 @@ def eval_jaxpr_handler(
                     return eval_jaxpr_loop(eqns[1:], env, eqn.outvars, [*args])
 
                 for handler in reversed(handler_stack):
-                    if eqn.primitive == handler.handles:
-                        return handler.callable(continuation, *args)
+                    if eqn.primitive in handler.handles:
+                        try:
+                            callable = getattr(handler, repr(eqn.primitive))
+                            return callable(continuation, *args)
+                        except:
+                            return handler.callable(continuation, *args)
 
             ans = eqn.primitive.bind(*(subfuns + in_vals), **params)
             if not eqn.primitive.multiple_results:
@@ -130,13 +134,45 @@ bernoulli = Bernoulli()
 trace_p = core.Primitive("trace")
 
 
-# `trace` just forwards `bind` (see: Autodidax for more info on `bind`)
+# `trace` just forwards `bind` (see: JAX's Autodidax for more info on `bind`)
 # to the primitive. This allows us to avoid encoding
 # primitives as objects that JAX understands (e.g. simple numbers, or arrays)
 # and allows us to also forward abstract evaluation to distribution primitive
 # definition.
 def trace(addr, prim, *args):
-    return prim.prim.bind(addr, *args)
+    try:
+        return prim.prim.bind(addr, *args)
+    except:
+        splice_p.bind(addr)
+        ret = prim(*args)
+        unsplice_p.bind(addr)
+        return ret
+
+
+splice_p = core.Primitive("splice")
+
+
+def splice_abstract_eval(addr):
+    return abstract_arrays.ShapedArray(shape=(0,), dtype=bool)
+
+
+splice_p.def_abstract_eval(splice_abstract_eval)
+splice_p.must_handle = True
+
+
+unsplice_p = core.Primitive("unsplice")
+
+
+def unsplice_abstract_eval(addr):
+    return abstract_arrays.ShapedArray(shape=(0,), dtype=bool)
+
+
+unsplice_p.def_abstract_eval(unsplice_abstract_eval)
+unsplice_p.must_handle = True
+
+
+def splice(addr):
+    splice_p.bind
 
 
 # Again, forward to the primitive.
@@ -189,12 +225,12 @@ seed_p.must_handle = True
 # it adds to the `Jaxpr` trace.
 #
 # So the trick is write `callable` to coerce the return of the `Jaxpr`
-# to send out the accumulate state we want.
+# to send out the accumulated state we want.
 
 # Handles `seed` -- a.k.a. give me a new split random key.
 class PRNGProvider(Handler):
     def __init__(self, seed: int):
-        self.handles = seed_p
+        self.handles = [seed_p]
         self.state = jax.random.PRNGKey(seed)
 
     def callable(self, f):
@@ -206,13 +242,14 @@ class PRNGProvider(Handler):
 # Handles `state` -- a.k.a. I want to lift `return a :: A` into `M A`.
 class TraceRecorder(Handler):
     def __init__(self):
-        self.handles = state_p
-        self.state = []
+        self.handles = [state_p, splice_p, unsplice_p]
+        self.state = {}
+        self.level = []
         self.score = 0.0
         self.return_or_continue = False
 
     def callable(self, f, addr, v, score):
-        self.state.append(v)
+        self.state[(*self.level, addr)] = v
         self.score += score
         if self.return_or_continue:
             return f(v)
@@ -220,6 +257,17 @@ class TraceRecorder(Handler):
             self.return_or_continue = True
             ret = f(v)
             return (ret, self.state, self.score)
+
+    def splice(self, f, addr):
+        self.level.append(addr)
+        return f([])
+
+    def unsplice(self, f, addr):
+        try:
+            self.level.pop()
+            return f([])
+        except:
+            return f([])
 
 
 #####
@@ -273,15 +321,25 @@ def _handle_bernoulli(f, addr, p):
     return f(v)
 
 
-handle_bernoulli = Handler(bernoulli_p, _handle_bernoulli)
+handle_bernoulli = Handler([bernoulli_p], _handle_bernoulli)
 
 
-# Here's a program with our primitives.
+# Here's a hierarchical program with our primitives.
+def g1():
+    q1 = trace(0, bernoulli, 0.5)
+    q2 = trace(1, bernoulli, 0.5)
+    return q1 + q2
+
+
+def g2():
+    q = trace(0, bernoulli, 0.5)
+    return q
+
+
 def f(x):
-    u = trace(0, bernoulli, x)
-    z = trace(1, bernoulli, x)
-    q = trace(2, bernoulli, x)
-    return u + z + q
+    m1 = trace(0, g1)
+    m2 = trace(1, g2)
+    return 2 * (m1 + m2)
 
 
 # This is the normal JAX tracer.
@@ -295,7 +353,6 @@ expr = lift(f, 0.2)
 # asking for a PRNG and a place to put the choice values + scores.
 expr = handle([handle_bernoulli], expr)
 expr = lift(expr, 0.2)
-print(expr)
 
 # To provide PRNG seeds, plus a place to put choice values + scores,
 # we provide two stateful handlers.
