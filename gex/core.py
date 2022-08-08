@@ -24,7 +24,7 @@ zip = safe_zip
 
 
 # A handler dispatchs a `jax.core.Primitive` - and must provide
-# a `Callable` with signature `def fn(continuation, *args)`
+# a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
 # where `*args` must match the `core.Primitive` declaration
 # signature.
 class Handler:
