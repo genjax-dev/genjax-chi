@@ -1,14 +1,3 @@
-class GEXGenerativeFunction:
-    def __init__(self, callable, *args):
-        self.callable = callable
-        if args:
-            self.jit_with = args
-
-
-def gex(p, *args):
-    return GEXGenerativeFunction(p, *args)
-
-
 class GEXTrace:
     def __init__(self, gen_fn, args, retval, choices, score):
         self.args = args
