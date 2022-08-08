@@ -370,7 +370,7 @@ print(v)
 #####
 
 
-class GAXTrace:
+class GEXTrace:
     def __init__(self, args, score, choices, retval):
         self.args = args
         self.score = score
