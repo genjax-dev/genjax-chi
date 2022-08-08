@@ -42,10 +42,10 @@ class Handler:
 
 
 # This is an interpreter which is parametrized by a handler stack.
-# The handler stack is consorted when a `core.Primitive` with a `must_handle`
+# The handler stack is consulted when a `core.Primitive` with a `must_handle`
 # attribute is encountered.
 #
-# This interpreter should always be staged out -- so it should be zero-cost.
+# This interpreter should always be staged out -- so it should be handling primitives is a zero runtime cost process.
 def eval_jaxpr_handler(
     handler_stack: Sequence[Handler], jaxpr: core.Jaxpr, consts, *args
 ):
@@ -77,7 +77,10 @@ def eval_jaxpr_handler(
 
         if eqns:
             eqn = eqns[0]
+
+            # Here's where we encode `prim` and `addr` for `trace`.
             kwargs = eqn.params
+
             in_vals = map(read, eqn.invars)
             in_vals = list(in_vals)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -90,11 +93,10 @@ def eval_jaxpr_handler(
 
                 for handler in reversed(handler_stack):
                     if eqn.primitive in handler.handles:
-                        try:
-                            callable = getattr(handler, repr(eqn.primitive))
-                            return callable(continuation, *args, **kwargs)
-                        except:
-                            return handler.callable(continuation, *args, **kwargs)
+                        # The handler must provide a method with
+                        # the name of the primitive.
+                        callable = getattr(handler, repr(eqn.primitive))
+                        return callable(continuation, *args, **kwargs)
 
             ans = eqn.primitive.bind(*(subfuns + in_vals), **params)
             if not eqn.primitive.multiple_results:
