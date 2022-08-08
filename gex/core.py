@@ -1,6 +1,3 @@
-# This is a sample implementation of Gen concepts
-# using zero-cost effect staging on top of JAX.
-
 import jax
 import jax.numpy as jnp
 from jax import make_jaxpr, core
