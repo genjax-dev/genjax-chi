@@ -18,3 +18,8 @@ print(expr)
 fn = gex.Simulate().jit(f)(key, 0.3)
 tr = fn(key, 0.3)
 print(tr.get_choices())
+
+chm = {("m1",): True}
+fn = gex.Generate(chm).jit(f)(key, 0.3)
+w, tr = fn(key, 0.3)
+print((w, tr.get_choices()))
