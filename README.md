@@ -24,7 +24,7 @@ def f(key, x):
     key, m3 = gex.trace("m3", g)(key, x)  # We support hierarchical models.
     return (key, 2 * (m1 + m2 + m3))
 
-# Initialize a PRNG.
+# Initialize a PRNG key.
 key = jax.random.PRNGKey(314159)
 
 # This just shows our raw (not yet desugared/codegen) syntax.
