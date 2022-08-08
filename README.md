@@ -55,7 +55,7 @@ def eval_jaxpr_handler(
 )
 ```
 
-It operates on `Jaxpr` objects, and is parametrized by a `HandlerStack`. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
+It operates on `Jaxpr` objects, and is parametrized by a `Sequence[Handler]` a.k.a. a handler stack. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
 
 ```python
 if eqns:
