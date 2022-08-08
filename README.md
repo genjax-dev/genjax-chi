@@ -152,3 +152,26 @@ class TraceRecorder(Handler):
 Again, think of `callable` not as something which manipulates runtime values, but a code generator which puts `Tracer` values + eqns into the final `Jaxpr` which we'll compile to XLA.
 
 Here, we accumulate the score -- and we keep track of the choice values. This handler also includes a flag to correctly determine when to throw away the continuation, and just return the entire bundle of state `(ret, choices, score)` at the end.
+
+When we stage out all our effect primitives, we can `jax.jit` our staged model:
+
+```python
+# First we lift and handle `bernoulli`, which introduces
+# `seed` and `state`
+expr = lift(f, 0.2)
+expr = handle([handle_bernoulli], expr)
+
+# Now we lift and handle `seed` and `state`.
+expr = lift(expr, 0.2)
+p = PRNGProvider(50)
+r = TraceRecorder()
+expr = handle([r, p], expr)
+
+# Now we can JIT our effect-free program -- this should just be PRNG transformations, logpdf calls, and simple numerical operations.
+v = jax.jit(expr)(0.2)
+print(v)
+# ([DeviceArray(False, dtype=bool)], # return value
+   [DeviceArray(False, dtype=bool), DeviceArray(False, dtype=bool),
+    DeviceArray(False, dtype=bool)],  # choice map
+   DeviceArray(-0.6694306, dtype=float32, weak_type=True)) # score
+```
