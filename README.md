@@ -90,6 +90,8 @@ print(tr.get_choices())
 
 We define a generative function which utilizes our primitives, then we can call a handler implementation object like `Simulate()` to stage out / jit our generative function -- _this implements the semantics of `simulate`_.
 
+`fn` here is a JIT-backed callable which returns a `GEXTrace`.
+
 #### The interpreter
 
 It's worth exploring the effect/handling interpreter. It operates on `Jaxpr` objects, and is parametrized by a `Sequence[Handler]` a.k.a. a handler stack. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
