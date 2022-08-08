@@ -40,11 +40,13 @@ We can examine our initial `Jaxpr` syntax using a `lift` operator:
   in (e, i) }
 ```
 
-Notice here that the primitive distribution objects are inlined into our primitive, as is the address. Later on, our handling interpreter will fetch these objects out and use them to codegen/handle at the site of `trace` -- keep this in mind.
+Notice here that the primitive distribution objects are inlined into our primitive, as is the address.
+
+> Later on, we'll see how our handling interpreter will fetch these objects out and use them to codegen/handle at the site of `trace`.
 
 `trace` is a `core.Primitive` (from `jax`) which we've defined -- it has no XLA or native interpretation, instead we have to handle it by providing an interpretation for it, a desugaring to native `jax` constructs.
 
-Here's one way to handle `trace` (which I'll unpack!):
+Here's one way to handle `trace`:
 
 ```python
 class Simulate(Handler):
