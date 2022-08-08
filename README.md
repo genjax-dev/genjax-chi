@@ -155,6 +155,8 @@ print((w, tr.get_choices()))
 
 It's worth exploring the effect/handling interpreter. It operates on `Jaxpr` objects, and is parametrized by a `Sequence[Handler]` a.k.a. a handler stack. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
 
+Here's the relevant chunk of the interpreter (the rest can be found in `core.py`):
+
 ```python
 if eqns:
     eqn = eqns[0]
