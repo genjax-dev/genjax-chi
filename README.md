@@ -96,6 +96,18 @@ We define a generative function which utilizes our primitives, then we can call 
 
 `fn` here is a JIT-backed callable which returns a `GEXTrace`.
 
+Similarly, for the `generate` interface -- we write:
+
+```python
+# Here's how you access the `generate` GFI.
+chm = {("m1",): True}
+fn = gex.Generate(chm).jit(f)(key, 0.3)
+w, tr = fn(key, 0.3)
+print((w, tr.get_choices()))
+```
+
+**Note:** It's highly likely the choice map object representation and interface will change, so take the construction of `chm` above with a grain of salt.
+
 #### The interpreter
 
 It's worth exploring the effect/handling interpreter. It operates on `Jaxpr` objects, and is parametrized by a `Sequence[Handler]` a.k.a. a handler stack. This interpreter is very similar to `eval_jaxpr` in `jax.core` -- with the evaluation loop replaced by recursion, as well as an explicit ability to construct Python-embedded continuation objects.
