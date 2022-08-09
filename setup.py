@@ -19,7 +19,7 @@ from setuptools import setup
 
 # Specify the requirements.
 requirements = {
-    "gex": [
+    "genjax": [
         "jax==0.3.13",
     ],
 }
@@ -28,16 +28,16 @@ requirements["all"] = [r for v in requirements.values() for r in v]
 # Determine the version (hardcoded).
 dirname = os.path.dirname(os.path.realpath(__file__))
 vre = re.compile('__version__ = "(.*?)"')
-m = open(os.path.join(dirname, "gex", "__init__.py")).read()
+m = open(os.path.join(dirname, "genjax", "__init__.py")).read()
 __version__ = vre.findall(m)[0]
 
 setup(
-    name="gex",
+    name="genjax",
     version=__version__,
     description="Gen ⊗ JAX",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/probcomp/gex",
+    url="https://github.com/probcomp/genjax",
     license="Apache-2.0",
     maintainer="McCoy R. Becker",
     maintainer_email="mccoyb@mit.edu",
@@ -47,12 +47,12 @@ setup(
         "Topic :: Scientific/Engineering :: Mathematics",
     ],
     packages=[
-        "gex",
+        "genjax",
     ],
     package_dir={
-        "gex": "gex",
+        "genjax": "genjax",
     },
-    install_requires=requirements["gex"],
+    install_requires=requirements["genjax"],
     extras_require=requirements,
     python_requires=">=3.8",
 )

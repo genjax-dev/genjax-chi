@@ -1,21 +1,21 @@
-## Guide to `gex`
+## Guide to `genjax`
 
 > **NOTE** This may not be kept up-to-date. Please see `tour.jl` for an
 > up-to-date tutorial example.
 
-`gex` generative functions are pure Python functions from `(PRNGSeed, *args)` to `(PRNGSeed, retval)`.
+`genjax` generative functions are pure Python functions from `(PRNGSeed, *args)` to `(PRNGSeed, retval)`.
 
 Let's study an example program in the DSL:
 
 ```python
 # Here's a program with our primitives.
 def f(key, x):
-    key, m1 = gex.trace("m1", gex.Bernoulli)(key, x)
-    key, m2 = gex.trace("m2", gex.Bernoulli)(key, x)
+    key, m1 = genjax.trace("m1", genjax.Bernoulli)(key, x)
+    key, m2 = genjax.trace("m2", genjax.Bernoulli)(key, x)
     return (key, 2 * (m1 + m2))
 ```
 
-Choices are specified using the `gex.trace(addr, primitive)(*args)` syntax. Here, our program exposes `'m1'` and `'m2'` as Bernoulli choices.
+Choices are specified using the `genjax.trace(addr, primitive)(*args)` syntax. Here, our program exposes `'m1'` and `'m2'` as Bernoulli choices.
 
 We can examine our initial `Jaxpr` syntax using a `lift` operator:
 
@@ -23,11 +23,11 @@ We can examine our initial `Jaxpr` syntax using a `lift` operator:
 { lambda ; a:u32[2] b:f32[]. let
     c:u32[2] d:bool[] = trace[
       addr=m1
-      prim=<class 'gex.distributions.Bernoulli'>
+      prim=<class 'genjax.distributions.Bernoulli'>
     ] a b
     e:u32[2] f:bool[] = trace[
       addr=m2
-      prim=<class 'gex.distributions.Bernoulli'>
+      prim=<class 'genjax.distributions.Bernoulli'>
     ] c b
     g:bool[] = or d f
     h:i32[] = convert_element_type[new_dtype=int32 weak_type=True] g
@@ -78,27 +78,27 @@ Using the GFI has a slight twist due to the staging/interpretation process above
 
 ```python
 def f(key, x):
-    key, m1 = gex.trace("m1", gex.Bernoulli)(key, x)
-    key, m2 = gex.trace("m2", gex.Bernoulli)(key, x)
+    key, m1 = genjax.trace("m1", genjax.Bernoulli)(key, x)
+    key, m2 = genjax.trace("m2", genjax.Bernoulli)(key, x)
     return (key, 2 * (m1 + m2))
 
 
 key = jax.random.PRNGKey(314159)
-fn = gex.Simulate().jit(f)(key, 0.3)
+fn = genjax.Simulate().jit(f)(key, 0.3)
 tr = fn(key, 0.3)
 print(tr.get_choices())
 ```
 
 We define a generative function which utilizes our primitives, then we can call a handler implementation object like `Simulate()` to stage out / jit our generative function - _this implements the semantics of `simulate`_.
 
-`fn` here is a JIT-backed callable which returns a `GEXTrace`.
+`fn` here is a JIT-backed callable which returns a `genjaxTrace`.
 
 Similarly, for the `generate` interface -- we write:
 
 ```python
 # Here's how you access the `generate` GFI.
 chm = {("m1",): True}
-fn = gex.Generate(chm).jit(f)(key, 0.3)
+fn = genjax.Generate(chm).jit(f)(key, 0.3)
 w, tr = fn(key, 0.3)
 print((w, tr.get_choices()))
 ```

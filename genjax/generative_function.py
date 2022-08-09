@@ -1,4 +1,4 @@
-class GEXTrace:
+class Trace:
     def __init__(self, gen_fn, jitted, args, retval, choices, score):
         self.gen_fn = gen_fn
         self.jitted = jitted

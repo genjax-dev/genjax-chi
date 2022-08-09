@@ -3,9 +3,9 @@
 #####
 
 import jax
-import gex
+import genjax as gex
 
-# A `gex` generative function is a pure Python function from
+# A `genjax` generative function is a pure Python function from
 # `(PRNGKey, *args)` to `(PRNGKey, retval)`
 #
 # The programmer is free to use other JAX primitives, etc -- as desired.
@@ -17,6 +17,7 @@ def g(key, x):
     return (key, m1)
 
 
+# @gex(x = ShapedArray(shape=(2,), dtype=float))
 def f(key, x):
     key, m0 = gex.trace("m0", gex.Bernoulli)(key, x)
     key, m1 = gex.trace("m1", gex.Normal)(key)

@@ -1,5 +1,5 @@
 import jax
-from .generative_function import GEXTrace
+from .generative_function import Trace
 from .core import handle, lift, Handler, I
 from .intrinsics import trace_p, splice_p, unsplice_p
 
@@ -63,7 +63,7 @@ class Simulate(Handler):
     # Match the GFI interface return from Gen.
     def __interface_return(self, gen_fn, jitted, *args):
         (r, chm, score) = jitted(*args)
-        return GEXTrace(gen_fn, jitted, args, r, chm, score)
+        return Trace(gen_fn, jitted, args, r, chm, score)
 
     # JIT compile a function and return a function which implements
     # the semantics of `simulate` from Gen.
@@ -136,7 +136,7 @@ class Generate(Handler):
     # Match the GFI interface return from Gen.
     def __interface_return(self, gen_fn, jitted, *args):
         (w, r, chm, score) = jitted(*args)
-        return w, GEXTrace(gen_fn, jitted, args, r, chm, score)
+        return w, Trace(gen_fn, jitted, args, r, chm, score)
 
     # JIT compile a function and return a function which implements
     # the semantics of `generate` from Gen.
