@@ -111,11 +111,15 @@ def eval_jaxpr_handler(
 
 
 # Takes `Callable(*args)` to `Jaxpr`.
+# This lifts a Python callable to `Jaxpr` representation.
+# At this stage, other transformations which evaluate `Jaxpr`
+# representations can walk the lifted tree.
 def T(*xs):
     return lambda f: make_jaxpr(f)(*xs)
 
 
-# The usual interpreter
+# The usual interpreter from JAX.
+# No modifications here.
 def I(f):
     # `make_jaxpr` builds a separate "symbol table" containing the constants
     # needed by the jaxpr. This is why we also pass `f.literals` into
@@ -123,7 +127,8 @@ def I(f):
     return lambda *xs: jax.core.eval_jaxpr(f.jaxpr, f.literals, *xs)
 
 
-# Our special interpreter
+# Our special interpreter -- allows us to dispatch with primitives,
+# and implements directed CPS-style evaluation strategy.
 def I_prime(handler_stack, f):
     return lambda *xs: eval_jaxpr_handler(handler_stack, f.jaxpr, f.literals, *xs)
 
@@ -136,8 +141,3 @@ def lift(f, *args):
 # Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
 def handle(handler_stack, expr):
     return I_prime(handler_stack, expr)
-
-
-# Sugar: JIT a `Jaxpr` with `*args`
-def jit(expr, *args):
-    return jax.jit(expr)(*args)
