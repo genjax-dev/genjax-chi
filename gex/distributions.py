@@ -13,3 +13,16 @@ class Bernoulli:
 
     def score(self, v, p):
         return jax.scipy.stats.bernoulli.logpmf(v, p)
+
+
+class Normal:
+    def abstract_eval(self, key):
+        return (key, abstract_arrays.ShapedArray(shape=(1,), dtype=float))
+
+    def sample(self, key):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.normal(key)
+        return (key, v)
+
+    def score(self, v):
+        return jax.scipy.stats.norm.logpdf(v)

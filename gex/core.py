@@ -55,7 +55,7 @@ def eval_jaxpr_handler(
 
     # This is the recursion that replaces the main loop in the original
     # `eval_jaxpr`.
-    def eval_jaxpr_loop(eqns, env, invars, args):
+    def eval_jaxpr_recurse(eqns, env, invars, args):
         # The handler could call the continuation multiple times so we
         # we need this function to be somewhat pure. We copy `env` to
         # ensure it isn't mutated.
@@ -86,7 +86,7 @@ def eval_jaxpr_handler(
                 # This definition "reifies" the remainder of the evaluation
                 # loop so it can be explicitly passed to the handler.
                 def continuation(*args):
-                    return eval_jaxpr_loop(eqns[1:], env, eqn.outvars, [*args])
+                    return eval_jaxpr_recurse(eqns[1:], env, eqn.outvars, [*args])
 
                 for handler in reversed(handler_stack):
                     if eqn.primitive in handler.handles:
@@ -98,11 +98,11 @@ def eval_jaxpr_handler(
             ans = eqn.primitive.bind(*(subfuns + in_vals), **params)
             if not eqn.primitive.multiple_results:
                 ans = [ans]
-            return eval_jaxpr_loop(eqns[1:], env, eqn.outvars, ans)
+            return eval_jaxpr_recurse(eqns[1:], env, eqn.outvars, ans)
         else:
             return map(read, jaxpr.outvars)
 
-    return eval_jaxpr_loop(jaxpr.eqns, env, jaxpr.invars, args)
+    return eval_jaxpr_recurse(jaxpr.eqns, env, jaxpr.invars, args)
 
 
 #####

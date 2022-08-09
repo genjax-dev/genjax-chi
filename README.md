@@ -41,6 +41,19 @@ chm = {("m1",): True}
 fn = gex.Generate(chm).jit(f)(key, 0.3)
 w, tr = fn(key, 0.3)
 print((w, tr.get_choices()))
+
+# Here's how you access argument gradients --
+# the second argument to `gex.ArgumentGradients` specifies `argnums`
+# to get gradients for.
+fn = gex.ArgumentGradients(tr, [1]).jit(f)(key, 0.3)
+arg_grads = fn(key, 0.3)
+print(arg_grads)
+
+# Here's how you access choice gradients --
+fn = gex.ChoiceGradients(tr).jit(f)(key, 0.3)
+choices = {("m1",): 0.3}
+choice_grads = fn(choices)
+print(choice_grads)
 ```
 
 ## Implementation strategy
