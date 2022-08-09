@@ -10,7 +10,9 @@ A concise encoding of Gen using zero-cost effect handling/tracing built on top o
   - `Generate` (sample from conditioned measure and compute importance weight with model as prior)
   - `ArgumentGradients` (compute gradient of `logpdf` with respect to arguments)
   - `ChoiceGradients` (compute gradient of `logpdf` with respect to values of random choices)
-- Should support computations with anything acceptable by JAX (tbd).
+- Should support usage of any computations acceptable by JAX (tbd) within generative function programs.
+
+> **Early stage** expect 🔪 sharp edges 🔪
 
 ## Example
 
