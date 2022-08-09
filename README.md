@@ -2,9 +2,17 @@
 
 > [**Ge**n](https://www.mct.dev/assets/mct-thesis.pdf) ⊗ [JA**X**](https://github.com/google/jax)
 
-## Example
+A concise encoding of Gen using zero-cost effect handling/tracing built on top of `jax`.
 
-A straightforward encoding of Gen using zero-cost effect handling/tracing with `jax`.
+- Presents a modeling language based on the space of pure Python functions acceptable by `jax`: models are pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
+- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.
+  - `Simulate` (sample from normalized measure)
+  - `Generate` (sample from conditioned measure and compute importance weight with model as prior)
+  - `ArgumentGradients` (compute gradient of `logpdf` with respect to arguments)
+  - `ChoiceGradients` (compute gradient of `logpdf` with respect to values of random choices)
+- Should support computations with anything acceptable by JAX (tbd).
+
+## Example
 
 ```python
 import jax
