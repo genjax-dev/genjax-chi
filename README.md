@@ -5,9 +5,9 @@
 A concise encoding of Gen using zero-cost effect handling/tracing built on top of `jax`.
 
 - Presents a modeling language based on the space of pure Python functions acceptable by `jax`: models are pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
-- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.
+- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`. (Roughly -- see documentation for exact signatures/return types):
   - `Simulate` (sample from normalized measure)
-  - `Generate` (sample from conditioned measure and compute importance weight with model as prior)
+  - `Generate` (condition the generative function, and importance sample with model as prior)
   - `ArgumentGradients` (compute gradient of `logpdf` with respect to arguments)
   - `ChoiceGradients` (compute gradient of `logpdf` with respect to values of random choices)
 - Should support usage of any computations acceptable by JAX (tbd) within generative function programs.
