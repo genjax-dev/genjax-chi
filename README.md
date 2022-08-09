@@ -1,6 +1,8 @@
 # genjax
 
 > [**Ge**n](https://www.mct.dev/assets/mct-thesis.pdf) ⊗ [JA**X**](https://github.com/google/jax)
+>
+> `import genjax as gex`
 
 A concise encoding of Gen using zero-cost effect handling/tracing built on top of `jax`.
 
