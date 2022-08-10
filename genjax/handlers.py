@@ -1,5 +1,4 @@
 import jax
-from .generative_function import Trace
 from .core import handle, lift, Handler, I
 from .intrinsics import trace_p, splice_p, unsplice_p
 
@@ -60,18 +59,13 @@ class Simulate(Handler):
         expr = lift(expr, *args)
         return expr
 
-    # Match the GFI interface return from Gen.
-    def __interface_return(self, gen_fn, jitted, *args):
-        (r, chm, score) = jitted(*args)
-        return Trace(gen_fn, jitted, args, r, chm, score)
-
     # JIT compile a function and return a function which implements
     # the semantics of `simulate` from Gen.
     def _jit(self, f, *args):
         expr = lift(f, *args)
         expr = handle([self], expr)
         jitted = jax.jit(expr)
-        return lambda *args: self.__interface_return(f, jitted, *args)
+        return jitted
 
     def jit(self, f):
         return lambda *args: self._jit(f, *args)
@@ -133,18 +127,13 @@ class Generate(Handler):
         expr = lift(expr, *args)
         return expr
 
-    # Match the GFI interface return from Gen.
-    def __interface_return(self, gen_fn, jitted, *args):
-        (w, r, chm, score) = jitted(*args)
-        return w, Trace(gen_fn, jitted, args, r, chm, score)
-
     # JIT compile a function and return a function which implements
     # the semantics of `generate` from Gen.
     def _jit(self, f, *args):
         expr = lift(f, *args)
         expr = handle([self], expr)
         jitted = jax.jit(expr)
-        return lambda *args: self.__interface_return(f, jitted, *args)
+        return jitted
 
     def jit(self, f):
         return lambda *args: self._jit(f, *args)
@@ -200,23 +189,18 @@ class ArgumentGradients(Handler):
         expr = lift(expr, *args)
         return expr
 
-    # Match the GFI interface return from Gen.
-    def __interface_return(self, gen_fn, jitted, *args):
-        arg_grads = jitted(*args)
-        return arg_grads
+    def stage(self, f):
+        return lambda *args: self._stage(f, *args)
 
     def _jit(self, f, *args):
         expr = lift(f, *args)
         expr = handle([self], expr)
         expr = jax.grad(expr, self.argnums)
         jitted = jax.jit(expr)
-        return lambda *args: self.__interface_return(f, jitted, *args)
+        return jitted
 
     def jit(self, f):
         return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
 
 
 # This handler is used to stage the choice gradient computation.
@@ -292,10 +276,8 @@ class ChoiceGradients(Handler):
         # the gradient computation using `jax.grad`.
         return lambda chm: lift(jax.grad(sow, has_aux=True), chm)
 
-    # Match the GFI interface return from Gen.
-    def __interface_return(self, gen_fn, jitted, chm):
-        choice_grads, choices = jitted(chm)
-        return choice_grads
+    def stage(self, f):
+        return lambda *args: self._stage(f, *args)
 
     def _jit(self, f, *args):
         def sow(chm):
@@ -305,10 +287,7 @@ class ChoiceGradients(Handler):
             return fn(*args)
 
         jitted = jax.jit(jax.grad(sow, has_aux=True))
-        return lambda chm: self.__interface_return(f, jitted, chm)
+        return jitted
 
     def jit(self, f):
         return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)

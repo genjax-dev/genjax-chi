@@ -17,4 +17,5 @@ __version__ = "0.0.1"
 from .core import *
 from .intrinsics import *
 from .handlers import *
+from .generative_function import *
 from .distributions import *
