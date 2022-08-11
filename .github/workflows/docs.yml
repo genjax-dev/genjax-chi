@@ -17,7 +17,7 @@ jobs:
         uses: daisylb/setup-nox@v2.1.0
 
       - name: Run Nox
-        run: nox -s tests lint build
+        run: nox -s docs
 
       - name: Deploy docs
         uses: actions/upload-pages-artifact@v1
