@@ -25,9 +25,18 @@ A concise encoding of Gen using zero-cost effect handling/tracing built on top o
 <b>(Early stage)</b> expect 🔪 sharp 🔪 edges 🔪
 </div>
 
-## Tour
+## Building + tour
 
-[Jump into the tour!](/tour.py)
+This project uses [poetry](https://python-poetry.org/) for dependency management, and [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
+
+Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build suite -- running:
+
+```
+poetry install
+poetry run python examples/tour.py
+```
+
+[Jump into the tour!](/examples/tour.py)
 
 ## Implementation strategy
 
