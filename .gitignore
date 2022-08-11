@@ -11,6 +11,7 @@ dist/
 .DS_Store
 .mypy_cache/
 .pytype/
+.coverage
 docs/build
 *_pb2.py
 docs/notebooks/.ipynb_checkpoints/
@@ -18,8 +19,6 @@ docs/_autosummary
 .idea
 .vscode
 jax.iml
-
-# virtualenv/venv directories
 venv/
 bin/
 include/
