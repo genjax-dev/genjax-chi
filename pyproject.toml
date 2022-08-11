@@ -26,9 +26,6 @@ line-length = 80
 [tool.coverage.run]
 omit = [".*", "*/site-packages/*"]
 
-[tool.coverage.report]
-fail_under = 100
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

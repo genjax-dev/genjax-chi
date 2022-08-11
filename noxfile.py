@@ -18,7 +18,7 @@ def lint(session):
 
 
 @nox.session
-def typing(session):
+def building(session):
     session.install("poetry")
     session.run("poetry", "install")
-    session.run("mypy", ".")
+    session.run("poetry", "build")

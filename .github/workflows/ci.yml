@@ -16,4 +16,5 @@ jobs:
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
-      - run: nox
+      - name: Run Nox
+        run: nox
