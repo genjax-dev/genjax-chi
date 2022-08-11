@@ -15,7 +15,7 @@ A concise encoding of Gen using zero-cost effect handling/tracing built on top o
 - Should support usage of any computations acceptable by JAX (tbd) within generative function programs.
 
 <div align="center">
-**(Early stage)** expect 🔪 sharp 🔪 edges 🔪
+<b>(Early stage)</b> expect 🔪 sharp 🔪 edges 🔪
 </div>
 
 ## Tour
