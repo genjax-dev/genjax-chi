@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Public exports.
-from .core import *
-from .intrinsics import *
-from .handlers import *
-from .generative_function import *
-from .distributions import *
+from .beta import *
+from .bernoulli import *
+from .normal import *
+from .laplace import *
+from .multivariate_normal import *
+from .uniform import *

@@ -12,9 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Public exports.
-from .core import *
-from .intrinsics import *
-from .handlers import *
-from .generative_function import *
-from .distributions import *
+import jax
+import jax.numpy as jnp
+from jax._src import abstract_arrays
+
+
+class Beta:
+    def abstract_eval(self, key, a, b, shape=None):
+        return (key, abstract_arrays.ShapedArray(shape=shape, dtype=float))
+
+    def sample(self, key, a, b, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.beta(key, a, b, **kwargs)
+        return (key, v)
+
+    def score(self, v, a, b):
+        return jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))

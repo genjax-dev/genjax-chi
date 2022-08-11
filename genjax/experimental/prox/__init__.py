@@ -12,9 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Public exports.
-from .core import *
-from .intrinsics import *
-from .handlers import *
-from .generative_function import *
-from .distributions import *
+from .prox import *

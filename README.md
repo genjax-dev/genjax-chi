@@ -1,5 +1,7 @@
 # genjax
 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 > [**Gen**](https://www.mct.dev/assets/mct-thesis.pdf) ⊗ [**JAX**](https://github.com/google/jax)
 
 A concise encoding of Gen using zero-cost effect handling/tracing built on top of `jax`.

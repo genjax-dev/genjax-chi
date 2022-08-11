@@ -1,3 +1,17 @@
+# Copyright 2022 MIT ProbComp
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import jax
 from .core import handle, lift, Handler, I
 from .intrinsics import trace_p, splice_p, unsplice_p
@@ -15,6 +29,46 @@ from .intrinsics import trace_p, splice_p, unsplice_p
 # to send out the accumulated state we want.
 
 
+class Sample(Handler):
+    def __init__(self):
+        self.handles = [trace_p, splice_p, unsplice_p]
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, *args, addr, prim, **kwargs):
+        prim = prim()
+        key, v = prim.sample(*args, **kwargs)
+        return f(key, v)
+
+    # Handle hierarchical addressing primitives (push onto level stack).
+    def splice(self, f, addr):
+        return f(())
+
+    # Handle hierarchical addressing primitives (pop off the level stack).
+    def unsplice(self, f, addr):
+        return f(())
+
+    # Return a `Jaxpr` with trace and addressing primitives staged out.
+    def _stage(self, f, *args):
+        expr = lift(f, *args)
+        expr = handle([self], expr)
+        expr = lift(expr, *args)
+        return expr
+
+    # JIT compile a function and return a function which implements
+    # the semantics of `simulate` from Gen.
+    def _jit(self, f, *args):
+        expr = lift(f, *args)
+        expr = handle([self], expr)
+        jitted = jax.jit(expr)
+        return jitted
+
+    def jit(self, f):
+        return lambda *args: self._jit(f, *args)
+
+    def stage(self, f):
+        return lambda *args: self._stage(f, *args)
+
+
 class Simulate(Handler):
     def __init__(self):
         self.handles = [trace_p, splice_p, unsplice_p]
@@ -24,11 +78,9 @@ class Simulate(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, **kwargs):
-        prim = kwargs["prim"]
-        addr = kwargs["addr"]
+    def trace(self, f, *args, addr, prim, **kwargs):
         prim = prim()
-        key, v = prim.sample(*args)
+        key, v = prim.sample(*args, **kwargs)
         self.state[(*self.level, addr)] = v
         score = prim.score(v, *args[1:])
         self.score += score
@@ -42,15 +94,15 @@ class Simulate(Handler):
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
         self.level.append(addr)
-        return f([])
+        return f(())
 
     # Handle hierarchical addressing primitives (pop off the level stack).
     def unsplice(self, f, addr):
         try:
             self.level.pop()
-            return f([])
+            return f(())
         except:
-            return f([])
+            return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
     def _stage(self, f, *args):
@@ -85,9 +137,7 @@ class Generate(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, **kwargs):
-        prim = kwargs["prim"]
-        addr = kwargs["addr"]
+    def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
         if (*self.level, addr) in self.obs:
@@ -96,7 +146,7 @@ class Generate(Handler):
             self.state[(*self.level, addr)] = v
             self.weight += score
         else:
-            key, v = prim.sample(*args)
+            key, v = prim.sample(*args, **kwargs)
             self.state[(*self.level, addr)] = v
             score = prim.score(v, *args[1:])
         self.score += score
@@ -110,15 +160,15 @@ class Generate(Handler):
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
         self.level.append(addr)
-        return f([])
+        return f(())
 
     # Handle hierarchical addressing primitives (pop off the level stack).
     def unsplice(self, f, addr):
         try:
             self.level.pop()
-            return f([])
+            return f(())
         except:
-            return f([])
+            return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
     def _stage(self, f, *args):
@@ -154,9 +204,7 @@ class ArgumentGradients(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, **kwargs):
-        prim = kwargs["prim"]
-        addr = kwargs["addr"]
+    def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
         v = self.sources.get((*self.level, addr))
@@ -172,15 +220,15 @@ class ArgumentGradients(Handler):
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
         self.level.append(addr)
-        return f([])
+        return f(())
 
     # Handle hierarchical addressing primitives (pop off the level stack).
     def unsplice(self, f, addr):
         try:
             self.level.pop()
-            return f([])
+            return f(())
         except:
-            return f([])
+            return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
     def _stage(self, f, *args):
@@ -223,9 +271,7 @@ class Sow(Handler):
         self.stored = {}
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, **kwargs):
-        prim = kwargs["prim"]
-        addr = kwargs["addr"]
+    def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
         if (*self.level, addr) in self.chm:
@@ -241,15 +287,15 @@ class Sow(Handler):
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
         self.level.append(addr)
-        return f([])
+        return f(())
 
     # Handle hierarchical addressing primitives (pop off the level stack).
     def unsplice(self, f, addr):
         try:
             self.level.pop()
-            return f([])
+            return f(())
         except:
-            return f([])
+            return f(())
 
 
 class ChoiceGradients(Handler):
