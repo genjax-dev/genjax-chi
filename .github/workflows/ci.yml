@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [master, main]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -18,3 +18,11 @@ jobs:
 
       - name: Run Nox
         run: nox
+
+      - name: Build docs
+        run: poetry run pydoc -o docs/ genjax
+
+      - name: Deploy docs
+      - uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs/
