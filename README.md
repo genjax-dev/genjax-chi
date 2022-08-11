@@ -4,6 +4,7 @@
 </p>
 <br>
 
+![CI](https://github.com/github/docs/actions/workflows/ci.yml/badge.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 A concise encoding of Gen using zero-cost effect handling/tracing built on top of `jax`.
