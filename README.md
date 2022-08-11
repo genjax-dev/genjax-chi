@@ -13,8 +13,8 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-- Presents a modeling language based on the space of pure Python functions acceptable by `jax`: models are pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
-- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`. (Roughly -- see documentation for exact signatures/return types):
+- A modeling language based on the space of pure Python functions acceptable by `jax`: models (generative functions) are represented as pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
+- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.
 
   | Interface     | Semantics (informal)                                                                |
   | ------------- | ----------------------------------------------------------------------------------- |
@@ -23,7 +23,7 @@
   | `arg_grad`    | Compute gradient of `logpdf` of choice map with respect to arguments                |
   | `choice_grad` | Compute gradient of `logpdf` of choice map with respect to values of random choices |
 
-- Should support usage of any computations acceptable by JAX (tbd) within generative function programs.
+- Supports usage of any computations acceptable by JAX (tbd) within generative function programs.
 
 <div align="center">
 <b>(Early stage)</b> expect 🔪 sharp 🔪 edges 🔪
