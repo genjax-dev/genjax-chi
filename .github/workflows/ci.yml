@@ -23,6 +23,6 @@ jobs:
         run: poetry run pydoc -o docs/ genjax
 
       - name: Deploy docs
-      - uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v1
         with:
           path: docs/
