@@ -22,3 +22,10 @@ def building(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run("poetry", "build")
+
+
+@nox.session
+def docs(session):
+    session.install("poetry")
+    session.run("poetry", "install")
+    session.run("poetry", "run", "pdoc", "-o", "docs/", "genjax")
