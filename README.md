@@ -14,7 +14,9 @@ A concise encoding of Gen using zero-cost effect handling/tracing built on top o
   - `ChoiceGradients` (compute gradient of `logpdf` with respect to values of random choices)
 - Should support usage of any computations acceptable by JAX (tbd) within generative function programs.
 
-> **Early stage** expect 🔪 sharp edges 🔪
+<div align="center">
+**(Early stage)** expect 🔪 sharp 🔪 edges 🔪
+</div>
 
 ## Tour
 
