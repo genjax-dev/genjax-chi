@@ -1,17 +1,18 @@
-# genjax
+<p align="center">
+<img width="400px" src="./assets/logo.png"/>
+</p>
+<br>
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
-> [**Gen**](https://www.mct.dev/assets/mct-thesis.pdf) ⊗ [**JAX**](https://github.com/google/jax)
 
 A concise encoding of Gen using zero-cost effect handling/tracing built on top of `jax`.
 
 - Presents a modeling language based on the space of pure Python functions acceptable by `jax`: models are pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
 - Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`. (Roughly -- see documentation for exact signatures/return types):
-  - `Simulate` (sample from normalized measure)
-  - `Generate` (condition the generative function, and importance sample with model as prior)
-  - `ArgumentGradients` (compute gradient of `logpdf` with respect to arguments)
-  - `ChoiceGradients` (compute gradient of `logpdf` with respect to values of random choices)
+  - `simulate` (sample from normalized measure)
+  - `generate` (condition the generative function, and importance sample with model as prior)
+  - `arg_grad` (compute gradient of `logpdf` with respect to arguments)
+  - `choice_grad` (compute gradient of `logpdf` with respect to values of random choices)
 - Should support usage of any computations acceptable by JAX (tbd) within generative function programs.
 
 <div align="center">
