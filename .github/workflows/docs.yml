@@ -19,7 +19,11 @@ jobs:
       - name: Run Nox
         run: nox -s docs
 
-      - name: Deploy docs
+      - name: Upload docs
         uses: actions/upload-pages-artifact@v1
         with:
           path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@main
