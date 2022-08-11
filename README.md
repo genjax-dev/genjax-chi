@@ -48,7 +48,7 @@ poetry run python examples/tour.py
 ---
 
 <div align="center">
-<small>
+<sub>
 Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a>. All code is licensed under the <a href="LICENSE">Apache 2.0 License</a>.
-</small>
+</sub>
 </div>
