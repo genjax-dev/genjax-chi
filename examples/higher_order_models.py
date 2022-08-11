@@ -27,5 +27,5 @@ def toplevel(key):
 # Initialize a PRNG.
 key = jax.random.PRNGKey(314159)
 
-tr = gex.simulate(toplevel)(key)
-print(tr.get_choices())
+expr = gex.lift(gex.simulate(toplevel), key)
+print(expr)

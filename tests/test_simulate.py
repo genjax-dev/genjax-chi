@@ -4,13 +4,17 @@ import genjax as gex
 import pytest
 
 
-def f(key):
-    key, y = gex.trace("y", gex.Normal)(key)
-    return key, y
+def simple_normal(key):
+    key, y1 = gex.trace("y1", gex.Normal)(key)
+    key, y2 = gex.trace("y2", gex.Normal)(key)
+    return key, y1 + y2
 
 
-def test_f():
+def test_simple_normal():
     key = jax.random.PRNGKey(314159)
-    tr = jax.jit(gex.simulate(f))(key)
-    _, v = tr.get_retval()
-    assert tr.get_score() == pytest.approx(gex.Normal().score(v), 0.01)
+    tr = jax.jit(gex.simulate(simple_normal))(key)
+    chm = tr.get_choices()
+    y1 = chm[("y1",)]
+    y2 = chm[("y2",)]
+    test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
+    assert tr.get_score() == pytest.approx(test_score, 0.01)

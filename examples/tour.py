@@ -55,4 +55,4 @@ print(arg_grad)
 # Here's how you access the `choice_grad` interface.
 chm = {("m1",): 0.3, ("m2",): 0.5}
 choice_grad, choices = jax.jit(gex.choice_grad(f))(tr, chm, key, 0.3)
-print(choice_grad)
+print(choice_grad[("m1",)])
