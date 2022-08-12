@@ -9,7 +9,6 @@ div.attr {
 
 body {
   font-family: pt-sans-pro, sans-serif;
-  font-size: 13pt;
   font-weight: 300;
   line-height: 19pt;
   margin: 0 auto;
@@ -32,4 +31,10 @@ blockquote {
   border: 0.5px solid #555599;
   padding-bottom: 0.25rem;
   margin-top: 10px;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
 }
