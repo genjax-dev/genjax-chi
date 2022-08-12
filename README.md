@@ -26,7 +26,7 @@
 - Supports usage of any computations acceptable by JAX (tbd) within generative function programs.
 
 <div align="center">
-<b>(Early stage)</b> expect 🔪 sharp 🔪 edges 🔪
+<b>(Early stage)</b> 🔪 expect sharp edges 🔪
 </div>
 
 ## Building + tour
