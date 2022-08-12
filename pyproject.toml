@@ -2,7 +2,7 @@
 name = "genjax"
 version = "0.0.1"
 description="Gen ⊗ JAX"
-authors = ["McCoy R. Becker <mccoyb@mit.edu>"]
+authors = ["McCoy R. Becker <mccoyb@mit.edu>, MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>"]
 license = "Apache 2.0"
 
 [tool.poetry.dependencies]
