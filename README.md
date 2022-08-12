@@ -19,7 +19,7 @@
   | Interface     | Semantics (informal)                                                                |
   | ------------- | ----------------------------------------------------------------------------------- |
   | `simulate`    | Sample from normalized measure over choice maps                                     |
-  | `importance`  | Sample from conditioned measure, and compute an importance weight                   |
+  | `importance`  | Importance sample from conditioned measure, and compute an importance weight        |
   | `arg_grad`    | Compute gradient of `logpdf` of choice map with respect to arguments                |
   | `choice_grad` | Compute gradient of `logpdf` of choice map with respect to values of random choices |
 
