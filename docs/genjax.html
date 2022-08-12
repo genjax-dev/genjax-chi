@@ -21,6 +21,11 @@
             <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
                    pattern=".+" required>
 
+        <h2>Contents</h2>
+        <ul>
+  <li><a href="#high-level">High-level</a></li>
+</ul>
+
 
         <h2>Submodules</h2>
         <ul>
@@ -45,7 +50,55 @@
                     <h1 class="modulename">
 genjax    </h1>
 
-                
+                        <div class="docstring"><p><br></p>
+
+<p align="center">
+<img width="400px" src="./assets/logo.png"/>
+</p>
+
+<p><br>
+<code><a href="">genjax</a></code> is a probabilistic programming library built by combining the conceptual framework of <a href="https://www.mct.dev/assets/mct-thesis.pdf">Gen</a> with the high-performance numerical compilation of <a href="https://github.com/google/jax">JAX</a>. In several ways, these two systems are a natural pair - JAX provides flexibility to construct composable function transformations as interpreters, and Gen provides a rich set of modelling and inference ideas grounded in a functional representations of generative processes.</p>
+
+<h2 id="high-level">High-level</h2>
+
+<ul>
+<li>Generative functions (models) are represented as pure functions from <code>(PRNGKey, *args)</code> to <code>(PRNGKey, retval)</code>.</li>
+<li><p>Exposes <a href="https://www.gen.dev/stable/ref/gfi/">the generative function interface</a> as staged effect handlers built on top of <code>jax</code>.</p>
+
+<table>
+<thead>
+<tr>
+  <th>Interface</th>
+  <th>Semantics (informal)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>simulate</code></td>
+  <td>Sample from normalized measure over choice maps</td>
+</tr>
+<tr>
+  <td><code>importance</code></td>
+  <td>Importance sample from conditioned measure, and compute an importance weight</td>
+</tr>
+<tr>
+  <td><code>arg_grad</code></td>
+  <td>Compute gradient of <code>logpdf</code> of choice map with respect to arguments</td>
+</tr>
+<tr>
+  <td><code>choice_grad</code></td>
+  <td>Compute gradient of <code>logpdf</code> of choice map with respect to values of random choices</td>
+</tr>
+</tbody>
+</table></li>
+<li><p>Supports usage of any computations acceptable by JAX (tbd) within generative function programs.</p></li>
+</ul>
+
+<div align="center">
+<b>(Early stage)</b> 🔪 expect sharp edges 🔪
+</div>
+</div>
+
                         <input id="genjax-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 
                         <label class="view-source-button" for="genjax-view-source"><span>View Source</span></label>
@@ -64,12 +117,39 @@ genjax    </h1>
 </span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="c1"># See the License for the specific language governing permissions and</span>
 </span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="c1"># limitations under the License.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="c1"># Public exports.</span>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="kn">from</span> <span class="nn">.distributions</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span> <span class="nn">.intrinsics</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="kn">from</span> <span class="nn">.handlers</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="kn">from</span> <span class="nn">.generative_function</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="sd">&lt;br&gt;</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="sd">&lt;p align=&quot;center&quot;&gt;</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="sd">&lt;img width=&quot;400px&quot; src=&quot;./assets/logo.png&quot;/&gt;</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="sd">&lt;/p&gt;</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="sd">&lt;br&gt;</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="sd">`genjax` is a probabilistic programming library built by combining the conceptual framework of [Gen](https://www.mct.dev/assets/mct-thesis.pdf) with the high-performance numerical compilation of [JAX](https://github.com/google/jax). In several ways, these two systems are a natural pair - JAX provides flexibility to construct composable function transformations as interpreters, and Gen provides a rich set of modelling and inference ideas grounded in a functional representations of generative processes.</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="sd">## High-level</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="sd">- Generative functions (models) are represented as pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="sd">- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="sd">  | Interface     | Semantics (informal)                                                                |</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="sd">  | ------------- | ----------------------------------------------------------------------------------- |</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="sd">  | `simulate`    | Sample from normalized measure over choice maps                                     |</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="sd">  | `importance`  | Importance sample from conditioned measure, and compute an importance weight        |</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="sd">  | `arg_grad`    | Compute gradient of `logpdf` of choice map with respect to arguments                |</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a><span class="sd">  | `choice_grad` | Compute gradient of `logpdf` of choice map with respect to values of random choices |</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>
+</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a><span class="sd">- Supports usage of any computations acceptable by JAX (tbd) within generative function programs.</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a><span class="sd">&lt;div align=&quot;center&quot;&gt;</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a><span class="sd">&lt;b&gt;(Early stage)&lt;/b&gt; 🔪 expect sharp edges 🔪</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a><span class="sd">&lt;/div&gt;</span>
+</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>
+</span><span id="L-42"><a href="#L-42"><span class="linenos">42</span></a><span class="c1"># Public exports.</span>
+</span><span id="L-43"><a href="#L-43"><span class="linenos">43</span></a><span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-44"><a href="#L-44"><span class="linenos">44</span></a><span class="kn">from</span> <span class="nn">.distributions</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-45"><a href="#L-45"><span class="linenos">45</span></a><span class="kn">from</span> <span class="nn">.intrinsics</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-46"><a href="#L-46"><span class="linenos">46</span></a><span class="kn">from</span> <span class="nn">.handlers</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-47"><a href="#L-47"><span class="linenos">47</span></a><span class="kn">from</span> <span class="nn">.generative_function</span> <span class="kn">import</span> <span class="o">*</span>
 </span></pre></div>
 
 
