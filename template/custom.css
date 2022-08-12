@@ -38,3 +38,13 @@ h2,
 h3 {
   font-weight: 600;
 }
+
+.pdoc h1,
+.pdoc h2,
+.pdoc h3 {
+  font-weight: 600;
+}
+
+nav.pdoc {
+  margin-bottom: 1rem;
+}
