@@ -21,3 +21,15 @@ pre {
   padding: 1rem;
   margin: 1rem auto;
 }
+
+blockquote {
+  position: relative;
+  padding-left: 1rem;
+  width: 90%;
+  background: #f9f9ff;
+  padding: 0.75rem 1rem 0.75rem 1rem;
+  font-family: pt-sans-pro-narrow, sans-serif;
+  border: 0.5px solid #555599;
+  padding-bottom: 0.25rem;
+  margin-top: 10px;
+}
