@@ -16,16 +16,22 @@
 Module for the propagate custom Jaxpr interpreter.
 
 The propagate Jaxpr interpreter converts a Jaxpr to a directed graph where
-vars are nodes and primitives are edges. It initializes invars and outvars with
-Cells (an interface defined below), where a Cell encapsulates a value (or a set
-of values) that a node in the graph can take on, and the Cell is computed from
-neighboring Cells, using a set of propagation rules for each primitive.Each rule
-indicates whether the propagation has been completed for the given edge.
-If so, the propagate interpreter continues on to that primitive's neighbors
-in the graph. Propagation continues until there are Cells for every node, or
-when no further progress can be made. Finally, Cell values for all nodes in the
-graph are returned.
+vars are nodes and primitives are edges. 
+
+It initializes invars and outvars with Cells (an interface defined below), 
+where a Cell encapsulates a value (or a set of values) that a node 
+in the graph can take on, and the Cell is computed from neighboring Cells, 
+using a set of propagation rules for each primitive.
+
+Each rule indicates whether the propagation has been completed for 
+the given edge. If so, the propagate interpreter continues on to that 
+primitive's neighbors in the graph. Propagation continues until there 
+are Cells for every node, or when no further progress can be made. 
+
+Finally, Cell values for all nodes in the graph are returned.
 """
+
+
 import collections
 import dataclasses
 import functools
@@ -105,7 +111,7 @@ class Cell(pytree.Pytree):
 
 @dataclasses.dataclass(frozen=True)
 class Equation:
-    """Hashable wrapper for jax_core.Jaxprs."""
+    """Hashable wrapper for `jax.core.Jaxpr`."""
 
     invars: Tuple[jax_core.Var]
     outvars: Tuple[jax_core.Var]
@@ -256,23 +262,26 @@ def propagate(
     ] = identity_reducer,
     initial_state: State = None,
 ) -> Tuple[Environment, State]:
-    """Propagates cells in a Jaxpr using a set of rules.
+    """
+    Propagates cells in a Jaxpr using a set of rules.
 
     Args:
-      cell_type: used to instantiate literals into cells
-      rules: maps JAX primitives to propagation rule functions
-      jaxpr: used to construct the propagation graph
-      constcells: used to populate the Jaxpr's constvars
-      incells: used to populate the Jaxpr's invars
-      outcells: used to populate the Jaxpr's outcells
-      reducer: An optional callable used to reduce over the state at each
-        equation in the Jaxpr. `reducer` takes in `(env, eqn, state, new_state)`
-        as arguments and should return an updated state. The `new_state` value
-        is provided by each equation.
-      initial_state: The initial `state` value used in the reducer
+        cell_type: used to instantiate literals into cells
+        rules: maps JAX primitives to propagation rule functions
+        jaxpr: used to construct the propagation graph
+        constcells: used to populate the Jaxpr's constvars
+        incells: used to populate the Jaxpr's invars
+        outcells: used to populate the Jaxpr's outcells
+        reducer: An optional callable used to reduce over the state at each
+            equation in the Jaxpr. `reducer` takes in `(env, eqn, state, new_state)`
+            as arguments and should return an updated state. The `new_state` value
+            is provided by each equation.
+        initial_state: The initial `state` value used in the reducer
+
     Returns:
-      The Jaxpr environment after propagation has terminated
+        The Jaxpr environment after propagation has terminated
     """
+
     env = Environment(cell_type, jaxpr)
     safe_map(env.write, jaxpr.constvars, constcells)
     safe_map(env.write, jaxpr.invars, incells)

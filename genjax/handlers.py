@@ -126,7 +126,7 @@ class Simulate(Handler):
         return lambda *args: self._stage(f, *args)
 
 
-class Generate(Handler):
+class Importance(Handler):
     def __init__(self, choice_map):
         self.handles = [trace_p, splice_p, unsplice_p]
         self.state = {}

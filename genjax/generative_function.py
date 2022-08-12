@@ -16,7 +16,7 @@ from genjax.core.transforms import I
 from genjax.handlers import (
     Sample,
     Simulate,
-    Generate,
+    Importance,
     ArgumentGradients,
     ChoiceGradients,
 )
@@ -69,9 +69,9 @@ def simulate(f):
     return lambda *args: _inner(*args)
 
 
-def generate(f):
+def importance(f):
     def _inner(chm, *args):
-        jitted = Generate(chm).jit(f)(*args)
+        jitted = Importance(chm).jit(f)(*args)
         (w, r, chm, score) = jitted(*args)
         return w, Trace(args, r, chm, score)
 

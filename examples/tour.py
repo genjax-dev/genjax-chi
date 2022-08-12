@@ -43,9 +43,9 @@ print((key, v))
 tr = jax.jit(gex.simulate(f))(key, 0.3)
 print(tr)
 
-# Here's how you access the `generate` GFI.
+# Here's how you access the `importance` GFI.
 chm = {("m1",): 0.3, ("m2",): 0.5}
-w, tr = jax.jit(gex.generate(f))(chm, key, 0.3)
+w, tr = jax.jit(gex.importance(f))(chm, key, 0.3)
 print((w, tr))
 
 # Here's how you access the `arg_grad` interface.
