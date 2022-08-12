@@ -28,4 +28,6 @@ def build(session):
 def docs(session):
     session.install("poetry")
     session.run("poetry", "install")
-    session.run("poetry", "run", "pdoc", "-o", "docs/", "genjax")
+    session.run(
+        "poetry", "run", "pdoc", "-t", "template", "-o", "docs/", "genjax"
+    )
