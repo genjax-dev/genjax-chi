@@ -14,7 +14,14 @@
 
 from .beta import *
 from .bernoulli import *
+from .cauchy import *
+from .dirichlet import *
+from .exponential import *
+from .gamma import *
 from .normal import *
 from .laplace import *
+from .logistic import *
 from .multivariate_normal import *
+from .pareto import *
+from .poisson import *
 from .uniform import *

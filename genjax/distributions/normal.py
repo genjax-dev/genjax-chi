@@ -15,15 +15,19 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from jax._src import dtypes
 
 
 class Normal:
     def abstract_eval(self, key, shape=()):
-        return (key, abstract_arrays.ShapedArray(shape=shape, dtype=float))
+        return (
+            key,
+            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.float_),
+        )
 
     def sample(self, key, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.normal(key, **kwargs)
+        v = jax.random.normal(sub_key, **kwargs)
         return (key, v)
 
     def score(self, v):

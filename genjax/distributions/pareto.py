@@ -18,17 +18,17 @@ from jax._src import abstract_arrays
 from jax._src import dtypes
 
 
-class MultivariateNormal:
-    def abstract_eval(self, key, mean, cov, shape=None):
+class Pareto:
+    def abstract_eval(self, key, b, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.float_),
         )
 
-    def sample(self, key, mean, cov, **kwargs):
+    def sample(self, key, b, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.multivariate_normal(sub_key, mean, cov, **kwargs)
+        v = jax.random.pareto(sub_key, b, **kwargs)
         return (key, v)
 
-    def score(self, v):
-        return jnp.sum(jax.scipy.stats.norm.logpdf(v))
+    def score(self, v, b):
+        return jnp.sum(jax.scipy.stats.pareto.logpdf(v, b))

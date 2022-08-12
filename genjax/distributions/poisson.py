@@ -18,17 +18,17 @@ from jax._src import abstract_arrays
 from jax._src import dtypes
 
 
-class MultivariateNormal:
-    def abstract_eval(self, key, mean, cov, shape=None):
+class Poisson:
+    def abstract_eval(self, key, lam, shape=None):
         return (
             key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.float_),
+            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.int_),
         )
 
-    def sample(self, key, mean, cov, **kwargs):
+    def sample(self, key, lam, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.multivariate_normal(sub_key, mean, cov, **kwargs)
+        v = jax.random.poisson(sub_key, lam, **kwargs)
         return (key, v)
 
-    def score(self, v):
-        return jnp.sum(jax.scipy.stats.norm.logpdf(v))
+    def score(self, v, lam):
+        return jnp.sum(jax.scipy.stats.poisson.logpmf(v, lam))

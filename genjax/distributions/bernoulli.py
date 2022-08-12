@@ -15,15 +15,19 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from jax._src import dtypes
 
 
 class Bernoulli:
     def abstract_eval(self, key, p, shape=()):
-        return (key, abstract_arrays.ShapedArray(shape=shape, dtype=bool))
+        return (
+            key,
+            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.bool),
+        )
 
     def sample(self, key, p, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.bernoulli(key, p, **kwargs)
+        v = jax.random.bernoulli(sub_key, p, **kwargs)
         return (key, v)
 
     def score(self, v, p):

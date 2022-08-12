@@ -53,14 +53,17 @@ class Handler:
 #####
 
 
-# This is an interpreter which is parametrized by a handler stack.
-# The handler stack is consulted when a `core.Primitive` with a `must_handle`
-# attribute is encountered.
-#
-# This interpreter should always be staged out -- so it should be handling primitives is a zero runtime cost process.
 def eval_jaxpr_handler(
     handler_stack: Sequence[Handler], jaxpr: core.Jaxpr, consts, *args
 ):
+    """
+    This is an interpreter which is parametrized by a handler stack.
+    The handler stack is consulted when a `core.Primitive` with a `must_handle`
+    attribute is encountered.
+
+    This interpreter should always be staged out - it should be handling primitives is a zero runtime cost process.
+    """
+
     env: Dict[Var, Any] = {}
 
     def write(v, val):

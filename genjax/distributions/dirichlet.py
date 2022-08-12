@@ -18,17 +18,17 @@ from jax._src import abstract_arrays
 from jax._src import dtypes
 
 
-class MultivariateNormal:
-    def abstract_eval(self, key, mean, cov, shape=None):
+class Dirichlet:
+    def abstract_eval(self, key, alpha, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.float_),
         )
 
-    def sample(self, key, mean, cov, **kwargs):
+    def sample(self, key, alpha, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.multivariate_normal(sub_key, mean, cov, **kwargs)
+        v = jax.random.dirichlet(sub_key, alpha, **kwargs)
         return (key, v)
 
-    def score(self, v):
-        return jnp.sum(jax.scipy.stats.norm.logpdf(v))
+    def score(self, v, alpha):
+        return jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))

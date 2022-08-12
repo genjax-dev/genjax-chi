@@ -15,15 +15,19 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from jax._src import dtypes
 
 
 class Beta:
     def abstract_eval(self, key, a, b, shape=None):
-        return (key, abstract_arrays.ShapedArray(shape=shape, dtype=float))
+        return (
+            key,
+            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.float_),
+        )
 
     def sample(self, key, a, b, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.beta(key, a, b, **kwargs)
+        v = jax.random.beta(sub_key, a, b, **kwargs)
         return (key, v)
 
     def score(self, v, a, b):
