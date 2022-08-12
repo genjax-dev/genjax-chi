@@ -18,7 +18,7 @@
 <img width="400px" src="./assets/logo.png"/>
 </p>
 <br>
-`genjax` is a probabilistic programming library built by combining the conceptual framework of [Gen](https://www.mct.dev/assets/mct-thesis.pdf) with the high-performance numerical compilation of [JAX](https://github.com/google/jax). In several ways, these two systems are a natural pair - JAX provides flexibility to construct composable function transformations as interpreters, and Gen provides a rich set of modelling and inference ideas grounded in a functional representations of generative processes.
+[`genjax`](https://github.com/probcomp/genjax) is a probabilistic programming library built by combining the conceptual framework of [Gen](https://www.mct.dev/assets/mct-thesis.pdf) with the high-performance numerical compilation of [JAX](https://github.com/google/jax). In several ways, these two systems are a natural pair - JAX provides flexibility to construct composable function transformations as interpreters, and Gen provides a rich set of modelling and inference ideas grounded in a functional representations of generative processes.
 
 ## High-level
 
