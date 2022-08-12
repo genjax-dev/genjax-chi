@@ -12,23 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import jax.numpy as jnp
-from jax._src import abstract_arrays
-from jax._src import dtypes
+from jax import core
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Sequence,
+)
 
 
-class Bernoulli:
-    def abstract_eval(self, key, p, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.bool_),
-        )
+class Handler:
+    """
+    A handler dispatchs a `jax.core.Primitive` - and must provide
+    a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
+    where `*args` must match the `core.Primitive` declaration signature.
+    """
 
-    def sample(self, key, p, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.bernoulli(sub_key, p, **kwargs)
-        return (key, v)
+    handles: Sequence[core.Primitive]
+    callable: Callable
 
-    def score(self, v, p):
-        return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, p))
+    def __init__(self, handles: Sequence[core.Primitive], callable: Callable):
+        self.handles = handles
+        self.callable = callable

@@ -12,13 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import I, Trace
-from .handlers import (
+from genjax.core.transforms import I
+from genjax.handlers import (
     Sample,
     Simulate,
     Generate,
     ArgumentGradients,
     ChoiceGradients,
+)
+
+from jax.tree_util import register_pytree_node
+
+
+class Trace:
+    def __init__(self, args, retval, choices, score):
+        self.args = args
+        self.retval = retval
+        self.choices = choices
+        self.score = score
+
+    def get_choices(self):
+        return self.choices
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+
+register_pytree_node(
+    Trace,
+    lambda trace: (
+        (trace.args, trace.retval, trace.choices, trace.score),
+        None,
+    ),
+    lambda _, args: Trace(*args),
 )
 
 

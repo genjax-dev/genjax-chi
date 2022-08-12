@@ -12,23 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import jax.numpy as jnp
-from jax._src import abstract_arrays
-from jax._src import dtypes
-
-
-class Bernoulli:
-    def abstract_eval(self, key, p, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.bool_),
-        )
-
-    def sample(self, key, p, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.bernoulli(sub_key, p, **kwargs)
-        return (key, v)
-
-    def score(self, v, p):
-        return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, p))
+from .handler import *
+from .handling import *
+from .propagating import *
+from .transforms import *

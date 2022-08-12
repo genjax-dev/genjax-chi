@@ -14,7 +14,7 @@
 
 # Public exports.
 from .core import *
+from .distributions import *
 from .intrinsics import *
 from .handlers import *
 from .generative_function import *
-from .distributions import *
