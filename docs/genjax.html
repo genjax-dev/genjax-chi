@@ -21,18 +21,11 @@
             <input type="search" placeholder="Search..." role="searchbox" aria-label="search"
                    pattern=".+" required>
 
-        <h2>Contents</h2>
-        <ul>
-  <li><a href="#building-tour">Building + tour</a></li>
-  <li><a href="#implementation-strategy">Implementation strategy</a></li>
-</ul>
-
 
         <h2>Submodules</h2>
         <ul>
                 <li><a href="genjax/core.html">core</a></li>
                 <li><a href="genjax/distributions.html">distributions</a></li>
-                <li><a href="genjax/experimental.html">experimental</a></li>
                 <li><a href="genjax/generative_function.html">generative_function</a></li>
                 <li><a href="genjax/handlers.html">handlers</a></li>
                 <li><a href="genjax/intrinsics.html">intrinsics</a></li>
@@ -52,81 +45,12 @@
                     <h1 class="modulename">
 genjax    </h1>
 
-                        <div class="docstring"><p><br></p>
-
-<p align="center">
-<img width="400px" src="./assets/logo.png"/>
-</p>
-
-<p><br></p>
-
-<p><img src="https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg" alt="Build Status" />
-<a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black" /></a></p>
-
-<p>A concise encoding of Gen using zero-cost effect handling/tracing built on top of <code>jax</code>.</p>
-
-<ul>
-<li>Presents a modeling language based on the space of pure Python functions acceptable by <code>jax</code>: models are pure functions from <code>(PRNGKey, *args)</code> to <code>(PRNGKey, retval)</code>.</li>
-<li><p>Exposes <a href="https://www.gen.dev/stable/ref/gfi/">the generative function interface</a> as staged effect handlers built on top of <code>jax</code>. (Roughly -- see documentation for exact signatures/return types):</p>
-
-<table>
-<thead>
-<tr>
-  <th>Interface</th>
-  <th>Semantics (informal)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>simulate</code></td>
-  <td>Sample from normalized measure over choice maps</td>
-</tr>
-<tr>
-  <td><code>generate</code></td>
-  <td>Sample from conditioned measure, and compute an importance weight</td>
-</tr>
-<tr>
-  <td><code>arg_grad</code></td>
-  <td>Compute gradient of <code>logpdf</code> of choice map with respect to arguments</td>
-</tr>
-<tr>
-  <td><code>choice_grad</code></td>
-  <td>Compute gradient of <code>logpdf</code> of choice map with respect to values of random choices</td>
-</tr>
-</tbody>
-</table></li>
-<li><p>Should support usage of any computations acceptable by JAX (tbd) within generative function programs.</p></li>
-</ul>
-
-<div align="center">
-<b>(Early stage)</b> expect 🔪 sharp 🔪 edges 🔪
-</div>
-
-<h2 id="building-tour">Building + tour</h2>
-
-<p>This project uses <a href="https://python-poetry.org/">poetry</a> for dependency management, and <a href="https://nox.thea.codes/en/stable/">nox</a> to automate testing/linting/building.</p>
-
-<p>Make sure these are installed and on path with a Python environment <code>^3.10.0</code>. Running <code>nox</code> will evaluate the full test/linting/build suite.</p>
-
-<pre><code># Install dependencies, and run the tour example!
-poetry install
-poetry run python examples/tour.py
-</code></pre>
-
-<p><a href="/examples/tour.py">Jump into the tour!</a></p>
-
-<h2 id="implementation-strategy">Implementation strategy</h2>
-
-<p>The implementation strategy is based on: <a href="https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=OHUTBFIiHJu3">Handling effects with JAX</a> extended to support dynamically specified handlers. As in the original, handlers are staged out (zero-cost, not dynamically dispatched) by the compositional tracing provided by <code>jax</code>.</p>
-
-<p>This implementation also takes inspiration from <a href="http://ps.informatik.uni-tuebingen.de/publications/schuster19zero.pdf">Zero-cost Effect Handlers by Staging</a> - sans automatic insertion of staging annotations. The inference interfaces exposed handle lifting/splicing/jitting internally (manually).</p>
-</div>
-
+                
                         <input id="genjax-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 
                         <label class="view-source-button" for="genjax-view-source"><span>View Source</span></label>
 
-                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="c1"># Copyright 2022 MIT ProbComp</span>
+                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="c1"># Copyright 2022 MIT Probabilistic Computing Project</span>
 </span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="c1">#</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a><span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 </span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="c1"># you may not use this file except in compliance with the License.</span>
@@ -140,16 +64,12 @@ poetry run python examples/tour.py
 </span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="c1"># See the License for the specific language governing permissions and</span>
 </span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="c1"># limitations under the License.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="sd">.. include:: ../README.md</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>
-</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="c1"># Public exports.</span>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="kn">from</span> <span class="nn">.intrinsics</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="kn">from</span> <span class="nn">.handlers</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="kn">from</span> <span class="nn">.generative_function</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="kn">from</span> <span class="nn">.distributions</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="c1"># Public exports.</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="kn">from</span> <span class="nn">.intrinsics</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span> <span class="nn">.handlers</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="kn">from</span> <span class="nn">.generative_function</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="kn">from</span> <span class="nn">.distributions</span> <span class="kn">import</span> <span class="o">*</span>
 </span></pre></div>
 
 
