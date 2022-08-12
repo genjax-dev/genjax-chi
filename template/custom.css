@@ -10,6 +10,7 @@ div.attr {
 body {
   font-family: pt-sans-pro, sans-serif;
   font-weight: 300;
+  font-size: 13px;
   line-height: 19pt;
   margin: 0 auto;
 }
@@ -46,5 +47,5 @@ h3 {
 }
 
 nav.pdoc {
-  margin-bottom: 1rem;
+  margin-bottom: 1.3rem;
 }
