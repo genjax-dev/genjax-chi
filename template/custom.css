@@ -7,6 +7,12 @@ div.attr {
   font-size: 0.95rem;
 }
 
+code {
+  font-family: "Fira Code", monospace;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
 body {
   font-family: pt-sans-pro, sans-serif;
   font-weight: 300;
