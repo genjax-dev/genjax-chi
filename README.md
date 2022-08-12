@@ -13,7 +13,7 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-- A modeling language based on the space of pure Python functions acceptable by `jax`: models (generative functions) are represented as pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
+- Generative functions (models) are represented as pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
 - Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.
 
   | Interface     | Semantics (informal)                                                                |
