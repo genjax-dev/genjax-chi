@@ -73,6 +73,7 @@ class Simulate(Handler):
     def __init__(self):
         self.handles = [trace_p, splice_p, unsplice_p]
         self.state = {}
+        self.scores = {}
         self.level = []
         self.score = 0.0
         self.return_or_continue = False
@@ -83,13 +84,14 @@ class Simulate(Handler):
         key, v = prim.sample(*args, **kwargs)
         self.state[(*self.level, addr)] = v
         score = prim.score(v, *args[1:])
+        self.scores[(*self.level, addr)] = score
         self.score += score
         if self.return_or_continue:
             return f(key, v)
         else:
             self.return_or_continue = True
             ret = f(key, v)
-            return (ret, self.state, self.score)
+            return (ret, self.state, self.scores, self.score)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -131,6 +133,7 @@ class Importance(Handler):
         self.handles = [trace_p, splice_p, unsplice_p]
         self.state = {}
         self.level = []
+        self.scores = {}
         self.score = 0.0
         self.weight = 0.0
         self.obs = choice_map
@@ -143,6 +146,7 @@ class Importance(Handler):
         if (*self.level, addr) in self.obs:
             v = self.obs.get((*self.level, addr))
             score = prim.score(v, *args[1:])
+            self.scores[(*self.level, addr)] = score
             self.state[(*self.level, addr)] = v
             self.weight += score
         else:
@@ -155,7 +159,73 @@ class Importance(Handler):
         else:
             self.return_or_continue = True
             ret = f(key, v)
-            return (self.weight, ret, self.state, self.score)
+            return (self.weight, ret, self.state, self.scores, self.score)
+
+    # Handle hierarchical addressing primitives (push onto level stack).
+    def splice(self, f, addr):
+        self.level.append(addr)
+        return f(())
+
+    # Handle hierarchical addressing primitives (pop off the level stack).
+    def unsplice(self, f, addr):
+        try:
+            self.level.pop()
+            return f(())
+        except:
+            return f(())
+
+    # Return a `Jaxpr` with trace and addressing primitives staged out.
+    def _stage(self, f, *args):
+        expr = lift(f, *args)
+        expr = handle([self], expr)
+        expr = lift(expr, *args)
+        return expr
+
+    # JIT compile a function and return a function which implements
+    # the semantics of `generate` from Gen.
+    def _jit(self, f, *args):
+        expr = lift(f, *args)
+        expr = handle([self], expr)
+        jitted = jax.jit(expr)
+        return jitted
+
+    def jit(self, f):
+        return lambda *args: self._jit(f, *args)
+
+    def stage(self, f):
+        return lambda *args: self._stage(f, *args)
+
+
+class Update(Handler):
+    def __init__(self, original, new):
+        self.handles = [trace_p, splice_p, unsplice_p]
+        self.level = []
+        self.state = {}
+        self.scores = {}
+        self.weight = 0.0
+        self.original = original
+        self.choice_change = new
+        self.return_or_continue = False
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, *args, addr, prim, **kwargs):
+        key = args[0]
+        prim = prim()
+        if (*self.level, addr) in self.choice_change:
+            v = self.choice_change.get((*self.level, addr))
+            forward = prim.score(v, *args[1:])
+            backward = self.original.scores[(*self.level, addr)]
+            self.state[(*self.level, addr)] = v
+            self.weight += forward - backward
+        else:
+            v = self.original.get_choices().get((*self.level, addr))
+            self.state[(*self.level, addr)] = v
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            ret = f(key, v)
+            return self.weight, ret, self.scores, self.state
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):

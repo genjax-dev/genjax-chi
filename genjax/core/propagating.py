@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2022 The oryx Authors & MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Note: this code was originally from two places in the JAX codebase.
+# A fork by Roy Frostig and source code for `oryx`, a probabilistic
+# programming library built on top of JAX.
+#
+# The author maintains the code attribution notice from the `oryx`
+# authors above, as a derivative work.
 
 """
 Module for the propagate custom Jaxpr interpreter.
@@ -41,8 +48,10 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Union
 from jax import core as jax_core
 from jax import linear_util as lu
 from jax import tree_util
+from jax import abstract_arrays
 from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
+from jax._src import dtypes
 
 from genjax.core import pytree
 
@@ -250,6 +259,23 @@ def identity_reducer(env, eqn, state, new_state):
     return state
 
 
+def extract_call_jaxpr(primitive, params):
+    if not (primitive.call_primitive or primitive.map_primitive):
+        return None, params
+    else:
+        params = dict(params)
+        return params.pop("call_jaxpr"), params
+
+
+def get_shaped_aval(x):
+    """Converts a JAX value type into a shaped abstract value."""
+    if hasattr(x, "dtype") and hasattr(x, "shape"):
+        return abstract_arrays.ShapedArray(
+            x.shape, dtypes.canonicalize_dtype(x.dtype)
+        )
+    return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
+
+
 def propagate(
     cell_type: Type[Cell],
     rules: Dict[jax_core.Primitive, PropagationRule],
@@ -290,8 +316,8 @@ def propagate(
     eqns = safe_map(Equation.from_jaxpr_eqn, jaxpr.eqns)
 
     get_neighbor_eqns = construct_graph_representation(eqns)
-    # Initialize propagation queue with equations neighboring constvars, invars,
-    # and outvars.
+    # Initialize propagation queue with equations neighboring constvars,
+    # invars, and outvars.
     out_eqns = set()
     for eqn in jaxpr.eqns:
         for var in it.chain(eqn.invars, eqn.outvars):
@@ -306,9 +332,7 @@ def propagate(
         incells = safe_map(env.read, eqn.invars)
         outcells = safe_map(env.read, eqn.outvars)
 
-        call_jaxpr, params = trace_util.extract_call_jaxpr(
-            eqn.primitive, eqn.params
-        )
+        call_jaxpr, params = extract_call_jaxpr(eqn.primitive, eqn.params)
         if call_jaxpr:
             subfuns = [
                 lu.wrap_init(
@@ -330,11 +354,11 @@ def propagate(
         else:
             subfuns = []
             rule = rules[eqn.primitive]
+
         new_incells, new_outcells, eqn_state = rule(
             subfuns + incells, outcells, **params
         )
         env.write_state(eqn, eqn_state)
-
         new_incells = safe_map(env.write, eqn.invars, new_incells)
         new_outcells = safe_map(env.write, eqn.outvars, new_outcells)
 

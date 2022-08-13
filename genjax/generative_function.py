@@ -17,6 +17,7 @@ from genjax.handlers import (
     Sample,
     Simulate,
     Importance,
+    Update,
     ArgumentGradients,
     ChoiceGradients,
 )
@@ -25,10 +26,11 @@ from jax.tree_util import register_pytree_node
 
 
 class Trace:
-    def __init__(self, args, retval, choices, score):
+    def __init__(self, args, retval, choices, scores, score):
         self.args = args
         self.retval = retval
         self.choices = choices
+        self.scores = scores
         self.score = score
 
     def get_choices(self):
@@ -44,7 +46,7 @@ class Trace:
 register_pytree_node(
     Trace,
     lambda trace: (
-        (trace.args, trace.retval, trace.choices, trace.score),
+        (trace.args, trace.retval, trace.choices, trace.scores, trace.score),
         None,
     ),
     lambda _, args: Trace(*args),
@@ -63,8 +65,8 @@ def sample(f):
 def simulate(f):
     def _inner(*args):
         jitted = Simulate().jit(f)(*args)
-        (r, chm, score) = jitted(*args)
-        return Trace(args, r, chm, score)
+        (r, chm, scores, score) = jitted(*args)
+        return Trace(args, r, chm, scores, score)
 
     return lambda *args: _inner(*args)
 
@@ -72,8 +74,17 @@ def simulate(f):
 def importance(f):
     def _inner(chm, *args):
         jitted = Importance(chm).jit(f)(*args)
-        (w, r, chm, score) = jitted(*args)
-        return w, Trace(args, r, chm, score)
+        (w, r, chm, scores, score) = jitted(*args)
+        return w, Trace(args, r, chm, scores, score)
+
+    return lambda chm, *args: _inner(chm, *args)
+
+
+def update(f):
+    def _inner(original, new, *args):
+        jitted = Update(original, new).jit(f)(*args)
+        w, ret, scores, chm = jitted(*args)
+        return Trace(args, ret, chm, scores, original.get_score() + w), w
 
     return lambda chm, *args: _inner(chm, *args)
 
