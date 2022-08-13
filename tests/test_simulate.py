@@ -10,9 +10,10 @@ def simple_normal(key):
     return key, y1 + y2
 
 
-def test_simple_normal():
+def test_simple_normal_simulate(benchmark):
     key = jax.random.PRNGKey(314159)
-    tr = jax.jit(gex.simulate(simple_normal))(key)
+    jitted = jax.jit(gex.simulate(simple_normal))
+    tr = benchmark(jitted, key)
     chm = tr.get_choices()
     y1 = chm[("y1",)]
     y2 = chm[("y2",)]
