@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from .handler import Handler
+import jax
 from jax import core
 from jax.util import safe_map, safe_zip
 from typing import (
@@ -33,10 +34,11 @@ def eval_jaxpr_handler(
     The handler stack is consulted when a `core.Primitive` with a `must_handle`
     attribute is encountered.
 
-    This interpreter should always be staged out - it should be handling primitives is a zero runtime cost process.
+    This interpreter should always be staged out - it should be handling
+    primitives is a zero runtime cost process.
     """
 
-    env: Dict[Var, Any] = {}
+    env: Dict[jax.core.Var, Any] = {}
 
     def write(v, val):
         env[v] = val

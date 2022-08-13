@@ -349,7 +349,7 @@ class ArgumentGradients(Handler):
             return f(key, v)
         else:
             self.return_or_continue = True
-            ret = f(key, v)
+            _ = f(key, v)
             return self.score
 
     # Handle hierarchical addressing primitives (push onto level stack).

@@ -26,15 +26,6 @@ def T(*xs):
     return lambda f: jax.make_jaxpr(f)(*xs)
 
 
-# The usual interpreter from JAX.
-# No modifications here.
-def I(f):
-    # `make_jaxpr` builds a separate "symbol table" containing the constants
-    # needed by the jaxpr. This is why we also pass `f.literals` into
-    # `eval_jaxpr`.
-    return lambda *xs: jax.core.eval_jaxpr(f.jaxpr, f.literals, *xs)
-
-
 # Our special interpreter -- allows us to dispatch with primitives,
 # and implements directed CPS-style evaluation strategy.
 def I_prime(handler_stack, f):

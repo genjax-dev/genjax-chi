@@ -18,6 +18,7 @@ incremental plugins (primitives and incremental derivatives).
 """
 
 import functools
+from jax.util import safe_map
 from genjax.core.propagating import Cell, get_shaped_aval
 
 #####

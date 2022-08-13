@@ -1,12 +1,14 @@
 [flake8]
 max-line-length = 88
-max-complexity = 10
+max-complexity = 15
 select = C,E,F,W,B,B950
 ignore = E203,E501,W503
 exclude =
     .git,
+    __init__.py,
     __pycache__,
     *.egg-info,
     .nox,
     .pytest_cache,
-    .mypy_cache
+    .mypy_cache,
+    tests

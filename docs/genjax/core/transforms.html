@@ -34,9 +34,6 @@
                     <a class="function" href="#T">T</a>
             </li>
             <li>
-                    <a class="function" href="#I">I</a>
-            </li>
-            <li>
                     <a class="function" href="#I_prime">I_prime</a>
             </li>
             <li>
@@ -94,35 +91,26 @@
 </span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">make_jaxpr</span><span class="p">(</span><span class="n">f</span><span class="p">)(</span><span class="o">*</span><span class="n">xs</span><span class="p">)</span>
 </span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
 </span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="c1"># The usual interpreter from JAX.</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="c1"># No modifications here.</span>
-</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="k">def</span> <span class="nf">I</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>    <span class="c1"># `make_jaxpr` builds a separate &quot;symbol table&quot; containing the constants</span>
-</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>    <span class="c1"># needed by the jaxpr. This is why we also pass `f.literals` into</span>
-</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="c1"># `eval_jaxpr`.</span>
-</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">xs</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">eval_jaxpr</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">jaxpr</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">literals</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a><span class="c1"># Our special interpreter -- allows us to dispatch with primitives,</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a><span class="c1"># and implements directed CPS-style evaluation strategy.</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a><span class="k">def</span> <span class="nf">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">xs</span><span class="p">:</span> <span class="n">eval_jaxpr_handler</span><span class="p">(</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>        <span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">jaxpr</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">literals</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="p">)</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>
 </span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>
-</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>
-</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a><span class="c1"># Our special interpreter -- allows us to dispatch with primitives,</span>
-</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a><span class="c1"># and implements directed CPS-style evaluation strategy.</span>
-</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a><span class="k">def</span> <span class="nf">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">xs</span><span class="p">:</span> <span class="n">eval_jaxpr_handler</span><span class="p">(</span>
-</span><span id="L-42"><a href="#L-42"><span class="linenos">42</span></a>        <span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">jaxpr</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">literals</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span>
-</span><span id="L-43"><a href="#L-43"><span class="linenos">43</span></a>    <span class="p">)</span>
-</span><span id="L-44"><a href="#L-44"><span class="linenos">44</span></a>
-</span><span id="L-45"><a href="#L-45"><span class="linenos">45</span></a>
-</span><span id="L-46"><a href="#L-46"><span class="linenos">46</span></a><span class="k">def</span> <span class="nf">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-</span><span id="L-47"><a href="#L-47"><span class="linenos">47</span></a>    <span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-48"><a href="#L-48"><span class="linenos">48</span></a><span class="sd">    Sugar: lift a `Callable(*args)` to `Jaxpr`</span>
-</span><span id="L-49"><a href="#L-49"><span class="linenos">49</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="L-50"><a href="#L-50"><span class="linenos">50</span></a>    <span class="k">return</span> <span class="n">T</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)(</span><span class="n">f</span><span class="p">)</span>
-</span><span id="L-51"><a href="#L-51"><span class="linenos">51</span></a>
-</span><span id="L-52"><a href="#L-52"><span class="linenos">52</span></a>
-</span><span id="L-53"><a href="#L-53"><span class="linenos">53</span></a><span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
-</span><span id="L-54"><a href="#L-54"><span class="linenos">54</span></a>    <span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-55"><a href="#L-55"><span class="linenos">55</span></a><span class="sd">    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`</span>
-</span><span id="L-56"><a href="#L-56"><span class="linenos">56</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="L-57"><a href="#L-57"><span class="linenos">57</span></a>    <span class="k">return</span> <span class="n">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">)</span>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a><span class="k">def</span> <span class="nf">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a><span class="sd">    Sugar: lift a `Callable(*args)` to `Jaxpr`</span>
+</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>    <span class="k">return</span> <span class="n">T</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)(</span><span class="n">f</span><span class="p">)</span>
+</span><span id="L-42"><a href="#L-42"><span class="linenos">42</span></a>
+</span><span id="L-43"><a href="#L-43"><span class="linenos">43</span></a>
+</span><span id="L-44"><a href="#L-44"><span class="linenos">44</span></a><span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+</span><span id="L-45"><a href="#L-45"><span class="linenos">45</span></a>    <span class="sd">&quot;&quot;&quot;</span>
+</span><span id="L-46"><a href="#L-46"><span class="linenos">46</span></a><span class="sd">    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`</span>
+</span><span id="L-47"><a href="#L-47"><span class="linenos">47</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-48"><a href="#L-48"><span class="linenos">48</span></a>    <span class="k">return</span> <span class="n">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -157,28 +145,6 @@ representations can walk the lifted tree.</p>
 
 
                 </section>
-                <section id="I">
-                            <input id="I-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">I</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="I-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#I"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="I-32"><a href="#I-32"><span class="linenos">32</span></a><span class="k">def</span> <span class="nf">I</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="I-33"><a href="#I-33"><span class="linenos">33</span></a>    <span class="c1"># `make_jaxpr` builds a separate &quot;symbol table&quot; containing the constants</span>
-</span><span id="I-34"><a href="#I-34"><span class="linenos">34</span></a>    <span class="c1"># needed by the jaxpr. This is why we also pass `f.literals` into</span>
-</span><span id="I-35"><a href="#I-35"><span class="linenos">35</span></a>    <span class="c1"># `eval_jaxpr`.</span>
-</span><span id="I-36"><a href="#I-36"><span class="linenos">36</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">xs</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">eval_jaxpr</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">jaxpr</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">literals</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
-</span></pre></div>
-
-
-    
-
-                </section>
                 <section id="I_prime">
                             <input id="I_prime-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr function">
@@ -190,10 +156,10 @@ representations can walk the lifted tree.</p>
 
     </div>
     <a class="headerlink" href="#I_prime"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="I_prime-41"><a href="#I_prime-41"><span class="linenos">41</span></a><span class="k">def</span> <span class="nf">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="I_prime-42"><a href="#I_prime-42"><span class="linenos">42</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">xs</span><span class="p">:</span> <span class="n">eval_jaxpr_handler</span><span class="p">(</span>
-</span><span id="I_prime-43"><a href="#I_prime-43"><span class="linenos">43</span></a>        <span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">jaxpr</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">literals</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span>
-</span><span id="I_prime-44"><a href="#I_prime-44"><span class="linenos">44</span></a>    <span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="I_prime-32"><a href="#I_prime-32"><span class="linenos">32</span></a><span class="k">def</span> <span class="nf">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="I_prime-33"><a href="#I_prime-33"><span class="linenos">33</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">xs</span><span class="p">:</span> <span class="n">eval_jaxpr_handler</span><span class="p">(</span>
+</span><span id="I_prime-34"><a href="#I_prime-34"><span class="linenos">34</span></a>        <span class="n">handler_stack</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">jaxpr</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">literals</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span>
+</span><span id="I_prime-35"><a href="#I_prime-35"><span class="linenos">35</span></a>    <span class="p">)</span>
 </span></pre></div>
 
 
@@ -211,11 +177,11 @@ representations can walk the lifted tree.</p>
 
     </div>
     <a class="headerlink" href="#lift"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="lift-47"><a href="#lift-47"><span class="linenos">47</span></a><span class="k">def</span> <span class="nf">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-</span><span id="lift-48"><a href="#lift-48"><span class="linenos">48</span></a>    <span class="sd">&quot;&quot;&quot;</span>
-</span><span id="lift-49"><a href="#lift-49"><span class="linenos">49</span></a><span class="sd">    Sugar: lift a `Callable(*args)` to `Jaxpr`</span>
-</span><span id="lift-50"><a href="#lift-50"><span class="linenos">50</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="lift-51"><a href="#lift-51"><span class="linenos">51</span></a>    <span class="k">return</span> <span class="n">T</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)(</span><span class="n">f</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="lift-38"><a href="#lift-38"><span class="linenos">38</span></a><span class="k">def</span> <span class="nf">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+</span><span id="lift-39"><a href="#lift-39"><span class="linenos">39</span></a>    <span class="sd">&quot;&quot;&quot;</span>
+</span><span id="lift-40"><a href="#lift-40"><span class="linenos">40</span></a><span class="sd">    Sugar: lift a `Callable(*args)` to `Jaxpr`</span>
+</span><span id="lift-41"><a href="#lift-41"><span class="linenos">41</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="lift-42"><a href="#lift-42"><span class="linenos">42</span></a>    <span class="k">return</span> <span class="n">T</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)(</span><span class="n">f</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -235,11 +201,11 @@ representations can walk the lifted tree.</p>
 
     </div>
     <a class="headerlink" href="#handle"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="handle-54"><a href="#handle-54"><span class="linenos">54</span></a><span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
-</span><span id="handle-55"><a href="#handle-55"><span class="linenos">55</span></a>    <span class="sd">&quot;&quot;&quot;</span>
-</span><span id="handle-56"><a href="#handle-56"><span class="linenos">56</span></a><span class="sd">    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`</span>
-</span><span id="handle-57"><a href="#handle-57"><span class="linenos">57</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="handle-58"><a href="#handle-58"><span class="linenos">58</span></a>    <span class="k">return</span> <span class="n">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="handle-45"><a href="#handle-45"><span class="linenos">45</span></a><span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">):</span>
+</span><span id="handle-46"><a href="#handle-46"><span class="linenos">46</span></a>    <span class="sd">&quot;&quot;&quot;</span>
+</span><span id="handle-47"><a href="#handle-47"><span class="linenos">47</span></a><span class="sd">    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`</span>
+</span><span id="handle-48"><a href="#handle-48"><span class="linenos">48</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="handle-49"><a href="#handle-49"><span class="linenos">49</span></a>    <span class="k">return</span> <span class="n">I_prime</span><span class="p">(</span><span class="n">handler_stack</span><span class="p">,</span> <span class="n">expr</span><span class="p">)</span>
 </span></pre></div>
 
 

@@ -30,7 +30,7 @@ def lint(session):
         "__init__.py",
         ".",
     )
-    # session.run("flake8", ".") @ nox.session
+    session.run("flake8", ".")
 
 
 @nox.session
