@@ -22,7 +22,7 @@ class Bernoulli:
     def abstract_eval(self, key, p, shape=()):
         return (
             key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.bool_),
+            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.bool_),
         )
 
     def sample(self, key, p, **kwargs):

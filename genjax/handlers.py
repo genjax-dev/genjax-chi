@@ -153,6 +153,7 @@ class Importance(Handler):
             key, v = prim.sample(*args, **kwargs)
             self.state[(*self.level, addr)] = v
             score = prim.score(v, *args[1:])
+            self.scores[(*self.level, addr)] = score
         self.score += score
         if self.return_or_continue:
             return f(key, v)

@@ -19,7 +19,7 @@ from jax._src import abstract_arrays
 
 class Categorical:
     def abstract_eval(self, key, logits, shape=None):
-        return (key, abstract_arrays.ShapedArray(shape=shape, dtype=int))
+        return (key, abstract_arrays.ShapedArray(shape=shape, dtype=jnp.int))
 
     def sample(self, key, logits, **kwargs):
         key, sub_key = jax.random.split(key)

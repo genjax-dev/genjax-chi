@@ -15,14 +15,13 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
-from jax._src import dtypes
 
 
 class MultivariateNormal:
     def abstract_eval(self, key, mean, cov, shape=None):
         return (
             key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.float_),
+            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, mean, cov, **kwargs):

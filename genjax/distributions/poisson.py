@@ -15,14 +15,13 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
-from jax._src import dtypes
 
 
 class Poisson:
     def abstract_eval(self, key, lam, shape=None):
         return (
             key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=dtypes.int_),
+            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.int),
         )
 
     def sample(self, key, lam, **kwargs):
