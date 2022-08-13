@@ -17,6 +17,7 @@ from genjax.handlers import (
     Sample,
     Simulate,
     Importance,
+    Diff,
     Update,
     ArgumentGradients,
     ChoiceGradients,
@@ -76,6 +77,15 @@ def importance(f):
         jitted = Importance(chm).jit(f)(*args)
         (w, r, chm, scores, score) = jitted(*args)
         return w, Trace(args, r, chm, scores, score)
+
+    return lambda chm, *args: _inner(chm, *args)
+
+
+def diff(f):
+    def _inner(original, new, *args):
+        jitted = Diff(original, new).jit(f)(*args)
+        w, ret = jitted(*args)
+        return w, ret
 
     return lambda chm, *args: _inner(chm, *args)
 

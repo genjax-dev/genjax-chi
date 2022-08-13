@@ -196,6 +196,68 @@ class Importance(Handler):
         return lambda *args: self._stage(f, *args)
 
 
+class Diff(Handler):
+    def __init__(self, original, new):
+        self.handles = [trace_p, splice_p, unsplice_p]
+        self.level = []
+        self.weight = 0.0
+        self.original = original
+        self.choice_change = new
+        self.return_or_continue = False
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, *args, addr, prim, **kwargs):
+        key = args[0]
+        prim = prim()
+        if (*self.level, addr) in self.choice_change:
+            v = self.choice_change.get((*self.level, addr))
+            forward = prim.score(v, *args[1:])
+            backward = self.original.scores[(*self.level, addr)]
+            self.weight += forward - backward
+        else:
+            v = self.original.get_choices().get((*self.level, addr))
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            ret = f(key, v)
+            return self.weight, ret
+
+    # Handle hierarchical addressing primitives (push onto level stack).
+    def splice(self, f, addr):
+        self.level.append(addr)
+        return f(())
+
+    # Handle hierarchical addressing primitives (pop off the level stack).
+    def unsplice(self, f, addr):
+        try:
+            self.level.pop()
+            return f(())
+        except:
+            return f(())
+
+    # Return a `Jaxpr` with trace and addressing primitives staged out.
+    def _stage(self, f, *args):
+        expr = lift(f, *args)
+        expr = handle([self], expr)
+        expr = lift(expr, *args)
+        return expr
+
+    # JIT compile a function and return a function which implements
+    # the semantics of `generate` from Gen.
+    def _jit(self, f, *args):
+        expr = lift(f, *args)
+        expr = handle([self], expr)
+        jitted = jax.jit(expr)
+        return jitted
+
+    def jit(self, f):
+        return lambda *args: self._jit(f, *args)
+
+    def stage(self, f):
+        return lambda *args: self._stage(f, *args)
+
+
 class Update(Handler):
     def __init__(self, original, new):
         self.handles = [trace_p, splice_p, unsplice_p]
@@ -215,11 +277,15 @@ class Update(Handler):
             v = self.choice_change.get((*self.level, addr))
             forward = prim.score(v, *args[1:])
             backward = self.original.scores[(*self.level, addr)]
+            self.scores[(*self.level, addr)] = forward
             self.state[(*self.level, addr)] = v
             self.weight += forward - backward
         else:
             v = self.original.get_choices().get((*self.level, addr))
             self.state[(*self.level, addr)] = v
+            self.scores[(*self.level, addr)] = self.original.scores[
+                (*self.level, addr)
+            ]
         if self.return_or_continue:
             return f(key, v)
         else:
@@ -269,7 +335,6 @@ class ArgumentGradients(Handler):
         self.level = []
         self.score = 0.0
         self.tr = tr
-        self.tree = {}
         self.sources = tr.get_choices()
         self.return_or_continue = False
 
