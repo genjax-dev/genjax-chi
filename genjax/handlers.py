@@ -209,13 +209,12 @@ class Diff(Handler):
     def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
+        v = self.original.get_choices().get((*self.level, addr))
         if (*self.level, addr) in self.choice_change:
             v = self.choice_change.get((*self.level, addr))
             forward = prim.score(v, *args[1:])
             backward = self.original.scores[(*self.level, addr)]
             self.weight += forward - backward
-        else:
-            v = self.original.get_choices().get((*self.level, addr))
         if self.return_or_continue:
             return f(key, v)
         else:
@@ -386,53 +385,6 @@ class ArgumentGradients(Handler):
         return lambda *args: self._jit(f, *args)
 
 
-# This handler is used to stage the choice gradient computation.
-# Parametrized by `chm`, this handler will seed `trace`
-# with the values in that choice map.
-#
-# As long as our effect interpreter is composable with other JAX transformations
-# we can define functions which accept `chm` and run the interpreter
-# to seed values, and then lift these functions and compute
-# their gradient.
-#
-# This allows us to express choice gradient computations.
-class Sow(Handler):
-    def __init__(self, fallback, chm):
-        self.handles = [trace_p, splice_p, unsplice_p]
-        self.level = []
-        self.fallback = fallback
-        self.chm = chm
-        self.score = 0.0
-        self.stored = {}
-
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, addr, prim, **kwargs):
-        key = args[0]
-        prim = prim()
-        if (*self.level, addr) in self.chm:
-            v = self.chm.get((*self.level, addr))
-            self.stored[(*self.level, addr)] = v
-        else:
-            v = self.fallback.get((*self.level, addr))
-        score = prim.score(v, *args[1:])
-        self.score += score
-        ret = f(key, v)
-        return self.score, self.stored
-
-    # Handle hierarchical addressing primitives (push onto level stack).
-    def splice(self, f, addr):
-        self.level.append(addr)
-        return f(())
-
-    # Handle hierarchical addressing primitives (pop off the level stack).
-    def unsplice(self, f, addr):
-        try:
-            self.level.pop()
-            return f(())
-        except:
-            return f(())
-
-
 class ChoiceGradients(Handler):
     def __init__(self, tr):
         self.tr = tr
@@ -440,34 +392,36 @@ class ChoiceGradients(Handler):
     # Return a `Jaxpr` with trace and addressing primitives staged out.
     def _stage(self, f, *args):
 
-        # Here, we define a utility function `sow` which
-        # interprets with the `Sow` handler.
-        def sow(chm):
-            handler = Sow(self.tr.get_choices(), chm)
+        # Here, we define a utility function `diff` which
+        # interprets with the `Diff` handler.
+        def diff(chm):
+            handler = Diff(self.tr, chm)
             expr = lift(f, *args)
             fn = handle([handler], expr)
-            return fn(*args)
+            w, _ = fn(*args)
+            return self.tr.get_score() + w
 
-        # Here, because of composition -- we can lift `sow` itself,
+        # Here, because of composition -- we can lift `diff` itself,
         # and now we have a function parametrized by `chm`
         # which we can compute the gradient of.
         #
         # This function computes the logpdf (score) of the trace,
         # but it accepts the seed `chm` as an argument -- and then stages out
         # the gradient computation using `jax.grad`.
-        return lambda chm: lift(jax.grad(sow, has_aux=True), chm)
+        return lambda chm: lift(jax.grad(diff), chm)
 
     def stage(self, f):
         return lambda *args: self._stage(f, *args)
 
     def _jit(self, f, *args):
-        def sow(chm):
-            handler = Sow(self.tr.get_choices(), chm)
+        def diff(chm):
+            handler = Diff(self.tr, chm)
             expr = lift(f, *args)
             fn = handle([handler], expr)
-            return fn(*args)
+            w, _ = fn(*args)
+            return self.tr.get_score() + w
 
-        jitted = jax.jit(jax.grad(sow, has_aux=True))
+        jitted = jax.jit(jax.grad(diff))
         return jitted
 
     def jit(self, f):

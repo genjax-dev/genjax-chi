@@ -175,24 +175,6 @@
 
             </li>
             <li>
-                    <a class="class" href="#Sow">Sow</a>
-                            <ul class="memberlist">
-                        <li>
-                                <a class="function" href="#Sow.__init__">Sow</a>
-                        </li>
-                        <li>
-                                <a class="function" href="#Sow.trace">trace</a>
-                        </li>
-                        <li>
-                                <a class="function" href="#Sow.splice">splice</a>
-                        </li>
-                        <li>
-                                <a class="function" href="#Sow.unsplice">unsplice</a>
-                        </li>
-                </ul>
-
-            </li>
-            <li>
                     <a class="class" href="#ChoiceGradients">ChoiceGradients</a>
                             <ul class="memberlist">
                         <li>
@@ -616,92 +598,47 @@
 </span><span id="L-386"><a href="#L-386"><span class="linenos">386</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
 </span><span id="L-387"><a href="#L-387"><span class="linenos">387</span></a>
 </span><span id="L-388"><a href="#L-388"><span class="linenos">388</span></a>
-</span><span id="L-389"><a href="#L-389"><span class="linenos">389</span></a><span class="c1"># This handler is used to stage the choice gradient computation.</span>
-</span><span id="L-390"><a href="#L-390"><span class="linenos">390</span></a><span class="c1"># Parametrized by `chm`, this handler will seed `trace`</span>
-</span><span id="L-391"><a href="#L-391"><span class="linenos">391</span></a><span class="c1"># with the values in that choice map.</span>
-</span><span id="L-392"><a href="#L-392"><span class="linenos">392</span></a><span class="c1">#</span>
-</span><span id="L-393"><a href="#L-393"><span class="linenos">393</span></a><span class="c1"># As long as our effect interpreter is composable with other JAX transformations</span>
-</span><span id="L-394"><a href="#L-394"><span class="linenos">394</span></a><span class="c1"># we can define functions which accept `chm` and run the interpreter</span>
-</span><span id="L-395"><a href="#L-395"><span class="linenos">395</span></a><span class="c1"># to seed values, and then lift these functions and compute</span>
-</span><span id="L-396"><a href="#L-396"><span class="linenos">396</span></a><span class="c1"># their gradient.</span>
-</span><span id="L-397"><a href="#L-397"><span class="linenos">397</span></a><span class="c1">#</span>
-</span><span id="L-398"><a href="#L-398"><span class="linenos">398</span></a><span class="c1"># This allows us to express choice gradient computations.</span>
-</span><span id="L-399"><a href="#L-399"><span class="linenos">399</span></a><span class="k">class</span> <span class="nc">Sow</span><span class="p">(</span><span class="n">Handler</span><span class="p">):</span>
-</span><span id="L-400"><a href="#L-400"><span class="linenos">400</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fallback</span><span class="p">,</span> <span class="n">chm</span><span class="p">):</span>
-</span><span id="L-401"><a href="#L-401"><span class="linenos">401</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">handles</span> <span class="o">=</span> <span class="p">[</span><span class="n">trace_p</span><span class="p">,</span> <span class="n">splice_p</span><span class="p">,</span> <span class="n">unsplice_p</span><span class="p">]</span>
-</span><span id="L-402"><a href="#L-402"><span class="linenos">402</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="L-403"><a href="#L-403"><span class="linenos">403</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">fallback</span> <span class="o">=</span> <span class="n">fallback</span>
-</span><span id="L-404"><a href="#L-404"><span class="linenos">404</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span>
-</span><span id="L-405"><a href="#L-405"><span class="linenos">405</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">=</span> <span class="mf">0.0</span>
-</span><span id="L-406"><a href="#L-406"><span class="linenos">406</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">stored</span> <span class="o">=</span> <span class="p">{}</span>
-</span><span id="L-407"><a href="#L-407"><span class="linenos">407</span></a>
-</span><span id="L-408"><a href="#L-408"><span class="linenos">408</span></a>    <span class="c1"># Handle trace sites -- perform codegen onto the `Jaxpr` trace.</span>
-</span><span id="L-409"><a href="#L-409"><span class="linenos">409</span></a>    <span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">prim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="L-410"><a href="#L-410"><span class="linenos">410</span></a>        <span class="n">key</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="L-411"><a href="#L-411"><span class="linenos">411</span></a>        <span class="n">prim</span> <span class="o">=</span> <span class="n">prim</span><span class="p">()</span>
-</span><span id="L-412"><a href="#L-412"><span class="linenos">412</span></a>        <span class="k">if</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="p">:</span>
-</span><span id="L-413"><a href="#L-413"><span class="linenos">413</span></a>            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
-</span><span id="L-414"><a href="#L-414"><span class="linenos">414</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">stored</span><span class="p">[(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="L-415"><a href="#L-415"><span class="linenos">415</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="L-416"><a href="#L-416"><span class="linenos">416</span></a>            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fallback</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
-</span><span id="L-417"><a href="#L-417"><span class="linenos">417</span></a>        <span class="n">score</span> <span class="o">=</span> <span class="n">prim</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-</span><span id="L-418"><a href="#L-418"><span class="linenos">418</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">+=</span> <span class="n">score</span>
-</span><span id="L-419"><a href="#L-419"><span class="linenos">419</span></a>        <span class="n">ret</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span><span id="L-420"><a href="#L-420"><span class="linenos">420</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stored</span>
-</span><span id="L-421"><a href="#L-421"><span class="linenos">421</span></a>
-</span><span id="L-422"><a href="#L-422"><span class="linenos">422</span></a>    <span class="c1"># Handle hierarchical addressing primitives (push onto level stack).</span>
-</span><span id="L-423"><a href="#L-423"><span class="linenos">423</span></a>    <span class="k">def</span> <span class="nf">splice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-</span><span id="L-424"><a href="#L-424"><span class="linenos">424</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
-</span><span id="L-425"><a href="#L-425"><span class="linenos">425</span></a>        <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span><span id="L-426"><a href="#L-426"><span class="linenos">426</span></a>
-</span><span id="L-427"><a href="#L-427"><span class="linenos">427</span></a>    <span class="c1"># Handle hierarchical addressing primitives (pop off the level stack).</span>
-</span><span id="L-428"><a href="#L-428"><span class="linenos">428</span></a>    <span class="k">def</span> <span class="nf">unsplice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-</span><span id="L-429"><a href="#L-429"><span class="linenos">429</span></a>        <span class="k">try</span><span class="p">:</span>
-</span><span id="L-430"><a href="#L-430"><span class="linenos">430</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
-</span><span id="L-431"><a href="#L-431"><span class="linenos">431</span></a>            <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span><span id="L-432"><a href="#L-432"><span class="linenos">432</span></a>        <span class="k">except</span><span class="p">:</span>
-</span><span id="L-433"><a href="#L-433"><span class="linenos">433</span></a>            <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span><span id="L-434"><a href="#L-434"><span class="linenos">434</span></a>
-</span><span id="L-435"><a href="#L-435"><span class="linenos">435</span></a>
-</span><span id="L-436"><a href="#L-436"><span class="linenos">436</span></a><span class="k">class</span> <span class="nc">ChoiceGradients</span><span class="p">(</span><span class="n">Handler</span><span class="p">):</span>
-</span><span id="L-437"><a href="#L-437"><span class="linenos">437</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tr</span><span class="p">):</span>
-</span><span id="L-438"><a href="#L-438"><span class="linenos">438</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span>
-</span><span id="L-439"><a href="#L-439"><span class="linenos">439</span></a>
-</span><span id="L-440"><a href="#L-440"><span class="linenos">440</span></a>    <span class="c1"># Return a `Jaxpr` with trace and addressing primitives staged out.</span>
-</span><span id="L-441"><a href="#L-441"><span class="linenos">441</span></a>    <span class="k">def</span> <span class="nf">_stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-</span><span id="L-442"><a href="#L-442"><span class="linenos">442</span></a>
-</span><span id="L-443"><a href="#L-443"><span class="linenos">443</span></a>        <span class="c1"># Here, we define a utility function `sow` which</span>
-</span><span id="L-444"><a href="#L-444"><span class="linenos">444</span></a>        <span class="c1"># interprets with the `Sow` handler.</span>
-</span><span id="L-445"><a href="#L-445"><span class="linenos">445</span></a>        <span class="k">def</span> <span class="nf">sow</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
-</span><span id="L-446"><a href="#L-446"><span class="linenos">446</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Sow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="n">chm</span><span class="p">)</span>
-</span><span id="L-447"><a href="#L-447"><span class="linenos">447</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="L-448"><a href="#L-448"><span class="linenos">448</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
-</span><span id="L-449"><a href="#L-449"><span class="linenos">449</span></a>            <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="L-450"><a href="#L-450"><span class="linenos">450</span></a>
-</span><span id="L-451"><a href="#L-451"><span class="linenos">451</span></a>        <span class="c1"># Here, because of composition -- we can lift `sow` itself,</span>
-</span><span id="L-452"><a href="#L-452"><span class="linenos">452</span></a>        <span class="c1"># and now we have a function parametrized by `chm`</span>
-</span><span id="L-453"><a href="#L-453"><span class="linenos">453</span></a>        <span class="c1"># which we can compute the gradient of.</span>
-</span><span id="L-454"><a href="#L-454"><span class="linenos">454</span></a>        <span class="c1">#</span>
-</span><span id="L-455"><a href="#L-455"><span class="linenos">455</span></a>        <span class="c1"># This function computes the logpdf (score) of the trace,</span>
-</span><span id="L-456"><a href="#L-456"><span class="linenos">456</span></a>        <span class="c1"># but it accepts the seed `chm` as an argument -- and then stages out</span>
-</span><span id="L-457"><a href="#L-457"><span class="linenos">457</span></a>        <span class="c1"># the gradient computation using `jax.grad`.</span>
-</span><span id="L-458"><a href="#L-458"><span class="linenos">458</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="n">chm</span><span class="p">:</span> <span class="n">lift</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">sow</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">chm</span><span class="p">)</span>
-</span><span id="L-459"><a href="#L-459"><span class="linenos">459</span></a>
-</span><span id="L-460"><a href="#L-460"><span class="linenos">460</span></a>    <span class="k">def</span> <span class="nf">stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="L-461"><a href="#L-461"><span class="linenos">461</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="L-462"><a href="#L-462"><span class="linenos">462</span></a>
-</span><span id="L-463"><a href="#L-463"><span class="linenos">463</span></a>    <span class="k">def</span> <span class="nf">_jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-</span><span id="L-464"><a href="#L-464"><span class="linenos">464</span></a>        <span class="k">def</span> <span class="nf">sow</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
-</span><span id="L-465"><a href="#L-465"><span class="linenos">465</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Sow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="n">chm</span><span class="p">)</span>
-</span><span id="L-466"><a href="#L-466"><span class="linenos">466</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="L-467"><a href="#L-467"><span class="linenos">467</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
-</span><span id="L-468"><a href="#L-468"><span class="linenos">468</span></a>            <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="L-469"><a href="#L-469"><span class="linenos">469</span></a>
-</span><span id="L-470"><a href="#L-470"><span class="linenos">470</span></a>        <span class="n">jitted</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">sow</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
-</span><span id="L-471"><a href="#L-471"><span class="linenos">471</span></a>        <span class="k">return</span> <span class="n">jitted</span>
-</span><span id="L-472"><a href="#L-472"><span class="linenos">472</span></a>
-</span><span id="L-473"><a href="#L-473"><span class="linenos">473</span></a>    <span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="L-474"><a href="#L-474"><span class="linenos">474</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="L-389"><a href="#L-389"><span class="linenos">389</span></a><span class="k">class</span> <span class="nc">ChoiceGradients</span><span class="p">(</span><span class="n">Handler</span><span class="p">):</span>
+</span><span id="L-390"><a href="#L-390"><span class="linenos">390</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tr</span><span class="p">):</span>
+</span><span id="L-391"><a href="#L-391"><span class="linenos">391</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span>
+</span><span id="L-392"><a href="#L-392"><span class="linenos">392</span></a>
+</span><span id="L-393"><a href="#L-393"><span class="linenos">393</span></a>    <span class="c1"># Return a `Jaxpr` with trace and addressing primitives staged out.</span>
+</span><span id="L-394"><a href="#L-394"><span class="linenos">394</span></a>    <span class="k">def</span> <span class="nf">_stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+</span><span id="L-395"><a href="#L-395"><span class="linenos">395</span></a>
+</span><span id="L-396"><a href="#L-396"><span class="linenos">396</span></a>        <span class="c1"># Here, we define a utility function `diff` which</span>
+</span><span id="L-397"><a href="#L-397"><span class="linenos">397</span></a>        <span class="c1"># interprets with the `Diff` handler.</span>
+</span><span id="L-398"><a href="#L-398"><span class="linenos">398</span></a>        <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
+</span><span id="L-399"><a href="#L-399"><span class="linenos">399</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="p">,</span> <span class="n">chm</span><span class="p">)</span>
+</span><span id="L-400"><a href="#L-400"><span class="linenos">400</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="L-401"><a href="#L-401"><span class="linenos">401</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
+</span><span id="L-402"><a href="#L-402"><span class="linenos">402</span></a>            <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="L-403"><a href="#L-403"><span class="linenos">403</span></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span> <span class="o">+</span> <span class="n">w</span>
+</span><span id="L-404"><a href="#L-404"><span class="linenos">404</span></a>
+</span><span id="L-405"><a href="#L-405"><span class="linenos">405</span></a>        <span class="c1"># Here, because of composition -- we can lift `diff` itself,</span>
+</span><span id="L-406"><a href="#L-406"><span class="linenos">406</span></a>        <span class="c1"># and now we have a function parametrized by `chm`</span>
+</span><span id="L-407"><a href="#L-407"><span class="linenos">407</span></a>        <span class="c1"># which we can compute the gradient of.</span>
+</span><span id="L-408"><a href="#L-408"><span class="linenos">408</span></a>        <span class="c1">#</span>
+</span><span id="L-409"><a href="#L-409"><span class="linenos">409</span></a>        <span class="c1"># This function computes the logpdf (score) of the trace,</span>
+</span><span id="L-410"><a href="#L-410"><span class="linenos">410</span></a>        <span class="c1"># but it accepts the seed `chm` as an argument -- and then stages out</span>
+</span><span id="L-411"><a href="#L-411"><span class="linenos">411</span></a>        <span class="c1"># the gradient computation using `jax.grad`.</span>
+</span><span id="L-412"><a href="#L-412"><span class="linenos">412</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="n">chm</span><span class="p">:</span> <span class="n">lift</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">diff</span><span class="p">),</span> <span class="n">chm</span><span class="p">)</span>
+</span><span id="L-413"><a href="#L-413"><span class="linenos">413</span></a>
+</span><span id="L-414"><a href="#L-414"><span class="linenos">414</span></a>    <span class="k">def</span> <span class="nf">stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="L-415"><a href="#L-415"><span class="linenos">415</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="L-416"><a href="#L-416"><span class="linenos">416</span></a>
+</span><span id="L-417"><a href="#L-417"><span class="linenos">417</span></a>    <span class="k">def</span> <span class="nf">_jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+</span><span id="L-418"><a href="#L-418"><span class="linenos">418</span></a>        <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
+</span><span id="L-419"><a href="#L-419"><span class="linenos">419</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="p">,</span> <span class="n">chm</span><span class="p">)</span>
+</span><span id="L-420"><a href="#L-420"><span class="linenos">420</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="L-421"><a href="#L-421"><span class="linenos">421</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
+</span><span id="L-422"><a href="#L-422"><span class="linenos">422</span></a>            <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="L-423"><a href="#L-423"><span class="linenos">423</span></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span> <span class="o">+</span> <span class="n">w</span>
+</span><span id="L-424"><a href="#L-424"><span class="linenos">424</span></a>
+</span><span id="L-425"><a href="#L-425"><span class="linenos">425</span></a>        <span class="n">jitted</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span>
+</span><span id="L-426"><a href="#L-426"><span class="linenos">426</span></a>        <span class="k">return</span> <span class="n">jitted</span>
+</span><span id="L-427"><a href="#L-427"><span class="linenos">427</span></a>
+</span><span id="L-428"><a href="#L-428"><span class="linenos">428</span></a>    <span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="L-429"><a href="#L-429"><span class="linenos">429</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -1985,157 +1922,6 @@ where <code>*args</code> must match the <code>core.Primitive</code> declaration 
 
                             </div>
                 </section>
-                <section id="Sow">
-                            <input id="Sow-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr class">
-            
-    <span class="def">class</span>
-    <span class="name">Sow</span><wbr>(<span class="base"><a href="core/handler.html#Handler">genjax.core.handler.Handler</a></span>):
-
-                <label class="view-source-button" for="Sow-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Sow"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Sow-400"><a href="#Sow-400"><span class="linenos">400</span></a><span class="k">class</span> <span class="nc">Sow</span><span class="p">(</span><span class="n">Handler</span><span class="p">):</span>
-</span><span id="Sow-401"><a href="#Sow-401"><span class="linenos">401</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fallback</span><span class="p">,</span> <span class="n">chm</span><span class="p">):</span>
-</span><span id="Sow-402"><a href="#Sow-402"><span class="linenos">402</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">handles</span> <span class="o">=</span> <span class="p">[</span><span class="n">trace_p</span><span class="p">,</span> <span class="n">splice_p</span><span class="p">,</span> <span class="n">unsplice_p</span><span class="p">]</span>
-</span><span id="Sow-403"><a href="#Sow-403"><span class="linenos">403</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="Sow-404"><a href="#Sow-404"><span class="linenos">404</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">fallback</span> <span class="o">=</span> <span class="n">fallback</span>
-</span><span id="Sow-405"><a href="#Sow-405"><span class="linenos">405</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span>
-</span><span id="Sow-406"><a href="#Sow-406"><span class="linenos">406</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">=</span> <span class="mf">0.0</span>
-</span><span id="Sow-407"><a href="#Sow-407"><span class="linenos">407</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">stored</span> <span class="o">=</span> <span class="p">{}</span>
-</span><span id="Sow-408"><a href="#Sow-408"><span class="linenos">408</span></a>
-</span><span id="Sow-409"><a href="#Sow-409"><span class="linenos">409</span></a>    <span class="c1"># Handle trace sites -- perform codegen onto the `Jaxpr` trace.</span>
-</span><span id="Sow-410"><a href="#Sow-410"><span class="linenos">410</span></a>    <span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">prim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="Sow-411"><a href="#Sow-411"><span class="linenos">411</span></a>        <span class="n">key</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="Sow-412"><a href="#Sow-412"><span class="linenos">412</span></a>        <span class="n">prim</span> <span class="o">=</span> <span class="n">prim</span><span class="p">()</span>
-</span><span id="Sow-413"><a href="#Sow-413"><span class="linenos">413</span></a>        <span class="k">if</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="p">:</span>
-</span><span id="Sow-414"><a href="#Sow-414"><span class="linenos">414</span></a>            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
-</span><span id="Sow-415"><a href="#Sow-415"><span class="linenos">415</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">stored</span><span class="p">[(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="Sow-416"><a href="#Sow-416"><span class="linenos">416</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="Sow-417"><a href="#Sow-417"><span class="linenos">417</span></a>            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fallback</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
-</span><span id="Sow-418"><a href="#Sow-418"><span class="linenos">418</span></a>        <span class="n">score</span> <span class="o">=</span> <span class="n">prim</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-</span><span id="Sow-419"><a href="#Sow-419"><span class="linenos">419</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">+=</span> <span class="n">score</span>
-</span><span id="Sow-420"><a href="#Sow-420"><span class="linenos">420</span></a>        <span class="n">ret</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span><span id="Sow-421"><a href="#Sow-421"><span class="linenos">421</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stored</span>
-</span><span id="Sow-422"><a href="#Sow-422"><span class="linenos">422</span></a>
-</span><span id="Sow-423"><a href="#Sow-423"><span class="linenos">423</span></a>    <span class="c1"># Handle hierarchical addressing primitives (push onto level stack).</span>
-</span><span id="Sow-424"><a href="#Sow-424"><span class="linenos">424</span></a>    <span class="k">def</span> <span class="nf">splice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-</span><span id="Sow-425"><a href="#Sow-425"><span class="linenos">425</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
-</span><span id="Sow-426"><a href="#Sow-426"><span class="linenos">426</span></a>        <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span><span id="Sow-427"><a href="#Sow-427"><span class="linenos">427</span></a>
-</span><span id="Sow-428"><a href="#Sow-428"><span class="linenos">428</span></a>    <span class="c1"># Handle hierarchical addressing primitives (pop off the level stack).</span>
-</span><span id="Sow-429"><a href="#Sow-429"><span class="linenos">429</span></a>    <span class="k">def</span> <span class="nf">unsplice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-</span><span id="Sow-430"><a href="#Sow-430"><span class="linenos">430</span></a>        <span class="k">try</span><span class="p">:</span>
-</span><span id="Sow-431"><a href="#Sow-431"><span class="linenos">431</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
-</span><span id="Sow-432"><a href="#Sow-432"><span class="linenos">432</span></a>            <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span><span id="Sow-433"><a href="#Sow-433"><span class="linenos">433</span></a>        <span class="k">except</span><span class="p">:</span>
-</span><span id="Sow-434"><a href="#Sow-434"><span class="linenos">434</span></a>            <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span></pre></div>
-
-
-            <div class="docstring"><p>A handler dispatchs a <code>jax.core.Primitive</code> - and must provide
-a <code>Callable</code> with signature <code>def (name_of_primitive)(continuation, *args)</code>
-where <code>*args</code> must match the <code>core.Primitive</code> declaration signature.</p>
-</div>
-
-
-                            <div id="Sow.__init__" class="classattr">
-                                        <input id="Sow.__init__-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="name">Sow</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">fallback</span>, </span><span class="param"><span class="n">chm</span></span>)</span>
-
-                <label class="view-source-button" for="Sow.__init__-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Sow.__init__"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Sow.__init__-401"><a href="#Sow.__init__-401"><span class="linenos">401</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fallback</span><span class="p">,</span> <span class="n">chm</span><span class="p">):</span>
-</span><span id="Sow.__init__-402"><a href="#Sow.__init__-402"><span class="linenos">402</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">handles</span> <span class="o">=</span> <span class="p">[</span><span class="n">trace_p</span><span class="p">,</span> <span class="n">splice_p</span><span class="p">,</span> <span class="n">unsplice_p</span><span class="p">]</span>
-</span><span id="Sow.__init__-403"><a href="#Sow.__init__-403"><span class="linenos">403</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span id="Sow.__init__-404"><a href="#Sow.__init__-404"><span class="linenos">404</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">fallback</span> <span class="o">=</span> <span class="n">fallback</span>
-</span><span id="Sow.__init__-405"><a href="#Sow.__init__-405"><span class="linenos">405</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span>
-</span><span id="Sow.__init__-406"><a href="#Sow.__init__-406"><span class="linenos">406</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">=</span> <span class="mf">0.0</span>
-</span><span id="Sow.__init__-407"><a href="#Sow.__init__-407"><span class="linenos">407</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">stored</span> <span class="o">=</span> <span class="p">{}</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
-                            <div id="Sow.trace" class="classattr">
-                                        <input id="Sow.trace-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">trace</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">*</span><span class="n">args</span>, </span><span class="param"><span class="n">addr</span>, </span><span class="param"><span class="n">prim</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="Sow.trace-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Sow.trace"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Sow.trace-410"><a href="#Sow.trace-410"><span class="linenos">410</span></a>    <span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">prim</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="Sow.trace-411"><a href="#Sow.trace-411"><span class="linenos">411</span></a>        <span class="n">key</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="Sow.trace-412"><a href="#Sow.trace-412"><span class="linenos">412</span></a>        <span class="n">prim</span> <span class="o">=</span> <span class="n">prim</span><span class="p">()</span>
-</span><span id="Sow.trace-413"><a href="#Sow.trace-413"><span class="linenos">413</span></a>        <span class="k">if</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="p">:</span>
-</span><span id="Sow.trace-414"><a href="#Sow.trace-414"><span class="linenos">414</span></a>            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
-</span><span id="Sow.trace-415"><a href="#Sow.trace-415"><span class="linenos">415</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">stored</span><span class="p">[(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="Sow.trace-416"><a href="#Sow.trace-416"><span class="linenos">416</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="Sow.trace-417"><a href="#Sow.trace-417"><span class="linenos">417</span></a>            <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fallback</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="n">addr</span><span class="p">))</span>
-</span><span id="Sow.trace-418"><a href="#Sow.trace-418"><span class="linenos">418</span></a>        <span class="n">score</span> <span class="o">=</span> <span class="n">prim</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-</span><span id="Sow.trace-419"><a href="#Sow.trace-419"><span class="linenos">419</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">+=</span> <span class="n">score</span>
-</span><span id="Sow.trace-420"><a href="#Sow.trace-420"><span class="linenos">420</span></a>        <span class="n">ret</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span><span id="Sow.trace-421"><a href="#Sow.trace-421"><span class="linenos">421</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stored</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
-                            <div id="Sow.splice" class="classattr">
-                                        <input id="Sow.splice-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">splice</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">f</span>, </span><span class="param"><span class="n">addr</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="Sow.splice-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Sow.splice"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Sow.splice-424"><a href="#Sow.splice-424"><span class="linenos">424</span></a>    <span class="k">def</span> <span class="nf">splice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-</span><span id="Sow.splice-425"><a href="#Sow.splice-425"><span class="linenos">425</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
-</span><span id="Sow.splice-426"><a href="#Sow.splice-426"><span class="linenos">426</span></a>        <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
-                            <div id="Sow.unsplice" class="classattr">
-                                        <input id="Sow.unsplice-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">unsplice</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">f</span>, </span><span class="param"><span class="n">addr</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="Sow.unsplice-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Sow.unsplice"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Sow.unsplice-429"><a href="#Sow.unsplice-429"><span class="linenos">429</span></a>    <span class="k">def</span> <span class="nf">unsplice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-</span><span id="Sow.unsplice-430"><a href="#Sow.unsplice-430"><span class="linenos">430</span></a>        <span class="k">try</span><span class="p">:</span>
-</span><span id="Sow.unsplice-431"><a href="#Sow.unsplice-431"><span class="linenos">431</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
-</span><span id="Sow.unsplice-432"><a href="#Sow.unsplice-432"><span class="linenos">432</span></a>            <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span><span id="Sow.unsplice-433"><a href="#Sow.unsplice-433"><span class="linenos">433</span></a>        <span class="k">except</span><span class="p">:</span>
-</span><span id="Sow.unsplice-434"><a href="#Sow.unsplice-434"><span class="linenos">434</span></a>            <span class="k">return</span> <span class="n">f</span><span class="p">(())</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
-                </section>
                 <section id="ChoiceGradients">
                             <input id="ChoiceGradients-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr class">
@@ -2147,45 +1933,47 @@ where <code>*args</code> must match the <code>core.Primitive</code> declaration 
 
     </div>
     <a class="headerlink" href="#ChoiceGradients"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients-437"><a href="#ChoiceGradients-437"><span class="linenos">437</span></a><span class="k">class</span> <span class="nc">ChoiceGradients</span><span class="p">(</span><span class="n">Handler</span><span class="p">):</span>
-</span><span id="ChoiceGradients-438"><a href="#ChoiceGradients-438"><span class="linenos">438</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tr</span><span class="p">):</span>
-</span><span id="ChoiceGradients-439"><a href="#ChoiceGradients-439"><span class="linenos">439</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span>
-</span><span id="ChoiceGradients-440"><a href="#ChoiceGradients-440"><span class="linenos">440</span></a>
-</span><span id="ChoiceGradients-441"><a href="#ChoiceGradients-441"><span class="linenos">441</span></a>    <span class="c1"># Return a `Jaxpr` with trace and addressing primitives staged out.</span>
-</span><span id="ChoiceGradients-442"><a href="#ChoiceGradients-442"><span class="linenos">442</span></a>    <span class="k">def</span> <span class="nf">_stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-</span><span id="ChoiceGradients-443"><a href="#ChoiceGradients-443"><span class="linenos">443</span></a>
-</span><span id="ChoiceGradients-444"><a href="#ChoiceGradients-444"><span class="linenos">444</span></a>        <span class="c1"># Here, we define a utility function `sow` which</span>
-</span><span id="ChoiceGradients-445"><a href="#ChoiceGradients-445"><span class="linenos">445</span></a>        <span class="c1"># interprets with the `Sow` handler.</span>
-</span><span id="ChoiceGradients-446"><a href="#ChoiceGradients-446"><span class="linenos">446</span></a>        <span class="k">def</span> <span class="nf">sow</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
-</span><span id="ChoiceGradients-447"><a href="#ChoiceGradients-447"><span class="linenos">447</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Sow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="n">chm</span><span class="p">)</span>
-</span><span id="ChoiceGradients-448"><a href="#ChoiceGradients-448"><span class="linenos">448</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="ChoiceGradients-449"><a href="#ChoiceGradients-449"><span class="linenos">449</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
-</span><span id="ChoiceGradients-450"><a href="#ChoiceGradients-450"><span class="linenos">450</span></a>            <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="ChoiceGradients-451"><a href="#ChoiceGradients-451"><span class="linenos">451</span></a>
-</span><span id="ChoiceGradients-452"><a href="#ChoiceGradients-452"><span class="linenos">452</span></a>        <span class="c1"># Here, because of composition -- we can lift `sow` itself,</span>
-</span><span id="ChoiceGradients-453"><a href="#ChoiceGradients-453"><span class="linenos">453</span></a>        <span class="c1"># and now we have a function parametrized by `chm`</span>
-</span><span id="ChoiceGradients-454"><a href="#ChoiceGradients-454"><span class="linenos">454</span></a>        <span class="c1"># which we can compute the gradient of.</span>
-</span><span id="ChoiceGradients-455"><a href="#ChoiceGradients-455"><span class="linenos">455</span></a>        <span class="c1">#</span>
-</span><span id="ChoiceGradients-456"><a href="#ChoiceGradients-456"><span class="linenos">456</span></a>        <span class="c1"># This function computes the logpdf (score) of the trace,</span>
-</span><span id="ChoiceGradients-457"><a href="#ChoiceGradients-457"><span class="linenos">457</span></a>        <span class="c1"># but it accepts the seed `chm` as an argument -- and then stages out</span>
-</span><span id="ChoiceGradients-458"><a href="#ChoiceGradients-458"><span class="linenos">458</span></a>        <span class="c1"># the gradient computation using `jax.grad`.</span>
-</span><span id="ChoiceGradients-459"><a href="#ChoiceGradients-459"><span class="linenos">459</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="n">chm</span><span class="p">:</span> <span class="n">lift</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">sow</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">chm</span><span class="p">)</span>
-</span><span id="ChoiceGradients-460"><a href="#ChoiceGradients-460"><span class="linenos">460</span></a>
-</span><span id="ChoiceGradients-461"><a href="#ChoiceGradients-461"><span class="linenos">461</span></a>    <span class="k">def</span> <span class="nf">stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="ChoiceGradients-462"><a href="#ChoiceGradients-462"><span class="linenos">462</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="ChoiceGradients-463"><a href="#ChoiceGradients-463"><span class="linenos">463</span></a>
-</span><span id="ChoiceGradients-464"><a href="#ChoiceGradients-464"><span class="linenos">464</span></a>    <span class="k">def</span> <span class="nf">_jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-</span><span id="ChoiceGradients-465"><a href="#ChoiceGradients-465"><span class="linenos">465</span></a>        <span class="k">def</span> <span class="nf">sow</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
-</span><span id="ChoiceGradients-466"><a href="#ChoiceGradients-466"><span class="linenos">466</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Sow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="n">chm</span><span class="p">)</span>
-</span><span id="ChoiceGradients-467"><a href="#ChoiceGradients-467"><span class="linenos">467</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="ChoiceGradients-468"><a href="#ChoiceGradients-468"><span class="linenos">468</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
-</span><span id="ChoiceGradients-469"><a href="#ChoiceGradients-469"><span class="linenos">469</span></a>            <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-</span><span id="ChoiceGradients-470"><a href="#ChoiceGradients-470"><span class="linenos">470</span></a>
-</span><span id="ChoiceGradients-471"><a href="#ChoiceGradients-471"><span class="linenos">471</span></a>        <span class="n">jitted</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">sow</span><span class="p">,</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
-</span><span id="ChoiceGradients-472"><a href="#ChoiceGradients-472"><span class="linenos">472</span></a>        <span class="k">return</span> <span class="n">jitted</span>
-</span><span id="ChoiceGradients-473"><a href="#ChoiceGradients-473"><span class="linenos">473</span></a>
-</span><span id="ChoiceGradients-474"><a href="#ChoiceGradients-474"><span class="linenos">474</span></a>    <span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="ChoiceGradients-475"><a href="#ChoiceGradients-475"><span class="linenos">475</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients-390"><a href="#ChoiceGradients-390"><span class="linenos">390</span></a><span class="k">class</span> <span class="nc">ChoiceGradients</span><span class="p">(</span><span class="n">Handler</span><span class="p">):</span>
+</span><span id="ChoiceGradients-391"><a href="#ChoiceGradients-391"><span class="linenos">391</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tr</span><span class="p">):</span>
+</span><span id="ChoiceGradients-392"><a href="#ChoiceGradients-392"><span class="linenos">392</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span>
+</span><span id="ChoiceGradients-393"><a href="#ChoiceGradients-393"><span class="linenos">393</span></a>
+</span><span id="ChoiceGradients-394"><a href="#ChoiceGradients-394"><span class="linenos">394</span></a>    <span class="c1"># Return a `Jaxpr` with trace and addressing primitives staged out.</span>
+</span><span id="ChoiceGradients-395"><a href="#ChoiceGradients-395"><span class="linenos">395</span></a>    <span class="k">def</span> <span class="nf">_stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+</span><span id="ChoiceGradients-396"><a href="#ChoiceGradients-396"><span class="linenos">396</span></a>
+</span><span id="ChoiceGradients-397"><a href="#ChoiceGradients-397"><span class="linenos">397</span></a>        <span class="c1"># Here, we define a utility function `diff` which</span>
+</span><span id="ChoiceGradients-398"><a href="#ChoiceGradients-398"><span class="linenos">398</span></a>        <span class="c1"># interprets with the `Diff` handler.</span>
+</span><span id="ChoiceGradients-399"><a href="#ChoiceGradients-399"><span class="linenos">399</span></a>        <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
+</span><span id="ChoiceGradients-400"><a href="#ChoiceGradients-400"><span class="linenos">400</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="p">,</span> <span class="n">chm</span><span class="p">)</span>
+</span><span id="ChoiceGradients-401"><a href="#ChoiceGradients-401"><span class="linenos">401</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="ChoiceGradients-402"><a href="#ChoiceGradients-402"><span class="linenos">402</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
+</span><span id="ChoiceGradients-403"><a href="#ChoiceGradients-403"><span class="linenos">403</span></a>            <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="ChoiceGradients-404"><a href="#ChoiceGradients-404"><span class="linenos">404</span></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span> <span class="o">+</span> <span class="n">w</span>
+</span><span id="ChoiceGradients-405"><a href="#ChoiceGradients-405"><span class="linenos">405</span></a>
+</span><span id="ChoiceGradients-406"><a href="#ChoiceGradients-406"><span class="linenos">406</span></a>        <span class="c1"># Here, because of composition -- we can lift `diff` itself,</span>
+</span><span id="ChoiceGradients-407"><a href="#ChoiceGradients-407"><span class="linenos">407</span></a>        <span class="c1"># and now we have a function parametrized by `chm`</span>
+</span><span id="ChoiceGradients-408"><a href="#ChoiceGradients-408"><span class="linenos">408</span></a>        <span class="c1"># which we can compute the gradient of.</span>
+</span><span id="ChoiceGradients-409"><a href="#ChoiceGradients-409"><span class="linenos">409</span></a>        <span class="c1">#</span>
+</span><span id="ChoiceGradients-410"><a href="#ChoiceGradients-410"><span class="linenos">410</span></a>        <span class="c1"># This function computes the logpdf (score) of the trace,</span>
+</span><span id="ChoiceGradients-411"><a href="#ChoiceGradients-411"><span class="linenos">411</span></a>        <span class="c1"># but it accepts the seed `chm` as an argument -- and then stages out</span>
+</span><span id="ChoiceGradients-412"><a href="#ChoiceGradients-412"><span class="linenos">412</span></a>        <span class="c1"># the gradient computation using `jax.grad`.</span>
+</span><span id="ChoiceGradients-413"><a href="#ChoiceGradients-413"><span class="linenos">413</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="n">chm</span><span class="p">:</span> <span class="n">lift</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">diff</span><span class="p">),</span> <span class="n">chm</span><span class="p">)</span>
+</span><span id="ChoiceGradients-414"><a href="#ChoiceGradients-414"><span class="linenos">414</span></a>
+</span><span id="ChoiceGradients-415"><a href="#ChoiceGradients-415"><span class="linenos">415</span></a>    <span class="k">def</span> <span class="nf">stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="ChoiceGradients-416"><a href="#ChoiceGradients-416"><span class="linenos">416</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="ChoiceGradients-417"><a href="#ChoiceGradients-417"><span class="linenos">417</span></a>
+</span><span id="ChoiceGradients-418"><a href="#ChoiceGradients-418"><span class="linenos">418</span></a>    <span class="k">def</span> <span class="nf">_jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+</span><span id="ChoiceGradients-419"><a href="#ChoiceGradients-419"><span class="linenos">419</span></a>        <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">chm</span><span class="p">):</span>
+</span><span id="ChoiceGradients-420"><a href="#ChoiceGradients-420"><span class="linenos">420</span></a>            <span class="n">handler</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="p">,</span> <span class="n">chm</span><span class="p">)</span>
+</span><span id="ChoiceGradients-421"><a href="#ChoiceGradients-421"><span class="linenos">421</span></a>            <span class="n">expr</span> <span class="o">=</span> <span class="n">lift</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="ChoiceGradients-422"><a href="#ChoiceGradients-422"><span class="linenos">422</span></a>            <span class="n">fn</span> <span class="o">=</span> <span class="n">handle</span><span class="p">([</span><span class="n">handler</span><span class="p">],</span> <span class="n">expr</span><span class="p">)</span>
+</span><span id="ChoiceGradients-423"><a href="#ChoiceGradients-423"><span class="linenos">423</span></a>            <span class="n">w</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</span><span id="ChoiceGradients-424"><a href="#ChoiceGradients-424"><span class="linenos">424</span></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span> <span class="o">+</span> <span class="n">w</span>
+</span><span id="ChoiceGradients-425"><a href="#ChoiceGradients-425"><span class="linenos">425</span></a>
+</span><span id="ChoiceGradients-426"><a href="#ChoiceGradients-426"><span class="linenos">426</span></a>        <span class="n">jitted</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span>
+</span><span id="ChoiceGradients-427"><a href="#ChoiceGradients-427"><span class="linenos">427</span></a>        <span class="k">return</span> <span class="n">jitted</span>
+</span><span id="ChoiceGradients-428"><a href="#ChoiceGradients-428"><span class="linenos">428</span></a>
+</span><span id="ChoiceGradients-429"><a href="#ChoiceGradients-429"><span class="linenos">429</span></a>    <span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="ChoiceGradients-430"><a href="#ChoiceGradients-430"><span class="linenos">430</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -2205,8 +1993,8 @@ where <code>*args</code> must match the <code>core.Primitive</code> declaration 
 
     </div>
     <a class="headerlink" href="#ChoiceGradients.__init__"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients.__init__-438"><a href="#ChoiceGradients.__init__-438"><span class="linenos">438</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tr</span><span class="p">):</span>
-</span><span id="ChoiceGradients.__init__-439"><a href="#ChoiceGradients.__init__-439"><span class="linenos">439</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients.__init__-391"><a href="#ChoiceGradients.__init__-391"><span class="linenos">391</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tr</span><span class="p">):</span>
+</span><span id="ChoiceGradients.__init__-392"><a href="#ChoiceGradients.__init__-392"><span class="linenos">392</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span>
 </span></pre></div>
 
 
@@ -2224,8 +2012,8 @@ where <code>*args</code> must match the <code>core.Primitive</code> declaration 
 
     </div>
     <a class="headerlink" href="#ChoiceGradients.stage"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients.stage-461"><a href="#ChoiceGradients.stage-461"><span class="linenos">461</span></a>    <span class="k">def</span> <span class="nf">stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="ChoiceGradients.stage-462"><a href="#ChoiceGradients.stage-462"><span class="linenos">462</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients.stage-415"><a href="#ChoiceGradients.stage-415"><span class="linenos">415</span></a>    <span class="k">def</span> <span class="nf">stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="ChoiceGradients.stage-416"><a href="#ChoiceGradients.stage-416"><span class="linenos">416</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -2243,8 +2031,8 @@ where <code>*args</code> must match the <code>core.Primitive</code> declaration 
 
     </div>
     <a class="headerlink" href="#ChoiceGradients.jit"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients.jit-474"><a href="#ChoiceGradients.jit-474"><span class="linenos">474</span></a>    <span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
-</span><span id="ChoiceGradients.jit-475"><a href="#ChoiceGradients.jit-475"><span class="linenos">475</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceGradients.jit-429"><a href="#ChoiceGradients.jit-429"><span class="linenos">429</span></a>    <span class="k">def</span> <span class="nf">jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+</span><span id="ChoiceGradients.jit-430"><a href="#ChoiceGradients.jit-430"><span class="linenos">430</span></a>        <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
 </span></pre></div>
 
 
