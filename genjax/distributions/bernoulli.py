@@ -15,7 +15,6 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
-from jax._src import dtypes
 
 
 class Bernoulli:

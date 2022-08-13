@@ -18,10 +18,10 @@ incremental plugins (primitives and incremental derivatives).
 """
 
 import functools
-from genjax.core.propagating import get_shaped_aval, propagate, Cell
+from genjax.core.propagating import Cell, get_shaped_aval
 
 #####
-##### Coarse incremental propagation
+# Coarse incremental propagation
 #####
 
 

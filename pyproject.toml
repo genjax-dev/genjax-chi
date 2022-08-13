@@ -20,6 +20,7 @@ mypy = "^0.971"
 pre-commit = "^2.20.0"
 pdoc = "^12.0.2"
 pytest-benchmark = "^3.4.1"
+autoflake8 = "^0.3.2"
 
 [tool.black]
 line-length = 80

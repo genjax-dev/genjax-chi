@@ -14,9 +14,7 @@
 
 from jax import core
 from typing import (
-    Any,
     Callable,
-    Dict,
     Sequence,
 )
 

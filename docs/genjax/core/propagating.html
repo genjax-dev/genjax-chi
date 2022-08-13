@@ -118,17 +118,17 @@
                         <div class="docstring"><p>Module for the propagate custom Jaxpr interpreter.</p>
 
 <p>The propagate Jaxpr interpreter converts a Jaxpr to a directed graph where
-vars are nodes and primitives are edges. </p>
+vars are nodes and primitives are edges.</p>
 
-<p>It initializes invars and outvars with Cells (an interface defined below), 
-where a Cell encapsulates a value (or a set of values) that a node 
-in the graph can take on, and the Cell is computed from neighboring Cells, 
+<p>It initializes invars and outvars with Cells (an interface defined below),
+where a Cell encapsulates a value (or a set of values) that a node
+in the graph can take on, and the Cell is computed from neighboring Cells,
 using a set of propagation rules for each primitive.</p>
 
-<p>Each rule indicates whether the propagation has been completed for 
-the given edge. If so, the propagate interpreter continues on to that 
-primitive's neighbors in the graph. Propagation continues until there 
-are Cells for every node, or when no further progress can be made. </p>
+<p>Each rule indicates whether the propagation has been completed for
+the given edge. If so, the propagate interpreter continues on to that
+primitive's neighbors in the graph. Propagation continues until there
+are Cells for every node, or when no further progress can be made.</p>
 
 <p>Finally, Cell values for all nodes in the graph are returned.</p>
 </div>
@@ -162,17 +162,17 @@ are Cells for every node, or when no further progress can be made. </p>
 </span><span id="L-23"><a href="#L-23"><span class="linenos"> 23</span></a><span class="sd">Module for the propagate custom Jaxpr interpreter.</span>
 </span><span id="L-24"><a href="#L-24"><span class="linenos"> 24</span></a>
 </span><span id="L-25"><a href="#L-25"><span class="linenos"> 25</span></a><span class="sd">The propagate Jaxpr interpreter converts a Jaxpr to a directed graph where</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos"> 26</span></a><span class="sd">vars are nodes and primitives are edges. </span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos"> 26</span></a><span class="sd">vars are nodes and primitives are edges.</span>
 </span><span id="L-27"><a href="#L-27"><span class="linenos"> 27</span></a>
-</span><span id="L-28"><a href="#L-28"><span class="linenos"> 28</span></a><span class="sd">It initializes invars and outvars with Cells (an interface defined below), </span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a><span class="sd">where a Cell encapsulates a value (or a set of values) that a node </span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a><span class="sd">in the graph can take on, and the Cell is computed from neighboring Cells, </span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos"> 28</span></a><span class="sd">It initializes invars and outvars with Cells (an interface defined below),</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a><span class="sd">where a Cell encapsulates a value (or a set of values) that a node</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a><span class="sd">in the graph can take on, and the Cell is computed from neighboring Cells,</span>
 </span><span id="L-31"><a href="#L-31"><span class="linenos"> 31</span></a><span class="sd">using a set of propagation rules for each primitive.</span>
 </span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a>
-</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a><span class="sd">Each rule indicates whether the propagation has been completed for </span>
-</span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a><span class="sd">the given edge. If so, the propagate interpreter continues on to that </span>
-</span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a><span class="sd">primitive&#39;s neighbors in the graph. Propagation continues until there </span>
-</span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a><span class="sd">are Cells for every node, or when no further progress can be made. </span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a><span class="sd">Each rule indicates whether the propagation has been completed for</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a><span class="sd">the given edge. If so, the propagate interpreter continues on to that</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a><span class="sd">primitive&#39;s neighbors in the graph. Propagation continues until there</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a><span class="sd">are Cells for every node, or when no further progress can be made.</span>
 </span><span id="L-37"><a href="#L-37"><span class="linenos"> 37</span></a>
 </span><span id="L-38"><a href="#L-38"><span class="linenos"> 38</span></a><span class="sd">Finally, Cell values for all nodes in the graph are returned.</span>
 </span><span id="L-39"><a href="#L-39"><span class="linenos"> 39</span></a><span class="sd">&quot;&quot;&quot;</span>

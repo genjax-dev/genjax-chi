@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax.core.transforms import I
 from genjax.handlers import (
     Sample,
     Simulate,

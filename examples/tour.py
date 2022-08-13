@@ -1,5 +1,5 @@
 #####
-##### Welcome to the `genjax` tour!
+# Welcome to the `genjax` tour!
 #####
 
 import jax
@@ -31,11 +31,33 @@ def f(key, x):
 # Initialize a PRNG.
 key = jax.random.PRNGKey(314159)
 
+# This just shows our raw (not yet desugared/codegen) syntax.
+expr = gex.lift(f, key, 0.3)
+print(expr)
+
+# We can use our model function as a sampler.
+key, v = gex.sample(f)(key, 0.3)
+print((key, v))
+
+# Here's how you access the `simulate` GFI.
+tr = jax.jit(gex.simulate(f))(key, 0.3)
+print(tr)
+
 # Here's how you access the `importance` GFI.
 chm = {("m1",): 0.2, ("m2",): 0.5}
 w, tr = jax.jit(gex.importance(f))(chm, key, 0.3)
+print((w, tr))
 
 # Here's how you access the `update` GFI.
 chm = {("m1",): 0.3, ("m2",): 0.5}
-expr = gex.lift(jax.jit(gex.update(f)), tr, chm, key, 0.3)
-print(expr)
+w, updated = jax.jit(gex.update(f))(tr, chm, key, 0.3)
+print((w, updated))
+
+# Here's how you access the `arg_grad` interface.
+arg_grad = jax.jit(gex.arg_grad(f, [1]))(tr, key, 0.3)
+print(arg_grad)
+
+# Here's how you access the `choice_grad` interface.
+chm = {("m1",): 0.3, ("m2",): 0.5}
+choice_grad = jax.jit(gex.choice_grad(f))(tr, chm, key, 0.3)
+print(choice_grad[("m1",)])

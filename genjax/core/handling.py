@@ -17,7 +17,6 @@ from jax import core
 from jax.util import safe_map, safe_zip
 from typing import (
     Any,
-    Callable,
     Dict,
     Sequence,
 )
@@ -53,7 +52,7 @@ def eval_jaxpr_handler(
         env = env.copy()
 
         def read(v):
-            if type(v) is core.Literal:
+            if isinstance(v, core.Literal):
                 return v.val
             else:
                 return env[v]
@@ -76,6 +75,7 @@ def eval_jaxpr_handler(
                 args = subfuns + in_vals
                 # This definition "reifies" the remainder of the evaluation
                 # loop so it can be explicitly passed to the handler.
+
                 def continuation(*args):
                     return eval_jaxpr_recurse(
                         eqns[1:], env, eqn.outvars, [*args]

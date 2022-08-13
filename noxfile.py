@@ -22,6 +22,14 @@ def lint(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run("black", ".")
+    session.run(
+        "autoflake8",
+        "--in-place",
+        "--recursive",
+        "--exclude",
+        "__init__.py",
+        ".",
+    )
     # session.run("flake8", ".") @ nox.session
 
 

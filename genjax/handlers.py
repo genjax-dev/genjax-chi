@@ -13,11 +13,11 @@
 # limitations under the License.
 
 import jax
-from .core import handle, lift, Handler, I
+from .core import Handler, handle, lift
 from .intrinsics import trace_p, splice_p, unsplice_p
 
 #####
-##### GFI handlers
+# GFI handlers
 #####
 
 # Note: these handlers _do not manipulate runtime values_ --
@@ -103,7 +103,7 @@ class Simulate(Handler):
         try:
             self.level.pop()
             return f(())
-        except:
+        except BaseException:
             return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
@@ -172,7 +172,7 @@ class Importance(Handler):
         try:
             self.level.pop()
             return f(())
-        except:
+        except BaseException:
             return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
@@ -233,7 +233,7 @@ class Diff(Handler):
         try:
             self.level.pop()
             return f(())
-        except:
+        except BaseException:
             return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
@@ -303,7 +303,7 @@ class Update(Handler):
         try:
             self.level.pop()
             return f(())
-        except:
+        except BaseException:
             return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
@@ -362,7 +362,7 @@ class ArgumentGradients(Handler):
         try:
             self.level.pop()
             return f(())
-        except:
+        except BaseException:
             return f(())
 
     # Return a `Jaxpr` with trace and addressing primitives staged out.
