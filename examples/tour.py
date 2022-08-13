@@ -44,14 +44,14 @@ tr = jax.jit(gex.simulate(f))(key, 0.3)
 print(tr)
 
 # Here's how you access the `importance` GFI.
-chm = {("m1",): 0.3, ("m2",): 0.5}
+chm = {("m1",): 0.2, ("m2",): 0.5}
 w, tr = jax.jit(gex.importance(f))(chm, key, 0.3)
 print((w, tr))
 
 # Here's how you access the `update` GFI.
 chm = {("m1",): 0.3, ("m2",): 0.5}
-expr = gex.lift(gex.update(f), tr, chm, key, 0.3)
-print(expr)
+w, updated = jax.jit(gex.update(f))(tr, chm, key, 0.3)
+print((w, updated))
 
 # Here's how you access the `arg_grad` interface.
 arg_grad = jax.jit(gex.arg_grad(f, [1]))(tr, key, 0.3)
@@ -59,5 +59,5 @@ print(arg_grad)
 
 # Here's how you access the `choice_grad` interface.
 chm = {("m1",): 0.3, ("m2",): 0.5}
-choice_grad, choices = jax.jit(gex.choice_grad(f))(tr, chm, key, 0.3)
+choice_grad = jax.jit(gex.choice_grad(f))(tr, chm, key, 0.3)
 print(choice_grad[("m1",)])

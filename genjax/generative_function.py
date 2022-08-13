@@ -94,7 +94,7 @@ def update(f):
     def _inner(original, new, *args):
         jitted = Update(original, new).jit(f)(*args)
         w, ret, scores, chm = jitted(*args)
-        return Trace(args, ret, chm, scores, original.get_score() + w), w
+        return w, Trace(args, ret, chm, scores, original.get_score() + w)
 
     return lambda chm, *args: _inner(chm, *args)
 
