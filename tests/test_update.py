@@ -21,3 +21,11 @@ def test_simple_normal_update(benchmark):
     y2 = updated_chm[("y2",)]
     test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
     assert updated.get_score() == pytest.approx(test_score, 0.01)
+    original_score = tr.get_score()
+    updated, w = jitted(tr, new, key)
+    updated_chm = updated.get_choices()
+    y1 = updated_chm[("y1",)]
+    y2 = updated_chm[("y2",)]
+    test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
+    assert updated.get_score() == original_score + w
+    assert updated.get_score() == pytest.approx(test_score, 0.01)
