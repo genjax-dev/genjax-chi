@@ -27,14 +27,14 @@
 - Generative functions (models) are represented as pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
 - Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.
 
-  | Interface     | Semantics (informal)                                                                            |
-  | ------------- | ----------------------------------------------------------------------------------------------- |
-  | `simulate`    | Sample from normalized measure over choice maps                                                 |
-  | `importance`  | Importance sample from conditioned measure, and compute an importance weight                    |
-  | `diff`        | Given a new set of arguments and choices, compute an updated importance weight and return value |
-  | `update`      | Given a new set of arguments and choices, compute an updated trace                              |
-  | `arg_grad`    | Compute gradient of `logpdf` of choice map with respect to arguments                            |
-  | `choice_grad` | Compute gradient of `logpdf` of choice map with respect to values of random choices             |
+  | Interface     | Semantics (informal)                                                                             |
+  | ------------- | ------------------------------------------------------------------------------------------------ |
+  | `simulate`    | Sample from normalized measure over choice maps                                                  |
+  | `importance`  | Importance sample from conditioned measure, and compute an importance weight                     |
+  | `diff`        | Given a new set of arguments and choices, compute an importance weight diff and new return value |
+  | `update`      | Given a new set of arguments and choices, compute an updated trace                               |
+  | `arg_grad`    | Compute gradient of `logpdf` of choice map with respect to arguments                             |
+  | `choice_grad` | Compute gradient of `logpdf` of choice map with respect to values of random choices              |
 
 - Supports usage of any computations acceptable by JAX (tbd) within generative function programs.
 
