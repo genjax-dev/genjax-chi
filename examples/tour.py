@@ -48,6 +48,11 @@ chm = {("m1",): 0.3, ("m2",): 0.5}
 w, tr = jax.jit(gex.importance(f))(chm, key, 0.3)
 print((w, tr))
 
+# Here's how you access the `update` GFI.
+chm = {("m1",): 0.3, ("m2",): 0.5}
+expr = gex.lift(gex.update(f), tr, chm, key, 0.3)
+print(expr)
+
 # Here's how you access the `arg_grad` interface.
 arg_grad = jax.jit(gex.arg_grad(f, [1]))(tr, key, 0.3)
 print(arg_grad)
