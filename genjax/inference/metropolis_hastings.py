@@ -33,10 +33,10 @@ def metropolis_hastings(model, proposal):
         )
         alpha = weight - fwd_weight + bwd_weight
         check = jnp.log(random.uniform(key)) < alpha
-        return jax.lax.cond(
+        return key, jax.lax.cond(
             check,
-            lambda *args: (key, (new, True)),
-            lambda *args: (key, (trace, False)),
+            lambda *args: (new, True),
+            lambda *args: (trace, False),
         )
 
     return lambda key, trace, proposal_args: __inner(key, trace, *proposal_args)

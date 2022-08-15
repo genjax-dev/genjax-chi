@@ -22,15 +22,12 @@ __all__ = [
 
 
 class Pytree(metaclass=abc.ABCMeta):
-    """Class that registers objects as Jax pytree_nodes."""
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         tree_util.register_pytree_node(
             cls,
             cls.flatten,
-            # Pytype incorrectly thinks that cls.unflatten accepts three arguments.
-            cls.unflatten,  # type: ignore
+            cls.unflatten,
         )
 
     @abc.abstractmethod
