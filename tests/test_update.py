@@ -30,7 +30,7 @@ class TestUpdate:
         tr = jax.jit(gex.simulate(simple_normal))(key)
         jitted = jax.jit(gex.update(simple_normal))
 
-        new = {("y1",): 2.0}
+        new = gex.ChoiceMap({("y1",): 2.0})
         original_score = tr.get_score()
         w, updated = benchmark(jitted, tr, new, key)
         updated_chm = updated.get_choices()
@@ -40,7 +40,7 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-        new = {("y1",): 2.0, ("y2",): 3.0}
+        new = gex.ChoiceMap({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
         w, updated = jitted(tr, new, key)
         updated_chm = updated.get_choices()

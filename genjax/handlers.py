@@ -15,6 +15,7 @@
 import jax
 from .core import Handler, handle, lift
 from .intrinsics import trace_p, splice_p, unsplice_p
+from genjax.datatypes import ChoiceMap
 
 #####
 # GFI handlers
@@ -72,8 +73,7 @@ class Sample(Handler):
 class Simulate(Handler):
     def __init__(self):
         self.handles = [trace_p, splice_p, unsplice_p]
-        self.state = {}
-        self.scores = {}
+        self.state = ChoiceMap([])
         self.level = []
         self.score = 0.0
         self.return_or_continue = False
@@ -82,16 +82,16 @@ class Simulate(Handler):
     def trace(self, f, *args, addr, prim, **kwargs):
         prim = prim()
         key, v = prim.sample(*args, **kwargs)
-        self.state[(*self.level, addr)] = v
+        full = ".".join((*self.level, addr))
         score = prim.score(v, *args[1:])
-        self.scores[(*self.level, addr)] = score
+        self.state[full] = (v, score)
         self.score += score
         if self.return_or_continue:
             return f(key, v)
         else:
             self.return_or_continue = True
             ret = f(key, v)
-            return (ret, self.state, self.scores, self.score)
+            return (ret, self.state, self.score)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -131,9 +131,8 @@ class Simulate(Handler):
 class Importance(Handler):
     def __init__(self, choice_map):
         self.handles = [trace_p, splice_p, unsplice_p]
-        self.state = {}
+        self.state = ChoiceMap([])
         self.level = []
-        self.scores = {}
         self.score = 0.0
         self.weight = 0.0
         self.obs = choice_map
@@ -143,24 +142,23 @@ class Importance(Handler):
     def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
-        if (*self.level, addr) in self.obs:
-            v = self.obs.get((*self.level, addr))
+        full = ".".join((*self.level, addr))
+        if self.obs.has_choice(full):
+            v = self.obs.get_value(full)
             score = prim.score(v, *args[1:])
-            self.scores[(*self.level, addr)] = score
-            self.state[(*self.level, addr)] = v
+            self.state[full] = (v, score)
             self.weight += score
         else:
             key, v = prim.sample(*args, **kwargs)
-            self.state[(*self.level, addr)] = v
             score = prim.score(v, *args[1:])
-            self.scores[(*self.level, addr)] = score
+            self.state[full] = (v, score)
         self.score += score
         if self.return_or_continue:
             return f(key, v)
         else:
             self.return_or_continue = True
             ret = f(key, v)
-            return (self.weight, ret, self.state, self.scores, self.score)
+            return (self.weight, ret, self.state, self.score)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -202,7 +200,7 @@ class Diff(Handler):
         self.handles = [trace_p, splice_p, unsplice_p]
         self.level = []
         self.weight = 0.0
-        self.original = original
+        self.original = original.get_choices()
         self.choice_change = new
         self.return_or_continue = False
 
@@ -210,11 +208,12 @@ class Diff(Handler):
     def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
-        v = self.original.get_choices().get((*self.level, addr))
-        if (*self.level, addr) in self.choice_change:
-            v = self.choice_change.get((*self.level, addr))
+        full = ".".join((*self.level, addr))
+        v = self.original.get_value(full)
+        if self.choice_change.has_choice(full):
+            v = self.choice_change.get_value(full)
             forward = prim.score(v, *args[1:])
-            backward = self.original.scores[(*self.level, addr)]
+            backward = self.original.get_score(full)
             self.weight += forward - backward
         if self.return_or_continue:
             return f(key, v)
@@ -262,10 +261,9 @@ class Update(Handler):
     def __init__(self, original, new):
         self.handles = [trace_p, splice_p, unsplice_p]
         self.level = []
-        self.state = {}
-        self.scores = {}
+        self.state = ChoiceMap([])
         self.weight = 0.0
-        self.original = original
+        self.original = original.get_choices()
         self.choice_change = new
         self.return_or_continue = False
 
@@ -273,25 +271,22 @@ class Update(Handler):
     def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
-        if (*self.level, addr) in self.choice_change:
-            v = self.choice_change.get((*self.level, addr))
+        full = ".".join((*self.level, addr))
+        if self.choice_change.has_choice(full):
+            v = self.choice_change.get_value(full)
             forward = prim.score(v, *args[1:])
-            backward = self.original.scores[(*self.level, addr)]
-            self.scores[(*self.level, addr)] = forward
-            self.state[(*self.level, addr)] = v
+            backward = self.original.get_score(full)
+            self.state[full] = (v, forward)
             self.weight += forward - backward
         else:
-            v = self.original.get_choices().get((*self.level, addr))
-            self.state[(*self.level, addr)] = v
-            self.scores[(*self.level, addr)] = self.original.scores[
-                (*self.level, addr)
-            ]
+            v = self.original.get_value(full)
+            self.state[full] = (v, self.original.get_score(full))
         if self.return_or_continue:
             return f(key, v)
         else:
             self.return_or_continue = True
             ret = f(key, v)
-            return self.weight, ret, self.scores, self.state
+            return self.weight, ret, self.state
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -342,7 +337,8 @@ class ArgumentGradients(Handler):
     def trace(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
-        v = self.sources.get((*self.level, addr))
+        full = ".".join((*self.level, addr))
+        v = self.sources.get_value(full)
         score = prim.score(v, *args[1:])
         self.score += score
         if self.return_or_continue:

@@ -28,7 +28,7 @@ class TestChoiceGradient:
     def test_simple_normal_gradient(self, benchmark):
         v1 = 0.5
         v2 = -0.5
-        chm = {("y1",): v1, ("y2",): v2}
+        chm = gex.ChoiceMap({("y1",): v1, ("y2",): v2})
         tr = jax.jit(gex.simulate(simple_normal))(key)
         jitted = jax.jit(gex.choice_grad(simple_normal))
         choice_grads = benchmark(jitted, tr, chm, key)

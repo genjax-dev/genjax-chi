@@ -48,4 +48,5 @@ from .core import *
 from .distributions import *
 from .intrinsics import *
 from .handlers import *
+from .datatypes import *
 from .generative_function import *

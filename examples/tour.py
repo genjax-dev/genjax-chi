@@ -1,3 +1,17 @@
+# Copyright 2022 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #####
 # Welcome to the `genjax` tour!
 #####
@@ -41,23 +55,25 @@ print((key, v))
 
 # Here's how you access the `simulate` GFI.
 tr = jax.jit(gex.simulate(f))(key, 0.3)
-print(tr)
+print(tr.get_choices()[("m1",)])
 
 # Here's how you access the `importance` GFI.
-chm = {("m1",): 0.2, ("m2",): 0.5}
+chm = gex.ChoiceMap({("m1",): 0.3, ("m2",): 0.5})
 w, tr = jax.jit(gex.importance(f))(chm, key, 0.3)
 print((w, tr))
 
 # Here's how you access the `update` GFI.
-chm = {("m1",): 0.3, ("m2",): 0.5}
+chm = gex.ChoiceMap({("m1",): 0.2, ("m2",): 0.5})
 w, updated = jax.jit(gex.update(f))(tr, chm, key, 0.3)
 print((w, updated))
+
 
 # Here's how you access the `arg_grad` interface.
 arg_grad = jax.jit(gex.arg_grad(f, [1]))(tr, key, 0.3)
 print(arg_grad)
 
 # Here's how you access the `choice_grad` interface.
-chm = {("m1",): 0.3, ("m2",): 0.5}
+chm = gex.ChoiceMap({("m1",): 0.2, ("m2",): 0.5})
 choice_grad = jax.jit(gex.choice_grad(f))(tr, chm, key, 0.3)
+print(choice_grad)
 print(choice_grad[("m1",)])

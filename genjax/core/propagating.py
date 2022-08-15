@@ -20,22 +20,23 @@
 # authors above, as a derivative work.
 
 """
-Module for the propagate custom Jaxpr interpreter.
+Module for the propagation custom `Jaxpr` interpreter.
 
-The propagate Jaxpr interpreter converts a Jaxpr to a directed graph where
-vars are nodes and primitives are edges.
+The interpreter converts a `Jaxpr` to a directed graph where
+`jax.core.Var` instances are nodes and primitives are edges.
 
-It initializes invars and outvars with Cells (an interface defined below),
-where a Cell encapsulates a value (or a set of values) that a node
-in the graph can take on, and the Cell is computed from neighboring Cells,
+It initializes invars and outvars with `Cell` instances
+(an interface defined below), where a `Cell` encapsulates a value
+(or a set of values) that a node in the graph can take on,
+and the `Cell` is computed from neighboring `Cell` instances,
 using a set of propagation rules for each primitive.
 
 Each rule indicates whether the propagation has been completed for
-the given edge. If so, the propagate interpreter continues on to that
+the given edge. If so, the interpreter continues on to that
 primitive's neighbors in the graph. Propagation continues until there
-are Cells for every node, or when no further progress can be made.
+are `Cell` instances for every node, or when no further progress can be made.
 
-Finally, Cell values for all nodes in the graph are returned.
+Finally, `Cell` values for all nodes in the graph are returned.
 """
 
 
@@ -74,10 +75,13 @@ class Cell(pytree.Pytree):
     the two input cells. During the propagation, we hope to join cells until
     all cells are "top".
 
-    Transformations that use propagate need to pass in objects that are Cell-like.
-    A Cell needs to specify how to create a new default cell from a literal value,
-    using the `new` class method. A Cell also needs to indicate if it is a known
-    value with the `is_unknown` method, but by default, Cells are known.
+    Transformations that use `propagate` need to pass in objects
+    that are Cell-like.
+
+    A Cell needs to specify how to create a new default cell
+    from a literal value, using the `new` class method.
+    A Cell also needs to indicate if it is a known value with
+    the `is_unknown` method, but by default, Cells are known.
     """
 
     def __init__(self, aval):
@@ -249,11 +253,6 @@ def update_queue_state(
             queue.extendleft(neighbors)
 
 
-PropagationRule = Callable[
-    [List[Any], List[Cell]], Tuple[List[Cell], List[Cell], State]
-]
-
-
 def identity_reducer(env, eqn, state, new_state):
     del env, eqn, new_state
     return state
@@ -274,6 +273,11 @@ def get_shaped_aval(x):
             x.shape, dtypes.canonicalize_dtype(x.dtype)
         )
     return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
+
+
+PropagationRule = Callable[
+    [List[Any], List[Cell]], Tuple[List[Cell], List[Cell], State]
+]
 
 
 def propagate(
