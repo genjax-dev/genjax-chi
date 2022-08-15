@@ -22,6 +22,7 @@ from genjax.handlers import (
     ChoiceGradients,
 )
 from genjax.datatypes import Trace
+from jax import tree_util
 
 
 #####
@@ -30,63 +31,75 @@ from genjax.datatypes import Trace
 
 
 def sample(f):
-    def _inner(*args):
-        jitted = Sample().jit(f)(*args)
-        k, *v = jitted(*args)
-        return k, v
+    def _inner(key, *args):
+        fn = Sample().transform(f)(key, *args)
+        in_args, _ = tree_util.tree_flatten(args)
+        k, *v = fn(key, *in_args)
+        return k, (*v,)
 
-    return lambda *args: _inner(*args)
+    return lambda key, *args: _inner(key, *args)
 
 
 def simulate(f):
-    def _inner(*args):
-        jitted = Simulate().jit(f)(*args)
-        (r, chm, score) = jitted(*args)
-        return Trace(args, r, chm, score)
+    def _inner(key, *args):
+        fn = Simulate().transform(f)(key, *args)
+        in_args, _ = tree_util.tree_flatten(args)
+        key, (r, chm, score) = fn(key, *in_args)
+        return key, Trace(args, r, chm, score)
 
-    return lambda *args: _inner(*args)
+    return lambda key, *args: _inner(key, *args)
 
 
 def importance(f):
-    def _inner(chm, *args):
-        jitted = Importance(chm).jit(f)(*args)
-        (w, r, chm, score) = jitted(*args)
-        return w, Trace(args, r, chm, score)
+    def _inner(key, chm, *args):
+        fn = Importance(chm).transform(f)(key, *args)
+        in_args, _ = tree_util.tree_flatten(args)
+        key, (w, r, chm, score) = fn(key, *in_args)
+        return key, (w, Trace(args, r, chm, score))
 
-    return lambda chm, *args: _inner(chm, *args)
+    return lambda key, chm, *args: _inner(key, chm, *args)
 
 
 def diff(f):
-    def _inner(original, new, *args):
-        jitted = Diff(original, new).jit(f)(*args)
-        w, ret = jitted(*args)
-        return w, ret
+    def _inner(key, original, new, *args):
+        fn = Diff(original, new).transform(f)(key, *args)
+        in_args, _ = tree_util.tree_flatten(args)
+        key, (w, ret) = fn(key, *in_args)
+        return key, (w, ret)
 
-    return lambda chm, *args: _inner(chm, *args)
+    return lambda key, chm, *args: _inner(key, chm, *args)
 
 
 def update(f):
-    def _inner(original, new, *args):
-        jitted = Update(original, new).jit(f)(*args)
-        w, ret, chm = jitted(*args)
-        return w, Trace(args, ret, chm, original.get_score() + w)
+    def _inner(key, original, new, *args):
+        fn = Update(original, new).transform(f)(key, *args)
+        in_args, _ = tree_util.tree_flatten(args)
+        key, (w, ret, chm) = fn(key, *in_args)
+        old = original.get_choices()
+        discard = old.setdiff(chm)
+        return key, (
+            w,
+            Trace(args, ret, chm, original.get_score() + w),
+            discard,
+        )
 
-    return lambda chm, *args: _inner(chm, *args)
+    return lambda key, chm, *args: _inner(key, chm, *args)
 
 
 def arg_grad(f, argnums):
-    def _inner(tr, argnums, *args):
-        jitted = ArgumentGradients(tr, argnums).jit(f)(*args)
-        arg_grads = jitted(*args)
-        return arg_grads
+    def _inner(key, tr, argnums, *args):
+        fn = ArgumentGradients(tr, argnums).transform(f)(key, *args)
+        in_args, _ = tree_util.tree_flatten(args)
+        arg_grads, key = fn(key, *in_args)
+        return key, arg_grads
 
-    return lambda tr, *args: _inner(tr, argnums, *args)
+    return lambda key, tr, *args: _inner(key, tr, argnums, *args)
 
 
 def choice_grad(f):
-    def _inner(tr, chm, *args):
-        jitted = ChoiceGradients(tr).jit(f)(*args)
-        choice_grads = jitted(chm)
-        return choice_grads
+    def _inner(key, tr, chm, *args):
+        fn = ChoiceGradients(tr).transform(f)(key, *args)
+        choice_grads, key = fn(key, chm)
+        return key, choice_grads
 
-    return lambda tr, chm, *args: _inner(tr, chm, *args)
+    return lambda key, tr, chm, *args: _inner(key, tr, chm, *args)

@@ -37,9 +37,11 @@ class ChoiceMap(Pytree):
         self.trie[k] = v
 
     def __getitem__(self, k):
-        assert isinstance(k, tuple)
-        full = ".".join(k)
-        ch = self.trie[full]
+        if isinstance(k, tuple):
+            full = ".".join(k)
+            ch = self.trie[full]
+        else:
+            ch = self.trie[k]
         if isinstance(ch, tuple):
             return ch[0]
         else:
@@ -58,6 +60,13 @@ class ChoiceMap(Pytree):
 
     def has_choice(self, k):
         return k in self.trie
+
+    def setdiff(self, other):
+        discard = ChoiceMap([])
+        for (k, v) in self.trie.items():
+            if other.has_choice(k):
+                discard[k] = v
+        return discard
 
     def clear(self):
         self.trie.clear()
@@ -85,6 +94,12 @@ class Trace:
 
     def get_score(self):
         return self.score
+
+    def get_args(self):
+        return self.args
+
+    def __getitem__(self, k):
+        return self.choices[k]
 
 
 register_pytree_node(

@@ -12,22 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import jax.numpy as jnp
-from jax._src import abstract_arrays
-
-
-class Uniform:
-    def abstract_eval(self, key, *params, shape=(), **kwargs):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
-        )
-
-    def sample(self, key, minval, maxval, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.uniform(sub_key, **kwargs)
-        return (key, v)
-
-    def score(self, v, minval, maxval):
-        return jnp.sum(jax.scipy.stats.uniform.logpdf(v, minval, maxval))
+from .metropolis_hastings import *

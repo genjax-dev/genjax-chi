@@ -16,6 +16,8 @@ import jax
 import genjax as gex
 import pytest
 
+key = jax.random.PRNGKey(314159)
+
 
 def simple_normal(key):
     key, y1 = gex.trace("y1", gex.Normal)(key)
@@ -25,10 +27,9 @@ def simple_normal(key):
 
 class TestGenerate:
     def test_simple_normal_generate(self, benchmark):
-        key = jax.random.PRNGKey(314159)
         jitted = jax.jit(gex.importance(simple_normal))
         chm = gex.ChoiceMap({("y1",): 0.5, ("y2",): 0.5})
-        w, tr = benchmark(jitted, chm, key)
+        new_key, (w, tr) = benchmark(jitted, key, chm)
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]

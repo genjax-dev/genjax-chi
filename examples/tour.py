@@ -54,26 +54,25 @@ key, v = gex.sample(f)(key, 0.3)
 print((key, v))
 
 # Here's how you access the `simulate` GFI.
-tr = jax.jit(gex.simulate(f))(key, 0.3)
+key, tr = jax.jit(gex.simulate(f))(key, 0.3)
 print(tr.get_choices()[("m1",)])
 
 # Here's how you access the `importance` GFI.
 chm = gex.ChoiceMap({("m1",): 0.3, ("m2",): 0.5})
-w, tr = jax.jit(gex.importance(f))(chm, key, 0.3)
+key, (w, tr) = jax.jit(gex.importance(f))(key, chm, 0.3)
 print((w, tr))
 
 # Here's how you access the `update` GFI.
 chm = gex.ChoiceMap({("m1",): 0.2, ("m2",): 0.5})
-w, updated = jax.jit(gex.update(f))(tr, chm, key, 0.3)
-print((w, updated))
-
+key, (w, updated, discard) = jax.jit(gex.update(f))(key, tr, chm, 0.3)
+print((w, updated, discard))
 
 # Here's how you access the `arg_grad` interface.
-arg_grad = jax.jit(gex.arg_grad(f, [1]))(tr, key, 0.3)
+key, arg_grad = jax.jit(gex.arg_grad(f, [1]))(key, tr, 0.3)
 print(arg_grad)
 
 # Here's how you access the `choice_grad` interface.
 chm = gex.ChoiceMap({("m1",): 0.2, ("m2",): 0.5})
-choice_grad = jax.jit(gex.choice_grad(f))(tr, chm, key, 0.3)
+key, choice_grad = jax.jit(gex.choice_grad(f))(key, tr, chm, 0.3)
 print(choice_grad)
 print(choice_grad[("m1",)])

@@ -34,8 +34,8 @@ def eval_jaxpr_handler(
     The handler stack is consulted when a `core.Primitive` with a `must_handle`
     attribute is encountered.
 
-    This interpreter should always be staged out - it should be handling
-    primitives is a zero runtime cost process.
+    This interpreter should always be staged out - handling primitives
+    is a zero runtime cost process.
     """
 
     env: Dict[jax.core.Var, Any] = {}
@@ -93,6 +93,7 @@ def eval_jaxpr_handler(
             ans = eqn.primitive.bind(*(subfuns + in_vals), **params)
             if not eqn.primitive.multiple_results:
                 ans = [ans]
+
             return eval_jaxpr_recurse(eqns[1:], env, eqn.outvars, ans)
         else:
             return map(read, jaxpr.outvars)

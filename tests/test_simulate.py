@@ -28,7 +28,7 @@ def simple_normal(key):
 class TestSimulate:
     def test_simple_normal_simulate(self, benchmark):
         jitted = jax.jit(gex.simulate(simple_normal))
-        tr = benchmark(jitted, key)
+        new_key, tr = benchmark(jitted, key)
         chm = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]

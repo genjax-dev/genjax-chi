@@ -90,8 +90,8 @@
 </span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a><span class="sd">    The handler stack is consulted when a `core.Primitive` with a `must_handle`</span>
 </span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a><span class="sd">    attribute is encountered.</span>
 </span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a>
-</span><span id="L-37"><a href="#L-37"><span class="linenos"> 37</span></a><span class="sd">    This interpreter should always be staged out - it should be handling</span>
-</span><span id="L-38"><a href="#L-38"><span class="linenos"> 38</span></a><span class="sd">    primitives is a zero runtime cost process.</span>
+</span><span id="L-37"><a href="#L-37"><span class="linenos"> 37</span></a><span class="sd">    This interpreter should always be staged out - handling primitives</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos"> 38</span></a><span class="sd">    is a zero runtime cost process.</span>
 </span><span id="L-39"><a href="#L-39"><span class="linenos"> 39</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-40"><a href="#L-40"><span class="linenos"> 40</span></a>
 </span><span id="L-41"><a href="#L-41"><span class="linenos"> 41</span></a>    <span class="n">env</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">jax</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Var</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
@@ -149,11 +149,12 @@
 </span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>            <span class="n">ans</span> <span class="o">=</span> <span class="n">eqn</span><span class="o">.</span><span class="n">primitive</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">subfuns</span> <span class="o">+</span> <span class="n">in_vals</span><span class="p">),</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
 </span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>            <span class="k">if</span> <span class="ow">not</span> <span class="n">eqn</span><span class="o">.</span><span class="n">primitive</span><span class="o">.</span><span class="n">multiple_results</span><span class="p">:</span>
 </span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>                <span class="n">ans</span> <span class="o">=</span> <span class="p">[</span><span class="n">ans</span><span class="p">]</span>
-</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>            <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">eqns</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">env</span><span class="p">,</span> <span class="n">eqn</span><span class="o">.</span><span class="n">outvars</span><span class="p">,</span> <span class="n">ans</span><span class="p">)</span>
-</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>            <span class="k">return</span> <span class="nb">map</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">outvars</span><span class="p">)</span>
-</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
-</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>    <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">jaxpr</span><span class="o">.</span><span class="n">eqns</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">invars</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>
+</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>            <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">eqns</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">env</span><span class="p">,</span> <span class="n">eqn</span><span class="o">.</span><span class="n">outvars</span><span class="p">,</span> <span class="n">ans</span><span class="p">)</span>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>            <span class="k">return</span> <span class="nb">map</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">outvars</span><span class="p">)</span>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>
+</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>    <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">jaxpr</span><span class="o">.</span><span class="n">eqns</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">invars</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -177,8 +178,8 @@
 </span><span id="eval_jaxpr_handler-35"><a href="#eval_jaxpr_handler-35"><span class="linenos"> 35</span></a><span class="sd">    The handler stack is consulted when a `core.Primitive` with a `must_handle`</span>
 </span><span id="eval_jaxpr_handler-36"><a href="#eval_jaxpr_handler-36"><span class="linenos"> 36</span></a><span class="sd">    attribute is encountered.</span>
 </span><span id="eval_jaxpr_handler-37"><a href="#eval_jaxpr_handler-37"><span class="linenos"> 37</span></a>
-</span><span id="eval_jaxpr_handler-38"><a href="#eval_jaxpr_handler-38"><span class="linenos"> 38</span></a><span class="sd">    This interpreter should always be staged out - it should be handling</span>
-</span><span id="eval_jaxpr_handler-39"><a href="#eval_jaxpr_handler-39"><span class="linenos"> 39</span></a><span class="sd">    primitives is a zero runtime cost process.</span>
+</span><span id="eval_jaxpr_handler-38"><a href="#eval_jaxpr_handler-38"><span class="linenos"> 38</span></a><span class="sd">    This interpreter should always be staged out - handling primitives</span>
+</span><span id="eval_jaxpr_handler-39"><a href="#eval_jaxpr_handler-39"><span class="linenos"> 39</span></a><span class="sd">    is a zero runtime cost process.</span>
 </span><span id="eval_jaxpr_handler-40"><a href="#eval_jaxpr_handler-40"><span class="linenos"> 40</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="eval_jaxpr_handler-41"><a href="#eval_jaxpr_handler-41"><span class="linenos"> 41</span></a>
 </span><span id="eval_jaxpr_handler-42"><a href="#eval_jaxpr_handler-42"><span class="linenos"> 42</span></a>    <span class="n">env</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">jax</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Var</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
@@ -236,11 +237,12 @@
 </span><span id="eval_jaxpr_handler-94"><a href="#eval_jaxpr_handler-94"><span class="linenos"> 94</span></a>            <span class="n">ans</span> <span class="o">=</span> <span class="n">eqn</span><span class="o">.</span><span class="n">primitive</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">subfuns</span> <span class="o">+</span> <span class="n">in_vals</span><span class="p">),</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
 </span><span id="eval_jaxpr_handler-95"><a href="#eval_jaxpr_handler-95"><span class="linenos"> 95</span></a>            <span class="k">if</span> <span class="ow">not</span> <span class="n">eqn</span><span class="o">.</span><span class="n">primitive</span><span class="o">.</span><span class="n">multiple_results</span><span class="p">:</span>
 </span><span id="eval_jaxpr_handler-96"><a href="#eval_jaxpr_handler-96"><span class="linenos"> 96</span></a>                <span class="n">ans</span> <span class="o">=</span> <span class="p">[</span><span class="n">ans</span><span class="p">]</span>
-</span><span id="eval_jaxpr_handler-97"><a href="#eval_jaxpr_handler-97"><span class="linenos"> 97</span></a>            <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">eqns</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">env</span><span class="p">,</span> <span class="n">eqn</span><span class="o">.</span><span class="n">outvars</span><span class="p">,</span> <span class="n">ans</span><span class="p">)</span>
-</span><span id="eval_jaxpr_handler-98"><a href="#eval_jaxpr_handler-98"><span class="linenos"> 98</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="eval_jaxpr_handler-99"><a href="#eval_jaxpr_handler-99"><span class="linenos"> 99</span></a>            <span class="k">return</span> <span class="nb">map</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">outvars</span><span class="p">)</span>
-</span><span id="eval_jaxpr_handler-100"><a href="#eval_jaxpr_handler-100"><span class="linenos">100</span></a>
-</span><span id="eval_jaxpr_handler-101"><a href="#eval_jaxpr_handler-101"><span class="linenos">101</span></a>    <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">jaxpr</span><span class="o">.</span><span class="n">eqns</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">invars</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+</span><span id="eval_jaxpr_handler-97"><a href="#eval_jaxpr_handler-97"><span class="linenos"> 97</span></a>
+</span><span id="eval_jaxpr_handler-98"><a href="#eval_jaxpr_handler-98"><span class="linenos"> 98</span></a>            <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">eqns</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">env</span><span class="p">,</span> <span class="n">eqn</span><span class="o">.</span><span class="n">outvars</span><span class="p">,</span> <span class="n">ans</span><span class="p">)</span>
+</span><span id="eval_jaxpr_handler-99"><a href="#eval_jaxpr_handler-99"><span class="linenos"> 99</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="eval_jaxpr_handler-100"><a href="#eval_jaxpr_handler-100"><span class="linenos">100</span></a>            <span class="k">return</span> <span class="nb">map</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">outvars</span><span class="p">)</span>
+</span><span id="eval_jaxpr_handler-101"><a href="#eval_jaxpr_handler-101"><span class="linenos">101</span></a>
+</span><span id="eval_jaxpr_handler-102"><a href="#eval_jaxpr_handler-102"><span class="linenos">102</span></a>    <span class="k">return</span> <span class="n">eval_jaxpr_recurse</span><span class="p">(</span><span class="n">jaxpr</span><span class="o">.</span><span class="n">eqns</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">jaxpr</span><span class="o">.</span><span class="n">invars</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -248,8 +250,8 @@
 The handler stack is consulted when a <code>core.Primitive</code> with a <code>must_handle</code>
 attribute is encountered.</p>
 
-<p>This interpreter should always be staged out - it should be handling
-primitives is a zero runtime cost process.</p>
+<p>This interpreter should always be staged out - handling primitives
+is a zero runtime cost process.</p>
 </div>
 
 

@@ -26,8 +26,8 @@ def simple_normal(key):
 
 class TestDiff:
     def test_simple_normal_diff(self, benchmark):
-        tr = jax.jit(gex.simulate(simple_normal))(key)
+        new_key, tr = jax.jit(gex.simulate(simple_normal))(key)
         original = tr.get_choices()[("y1",)]
         new = gex.ChoiceMap({("y1",): 2.0})
         jitted = jax.jit(gex.diff(simple_normal))
-        w, ret = benchmark(jitted, tr, new, key)
+        new_key, (w, ret) = benchmark(jitted, key, tr, new)

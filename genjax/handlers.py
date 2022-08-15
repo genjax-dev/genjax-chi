@@ -48,26 +48,15 @@ class Sample(Handler):
     def unsplice(self, f, addr):
         return f(())
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
-        expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = lift(expr, *args)
-        return expr
-
-    # JIT compile a function and return a function which implements
+    # Transform a function and return a function which implements
     # the semantics of `simulate` from Gen.
-    def _jit(self, f, *args):
+    def _transform(self, f, *args):
         expr = lift(f, *args)
-        expr = handle([self], expr)
-        jitted = jax.jit(expr)
-        return jitted
+        fn = handle([self], expr)
+        return fn
 
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
 
 
 class Simulate(Handler):
@@ -90,8 +79,8 @@ class Simulate(Handler):
             return f(key, v)
         else:
             self.return_or_continue = True
-            ret = f(key, v)
-            return (ret, self.state, self.score)
+            key, *ret = f(key, v)
+            return key, (ret, self.state, self.score)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -106,26 +95,15 @@ class Simulate(Handler):
         except BaseException:
             return f(())
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
-        expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = lift(expr, *args)
-        return expr
-
-    # JIT compile a function and return a function which implements
+    # Transform a function and return a function which implements
     # the semantics of `simulate` from Gen.
-    def _jit(self, f, *args):
+    def _transform(self, f, *args):
         expr = lift(f, *args)
-        expr = handle([self], expr)
-        jitted = jax.jit(expr)
-        return jitted
+        fn = handle([self], expr)
+        return fn
 
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
 
 
 class Importance(Handler):
@@ -157,8 +135,8 @@ class Importance(Handler):
             return f(key, v)
         else:
             self.return_or_continue = True
-            ret = f(key, v)
-            return (self.weight, ret, self.state, self.score)
+            key, *ret = f(key, v)
+            return key, (self.weight, ret, self.state, self.score)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -173,26 +151,15 @@ class Importance(Handler):
         except BaseException:
             return f(())
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
-        expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = lift(expr, *args)
-        return expr
-
-    # JIT compile a function and return a function which implements
+    # Transform a function and return a function which implements
     # the semantics of `generate` from Gen.
-    def _jit(self, f, *args):
+    def _transform(self, f, *args):
         expr = lift(f, *args)
-        expr = handle([self], expr)
-        jitted = jax.jit(expr)
-        return jitted
+        fn = handle([self], expr)
+        return fn
 
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
 
 
 class Diff(Handler):
@@ -219,8 +186,8 @@ class Diff(Handler):
             return f(key, v)
         else:
             self.return_or_continue = True
-            ret = f(key, v)
-            return self.weight, ret
+            key, *ret = f(key, v)
+            return key, (self.weight, ret)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -235,26 +202,15 @@ class Diff(Handler):
         except BaseException:
             return f(())
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
-        expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = lift(expr, *args)
-        return expr
-
-    # JIT compile a function and return a function which implements
+    # Transform a function and return a function which implements
     # the semantics of `generate` from Gen.
-    def _jit(self, f, *args):
+    def _transform(self, f, *args):
         expr = lift(f, *args)
-        expr = handle([self], expr)
-        jitted = jax.jit(expr)
-        return jitted
+        fn = handle([self], expr)
+        return fn
 
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
 
 
 class Update(Handler):
@@ -285,8 +241,8 @@ class Update(Handler):
             return f(key, v)
         else:
             self.return_or_continue = True
-            ret = f(key, v)
-            return self.weight, ret, self.state
+            key, *ret = f(key, v)
+            return key, (self.weight, ret, self.state)
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -301,26 +257,15 @@ class Update(Handler):
         except BaseException:
             return f(())
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
-        expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = lift(expr, *args)
-        return expr
-
-    # JIT compile a function and return a function which implements
+    # Transform a function and return a function which implements
     # the semantics of `generate` from Gen.
-    def _jit(self, f, *args):
+    def _transform(self, f, *args):
         expr = lift(f, *args)
-        expr = handle([self], expr)
-        jitted = jax.jit(expr)
-        return jitted
+        fn = handle([self], expr)
+        return fn
 
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
-
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
 
 
 class ArgumentGradients(Handler):
@@ -345,8 +290,8 @@ class ArgumentGradients(Handler):
             return f(key, v)
         else:
             self.return_or_continue = True
-            _ = f(key, v)
-            return self.score
+            key, *_ = f(key, v)
+            return self.score, key
 
     # Handle hierarchical addressing primitives (push onto level stack).
     def splice(self, f, addr):
@@ -361,65 +306,30 @@ class ArgumentGradients(Handler):
         except BaseException:
             return f(())
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
+    def _transform(self, f, *args):
         expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = lift(expr, *args)
-        return expr
+        fn = handle([self], expr)
+        fn = jax.grad(fn, self.argnums, has_aux=True)
+        return fn
 
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
-
-    def _jit(self, f, *args):
-        expr = lift(f, *args)
-        expr = handle([self], expr)
-        expr = jax.grad(expr, self.argnums)
-        jitted = jax.jit(expr)
-        return jitted
-
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
 
 
 class ChoiceGradients(Handler):
     def __init__(self, tr):
         self.tr = tr
 
-    # Return a `Jaxpr` with trace and addressing primitives staged out.
-    def _stage(self, f, *args):
-
-        # Here, we define a utility function `diff` which
-        # interprets with the `Diff` handler.
-        def diff(chm):
+    def _transform(self, f, key, *args):
+        def diff(key, chm):
             handler = Diff(self.tr, chm)
-            expr = lift(f, *args)
+            expr = lift(f, key, *args)
             fn = handle([handler], expr)
-            w, _ = fn(*args)
-            return self.tr.get_score() + w
+            key, (w, _) = fn(key, *args)
+            return self.tr.get_score() + w, key
 
-        # Here, because of composition -- we can lift `diff` itself,
-        # and now we have a function parametrized by `chm`
-        # which we can compute the gradient of.
-        #
-        # This function computes the logpdf (score) of the trace,
-        # but it accepts the seed `chm` as an argument -- and then stages out
-        # the gradient computation using `jax.grad`.
-        return lambda chm: lift(jax.grad(diff), chm)
+        gradded = jax.grad(diff, argnums=1, has_aux=True)
+        return gradded
 
-    def stage(self, f):
-        return lambda *args: self._stage(f, *args)
-
-    def _jit(self, f, *args):
-        def diff(chm):
-            handler = Diff(self.tr, chm)
-            expr = lift(f, *args)
-            fn = handle([handler], expr)
-            w, _ = fn(*args)
-            return self.tr.get_score() + w
-
-        jitted = jax.jit(jax.grad(diff))
-        return jitted
-
-    def jit(self, f):
-        return lambda *args: self._jit(f, *args)
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
