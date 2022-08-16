@@ -176,12 +176,26 @@ class Diff(Handler):
         key = args[0]
         prim = prim()
         full = ".".join((*self.level, addr))
-        v = self.original.get_value(full)
-        if self.choice_change.has_choice(full):
+        has_previous = self.original.has_choice(full)
+        constrained = self.choice_change.has_choice(full)
+
+        if has_previous:
+            prev_choice = self.original.get_value(full)
+            prev_score = self.original.get_score(full)
+
+        if constrained:
             v = self.choice_change.get_value(full)
-            forward = prim.score(v, *args[1:])
-            backward = self.original.get_score(full)
-            self.weight += forward - backward
+        elif has_previous:
+            v = prev_choice
+        else:
+            key, v = prim.sample(key, *args[1:])
+        score = prim.score(v, *args[1:])
+
+        if has_previous:
+            self.weight += score - prev_score
+        elif constrained:
+            self.weight += score
+
         if self.return_or_continue:
             return f(key, v)
         else:

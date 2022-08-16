@@ -20,12 +20,12 @@
 # authors above, as a derivative work.
 
 """
-Module for the propagation custom `Jaxpr` interpreter.
+Module for an abstract propagation `Jaxpr` interpreter.
 
 The interpreter converts a `Jaxpr` to a directed graph where
 `jax.core.Var` instances are nodes and primitives are edges.
 
-It initializes invars and outvars with `Cell` instances
+It initializes `invars` and `outvars` with `Cell` instances
 (an interface defined below), where a `Cell` encapsulates a value
 (or a set of values) that a node in the graph can take on,
 and the `Cell` is computed from neighboring `Cell` instances,
@@ -67,7 +67,7 @@ class Cell(pytree.Pytree):
     """
     Base interface for objects used during propagation.
 
-    A Cell represents a member of a lattice, defined by the `top`, `bottom`
+    A `Cell` represents a member of a lattice, defined by the `top`, `bottom`
     and `join` methods. Conceptually, a "top" cell represents complete information
     about a value and a "bottom" cell represents no information about a value.
     Cells that are neither top nor bottom thus have partial information.
@@ -76,12 +76,12 @@ class Cell(pytree.Pytree):
     all cells are "top".
 
     Transformations that use `propagate` need to pass in objects
-    that are Cell-like.
+    that are `Cell`-like.
 
-    A Cell needs to specify how to create a new default cell
+    A `Cell` needs to specify how to create a new default cell
     from a literal value, using the `new` class method.
-    A Cell also needs to indicate if it is a known value with
-    the `is_unknown` method, but by default, Cells are known.
+    A `Cell` also needs to indicate if it is a known value with
+    the `is_unknown` method, but by default, `Cell` instances are known.
     """
 
     def __init__(self, aval):
