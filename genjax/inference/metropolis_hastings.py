@@ -19,17 +19,17 @@ import jax.random as random
 
 
 def metropolis_hastings(model, proposal):
-    def __inner(key, trace, *proposal_args):
+    def __inner(key, trace, proposal_args):
         model_args = trace.get_args()
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
-        key, proposal_tr = simulate(proposal)(key, *proposal_args_fwd)
+        key, proposal_tr = simulate(proposal)(key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
         key, (weight, new, discard) = update(model)(
-            key, trace, proposal_tr.get_choices(), *model_args
+            key, trace, proposal_tr.get_choices(), model_args
         )
         proposal_args_bwd = (new, *proposal_args)
         key, (bwd_weight, _) = importance(proposal)(
-            key, discard, *proposal_args_bwd
+            key, discard, proposal_args_bwd
         )
         alpha = weight - fwd_weight + bwd_weight
         check = jnp.log(random.uniform(key)) < alpha
@@ -39,4 +39,4 @@ def metropolis_hastings(model, proposal):
             lambda *args: (trace, False),
         )
 
-    return lambda key, trace, proposal_args: __inner(key, trace, *proposal_args)
+    return lambda key, trace, proposal_args: __inner(key, trace, proposal_args)

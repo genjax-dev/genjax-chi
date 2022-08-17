@@ -41,37 +41,37 @@ def sample(f):
 
 
 def simulate(f):
-    def _inner(key, *args):
+    def _inner(key, args):
         fn = Simulate().transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         key, (r, chm, score) = fn(key, *in_args)
         return key, Trace(args, r, chm, score)
 
-    return lambda key, *args: _inner(key, *args)
+    return lambda key, args: _inner(key, args)
 
 
 def importance(f):
-    def _inner(key, chm, *args):
+    def _inner(key, chm, args):
         fn = Importance(chm).transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         key, (w, r, chm, score) = fn(key, *in_args)
         return key, (w, Trace(args, r, chm, score))
 
-    return lambda key, chm, *args: _inner(key, chm, *args)
+    return lambda key, chm, args: _inner(key, chm, args)
 
 
 def diff(f):
-    def _inner(key, original, new, *args):
+    def _inner(key, original, new, args):
         fn = Diff(original, new).transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         key, (w, ret) = fn(key, *in_args)
         return key, (w, ret)
 
-    return lambda key, chm, *args: _inner(key, chm, *args)
+    return lambda key, chm, new, args: _inner(key, chm, new, args)
 
 
 def update(f):
-    def _inner(key, original, new, *args):
+    def _inner(key, original, new, args):
         fn = Update(original, new).transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         key, (w, ret, chm) = fn(key, *in_args)
@@ -83,23 +83,23 @@ def update(f):
             discard,
         )
 
-    return lambda key, chm, *args: _inner(key, chm, *args)
+    return lambda key, chm, new, args: _inner(key, chm, new, args)
 
 
 def arg_grad(f, argnums):
-    def _inner(key, tr, argnums, *args):
+    def _inner(key, tr, argnums, args):
         fn = ArgumentGradients(tr, argnums).transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         arg_grads, key = fn(key, *in_args)
         return key, arg_grads
 
-    return lambda key, tr, *args: _inner(key, tr, argnums, *args)
+    return lambda key, tr, args: _inner(key, tr, argnums, args)
 
 
 def choice_grad(f):
-    def _inner(key, tr, chm, *args):
+    def _inner(key, tr, chm, args):
         fn = ChoiceGradients(tr).transform(f)(key, *args)
         choice_grads, key = fn(key, chm)
         return key, choice_grads
 
-    return lambda key, tr, chm, *args: _inner(key, tr, chm, *args)
+    return lambda key, tr, chm, args: _inner(key, tr, chm, args)

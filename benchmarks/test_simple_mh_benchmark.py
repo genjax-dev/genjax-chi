@@ -42,6 +42,6 @@ def run_inference(key, tr):
 
 def test_simple_mh_benchmark(benchmark):
     key = jax.random.PRNGKey(314159)
-    key, tr = jax.jit(gex.simulate(normal_model))(key)
+    key, tr = jax.jit(gex.simulate(normal_model))(key, ())
     jitted = jax.jit(run_inference)
     new_key, trace = benchmark(jitted, key, tr)

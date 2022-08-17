@@ -18,7 +18,7 @@ from jax._src import abstract_arrays
 
 
 class Beta:
-    def abstract_eval(self, key, a, b, shape=None):
+    def abstract_eval(self, key, a, b, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),

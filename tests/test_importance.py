@@ -29,7 +29,7 @@ class TestGenerate:
     def test_simple_normal_generate(self, benchmark):
         jitted = jax.jit(gex.importance(simple_normal))
         chm = gex.ChoiceMap({("y1",): 0.5, ("y2",): 0.5})
-        new_key, (w, tr) = benchmark(jitted, key, chm)
+        new_key, (w, tr) = benchmark(jitted, key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]

@@ -27,13 +27,13 @@ def simple_normal(key):
 
 class TestUpdate:
     def test_simple_normal_update(self, benchmark):
-        new_key, tr = jax.jit(gex.simulate(simple_normal))(key)
+        new_key, tr = jax.jit(gex.simulate(simple_normal))(key, ())
         jitted = jax.jit(gex.update(simple_normal))
 
         new = gex.ChoiceMap({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        new_key, (w, updated, discard) = benchmark(jitted, new_key, tr, new)
+        new_key, (w, updated, discard) = benchmark(jitted, new_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -44,7 +44,7 @@ class TestUpdate:
 
         new = gex.ChoiceMap({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
-        new_key, (w, updated, discard) = jitted(new_key, tr, new)
+        new_key, (w, updated, discard) = jitted(new_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]

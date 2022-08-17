@@ -13,9 +13,8 @@
 # limitations under the License.
 
 """
-This module supports experimental features of `GenJAX`.
+This module holds inference diagnostic and tuning functionality.
 """
 
-from .mem import *
-from .incremental import *
-from .tuning import *
+from .aide import aide
+from .sdos import sdos

@@ -13,9 +13,26 @@
 # limitations under the License.
 
 """
-This module supports experimental features of `GenJAX`.
+Showcases running AIDE on TPUs.
 """
 
-from .mem import *
-from .incremental import *
-from .tuning import *
+import jax
+import jax.numpy as jnp
+import genjax as gex
+
+
+def f(key, p1):
+    key, r = gex.trace("p", gex.Beta)(key, 1, 1)
+    key, x = gex.trace("x", gex.Bernoulli)(key, r)
+    key, y = gex.trace("y", gex.Bernoulli)(key, p1)
+    return key, x + y
+
+
+key = jax.random.PRNGKey(314159)
+key, *subkeys = jax.random.split(key, 100 + 1)
+subkeys = jnp.array(subkeys)
+key, ests = jax.vmap(
+    jax.jit(gex.experimental.aide(f, f, 100, 100)), in_axes=(0, None, None)
+)(subkeys, (0.3,), (0.8,))
+print(ests)
+print(jnp.mean(ests))
