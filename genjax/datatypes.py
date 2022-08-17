@@ -12,11 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pygtrie import StringTrie
+import jax
 import jax.numpy as jnp
+from pygtrie import StringTrie
 from typing import Tuple, Any
 from genjax.core.pytree import Pytree
 from dataclasses import dataclass
+import genjax.pretty_print as pp
+
+
+def stringtrie_flatten(self):
+    return self.trie.values(), self.trie.keys()
+
+
+def stringtrie_unflatten(cls, slices, values):
+    return StringTrie(zip(slices, values))
+
+
+# Global registration for `StringTrie`
+jax.tree_util.register_pytree_node(
+    StringTrie,
+    stringtrie_flatten,
+    stringtrie_unflatten,
+)
+
 
 #####
 # ChoiceMap
@@ -49,6 +68,9 @@ class ChoiceMap(Pytree):
             return ch[0]
         else:
             return ch
+
+    def __str__(self):
+        return pp.tree_pformat(self)
 
     def get_value(self, k):
         ch = self.trie[k]
@@ -93,6 +115,9 @@ class Trace(Pytree):
     retval: Any
     choices: StringTrie
     score: jnp.float32
+
+    def __str__(self):
+        return pp.tree_pformat(self)
 
     def get_choices(self):
         return self.choices

@@ -12,23 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from jax import core
-from typing import (
-    Callable,
-    Sequence,
-)
-
-
-class Handler:
-    """
-    A handler dispatchs a `jax.core.Primitive` - and must provide
-    a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
-    where `*args` must match the `core.Primitive` declaration signature.
-    """
-
-    handles: Sequence[core.Primitive]
-    callable: Callable
-
-    def __init__(self, handles: Sequence[core.Primitive], callable: Callable):
-        self.handles = handles
-        self.callable = callable
+from .smc import *

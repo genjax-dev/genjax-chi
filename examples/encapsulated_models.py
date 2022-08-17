@@ -12,27 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Showcases running AIDE on TPUs.
-"""
-
 import jax
-import jax.numpy as jnp
 import genjax
 
 
-def f(key, p1):
-    key, r = genjax.trace("p", genjax.Beta)(key, 1, 1)
-    key, x = genjax.trace("x", genjax.Bernoulli)(key, r)
-    key, y = genjax.trace("y", genjax.Bernoulli)(key, p1)
+def model(key, k):
+    key, x = genjax.trace("x", genjax.Bernoulli)(key, 0.3)
+    key, y = genjax.trace("y", genjax.Bernoulli)(key, 0.3)
     return key, x + y
 
 
+def g(key):
+    key, x = genjax.trace("x", genjax.Bernoulli)(key, 0.3)
+    return key, x
+
+
+# An encapsulated generative function.
+m = genjax.EncapsulatedSMC(50, model, g, g)
+
+
 key = jax.random.PRNGKey(314159)
-key, *subkeys = jax.random.split(key, 100 + 1)
-subkeys = jnp.array(subkeys)
-key, ests = jax.vmap(
-    jax.jit(genjax.experimental.aide(f, f, 100, 100)), in_axes=(0, None, None)
-)(subkeys, (0.3,), (0.8,))
-print(ests)
-print(jnp.mean(ests))
+key, tr = jax.jit(genjax.simulate(m))(key, ())
+print(tr)
+print(tr.get_choices())

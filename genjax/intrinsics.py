@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.core as core
 from jax._src import abstract_arrays
 import inspect
 from genjax.encapsulated import EncapsulatedGenerativeFunction
+
+#####
+# Primitives
+#####
 
 # GenJAX language trace primitive.
 trace_p = core.Primitive("trace")
@@ -24,11 +27,21 @@ trace_p = core.Primitive("trace")
 # External generative function trace primitive.
 encapsulated_p = core.Primitive("encapsulated")
 
+# Hierarchical (call) addressing primitive.
+splice_p = core.Primitive("splice")
+
+# Hierarchical (call) addressing primitive.
+unsplice_p = core.Primitive("unsplice")
+
+#####
+# trace
+#####
+
 
 def _trace(addr, prim, *args, **kwargs):
     if inspect.isclass(prim):
         return trace_p.bind(*args, addr=addr, prim=prim, **kwargs)
-    elif isinstance(EncapsulatedGenerativeFunction, prim):
+    elif isinstance(prim, EncapsulatedGenerativeFunction):
         return encapsulated_p.bind(*args, addr=addr, prim=prim, **kwargs)
     else:
         splice_p.bind(addr=addr)
@@ -46,25 +59,26 @@ def trace_abstract_eval(*args, addr, prim, **kwargs):
     return prim.abstract_eval(*args, **kwargs)
 
 
-def trace_fallback(*args, addr, prim):
-    k = args[0]
-    key, subkey = jax.random.split(k)
-    if not inspect.isclass(prim):
-        _, v = prim(subkey, *args[1:])
-    else:
-        p = prim()
-        _, v = p.sample(k, *args[1:])
-    return key, v
-
-
-trace_p.def_impl(trace_fallback)
 trace_p.def_abstract_eval(trace_abstract_eval)
 trace_p.multiple_results = True
 trace_p.must_handle = True
 
+#####
+# encapsulated
+#####
 
-# Hierarchical (call) addressing primitive.
-splice_p = core.Primitive("splice")
+
+def encapsulated_abstract_eval(*args, addr, prim, **kwargs):
+    return prim.abstract_eval(*args, **kwargs)
+
+
+encapsulated_p.def_abstract_eval(encapsulated_abstract_eval)
+encapsulated_p.multiple_results = True
+encapsulated_p.must_handle = True
+
+#####
+# splice
+#####
 
 
 def splice_abstract_eval(addr):
@@ -79,9 +93,9 @@ splice_p.def_impl(splice_fallback)
 splice_p.def_abstract_eval(splice_abstract_eval)
 splice_p.must_handle = True
 
-
-# Hierarchical (call) addressing primitive.
-unsplice_p = core.Primitive("unsplice")
+#####
+# unsplice
+#####
 
 
 def unsplice_abstract_eval(addr):

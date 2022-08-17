@@ -26,7 +26,6 @@ This module also exports some "core" transformations on `Jaxpr` instances -- all
 representations of Python functions.
 """
 
-from .handler import *
 from .handling import *
 from .propagating import *
 from .transforms import *

@@ -23,7 +23,7 @@ in `genjax.core`.
 
 import jax
 from .core import Handler, handle, lift
-from .intrinsics import trace_p, splice_p, unsplice_p
+from .intrinsics import encapsulated_p, trace_p, splice_p, unsplice_p
 from genjax.datatypes import ChoiceMap
 
 #####
@@ -70,11 +70,28 @@ class Sample(Handler):
 
 class Simulate(Handler):
     def __init__(self):
-        self.handles = [trace_p, splice_p, unsplice_p]
+        self.handles = [encapsulated_p, trace_p, splice_p, unsplice_p]
         self.state = ChoiceMap([])
         self.level = []
         self.score = 0.0
         self.return_or_continue = False
+
+    # Handed encapsulated sites -- deferring `simulate`
+    # to a custom implementation.
+    def encapsulated(self, f, key, *args, addr, prim, **kwargs):
+        full = ".".join((*self.level, addr))
+        key, tr = prim.simulate(key, args)
+        choices = tr.get_choices()
+        score = tr.get_score()
+        v = tr.get_retval()
+        self.state[full] = choices
+        self.score += score
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, v)
+            return key, (ret, self.state, self.score)
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, *args, addr, prim, **kwargs):
@@ -293,13 +310,29 @@ class Update(Handler):
 
 class ArgumentGradients(Handler):
     def __init__(self, tr, argnums):
-        self.handles = [trace_p, splice_p, unsplice_p]
+        self.handles = [encapsulated_p, trace_p, splice_p, unsplice_p]
         self.argnums = argnums
         self.level = []
         self.score = 0.0
         self.tr = tr
         self.sources = tr.get_choices()
         self.return_or_continue = False
+
+    # Handle encapsulated sites -- perform codegen onto the `Jaxpr` trace.
+    def encapsulated(self, f, *args, addr, prim, **kwargs):
+        key = args[0]
+        prim = prim()
+        full = ".".join((*self.level, addr))
+        chm = self.sources.get_submap(full)
+        key, (w, tr) = prim.importance(key, chm, *args[1:])
+        v = tr.get_retval()
+        self.score += w
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *_ = f(key, v)
+            return self.score, key
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, *args, addr, prim, **kwargs):

@@ -1,18 +1,18 @@
 import jax
-import genjax as gex
+import genjax
 
 # A short example with some higher-order abilities.
 
 
 def g(key, x):
-    key, m1 = gex.trace("m0", gex.Bernoulli)(key, x)
+    key, m1 = genjax.trace("m0", genjax.Bernoulli)(key, x)
     return (key, m1)
 
 
 def f(key, x):
     def _inner(key):
         key, v = g(key, x)
-        key, v2 = gex.trace("m1", gex.Bernoulli)(key, x)
+        key, v2 = genjax.trace("m1", genjax.Bernoulli)(key, x)
         return key, v + v2
 
     return key, _inner
@@ -20,12 +20,12 @@ def f(key, x):
 
 def toplevel(key):
     key, fn = f(key, 0.3)
-    key, q = gex.trace("higher-order", fn)(key)
+    key, q = genjax.trace("higher-order", fn)(key)
     return key, q
 
 
 # Initialize a PRNG.
 key = jax.random.PRNGKey(314159)
 
-expr = gex.lift(gex.simulate(toplevel), key)
+expr = genjax.lift(genjax.simulate(toplevel), key)
 print(expr)

@@ -22,6 +22,7 @@ from genjax.handlers import (
     ChoiceGradients,
 )
 from genjax.datatypes import Trace
+from genjax.encapsulated import EncapsulatedGenerativeFunction
 from jax import tree_util
 
 
@@ -47,7 +48,12 @@ def simulate(f):
         key, (r, chm, score) = fn(key, *in_args)
         return key, Trace(args, r, chm, score)
 
-    return lambda key, args: _inner(key, args)
+    # If `f` is an encapsulated generative function, pass
+    # the call to the method.
+    if isinstance(f, EncapsulatedGenerativeFunction):
+        return lambda key, args: f.simulate(key, args)
+    else:
+        return lambda key, args: _inner(key, args)
 
 
 def importance(f):

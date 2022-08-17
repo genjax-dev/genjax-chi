@@ -12,15 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .handler import Handler
 import jax
 from jax import core
 from jax.util import safe_map, safe_zip
-from typing import (
-    Any,
-    Dict,
-    Sequence,
-)
+from typing import Any, Dict, Sequence, Callable
+
+#####
+# Effect handler
+#####
+
+
+class Handler:
+    """
+    A handler dispatchs a `jax.core.Primitive` - and must provide
+    a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
+    where `*args` must match the `core.Primitive` declaration signature.
+    """
+
+    handles: Sequence[core.Primitive]
+    callable: Callable
+
+    def __init__(self, handles: Sequence[core.Primitive], callable: Callable):
+        self.handles = handles
+        self.callable = callable
+
+
+#####
+# Effect-handling interpreter
+#####
 
 map = safe_map
 zip = safe_zip
@@ -34,8 +53,8 @@ def eval_jaxpr_handler(
     The handler stack is consulted when a `core.Primitive` with a `must_handle`
     attribute is encountered.
 
-    This interpreter should always be staged out - handling primitives
-    is a zero runtime cost process.
+    This interpreter should always be staged out onto a `Jaxpr`
+    - so that handling primitives is a zero runtime cost process.
     """
 
     env: Dict[jax.core.Var, Any] = {}

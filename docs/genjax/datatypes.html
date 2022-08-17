@@ -31,6 +31,12 @@
         <h2>API Documentation</h2>
             <ul class="memberlist">
             <li>
+                    <a class="function" href="#stringtrie_flatten">stringtrie_flatten</a>
+            </li>
+            <li>
+                    <a class="function" href="#stringtrie_unflatten">stringtrie_unflatten</a>
+            </li>
+            <li>
                     <a class="class" href="#ChoiceMap">ChoiceMap</a>
                             <ul class="memberlist">
                         <li>
@@ -122,113 +128,176 @@
 </span><span id="L-12"><a href="#L-12"><span class="linenos"> 12</span></a><span class="c1"># See the License for the specific language governing permissions and</span>
 </span><span id="L-13"><a href="#L-13"><span class="linenos"> 13</span></a><span class="c1"># limitations under the License.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos"> 14</span></a>
-</span><span id="L-15"><a href="#L-15"><span class="linenos"> 15</span></a><span class="kn">from</span> <span class="nn">pygtrie</span> <span class="kn">import</span> <span class="n">StringTrie</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos"> 15</span></a><span class="kn">import</span> <span class="nn">jax</span>
 </span><span id="L-16"><a href="#L-16"><span class="linenos"> 16</span></a><span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos"> 17</span></a><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos"> 18</span></a><span class="kn">from</span> <span class="nn">genjax.core.pytree</span> <span class="kn">import</span> <span class="n">Pytree</span>
-</span><span id="L-19"><a href="#L-19"><span class="linenos"> 19</span></a><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
-</span><span id="L-20"><a href="#L-20"><span class="linenos"> 20</span></a>
-</span><span id="L-21"><a href="#L-21"><span class="linenos"> 21</span></a><span class="c1">#####</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos"> 22</span></a><span class="c1"># ChoiceMap</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos"> 23</span></a><span class="c1">#####</span>
-</span><span id="L-24"><a href="#L-24"><span class="linenos"> 24</span></a>
-</span><span id="L-25"><a href="#L-25"><span class="linenos"> 25</span></a>
-</span><span id="L-26"><a href="#L-26"><span class="linenos"> 26</span></a><span class="k">class</span> <span class="nc">ChoiceMap</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
-</span><span id="L-27"><a href="#L-27"><span class="linenos"> 27</span></a>    <span class="n">trie</span><span class="p">:</span> <span class="n">StringTrie</span>
-</span><span id="L-28"><a href="#L-28"><span class="linenos"> 28</span></a>
-</span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraints</span><span class="p">):</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span> <span class="o">=</span> <span class="n">StringTrie</span><span class="p">(</span><span class="n">separator</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
-</span><span id="L-31"><a href="#L-31"><span class="linenos"> 31</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a>                <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-</span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
-</span><span id="L-37"><a href="#L-37"><span class="linenos"> 37</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos"> 17</span></a><span class="kn">from</span> <span class="nn">pygtrie</span> <span class="kn">import</span> <span class="n">StringTrie</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos"> 18</span></a><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos"> 19</span></a><span class="kn">from</span> <span class="nn">genjax.core.pytree</span> <span class="kn">import</span> <span class="n">Pytree</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos"> 20</span></a><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos"> 21</span></a><span class="kn">import</span> <span class="nn">genjax.pretty_print</span> <span class="k">as</span> <span class="nn">pp</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos"> 22</span></a>
+</span><span id="L-23"><a href="#L-23"><span class="linenos"> 23</span></a>
+</span><span id="L-24"><a href="#L-24"><span class="linenos"> 24</span></a><span class="k">def</span> <span class="nf">stringtrie_flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos"> 25</span></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos"> 26</span></a>
+</span><span id="L-27"><a href="#L-27"><span class="linenos"> 27</span></a>
+</span><span id="L-28"><a href="#L-28"><span class="linenos"> 28</span></a><span class="k">def</span> <span class="nf">stringtrie_unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a>    <span class="k">return</span> <span class="n">StringTrie</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a>
+</span><span id="L-31"><a href="#L-31"><span class="linenos"> 31</span></a>
+</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a><span class="c1"># Global registration for `StringTrie`</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a><span class="n">jax</span><span class="o">.</span><span class="n">tree_util</span><span class="o">.</span><span class="n">register_pytree_node</span><span class="p">(</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a>    <span class="n">StringTrie</span><span class="p">,</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a>    <span class="n">stringtrie_flatten</span><span class="p">,</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a>    <span class="n">stringtrie_unflatten</span><span class="p">,</span>
+</span><span id="L-37"><a href="#L-37"><span class="linenos"> 37</span></a><span class="p">)</span>
 </span><span id="L-38"><a href="#L-38"><span class="linenos"> 38</span></a>
-</span><span id="L-39"><a href="#L-39"><span class="linenos"> 39</span></a>    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
-</span><span id="L-40"><a href="#L-40"><span class="linenos"> 40</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="L-41"><a href="#L-41"><span class="linenos"> 41</span></a>
-</span><span id="L-42"><a href="#L-42"><span class="linenos"> 42</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="L-43"><a href="#L-43"><span class="linenos"> 43</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="L-44"><a href="#L-44"><span class="linenos"> 44</span></a>            <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-</span><span id="L-45"><a href="#L-45"><span class="linenos"> 45</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span>
-</span><span id="L-46"><a href="#L-46"><span class="linenos"> 46</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="L-47"><a href="#L-47"><span class="linenos"> 47</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="L-48"><a href="#L-48"><span class="linenos"> 48</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="L-49"><a href="#L-49"><span class="linenos"> 49</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="L-50"><a href="#L-50"><span class="linenos"> 50</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="L-51"><a href="#L-51"><span class="linenos"> 51</span></a>            <span class="k">return</span> <span class="n">ch</span>
-</span><span id="L-52"><a href="#L-52"><span class="linenos"> 52</span></a>
-</span><span id="L-53"><a href="#L-53"><span class="linenos"> 53</span></a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="L-54"><a href="#L-54"><span class="linenos"> 54</span></a>        <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="L-55"><a href="#L-55"><span class="linenos"> 55</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="L-56"><a href="#L-56"><span class="linenos"> 56</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="L-58"><a href="#L-58"><span class="linenos"> 58</span></a>            <span class="k">return</span> <span class="n">ch</span>
-</span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a>
-</span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="L-61"><a href="#L-61"><span class="linenos"> 61</span></a>        <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="L-62"><a href="#L-62"><span class="linenos"> 62</span></a>        <span class="k">return</span> <span class="n">s</span>
-</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a>
-</span><span id="L-64"><a href="#L-64"><span class="linenos"> 64</span></a>    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="L-65"><a href="#L-65"><span class="linenos"> 65</span></a>        <span class="k">return</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span>
-</span><span id="L-66"><a href="#L-66"><span class="linenos"> 66</span></a>
-</span><span id="L-67"><a href="#L-67"><span class="linenos"> 67</span></a>    <span class="k">def</span> <span class="nf">setdiff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-</span><span id="L-68"><a href="#L-68"><span class="linenos"> 68</span></a>        <span class="n">discard</span> <span class="o">=</span> <span class="n">ChoiceMap</span><span class="p">([])</span>
-</span><span id="L-69"><a href="#L-69"><span class="linenos"> 69</span></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="L-70"><a href="#L-70"><span class="linenos"> 70</span></a>            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
-</span><span id="L-71"><a href="#L-71"><span class="linenos"> 71</span></a>                <span class="n">discard</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="L-72"><a href="#L-72"><span class="linenos"> 72</span></a>        <span class="k">return</span> <span class="n">discard</span>
-</span><span id="L-73"><a href="#L-73"><span class="linenos"> 73</span></a>
-</span><span id="L-74"><a href="#L-74"><span class="linenos"> 74</span></a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-75"><a href="#L-75"><span class="linenos"> 75</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</span><span id="L-76"><a href="#L-76"><span class="linenos"> 76</span></a>
-</span><span id="L-77"><a href="#L-77"><span class="linenos"> 77</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-78"><a href="#L-78"><span class="linenos"> 78</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
-</span><span id="L-79"><a href="#L-79"><span class="linenos"> 79</span></a>
-</span><span id="L-80"><a href="#L-80"><span class="linenos"> 80</span></a>    <span class="nd">@classmethod</span>
-</span><span id="L-81"><a href="#L-81"><span class="linenos"> 81</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-</span><span id="L-82"><a href="#L-82"><span class="linenos"> 82</span></a>        <span class="k">return</span> <span class="n">ChoiceMap</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
-</span><span id="L-83"><a href="#L-83"><span class="linenos"> 83</span></a>
-</span><span id="L-84"><a href="#L-84"><span class="linenos"> 84</span></a>
-</span><span id="L-85"><a href="#L-85"><span class="linenos"> 85</span></a><span class="c1">#####</span>
-</span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a><span class="c1"># Trace</span>
-</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a><span class="c1">#####</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos"> 39</span></a>
+</span><span id="L-40"><a href="#L-40"><span class="linenos"> 40</span></a><span class="c1">#####</span>
+</span><span id="L-41"><a href="#L-41"><span class="linenos"> 41</span></a><span class="c1"># ChoiceMap</span>
+</span><span id="L-42"><a href="#L-42"><span class="linenos"> 42</span></a><span class="c1">#####</span>
+</span><span id="L-43"><a href="#L-43"><span class="linenos"> 43</span></a>
+</span><span id="L-44"><a href="#L-44"><span class="linenos"> 44</span></a>
+</span><span id="L-45"><a href="#L-45"><span class="linenos"> 45</span></a><span class="k">class</span> <span class="nc">ChoiceMap</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
+</span><span id="L-46"><a href="#L-46"><span class="linenos"> 46</span></a>    <span class="n">trie</span><span class="p">:</span> <span class="n">StringTrie</span>
+</span><span id="L-47"><a href="#L-47"><span class="linenos"> 47</span></a>
+</span><span id="L-48"><a href="#L-48"><span class="linenos"> 48</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraints</span><span class="p">):</span>
+</span><span id="L-49"><a href="#L-49"><span class="linenos"> 49</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span> <span class="o">=</span> <span class="n">StringTrie</span><span class="p">(</span><span class="n">separator</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+</span><span id="L-50"><a href="#L-50"><span class="linenos"> 50</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span id="L-51"><a href="#L-51"><span class="linenos"> 51</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="L-52"><a href="#L-52"><span class="linenos"> 52</span></a>                <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+</span><span id="L-53"><a href="#L-53"><span class="linenos"> 53</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="L-54"><a href="#L-54"><span class="linenos"> 54</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-55"><a href="#L-55"><span class="linenos"> 55</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
+</span><span id="L-56"><a href="#L-56"><span class="linenos"> 56</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a>
+</span><span id="L-58"><a href="#L-58"><span class="linenos"> 58</span></a>    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+</span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a>
+</span><span id="L-61"><a href="#L-61"><span class="linenos"> 61</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="L-62"><a href="#L-62"><span class="linenos"> 62</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a>            <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+</span><span id="L-64"><a href="#L-64"><span class="linenos"> 64</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span>
+</span><span id="L-65"><a href="#L-65"><span class="linenos"> 65</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-66"><a href="#L-66"><span class="linenos"> 66</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="L-67"><a href="#L-67"><span class="linenos"> 67</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="L-68"><a href="#L-68"><span class="linenos"> 68</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="L-69"><a href="#L-69"><span class="linenos"> 69</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-70"><a href="#L-70"><span class="linenos"> 70</span></a>            <span class="k">return</span> <span class="n">ch</span>
+</span><span id="L-71"><a href="#L-71"><span class="linenos"> 71</span></a>
+</span><span id="L-72"><a href="#L-72"><span class="linenos"> 72</span></a>    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-73"><a href="#L-73"><span class="linenos"> 73</span></a>        <span class="k">return</span> <span class="n">pp</span><span class="o">.</span><span class="n">tree_pformat</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="L-74"><a href="#L-74"><span class="linenos"> 74</span></a>
+</span><span id="L-75"><a href="#L-75"><span class="linenos"> 75</span></a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="L-76"><a href="#L-76"><span class="linenos"> 76</span></a>        <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="L-77"><a href="#L-77"><span class="linenos"> 77</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="L-78"><a href="#L-78"><span class="linenos"> 78</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="L-79"><a href="#L-79"><span class="linenos"> 79</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-80"><a href="#L-80"><span class="linenos"> 80</span></a>            <span class="k">return</span> <span class="n">ch</span>
+</span><span id="L-81"><a href="#L-81"><span class="linenos"> 81</span></a>
+</span><span id="L-82"><a href="#L-82"><span class="linenos"> 82</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="L-83"><a href="#L-83"><span class="linenos"> 83</span></a>        <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="L-84"><a href="#L-84"><span class="linenos"> 84</span></a>        <span class="k">return</span> <span class="n">s</span>
+</span><span id="L-85"><a href="#L-85"><span class="linenos"> 85</span></a>
+</span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a>    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a>        <span class="k">return</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span>
 </span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a>
-</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a>
-</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a><span class="nd">@dataclass</span>
-</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
-</span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>    <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span>
-</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>    <span class="n">retval</span><span class="p">:</span> <span class="n">Any</span>
-</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>    <span class="n">choices</span><span class="p">:</span> <span class="n">StringTrie</span>
-</span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>    <span class="n">score</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
-</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>
-</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span>
-</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
-</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
-</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>
-</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
+</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a>    <span class="k">def</span> <span class="nf">setdiff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a>        <span class="n">discard</span> <span class="o">=</span> <span class="n">ChoiceMap</span><span class="p">([])</span>
+</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>                <span class="n">discard</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>        <span class="k">return</span> <span class="n">discard</span>
+</span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>
+</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>
+</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>    <span class="nd">@classmethod</span>
+</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>        <span class="k">return</span> <span class="n">ChoiceMap</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
 </span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>
-</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>
-</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>
+</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a><span class="c1">#####</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a><span class="c1"># Trace</span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a><span class="c1">#####</span>
+</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>
 </span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>
-</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span> <span class="kc">None</span>
-</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>
-</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>    <span class="nd">@classmethod</span>
-</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>        <span class="k">return</span> <span class="n">Trace</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
+</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a><span class="nd">@dataclass</span>
+</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
+</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>    <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span>
+</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>    <span class="n">retval</span><span class="p">:</span> <span class="n">Any</span>
+</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>    <span class="n">choices</span><span class="p">:</span> <span class="n">StringTrie</span>
+</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>    <span class="n">score</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
+</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>
+</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a>    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a>        <span class="k">return</span> <span class="n">pp</span><span class="o">.</span><span class="n">tree_pformat</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a>
+</span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span>
+</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a>
+</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
+</span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a>
+</span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
+</span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a>
+</span><span id="L-131"><a href="#L-131"><span class="linenos">131</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
+</span><span id="L-133"><a href="#L-133"><span class="linenos">133</span></a>
+</span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="L-136"><a href="#L-136"><span class="linenos">136</span></a>
+</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-138"><a href="#L-138"><span class="linenos">138</span></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span> <span class="kc">None</span>
+</span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a>
+</span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a>    <span class="nd">@classmethod</span>
+</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="L-142"><a href="#L-142"><span class="linenos">142</span></a>        <span class="k">return</span> <span class="n">Trace</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
 </span></pre></div>
 
 
             </section>
+                <section id="stringtrie_flatten">
+                            <input id="stringtrie_flatten-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">stringtrie_flatten</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">):</span></span>
+
+                <label class="view-source-button" for="stringtrie_flatten-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#stringtrie_flatten"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="stringtrie_flatten-25"><a href="#stringtrie_flatten-25"><span class="linenos">25</span></a><span class="k">def</span> <span class="nf">stringtrie_flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="stringtrie_flatten-26"><a href="#stringtrie_flatten-26"><span class="linenos">26</span></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+</span></pre></div>
+
+
+    
+
+                </section>
+                <section id="stringtrie_unflatten">
+                            <input id="stringtrie_unflatten-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">stringtrie_unflatten</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">cls</span>, </span><span class="param"><span class="n">slices</span>, </span><span class="param"><span class="n">values</span></span><span class="return-annotation">):</span></span>
+
+                <label class="view-source-button" for="stringtrie_unflatten-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#stringtrie_unflatten"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="stringtrie_unflatten-29"><a href="#stringtrie_unflatten-29"><span class="linenos">29</span></a><span class="k">def</span> <span class="nf">stringtrie_unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="stringtrie_unflatten-30"><a href="#stringtrie_unflatten-30"><span class="linenos">30</span></a>    <span class="k">return</span> <span class="n">StringTrie</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+</span></pre></div>
+
+
+    
+
+                </section>
                 <section id="ChoiceMap">
                             <input id="ChoiceMap-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr class">
@@ -240,63 +309,66 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap-27"><a href="#ChoiceMap-27"><span class="linenos">27</span></a><span class="k">class</span> <span class="nc">ChoiceMap</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
-</span><span id="ChoiceMap-28"><a href="#ChoiceMap-28"><span class="linenos">28</span></a>    <span class="n">trie</span><span class="p">:</span> <span class="n">StringTrie</span>
-</span><span id="ChoiceMap-29"><a href="#ChoiceMap-29"><span class="linenos">29</span></a>
-</span><span id="ChoiceMap-30"><a href="#ChoiceMap-30"><span class="linenos">30</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraints</span><span class="p">):</span>
-</span><span id="ChoiceMap-31"><a href="#ChoiceMap-31"><span class="linenos">31</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span> <span class="o">=</span> <span class="n">StringTrie</span><span class="p">(</span><span class="n">separator</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
-</span><span id="ChoiceMap-32"><a href="#ChoiceMap-32"><span class="linenos">32</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span id="ChoiceMap-33"><a href="#ChoiceMap-33"><span class="linenos">33</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="ChoiceMap-34"><a href="#ChoiceMap-34"><span class="linenos">34</span></a>                <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-</span><span id="ChoiceMap-35"><a href="#ChoiceMap-35"><span class="linenos">35</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="ChoiceMap-36"><a href="#ChoiceMap-36"><span class="linenos">36</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="ChoiceMap-37"><a href="#ChoiceMap-37"><span class="linenos">37</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
-</span><span id="ChoiceMap-38"><a href="#ChoiceMap-38"><span class="linenos">38</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="ChoiceMap-39"><a href="#ChoiceMap-39"><span class="linenos">39</span></a>
-</span><span id="ChoiceMap-40"><a href="#ChoiceMap-40"><span class="linenos">40</span></a>    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
-</span><span id="ChoiceMap-41"><a href="#ChoiceMap-41"><span class="linenos">41</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="ChoiceMap-42"><a href="#ChoiceMap-42"><span class="linenos">42</span></a>
-</span><span id="ChoiceMap-43"><a href="#ChoiceMap-43"><span class="linenos">43</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap-44"><a href="#ChoiceMap-44"><span class="linenos">44</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="ChoiceMap-45"><a href="#ChoiceMap-45"><span class="linenos">45</span></a>            <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-</span><span id="ChoiceMap-46"><a href="#ChoiceMap-46"><span class="linenos">46</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span>
-</span><span id="ChoiceMap-47"><a href="#ChoiceMap-47"><span class="linenos">47</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="ChoiceMap-48"><a href="#ChoiceMap-48"><span class="linenos">48</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="ChoiceMap-49"><a href="#ChoiceMap-49"><span class="linenos">49</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="ChoiceMap-50"><a href="#ChoiceMap-50"><span class="linenos">50</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="ChoiceMap-51"><a href="#ChoiceMap-51"><span class="linenos">51</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="ChoiceMap-52"><a href="#ChoiceMap-52"><span class="linenos">52</span></a>            <span class="k">return</span> <span class="n">ch</span>
-</span><span id="ChoiceMap-53"><a href="#ChoiceMap-53"><span class="linenos">53</span></a>
-</span><span id="ChoiceMap-54"><a href="#ChoiceMap-54"><span class="linenos">54</span></a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap-55"><a href="#ChoiceMap-55"><span class="linenos">55</span></a>        <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="ChoiceMap-56"><a href="#ChoiceMap-56"><span class="linenos">56</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="ChoiceMap-57"><a href="#ChoiceMap-57"><span class="linenos">57</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="ChoiceMap-58"><a href="#ChoiceMap-58"><span class="linenos">58</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="ChoiceMap-59"><a href="#ChoiceMap-59"><span class="linenos">59</span></a>            <span class="k">return</span> <span class="n">ch</span>
-</span><span id="ChoiceMap-60"><a href="#ChoiceMap-60"><span class="linenos">60</span></a>
-</span><span id="ChoiceMap-61"><a href="#ChoiceMap-61"><span class="linenos">61</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap-62"><a href="#ChoiceMap-62"><span class="linenos">62</span></a>        <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="ChoiceMap-63"><a href="#ChoiceMap-63"><span class="linenos">63</span></a>        <span class="k">return</span> <span class="n">s</span>
-</span><span id="ChoiceMap-64"><a href="#ChoiceMap-64"><span class="linenos">64</span></a>
-</span><span id="ChoiceMap-65"><a href="#ChoiceMap-65"><span class="linenos">65</span></a>    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap-66"><a href="#ChoiceMap-66"><span class="linenos">66</span></a>        <span class="k">return</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span>
-</span><span id="ChoiceMap-67"><a href="#ChoiceMap-67"><span class="linenos">67</span></a>
-</span><span id="ChoiceMap-68"><a href="#ChoiceMap-68"><span class="linenos">68</span></a>    <span class="k">def</span> <span class="nf">setdiff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-</span><span id="ChoiceMap-69"><a href="#ChoiceMap-69"><span class="linenos">69</span></a>        <span class="n">discard</span> <span class="o">=</span> <span class="n">ChoiceMap</span><span class="p">([])</span>
-</span><span id="ChoiceMap-70"><a href="#ChoiceMap-70"><span class="linenos">70</span></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="ChoiceMap-71"><a href="#ChoiceMap-71"><span class="linenos">71</span></a>            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap-72"><a href="#ChoiceMap-72"><span class="linenos">72</span></a>                <span class="n">discard</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="ChoiceMap-73"><a href="#ChoiceMap-73"><span class="linenos">73</span></a>        <span class="k">return</span> <span class="n">discard</span>
-</span><span id="ChoiceMap-74"><a href="#ChoiceMap-74"><span class="linenos">74</span></a>
-</span><span id="ChoiceMap-75"><a href="#ChoiceMap-75"><span class="linenos">75</span></a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="ChoiceMap-76"><a href="#ChoiceMap-76"><span class="linenos">76</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</span><span id="ChoiceMap-77"><a href="#ChoiceMap-77"><span class="linenos">77</span></a>
-</span><span id="ChoiceMap-78"><a href="#ChoiceMap-78"><span class="linenos">78</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="ChoiceMap-79"><a href="#ChoiceMap-79"><span class="linenos">79</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
-</span><span id="ChoiceMap-80"><a href="#ChoiceMap-80"><span class="linenos">80</span></a>
-</span><span id="ChoiceMap-81"><a href="#ChoiceMap-81"><span class="linenos">81</span></a>    <span class="nd">@classmethod</span>
-</span><span id="ChoiceMap-82"><a href="#ChoiceMap-82"><span class="linenos">82</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-</span><span id="ChoiceMap-83"><a href="#ChoiceMap-83"><span class="linenos">83</span></a>        <span class="k">return</span> <span class="n">ChoiceMap</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap-46"><a href="#ChoiceMap-46"><span class="linenos"> 46</span></a><span class="k">class</span> <span class="nc">ChoiceMap</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
+</span><span id="ChoiceMap-47"><a href="#ChoiceMap-47"><span class="linenos"> 47</span></a>    <span class="n">trie</span><span class="p">:</span> <span class="n">StringTrie</span>
+</span><span id="ChoiceMap-48"><a href="#ChoiceMap-48"><span class="linenos"> 48</span></a>
+</span><span id="ChoiceMap-49"><a href="#ChoiceMap-49"><span class="linenos"> 49</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraints</span><span class="p">):</span>
+</span><span id="ChoiceMap-50"><a href="#ChoiceMap-50"><span class="linenos"> 50</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span> <span class="o">=</span> <span class="n">StringTrie</span><span class="p">(</span><span class="n">separator</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+</span><span id="ChoiceMap-51"><a href="#ChoiceMap-51"><span class="linenos"> 51</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span id="ChoiceMap-52"><a href="#ChoiceMap-52"><span class="linenos"> 52</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="ChoiceMap-53"><a href="#ChoiceMap-53"><span class="linenos"> 53</span></a>                <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+</span><span id="ChoiceMap-54"><a href="#ChoiceMap-54"><span class="linenos"> 54</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="ChoiceMap-55"><a href="#ChoiceMap-55"><span class="linenos"> 55</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="ChoiceMap-56"><a href="#ChoiceMap-56"><span class="linenos"> 56</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
+</span><span id="ChoiceMap-57"><a href="#ChoiceMap-57"><span class="linenos"> 57</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="ChoiceMap-58"><a href="#ChoiceMap-58"><span class="linenos"> 58</span></a>
+</span><span id="ChoiceMap-59"><a href="#ChoiceMap-59"><span class="linenos"> 59</span></a>    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+</span><span id="ChoiceMap-60"><a href="#ChoiceMap-60"><span class="linenos"> 60</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="ChoiceMap-61"><a href="#ChoiceMap-61"><span class="linenos"> 61</span></a>
+</span><span id="ChoiceMap-62"><a href="#ChoiceMap-62"><span class="linenos"> 62</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap-63"><a href="#ChoiceMap-63"><span class="linenos"> 63</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="ChoiceMap-64"><a href="#ChoiceMap-64"><span class="linenos"> 64</span></a>            <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+</span><span id="ChoiceMap-65"><a href="#ChoiceMap-65"><span class="linenos"> 65</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span>
+</span><span id="ChoiceMap-66"><a href="#ChoiceMap-66"><span class="linenos"> 66</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="ChoiceMap-67"><a href="#ChoiceMap-67"><span class="linenos"> 67</span></a>            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="ChoiceMap-68"><a href="#ChoiceMap-68"><span class="linenos"> 68</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="ChoiceMap-69"><a href="#ChoiceMap-69"><span class="linenos"> 69</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="ChoiceMap-70"><a href="#ChoiceMap-70"><span class="linenos"> 70</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="ChoiceMap-71"><a href="#ChoiceMap-71"><span class="linenos"> 71</span></a>            <span class="k">return</span> <span class="n">ch</span>
+</span><span id="ChoiceMap-72"><a href="#ChoiceMap-72"><span class="linenos"> 72</span></a>
+</span><span id="ChoiceMap-73"><a href="#ChoiceMap-73"><span class="linenos"> 73</span></a>    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap-74"><a href="#ChoiceMap-74"><span class="linenos"> 74</span></a>        <span class="k">return</span> <span class="n">pp</span><span class="o">.</span><span class="n">tree_pformat</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="ChoiceMap-75"><a href="#ChoiceMap-75"><span class="linenos"> 75</span></a>
+</span><span id="ChoiceMap-76"><a href="#ChoiceMap-76"><span class="linenos"> 76</span></a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap-77"><a href="#ChoiceMap-77"><span class="linenos"> 77</span></a>        <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="ChoiceMap-78"><a href="#ChoiceMap-78"><span class="linenos"> 78</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="ChoiceMap-79"><a href="#ChoiceMap-79"><span class="linenos"> 79</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="ChoiceMap-80"><a href="#ChoiceMap-80"><span class="linenos"> 80</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="ChoiceMap-81"><a href="#ChoiceMap-81"><span class="linenos"> 81</span></a>            <span class="k">return</span> <span class="n">ch</span>
+</span><span id="ChoiceMap-82"><a href="#ChoiceMap-82"><span class="linenos"> 82</span></a>
+</span><span id="ChoiceMap-83"><a href="#ChoiceMap-83"><span class="linenos"> 83</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap-84"><a href="#ChoiceMap-84"><span class="linenos"> 84</span></a>        <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="ChoiceMap-85"><a href="#ChoiceMap-85"><span class="linenos"> 85</span></a>        <span class="k">return</span> <span class="n">s</span>
+</span><span id="ChoiceMap-86"><a href="#ChoiceMap-86"><span class="linenos"> 86</span></a>
+</span><span id="ChoiceMap-87"><a href="#ChoiceMap-87"><span class="linenos"> 87</span></a>    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap-88"><a href="#ChoiceMap-88"><span class="linenos"> 88</span></a>        <span class="k">return</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span>
+</span><span id="ChoiceMap-89"><a href="#ChoiceMap-89"><span class="linenos"> 89</span></a>
+</span><span id="ChoiceMap-90"><a href="#ChoiceMap-90"><span class="linenos"> 90</span></a>    <span class="k">def</span> <span class="nf">setdiff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+</span><span id="ChoiceMap-91"><a href="#ChoiceMap-91"><span class="linenos"> 91</span></a>        <span class="n">discard</span> <span class="o">=</span> <span class="n">ChoiceMap</span><span class="p">([])</span>
+</span><span id="ChoiceMap-92"><a href="#ChoiceMap-92"><span class="linenos"> 92</span></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="ChoiceMap-93"><a href="#ChoiceMap-93"><span class="linenos"> 93</span></a>            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap-94"><a href="#ChoiceMap-94"><span class="linenos"> 94</span></a>                <span class="n">discard</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="ChoiceMap-95"><a href="#ChoiceMap-95"><span class="linenos"> 95</span></a>        <span class="k">return</span> <span class="n">discard</span>
+</span><span id="ChoiceMap-96"><a href="#ChoiceMap-96"><span class="linenos"> 96</span></a>
+</span><span id="ChoiceMap-97"><a href="#ChoiceMap-97"><span class="linenos"> 97</span></a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap-98"><a href="#ChoiceMap-98"><span class="linenos"> 98</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span><span id="ChoiceMap-99"><a href="#ChoiceMap-99"><span class="linenos"> 99</span></a>
+</span><span id="ChoiceMap-100"><a href="#ChoiceMap-100"><span class="linenos">100</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap-101"><a href="#ChoiceMap-101"><span class="linenos">101</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+</span><span id="ChoiceMap-102"><a href="#ChoiceMap-102"><span class="linenos">102</span></a>
+</span><span id="ChoiceMap-103"><a href="#ChoiceMap-103"><span class="linenos">103</span></a>    <span class="nd">@classmethod</span>
+</span><span id="ChoiceMap-104"><a href="#ChoiceMap-104"><span class="linenos">104</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="ChoiceMap-105"><a href="#ChoiceMap-105"><span class="linenos">105</span></a>        <span class="k">return</span> <span class="n">ChoiceMap</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
 </span></pre></div>
 
 
@@ -312,15 +384,15 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.__init__"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.__init__-30"><a href="#ChoiceMap.__init__-30"><span class="linenos">30</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraints</span><span class="p">):</span>
-</span><span id="ChoiceMap.__init__-31"><a href="#ChoiceMap.__init__-31"><span class="linenos">31</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span> <span class="o">=</span> <span class="n">StringTrie</span><span class="p">(</span><span class="n">separator</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
-</span><span id="ChoiceMap.__init__-32"><a href="#ChoiceMap.__init__-32"><span class="linenos">32</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span id="ChoiceMap.__init__-33"><a href="#ChoiceMap.__init__-33"><span class="linenos">33</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="ChoiceMap.__init__-34"><a href="#ChoiceMap.__init__-34"><span class="linenos">34</span></a>                <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-</span><span id="ChoiceMap.__init__-35"><a href="#ChoiceMap.__init__-35"><span class="linenos">35</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="ChoiceMap.__init__-36"><a href="#ChoiceMap.__init__-36"><span class="linenos">36</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="ChoiceMap.__init__-37"><a href="#ChoiceMap.__init__-37"><span class="linenos">37</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
-</span><span id="ChoiceMap.__init__-38"><a href="#ChoiceMap.__init__-38"><span class="linenos">38</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.__init__-49"><a href="#ChoiceMap.__init__-49"><span class="linenos">49</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraints</span><span class="p">):</span>
+</span><span id="ChoiceMap.__init__-50"><a href="#ChoiceMap.__init__-50"><span class="linenos">50</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span> <span class="o">=</span> <span class="n">StringTrie</span><span class="p">(</span><span class="n">separator</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+</span><span id="ChoiceMap.__init__-51"><a href="#ChoiceMap.__init__-51"><span class="linenos">51</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span id="ChoiceMap.__init__-52"><a href="#ChoiceMap.__init__-52"><span class="linenos">52</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="ChoiceMap.__init__-53"><a href="#ChoiceMap.__init__-53"><span class="linenos">53</span></a>                <span class="n">full</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+</span><span id="ChoiceMap.__init__-54"><a href="#ChoiceMap.__init__-54"><span class="linenos">54</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">full</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="ChoiceMap.__init__-55"><a href="#ChoiceMap.__init__-55"><span class="linenos">55</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="ChoiceMap.__init__-56"><a href="#ChoiceMap.__init__-56"><span class="linenos">56</span></a>            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
+</span><span id="ChoiceMap.__init__-57"><a href="#ChoiceMap.__init__-57"><span class="linenos">57</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
 </span></pre></div>
 
 
@@ -338,12 +410,12 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.get_value"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.get_value-54"><a href="#ChoiceMap.get_value-54"><span class="linenos">54</span></a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap.get_value-55"><a href="#ChoiceMap.get_value-55"><span class="linenos">55</span></a>        <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="ChoiceMap.get_value-56"><a href="#ChoiceMap.get_value-56"><span class="linenos">56</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-</span><span id="ChoiceMap.get_value-57"><a href="#ChoiceMap.get_value-57"><span class="linenos">57</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span id="ChoiceMap.get_value-58"><a href="#ChoiceMap.get_value-58"><span class="linenos">58</span></a>        <span class="k">else</span><span class="p">:</span>
-</span><span id="ChoiceMap.get_value-59"><a href="#ChoiceMap.get_value-59"><span class="linenos">59</span></a>            <span class="k">return</span> <span class="n">ch</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.get_value-76"><a href="#ChoiceMap.get_value-76"><span class="linenos">76</span></a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap.get_value-77"><a href="#ChoiceMap.get_value-77"><span class="linenos">77</span></a>        <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="ChoiceMap.get_value-78"><a href="#ChoiceMap.get_value-78"><span class="linenos">78</span></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+</span><span id="ChoiceMap.get_value-79"><a href="#ChoiceMap.get_value-79"><span class="linenos">79</span></a>            <span class="k">return</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="ChoiceMap.get_value-80"><a href="#ChoiceMap.get_value-80"><span class="linenos">80</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="ChoiceMap.get_value-81"><a href="#ChoiceMap.get_value-81"><span class="linenos">81</span></a>            <span class="k">return</span> <span class="n">ch</span>
 </span></pre></div>
 
 
@@ -361,9 +433,9 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.get_score"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.get_score-61"><a href="#ChoiceMap.get_score-61"><span class="linenos">61</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap.get_score-62"><a href="#ChoiceMap.get_score-62"><span class="linenos">62</span></a>        <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="ChoiceMap.get_score-63"><a href="#ChoiceMap.get_score-63"><span class="linenos">63</span></a>        <span class="k">return</span> <span class="n">s</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.get_score-83"><a href="#ChoiceMap.get_score-83"><span class="linenos">83</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap.get_score-84"><a href="#ChoiceMap.get_score-84"><span class="linenos">84</span></a>        <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="ChoiceMap.get_score-85"><a href="#ChoiceMap.get_score-85"><span class="linenos">85</span></a>        <span class="k">return</span> <span class="n">s</span>
 </span></pre></div>
 
 
@@ -381,8 +453,8 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.has_choice"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.has_choice-65"><a href="#ChoiceMap.has_choice-65"><span class="linenos">65</span></a>    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap.has_choice-66"><a href="#ChoiceMap.has_choice-66"><span class="linenos">66</span></a>        <span class="k">return</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.has_choice-87"><a href="#ChoiceMap.has_choice-87"><span class="linenos">87</span></a>    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap.has_choice-88"><a href="#ChoiceMap.has_choice-88"><span class="linenos">88</span></a>        <span class="k">return</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span>
 </span></pre></div>
 
 
@@ -400,12 +472,12 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.setdiff"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.setdiff-68"><a href="#ChoiceMap.setdiff-68"><span class="linenos">68</span></a>    <span class="k">def</span> <span class="nf">setdiff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-</span><span id="ChoiceMap.setdiff-69"><a href="#ChoiceMap.setdiff-69"><span class="linenos">69</span></a>        <span class="n">discard</span> <span class="o">=</span> <span class="n">ChoiceMap</span><span class="p">([])</span>
-</span><span id="ChoiceMap.setdiff-70"><a href="#ChoiceMap.setdiff-70"><span class="linenos">70</span></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="ChoiceMap.setdiff-71"><a href="#ChoiceMap.setdiff-71"><span class="linenos">71</span></a>            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
-</span><span id="ChoiceMap.setdiff-72"><a href="#ChoiceMap.setdiff-72"><span class="linenos">72</span></a>                <span class="n">discard</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span id="ChoiceMap.setdiff-73"><a href="#ChoiceMap.setdiff-73"><span class="linenos">73</span></a>        <span class="k">return</span> <span class="n">discard</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.setdiff-90"><a href="#ChoiceMap.setdiff-90"><span class="linenos">90</span></a>    <span class="k">def</span> <span class="nf">setdiff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+</span><span id="ChoiceMap.setdiff-91"><a href="#ChoiceMap.setdiff-91"><span class="linenos">91</span></a>        <span class="n">discard</span> <span class="o">=</span> <span class="n">ChoiceMap</span><span class="p">([])</span>
+</span><span id="ChoiceMap.setdiff-92"><a href="#ChoiceMap.setdiff-92"><span class="linenos">92</span></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="ChoiceMap.setdiff-93"><a href="#ChoiceMap.setdiff-93"><span class="linenos">93</span></a>            <span class="k">if</span> <span class="n">other</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+</span><span id="ChoiceMap.setdiff-94"><a href="#ChoiceMap.setdiff-94"><span class="linenos">94</span></a>                <span class="n">discard</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+</span><span id="ChoiceMap.setdiff-95"><a href="#ChoiceMap.setdiff-95"><span class="linenos">95</span></a>        <span class="k">return</span> <span class="n">discard</span>
 </span></pre></div>
 
 
@@ -423,8 +495,8 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.clear"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.clear-75"><a href="#ChoiceMap.clear-75"><span class="linenos">75</span></a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="ChoiceMap.clear-76"><a href="#ChoiceMap.clear-76"><span class="linenos">76</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.clear-97"><a href="#ChoiceMap.clear-97"><span class="linenos">97</span></a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap.clear-98"><a href="#ChoiceMap.clear-98"><span class="linenos">98</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 </span></pre></div>
 
 
@@ -442,8 +514,8 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.flatten"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.flatten-78"><a href="#ChoiceMap.flatten-78"><span class="linenos">78</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="ChoiceMap.flatten-79"><a href="#ChoiceMap.flatten-79"><span class="linenos">79</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.flatten-100"><a href="#ChoiceMap.flatten-100"><span class="linenos">100</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap.flatten-101"><a href="#ChoiceMap.flatten-101"><span class="linenos">101</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
 </span></pre></div>
 
 
@@ -462,9 +534,9 @@
 
     </div>
     <a class="headerlink" href="#ChoiceMap.unflatten"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.unflatten-81"><a href="#ChoiceMap.unflatten-81"><span class="linenos">81</span></a>    <span class="nd">@classmethod</span>
-</span><span id="ChoiceMap.unflatten-82"><a href="#ChoiceMap.unflatten-82"><span class="linenos">82</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-</span><span id="ChoiceMap.unflatten-83"><a href="#ChoiceMap.unflatten-83"><span class="linenos">83</span></a>        <span class="k">return</span> <span class="n">ChoiceMap</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.unflatten-103"><a href="#ChoiceMap.unflatten-103"><span class="linenos">103</span></a>    <span class="nd">@classmethod</span>
+</span><span id="ChoiceMap.unflatten-104"><a href="#ChoiceMap.unflatten-104"><span class="linenos">104</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="ChoiceMap.unflatten-105"><a href="#ChoiceMap.unflatten-105"><span class="linenos">105</span></a>        <span class="k">return</span> <span class="n">ChoiceMap</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
 </span></pre></div>
 
 
@@ -484,34 +556,37 @@
 
     </div>
     <a class="headerlink" href="#Trace"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace-91"><a href="#Trace-91"><span class="linenos"> 91</span></a><span class="nd">@dataclass</span>
-</span><span id="Trace-92"><a href="#Trace-92"><span class="linenos"> 92</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
-</span><span id="Trace-93"><a href="#Trace-93"><span class="linenos"> 93</span></a>    <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span>
-</span><span id="Trace-94"><a href="#Trace-94"><span class="linenos"> 94</span></a>    <span class="n">retval</span><span class="p">:</span> <span class="n">Any</span>
-</span><span id="Trace-95"><a href="#Trace-95"><span class="linenos"> 95</span></a>    <span class="n">choices</span><span class="p">:</span> <span class="n">StringTrie</span>
-</span><span id="Trace-96"><a href="#Trace-96"><span class="linenos"> 96</span></a>    <span class="n">score</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
-</span><span id="Trace-97"><a href="#Trace-97"><span class="linenos"> 97</span></a>
-</span><span id="Trace-98"><a href="#Trace-98"><span class="linenos"> 98</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-99"><a href="#Trace-99"><span class="linenos"> 99</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span>
-</span><span id="Trace-100"><a href="#Trace-100"><span class="linenos">100</span></a>
-</span><span id="Trace-101"><a href="#Trace-101"><span class="linenos">101</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-102"><a href="#Trace-102"><span class="linenos">102</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
-</span><span id="Trace-103"><a href="#Trace-103"><span class="linenos">103</span></a>
-</span><span id="Trace-104"><a href="#Trace-104"><span class="linenos">104</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-105"><a href="#Trace-105"><span class="linenos">105</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
-</span><span id="Trace-106"><a href="#Trace-106"><span class="linenos">106</span></a>
-</span><span id="Trace-107"><a href="#Trace-107"><span class="linenos">107</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-108"><a href="#Trace-108"><span class="linenos">108</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
-</span><span id="Trace-109"><a href="#Trace-109"><span class="linenos">109</span></a>
-</span><span id="Trace-110"><a href="#Trace-110"><span class="linenos">110</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-</span><span id="Trace-111"><a href="#Trace-111"><span class="linenos">111</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-</span><span id="Trace-112"><a href="#Trace-112"><span class="linenos">112</span></a>
-</span><span id="Trace-113"><a href="#Trace-113"><span class="linenos">113</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-114"><a href="#Trace-114"><span class="linenos">114</span></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span> <span class="kc">None</span>
-</span><span id="Trace-115"><a href="#Trace-115"><span class="linenos">115</span></a>
-</span><span id="Trace-116"><a href="#Trace-116"><span class="linenos">116</span></a>    <span class="nd">@classmethod</span>
-</span><span id="Trace-117"><a href="#Trace-117"><span class="linenos">117</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-</span><span id="Trace-118"><a href="#Trace-118"><span class="linenos">118</span></a>        <span class="k">return</span> <span class="n">Trace</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace-113"><a href="#Trace-113"><span class="linenos">113</span></a><span class="nd">@dataclass</span>
+</span><span id="Trace-114"><a href="#Trace-114"><span class="linenos">114</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
+</span><span id="Trace-115"><a href="#Trace-115"><span class="linenos">115</span></a>    <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span>
+</span><span id="Trace-116"><a href="#Trace-116"><span class="linenos">116</span></a>    <span class="n">retval</span><span class="p">:</span> <span class="n">Any</span>
+</span><span id="Trace-117"><a href="#Trace-117"><span class="linenos">117</span></a>    <span class="n">choices</span><span class="p">:</span> <span class="n">StringTrie</span>
+</span><span id="Trace-118"><a href="#Trace-118"><span class="linenos">118</span></a>    <span class="n">score</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
+</span><span id="Trace-119"><a href="#Trace-119"><span class="linenos">119</span></a>
+</span><span id="Trace-120"><a href="#Trace-120"><span class="linenos">120</span></a>    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-121"><a href="#Trace-121"><span class="linenos">121</span></a>        <span class="k">return</span> <span class="n">pp</span><span class="o">.</span><span class="n">tree_pformat</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span id="Trace-122"><a href="#Trace-122"><span class="linenos">122</span></a>
+</span><span id="Trace-123"><a href="#Trace-123"><span class="linenos">123</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-124"><a href="#Trace-124"><span class="linenos">124</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span>
+</span><span id="Trace-125"><a href="#Trace-125"><span class="linenos">125</span></a>
+</span><span id="Trace-126"><a href="#Trace-126"><span class="linenos">126</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-127"><a href="#Trace-127"><span class="linenos">127</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
+</span><span id="Trace-128"><a href="#Trace-128"><span class="linenos">128</span></a>
+</span><span id="Trace-129"><a href="#Trace-129"><span class="linenos">129</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-130"><a href="#Trace-130"><span class="linenos">130</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
+</span><span id="Trace-131"><a href="#Trace-131"><span class="linenos">131</span></a>
+</span><span id="Trace-132"><a href="#Trace-132"><span class="linenos">132</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-133"><a href="#Trace-133"><span class="linenos">133</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
+</span><span id="Trace-134"><a href="#Trace-134"><span class="linenos">134</span></a>
+</span><span id="Trace-135"><a href="#Trace-135"><span class="linenos">135</span></a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+</span><span id="Trace-136"><a href="#Trace-136"><span class="linenos">136</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span><span id="Trace-137"><a href="#Trace-137"><span class="linenos">137</span></a>
+</span><span id="Trace-138"><a href="#Trace-138"><span class="linenos">138</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-139"><a href="#Trace-139"><span class="linenos">139</span></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span> <span class="kc">None</span>
+</span><span id="Trace-140"><a href="#Trace-140"><span class="linenos">140</span></a>
+</span><span id="Trace-141"><a href="#Trace-141"><span class="linenos">141</span></a>    <span class="nd">@classmethod</span>
+</span><span id="Trace-142"><a href="#Trace-142"><span class="linenos">142</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="Trace-143"><a href="#Trace-143"><span class="linenos">143</span></a>        <span class="k">return</span> <span class="n">Trace</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -542,8 +617,8 @@
 
     </div>
     <a class="headerlink" href="#Trace.get_choices"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_choices-98"><a href="#Trace.get_choices-98"><span class="linenos">98</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_choices-99"><a href="#Trace.get_choices-99"><span class="linenos">99</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_choices-123"><a href="#Trace.get_choices-123"><span class="linenos">123</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_choices-124"><a href="#Trace.get_choices-124"><span class="linenos">124</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span>
 </span></pre></div>
 
 
@@ -561,8 +636,8 @@
 
     </div>
     <a class="headerlink" href="#Trace.get_retval"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_retval-101"><a href="#Trace.get_retval-101"><span class="linenos">101</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_retval-102"><a href="#Trace.get_retval-102"><span class="linenos">102</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_retval-126"><a href="#Trace.get_retval-126"><span class="linenos">126</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_retval-127"><a href="#Trace.get_retval-127"><span class="linenos">127</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
 </span></pre></div>
 
 
@@ -580,8 +655,8 @@
 
     </div>
     <a class="headerlink" href="#Trace.get_score"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_score-104"><a href="#Trace.get_score-104"><span class="linenos">104</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_score-105"><a href="#Trace.get_score-105"><span class="linenos">105</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_score-129"><a href="#Trace.get_score-129"><span class="linenos">129</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_score-130"><a href="#Trace.get_score-130"><span class="linenos">130</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
 </span></pre></div>
 
 
@@ -599,8 +674,8 @@
 
     </div>
     <a class="headerlink" href="#Trace.get_args"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_args-107"><a href="#Trace.get_args-107"><span class="linenos">107</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_args-108"><a href="#Trace.get_args-108"><span class="linenos">108</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_args-132"><a href="#Trace.get_args-132"><span class="linenos">132</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_args-133"><a href="#Trace.get_args-133"><span class="linenos">133</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
 </span></pre></div>
 
 
@@ -618,8 +693,8 @@
 
     </div>
     <a class="headerlink" href="#Trace.flatten"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.flatten-113"><a href="#Trace.flatten-113"><span class="linenos">113</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.flatten-114"><a href="#Trace.flatten-114"><span class="linenos">114</span></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span> <span class="kc">None</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.flatten-138"><a href="#Trace.flatten-138"><span class="linenos">138</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.flatten-139"><a href="#Trace.flatten-139"><span class="linenos">139</span></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">),</span> <span class="kc">None</span>
 </span></pre></div>
 
 
@@ -638,9 +713,9 @@
 
     </div>
     <a class="headerlink" href="#Trace.unflatten"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.unflatten-116"><a href="#Trace.unflatten-116"><span class="linenos">116</span></a>    <span class="nd">@classmethod</span>
-</span><span id="Trace.unflatten-117"><a href="#Trace.unflatten-117"><span class="linenos">117</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-</span><span id="Trace.unflatten-118"><a href="#Trace.unflatten-118"><span class="linenos">118</span></a>        <span class="k">return</span> <span class="n">Trace</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.unflatten-141"><a href="#Trace.unflatten-141"><span class="linenos">141</span></a>    <span class="nd">@classmethod</span>
+</span><span id="Trace.unflatten-142"><a href="#Trace.unflatten-142"><span class="linenos">142</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">slices</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+</span><span id="Trace.unflatten-143"><a href="#Trace.unflatten-143"><span class="linenos">143</span></a>        <span class="k">return</span> <span class="n">Trace</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
 </span></pre></div>
 
 

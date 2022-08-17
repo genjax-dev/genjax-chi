@@ -30,29 +30,54 @@ Thus, a user must provide an `abstract_eval` method -- to support JAX's abstract
 """
 
 import abc
+from genjax.core import Pytree
 
 
-class EncapsulatedGenerativeFunction(metaclass=abc.ABCMeta):
+class EncapsulatedGenerativeFunction(Pytree, metaclass=abc.ABCMeta):
+    """
+    `EncapsulatedGenerativeFunction` class which allows user-defined
+    implementations of the generative function interface methods, rather
+    than the JAX-driven tracing implementation
+    (as provided for the builtin modeling language).
+
+    The implementation will interact with the JAX tracing machinery,
+    however, so there are specific API requirements -- enforced via
+    Python abstract base class methods.
+
+    The user *must* match the interface signatures of the native JAX
+    implementation. This is not statically checked - but failure to do so
+    will lead to unintended behavior or errors.
+
+    To support argument and choice gradients via JAX, the user must
+    provide a differentiable `importance` implementation.
+    """
+
+    # Implement the `Pytree` interface methods.
+    @classmethod
     @abc.abstractmethod
-    def simulate(key, args):
+    def flatten(cls):
         pass
 
+    @classmethod
     @abc.abstractmethod
-    def importance(key, chm, args):
+    def unflatten(cls, data, xs):
         pass
 
+    # Interact with JAX's abstract tracer.
+    @classmethod
     @abc.abstractmethod
-    def diff(key, original, new, args):
+    def abstract_eval(cls, key, *args, **kwargs):
         pass
 
-    @abc.abstractmethod
-    def update(key, original, new, args):
+    # Implement any subset of GFI methods.
+    def simulate(self, key, args):
         pass
 
-    @abc.abstractmethod
-    def arg_grad(key, tr, args):
+    def importance(self, key, chm, args):
         pass
 
-    @abc.abstractmethod
-    def choice_grad(key, tr, chm, args):
+    def diff(self, key, original, new, args):
+        pass
+
+    def update(self, key, original, new, args):
         pass
