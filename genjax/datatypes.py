@@ -13,11 +13,14 @@
 # limitations under the License.
 
 from pygtrie import StringTrie
-from jax.tree_util import register_pytree_node
 import jax.numpy as jnp
 from typing import Tuple, Any
 from genjax.core.pytree import Pytree
 from dataclasses import dataclass
+
+#####
+# ChoiceMap
+#####
 
 
 class ChoiceMap(Pytree):
@@ -79,8 +82,13 @@ class ChoiceMap(Pytree):
         return ChoiceMap(zip(slices, values))
 
 
+#####
+# Trace
+#####
+
+
 @dataclass
-class Trace:
+class Trace(Pytree):
     args: Tuple
     retval: Any
     choices: StringTrie
@@ -101,12 +109,9 @@ class Trace:
     def __getitem__(self, k):
         return self.choices[k]
 
+    def flatten(self):
+        return (self.args, self.retval, self.choices, self.score), None
 
-register_pytree_node(
-    Trace,
-    lambda trace: (
-        (trace.args, trace.retval, trace.choices, trace.score),
-        None,
-    ),
-    lambda _, args: Trace(*args),
-)
+    @classmethod
+    def unflatten(cls, slices, values):
+        return Trace(*values)

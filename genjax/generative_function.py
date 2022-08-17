@@ -67,7 +67,7 @@ def diff(f):
         key, (w, ret) = fn(key, *in_args)
         return key, (w, ret)
 
-    return lambda key, chm, new, args: _inner(key, chm, new, args)
+    return lambda key, original, new, args: _inner(key, original, new, args)
 
 
 def update(f):

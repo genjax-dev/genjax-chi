@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Supports zero-cost effect handling implementations of each of the
+generative function interfaces -- dispatching on `trace_p`
+and `extern_p` primitives for each of the GFI methods.
+
+These handlers build on top of the CPS/effect handling interpreter
+in `genjax.core`.
+"""
+
 import jax
 from .core import Handler, handle, lift
 from .intrinsics import trace_p, splice_p, unsplice_p

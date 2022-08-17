@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module provides the core functionality which the `GenJAX` modeling and inference modules build on top of.
+
+This consists of 2 main components:
+    1. A CPS/effect handling interpreter in `handling.py`
+    2. An abstract propagation interpreter in `propagating.py`
+
+As well as utility functionality for coercing class definitions to valid `Pytree` method implementors (guaranteeing compatibility with JAX's serializing/deserializing to `Pytree` instances).
+
+This module also exports some "core" transformations on `Jaxpr` instances -- allowing the interpreters to run on `Jaxpr`
+representations of Python functions.
+"""
+
 from .handler import *
 from .handling import *
 from .propagating import *
