@@ -16,8 +16,9 @@
 This module provides the core functionality which the `GenJAX` modeling and inference modules build on top of.
 
 This consists of 2 main components:
-    1. A CPS/effect handling interpreter in `handling.py`
-    2. An abstract propagation interpreter in `propagating.py`
+
+1. A CPS/effect handling interpreter in `handling.py`
+2. An abstract propagation interpreter in `propagating.py`
 
 As well as utility functionality for coercing class definitions to valid `Pytree` method implementors (guaranteeing compatibility with JAX's serializing/deserializing to `Pytree` instances).
 

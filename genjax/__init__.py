@@ -47,7 +47,7 @@ probabilistic programming library built by combining the conceptual framework fo
 # Public exports.
 from .core import *
 from .distributions import *
-from .extern import *
+from .encapsulated import *
 from .intrinsics import *
 from .handlers import *
 from .datatypes import *

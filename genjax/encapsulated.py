@@ -13,17 +13,17 @@
 # limitations under the License.
 
 """
-Exposes a `ExternGenerativeFunction` class which can be used to
+Exposes a `EncapsulatedGenerativeFunction` class which can be used to
 encapsulate domain-specific implementations of the generative function
 interface methods.
 
 Supporting this functionality is slightly complicated -- it requires
 introducing a new primitive `extern_p` (see `intrinsics.py`) -- when
-a user defines a new `ExternGenerativeFunction`, they are allowed to
+a user defines a new `EncapsulatedGenerativeFunction`, they are allowed to
 provide method implementations for the generative function interface.
 
 These method implementation must support JAX tracing
-(because we're calling the `ExternGenerativeFunction` inside a modeling
+(because we're calling the `EncapsulatedGenerativeFunction` inside a modeling
 language which utilizes JAX tracing to handle code generation).
 
 Thus, a user must provide an `abstract_eval` method -- to support JAX's abstract evaluation.
@@ -32,7 +32,7 @@ Thus, a user must provide an `abstract_eval` method -- to support JAX's abstract
 import abc
 
 
-class ExternGenerativeFunction(metaclass=abc.ABCMeta):
+class EncapsulatedGenerativeFunction(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def simulate(key, args):
         pass

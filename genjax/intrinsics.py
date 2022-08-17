@@ -16,20 +16,20 @@ import jax
 import jax.core as core
 from jax._src import abstract_arrays
 import inspect
-from genjax.extern import ExternGenerativeFunction
+from genjax.encapsulated import EncapsulatedGenerativeFunction
 
 # GenJAX language trace primitive.
 trace_p = core.Primitive("trace")
 
 # External generative function trace primitive.
-external_p = core.Primitive("extern")
+encapsulated_p = core.Primitive("encapsulated")
 
 
 def _trace(addr, prim, *args, **kwargs):
     if inspect.isclass(prim):
         return trace_p.bind(*args, addr=addr, prim=prim, **kwargs)
-    elif isinstance(ExternGenerativeFunction, prim):
-        return external_p.bind(*args, addr=addr, prim=prim, **kwargs)
+    elif isinstance(EncapsulatedGenerativeFunction, prim):
+        return encapsulated_p.bind(*args, addr=addr, prim=prim, **kwargs)
     else:
         splice_p.bind(addr=addr)
         ret = prim(*args)
