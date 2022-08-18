@@ -46,7 +46,7 @@ def simulate(f):
         fn = Simulate().transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         key, (r, chm, score) = fn(key, *in_args)
-        return key, Trace(args, r, chm, score)
+        return key, Trace(args, tuple(r), chm, score)
 
     # If `f` is an encapsulated generative function, pass
     # the call to the method.
@@ -61,7 +61,7 @@ def importance(f):
         fn = Importance(chm).transform(f)(key, *args)
         in_args, _ = tree_util.tree_flatten(args)
         key, (w, r, chm, score) = fn(key, *in_args)
-        return key, (w, Trace(args, r, chm, score))
+        return key, (w, Trace(args, tuple(r), chm, score))
 
     return lambda key, chm, args: _inner(key, chm, args)
 
@@ -85,7 +85,7 @@ def update(f):
         discard = old.setdiff(chm)
         return key, (
             w,
-            Trace(args, ret, chm, original.get_score() + w),
+            Trace(args, tuple(ret), chm, original.get_score() + w),
             discard,
         )
 

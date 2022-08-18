@@ -14,6 +14,7 @@
 
 import jax.core as core
 from jax._src import abstract_arrays
+from jax.interpreters import batching
 import inspect
 from genjax.encapsulated import EncapsulatedGenerativeFunction
 
@@ -23,6 +24,9 @@ from genjax.encapsulated import EncapsulatedGenerativeFunction
 
 # GenJAX language trace primitive.
 trace_p = core.Primitive("trace")
+
+# GenJAX language batch trace primitive.
+batched_trace_p = core.Primitive("batched_trace")
 
 # External generative function trace primitive.
 encapsulated_p = core.Primitive("encapsulated")
@@ -45,9 +49,9 @@ def _trace(addr, prim, *args, **kwargs):
         return encapsulated_p.bind(*args, addr=addr, prim=prim, **kwargs)
     else:
         splice_p.bind(addr=addr)
-        ret = prim(*args)
+        key, ret = prim(*args)
         unsplice_p.bind(addr=addr)
-        return ret
+        return key, ret
 
 
 def trace(addr, prim):
@@ -59,9 +63,41 @@ def trace_abstract_eval(*args, addr, prim, **kwargs):
     return prim.abstract_eval(*args, **kwargs)
 
 
+# This defers abstract evaluation to `batched_trace`
+# where it can pass new batched shapes to primitives
+# via the `shape` keyword argument.
+def trace_batch(args, batch_axes, addr, prim, **kwargs):
+    (key, res) = batched_trace_p.bind(
+        *args, batch_axes=batch_axes, addr=addr, prim=prim, **kwargs
+    )
+    # TODO: check that this batch_axes stuff is correct.
+    return (key, res), (batch_axes[1], *batch_axes[2:])
+
+
 trace_p.def_abstract_eval(trace_abstract_eval)
 trace_p.multiple_results = True
 trace_p.must_handle = True
+batching.primitive_batchers[trace_p] = trace_batch
+
+#####
+# batched_trace
+#####
+
+# This primitive is used to automatically perform the correct
+# abstract evaluation for generative functions inside of `vmap` and `pmap`
+
+
+def batched_trace_abstract_eval(*args, addr, prim, **kwargs):
+    prim = prim()
+    # This is the number of keys provided.
+    batch_dim = args[0].shape[0]
+    return prim.abstract_eval_batched(*args, batch_dim=batch_dim, **kwargs)
+
+
+batched_trace_p.def_abstract_eval(batched_trace_abstract_eval)
+batched_trace_p.multiple_results = True
+batched_trace_p.must_handle = True
+
 
 #####
 # encapsulated

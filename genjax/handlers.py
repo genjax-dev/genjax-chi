@@ -23,7 +23,13 @@ in `genjax.core`.
 
 import jax
 from .core import Handler, handle, lift
-from .intrinsics import encapsulated_p, trace_p, splice_p, unsplice_p
+from .intrinsics import (
+    encapsulated_p,
+    trace_p,
+    batched_trace_p,
+    splice_p,
+    unsplice_p,
+)
 from genjax.datatypes import ChoiceMap
 
 #####
@@ -70,11 +76,47 @@ class Sample(Handler):
 
 class Simulate(Handler):
     def __init__(self):
-        self.handles = [encapsulated_p, trace_p, splice_p, unsplice_p]
+        self.handles = [
+            encapsulated_p,
+            trace_p,
+            batched_trace_p,
+            splice_p,
+            unsplice_p,
+        ]
         self.state = ChoiceMap([])
         self.level = []
         self.score = 0.0
         self.return_or_continue = False
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, *args, addr, prim, **kwargs):
+        prim = prim()
+        key, v = prim.sample(*args, **kwargs)
+        full = ".".join((*self.level, addr))
+        score = prim.score(v, *args[1:])
+        self.state[full] = (v, score)
+        self.score += score
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, v)
+            return key, (ret, self.state, self.score)
+
+    # Handle batched_trace sites -- perform codegen onto the `Jaxpr` trace.
+    def batched_trace(self, f, *args, addr, prim, **kwargs):
+        prim = prim()
+        key, v = jax.vmap(prim.sample)(*args)
+        full = ".".join((*self.level, addr))
+        score = prim.score(v, *args[1:])
+        self.state[full] = (v, score)
+        self.score += score
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, v)
+            return key, (ret, self.state, self.score)
 
     # Handed encapsulated sites -- deferring `simulate`
     # to a custom implementation.
@@ -85,21 +127,6 @@ class Simulate(Handler):
         score = tr.get_score()
         v = tr.get_retval()
         self.state[full] = choices
-        self.score += score
-        if self.return_or_continue:
-            return f(key, v)
-        else:
-            self.return_or_continue = True
-            key, *ret = f(key, v)
-            return key, (ret, self.state, self.score)
-
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, addr, prim, **kwargs):
-        prim = prim()
-        key, v = prim.sample(*args, **kwargs)
-        full = ".".join((*self.level, addr))
-        score = prim.score(v, *args[1:])
-        self.state[full] = (v, score)
         self.score += score
         if self.return_or_continue:
             return f(key, v)
@@ -134,7 +161,7 @@ class Simulate(Handler):
 
 class Importance(Handler):
     def __init__(self, choice_map):
-        self.handles = [trace_p, splice_p, unsplice_p]
+        self.handles = [trace_p, batched_trace_p, splice_p, unsplice_p]
         self.state = ChoiceMap([])
         self.level = []
         self.score = 0.0
@@ -154,6 +181,28 @@ class Importance(Handler):
             self.weight += score
         else:
             key, v = prim.sample(*args, **kwargs)
+            score = prim.score(v, *args[1:])
+            self.state[full] = (v, score)
+        self.score += score
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, v)
+            return key, (self.weight, ret, self.state, self.score)
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def batched_trace(self, f, *args, addr, prim, **kwargs):
+        key = args[0]
+        prim = prim()
+        full = ".".join((*self.level, addr))
+        if self.obs.has_choice(full):
+            v = self.obs.get_value(full)
+            score = prim.score(v, *args[1:])
+            self.state[full] = (v, score)
+            self.weight += score
+        else:
+            key, v = jax.vmap(prim.sample)(*args, **kwargs)
             score = prim.score(v, *args[1:])
             self.state[full] = (v, score)
         self.score += score

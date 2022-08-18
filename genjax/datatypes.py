@@ -131,6 +131,9 @@ class Trace(Pytree):
     def get_args(self):
         return self.args
 
+    def get_slice(self, k: int):
+        pass
+
     def __getitem__(self, k):
         return self.choices[k]
 

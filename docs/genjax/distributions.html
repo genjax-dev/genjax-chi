@@ -34,6 +34,7 @@
                 <li><a href="distributions/categorical.html">categorical</a></li>
                 <li><a href="distributions/cauchy.html">cauchy</a></li>
                 <li><a href="distributions/dirichlet.html">dirichlet</a></li>
+                <li><a href="distributions/distribution.html">distribution</a></li>
                 <li><a href="distributions/exponential.html">exponential</a></li>
                 <li><a href="distributions/gamma.html">gamma</a></li>
                 <li><a href="distributions/laplace.html">laplace</a></li>
@@ -79,19 +80,20 @@
 </span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="c1"># See the License for the specific language governing permissions and</span>
 </span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="c1"># limitations under the License.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="kn">from</span> <span class="nn">.beta</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">from</span> <span class="nn">.bernoulli</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="kn">from</span> <span class="nn">.cauchy</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span> <span class="nn">.dirichlet</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="kn">from</span> <span class="nn">.exponential</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="kn">from</span> <span class="nn">.gamma</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="kn">from</span> <span class="nn">.normal</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="kn">from</span> <span class="nn">.laplace</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="kn">from</span> <span class="nn">.logistic</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="kn">from</span> <span class="nn">.multivariate_normal</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="kn">from</span> <span class="nn">.pareto</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="kn">from</span> <span class="nn">.poisson</span> <span class="kn">import</span> <span class="o">*</span>
-</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a><span class="kn">from</span> <span class="nn">.uniform</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="kn">from</span> <span class="nn">.distribution</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">from</span> <span class="nn">.beta</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="kn">from</span> <span class="nn">.bernoulli</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span> <span class="nn">.cauchy</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="kn">from</span> <span class="nn">.dirichlet</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="kn">from</span> <span class="nn">.exponential</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a><span class="kn">from</span> <span class="nn">.gamma</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="kn">from</span> <span class="nn">.normal</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="kn">from</span> <span class="nn">.laplace</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="kn">from</span> <span class="nn">.logistic</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a><span class="kn">from</span> <span class="nn">.multivariate_normal</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a><span class="kn">from</span> <span class="nn">.pareto</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a><span class="kn">from</span> <span class="nn">.poisson</span> <span class="kn">import</span> <span class="o">*</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="kn">from</span> <span class="nn">.uniform</span> <span class="kn">import</span> <span class="o">*</span>
 </span></pre></div>
 
 
