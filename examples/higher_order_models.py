@@ -32,8 +32,8 @@ def f(key, x):
     return key, _inner
 
 
-def toplevel(key):
-    key, fn = f(key, 0.3)
+def toplevel(key, x):
+    key, fn = f(key, x)
     key, q = genjax.trace("higher-order", fn)(key)
     return key, q
 
@@ -41,5 +41,8 @@ def toplevel(key):
 # Initialize a PRNG.
 key = jax.random.PRNGKey(314159)
 
-expr = genjax.lift(genjax.simulate(toplevel), key)
-print(expr)
+key, tr = jax.jit(genjax.simulate(toplevel))(key, (0.3,))
+print(tr.get_retval())
+
+key, tr = jax.jit(genjax.simulate(toplevel))(key, (0.8,))
+print(tr.get_retval())

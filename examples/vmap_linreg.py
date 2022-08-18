@@ -29,7 +29,7 @@ kernel = jax.vmap(_kernel, in_axes=(0, None, None, 0))
 def model(key, xs):
     key, alpha = genjax.trace("alpha", genjax.Uniform)(key, 0.0, 2.0)
     key, beta = genjax.trace("beta", genjax.Uniform)(key, -3.0, 3.0)
-    key, *subkeys = jax.random.split(key, 4)
+    key, *subkeys = jax.random.split(key, xs.shape[0] + 1)
     subkeys = jnp.array(subkeys)
     key, ys = genjax.trace("obs", kernel)(subkeys, alpha, beta, xs)
     return key, ys
@@ -44,3 +44,4 @@ _, (ws, trs) = jax.jit(
 )(subkeys, ys, (jnp.array([1.0, 2.0, 3.0]),))
 v = jax.random.categorical(key, ws)
 print(trs)
+print(trs.get_choices().trie)

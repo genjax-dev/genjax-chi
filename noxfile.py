@@ -17,7 +17,7 @@ def tests(session):
     session.run("coverage", "report")
 
 
-@nox.session
+@nox.session(python=["3.10"])
 def lint(session):
     session.install("poetry")
     session.run("poetry", "install")
@@ -33,14 +33,14 @@ def lint(session):
     session.run("flake8", ".")
 
 
-@nox.session
+@nox.session(python=["3.10"])
 def build(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run("poetry", "build")
 
 
-@nox.session
+@nox.session(python=["3.10"])
 def docs(session):
     session.install("poetry")
     session.run("poetry", "install")
