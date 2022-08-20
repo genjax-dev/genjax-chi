@@ -13,25 +13,29 @@
 # limitations under the License.
 
 import jax
-import genjax as gex
+import genjax
 
 
 # This showcases a simple Metropolis-Hastings benchmark.
 
 
 def normal_model(key):
-    x = gex.trace("x", gex.Normal)(key)
+    x = genjax.trace("x", genjax.Normal)(key)
     return x
 
 
 def uniform_proposal(key, tr, d):
     current = tr["x"]
-    key, x = gex.trace("x", gex.Uniform)(key, current - d, current + d)
+    key, x = genjax.trace("x", genjax.Uniform)(key, current - d, current + d)
     return key, x
 
 
+# Simulate from the model.
+key = jax.random.PRNGKey(314159)
+key, tr = jax.jit(genjax.simulate(normal_model))(key, ())
+
 # Inference with proposal MH.
-inf = jax.jit(gex.metropolis_hastings(normal_model, uniform_proposal))
+inf = jax.jit(genjax.metropolis_hastings(normal_model, uniform_proposal))
 
 
 def run_inference(key, tr):
@@ -42,6 +46,6 @@ def run_inference(key, tr):
 
 def test_simple_mh_benchmark(benchmark):
     key = jax.random.PRNGKey(314159)
-    key, tr = jax.jit(gex.simulate(normal_model))(key, ())
+    key, tr = jax.jit(genjax.simulate(normal_model))(key, ())
     jitted = jax.jit(run_inference)
     new_key, trace = benchmark(jitted, key, tr)

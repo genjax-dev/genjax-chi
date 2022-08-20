@@ -31,8 +31,8 @@ def f(key, p1):
 key = jax.random.PRNGKey(314159)
 key, *subkeys = jax.random.split(key, 100 + 1)
 subkeys = jnp.array(subkeys)
-key, ests = jax.vmap(
-    jax.jit(genjax.experimental.aide(f, f, 100, 100)), in_axes=(0, None, None)
+_, ests = jax.vmap(
+    jax.jit(genjax.experimental.aide(f, f, 100, 100)),
+    in_axes=(0, None, None),
 )(subkeys, (0.3,), (0.8,))
-print(ests)
 print(jnp.mean(ests))
