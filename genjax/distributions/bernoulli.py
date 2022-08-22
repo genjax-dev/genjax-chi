@@ -15,19 +15,35 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from genjax.distributions.trace import DistributionTrace
+from genjax.primitive import PrimitiveGenerativeFunction
 
 
-class Bernoulli:
+class _Bernoulli(PrimitiveGenerativeFunction):
     def abstract_eval(self, key, p, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=bool),
         )
 
-    def sample(self, key, p, **kwargs):
+    def simulate(self, key, args, **kwargs):
         key, sub_key = jax.random.split(key)
-        v = jax.random.bernoulli(sub_key, p, **kwargs)
-        return (key, v)
+        v = jax.random.bernoulli(sub_key, *args, **kwargs)
+        tr = DistributionTrace(
+            Bernoulli, v, jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
+        )
+        return (key, tr)
 
-    def score(self, v, p):
-        return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, p))
+    def importance(self, key, chm, args, **kwargs):
+        v = chm.get_value()
+        weight = jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
+        return key, (weight, DistributionTrace(Bernoulli, v, weight))
+
+    def flatten(self):
+        return (), ()
+
+    def unflatten(self, values, slices):
+        return _Bernoulli()
+
+
+Bernoulli = _Bernoulli()

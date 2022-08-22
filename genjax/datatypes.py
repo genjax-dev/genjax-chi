@@ -12,37 +12,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 import jax
 import jax.numpy as jnp
 from pygtrie import StringTrie
-from typing import Tuple, Any
+from typing import Callable, Tuple, Any
 from genjax.core.pytree import Pytree
 from dataclasses import dataclass
 import genjax.pretty_print as pp
 
-
-def stringtrie_flatten(self):
-    return self.trie.values(), self.trie.keys()
-
-
-def stringtrie_unflatten(cls, slices, values):
-    return StringTrie(zip(slices, values))
-
-
-# Global registration for `StringTrie`
-jax.tree_util.register_pytree_node(
-    StringTrie,
-    stringtrie_flatten,
-    stringtrie_unflatten,
-)
-
-
 #####
-# ChoiceMap
+# AbstractChoiceMap
 #####
 
 
-class ChoiceMap(Pytree):
+@dataclass
+class AbstractChoiceMap(Pytree, metaclass=abc.ABCMeta):
+
+    # Implement the `Pytree` interface methods.
+    @abc.abstractmethod
+    def flatten(cls):
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def unflatten(cls, data, xs):
+        pass
+
+
+#####
+# ValueChoiceMap
+#####
+
+
+@dataclass
+class ValueChoiceMap(AbstractChoiceMap):
+    value: Any
+
+    # Implement the `Pytree` interface methods.
+    def flatten(cls):
+        return (cls.value,), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return ValueChoiceMap(*xs)
+
+    def get_submaps_shallow(self):
+        return ()
+
+    def get_values_shallow(self):
+        return (self.value,)
+
+    def get_value(self):
+        return self.value
+
+
+#####
+# CompoundChoiceMap
+#####
+
+
+@dataclass
+class CompoundChoiceMap(AbstractChoiceMap):
     trie: StringTrie
 
     def __init__(self, constraints):
@@ -50,10 +81,18 @@ class ChoiceMap(Pytree):
         if isinstance(constraints, dict):
             for (k, v) in constraints.items():
                 full = ".".join(k)
-                self.trie[full] = v
+                self.trie[full] = ValueChoiceMap(v)
         else:
             for (k, v) in constraints:
                 self.trie[k] = v
+
+    # Implement the `Pytree` interfaces.
+    def flatten(self):
+        return self.trie.values(), self.trie.keys()
+
+    @classmethod
+    def unflatten(cls, slices, values):
+        return CompoundChoiceMap(zip(slices, values))
 
     def __setitem__(self, k, v):
         self.trie[k] = v
@@ -72,7 +111,7 @@ class ChoiceMap(Pytree):
     def __str__(self):
         return pp.tree_pformat(self)
 
-    def get_value(self, k):
+    def get_leaf(self, k):
         ch = self.trie[k]
         if isinstance(ch, tuple):
             return ch[0]
@@ -83,11 +122,11 @@ class ChoiceMap(Pytree):
         (_, s) = self.trie[k]
         return s
 
-    def has_choice(self, k):
+    def has_leaf(self, k):
         return k in self.trie
 
     def setdiff(self, other):
-        discard = ChoiceMap([])
+        discard = CompoundChoiceMap([])
         for (k, v) in self.trie.items():
             if other.has_choice(k):
                 discard[k] = v
@@ -96,12 +135,36 @@ class ChoiceMap(Pytree):
     def clear(self):
         self.trie.clear()
 
-    def flatten(self):
-        return self.trie.values(), self.trie.keys()
 
-    @classmethod
-    def unflatten(cls, slices, values):
-        return ChoiceMap(zip(slices, values))
+# Just export `ChoiceMap` for short.
+ChoiceMap = CompoundChoiceMap
+
+#####
+# AbstractTrace
+#####
+
+
+@dataclass
+class AbstractTrace(Pytree, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def get_retval(self):
+        pass
+
+    @abc.abstractmethod
+    def get_score(self):
+        pass
+
+    @abc.abstractmethod
+    def get_args(self):
+        pass
+
+    @abc.abstractmethod
+    def get_choices(self):
+        pass
+
+    @abc.abstractmethod
+    def get_gen_fn(self):
+        pass
 
 
 #####
@@ -110,7 +173,8 @@ class ChoiceMap(Pytree):
 
 
 @dataclass
-class Trace(Pytree):
+class CompoundTrace(AbstractTrace):
+    gen_fn: Callable
     args: Tuple
     retval: Any
     choices: StringTrie
@@ -118,6 +182,9 @@ class Trace(Pytree):
 
     def __str__(self):
         return pp.tree_pformat(self)
+
+    def get_gen_fn(self):
+        return self.gen_fn
 
     def get_choices(self):
         return self.choices
@@ -138,8 +205,13 @@ class Trace(Pytree):
         return self.choices[k]
 
     def flatten(self):
-        return (self.args, self.retval, self.choices, self.score), None
+        return (self.args, self.retval, self.choices, self.score), (
+            self.gen_fn,
+        )
 
     @classmethod
-    def unflatten(cls, slices, values):
-        return Trace(*values)
+    def unflatten(cls, data, xs):
+        return CompoundTrace(*data, *xs)
+
+
+Trace = CompoundTrace

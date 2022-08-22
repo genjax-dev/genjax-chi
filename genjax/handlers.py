@@ -22,15 +22,18 @@ in `genjax.core`.
 """
 
 import jax
+import jax.tree_util as jtu
 from .core import Handler, handle, lift
 from .intrinsics import (
-    encapsulated_p,
+    primitive_p,
     trace_p,
     batched_trace_p,
     splice_p,
     unsplice_p,
 )
 from genjax.datatypes import ChoiceMap
+from genjax.datatypes import Trace
+from genjax import PrimitiveGenerativeFunction
 
 #####
 # GFI handlers
@@ -45,39 +48,10 @@ from genjax.datatypes import ChoiceMap
 # to send out the accumulated state we want.
 
 
-class Sample(Handler):
-    def __init__(self):
-        self.handles = [trace_p, splice_p, unsplice_p]
-
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, addr, prim, **kwargs):
-        prim = prim()
-        key, v = prim.sample(*args, **kwargs)
-        return f(key, v)
-
-    # Handle hierarchical addressing primitives (push onto level stack).
-    def splice(self, f, addr):
-        return f(())
-
-    # Handle hierarchical addressing primitives (pop off the level stack).
-    def unsplice(self, f, addr):
-        return f(())
-
-    # Transform a function and return a function which implements
-    # the semantics of `simulate` from Gen.
-    def _transform(self, f, *args):
-        expr = lift(f, *args)
-        fn = handle([self], expr)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
-
 class Simulate(Handler):
     def __init__(self):
         self.handles = [
-            encapsulated_p,
+            primitive_p,
             trace_p,
             batched_trace_p,
             splice_p,
@@ -88,13 +62,29 @@ class Simulate(Handler):
         self.score = 0.0
         self.return_or_continue = False
 
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, addr, prim, **kwargs):
-        prim = prim()
-        key, v = prim.sample(*args, **kwargs)
+    # Handle primitive sites -- deferring `simulate`
+    # to a custom implementation.
+    def primitive(self, f, key, *args, addr, prim, **kwargs):
         full = ".".join((*self.level, addr))
-        score = prim.score(v, *args[1:])
-        self.state[full] = (v, score)
+        key, tr = prim.simulate(key, args)
+        score = tr.get_score()
+        v = tr.get_retval()
+        self.state[full] = tr
+        self.score += score
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, v)
+            return key, (ret, self.state, self.score)
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, key, *args, addr, call, **kwargs):
+        full = ".".join((*self.level, addr))
+        key, tr = simulate(call)(key, args)
+        score = tr.get_score()
+        v = tr.get_retval()
+        self.state[full] = tr
         self.score += score
         if self.return_or_continue:
             return f(key, v)
@@ -110,23 +100,6 @@ class Simulate(Handler):
         full = ".".join((*self.level, addr))
         score = prim.score(v, *args[1:])
         self.state[full] = (v, score)
-        self.score += score
-        if self.return_or_continue:
-            return f(key, v)
-        else:
-            self.return_or_continue = True
-            key, *ret = f(key, v)
-            return key, (ret, self.state, self.score)
-
-    # Handed encapsulated sites -- deferring `simulate`
-    # to a custom implementation.
-    def encapsulated(self, f, key, *args, addr, prim, **kwargs):
-        full = ".".join((*self.level, addr))
-        key, tr = prim.simulate(key, args)
-        choices = tr.get_choices()
-        score = tr.get_score()
-        v = tr.get_retval()
-        self.state[full] = choices
         self.score += score
         if self.return_or_continue:
             return f(key, v)
@@ -161,7 +134,13 @@ class Simulate(Handler):
 
 class Importance(Handler):
     def __init__(self, choice_map):
-        self.handles = [trace_p, batched_trace_p, splice_p, unsplice_p]
+        self.handles = [
+            trace_p,
+            primitive_p,
+            batched_trace_p,
+            splice_p,
+            unsplice_p,
+        ]
         self.state = ChoiceMap([])
         self.level = []
         self.score = 0.0
@@ -169,21 +148,45 @@ class Importance(Handler):
         self.obs = choice_map
         self.return_or_continue = False
 
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, *args, addr, prim, **kwargs):
-        key = args[0]
-        prim = prim()
+    # Handle primitive sites -- deferring `importance`
+    # to a custom implementation.
+    def primitive(self, f, key, *args, addr, prim, **kwargs):
         full = ".".join((*self.level, addr))
-        if self.obs.has_choice(full):
-            v = self.obs.get_value(full)
-            score = prim.score(v, *args[1:])
-            self.state[full] = (v, score)
-            self.weight += score
+        if self.obs.has_leaf(full):
+            chm = self.obs.get_leaf(full)
+            key, (w, tr) = prim.importance(key, chm, args)
+            self.state[full] = tr
+            self.score += tr.get_score()
+            self.weight += w
+            v = tr.get_retval()
         else:
-            key, v = prim.sample(*args, **kwargs)
-            score = prim.score(v, *args[1:])
+            key, tr = prim.simulate(key, args)
+            self.state[full] = tr
+            self.score += tr.get_score()
+            v = tr.get_retval()
+
+        if self.return_or_continue:
+            return f(key, v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, v)
+            return key, (self.weight, ret, self.state, self.score)
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, key, *args, addr, prim, **kwargs):
+        full = ".".join((*self.level, addr))
+        if self.obs.has_submap(full):
+            chm = self.obs.get_submap(full)
+            key, (w, tr) = importance(f)(key, chm, args)
             self.state[full] = (v, score)
-        self.score += score
+            self.score += tr.get_score()
+            self.weight += w
+            v = tr.get_retval()
+        else:
+            key, tr = simulate(f)(key, args)
+            self.state[full] = tr
+            self.score += tr.get_score()
+
         if self.return_or_continue:
             return f(key, v)
         else:
@@ -359,7 +362,7 @@ class Update(Handler):
 
 class ArgumentGradients(Handler):
     def __init__(self, tr, argnums):
-        self.handles = [encapsulated_p, trace_p, splice_p, unsplice_p]
+        self.handles = [primitive_p, trace_p, splice_p, unsplice_p]
         self.argnums = argnums
         self.level = []
         self.score = 0.0
@@ -367,8 +370,8 @@ class ArgumentGradients(Handler):
         self.sources = tr.get_choices()
         self.return_or_continue = False
 
-    # Handle encapsulated sites -- perform codegen onto the `Jaxpr` trace.
-    def encapsulated(self, f, *args, addr, prim, **kwargs):
+    # Handle primitive sites -- perform codegen onto the `Jaxpr` trace.
+    def primitive(self, f, *args, addr, prim, **kwargs):
         key = args[0]
         prim = prim()
         full = ".".join((*self.level, addr))
@@ -438,3 +441,93 @@ class ChoiceGradients(Handler):
 
     def transform(self, f):
         return lambda *args: self._transform(f, *args)
+
+
+#####
+# Generative function interface
+#####
+
+
+def sample(f):
+    def _inner(key, *args):
+        fn = Sample().transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        k, *v = fn(key, *in_args)
+        return k, (*v,)
+
+    return lambda key, *args: _inner(key, *args)
+
+
+def simulate(f):
+    def _inner(key, args):
+        fn = Simulate().transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        key, (r, chm, score) = fn(key, *in_args)
+        return key, Trace(f, args, tuple(r), chm, score)
+
+    # If `f` is an primitive generative function, pass
+    # the call to the method.
+    if isinstance(f, PrimitiveGenerativeFunction):
+        return lambda key, args: f.simulate(key, args)
+    else:
+        return lambda key, args: _inner(key, args)
+
+
+def importance(f):
+    def _inner(key, chm, args):
+        fn = Importance(chm).transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        key, (w, r, chm, score) = fn(key, *in_args)
+        return key, (w, Trace(f, args, tuple(r), chm, score))
+
+    # If `f` is an primitive generative function, pass
+    # the call to the method.
+    if isinstance(f, PrimitiveGenerativeFunction):
+        return lambda key, chm, args: f.importance(key, chm, args)
+    else:
+        return lambda key, chm, args: _inner(key, chm, args)
+
+
+def diff(f):
+    def _inner(key, original, new, args):
+        fn = Diff(original, new).transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        key, (w, ret) = fn(key, *in_args)
+        return key, (w, ret)
+
+    return lambda key, original, new, args: _inner(key, original, new, args)
+
+
+def update(f):
+    def _inner(key, original, new, args):
+        fn = Update(original, new).transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        key, (w, ret, chm) = fn(key, *in_args)
+        old = original.get_choices()
+        discard = old.setdiff(chm)
+        return key, (
+            w,
+            Trace(args, tuple(ret), chm, original.get_score() + w),
+            discard,
+        )
+
+    return lambda key, chm, new, args: _inner(key, chm, new, args)
+
+
+def arg_grad(f, argnums):
+    def _inner(key, tr, argnums, args):
+        fn = ArgumentGradients(tr, argnums).transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        arg_grads, key = fn(key, *in_args)
+        return key, arg_grads
+
+    return lambda key, tr, args: _inner(key, tr, argnums, args)
+
+
+def choice_grad(f):
+    def _inner(key, tr, chm, args):
+        fn = ChoiceGradients(tr).transform(f)(key, *args)
+        choice_grads, key = fn(key, chm)
+        return key, choice_grads
+
+    return lambda key, tr, chm, args: _inner(key, tr, chm, args)

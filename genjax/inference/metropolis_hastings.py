@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax.generative_function import simulate, update, importance
+from genjax import simulate, update, importance
 import jax
 import jax.numpy as jnp
 import jax.random as random

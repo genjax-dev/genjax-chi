@@ -13,17 +13,17 @@
 # limitations under the License.
 
 """
-Exposes a `EncapsulatedGenerativeFunction` class which can be used to
+Exposes a `PrimitiveGenerativeFunction` class which can be used to
 encapsulate domain-specific implementations of the generative function
 interface methods.
 
 Supporting this functionality is slightly complicated -- it requires
 introducing a new primitive `extern_p` (see `intrinsics.py`) -- when
-a user defines a new `EncapsulatedGenerativeFunction`, they are allowed to
+a user defines a new `PrimitiveGenerativeFunction`, they are allowed to
 provide method implementations for the generative function interface.
 
 These method implementation must support JAX tracing
-(because we're calling the `EncapsulatedGenerativeFunction` inside a modeling
+(because we're calling the `PrimitiveGenerativeFunction` inside a modeling
 language which utilizes JAX tracing to handle code generation).
 
 Thus, a user must provide an `abstract_eval` method -- to support JAX's abstract evaluation.
@@ -33,9 +33,9 @@ import abc
 from genjax.core import Pytree
 
 
-class EncapsulatedGenerativeFunction(Pytree, metaclass=abc.ABCMeta):
+class PrimitiveGenerativeFunction(Pytree, metaclass=abc.ABCMeta):
     """
-    `EncapsulatedGenerativeFunction` class which allows user-defined
+    `PrimitiveGenerativeFunction` class which allows user-defined
     implementations of the generative function interface methods, rather
     than the JAX-driven tracing implementation
     (as provided for the builtin modeling language).

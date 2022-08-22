@@ -16,7 +16,7 @@ import jax.core as core
 from jax._src import abstract_arrays
 from jax.interpreters import batching
 import inspect
-from genjax.encapsulated import EncapsulatedGenerativeFunction
+from genjax.primitive import PrimitiveGenerativeFunction
 
 #####
 # Primitives
@@ -29,7 +29,7 @@ trace_p = core.Primitive("trace")
 batched_trace_p = core.Primitive("batched_trace")
 
 # External generative function trace primitive.
-encapsulated_p = core.Primitive("encapsulated")
+primitive_p = core.Primitive("primitive")
 
 # Hierarchical (call) addressing primitive.
 splice_p = core.Primitive("splice")
@@ -42,39 +42,31 @@ unsplice_p = core.Primitive("unsplice")
 #####
 
 
-def _trace(addr, prim, *args, **kwargs):
-    if inspect.isclass(prim):
-        return trace_p.bind(*args, addr=addr, prim=prim, **kwargs)
-    elif isinstance(prim, EncapsulatedGenerativeFunction):
-        return encapsulated_p.bind(*args, addr=addr, prim=prim, **kwargs)
+def _trace(addr, call, *args, **kwargs):
+    if isinstance(call, PrimitiveGenerativeFunction):
+        return primitive_p.bind(*args, addr=addr, prim=call, **kwargs)
     else:
         splice_p.bind(addr=addr)
-        key, ret = prim(*args)
+        key, ret = call(*args)
         unsplice_p.bind(addr=addr)
         return key, ret
 
 
-def trace(addr, prim):
-    return lambda *args, **kwargs: _trace(addr, prim, *args, **kwargs)
-
-
-def trace_abstract_eval(*args, addr, prim, **kwargs):
-    prim = prim()
-    return prim.abstract_eval(*args, **kwargs)
+def trace(addr, call):
+    return lambda *args, **kwargs: _trace(addr, call, *args, **kwargs)
 
 
 # This defers abstract evaluation to `batched_trace`
 # where it can pass new batched shapes to primitives
 # via the `shape` keyword argument.
-def trace_batch(args, batch_axes, addr, prim, **kwargs):
+def trace_batch(args, batch_axes, addr, call, **kwargs):
     (key, res) = batched_trace_p.bind(
-        *args, batch_axes=batch_axes, addr=addr, prim=prim, **kwargs
+        *args, batch_axes=batch_axes, addr=addr, call=call, **kwargs
     )
     # TODO: check that this batch_axes stuff is correct.
     return (key, res), (batch_axes[1], *batch_axes[2:])
 
 
-trace_p.def_abstract_eval(trace_abstract_eval)
 trace_p.multiple_results = True
 trace_p.must_handle = True
 batching.primitive_batchers[trace_p] = trace_batch
@@ -100,17 +92,17 @@ batched_trace_p.must_handle = True
 
 
 #####
-# encapsulated
+# primitive
 #####
 
 
-def encapsulated_abstract_eval(*args, addr, prim, **kwargs):
+def primitive_abstract_eval(*args, addr, prim, **kwargs):
     return prim.abstract_eval(*args, **kwargs)
 
 
-encapsulated_p.def_abstract_eval(encapsulated_abstract_eval)
-encapsulated_p.multiple_results = True
-encapsulated_p.must_handle = True
+primitive_p.def_abstract_eval(primitive_abstract_eval)
+primitive_p.multiple_results = True
+primitive_p.must_handle = True
 
 #####
 # splice
