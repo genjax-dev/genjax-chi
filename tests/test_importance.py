@@ -13,27 +13,30 @@
 # limitations under the License.
 
 import jax
-import genjax as gex
+import genjax
 import pytest
 
 key = jax.random.PRNGKey(314159)
 
 
+@genjax.gen
 def simple_normal(key):
-    key, y1 = gex.trace("y1", gex.Normal)(key)
-    key, y2 = gex.trace("y2", gex.Normal)(key)
+    key, y1 = genjax.trace("y1", genjax.Normal)(key)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key)
     return key, y1 + y2
 
 
-class TestGenerate:
-    def test_simple_normal_generate(self, benchmark):
-        jitted = jax.jit(gex.importance(simple_normal))
-        chm = gex.ChoiceMap({("y1",): 0.5, ("y2",): 0.5})
+class TestImportance:
+    def test_simple_normal_importance(self, benchmark):
+        jitted = jax.jit(genjax.importance(simple_normal))
+        chm = genjax.ChoiceMap({("y1",): 0.5, ("y2",): 0.5})
         new_key, (w, tr) = benchmark(jitted, key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
-        test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
-        assert y1 == out[("y1",)]
-        assert y2 == out[("y2",)]
+        _, (score1, _) = genjax.Normal.importance(key, chm["y1"], ())
+        _, (score2, _) = genjax.Normal.importance(key, chm["y2"], ())
+        test_score = score1 + score2
+        assert y1 == out[("y1",)].get_choices()
+        assert y2 == out[("y2",)].get_choices()
         assert tr.get_score() == pytest.approx(test_score, 0.01)

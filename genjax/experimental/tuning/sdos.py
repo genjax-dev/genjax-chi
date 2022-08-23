@@ -17,14 +17,16 @@ An implementation of (Symmetric divergence over datasets)
 from Domke, 2021.
 """
 
-from typing import Callable
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
-from genjax.generative_function import simulate, importance
+from genjax.interface import simulate, importance
+from genjax.core.datatypes import GenerativeFunction
 
 
-def estimate_log_ratio(p: Callable, q: Callable, inf_target, mp: int, mq: int):
+def estimate_log_ratio(
+    p: GenerativeFunction, q: GenerativeFunction, inf_target, mp: int, mq: int
+):
     def __inner(key, p_args, q_args):
         obs_target = inf_target.complement()
 
@@ -81,7 +83,9 @@ def estimate_log_ratio(p: Callable, q: Callable, inf_target, mp: int, mq: int):
     return lambda key, p_args, q_args: __inner(key, p_args, q_args)
 
 
-def sdos(p: Callable, q: Callable, inf_target, mp: int, mq: int):
+def sdos(
+    p: GenerativeFunction, q: GenerativeFunction, inf_target, mp: int, mq: int
+):
     def __inner(key, p_args, q_args):
         key, logpq = estimate_log_ratio(p, q, inf_target, mp, mq)(
             key, p_args, q_args

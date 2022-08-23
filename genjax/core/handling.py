@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-from jax import core
+import jax.core as jc
 from jax.util import safe_map, safe_zip
 from typing import Any, Dict, Sequence, Callable
 
@@ -24,15 +23,15 @@ from typing import Any, Dict, Sequence, Callable
 
 class Handler:
     """
-    A handler dispatchs a `jax.core.Primitive` - and must provide
+    A handler dispatchs a `jc.Primitive` - and must provide
     a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
-    where `*args` must match the `core.Primitive` declaration signature.
+    where `*args` must match the `jc.Primitive` declaration signature.
     """
 
-    handles: Sequence[core.Primitive]
+    handles: Sequence[jc.Primitive]
     callable: Callable
 
-    def __init__(self, handles: Sequence[core.Primitive], callable: Callable):
+    def __init__(self, handles: Sequence[jc.Primitive], callable: Callable):
         self.handles = handles
         self.callable = callable
 
@@ -46,18 +45,18 @@ zip = safe_zip
 
 
 def eval_jaxpr_handler(
-    handler_stack: Sequence[Handler], jaxpr: core.Jaxpr, consts, *args
+    handler_stack: Sequence[Handler], jaxpr: jc.Jaxpr, consts, *args
 ):
     """
     This is an interpreter which is parametrized by a handler stack.
-    The handler stack is consulted when a `core.Primitive` with a `must_handle`
+    The handler stack is consulted when a `jc.Primitive` with a `must_handle`
     attribute is encountered.
 
     This interpreter should always be staged out onto a `Jaxpr`
     - so that handling primitives is a zero runtime cost process.
     """
 
-    env: Dict[jax.core.Var, Any] = {}
+    env: Dict[jc.Var, Any] = {}
 
     def write(v, val):
         env[v] = val
@@ -73,7 +72,7 @@ def eval_jaxpr_handler(
         env = env.copy()
 
         def read(v):
-            if isinstance(v, core.Literal):
+            if isinstance(v, jc.Literal):
                 return v.val
             else:
                 return env[v]

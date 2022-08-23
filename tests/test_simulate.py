@@ -13,24 +13,25 @@
 # limitations under the License.
 
 import jax
-import genjax as gex
+import genjax
 import pytest
 
 key = jax.random.PRNGKey(314159)
 
 
+@genjax.gen
 def simple_normal(key):
-    key, y1 = gex.trace("y1", gex.Normal)(key)
-    key, y2 = gex.trace("y2", gex.Normal)(key)
+    key, y1 = genjax.trace("y1", genjax.Normal)(key)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key)
     return key, y1 + y2
 
 
 class TestSimulate:
     def test_simple_normal_simulate(self, benchmark):
-        jitted = jax.jit(gex.simulate(simple_normal))
+        jitted = jax.jit(genjax.simulate(simple_normal))
         new_key, tr = benchmark(jitted, key, ())
         chm = tr.get_choices()
-        y1 = chm[("y1",)]
-        y2 = chm[("y2",)]
-        test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
+        _, (score1, _) = genjax.Normal.importance(key, chm["y1"], ())
+        _, (score2, _) = genjax.Normal.importance(key, chm["y2"], ())
+        test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)

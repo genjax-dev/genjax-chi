@@ -17,14 +17,16 @@ An implementation of (Auxiliary inference divergence estimator)
 from Cusumano-Towner et al, 2017.
 """
 
-from typing import Callable
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
-from genjax.generative_function import simulate, importance
+from genjax.interface import simulate, importance
+from genjax.core.datatypes import GenerativeFunction
 
 
-def estimate_log_ratio(p: Callable, q: Callable, mp: int, mq: int):
+def estimate_log_ratio(
+    p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int
+):
     def __inner(key, p_args, q_args):
         key, tr = simulate(p)(key, p_args)
         chm = tr.get_choices()
@@ -45,7 +47,7 @@ def estimate_log_ratio(p: Callable, q: Callable, mp: int, mq: int):
     return lambda key, p_args, q_args: __inner(key, p_args, q_args)
 
 
-def aide(p: Callable, q: Callable, mp: int, mq: int):
+def aide(p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int):
     def __inner(key, p_args, q_args):
         key, logpq = estimate_log_ratio(p, q, mp, mq)(key, p_args, q_args)
         key, logqp = estimate_log_ratio(q, p, mq, mp)(key, q_args, p_args)

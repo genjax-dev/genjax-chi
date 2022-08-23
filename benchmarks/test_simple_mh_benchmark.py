@@ -19,13 +19,15 @@ import genjax
 # This showcases a simple Metropolis-Hastings benchmark.
 
 
+@genjax.gen
 def normal_model(key):
     x = genjax.trace("x", genjax.Normal)(key)
     return x
 
 
+@genjax.gen
 def uniform_proposal(key, tr, d):
-    current = tr["x"]
+    current = tr["x"].get_value()
     key, x = genjax.trace("x", genjax.Uniform)(key, current - d, current + d)
     return key, x
 

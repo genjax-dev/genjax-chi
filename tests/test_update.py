@@ -13,41 +13,46 @@
 # limitations under the License.
 
 import jax
-import genjax as gex
+import genjax
 import pytest
 
 key = jax.random.PRNGKey(314159)
 
 
+@genjax.gen
 def simple_normal(key):
-    key, y1 = gex.trace("y1", gex.Normal)(key)
-    key, y2 = gex.trace("y2", gex.Normal)(key)
+    key, y1 = genjax.trace("y1", genjax.Normal)(key)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key)
     return key, y1 + y2
 
 
 class TestUpdate:
     def test_simple_normal_update(self, benchmark):
-        new_key, tr = jax.jit(gex.simulate(simple_normal))(key, ())
-        jitted = jax.jit(gex.update(simple_normal))
+        new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        jitted = jax.jit(genjax.update(simple_normal))
 
-        new = gex.ChoiceMap({("y1",): 2.0})
+        new = genjax.ChoiceMap({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         new_key, (w, updated, discard) = benchmark(jitted, new_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
-        test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
-        assert original_chm[("y1",)] == discard[("y1",)]
+        _, (score1, _) = genjax.Normal.importance(key, updated_chm["y1"], ())
+        _, (score2, _) = genjax.Normal.importance(key, updated_chm["y2"], ())
+        test_score = score1 + score2
+        assert original_chm[("y1",)].get_choices() == discard[("y1",)]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-        new = gex.ChoiceMap({("y1",): 2.0, ("y2",): 3.0})
+        new = genjax.ChoiceMap({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
         new_key, (w, updated, discard) = jitted(new_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
-        test_score = gex.Normal().score(y1) + gex.Normal().score(y2)
+        _, (score1, _) = genjax.Normal.importance(key, updated_chm["y1"], ())
+        _, (score2, _) = genjax.Normal.importance(key, updated_chm["y2"], ())
+        test_score = score1 + score2
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
