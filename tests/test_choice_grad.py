@@ -25,6 +25,11 @@ def simple_normal(key):
     return key, y1 + y2
 
 
+def score(v1):
+    _, (w, _) = genjax.Normal.importance(key, genjax.ValueChoiceMap(v1), ())
+    return w
+
+
 class TestChoiceGradient:
     def test_simple_normal_gradient(self, benchmark):
         v1 = 0.5
@@ -33,7 +38,7 @@ class TestChoiceGradient:
         new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.choice_grad(simple_normal))
         new_key, choice_grads = benchmark(jitted, new_key, tr, chm, ())
-        test_grad_y1 = jax.grad(lambda v1: genjax.Normal.score(v1))(v1)
-        test_grad_y2 = jax.grad(lambda v2: genjax.Normal.score(v2))(v2)
-        assert choice_grads[("y1",)] == test_grad_y1
-        assert choice_grads[("y2",)] == test_grad_y2
+        test_grad_y1 = jax.grad(score)(v1)
+        test_grad_y2 = jax.grad(score)(v2)
+        assert choice_grads[("y1",)].get_value() == test_grad_y1
+        assert choice_grads[("y2",)].get_value() == test_grad_y2
