@@ -13,7 +13,8 @@
 # limitations under the License.
 
 """
-This module provides the core functionality which the `GenJAX` modeling and inference modules build on top of.
+This module provides the core functionality which the `GenJAX` modeling 
+and inference modules are buillt on top of.
 
 This consists of 2 main components:
 
@@ -26,7 +27,10 @@ This module also exports some "core" transformations on `Jaxpr` instances -- all
 representations of Python functions.
 """
 
+from .datatypes import *
 from .handling import *
 from .propagating import *
 from .transforms import *
 from .pytree import *
+from .pretty_printer import *
+from .serialization import *

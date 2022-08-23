@@ -12,6 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .value_choice_map import *
-from .distribution_trace import *
-from .library import *
+
+def simulate(f):
+    return f.simulate
+
+
+def importance(f):
+    return f.importance
+
+
+def diff(f):
+    return f.diff
+
+
+def update(f):
+    return f.update
+
+
+def arg_grad(f, argnums):
+    return f.arg_grad(argnums)
+
+
+def choice_grad(f):
+    return f.choice_grad

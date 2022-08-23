@@ -13,14 +13,15 @@
 # limitations under the License.
 
 import jax
-import genjax as gex
+import genjax
 
 key = jax.random.PRNGKey(314159)
 
 
+@genjax.gen
 def simple_normal(key):
-    key, y1 = gex.trace("y1", gex.Normal)(key)
-    key, y2 = gex.trace("y2", gex.Normal)(key)
+    key, y1 = genjax.trace("y1", genjax.Normal)(key)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key)
     return key, y1 + y2
 
 
@@ -28,11 +29,11 @@ class TestChoiceGradient:
     def test_simple_normal_gradient(self, benchmark):
         v1 = 0.5
         v2 = -0.5
-        chm = gex.ChoiceMap({("y1",): v1, ("y2",): v2})
-        new_key, tr = jax.jit(gex.simulate(simple_normal))(key, ())
-        jitted = jax.jit(gex.choice_grad(simple_normal))
+        chm = genjax.ChoiceMap({("y1",): v1, ("y2",): v2})
+        new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        jitted = jax.jit(genjax.choice_grad(simple_normal))
         new_key, choice_grads = benchmark(jitted, new_key, tr, chm, ())
-        test_grad_y1 = jax.grad(lambda v1: gex.Normal().score(v1))(v1)
-        test_grad_y2 = jax.grad(lambda v2: gex.Normal().score(v2))(v2)
+        test_grad_y1 = jax.grad(lambda v1: genjax.Normal.score(v1))(v1)
+        test_grad_y2 = jax.grad(lambda v2: genjax.Normal.score(v2))(v2)
         assert choice_grads[("y1",)] == test_grad_y1
         assert choice_grads[("y2",)] == test_grad_y2

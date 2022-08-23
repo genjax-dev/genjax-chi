@@ -12,6 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .value_choice_map import *
-from .distribution_trace import *
-from .library import *
+from dataclasses import dataclass
+from typing import Any
+from genjax.core.datatypes import ChoiceMap
+
+
+#####
+# ValueChoiceMap
+#####
+
+
+@dataclass
+class ValueChoiceMap(ChoiceMap):
+    value: Any
+
+    # Implement the `Pytree` interface methods.
+    def flatten(self):
+        return (self.value,), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return ValueChoiceMap(*xs)
+
+    def get_submaps_shallow(self):
+        return ()
+
+    def get_values_shallow(self):
+        return (self.value,)
+
+    def get_value(self):
+        return self.value

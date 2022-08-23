@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .value_choice_map import *
-from .distribution_trace import *
-from .library import *
+"""
+This module provides a builtin modeling language built on top of JAX interpreters.
+
+It exposes a set of JAX primitives which allow compositional 
+construction of generative programs.
+These programs can utilize other generative functions 
+(for example, see the `distributions`) library.
+"""
+
+from .intrinsics import trace
+from .jax_choice_map import *
+from .handlers import *
+from .jax_trace import *
+from .language import *
+
+__all__ = ["gen", "trace", "ChoiceMap", "Trace", "JAXGenerativeFunction"]
