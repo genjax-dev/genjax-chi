@@ -14,34 +14,10 @@
 
 import jax
 import jax.numpy as jnp
-from genjax.core.datatypes import ChoiceMap, Trace, GenerativeFunction
+from genjax.core.datatypes import GenerativeFunction, Trace
+from genjax.builtin.shape_analysis import abstract_choice_map_shape
 from dataclasses import dataclass
-from typing import Tuple, Any
-
-#####
-# SwitchChoiceMap
-#####
-
-
-@dataclass
-class SwitchChoiceMap(ChoiceMap):
-    branch: bool
-    branch_1: ChoiceMap
-    branch_2: ChoiceMap
-
-    def get_choices(self):
-        if self.branch:
-            return self.branch_1
-        else:
-            return self.branch_2
-
-    def flatten(self):
-        return (self.branch, self.branch_1, self.branch_2), ()
-
-    @classmethod
-    def unflatten(cls, xs, data):
-        return SwitchChoiceMap(*xs, *data)
-
+from typing import Tuple, Any, Sequence
 
 #####
 # SwitchTrace
@@ -51,16 +27,18 @@ class SwitchChoiceMap(ChoiceMap):
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
+    forms: dict
+    payload_tree: dict
+    branch: int
     args: Tuple
     retval: Any
-    choices: SwitchChoiceMap
     score: jnp.float32
-
-    def get_choices(self):
-        return self.choices
 
     def get_args(self):
         return self.args
+
+    def get_choices(self):
+        return self.payload_tree
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -72,8 +50,15 @@ class SwitchTrace(Trace):
         return self.score
 
     def flatten(self):
-        return (self.args, self.retval, self.choices, self.score), (
+        return (
+            self.payload_tree,
+            self.branch,
+            self.args,
+            self.retval,
+            self.score,
+        ), (
             self.gen_fn,
+            self.forms,
         )
 
     @classmethod
@@ -86,103 +71,100 @@ class SwitchTrace(Trace):
 #####
 
 
-def _fill(shape, dtype):
-    if dtype == bool:
-        return [True for _ in shape]
-    else:
-        return [0.0 for _ in shape]
-
-
 @dataclass
 class SwitchCombinator(GenerativeFunction):
-    branch_1: GenerativeFunction
-    branch_2: GenerativeFunction
+    branches: Sequence[GenerativeFunction]
 
-    def __init__(self, branch1, branch2):
-        self.branch_1 = branch1
-        self.branch_2 = branch2
-        self.blank_1 = None
-        self.blank_2 = None
+    def __init__(self, *branches):
+        self.branches = branches
 
     def flatten(self):
-        return (), (self.branch_1, self.branch_2)
+        return (), (self.branches,)
 
     @classmethod
     def unflatten(cls, xs, data):
         return SwitchCombinator(*xs, *data)
 
     def __call__(self, key, *args):
-        return jax.lax.cond(
+        return jax.lax.switch(
             args[0],
-            lambda *args: self.branch_1(key, *args),
-            lambda *args: self.branch_2(key, *args),
+            self.branches,
+            key,
             *args[1:],
         )
 
-    def _simulate_with_switch_map_1(self, gen_fn, blank, key, args):
-        key, tr = gen_fn.simulate(key, args)
-        chm = tr.get_choices()
-        score = tr.get_score()
-        retval = tr.get_retval()
-        sw_chm = SwitchChoiceMap(False, chm, blank)
-        return key, SwitchTrace(
-            self,
-            args,
-            retval,
-            sw_chm,
-            score,
-        )
+    # This function does some compile-time code specialization
+    # to produce a "sum type" - like trace.
+    def compute_branch_coverage(self, key, args):
+        forms = {}
+        shaped_structs = set()
+        branch_maps = []
+        for (ind, br) in enumerate(self.branches):
+            values, trace_treedef = abstract_choice_map_shape(br)(key, args)
+            forms[ind] = trace_treedef
+            shaped_structs.update(set(values))
+            local_shapes = {}
+            for v in values:
+                num = local_shapes.get((v.shape, v.dtype), 0)
+                local_shapes[(v.shape, v.dtype)] = num + 1
+            branch_maps.append(local_shapes)
+        coverage = {}
+        for shape in shaped_structs:
+            coverage_num = 0
+            for br_map in branch_maps:
+                branch_num = br_map.get((shape.shape, shape.dtype), 0)
+                if branch_num > coverage_num:
+                    coverage_num = branch_num
+            coverage[(shape.shape, shape.dtype)] = coverage_num
+        return coverage, forms
 
-    def _simulate_with_switch_map_2(self, gen_fn, blank, key, args):
-        key, tr = gen_fn.simulate(key, args)
-        chm = tr.get_choices()
-        score = tr.get_score()
-        retval = tr.get_retval()
-        sw_chm = SwitchChoiceMap(True, blank, chm)
-        return key, SwitchTrace(
-            self,
-            args,
-            retval,
-            sw_chm,
-            score,
+    def _simulate(self, switch, branch_gen_fn, key, args, forms, coverage):
+        key, tr = branch_gen_fn.simulate(key, args)
+        payload = {}
+        leaves = map(
+            lambda l: (l.shape, l.dtype), jax.tree_util.tree_leaves(tr)
         )
+        for leaf in leaves:
+            payload_tree = payload.get(leaf, [])
+            payload_tree.append(leaves)
+
+        for ((shape, dtype), v) in coverage.items():
+            payload_tree = payload.get((shape, dtype), [])
+            if len(payload_tree) < v:
+                payload_tree.append(
+                    [
+                        jnp.zeros(shape, dtype=dtype)
+                        for _ in range(0, v - len(payload_tree))
+                    ]
+                )
+        score = tr.get_score()
+        args = tr.get_args()
+        retval = tr.get_retval()
+        switch_trace = SwitchTrace(
+            self, forms, payload_tree, switch, args, retval, score
+        )
+        return key, switch_trace
 
     def simulate(self, key, args):
         switch = args[0]
+        coverage, forms = self.compute_branch_coverage(key, args[1:])
 
-        # Create a blank filled Pytree for branch_1.
-        jaxpr_1, ret = jax.make_jaxpr(
-            self.branch_1.simulate, return_shape=True
-        )(key, args[1:])
-        chm_shape = ret[1].get_choices()
-        leaves, form = jax.tree_util.tree_flatten(chm_shape)
-        blank_1 = jax.tree_map(
-            lambda k: jax.numpy.zeros(k.shape, dtype=k.dtype), chm_shape
+        def __inner(br):
+            return lambda switch, key, *args: self._simulate(
+                switch, br, key, args, forms, coverage
+            )
+
+        branch_functions = list(
+            map(
+                __inner,
+                self.branches,
+            )
         )
 
-        # Create a blank filled Pytree for branch_2.
-        jaxpr_2, ret = jax.make_jaxpr(
-            self.branch_2.simulate, return_shape=True
-        )(key, args[1:])
-        chm_shape = ret[1].get_choices()
-        leaves, form = jax.tree_util.tree_flatten(chm_shape)
-        blank_2 = jax.tree_map(
-            lambda k: jax.numpy.zeros(k.shape, dtype=k.dtype), chm_shape
-        )
-
-        return jax.lax.cond(
+        return jax.lax.switch(
             switch,
-            lambda *args: self._simulate_with_switch_map_1(
-                self.branch_1,
-                blank_2,
-                key,
-                args,
-            ),
-            lambda *args: self._simulate_with_switch_map_2(
-                self.branch_2,
-                blank_1,
-                key,
-                args,
-            ),
+            branch_functions,
+            switch,
+            key,
             *args[1:],
         )

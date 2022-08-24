@@ -23,7 +23,7 @@ in `genjax.core`.
 
 import jax
 import jax.tree_util as jtu
-from genjax.core import Handler, handle, lift
+from genjax.core import Handler, handle
 from .intrinsics import gen_fn_p
 from genjax.builtin.jax_choice_map import JAXChoiceMap
 from genjax.builtin.jax_trace import JAXTrace
@@ -69,7 +69,7 @@ class Simulate(Handler):
     # Transform a function and return a function which implements
     # the semantics of `simulate` from Gen.
     def _transform(self, f, *args):
-        expr = lift(f, *args)
+        expr = jax.make_jaxpr(f)(*args)
         fn = handle([self], expr)
         return fn
 
@@ -114,7 +114,7 @@ class Importance(Handler):
     # Transform a function and return a function which implements
     # the semantics of `generate` from Gen.
     def _transform(self, f, *args):
-        expr = lift(f, *args)
+        expr = jax.make_jaxpr(f)(*args)
         fn = handle([self], expr)
         return fn
 
@@ -164,7 +164,7 @@ class Diff(Handler):
     # Transform a function and return a function which implements
     # the semantics of `generate` from Gen.
     def _transform(self, f, *args):
-        expr = lift(f, *args)
+        expr = jax.make_jaxpr(f)(*args)
         fn = handle([self], expr)
         return fn
 
@@ -216,7 +216,7 @@ class Update(Handler):
             return key, (self.weight, ret, self.state, self.discard)
 
     def _transform(self, f, *args):
-        expr = lift(f, *args)
+        expr = jax.make_jaxpr(f)(*args)
         fn = handle([self], expr)
         return fn
 
@@ -255,7 +255,7 @@ class ArgumentGradients(Handler):
             return self.score, key
 
     def _transform(self, f, *args):
-        expr = lift(f, *args)
+        expr = jax.make_jaxpr(f)(*args)
         fn = handle([self], expr)
         fn = jax.grad(fn, self.argnums, has_aux=True)
         return fn
@@ -271,7 +271,7 @@ class ChoiceGradients(Handler):
     def _transform(self, f, key, *args):
         def diff(key, chm):
             handler = Diff(self.tr, chm)
-            expr = lift(f, key, *args)
+            expr = jax.make_jaxpr(f)(key, *args)
             fn = handle([handler], expr)
             key, (w, _) = fn(key, *args)
             return self.tr.get_score() + w, key

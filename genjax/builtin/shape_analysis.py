@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax.core.handling import eval_jaxpr_handler
+"""
+This module provides an abstract interpreter which performs choice map
+shape analysis on JAX generative function source code.
+"""
 
-# Our special interpreter -- allows us to dispatch with primitives,
-# and implements directed CPS-style code generation strategy.
-def I_prime(handler_stack, f):
-    return lambda *xs: eval_jaxpr_handler(
-        handler_stack, f.jaxpr, f.literals, *xs
-    )
+import jax
+from genjax.interface import simulate
+from genjax.core.datatypes import GenerativeFunction
 
 
-def handle(handler_stack, expr):
-    """
-    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
-    """
-    return I_prime(handler_stack, expr)
+def abstract_choice_map_shape(f: GenerativeFunction):
+    def __inner(f, *args):
+        _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
+        trace = form[1]
+        values, treedef = jax.tree_util.tree_flatten(trace.get_choices())
+        return values, treedef
+
+    return lambda *args: __inner(f, *args)

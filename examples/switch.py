@@ -25,21 +25,13 @@ def h1(key, x):
 
 @genjax.gen
 def h2(key, x):
-    key, m0 = genjax.trace("m0", genjax.Normal)(key)
-    key, m1 = genjax.trace("m1", genjax.Normal)(key)
+    key, m0 = genjax.trace("m2", genjax.Normal)(key)
+    key, m1 = genjax.trace("m3", genjax.Normal)(key)
     return (key,)
 
 
 sw = genjax.SwitchCombinator(h1, h2)
 
-
-@genjax.gen
-def f(key, x):
-    key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, x)
-    (key,) = genjax.trace("m5", sw)(key, m0, x)
-    return key, 2 * m0
-
-
 key = jax.random.PRNGKey(314159)
-key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
+key, tr = jax.jit(genjax.simulate(sw))(key, (1, 0.3))
 print(tr)

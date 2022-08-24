@@ -26,5 +26,13 @@ from .jax_choice_map import *
 from .handlers import *
 from .jax_trace import *
 from .language import *
+from .shape_analysis import *
 
-__all__ = ["gen", "trace", "ChoiceMap", "Trace", "JAXGenerativeFunction"]
+__all__ = [
+    "gen",
+    "trace",
+    "ChoiceMap",
+    "Trace",
+    "JAXGenerativeFunction",
+    "abstract_choice_map_shape",
+]

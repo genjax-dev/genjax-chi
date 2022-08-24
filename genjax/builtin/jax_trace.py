@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from pygtrie import StringTrie
 from typing import Callable, Tuple, Any
 from dataclasses import dataclass
 import genjax.core.pretty_printer as pp
@@ -29,7 +28,7 @@ class JAXTrace(Trace):
     gen_fn: Callable
     args: Tuple
     retval: Any
-    choices: StringTrie
+    choices: dict
     score: jnp.float32
 
     def __str__(self):
@@ -54,10 +53,10 @@ class JAXTrace(Trace):
         pass
 
     def has_key(self, k):
-        return self.choices.has_key(k)
+        return k in self.choices
 
     def get_key(self, k):
-        return self.choices.get_key(k)
+        return self.choices[k]
 
     def __getitem__(self, k):
         return self.choices[k]
