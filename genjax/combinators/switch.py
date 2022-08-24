@@ -12,6 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module implements a generative function combinator which allows
+structured control flow for combinations of generative functions
+which can return different shaped choice maps.
+
+It's based on encoding a "sum type" like trace using JAX.
+
+Generative functions which are passed in as branches to `SwitchCombinator`
+must accept the same argument types, and return the same type of return value.
+
+The internal choice maps for the branch generative functions
+can have different shape/dtype choices.
+"""
+
 import jax
 import jax.numpy as jnp
 from genjax.core.datatypes import GenerativeFunction, Trace
