@@ -81,7 +81,7 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
 
     # Implement the `Pytree` interface methods.
     @abc.abstractmethod
-    def flatten(cls):
+    def flatten(self):
         pass
 
     @classmethod
