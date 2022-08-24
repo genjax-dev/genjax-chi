@@ -31,8 +31,8 @@ from genjax.builtin.handlers import (
 class JAXGenerativeFunction(GenerativeFunction):
     source: Callable
 
-    def __call__(self, *args):
-        return self.source(*args)
+    def __call__(self, key, *args):
+        return self.source(key, *args)
 
     def flatten(self):
         return (), (self.source,)

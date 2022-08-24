@@ -60,22 +60,16 @@ key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
 
 # Here's how you access the `importance` GFI.
 chm = genjax.ChoiceMap({("m0",): True, ("m4", "m0", "m0"): False})
-print(chm)
 key, (w, tr) = jax.jit(genjax.importance(f))(key, chm, (0.3,))
-print(tr)
 
 # Here's how you access the `update` GFI.
 jitted = jax.jit(genjax.update(f))
 
 chm = genjax.ChoiceMap({("m0",): False})
-print(chm)
 key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
-print(discard)
 
 chm = genjax.ChoiceMap({("m4", "m0", "m0"): True})
-print(chm)
 key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
-print(discard)
 
 # Here's how you access the `arg_grad` interface.
 key, arg_grad = jax.jit(genjax.arg_grad(f, [1]))(key, tr, (0.3,))
