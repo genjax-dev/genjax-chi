@@ -22,6 +22,8 @@ pre-commit = "^2.20.0"
 pdoc = "^12.0.2"
 pytest-benchmark = "^3.4.1"
 autoflake8 = "^0.3.2"
+myst-parser = "^0.18.0"
+Sphinx = "^5.1.1"
 
 [tool.black]
 line-length = 80

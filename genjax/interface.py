@@ -12,8 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module exposes the generative function interface -- a set of methods
+defined for generative functions which support the implementation of
+programmable inference algorithms.
+
+Combined with the trace and choice map datatypes, these interface methods
+are the conceptual core of generative functions.
+"""
+
 
 def sample(f, **kwargs):
+    """
+    `sample` runs the generative function forward, returning a new
+    `PRNGKey` and a return value.
+    """
     return lambda *args: f.simulate(*args, **kwargs)
 
 

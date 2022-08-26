@@ -1,0 +1,189 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Combinators &#8212; genjax  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/css/custom.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Calling into C++ generative functions" href="c_interface.html" />
+    <link rel="prev" title="Generative function interface" href="interface.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="combinators">
+<h1>Combinators<a class="headerlink" href="#combinators" title="Permalink to this heading">¶</a></h1>
+<p>A generative function combinator is an object which accepts 1 or more generative functions, and returns a new generative function – often changing the structure of the internal choice map, or expressing a structured pattern of computation.</p>
+<section id="module-genjax.combinators.switch">
+<span id="switch"></span><h2>Switch<a class="headerlink" href="#module-genjax.combinators.switch" title="Permalink to this heading">¶</a></h2>
+<p>This module implements a generative function combinator which allows
+branching control flow for combinations of generative functions
+which can return different shaped choice maps.
+It’s based on encoding a trace sum type using JAX - to bypass restrictions from <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.cond.html">jax.lax.cond</a>.</p>
+<p>Generative functions which are passed in as branches to <cite>SwitchCombinator</cite>
+must accept the same argument types, and return the same type of return value.</p>
+<p>The internal choice maps for the branch generative functions
+can have different shape/dtype choices.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.switch.SwitchCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.switch.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">branches</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/switch.html#SwitchCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.switch.SwitchCombinator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-genjax.combinators.map">
+<span id="map"></span><h2>Map<a class="headerlink" href="#module-genjax.combinators.map" title="Permalink to this heading">¶</a></h2>
+<p>This module implements a generative function combinator which allows
+broadcasting for generative functions – mapping over vectorial versions of their arguments.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.map.</span></span><span class="sig-name descname"><span class="pre">MapCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/map.html#MapCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.map.MapCombinator" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator.partial">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">partial</span></span><a class="headerlink" href="#genjax.combinators.map.MapCombinator.partial" title="Permalink to this definition">¶</a></dt>
+<dd><p>partial(func, <a href="#id1"><span class="problematic" id="id2">*</span></a>args, <a href="#id3"><span class="problematic" id="id4">**</span></a>keywords) - new function with partial application
+of the given arguments and keywords.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator.partial.args">
+<span class="sig-name descname"><span class="pre">args</span></span><a class="headerlink" href="#genjax.combinators.map.MapCombinator.partial.args" title="Permalink to this definition">¶</a></dt>
+<dd><p>tuple of arguments to future partial calls</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator.partial.func">
+<span class="sig-name descname"><span class="pre">func</span></span><a class="headerlink" href="#genjax.combinators.map.MapCombinator.partial.func" title="Permalink to this definition">¶</a></dt>
+<dd><p>function object to use in future partial calls</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator.partial.keywords">
+<span class="sig-name descname"><span class="pre">keywords</span></span><a class="headerlink" href="#genjax.combinators.map.MapCombinator.partial.keywords" title="Permalink to this definition">¶</a></dt>
+<dd><p>dictionary of keyword arguments to future partial calls</p>
+</dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-genjax.combinators.unfold">
+<span id="unfold"></span><h2>Unfold<a class="headerlink" href="#module-genjax.combinators.unfold" title="Permalink to this heading">¶</a></h2>
+<p>This module implements a generative function combinator which allows
+statically unrolled control flow for generative functions which can act
+as kernels (accepting their previous output as input).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.unfold.UnfoldCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.unfold.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/unfold.html#UnfoldCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.unfold.UnfoldCombinator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/assets/logo.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=probcomp&repo=genjax&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="interface.html">Generative function interface</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.switch">Switch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.map">Map</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.unfold">Unfold</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="c_interface.html">Calling into C++ generative functions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="interface.html" title="previous chapter">Generative function interface</a></li>
+      <li>Next: <a href="c_interface.html" title="next chapter">Calling into C++ generative functions</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, MIT Probabilistic Computing Project.
+      
+      |
+      <a href="../_sources/genjax/combinators.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Calling into C++ generative functions &#8212; genjax  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/css/custom.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Combinators" href="combinators.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="calling-into-c-generative-functions">
+<h1>Calling into C++ generative functions<a class="headerlink" href="#calling-into-c-generative-functions" title="Permalink to this heading">¶</a></h1>
+<p>While GenJAX is flexible and fast courtesy of JAX, sometimes we want lower level control over the implementation of our generative functions – or we want to emit code which is optimized for CPU devices (so we wish to leverage modern CPU compiler toolchains like LLVM).</p>
+<p>Fortunately, we can expose generative functions written in C or C++ by utilizing an XLA primitive called <a class="reference external" href="https://www.tensorflow.org/xla/custom_call">custom_call</a>. In this note, I’ll walk through the process of exposing a generative function written in C++ using <a class="reference external" href="https://github.com/OpenGen/GenTL">GenTL</a> to GenJAX. This note is based on <a class="reference external" href="https://dfm.io/posts/extending-jax/">this excellent note</a> by Dan Foreman-Mackey.</p>
+<section id="a-new-module">
+<h2>A new module<a class="headerlink" href="#a-new-module" title="Permalink to this heading">¶</a></h2>
+<p>To expose the functionality we need, we’ll setup a new Python module with
+<a class="reference external" href="https://cmake.org/">CMake</a> build support. I’ve done so <a class="reference external" href="https://cmake.org/">in this directory of GenJAX</a>.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/assets/logo.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=probcomp&repo=genjax&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="interface.html">Generative function interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="combinators.html">Combinators</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Calling into C++ generative functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#a-new-module">A new module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="combinators.html" title="previous chapter">Combinators</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, MIT Probabilistic Computing Project.
+      
+      |
+      <a href="../_sources/genjax/c_interface.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

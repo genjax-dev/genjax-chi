@@ -1,0 +1,8 @@
+A simple example
+================
+
+Let's dive right in and examine a simple example.
+
+.. jupyter-execute::
+   import jax
+   import genjax
