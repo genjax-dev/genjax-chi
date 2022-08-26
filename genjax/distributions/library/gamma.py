@@ -15,19 +15,24 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class Gamma:
-    def abstract_eval(self, key, a, shape=()):
+@dataclass
+class _Gamma(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, a, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, a, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.gamma(sub_key, a, **kwargs)
-        return (key, v)
+        return jax.random.gamma(key, a, **kwargs)
 
-    def score(self, v, a):
+    def logpdf(self, v, a, **kwargs):
         return jnp.sum(jax.scipy.stats.gamma.logpdf(v, a))
+
+
+Gamma = _Gamma()

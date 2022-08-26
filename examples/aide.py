@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Showcases running AIDE on TPUs.
+Showcases running AIDE in parallel.
 """
 
 import jax
@@ -21,10 +21,11 @@ import jax.numpy as jnp
 import genjax
 
 
+@genjax.gen
 def f(key, p1):
-    key, r = genjax.trace("p", genjax.Beta)(key, 1, 1)
-    key, x = genjax.trace("x", genjax.Bernoulli)(key, r)
-    key, y = genjax.trace("y", genjax.Bernoulli)(key, p1)
+    key, r = genjax.trace("p", genjax.Beta)(key, (1, 1))
+    key, x = genjax.trace("x", genjax.Bernoulli)(key, (r,))
+    key, y = genjax.trace("y", genjax.Bernoulli)(key, (p1,))
     return key, x + y
 
 

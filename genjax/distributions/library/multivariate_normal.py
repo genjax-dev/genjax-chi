@@ -15,19 +15,24 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class MultivariateNormal:
-    def abstract_eval(self, key, mean, cov, shape=None):
+@dataclass
+class _MultivariateNormal(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, mean, cov, shape=None):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, mean, cov, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.multivariate_normal(sub_key, mean, cov, **kwargs)
-        return (key, v)
+        return jax.random.multivariate_normal(key, mean, cov, **kwargs)
 
-    def score(self, v):
+    def logpdf(self, v, **kwargs):
         return jnp.sum(jax.scipy.stats.norm.logpdf(v))
+
+
+MultivariateNormal = _MultivariateNormal()

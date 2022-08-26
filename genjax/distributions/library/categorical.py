@@ -15,16 +15,21 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class Categorical:
-    def abstract_eval(self, key, logits, shape=None):
+@dataclass
+class _Categorical(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, logits, shape=None):
         return (key, abstract_arrays.ShapedArray(shape=shape, dtype=jnp.int))
 
     def sample(self, key, logits, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.categorical(key, logits, **kwargs)
-        return (key, v)
+        return jax.random.categorical(key, logits, **kwargs)
 
-    def score(self, v, a, b):
-        return jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))
+    def logpdf(self, v, a, b, **kwargs):
+        return jnp.sum(jax.scipy.stats.categorical.logpdf(v, a, b))
+
+
+Categorical = _Categorical()

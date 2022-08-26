@@ -64,6 +64,9 @@
                     <a class="class" href="#ChoiceMap">ChoiceMap</a>
                             <ul class="memberlist">
                         <li>
+                                <a class="function" href="#ChoiceMap.get_choices">get_choices</a>
+                        </li>
+                        <li>
                                 <a class="function" href="#ChoiceMap.flatten">flatten</a>
                         </li>
                         <li>
@@ -194,44 +197,46 @@
 </span><span id="L-78"><a href="#L-78"><span class="linenos"> 78</span></a>
 </span><span id="L-79"><a href="#L-79"><span class="linenos"> 79</span></a><span class="nd">@dataclass</span>
 </span><span id="L-80"><a href="#L-80"><span class="linenos"> 80</span></a><span class="k">class</span> <span class="nc">ChoiceMap</span><span class="p">(</span><span class="n">Pytree</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
-</span><span id="L-81"><a href="#L-81"><span class="linenos"> 81</span></a>
-</span><span id="L-82"><a href="#L-82"><span class="linenos"> 82</span></a>    <span class="c1"># Implement the `Pytree` interface methods.</span>
-</span><span id="L-83"><a href="#L-83"><span class="linenos"> 83</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-84"><a href="#L-84"><span class="linenos"> 84</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-85"><a href="#L-85"><span class="linenos"> 85</span></a>        <span class="k">pass</span>
-</span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a>
-</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a>    <span class="nd">@classmethod</span>
-</span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
-</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a>        <span class="k">pass</span>
-</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>
-</span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>
-</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a><span class="c1">#####</span>
-</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a><span class="c1"># Trace</span>
+</span><span id="L-81"><a href="#L-81"><span class="linenos"> 81</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-82"><a href="#L-82"><span class="linenos"> 82</span></a>        <span class="k">return</span> <span class="bp">self</span>
+</span><span id="L-83"><a href="#L-83"><span class="linenos"> 83</span></a>
+</span><span id="L-84"><a href="#L-84"><span class="linenos"> 84</span></a>    <span class="c1"># Implement the `Pytree` interface methods.</span>
+</span><span id="L-85"><a href="#L-85"><span class="linenos"> 85</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a>        <span class="k">pass</span>
+</span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a>
+</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a>    <span class="nd">@classmethod</span>
+</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
+</span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>        <span class="k">pass</span>
+</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>
+</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>
 </span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a><span class="c1">#####</span>
-</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>
-</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>
-</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a><span class="nd">@dataclass</span>
-</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
-</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>        <span class="k">pass</span>
-</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>
-</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>        <span class="k">pass</span>
-</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>        <span class="k">pass</span>
-</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>
-</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>        <span class="k">pass</span>
-</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>
-</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>        <span class="k">pass</span>
+</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a><span class="c1"># Trace</span>
+</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a><span class="c1">#####</span>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>
+</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a><span class="nd">@dataclass</span>
+</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>        <span class="k">pass</span>
+</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>        <span class="k">pass</span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>
+</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>        <span class="k">pass</span>
+</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>
+</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>        <span class="k">pass</span>
+</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>
+</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -492,16 +497,18 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
     <a class="headerlink" href="#ChoiceMap"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap-80"><a href="#ChoiceMap-80"><span class="linenos">80</span></a><span class="nd">@dataclass</span>
 </span><span id="ChoiceMap-81"><a href="#ChoiceMap-81"><span class="linenos">81</span></a><span class="k">class</span> <span class="nc">ChoiceMap</span><span class="p">(</span><span class="n">Pytree</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
-</span><span id="ChoiceMap-82"><a href="#ChoiceMap-82"><span class="linenos">82</span></a>
-</span><span id="ChoiceMap-83"><a href="#ChoiceMap-83"><span class="linenos">83</span></a>    <span class="c1"># Implement the `Pytree` interface methods.</span>
-</span><span id="ChoiceMap-84"><a href="#ChoiceMap-84"><span class="linenos">84</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="ChoiceMap-85"><a href="#ChoiceMap-85"><span class="linenos">85</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="ChoiceMap-86"><a href="#ChoiceMap-86"><span class="linenos">86</span></a>        <span class="k">pass</span>
-</span><span id="ChoiceMap-87"><a href="#ChoiceMap-87"><span class="linenos">87</span></a>
-</span><span id="ChoiceMap-88"><a href="#ChoiceMap-88"><span class="linenos">88</span></a>    <span class="nd">@classmethod</span>
-</span><span id="ChoiceMap-89"><a href="#ChoiceMap-89"><span class="linenos">89</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="ChoiceMap-90"><a href="#ChoiceMap-90"><span class="linenos">90</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
-</span><span id="ChoiceMap-91"><a href="#ChoiceMap-91"><span class="linenos">91</span></a>        <span class="k">pass</span>
+</span><span id="ChoiceMap-82"><a href="#ChoiceMap-82"><span class="linenos">82</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap-83"><a href="#ChoiceMap-83"><span class="linenos">83</span></a>        <span class="k">return</span> <span class="bp">self</span>
+</span><span id="ChoiceMap-84"><a href="#ChoiceMap-84"><span class="linenos">84</span></a>
+</span><span id="ChoiceMap-85"><a href="#ChoiceMap-85"><span class="linenos">85</span></a>    <span class="c1"># Implement the `Pytree` interface methods.</span>
+</span><span id="ChoiceMap-86"><a href="#ChoiceMap-86"><span class="linenos">86</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="ChoiceMap-87"><a href="#ChoiceMap-87"><span class="linenos">87</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap-88"><a href="#ChoiceMap-88"><span class="linenos">88</span></a>        <span class="k">pass</span>
+</span><span id="ChoiceMap-89"><a href="#ChoiceMap-89"><span class="linenos">89</span></a>
+</span><span id="ChoiceMap-90"><a href="#ChoiceMap-90"><span class="linenos">90</span></a>    <span class="nd">@classmethod</span>
+</span><span id="ChoiceMap-91"><a href="#ChoiceMap-91"><span class="linenos">91</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="ChoiceMap-92"><a href="#ChoiceMap-92"><span class="linenos">92</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
+</span><span id="ChoiceMap-93"><a href="#ChoiceMap-93"><span class="linenos">93</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -509,6 +516,25 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 </div>
 
 
+                            <div id="ChoiceMap.get_choices" class="classattr">
+                                        <input id="ChoiceMap.get_choices-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">get_choices</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">):</span></span>
+
+                <label class="view-source-button" for="ChoiceMap.get_choices-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#ChoiceMap.get_choices"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.get_choices-82"><a href="#ChoiceMap.get_choices-82"><span class="linenos">82</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap.get_choices-83"><a href="#ChoiceMap.get_choices-83"><span class="linenos">83</span></a>        <span class="k">return</span> <span class="bp">self</span>
+</span></pre></div>
+
+
+    
+
+                            </div>
                             <div id="ChoiceMap.flatten" class="classattr">
                                         <input id="ChoiceMap.flatten-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr function">
@@ -521,9 +547,9 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#ChoiceMap.flatten"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.flatten-84"><a href="#ChoiceMap.flatten-84"><span class="linenos">84</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="ChoiceMap.flatten-85"><a href="#ChoiceMap.flatten-85"><span class="linenos">85</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="ChoiceMap.flatten-86"><a href="#ChoiceMap.flatten-86"><span class="linenos">86</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.flatten-86"><a href="#ChoiceMap.flatten-86"><span class="linenos">86</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="ChoiceMap.flatten-87"><a href="#ChoiceMap.flatten-87"><span class="linenos">87</span></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="ChoiceMap.flatten-88"><a href="#ChoiceMap.flatten-88"><span class="linenos">88</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -543,10 +569,10 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#ChoiceMap.unflatten"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.unflatten-88"><a href="#ChoiceMap.unflatten-88"><span class="linenos">88</span></a>    <span class="nd">@classmethod</span>
-</span><span id="ChoiceMap.unflatten-89"><a href="#ChoiceMap.unflatten-89"><span class="linenos">89</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="ChoiceMap.unflatten-90"><a href="#ChoiceMap.unflatten-90"><span class="linenos">90</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
-</span><span id="ChoiceMap.unflatten-91"><a href="#ChoiceMap.unflatten-91"><span class="linenos">91</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ChoiceMap.unflatten-90"><a href="#ChoiceMap.unflatten-90"><span class="linenos">90</span></a>    <span class="nd">@classmethod</span>
+</span><span id="ChoiceMap.unflatten-91"><a href="#ChoiceMap.unflatten-91"><span class="linenos">91</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="ChoiceMap.unflatten-92"><a href="#ChoiceMap.unflatten-92"><span class="linenos">92</span></a>    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
+</span><span id="ChoiceMap.unflatten-93"><a href="#ChoiceMap.unflatten-93"><span class="linenos">93</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -566,27 +592,27 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#Trace"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace-99"><a href="#Trace-99"><span class="linenos"> 99</span></a><span class="nd">@dataclass</span>
-</span><span id="Trace-100"><a href="#Trace-100"><span class="linenos">100</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
-</span><span id="Trace-101"><a href="#Trace-101"><span class="linenos">101</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace-102"><a href="#Trace-102"><span class="linenos">102</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-103"><a href="#Trace-103"><span class="linenos">103</span></a>        <span class="k">pass</span>
-</span><span id="Trace-104"><a href="#Trace-104"><span class="linenos">104</span></a>
-</span><span id="Trace-105"><a href="#Trace-105"><span class="linenos">105</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace-106"><a href="#Trace-106"><span class="linenos">106</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-107"><a href="#Trace-107"><span class="linenos">107</span></a>        <span class="k">pass</span>
-</span><span id="Trace-108"><a href="#Trace-108"><span class="linenos">108</span></a>
-</span><span id="Trace-109"><a href="#Trace-109"><span class="linenos">109</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace-110"><a href="#Trace-110"><span class="linenos">110</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-111"><a href="#Trace-111"><span class="linenos">111</span></a>        <span class="k">pass</span>
-</span><span id="Trace-112"><a href="#Trace-112"><span class="linenos">112</span></a>
-</span><span id="Trace-113"><a href="#Trace-113"><span class="linenos">113</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace-114"><a href="#Trace-114"><span class="linenos">114</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-115"><a href="#Trace-115"><span class="linenos">115</span></a>        <span class="k">pass</span>
-</span><span id="Trace-116"><a href="#Trace-116"><span class="linenos">116</span></a>
-</span><span id="Trace-117"><a href="#Trace-117"><span class="linenos">117</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace-118"><a href="#Trace-118"><span class="linenos">118</span></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace-119"><a href="#Trace-119"><span class="linenos">119</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace-101"><a href="#Trace-101"><span class="linenos">101</span></a><span class="nd">@dataclass</span>
+</span><span id="Trace-102"><a href="#Trace-102"><span class="linenos">102</span></a><span class="k">class</span> <span class="nc">Trace</span><span class="p">(</span><span class="n">Pytree</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
+</span><span id="Trace-103"><a href="#Trace-103"><span class="linenos">103</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace-104"><a href="#Trace-104"><span class="linenos">104</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-105"><a href="#Trace-105"><span class="linenos">105</span></a>        <span class="k">pass</span>
+</span><span id="Trace-106"><a href="#Trace-106"><span class="linenos">106</span></a>
+</span><span id="Trace-107"><a href="#Trace-107"><span class="linenos">107</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace-108"><a href="#Trace-108"><span class="linenos">108</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-109"><a href="#Trace-109"><span class="linenos">109</span></a>        <span class="k">pass</span>
+</span><span id="Trace-110"><a href="#Trace-110"><span class="linenos">110</span></a>
+</span><span id="Trace-111"><a href="#Trace-111"><span class="linenos">111</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace-112"><a href="#Trace-112"><span class="linenos">112</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-113"><a href="#Trace-113"><span class="linenos">113</span></a>        <span class="k">pass</span>
+</span><span id="Trace-114"><a href="#Trace-114"><span class="linenos">114</span></a>
+</span><span id="Trace-115"><a href="#Trace-115"><span class="linenos">115</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace-116"><a href="#Trace-116"><span class="linenos">116</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-117"><a href="#Trace-117"><span class="linenos">117</span></a>        <span class="k">pass</span>
+</span><span id="Trace-118"><a href="#Trace-118"><span class="linenos">118</span></a>
+</span><span id="Trace-119"><a href="#Trace-119"><span class="linenos">119</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace-120"><a href="#Trace-120"><span class="linenos">120</span></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace-121"><a href="#Trace-121"><span class="linenos">121</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -606,9 +632,9 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#Trace.get_retval"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_retval-101"><a href="#Trace.get_retval-101"><span class="linenos">101</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace.get_retval-102"><a href="#Trace.get_retval-102"><span class="linenos">102</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_retval-103"><a href="#Trace.get_retval-103"><span class="linenos">103</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_retval-103"><a href="#Trace.get_retval-103"><span class="linenos">103</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace.get_retval-104"><a href="#Trace.get_retval-104"><span class="linenos">104</span></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_retval-105"><a href="#Trace.get_retval-105"><span class="linenos">105</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -627,9 +653,9 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#Trace.get_score"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_score-105"><a href="#Trace.get_score-105"><span class="linenos">105</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace.get_score-106"><a href="#Trace.get_score-106"><span class="linenos">106</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_score-107"><a href="#Trace.get_score-107"><span class="linenos">107</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_score-107"><a href="#Trace.get_score-107"><span class="linenos">107</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace.get_score-108"><a href="#Trace.get_score-108"><span class="linenos">108</span></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_score-109"><a href="#Trace.get_score-109"><span class="linenos">109</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -648,9 +674,9 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#Trace.get_args"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_args-109"><a href="#Trace.get_args-109"><span class="linenos">109</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace.get_args-110"><a href="#Trace.get_args-110"><span class="linenos">110</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_args-111"><a href="#Trace.get_args-111"><span class="linenos">111</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_args-111"><a href="#Trace.get_args-111"><span class="linenos">111</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace.get_args-112"><a href="#Trace.get_args-112"><span class="linenos">112</span></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_args-113"><a href="#Trace.get_args-113"><span class="linenos">113</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -669,9 +695,9 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#Trace.get_choices"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_choices-113"><a href="#Trace.get_choices-113"><span class="linenos">113</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace.get_choices-114"><a href="#Trace.get_choices-114"><span class="linenos">114</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_choices-115"><a href="#Trace.get_choices-115"><span class="linenos">115</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_choices-115"><a href="#Trace.get_choices-115"><span class="linenos">115</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace.get_choices-116"><a href="#Trace.get_choices-116"><span class="linenos">116</span></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_choices-117"><a href="#Trace.get_choices-117"><span class="linenos">117</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 
@@ -690,9 +716,9 @@ provide a differentiable <code><a href="#GenerativeFunction.importance">importan
 
     </div>
     <a class="headerlink" href="#Trace.get_gen_fn"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_gen_fn-117"><a href="#Trace.get_gen_fn-117"><span class="linenos">117</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-</span><span id="Trace.get_gen_fn-118"><a href="#Trace.get_gen_fn-118"><span class="linenos">118</span></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="Trace.get_gen_fn-119"><a href="#Trace.get_gen_fn-119"><span class="linenos">119</span></a>        <span class="k">pass</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="Trace.get_gen_fn-119"><a href="#Trace.get_gen_fn-119"><span class="linenos">119</span></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+</span><span id="Trace.get_gen_fn-120"><a href="#Trace.get_gen_fn-120"><span class="linenos">120</span></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="Trace.get_gen_fn-121"><a href="#Trace.get_gen_fn-121"><span class="linenos">121</span></a>        <span class="k">pass</span>
 </span></pre></div>
 
 

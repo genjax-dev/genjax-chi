@@ -92,7 +92,7 @@ class Importance(Handler):
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
         if self.obs.has_key(addr):
-            chm = self.obs.get_key(addr)
+            chm = self.obs[addr]
             key, (w, tr) = gen_fn.importance(key, chm, args)
             self.state[addr] = tr
             self.score += tr.get_score()

@@ -14,20 +14,25 @@
 
 import jax
 import jax.numpy as jnp
+from dataclasses import dataclass
 from jax._src import abstract_arrays
+from genjax.distributions.distribution import Distribution
 
 
-class Dirichlet:
-    def abstract_eval(self, key, alpha, shape=()):
+@dataclass
+class _Dirichlet(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, alpha, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, alpha, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.dirichlet(sub_key, alpha, **kwargs)
-        return (key, v)
+        return jax.random.dirichlet(key, alpha, **kwargs)
 
-    def score(self, v, alpha):
+    def logpdf(self, v, alpha):
         return jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))
+
+
+Dirichlet = _Dirichlet()

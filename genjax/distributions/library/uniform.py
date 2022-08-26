@@ -16,52 +16,24 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
-from genjax.distributions.distribution_trace import DistributionTrace
-from genjax.distributions.value_choice_map import ValueChoiceMap
-from genjax.core.datatypes import GenerativeFunction
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class _Uniform(GenerativeFunction):
-    def abstract_eval(self, key, *params, shape=(), **kwargs):
+@dataclass
+class _Uniform(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, *params, shape=(), **kwargs):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
-    def simulate(self, key, args, **kwargs):
-        minval = args[0]
-        maxval = args[1]
-        key, sub_key = jax.random.split(key)
-        v = jax.random.uniform(sub_key, minval=minval, maxval=maxval, **kwargs)
-        score = jnp.sum(jax.scipy.stats.uniform.logpdf(v, minval, maxval))
-        chm = ValueChoiceMap(v)
-        tr = DistributionTrace(
-            Uniform,
-            args,
-            chm,
-            score,
-        )
-        return key, tr
+    def sample(self, key, minval, maxval, **kwargs):
+        return jax.random.uniform(key, minval=minval, maxval=maxval, **kwargs)
 
-    def importance(self, key, chm, args, **kwargs):
-        minval = args[0]
-        maxval = args[1]
-        v = chm.get_value()
-        weight = jnp.sum(jax.scipy.stats.uniform.logpdf(v, minval, maxval))
-        tr = DistributionTrace(
-            Uniform,
-            args,
-            chm,
-            weight,
-        )
-        return key, (weight, tr)
-
-    # Pytree interfaces.
-    def flatten(self):
-        return (), ()
-
-    def unflatten(self, data, xs):
-        return _Uniform()
+    def logpdf(self, v, minval, maxval):
+        return jnp.sum(jax.scipy.stats.uniform.logpdf(v, minval, maxval))
 
 
 Uniform = _Uniform()

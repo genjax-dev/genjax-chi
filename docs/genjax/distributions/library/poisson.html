@@ -31,22 +31,7 @@
         <h2>API Documentation</h2>
             <ul class="memberlist">
             <li>
-                    <a class="class" href="#Poisson">Poisson</a>
-                            <ul class="memberlist">
-                        <li>
-                                <a class="function" href="#Poisson.__init__">Poisson</a>
-                        </li>
-                        <li>
-                                <a class="function" href="#Poisson.abstract_eval">abstract_eval</a>
-                        </li>
-                        <li>
-                                <a class="function" href="#Poisson.sample">sample</a>
-                        </li>
-                        <li>
-                                <a class="function" href="#Poisson.score">score</a>
-                        </li>
-                </ul>
-
+                    <a class="variable" href="#Poisson">Poisson</a>
             </li>
     </ul>
 
@@ -83,133 +68,44 @@
 </span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="c1"># See the License for the specific language governing permissions and</span>
 </span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="c1"># limitations under the License.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
-</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="kn">import</span> <span class="nn">jax</span>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a><span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="kn">import</span> <span class="nn">jax</span>
 </span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="kn">from</span> <span class="nn">jax._src</span> <span class="kn">import</span> <span class="n">abstract_arrays</span>
-</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>
-</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="k">class</span> <span class="nc">Poisson</span><span class="p">:</span>
-</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="k">def</span> <span class="nf">abstract_eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>        <span class="k">return</span> <span class="p">(</span>
-</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>            <span class="n">key</span><span class="p">,</span>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a>            <span class="n">abstract_arrays</span><span class="o">.</span><span class="n">ShapedArray</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int</span><span class="p">),</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>        <span class="p">)</span>
-</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>
-</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>        <span class="n">key</span><span class="p">,</span> <span class="n">sub_key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>        <span class="n">v</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">poisson</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>        <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>    <span class="k">def</span> <span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">):</span>
-</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">))</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+</span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a><span class="kn">from</span> <span class="nn">genjax.distributions.distribution</span> <span class="kn">import</span> <span class="n">Distribution</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>
+</span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a><span class="nd">@dataclass</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a><span class="k">class</span> <span class="nc">_Poisson</span><span class="p">(</span><span class="n">Distribution</span><span class="p">):</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a>    <span class="nd">@classmethod</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>    <span class="k">def</span> <span class="nf">abstract_eval</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+</span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>        <span class="k">return</span> <span class="p">(</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>            <span class="n">key</span><span class="p">,</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>            <span class="n">abstract_arrays</span><span class="o">.</span><span class="n">ShapedArray</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int</span><span class="p">),</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>        <span class="p">)</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">poisson</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>
+</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="k">def</span> <span class="nf">logpdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">))</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a><span class="n">Poisson</span> <span class="o">=</span> <span class="n">_Poisson</span><span class="p">()</span>
 </span></pre></div>
 
 
             </section>
                 <section id="Poisson">
-                            <input id="Poisson-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr class">
-            
-    <span class="def">class</span>
-    <span class="name">Poisson</span>:
-
-                <label class="view-source-button" for="Poisson-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Poisson"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Poisson-21"><a href="#Poisson-21"><span class="linenos">21</span></a><span class="k">class</span> <span class="nc">Poisson</span><span class="p">:</span>
-</span><span id="Poisson-22"><a href="#Poisson-22"><span class="linenos">22</span></a>    <span class="k">def</span> <span class="nf">abstract_eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-</span><span id="Poisson-23"><a href="#Poisson-23"><span class="linenos">23</span></a>        <span class="k">return</span> <span class="p">(</span>
-</span><span id="Poisson-24"><a href="#Poisson-24"><span class="linenos">24</span></a>            <span class="n">key</span><span class="p">,</span>
-</span><span id="Poisson-25"><a href="#Poisson-25"><span class="linenos">25</span></a>            <span class="n">abstract_arrays</span><span class="o">.</span><span class="n">ShapedArray</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int</span><span class="p">),</span>
-</span><span id="Poisson-26"><a href="#Poisson-26"><span class="linenos">26</span></a>        <span class="p">)</span>
-</span><span id="Poisson-27"><a href="#Poisson-27"><span class="linenos">27</span></a>
-</span><span id="Poisson-28"><a href="#Poisson-28"><span class="linenos">28</span></a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="Poisson-29"><a href="#Poisson-29"><span class="linenos">29</span></a>        <span class="n">key</span><span class="p">,</span> <span class="n">sub_key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-</span><span id="Poisson-30"><a href="#Poisson-30"><span class="linenos">30</span></a>        <span class="n">v</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">poisson</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-</span><span id="Poisson-31"><a href="#Poisson-31"><span class="linenos">31</span></a>        <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span><span id="Poisson-32"><a href="#Poisson-32"><span class="linenos">32</span></a>
-</span><span id="Poisson-33"><a href="#Poisson-33"><span class="linenos">33</span></a>    <span class="k">def</span> <span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">):</span>
-</span><span id="Poisson-34"><a href="#Poisson-34"><span class="linenos">34</span></a>        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">))</span>
-</span></pre></div>
-
-
-    
-
-                            <div id="Poisson.__init__" class="classattr">
-                                <div class="attr function">
-            
-        <span class="name">Poisson</span><span class="signature pdoc-code condensed">()</span>
+                    <div class="attr variable">
+            <span class="name">Poisson</span><span class="default_value"> = _Poisson()</span>
 
         
     </div>
-    <a class="headerlink" href="#Poisson.__init__"></a>
+    <a class="headerlink" href="#Poisson"></a>
     
     
 
-                            </div>
-                            <div id="Poisson.abstract_eval" class="classattr">
-                                        <input id="Poisson.abstract_eval-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">abstract_eval</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">key</span>, </span><span class="param"><span class="n">lam</span>, </span><span class="param"><span class="n">shape</span><span class="o">=</span><span class="kc">None</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="Poisson.abstract_eval-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Poisson.abstract_eval"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Poisson.abstract_eval-22"><a href="#Poisson.abstract_eval-22"><span class="linenos">22</span></a>    <span class="k">def</span> <span class="nf">abstract_eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-</span><span id="Poisson.abstract_eval-23"><a href="#Poisson.abstract_eval-23"><span class="linenos">23</span></a>        <span class="k">return</span> <span class="p">(</span>
-</span><span id="Poisson.abstract_eval-24"><a href="#Poisson.abstract_eval-24"><span class="linenos">24</span></a>            <span class="n">key</span><span class="p">,</span>
-</span><span id="Poisson.abstract_eval-25"><a href="#Poisson.abstract_eval-25"><span class="linenos">25</span></a>            <span class="n">abstract_arrays</span><span class="o">.</span><span class="n">ShapedArray</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int</span><span class="p">),</span>
-</span><span id="Poisson.abstract_eval-26"><a href="#Poisson.abstract_eval-26"><span class="linenos">26</span></a>        <span class="p">)</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
-                            <div id="Poisson.sample" class="classattr">
-                                        <input id="Poisson.sample-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">sample</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">key</span>, </span><span class="param"><span class="n">lam</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="Poisson.sample-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Poisson.sample"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Poisson.sample-28"><a href="#Poisson.sample-28"><span class="linenos">28</span></a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="Poisson.sample-29"><a href="#Poisson.sample-29"><span class="linenos">29</span></a>        <span class="n">key</span><span class="p">,</span> <span class="n">sub_key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-</span><span id="Poisson.sample-30"><a href="#Poisson.sample-30"><span class="linenos">30</span></a>        <span class="n">v</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">poisson</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-</span><span id="Poisson.sample-31"><a href="#Poisson.sample-31"><span class="linenos">31</span></a>        <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
-                            <div id="Poisson.score" class="classattr">
-                                        <input id="Poisson.score-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-<div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">score</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">v</span>, </span><span class="param"><span class="n">lam</span></span><span class="return-annotation">):</span></span>
-
-                <label class="view-source-button" for="Poisson.score-view-source"><span>View Source</span></label>
-
-    </div>
-    <a class="headerlink" href="#Poisson.score"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="Poisson.score-33"><a href="#Poisson.score-33"><span class="linenos">33</span></a>    <span class="k">def</span> <span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">):</span>
-</span><span id="Poisson.score-34"><a href="#Poisson.score-34"><span class="linenos">34</span></a>        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">poisson</span><span class="o">.</span><span class="n">logpmf</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">lam</span><span class="p">))</span>
-</span></pre></div>
-
-
-    
-
-                            </div>
                 </section>
     </main>
 <script>

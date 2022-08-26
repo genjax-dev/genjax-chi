@@ -30,21 +30,21 @@ import genjax
 
 @genjax.gen
 def h(key, x):
-    key, m1 = genjax.trace("m0", genjax.Bernoulli)(key, x)
+    key, m1 = genjax.trace("m0", genjax.Bernoulli)(key, (x,))
     return (key, m1)
 
 
 @genjax.gen
 def g(key, x):
-    key, m1 = genjax.trace("m0", h)(key, x)
+    key, m1 = genjax.trace("m0", h)(key, (x,))
     return (key, m1)
 
 
 @genjax.gen
 def f(key, x):
-    key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, x, shape=(3, 3))
-    key, m4 = genjax.trace("m4", g)(key, x)
-    key, m5 = genjax.trace("m5", genjax.Normal)(key)
+    key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, (x,), shape=(3, 3))
+    key, m4 = genjax.trace("m4", g)(key, (x,))
+    key, m5 = genjax.trace("m5", genjax.Normal)(key, ())
     return key, (2 * m0 * m4, m5)
 
 
@@ -52,7 +52,7 @@ def f(key, x):
 key = jax.random.PRNGKey(314159)
 
 # This just shows our raw (not yet desugared/codegen) syntax.
-expr = genjax.lift(f, key, 0.3)
+expr = jax.make_jaxpr(f)(key, 0.3)
 print(expr)
 
 # Here's how you access the `simulate` GFI.
@@ -79,4 +79,4 @@ print(arg_grad)
 chm = genjax.ChoiceMap({("m5",): 0.2})
 key, choice_grad = jax.jit(genjax.choice_grad(f))(key, tr, chm, (0.3,))
 print(choice_grad)
-print(choice_grad[("m5",)])
+print(choice_grad["m5"])

@@ -21,8 +21,8 @@ key = jax.random.PRNGKey(314159)
 
 @genjax.gen
 def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key)
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, ())
+    key, y2 = genjax.trace("y2", genjax.Normal)(key, ())
     return key, y1 + y2
 
 

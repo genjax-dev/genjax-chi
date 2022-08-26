@@ -21,14 +21,14 @@ import genjax
 
 @genjax.gen
 def normal_model(key):
-    x = genjax.trace("x", genjax.Normal)(key)
+    x = genjax.trace("x", genjax.Normal)(key, ())
     return x
 
 
 @genjax.gen
 def uniform_proposal(key, tr, d):
-    current = tr["x"].get_value()
-    key, x = genjax.trace("x", genjax.Uniform)(key, current - d, current + d)
+    current = tr["x"].get_choices().get_value()
+    key, x = genjax.trace("x", genjax.Uniform)(key, (current - d, current + d))
     return key, x
 
 

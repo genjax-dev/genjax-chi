@@ -15,9 +15,12 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class Exponential:
+@dataclass
+class _Exponential(Distribution):
     def abstract_eval(self, key, shape=()):
         return (
             key,
@@ -25,9 +28,10 @@ class Exponential:
         )
 
     def sample(self, key, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.exponential(sub_key, **kwargs)
-        return (key, v)
+        return jax.random.exponential(key, **kwargs)
 
-    def score(self, v):
+    def logpdf(self, v):
         return jnp.sum(jax.scipy.stats.expon.logpdf(v))
+
+
+Exponential = _Exponential()

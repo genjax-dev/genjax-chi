@@ -12,22 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.numpy as jnp
+import jax
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class Poisson:
-    def abstract_eval(self, key, lam, shape=None):
+@dataclass
+class _Poisson(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, lam, shape=None):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.int),
         )
 
     def sample(self, key, lam, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.poisson(sub_key, lam, **kwargs)
-        return (key, v)
+        return jax.random.poisson(key, lam, **kwargs)
 
-    def score(self, v, lam):
+    def logpdf(self, v, lam, **kwargs):
         return jnp.sum(jax.scipy.stats.poisson.logpmf(v, lam))
+
+
+Poisson = _Poisson()

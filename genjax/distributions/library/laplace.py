@@ -15,19 +15,24 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class Laplace:
-    def abstract_eval(self, key, shape=()):
+@dataclass
+class _Laplace(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.laplace(sub_key, **kwargs)
-        return (key, v)
+        return jax.random.laplace(key, **kwargs)
 
-    def score(self, v):
+    def logpdf(self, v, **kwargs):
         return jnp.sum(jax.scipy.stats.laplace.logpdf(v))
+
+
+Laplace = _Laplace()

@@ -12,33 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
-from typing import Any
-from genjax.core.datatypes import ChoiceMap
+import jax
+import genjax
 
 
-#####
-# ValueChoiceMap
-#####
+@genjax.gen
+def random_walk(key, prev):
+    key, x = genjax.trace("x", genjax.Normal)(key, ())
+    return (key, x + prev)
 
 
-@dataclass
-class ValueChoiceMap(ChoiceMap):
-    value: Any
+unfold = genjax.UnfoldCombinator(random_walk, 10)
 
-    # Implement the `Pytree` interface methods.
-    def flatten(self):
-        return (self.value,), ()
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return ValueChoiceMap(*xs)
-
-    def get_submaps_shallow(self):
-        return ()
-
-    def get_values_shallow(self):
-        return (self.value,)
-
-    def get_value(self):
-        return self.value
+key = jax.random.PRNGKey(314159)
+key, tr = jax.jit(genjax.simulate(unfold))(key, (0.3,))
+print(tr.get_retval())

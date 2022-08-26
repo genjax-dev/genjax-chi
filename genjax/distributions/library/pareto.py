@@ -15,19 +15,24 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class Pareto:
-    def abstract_eval(self, key, b, shape=()):
+@dataclass
+class _Pareto(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, b, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, b, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.pareto(sub_key, b, **kwargs)
-        return (key, v)
+        return jax.random.pareto(key, b, **kwargs)
 
-    def score(self, v, b):
+    def logpdf(self, v, b, **kwargs):
         return jnp.sum(jax.scipy.stats.pareto.logpdf(v, b))
+
+
+Pareto = _Pareto()

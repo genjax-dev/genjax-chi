@@ -12,6 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .value_choice_map import *
-from .distribution_trace import *
+from .distribution import *
 from .library import *

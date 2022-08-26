@@ -15,66 +15,23 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
-from genjax.distributions.distribution_trace import DistributionTrace
-from genjax.distributions.value_choice_map import ValueChoiceMap
-from genjax.core.datatypes import GenerativeFunction
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class _Normal(GenerativeFunction):
+@dataclass
+class _Normal(Distribution):
     def abstract_eval(self, key, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
-    def simulate(self, key, args, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.normal(sub_key, **kwargs)
-        chm = ValueChoiceMap(v)
-        score = jax.scipy.stats.norm.logpdf(v)
-        tr = DistributionTrace(
-            Normal,
-            args,
-            chm,
-            score,
-        )
-        return key, tr
+    def sample(self, key, **kwargs):
+        return jax.random.normal(key, **kwargs)
 
-    def importance(self, key, chm, args, **kwargs):
-        v = chm.get_value()
-        weight = jnp.sum(jax.scipy.stats.norm.logpdf(v))
-        tr = DistributionTrace(
-            Normal,
-            args,
-            chm,
-            weight,
-        )
-        return key, (weight, tr)
-
-    def diff(self, key, prev, new, args, **kwargs):
-        bwd = prev.get_score()
-        v = new.get_value()
-        fwd = jnp.sum(jax.scipy.stats.norm.logpdf(v))
-        return key, (fwd - bwd, (v,))
-
-    def update(self, key, prev, new, args, **kwargs):
-        bwd = prev.get_score()
-        v = new.get_value()
-        chm = ValueChoiceMap(v)
-        fwd = jnp.sum(jax.scipy.stats.norm.logpdf(v))
-        tr = DistributionTrace(
-            Normal,
-            args,
-            chm,
-            fwd,
-        )
-        return key, (fwd - bwd, tr, prev.get_choices())
-
-    def flatten(self):
-        return (), ()
-
-    def unflatten(self, values, slices):
-        return _Normal()
+    def logpdf(self, v, **kwargs):
+        return jnp.sum(jax.scipy.stats.norm.logpdf(v))
 
 
 Normal = _Normal()

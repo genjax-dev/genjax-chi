@@ -14,7 +14,7 @@
 
 """
 This module implements a generative function combinator which allows
-structured control flow for combinations of generative functions
+branching control flow for combinations of generative functions
 which can return different shaped choice maps.
 
 It's based on encoding a "sum type" like trace using JAX.

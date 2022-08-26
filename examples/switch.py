@@ -18,15 +18,15 @@ import genjax
 
 @genjax.gen
 def h1(key, x):
-    key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, x)
-    key, m1 = genjax.trace("m1", genjax.Bernoulli)(key, x)
+    key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, (x,))
+    key, m1 = genjax.trace("m1", genjax.Bernoulli)(key, (x,))
     return (key,)
 
 
 @genjax.gen
 def h2(key, x):
-    key, m0 = genjax.trace("m2", genjax.Normal)(key)
-    key, m1 = genjax.trace("m3", genjax.Normal)(key)
+    key, m0 = genjax.trace("m2", genjax.Normal)(key, ())
+    key, m1 = genjax.trace("m3", genjax.Normal)(key, ())
     return (key,)
 
 

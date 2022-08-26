@@ -78,6 +78,8 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
 
 @dataclass
 class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
+    def get_choices(self):
+        return self
 
     # Implement the `Pytree` interface methods.
     @abc.abstractmethod

@@ -14,20 +14,25 @@
 
 import jax
 import jax.numpy as jnp
+from dataclasses import dataclass
 from jax._src import abstract_arrays
+from genjax.distributions.distribution import Distribution
 
 
-class Cauchy:
-    def abstract_eval(self, key, shape=()):
+@dataclass
+class _Cauchy(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
         )
 
     def sample(self, key, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.cauchy(key, **kwargs)
-        return (key, v)
+        return jax.random.cauchy(key, **kwargs)
 
-    def score(self, v):
+    def logpdf(self, v):
         return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
+
+
+Cauchy = _Cauchy()

@@ -15,64 +15,24 @@
 import jax
 import jax.numpy as jnp
 from jax._src import abstract_arrays
-from genjax.distributions.distribution_trace import DistributionTrace
-from genjax.distributions.value_choice_map import ValueChoiceMap
-from genjax.core.datatypes import GenerativeFunction
+from dataclasses import dataclass
+from genjax.distributions.distribution import Distribution
 
 
-class _Bernoulli(GenerativeFunction):
-    def abstract_eval(self, key, p, shape=()):
+@dataclass
+class _Bernoulli(Distribution):
+    @classmethod
+    def abstract_eval(cls, key, p, shape=()):
         return (
             key,
             abstract_arrays.ShapedArray(shape=shape, dtype=bool),
         )
 
-    def simulate(self, key, args, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.bernoulli(sub_key, *args, **kwargs)
-        chm = ValueChoiceMap(v)
-        tr = DistributionTrace(
-            Bernoulli,
-            args,
-            chm,
-            jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args)),
-        )
-        return (key, tr)
+    def sample(self, key, *args, **kwargs):
+        return jax.random.bernoulli(key, *args, **kwargs)
 
-    def importance(self, key, chm, args, **kwargs):
-        v = chm.get_value()
-        weight = jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
-        return (
-            key,
-            (
-                weight,
-                DistributionTrace(
-                    Bernoulli,
-                    args,
-                    chm,
-                    weight,
-                ),
-            ),
-        )
-
-    def update(self, key, original, chm, args, **kwargs):
-        old_weight = original.get_score()
-        v = chm.get_value()
-        weight = jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
-        return (
-            key,
-            (
-                weight - old_weight,
-                DistributionTrace(Bernoulli, args, chm, weight),
-                original.get_choices(),
-            ),
-        )
-
-    def flatten(self):
-        return (), ()
-
-    def unflatten(self, values, slices):
-        return _Bernoulli()
+    def logpdf(self, v, *args, **kwargs):
+        return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
 
 
 Bernoulli = _Bernoulli()

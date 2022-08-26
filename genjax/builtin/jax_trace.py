@@ -49,16 +49,18 @@ class JAXTrace(Trace):
     def get_args(self):
         return self.args
 
-    def get_slice(self, k: int):
-        pass
-
     def has_key(self, k):
-        return k in self.choices
+        return self.choices.has_key(k)
 
     def get_key(self, k):
         return self.choices[k]
 
     def __getitem__(self, k):
+        if isinstance(k, tuple):
+            assert len(k) > 0
+            prefix = k[0]
+            sub = self.choices[prefix]
+            return sub.__getitem__(k[1:])
         return self.choices[k]
 
     def flatten(self):

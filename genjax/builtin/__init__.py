@@ -25,7 +25,7 @@ from .intrinsics import trace
 from .jax_choice_map import *
 from .handlers import *
 from .jax_trace import *
-from .language import *
+from .jax_generative_function import *
 from .shape_analysis import *
 
 __all__ = [

@@ -28,13 +28,15 @@ gen_fn_p = core.Primitive("trace")
 #####
 
 
-def _trace(addr, call, *args, **kwargs):
+def _trace(addr, call, key, args, **kwargs):
+    assert isinstance(args, tuple)
     if not isinstance(call, GenerativeFunction):
         raise Exception(
             "`trace` must have an instance of `GenerativeFunction`, not a `Callable`"
         )
     else:
         return gen_fn_p.bind(
+            key,
             *args,
             addr=addr,
             gen_fn=call,
@@ -43,7 +45,7 @@ def _trace(addr, call, *args, **kwargs):
 
 
 def trace(addr, call):
-    return lambda *args, **kwargs: _trace(addr, call, *args, **kwargs)
+    return lambda key, args, **kwargs: _trace(addr, call, key, args, **kwargs)
 
 
 #####
