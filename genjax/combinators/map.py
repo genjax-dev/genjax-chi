@@ -14,8 +14,7 @@
 
 """
 This module implements a generative function combinator which allows
-statically unrolled control flow for generative functions which can act
-as kernels -- mapping over vectorial versions of their arguments.
+broadcasting for generative functions -- mapping over vectorial versions of their arguments.
 """
 
 import jax
