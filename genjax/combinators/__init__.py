@@ -13,4 +13,5 @@
 # limitations under the License.
 
 from .switch import *
+from .map import *
 from .unfold import *

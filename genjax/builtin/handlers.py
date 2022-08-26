@@ -41,6 +41,35 @@ from genjax.builtin.jax_trace import JAXTrace
 # to send out the accumulated state we want.
 
 
+class Sample(Handler):
+    def __init__(self):
+        self.handles = [
+            gen_fn_p,
+        ]
+        self.return_or_continue = False
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+        key, v = gen_fn.sample(key, args)
+
+        if self.return_or_continue:
+            return f(key, *v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, *v)
+            return key, ret
+
+    # Transform a function and return a function which implements
+    # the semantics of `simulate` from Gen.
+    def _transform(self, f, *args):
+        expr = jax.make_jaxpr(f)(*args)
+        fn = handle([self], expr)
+        return fn
+
+    def transform(self, f):
+        return lambda *args: self._transform(f, *args)
+
+
 class Simulate(Handler):
     def __init__(self):
         self.handles = [
@@ -286,6 +315,16 @@ class ChoiceGradients(Handler):
 #####
 # Generative function interface
 #####
+
+
+def sample(f):
+    def _inner(key, args):
+        fn = Sample().transform(f)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        key, v = fn(key, *in_args)
+        return key, v
+
+    return lambda key, args: _inner(key, args)
 
 
 def simulate(f):

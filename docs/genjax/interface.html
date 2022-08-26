@@ -31,6 +31,9 @@
         <h2>API Documentation</h2>
             <ul class="memberlist">
             <li>
+                    <a class="function" href="#sample">sample</a>
+            </li>
+            <li>
                     <a class="function" href="#simulate">simulate</a>
             </li>
             <li>
@@ -84,45 +87,68 @@
 </span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="c1"># limitations under the License.</span>
 </span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
 </span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">simulate</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a>
 </span><span id="L-19"><a href="#L-19"><span class="linenos">19</span></a>
-</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">importance</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos">20</span></a><span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos">21</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span><span id="L-22"><a href="#L-22"><span class="linenos">22</span></a>
 </span><span id="L-23"><a href="#L-23"><span class="linenos">23</span></a>
-</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">diff</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos">24</span></a><span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">importance</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>
 </span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">update</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a><span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>
 </span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>
-</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="k">def</span> <span class="nf">arg_grad</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">argnums</span><span class="p">):</span>
-</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">arg_grad</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>
 </span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>
-</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a><span class="k">def</span> <span class="nf">choice_grad</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">choice_grad</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a><span class="k">def</span> <span class="nf">arg_grad</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">argnums</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">arg_grad</span><span class="p">(</span><span class="n">argnums</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>
+</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a>
+</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a><span class="k">def</span> <span class="nf">choice_grad</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-41"><a href="#L-41"><span class="linenos">41</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">choice_grad</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 
             </section>
+                <section id="sample">
+                            <input id="sample-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">sample</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
+
+                <label class="view-source-button" for="sample-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#sample"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="sample-17"><a href="#sample-17"><span class="linenos">17</span></a><span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="sample-18"><a href="#sample-18"><span class="linenos">18</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></pre></div>
+
+
+    
+
+                </section>
                 <section id="simulate">
                             <input id="simulate-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">simulate</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span></span><span class="return-annotation">):</span></span>
+        <span class="name">simulate</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
 
                 <label class="view-source-button" for="simulate-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#simulate"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="simulate-17"><a href="#simulate-17"><span class="linenos">17</span></a><span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="simulate-18"><a href="#simulate-18"><span class="linenos">18</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">simulate</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="simulate-21"><a href="#simulate-21"><span class="linenos">21</span></a><span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="simulate-22"><a href="#simulate-22"><span class="linenos">22</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -134,14 +160,14 @@
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">importance</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span></span><span class="return-annotation">):</span></span>
+        <span class="name">importance</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
 
                 <label class="view-source-button" for="importance-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#importance"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="importance-21"><a href="#importance-21"><span class="linenos">21</span></a><span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="importance-22"><a href="#importance-22"><span class="linenos">22</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">importance</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="importance-25"><a href="#importance-25"><span class="linenos">25</span></a><span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="importance-26"><a href="#importance-26"><span class="linenos">26</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">importance</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -153,14 +179,14 @@
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">diff</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span></span><span class="return-annotation">):</span></span>
+        <span class="name">diff</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
 
                 <label class="view-source-button" for="diff-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#diff"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="diff-25"><a href="#diff-25"><span class="linenos">25</span></a><span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="diff-26"><a href="#diff-26"><span class="linenos">26</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">diff</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="diff-29"><a href="#diff-29"><span class="linenos">29</span></a><span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="diff-30"><a href="#diff-30"><span class="linenos">30</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -172,14 +198,14 @@
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">update</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span></span><span class="return-annotation">):</span></span>
+        <span class="name">update</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
 
                 <label class="view-source-button" for="update-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#update"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="update-29"><a href="#update-29"><span class="linenos">29</span></a><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="update-30"><a href="#update-30"><span class="linenos">30</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">update</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="update-33"><a href="#update-33"><span class="linenos">33</span></a><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="update-34"><a href="#update-34"><span class="linenos">34</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -191,14 +217,14 @@
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">arg_grad</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="n">argnums</span></span><span class="return-annotation">):</span></span>
+        <span class="name">arg_grad</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="n">argnums</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
 
                 <label class="view-source-button" for="arg_grad-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#arg_grad"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="arg_grad-33"><a href="#arg_grad-33"><span class="linenos">33</span></a><span class="k">def</span> <span class="nf">arg_grad</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">argnums</span><span class="p">):</span>
-</span><span id="arg_grad-34"><a href="#arg_grad-34"><span class="linenos">34</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">arg_grad</span><span class="p">(</span><span class="n">argnums</span><span class="p">)</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="arg_grad-37"><a href="#arg_grad-37"><span class="linenos">37</span></a><span class="k">def</span> <span class="nf">arg_grad</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">argnums</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="arg_grad-38"><a href="#arg_grad-38"><span class="linenos">38</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">arg_grad</span><span class="p">(</span><span class="n">argnums</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 
@@ -210,14 +236,14 @@
 <div class="attr function">
             
         <span class="def">def</span>
-        <span class="name">choice_grad</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span></span><span class="return-annotation">):</span></span>
+        <span class="name">choice_grad</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">f</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
 
                 <label class="view-source-button" for="choice_grad-view-source"><span>View Source</span></label>
 
     </div>
     <a class="headerlink" href="#choice_grad"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="choice_grad-37"><a href="#choice_grad-37"><span class="linenos">37</span></a><span class="k">def</span> <span class="nf">choice_grad</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
-</span><span id="choice_grad-38"><a href="#choice_grad-38"><span class="linenos">38</span></a>    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">choice_grad</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="choice_grad-41"><a href="#choice_grad-41"><span class="linenos">41</span></a><span class="k">def</span> <span class="nf">choice_grad</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="choice_grad-42"><a href="#choice_grad-42"><span class="linenos">42</span></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">choice_grad</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </span></pre></div>
 
 

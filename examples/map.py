@@ -12,30 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-def sample(f, **kwargs):
-    return lambda *args: f.simulate(*args, **kwargs)
-
-
-def simulate(f, **kwargs):
-    return lambda *args: f.simulate(*args, **kwargs)
+import jax
+import jax.numpy as jnp
+import genjax
 
 
-def importance(f, **kwargs):
-    return lambda *args: f.importance(*args, **kwargs)
+@genjax.gen
+def add_normal_noise(key, x):
+    key, noise = genjax.trace("noise", genjax.Normal)(key, ())
+    return (key, x + noise)
 
 
-def diff(f, **kwargs):
-    return lambda *args: f.diff(*args, **kwargs)
+mapped = genjax.MapCombinator(add_normal_noise)
 
-
-def update(f, **kwargs):
-    return lambda *args: f.update(*args, **kwargs)
-
-
-def arg_grad(f, argnums, **kwargs):
-    return lambda *args: f.arg_grad(argnums)(*args, **kwargs)
-
-
-def choice_grad(f, **kwargs):
-    return lambda *args: f.choice_grad(*args, **kwargs)
+key = jax.random.PRNGKey(314159)
+key, *subkeys = jax.random.split(key, 3)
+subkeys = jnp.array(subkeys)
+key, tr = jax.jit(genjax.simulate(mapped, in_axes=(0, 0)))(
+    subkeys,
+    (jnp.array([0.3, 0.8]),),
+)
+print(tr.get_retval())

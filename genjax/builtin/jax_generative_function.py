@@ -18,6 +18,7 @@ from typing import Callable
 from genjax.builtin.jax_choice_map import JAXChoiceMap
 from genjax.builtin.jax_trace import JAXTrace
 from genjax.builtin.handlers import (
+    sample,
     simulate,
     importance,
     diff,
@@ -41,21 +42,24 @@ class JAXGenerativeFunction(GenerativeFunction):
     def unflatten(cls, data, xs):
         return JAXGenerativeFunction(*xs)
 
-    def simulate(self, key, args):
-        return simulate(self.source)(key, args)
+    def sample(self, key, args, **kwargs):
+        return sample(self.source)(key, args, **kwargs)
 
-    def importance(self, key, chm, args):
-        return importance(self.source)(key, chm, args)
+    def simulate(self, key, args, **kwargs):
+        return simulate(self.source)(key, args, **kwargs)
 
-    def diff(self, key, original, new, args):
-        return diff(self.source)(key, original, new, args)
+    def importance(self, key, chm, args, **kwargs):
+        return importance(self.source)(key, chm, args, **kwargs)
 
-    def update(self, key, original, new, args):
-        return update(self.source)(key, original, new, args)
+    def diff(self, key, original, new, args, **kwargs):
+        return diff(self.source)(key, original, new, args, **kwargs)
+
+    def update(self, key, original, new, args, **kwargs):
+        return update(self.source)(key, original, new, args, **kwargs)
 
     def arg_grad(self, argnums):
-        return lambda key, tr, args: arg_grad(self.source, argnums)(
-            key, tr, args
+        return lambda key, tr, args, **kwargs: arg_grad(self.source, argnums)(
+            key, tr, args, **kwargs
         )
 
     def choice_grad(self, key, tr, chm, args):
