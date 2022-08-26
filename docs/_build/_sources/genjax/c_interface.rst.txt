@@ -1,5 +1,5 @@
-Calling into C++ generative functions
-=====================================
+Exposing C++ generative functions
+=================================
 
 While GenJAX is fast on GPUs courtesy of JAX, sometimes we want lower level control over the implementation of our generative functions -- or we want to emit code which is optimized for CPU devices (so we wish to leverage modern CPU compiler toolchains like LLVM). 
 
