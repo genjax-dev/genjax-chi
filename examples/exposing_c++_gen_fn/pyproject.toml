@@ -1,6 +1,16 @@
-[build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4", "pybind11>=2.6", "cmake"]
-build-backend = "setuptools.build_meta"
+[tool.poetry]
+name = "external_gen_fn"
+version = "0.0.1"
+description="Exposing a C++ generative function to GenJAX."
+authors = ["McCoy R. Becker <mccoyb@mit.edu>, MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>"]
+license = "Apache 2.0"
 
-[tool.setuptools_scm]
-write_to = "src/example/example.py"
+[tool.poetry.dependencies]
+python = ">=3.10, <3.11"
+pybind11 = "^2.10.0"
+
+[tool.poetry.build]
+script = "build.py"
+
+[tool.poetry.dev-dependencies]
+setuptools-cpp = "^0.1.0"
