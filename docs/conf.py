@@ -19,8 +19,10 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "sphinx.ext.mathjax",
     "sphinx.ext.inheritance_diagram",
     "myst_parser",
+    "jupyter_sphinx",
 ]
 
 

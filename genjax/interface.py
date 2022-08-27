@@ -13,24 +13,109 @@
 # limitations under the License.
 
 """
-This module exposes the generative function interface -- a set of methods
-defined for generative functions which support the implementation of
+The generative function interface is a set of methods defined for 
+generative functions which support the implementation of 
 programmable inference algorithms.
 
 Combined with the trace and choice map datatypes, these interface methods
 are the conceptual core of generative functions.
+
+This module exposes the generative function interface as a set of generic
+Python functions. When called with :code:`f: GenerativeFunction` and :code:`**kwargs`, they return the corresponding :code:`GenerativeFunction` method.
 """
 
 
 def sample(f, **kwargs):
     """
-    `sample` runs the generative function forward, returning a new
-    `PRNGKey` and a return value.
+    :code:`sample` accepts a function :code:`f` and
+    returns a transformed function which implements the below semantics.
+
+    Given :code:`key: jax.random.PRNGKey` and :code:`args: tuple`, sample
+    :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and
+    apply the return value function :code:`ret = f(args, t)`.
+
+    Parameters
+    ----------
+    key: :code:`jax.random.PRNGKey`
+        A JAX-compatible PRNGKey.
+
+    args: :code:`tuple`
+        A tuple of argument values.
+
+    Returns
+    -------
+    :code:`(PRNGKey, Any)`
+        A tuple, with the first element an evolved PRNGKey, and the second
+        element is the result of the return value function
+        :code:`ret = f(args, t)`
+
+    Example
+    -------
+
+    .. jupyter-execute::
+
+        import jax
+        import genjax
+
+        @genjax.gen
+        def model(key):
+            key, x = genjax.trace("x", genjax.Normal)(key, ())
+            return key, x
+
+        key = jax.random.PRNGKey(314159)
+        key, x = genjax.sample(model)(key, ())
+        print(x)
     """
-    return lambda *args: f.simulate(*args, **kwargs)
+    return lambda *args: f.sample(*args, **kwargs)
 
 
 def simulate(f, **kwargs):
+    """
+    :code:`simulate` accepts a function :code:`f` and
+    returns a transformed function which implements the below semantics.
+
+    Given :code:`key: PRNGKey` and :code:`args: Tuple`, sample
+    :math:`t\sim p(\cdot;x)` and :math:`r\sim p(\cdot;args, t)` and
+    apply the return value function :math:`ret = f(args, t)`.
+
+    Compute the score of the sample :math:`t` under :math:`p(\cdot; x)`.
+
+    Return the return value :math:`ret`, the sample :math:`t`,
+    and the score in a :code:`Trace` instance, along with an evolved
+    :code:`PRNGKey`.
+
+    Parameters
+    ----------
+    key: :code:`jax.random.PRNGKey`
+        A JAX-compatible PRNGKey.
+
+    args: :code:`tuple`
+        A tuple of argument values.
+
+    Returns
+    -------
+    :code:`(PRNGKey, Trace)`
+        A tuple, with the first element an evolved PRNGKey, and the second
+        element is a `Trace` of the sampling execution of the generative
+        function.
+
+    Example
+    -------
+
+    .. jupyter-execute::
+
+        import jax
+        import genjax
+
+        @genjax.gen
+        def model(key):
+            key, x = genjax.trace("x", genjax.Normal)(key, ())
+            return key, x
+
+        key = jax.random.PRNGKey(314159)
+        key, tr = genjax.simulate(model)(key, ())
+        print(tr)
+    """
     return lambda *args: f.simulate(*args, **kwargs)
 
 
