@@ -22,7 +22,6 @@ jax.iml
 venv/
 bin/
 include/
-lib/
 share/
 build
 CMakeCache.txt
