@@ -17,3 +17,5 @@ We can use any supporting infrastructure we want, including header-only librarie
 .. _this excellent note: https://dfm.io/posts/extending-jax/
 .. _CMake: https://cmake.org/
 .. _in this directory of GenJAX: https://github.com/probcomp/genjax/tree/main/examples/exposing_c++_gen_fn
+.. _include/gen_fn.h: https://github.com/probcomp/genjax/blob/main/examples/exposing_c%2B%2B_gen_fn/include/gen_fn.h
+.. _lib/gen_fn.cpp: https://github.com/probcomp/genjax/blob/main/examples/exposing_c%2B%2B_gen_fn/lib/gen_fn.cpp

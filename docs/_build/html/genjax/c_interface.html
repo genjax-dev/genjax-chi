@@ -41,12 +41,12 @@
             
   <section id="exposing-c-generative-functions">
 <h1>Exposing C++ generative functions<a class="headerlink" href="#exposing-c-generative-functions" title="Permalink to this headline">¶</a></h1>
-<p>While GenJAX is fast on GPUs courtesy of JAX, sometimes we want lower level control over the implementation of our generative functions – or we want to emit code which is optimized for CPU devices (so we wish to leverage modern CPU compiler toolchains like LLVM).</p>
+<p>While GenJAX is fast on GPUs courtesy of JAX, but sometimes we want lower level control over the implementation of our generative functions – or we want to emit code which is optimized for CPU devices (so we wish to leverage modern CPU compiler toolchains like LLVM).</p>
 <p>Fortunately, we can expose generative functions written in C or C++ by utilizing an XLA primitive called <a class="reference external" href="https://www.tensorflow.org/xla/custom_call">custom_call</a>. In this note, I’ll walk through the process of exposing a generative function written in C++ using <a class="reference external" href="https://github.com/OpenGen/GenTL">GenTL</a> to GenJAX. This note is based on <a class="reference external" href="https://dfm.io/posts/extending-jax/">this excellent note</a> by Dan Foreman-Mackey.</p>
 <section id="a-new-module">
 <h2>A new module<a class="headerlink" href="#a-new-module" title="Permalink to this headline">¶</a></h2>
-<p>To expose the functionality we need, we’ll setup a new Python module with
-<a class="reference external" href="https://cmake.org/">CMake</a> build support. I’ve done so <a class="reference external" href="https://cmake.org/">in this directory of GenJAX</a>.</p>
+<p>To expose the functionality we need, we’ll setup a new <cite>pybind11</cite> module built using using <a class="reference external" href="https://cmake.org/">CMake</a>. I’ve done so <a class="reference external" href="https://github.com/probcomp/genjax/tree/main/examples/exposing_c++_gen_fn">in this directory of GenJAX</a>.</p>
+<p>We can use any supporting infrastructure we want, including header-only libraries like <a class="reference external" href="https://github.com/OpenGen/GenTL">GenTL</a> which provide tooling to define generative functions in C++. In <a class="reference external" href="https://github.com/probcomp/genjax/blob/main/examples/exposing_c%2B%2B_gen_fn/include/gen_fn.h">include/gen_fn.h</a> - there’s a sketch of our C++ generative function, and <a class="reference external" href="https://github.com/probcomp/genjax/blob/main/examples/exposing_c%2B%2B_gen_fn/lib/gen_fn.cpp">lib/gen_fn.cpp</a> provides an implementation of the templated methods.</p>
 </section>
 </section>
 
