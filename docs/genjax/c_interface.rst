@@ -10,7 +10,7 @@ A new module
 
 To expose the functionality we need, we'll setup a new `pybind11` module built using using `CMake`_. I've done so `in this directory of GenJAX`_.
 
-We can use any supporting infrastructure we want, including header-only libraries like `GenTL`_ which provide tooling to define generative functions in C++.
+We can use any supporting infrastructure we want, including header-only libraries like `GenTL`_ which provide tooling to define generative functions in C++. In `include/gen_fn.h`_ - there's a sketch of our C++ generative function, and `lib/gen_fn.cpp`_ provides an implementation of the templated methods.
 
 .. _custom_call: https://www.tensorflow.org/xla/custom_call
 .. _GenTL: https://github.com/OpenGen/GenTL

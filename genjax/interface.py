@@ -13,15 +13,17 @@
 # limitations under the License.
 
 """
-The generative function interface is a set of methods defined for 
-generative functions which support the implementation of 
+The generative function interface is a set of methods defined for
+generative functions which support the implementation of
 programmable inference algorithms.
 
 Combined with the trace and choice map datatypes, these interface methods
 are the conceptual core of generative functions.
 
 This module exposes the generative function interface as a set of generic
-Python functions. When called with :code:`f: GenerativeFunction` and :code:`**kwargs`, they return the corresponding :code:`GenerativeFunction` method.
+Python functions. When called with :code:`f: GenerativeFunction`
+and :code:`**kwargs`, they return the corresponding
+:code:`GenerativeFunction` method.
 """
 
 

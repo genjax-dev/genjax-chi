@@ -27,6 +27,11 @@ Sphinx = "^5.1.1"
 
 [tool.black]
 line-length = 80
+extend-exclude = '''
+/(
+  examples
+)/
+'''
 
 [tool.coverage.run]
 omit = [".*", "*/site-packages/*"]
