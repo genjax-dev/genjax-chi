@@ -21,9 +21,8 @@ docs/_autosummary
 jax.iml
 venv/
 bin/
-include/
 share/
-build
+build/
 CMakeCache.txt
 CMakeFiles/
 Makefile
