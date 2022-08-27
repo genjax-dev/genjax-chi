@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12...3.22)
 
-project(external_gen_fn VERSION 1.0 LANGUAGES CXX)
+project(extern_gen_fn VERSION 1.0 LANGUAGES CXX)
 
 message(STATUS "Using CMake version " ${CMAKE_VERSION})
 message(STATUS "Building for CPU, no CUDA")
@@ -14,7 +14,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-pybind11_add_module(expose_gen_fn ${CMAKE_CURRENT_LIST_DIR}/lib/expose.cpp)
-install(TARGETS expose_gen_fn DESTINATION exposed)
-target_include_directories(expose_gen_fn PRIVATE include)
-target_include_directories(expose_gen_fn PUBLIC third_party/GenTL/include)
+add_library(gen_fn_impl lib/gen_fn.cpp)
+target_include_directories(gen_fn_impl PRIVATE include)
+target_include_directories(gen_fn_impl PUBLIC third_party/GenTL/include)
+
+pybind11_add_module(extern_gen_fn ${CMAKE_CURRENT_LIST_DIR}/lib/main.cpp)
+target_include_directories(extern_gen_fn PRIVATE include)
+target_include_directories(extern_gen_fn PUBLIC third_party/GenTL/include)
+target_link_libraries(extern_gen_fn PRIVATE gen_fn_impl)

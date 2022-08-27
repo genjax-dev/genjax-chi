@@ -20,6 +20,3 @@ from .external_gen_fn import simulate, importance
 from .external_gen_fn_version import version as __version__
 from genjax.core import GenerativeFunction
 from dataclasses import dataclass
-
-@dataclass
-class ExternGenerativeFunction(GenerativeFunction):
