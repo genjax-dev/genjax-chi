@@ -83,8 +83,8 @@ div.body h1 {
 }
 
 div.body h1,
-h2,
-h3 {
+div.body h2,
+div.body h3 {
   font-weight: 600;
   font-family: pt-sans-pro-narrow;
 }

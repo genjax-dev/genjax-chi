@@ -1,0 +1,264 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>What is a generative function? &#8212; Gen ⊗ JAX</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/css/custom.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Generative function interface" href="interface.html" />
+    <link rel="prev" title="Index" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="what-is-a-generative-function">
+<h1>What is a generative function?<a class="headerlink" href="#what-is-a-generative-function" title="Permalink to this heading">¶</a></h1>
+<p>A generative function is a computational object which supports a concise
+set of interfaces designed to support customizable Bayesian inference
+(<em>programmable inference</em>).</p>
+<p>Formally, generative functions are mathematical representation of probabilistic
+models that are expressive enough to permit models with random structure,
+including capturing notions of variable existence uncertainty. This is described in <a class="reference external" href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner’s thesis</a>.</p>
+<p>One useful reference implementation of these objects lies in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
+an encoding of generative functions and inference in Julia. In <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code>,
+our implementation of these objects is akin to the <code class="code docutils literal notranslate"><span class="pre">static</span> <span class="pre">modeling</span> <span class="pre">language</span></code> of <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - we rely upon JAX to provide us with a useful intermediate representation for programs that we operate on using transformations.</p>
+<p>Speaking of the interface above, if you’d like to jump right to reading about this, visit <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>.</p>
+<section id="what-do-generative-functions-look-like-in-genjax">
+<h2>What do generative functions look like in GenJAX?<a class="headerlink" href="#what-do-generative-functions-look-like-in-genjax" title="Permalink to this heading">¶</a></h2>
+<p>A generative function in <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> looks like a pure Python function,
+roughly the subset of Python acceptable by JAX.</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<span class="kn">import</span> <span class="nn">genjax</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
+    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>JAXGenerativeFunction(source=&lt;function model at 0x1040512d0&gt;)
+</pre></div>
+</div>
+</div>
+</div>
+<p>This decorator returns a <code class="code docutils literal notranslate"><span class="pre">JAXGenerativeFunction</span></code> - a generative function
+which implements the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> by utilizing JAX’s tracing and program
+transformation abilities.</p>
+<p>Let’s study the JAX representation of the code for this object.</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">make_jaxpr</span><span class="p">(</span><span class="n">model</span><span class="p">)(</span><span class="n">key</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda ; a:u32[2]. let
+    b:u32[2] c:f32[] = trace[addr=x gen_fn=_Normal()] a
+  in (b, c) }
+</pre></div>
+</div>
+</div>
+</div>
+<p>In this lowered form, we can see that our JAX representation has a call to something called <code class="code docutils literal notranslate"><span class="pre">trace</span></code>, with a few constant keyword arguments.</p>
+<p>JAX doesn’t natively know how to handle <code class="code docutils literal notranslate"><span class="pre">trace</span></code> - it’s a primitive that we’ve defined to support the generative function interface semantics.</p>
+<p>We can utilize the interface to transform this representation to implement the semantics.</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">make_jaxpr</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">model</span><span class="p">))(</span><span class="n">key</span><span class="p">,</span> <span class="p">()))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda a:u32[1]; b:u32[2]. let
+    c:u32[4] = iota[dimension=0 dtype=uint32 shape=(4,)] 
+    d:u32[1] = slice[limit_indices=(1,) start_indices=(0,) strides=(1,)] b
+    e:u32[] = squeeze[dimensions=(0,)] d
+    f:u32[1] = slice[limit_indices=(2,) start_indices=(1,) strides=(1,)] b
+    g:u32[] = squeeze[dimensions=(0,)] f
+    h:u32[2] = slice[limit_indices=(2,) start_indices=(0,) strides=None] c
+    i:u32[2] = slice[limit_indices=(4,) start_indices=(2,) strides=None] c
+    j:u32[2] k:u32[2] = threefry2x32 e g h i
+    l:u32[4] = concatenate[dimension=0] j k
+    m:u32[2,2] = reshape[dimensions=None new_sizes=(2, 2)] l
+    n:u32[1,2] = slice[limit_indices=(1, 2) start_indices=(0, 0) strides=(1, 1)] m
+    o:u32[2] = squeeze[dimensions=(0,)] n
+    p:u32[1,2] = slice[limit_indices=(2, 2) start_indices=(1, 0) strides=(1, 1)] m
+    q:u32[2] = squeeze[dimensions=(0,)] p
+    r:u32[1] = iota[dimension=0 dtype=uint32 shape=(1,)] 
+    s:u32[1] = slice[limit_indices=(1,) start_indices=(0,) strides=(1,)] q
+    t:u32[] = squeeze[dimensions=(0,)] s
+    u:u32[1] = slice[limit_indices=(2,) start_indices=(1,) strides=(1,)] q
+    v:u32[] = squeeze[dimensions=(0,)] u
+    w:u32[2] = concatenate[dimension=0] r a
+    x:u32[1] = slice[limit_indices=(1,) start_indices=(0,) strides=None] w
+    y:u32[1] = slice[limit_indices=(2,) start_indices=(1,) strides=None] w
+    z:u32[1] ba:u32[1] = threefry2x32 t v x y
+    bb:u32[2] = concatenate[dimension=0] z ba
+    bc:i32[1] = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] 0
+    bd:u32[1] = gather[
+      dimension_numbers=GatherDimensionNumbers(offset_dims=(0,), collapsed_slice_dims=(), start_index_map=(0,))
+      fill_value=None
+      indices_are_sorted=True
+      mode=GatherScatterMode.PROMISE_IN_BOUNDS
+      slice_sizes=(1,)
+      unique_indices=True
+    ] bb bc
+    be:u32[] = reshape[dimensions=None new_sizes=()] bd
+    bf:u32[] = shift_right_logical be 9
+    bg:u32[] = or bf 1065353216
+    bh:f32[] = bitcast_convert_type[new_dtype=float32] bg
+    bi:f32[] = sub bh 1.0
+    bj:f32[] = sub 1.0 -0.9999999403953552
+    bk:f32[] = mul bi bj
+    bl:f32[] = add bk -0.9999999403953552
+    bm:f32[] = reshape[dimensions=None new_sizes=()] bl
+    bn:f32[] = max -0.9999999403953552 bm
+    bo:f32[] = erf_inv bn
+    bp:f32[] = mul 1.4142135381698608 bo
+    bq:f32[] = integer_pow[y=2] 1.0
+    br:f32[] = mul 6.2831854820251465 bq
+    bs:f32[] = log br
+    bt:f32[] = sub bp 0.0
+    bu:f32[] = integer_pow[y=2] bt
+    bv:f32[] = div bu bq
+    bw:f32[] = add bs bv
+    bx:f32[] = div bw -2.0
+    by:f32[] = reduce_sum[axes=()] bx
+    bz:f32[] = add 0.0 by
+  in (o, bp, bp, by, bz) }
+</pre></div>
+</div>
+</div>
+</div>
+<p>That’s quite a lot of new code! What <code class="code docutils literal notranslate"><span class="pre">genjax.simulate</span></code> is doing “under-the-hood” is expanding <code class="code docutils literal notranslate"><span class="pre">trace</span></code> to support:</p>
+<ul class="simple">
+<li><p>sampling from the <code class="code docutils literal notranslate"><span class="pre">gen_fn</span></code> (keyword argument to <code class="code docutils literal notranslate"><span class="pre">trace</span></code>).</p></li>
+<li><p>updating JAX’s PRNG key.</p></li>
+<li><p>recording the log probability density of the resultant sample.</p></li>
+<li><p>returning these pieces of data out.</p></li>
+</ul>
+<p>This essential pattern is repeated for each <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> method.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/assets/logo.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=probcomp&repo=genjax&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">What is a generative function?</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#what-do-generative-functions-look-like-in-genjax">What do generative functions look like in GenJAX?</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="interface.html">Generative function interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="combinators.html">Generative function combinators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="c_interface.html">Exposing C++ generative functions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">Index</a></li>
+      <li>Next: <a href="interface.html" title="next chapter">Generative function interface</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, MIT Probabilistic Computing Project.
+      
+      |
+      <a href="../_sources/genjax/gen_fn.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

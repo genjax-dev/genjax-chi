@@ -8,7 +8,8 @@ Index
 
 .. toctree::
    :maxdepth: 2
-   
+
+   genjax/gen_fn
    genjax/interface
    genjax/combinators
    genjax/c_interface
