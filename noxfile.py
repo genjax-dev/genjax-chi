@@ -45,5 +45,24 @@ def docs(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run(
-        "poetry", "run", "pdoc", "-t", "template", "-o", "docs/", "genjax"
+        "poetry",
+        "run",
+        "sphinx-build",
+        "-b",
+        "html",
+        "docs",
+        "docs/_build",
+    )
+
+
+@nox.session(python=["3.10"])
+def extern_gen_fn(session):
+    session.install("poetry")
+    session.run("poetry", "install")
+    session.run(
+        "poetry",
+        "run",
+        "pip",
+        "install",
+        "examples/exposing_c++_gen_fn",
     )

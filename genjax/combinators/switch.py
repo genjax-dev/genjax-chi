@@ -16,14 +16,15 @@
 This module implements a generative function combinator which allows
 branching control flow for combinations of generative functions
 which can return different shaped choice maps.
-
-It's based on encoding a "sum type" like trace using JAX.
+It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.cond`_.
 
 Generative functions which are passed in as branches to `SwitchCombinator`
 must accept the same argument types, and return the same type of return value.
 
 The internal choice maps for the branch generative functions
 can have different shape/dtype choices.
+
+.. _jax.lax.cond: https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.cond.html
 """
 
 import jax

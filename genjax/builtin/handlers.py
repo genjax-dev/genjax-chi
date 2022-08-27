@@ -50,7 +50,8 @@ class Sample(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        key, v = gen_fn.sample(key, args)
+        key, tr = gen_fn.simulate(key, args)
+        v = tr.get_retval()
 
         if self.return_or_continue:
             return f(key, *v)
