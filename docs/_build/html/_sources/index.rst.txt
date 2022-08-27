@@ -1,6 +1,9 @@
 .. genjax documentation master file, created by
    sphinx-quickstart on Fri Aug 26 07:06:27 2022.
 
+Index
+=====
+
 `GenJAX`_ is a probabilistic programming framework based on combining the concepts of `Gen`_ with the hardware accelerator compilation capabilities of `JAX`_.
 
 .. toctree::
