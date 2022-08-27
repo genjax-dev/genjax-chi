@@ -24,6 +24,7 @@ pytest-benchmark = "^3.4.1"
 autoflake8 = "^0.3.2"
 myst-parser = "^0.18.0"
 Sphinx = "^5.1.1"
+jupyter-sphinx = "^0.4.0"
 
 [tool.black]
 line-length = 80
