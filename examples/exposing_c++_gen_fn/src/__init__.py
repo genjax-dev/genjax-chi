@@ -12,11 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# -*- coding: utf-8 -*-
-
-__all__ = ["__version__", "simulate", "importance"]
-
-from .external_gen_fn import simulate, importance
-from .external_gen_fn_version import version as __version__
-from genjax.core import GenerativeFunction
-from dataclasses import dataclass
+from .extern_gen_fn import *
