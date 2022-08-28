@@ -73,10 +73,6 @@
 <span class="sd">    :code:`sample` accepts a function :code:`f` and</span>
 <span class="sd">    returns a transformed function which implements the below semantics.</span>
 
-<span class="sd">    Given :code:`key: jax.random.PRNGKey` and :code:`args: tuple`, sample</span>
-<span class="sd">    :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and</span>
-<span class="sd">    apply the return value function :code:`ret = f(args, t)`.</span>
-
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    key: :code:`jax.random.PRNGKey`</span>
@@ -87,9 +83,12 @@
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    :code:`(PRNGKey, Any)`</span>
-<span class="sd">        A tuple, with the first element an evolved PRNGKey, and the second</span>
-<span class="sd">        element is the result of the return value function</span>
+<span class="sd">    :code:`(new_key: PRNGKey, ret: Any)`</span>
+<span class="sd">        Sample :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and</span>
+<span class="sd">        apply the return value function :code:`ret = f(args, t)`.</span>
+
+<span class="sd">        Returns a tuple, with the first element an evolved PRNGKey,</span>
+<span class="sd">        and the second element is the result of the return value function</span>
 <span class="sd">        :code:`ret = f(args, t)`</span>
 
 <span class="sd">    Example</span>

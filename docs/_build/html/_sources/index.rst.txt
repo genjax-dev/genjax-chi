@@ -13,6 +13,7 @@ Index
    genjax/interface
    genjax/combinators
    genjax/c_interface
+   genjax/wasm_interface
 
 .. _GenJAX: https://github.com/probcomp/genjax
 .. _Gen: https://www.gen.dev

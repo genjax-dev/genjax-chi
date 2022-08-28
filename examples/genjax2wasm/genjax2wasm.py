@@ -12,22 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module provides an abstract interpreter which performs choice map
-shape analysis on JAX generative function source code.
-"""
-
 import jax
-from genjax.interface import simulate
-from genjax.core.datatypes import GenerativeFunction
+from jax.experimental import jax2tf
+import tensorflow as tf
+import genjax
 
+@genjax.gen
+def model(key):
+    x = genjax.trace("x", genjax.Normal)(key, ())
+    return x
 
-def abstract_choice_map_shape(f: GenerativeFunction):
-    def __inner(f, *args):
-        _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
-        trace = form[1]
-        chm = trace.get_choices()
-        values, chm_treedef = jax.tree_util.tree_flatten(chm)
-        return values, chm_treedef
+def __inner(key, args):
+    key, tr = genjax.simulate(model)(key, args)
+    return key, tr
 
-    return lambda *args: __inner(f, *args)
+key = jax.random.PRNGKey(314159)
+f_tf = jax2tf.convert(__inner)
+key, tr = f_tf(key, ())
+print(tr)
+
+fn = tf.function(f_tf, autograph=False, jit_compile=True)
+key, tr = fn(key, ())
+
+#tf.saved_model.save(my_model, '.',
+#        options=tf.saved_model.SaveOptions(experimental_custom_gradients=True)
+#    )
+#
+#restored_model = tf.saved_model.load('.')

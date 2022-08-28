@@ -32,10 +32,6 @@ def sample(f, **kwargs):
     :code:`sample` accepts a function :code:`f` and
     returns a transformed function which implements the below semantics.
 
-    Given :code:`key: jax.random.PRNGKey` and :code:`args: tuple`, sample
-    :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and
-    apply the return value function :code:`ret = f(args, t)`.
-
     Parameters
     ----------
     key: :code:`jax.random.PRNGKey`
@@ -46,9 +42,12 @@ def sample(f, **kwargs):
 
     Returns
     -------
-    :code:`(PRNGKey, Any)`
-        A tuple, with the first element an evolved PRNGKey, and the second
-        element is the result of the return value function
+    :code:`(new_key: PRNGKey, ret: Any)`
+        Sample :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and
+        apply the return value function :code:`ret = f(args, t)`.
+
+        Returns a tuple, with the first element an evolved PRNGKey,
+        and the second element is the result of the return value function
         :code:`ret = f(args, t)`
 
     Example

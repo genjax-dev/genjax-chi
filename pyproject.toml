@@ -21,7 +21,6 @@ mypy = "^0.971"
 pre-commit = "^2.20.0"
 pytest-benchmark = "^3.4.1"
 autoflake8 = "^0.3.2"
-myst-parser = "^0.18.0"
 Sphinx = "^5.1.1"
 jupyter-sphinx = "^0.4.0"
 
