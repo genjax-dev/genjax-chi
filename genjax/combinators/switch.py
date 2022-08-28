@@ -149,7 +149,7 @@ class SwitchCombinator(GenerativeFunction):
         forms = []
         shaped_structs = set()
         branch_maps = []
-        for (ind, br) in enumerate(self.branches):
+        for br in self.branches:
             values, chm_treedef = abstract_choice_map_shape(br)(key, args)
             forms.append(chm_treedef)
             shaped_structs.update(set(values))
