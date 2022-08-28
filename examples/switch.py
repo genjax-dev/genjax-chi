@@ -34,4 +34,4 @@ sw = genjax.SwitchCombinator(h1, h2)
 
 key = jax.random.PRNGKey(314159)
 key, tr = jax.jit(genjax.simulate(sw))(key, (1, 0.3))
-print(tr)
+print(tr.get_choices())

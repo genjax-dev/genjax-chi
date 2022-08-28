@@ -43,7 +43,8 @@ from typing import Tuple, Any, Sequence
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
     forms: dict
-    payload_tree: dict
+    payload: dict
+    mask: dict
     branch: int
     args: Tuple
     retval: Any
@@ -53,7 +54,11 @@ class SwitchTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return self.payload_tree
+        leaves = []
+        form = self.forms[self.branch]
+        for (k, v) in self.mask.items():
+            leaves.extend(self.payload[k][0:v])
+        return jax.tree_util.tree_unflatten(form, leaves)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -66,7 +71,8 @@ class SwitchTrace(Trace):
 
     def flatten(self):
         return (
-            self.payload_tree,
+            self.payload,
+            self.mask,
             self.branch,
             self.args,
             self.retval,
@@ -88,6 +94,32 @@ class SwitchTrace(Trace):
 
 @dataclass
 class SwitchCombinator(GenerativeFunction):
+    """
+    :code:`SwitchCombinator` accepts a set of generative functions as input
+    configuration and implements a branch control flow pattern. This
+    combinator exposes a `Trace` type which allows the internal
+    generative functions to have different choice maps.
+
+    This allows pattern allows :code:`GenJAX` to express
+    existence uncertainty over random choices -- as different generative
+    function branches need not share addresses.
+
+    Parameters
+    ----------
+
+    *args: :code:`GenerativeFunction`
+        A splatted sequence of `GenerativeFunction` instances.
+
+    Returns
+    -------
+    :code:`SwitchCombinator`
+        A single generative function which implements a branch control flow
+        pattern using each provided internal generative function (see parameters)
+        as a potential branch.
+
+    Usage of the :doc:`interface` is detailed below.
+    """
+
     branches: Sequence[GenerativeFunction]
 
     def __init__(self, *branches):
@@ -111,12 +143,12 @@ class SwitchCombinator(GenerativeFunction):
     # This function does some compile-time code specialization
     # to produce a "sum type" - like trace.
     def compute_branch_coverage(self, key, args):
-        forms = {}
+        forms = []
         shaped_structs = set()
         branch_maps = []
         for (ind, br) in enumerate(self.branches):
-            values, trace_treedef = abstract_choice_map_shape(br)(key, args)
-            forms[ind] = trace_treedef
+            values, chm_treedef = abstract_choice_map_shape(br)(key, args)
+            forms.append(chm_treedef)
             shaped_structs.update(set(values))
             local_shapes = {}
             for v in values:
@@ -136,27 +168,33 @@ class SwitchCombinator(GenerativeFunction):
     def _simulate(self, switch, branch_gen_fn, key, args, forms, coverage):
         key, tr = branch_gen_fn.simulate(key, args)
         payload = {}
+        mask = {}
         leaves = map(
-            lambda l: (l.shape, l.dtype), jax.tree_util.tree_leaves(tr)
+            lambda l: (l.shape, l.dtype, l),
+            jax.tree_util.tree_leaves(tr.get_choices()),
         )
-        for leaf in leaves:
-            payload_tree = payload.get(leaf, [])
-            payload_tree.append(leaves)
+        for (shape, dtype, v) in leaves:
+            sub = payload.get((shape, dtype), [])
+            sub.append(v)
+            payload[(shape, dtype)] = sub
 
         for ((shape, dtype), v) in coverage.items():
-            payload_tree = payload.get((shape, dtype), [])
-            if len(payload_tree) < v:
-                payload_tree.append(
+            sub = payload.get((shape, dtype), [])
+            mask[(shape, dtype)] = len(sub)
+            if len(sub) < v:
+                sub.extend(
                     [
                         jnp.zeros(shape, dtype=dtype)
-                        for _ in range(0, v - len(payload_tree))
+                        for _ in range(0, v - len(sub))
                     ]
                 )
+            payload[(shape, dtype)] = sub
+
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
         switch_trace = SwitchTrace(
-            self, forms, payload_tree, switch, args, retval, score
+            self, forms, payload, mask, switch, args, retval, score
         )
         return key, switch_trace
 

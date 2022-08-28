@@ -26,7 +26,8 @@ def abstract_choice_map_shape(f: GenerativeFunction):
     def __inner(f, *args):
         _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
         trace = form[1]
-        values, treedef = jax.tree_util.tree_flatten(trace.get_choices())
-        return values, treedef
+        chm = trace.get_choices()
+        values, chm_treedef = jax.tree_util.tree_flatten(chm)
+        return values, chm_treedef
 
     return lambda *args: __inner(f, *args)
