@@ -4,7 +4,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
     <title>Generative function combinators &#8212; Gen ⊗ JAX</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
@@ -57,7 +57,28 @@ can have different shape/dtype choices.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="genjax.combinators.switch.SwitchCombinator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.switch.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">branches</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/switch.html#SwitchCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.switch.SwitchCombinator" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> accepts a set of generative functions as input
+configuration and implements a branch control flow pattern. This
+combinator exposes a <cite>Trace</cite> type which allows the internal
+generative functions to have different choice maps.</p>
+<p>This allows pattern allows <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> to express
+existence uncertainty over random choices – as different generative
+function branches need not share addresses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>*args</strong> (<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>) – A splatted sequence of <cite>GenerativeFunction</cite> instances.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> – A single generative function which implements a branch control flow
+pattern using each provided internal generative function (see parameters)
+as a potential branch.</p></li>
+<li><p>Usage of the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> is detailed below.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 <section id="module-genjax.combinators.map">
