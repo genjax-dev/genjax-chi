@@ -104,20 +104,23 @@ class SwitchCombinator(GenerativeFunction):
     existence uncertainty over random choices -- as different generative
     function branches need not share addresses.
 
+    Usage of the :doc:`interface` is detailed below under each
+    method implementation.
+
     Parameters
     ----------
 
     *args: :code:`GenerativeFunction`
-        A splatted sequence of `GenerativeFunction` instances.
+        A splatted sequence of `GenerativeFunction` instances should be provided
+        to the :code:`SwitchCombinator` constructor.
 
     Returns
     -------
     :code:`SwitchCombinator`
-        A single generative function which implements a branch control flow
-        pattern using each provided internal generative function (see parameters)
-        as a potential branch.
-
-    Usage of the :doc:`interface` is detailed below.
+        A single :code:`SwitchCombinator` generative function which
+        implements a branch control flow pattern using each
+        provided internal generative function (see parameters) as
+        a potential branch.
     """
 
     branches: Sequence[GenerativeFunction]

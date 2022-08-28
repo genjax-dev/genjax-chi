@@ -64,18 +64,21 @@ generative functions to have different choice maps.</p>
 <p>This allows pattern allows <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> to express
 existence uncertainty over random choices – as different generative
 function branches need not share addresses.</p>
+<p>Usage of the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> is detailed below under each
+method implementation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>*args</strong> (<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>) – A splatted sequence of <cite>GenerativeFunction</cite> instances.</p>
+<dd class="field-odd"><p><strong>*args</strong> (<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>) – A splatted sequence of <cite>GenerativeFunction</cite> instances should be provided
+to the <code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> constructor.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> – A single generative function which implements a branch control flow
-pattern using each provided internal generative function (see parameters)
-as a potential branch.</p></li>
-<li><p>Usage of the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> is detailed below.</p></li>
-</ul>
-</p>
+<dd class="field-even"><p>A single <code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> generative function which
+implements a branch control flow pattern using each
+provided internal generative function (see parameters) as
+a potential branch.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -168,6 +171,7 @@ as kernels (accepting their previous output as input).</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="c_interface.html">Exposing C++ generative functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wasm_interface.html">From GenJAX to WebAssembly</a></li>
 </ul>
 
 <div class="relations">

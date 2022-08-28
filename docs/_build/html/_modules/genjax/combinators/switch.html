@@ -145,20 +145,23 @@
 <span class="sd">    existence uncertainty over random choices -- as different generative</span>
 <span class="sd">    function branches need not share addresses.</span>
 
+<span class="sd">    Usage of the :doc:`interface` is detailed below under each</span>
+<span class="sd">    method implementation.</span>
+
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 
 <span class="sd">    *args: :code:`GenerativeFunction`</span>
-<span class="sd">        A splatted sequence of `GenerativeFunction` instances.</span>
+<span class="sd">        A splatted sequence of `GenerativeFunction` instances should be provided</span>
+<span class="sd">        to the :code:`SwitchCombinator` constructor.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    :code:`SwitchCombinator`</span>
-<span class="sd">        A single generative function which implements a branch control flow</span>
-<span class="sd">        pattern using each provided internal generative function (see parameters)</span>
-<span class="sd">        as a potential branch.</span>
-
-<span class="sd">    Usage of the :doc:`interface` is detailed below.</span>
+<span class="sd">        A single :code:`SwitchCombinator` generative function which</span>
+<span class="sd">        implements a branch control flow pattern using each</span>
+<span class="sd">        provided internal generative function (see parameters) as</span>
+<span class="sd">        a potential branch.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">branches</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">GenerativeFunction</span><span class="p">]</span>
@@ -297,6 +300,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/interface.html">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/combinators.html">Generative function combinators</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/c_interface.html">Exposing C++ generative functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genjax/wasm_interface.html">From GenJAX to WebAssembly</a></li>
 </ul>
 
 <div class="relations">
