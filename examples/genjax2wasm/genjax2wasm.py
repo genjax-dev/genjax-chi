@@ -17,25 +17,31 @@ from jax.experimental import jax2tf
 import tensorflow as tf
 import genjax
 
+
 @genjax.gen
 def model(key):
     x = genjax.trace("x", genjax.Normal)(key, ())
     return x
 
+
 def __inner(key, args):
     key, tr = genjax.simulate(model)(key, args)
-    return key, tr
+    return key, tr.get_score()
+
 
 key = jax.random.PRNGKey(314159)
 f_tf = jax2tf.convert(__inner)
-key, tr = f_tf(key, ())
-print(tr)
+key, score = f_tf(key, ())
+print(score)
 
-fn = tf.function(f_tf, autograph=False, jit_compile=True)
-key, tr = fn(key, ())
+my_model = tf.Module()
+my_model.f = tf.function(f_tf, autograph=False, jit_compile=True)
+key, score = my_model.f(key, ())
 
-#tf.saved_model.save(my_model, '.',
-#        options=tf.saved_model.SaveOptions(experimental_custom_gradients=True)
-#    )
-#
-#restored_model = tf.saved_model.load('.')
+tf.saved_model.save(
+    my_model,
+    ".",
+    options=tf.saved_model.SaveOptions(experimental_custom_gradients=True),
+)
+
+restored_model = tf.saved_model.load(".")

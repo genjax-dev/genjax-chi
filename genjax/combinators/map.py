@@ -19,7 +19,7 @@ broadcasting for generative functions -- mapping over vectorial versions of thei
 
 import jax
 import jax.numpy as jnp
-from genjax.core.datatypes import GenerativeFunction, Trace
+from genjax.core.datatypes import EmptyChoiceMap, GenerativeFunction, Trace
 from genjax.interface import (
     sample,
     simulate,
@@ -88,15 +88,11 @@ class MapCombinator(GenerativeFunction):
         return MapCombinator(*data, *xs)
 
     def __call__(self, key, *args, **kwargs):
-        in_axes = kwargs["in_axes"]
-        vmapped = jax.vmap(sample(self.kernel), in_axes=in_axes)
+        vmapped = jax.vmap(sample(self.kernel), in_axes=(0, 0))
         return vmapped(key, args)
 
-    from functools import partial
-
     def simulate(self, key, args, **kwargs):
-        in_axes = kwargs["in_axes"]
-        key, tr = jax.vmap(simulate(self.kernel), in_axes=in_axes)(key, args)
+        key, tr = jax.vmap(simulate(self.kernel), in_axes=(0, 0))(key, args)
         map_tr = MapTrace(
             self,
             tr,
@@ -106,9 +102,16 @@ class MapCombinator(GenerativeFunction):
 
         return key, map_tr
 
+    def _importance(self, key, chm, args, index, **kwargs):
+        if chm.has_key(index):
+            chm = chm.get_key(index)
+        else:
+            chm = EmptyChoiceMap()
+        key, (w, tr) = importance(self.kernel)(key, chm, args)
+        return key, (w, tr)
+
     def importance(self, key, chm, args, **kwargs):
-        in_axes = kwargs["in_axes"]
-        key, (w, tr) = jax.vmap(importance(self.kernel), in_axes=in_axes)(
+        key, (w, tr) = jax.vmap(self._importance, in_axes=(0, None, 0, 0))(
             key, chm, args
         )
         map_tr = MapTrace(

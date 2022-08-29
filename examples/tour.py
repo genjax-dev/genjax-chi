@@ -53,7 +53,6 @@ key = jax.random.PRNGKey(314159)
 
 # This just shows our raw (not yet desugared/codegen) syntax.
 expr = jax.make_jaxpr(f)(key, 0.3)
-print(expr)
 
 # Here's how you access the `simulate` GFI.
 key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
@@ -77,6 +76,5 @@ print(arg_grad)
 
 # Here's how you access the `choice_grad` interface.
 chm = genjax.ChoiceMap({("m5",): 0.2})
-key, choice_grad = jax.jit(genjax.choice_grad(f))(key, tr, chm, (0.3,))
-print(choice_grad)
+key, choice_grad = genjax.choice_grad(f)(key, tr, chm, (0.3,))
 print(choice_grad["m5"])

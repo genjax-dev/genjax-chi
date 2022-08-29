@@ -28,7 +28,7 @@ mapped = genjax.MapCombinator(add_normal_noise)
 key = jax.random.PRNGKey(314159)
 key, *subkeys = jax.random.split(key, 3)
 subkeys = jnp.array(subkeys)
-key, tr = jax.jit(genjax.simulate(mapped, in_axes=(0, 0)))(
+key, tr = jax.jit(genjax.simulate(mapped))(
     subkeys,
     (jnp.array([0.3, 0.8]),),
 )

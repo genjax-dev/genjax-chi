@@ -27,3 +27,11 @@ unfold = genjax.UnfoldCombinator(random_walk, 10)
 key = jax.random.PRNGKey(314159)
 key, tr = jax.jit(genjax.simulate(unfold))(key, (0.3,))
 print(tr.get_retval())
+
+chm = genjax.ChoiceMap({(3, "x"): 1.0})
+key, (w, tr) = jax.jit(genjax.importance(unfold))(
+    key,
+    chm,
+    (0.3,),
+)
+print(tr)

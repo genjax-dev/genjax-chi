@@ -15,6 +15,7 @@
 import abc
 from dataclasses import dataclass
 from genjax.core.pytree import Pytree
+import genjax.core.pretty_printer as pp
 
 #####
 # GenerativeFunction
@@ -70,6 +71,12 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
     def choice_grad(self, key, tr, chm, args):
         pass
 
+    def __repr__(self):
+        return pp.tree_pformat(self)
+
+    def __str__(self):
+        return pp.tree_pformat(self)
+
 
 #####
 # ChoiceMap
@@ -90,6 +97,113 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def unflatten(cls, data, xs):
         pass
+
+    @abc.abstractmethod
+    def has_choice(self, addr):
+        pass
+
+    @abc.abstractmethod
+    def get_choice(self, addr):
+        pass
+
+    @abc.abstractmethod
+    def get_choices_shallow(self, addr):
+        pass
+
+    def __repr__(self):
+        return pp.tree_pformat(self)
+
+    def __str__(self):
+        return pp.tree_pformat(self)
+
+
+@dataclass
+class EmptyChoiceMap(ChoiceMap):
+    def flatten(self):
+        return (), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return EmptyChoiceMap
+
+    def has_value(self, k):
+        return False
+
+    def get_value(self, k):
+        raise Exception("EmptyChoiceMap does not address any values.")
+
+    def get_submap(self, k):
+        raise Exception("EmptyChoiceMap does not address any submaps.")
+
+    def get_values_shallow(self):
+        return ()
+
+    def get_submaps_shallow(self):
+        return ()
+
+
+#####
+# Selection
+#####
+
+
+@dataclass
+class Selection(Pytree):
+    # Implement the `Pytree` interface methods.
+    @abc.abstractmethod
+    def flatten(self):
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def unflatten(cls, data, xs):
+        pass
+
+    @abc.abstractmethod
+    def filter(self, chm):
+        pass
+
+    @abc.abstractmethod
+    def complement(self):
+        pass
+
+    def __repr__(self):
+        return pp.tree_pformat(self)
+
+    def __str__(self):
+        return pp.tree_pformat(self)
+
+
+@dataclass
+class AllSelection(Selection):
+    def flatten(self):
+        return (), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return AllSelection()
+
+    def filter(self, chm):
+        return chm
+
+    def complement(self):
+        return NoneSelection()
+
+
+@dataclass
+class NoneSelection(Selection):
+    def flatten(self):
+        return (), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return AllSelection()
+
+    def filter(self, chm):
+        return EmptyChoiceMap()
+
+    def complement(self):
+        return AllSelection()
 
 
 #####
@@ -118,3 +232,21 @@ class Trace(Pytree, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_gen_fn(self):
         pass
+
+    def has_choice(self, addr):
+        choices = self.get_choices()
+        return choices.has_choice(addr)
+
+    def get_choice(self, addr):
+        choices = self.get_choices()
+        return choices.get_choice(addr)
+
+    def get_choices_shallow(self, addr):
+        choices = self.get_choices()
+        return choices.get_choices_shallow(addr)
+
+    def __repr__(self):
+        return pp.tree_pformat(self)
+
+    def __str__(self):
+        return pp.tree_pformat(self)

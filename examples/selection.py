@@ -17,25 +17,19 @@ import genjax
 
 
 @genjax.gen
-def h1(key, x):
-    key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, (x,))
-    key, m1 = genjax.trace("m1", genjax.Bernoulli)(key, (x,))
-    return (key,)
+def model(key):
+    key, x = genjax.trace("x", genjax.Normal)(key, ())
+    key, y = genjax.trace("y", genjax.Normal)(key, ())
+    return key, x + y
 
 
-@genjax.gen
-def h2(key, x):
-    key, m0 = genjax.trace("m2", genjax.Normal)(key, ())
-    key, m1 = genjax.trace("m3", genjax.Normal)(key, ())
-    return (key,)
+def fn():
+    hierarchical = genjax.Selection([("y",)])
+    key = jax.random.PRNGKey(314159)
+    key, tr = genjax.simulate(model)(key, ())
+    chm = tr.get_choices()
+    return hierarchical.filter(chm)
 
 
-sw = genjax.SwitchCombinator(h1, h2)
-
-key = jax.random.PRNGKey(314159)
-key, tr = jax.jit(genjax.simulate(sw))(key, (1, 0.3))
-print(tr.get_choices())
-
-chm = genjax.ChoiceMap({("m2",): 0.0})
-key, (w, tr) = jax.jit(genjax.importance(sw))(key, chm, (1, 0.3))
-print(tr.get_choices()["m2"])
+filtered = jax.jit(fn)()
+print(filtered)

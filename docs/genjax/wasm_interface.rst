@@ -6,5 +6,3 @@ advantage of deployment capabilities built into JAX proper. One of these
 opportunities is the ability to convert :code:`jax.jit` capable Python programs
 into :code:`tf.Module` instances - ready for deployment via 
 :code:`TensorFlow.js` to WebAssembly modules. This is one path to support web-native usage of generative functions.
-
-In this note, I'll walk through a simple example of this code pathway.

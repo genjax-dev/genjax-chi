@@ -24,9 +24,8 @@ in `genjax.core`.
 import jax
 import jax.tree_util as jtu
 from genjax.core import Handler, handle
+from .trie import Trie
 from .intrinsics import gen_fn_p
-from genjax.builtin.jax_choice_map import JAXChoiceMap
-from genjax.builtin.jax_trace import JAXTrace
 
 #####
 # GFI handlers
@@ -76,7 +75,7 @@ class Simulate(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = JAXChoiceMap([])
+        self.state = Trie({})
         self.level = []
         self.score = 0.0
         self.return_or_continue = False
@@ -108,21 +107,21 @@ class Simulate(Handler):
 
 
 class Importance(Handler):
-    def __init__(self, choice_map):
+    def __init__(self, constraints):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = JAXChoiceMap([])
+        self.state = Trie({})
         self.level = []
         self.score = 0.0
         self.weight = 0.0
-        self.obs = choice_map
+        self.constraints = constraints
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        if self.obs.has_key(addr):
-            chm = self.obs[addr]
+        if self.constraints.has_choice(addr):
+            chm = self.constraints.get_choice(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args)
             self.state[addr] = tr
             self.score += tr.get_score()
@@ -165,14 +164,14 @@ class Diff(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_previous = self.original.has_key(addr)
-        constrained = self.choice_change.has_key(addr)
+        has_previous = self.original.has_choice(addr)
+        constrained = self.choice_change.has_choice(addr)
 
         if has_previous:
-            prev_tr = self.original.get_key(addr)
+            prev_tr = self.original.get_choice(addr)
 
         if constrained:
-            chm = self.choice_change.get_key(addr)
+            chm = self.choice_change.get_choice(addr)
 
         if has_previous and constrained:
             key, (w, v) = gen_fn.diff(key, prev_tr, chm, args)
@@ -208,8 +207,8 @@ class Update(Handler):
             gen_fn_p,
         ]
         self.level = []
-        self.state = JAXChoiceMap([])
-        self.discard = JAXChoiceMap([])
+        self.state = Trie({})
+        self.discard = Trie({})
         self.weight = 0.0
         self.original = original.get_choices()
         self.choice_change = new
@@ -217,12 +216,12 @@ class Update(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_previous = self.original.has_key(addr)
-        constrained = self.choice_change.has_key(addr)
+        has_previous = self.original.has_choice(addr)
+        constrained = self.choice_change.has_choice(addr)
         if has_previous:
-            prev_tr = self.original.get_key(addr)
+            prev_tr = self.original.get_choice(addr)
         if constrained:
-            chm = self.choice_change.get_key(addr)
+            chm = self.choice_change.get_choice(addr)
         if has_previous and constrained:
             key, (w, tr, discard) = gen_fn.update(key, prev_tr, chm, args)
             self.weight += w
@@ -262,13 +261,13 @@ class ArgumentGradients(Handler):
         self.argnums = argnums
         self.level = []
         self.score = 0.0
-        self.source = tr
+        self.source = tr.get_choices()
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        if self.source.has_key(addr):
-            sub_tr = self.source.get_key(addr)
+        if self.source.has_choice(addr):
+            sub_tr = self.source.get_choice(addr)
             chm = sub_tr.get_choices()
             key, (w, tr) = gen_fn.importance(key, chm, args)
             v = tr.get_retval()
@@ -333,7 +332,7 @@ def simulate(f):
         fn = Simulate().transform(f)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         key, (r, chm, score) = fn(key, *in_args)
-        return key, JAXTrace(f, args, tuple(r), chm, score)
+        return key, (f, args, tuple(r), chm, score)
 
     return lambda key, args: _inner(key, args)
 
@@ -343,7 +342,7 @@ def importance(f):
         fn = Importance(chm).transform(f)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         key, (w, r, chm, score) = fn(key, *in_args)
-        return key, (w, JAXTrace(f, args, tuple(r), chm, score))
+        return key, (w, (f, args, tuple(r), chm, score))
 
     return lambda key, chm, args: _inner(key, chm, args)
 
@@ -365,7 +364,7 @@ def update(f):
         key, (w, ret, chm, discard) = fn(key, *in_args)
         return key, (
             w,
-            JAXTrace(f, args, tuple(ret), chm, prev.get_score() + w),
+            (f, args, tuple(ret), chm, prev.get_score() + w),
             discard,
         )
 

@@ -62,6 +62,7 @@
 <span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
 <span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">Trace</span>
+<span class="kn">from</span> <span class="nn">genjax.interface</span> <span class="kn">import</span> <span class="n">simulate</span><span class="p">,</span> <span class="n">importance</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
 
@@ -136,7 +137,7 @@
 
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="o">*</span><span class="n">carry</span><span class="p">)</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="o">*</span><span class="n">carry</span><span class="p">)</span>
             <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="n">tr</span>
 
@@ -155,7 +156,40 @@
             <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()),</span>
         <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">unfold_tr</span></div>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">unfold_tr</span>
+
+    <span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">submap</span><span class="p">):</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">carry</span>
+            <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">importance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">submap</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span>
+
+        <span class="n">inflated</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">chm</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+                <span class="n">inflated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chm</span><span class="o">.</span><span class="n">get_key</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">inflated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span>
+            <span class="n">__inner</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">),</span>
+            <span class="n">inflated</span><span class="p">,</span>
+            <span class="n">length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">unfold_tr</span> <span class="o">=</span> <span class="n">UnfoldTrace</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">tr</span><span class="p">,</span>
+            <span class="n">args</span><span class="p">,</span>
+            <span class="n">retval</span><span class="p">,</span>
+            <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()),</span>
+        <span class="p">)</span>
+
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">weight</span><span class="p">,</span> <span class="n">unfold_tr</span><span class="p">)</span></div>
 </pre></div>
 
           </div>

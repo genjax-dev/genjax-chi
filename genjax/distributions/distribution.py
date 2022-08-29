@@ -18,8 +18,7 @@ This module contains the `Distribution` abstact base class.
 
 import abc
 import jax
-from genjax.core.datatypes import ChoiceMap, GenerativeFunction
-from genjax.core import Pytree
+from genjax.core.datatypes import ChoiceMap, Trace, GenerativeFunction
 from dataclasses import dataclass
 from typing import Tuple, Callable, Any
 
@@ -32,20 +31,25 @@ from typing import Tuple, Callable, Any
 class ValueChoiceMap(ChoiceMap):
     value: Any
 
-    def __getitem__(self, k):
-        assert isinstance(k, tuple)
-        assert len(k) == 0
-        return self
-
-    def get_value(self):
-        return self.value
-
     def flatten(self):
         return (self.value,), ()
 
     @classmethod
     def unflatten(cls, data, xs):
         return ValueChoiceMap(*data, *xs)
+
+    def has_choice(self, k):
+        return isinstance(k, tuple) and len(k) == 0
+
+    def get_choice(self, k):
+        assert isinstance(k, tuple) and len(k) == 0
+        return self.value
+
+    def get_choices_shallow(self, k):
+        return ((), self.value)
+
+    def get_value(self):
+        return self.value
 
 
 #####
@@ -54,7 +58,7 @@ class ValueChoiceMap(ChoiceMap):
 
 
 @dataclass
-class DistributionTrace(Pytree):
+class DistributionTrace(Trace):
     gen_fn: Callable
     args: Tuple
     value: Any
@@ -128,6 +132,7 @@ class Distribution(GenerativeFunction):
 
     def importance(self, key, chm, args, **kwargs):
         chm = chm.get_choices()
+        assert isinstance(chm, ValueChoiceMap)
         v = chm.get_value()
         weight = self.logpdf(v, *args)
         return key, (weight, DistributionTrace(self, args, v, weight))

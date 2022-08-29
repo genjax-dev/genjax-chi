@@ -21,6 +21,7 @@ as kernels (accepting their previous output as input).
 import jax
 import jax.numpy as jnp
 from genjax.core.datatypes import GenerativeFunction, Trace
+from genjax.interface import simulate, importance
 from dataclasses import dataclass
 from typing import Any, Tuple
 
@@ -95,7 +96,7 @@ class UnfoldCombinator(GenerativeFunction):
 
     def simulate(self, key, args):
         def __inner(carry, x):
-            key, tr = self.kernel.simulate(*carry)
+            key, tr = simulate(self.kernel)(*carry)
             retval = tr.get_retval()
             return (key, retval), tr
 
@@ -115,3 +116,36 @@ class UnfoldCombinator(GenerativeFunction):
         )
 
         return key, unfold_tr
+
+    def importance(self, key, chm, args):
+        def __inner(carry, submap):
+            key, args = carry
+            key, (w, tr) = importance(self.kernel)(key, submap, args)
+            retval = tr.get_retval()
+            return (key, retval), (w, tr)
+
+        inflated = []
+        for i in range(0, self.length):
+            if chm.has_key(i):
+                inflated.append(chm.get_key(i))
+            else:
+                inflated.append(None)
+
+        (key, retval), (w, tr) = jax.lax.scan(
+            __inner,
+            (key, args),
+            inflated,
+            length=self.length,
+        )
+
+        unfold_tr = UnfoldTrace(
+            self,
+            tr,
+            args,
+            retval,
+            jnp.sum(tr.get_score()),
+        )
+
+        weight = jnp.sum(w)
+
+        return key, (weight, unfold_tr)

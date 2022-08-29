@@ -60,7 +60,7 @@
 
 <span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
-<span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">Trace</span>
+<span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="n">EmptyChoiceMap</span><span class="p">,</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">Trace</span>
 <span class="kn">from</span> <span class="nn">genjax.interface</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">sample</span><span class="p">,</span>
     <span class="n">simulate</span><span class="p">,</span>
@@ -129,15 +129,11 @@
         <span class="k">return</span> <span class="n">MapCombinator</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">in_axes</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;in_axes&quot;</span><span class="p">]</span>
-        <span class="n">vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">sample</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="n">in_axes</span><span class="p">)</span>
+        <span class="n">vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">sample</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">vmapped</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 
-    <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">in_axes</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;in_axes&quot;</span><span class="p">]</span>
-        <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">simulate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="n">in_axes</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">simulate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="n">tr</span><span class="p">,</span>
@@ -147,9 +143,16 @@
 
         <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">map_tr</span>
 
+    <span class="k">def</span> <span class="nf">_importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">chm</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span><span class="o">.</span><span class="n">get_key</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">EmptyChoiceMap</span><span class="p">()</span>
+        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">importance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">in_axes</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;in_axes&quot;</span><span class="p">]</span>
-        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">importance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="n">in_axes</span><span class="p">)(</span>
+        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_importance</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span>
             <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span>
         <span class="p">)</span>
         <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>

@@ -22,17 +22,17 @@ These programs can utilize other generative functions
 """
 
 from .intrinsics import trace
-from .jax_choice_map import *
 from .handlers import *
-from .jax_trace import *
-from .jax_generative_function import *
+from .trie import *
+from .datatypes import *
 from .shape_analysis import *
 
 __all__ = [
     "gen",
     "trace",
-    "ChoiceMap",
     "Trace",
+    "ChoiceMap",
+    "Selection",
     "JAXGenerativeFunction",
     "abstract_choice_map_shape",
 ]

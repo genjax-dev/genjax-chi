@@ -224,3 +224,63 @@ class SwitchCombinator(GenerativeFunction):
             key,
             *args[1:],
         )
+
+    def _importance(
+        self, switch, branch_gen_fn, key, chm, args, forms, coverage
+    ):
+        key, (w, tr) = branch_gen_fn.importance(key, chm, args)
+        payload = {}
+        mask = {}
+        leaves = map(
+            lambda l: (l.shape, l.dtype, l),
+            jax.tree_util.tree_leaves(tr.get_choices()),
+        )
+        for (shape, dtype, v) in leaves:
+            sub = payload.get((shape, dtype), [])
+            sub.append(v)
+            payload[(shape, dtype)] = sub
+
+        for ((shape, dtype), v) in coverage.items():
+            sub = payload.get((shape, dtype), [])
+            mask[(shape, dtype)] = len(sub)
+            if len(sub) < v:
+                sub.extend(
+                    [
+                        jnp.zeros(shape, dtype=dtype)
+                        for _ in range(0, v - len(sub))
+                    ]
+                )
+            payload[(shape, dtype)] = sub
+
+        score = tr.get_score()
+        args = tr.get_args()
+        retval = tr.get_retval()
+        switch_trace = SwitchTrace(
+            self, forms, payload, mask, switch, args, retval, score
+        )
+        return key, (w, switch_trace)
+
+    def importance(self, key, chm, args):
+        switch = args[0]
+        coverage, forms = self.compute_branch_coverage(key, args[1:])
+
+        def __inner(br):
+            return lambda switch, key, chm, *args: self._importance(
+                switch, br, key, chm, args, forms, coverage
+            )
+
+        branch_functions = list(
+            map(
+                __inner,
+                self.branches,
+            )
+        )
+
+        return jax.lax.switch(
+            switch,
+            branch_functions,
+            switch,
+            key,
+            chm,
+            *args[1:],
+        )

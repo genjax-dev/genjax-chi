@@ -13,8 +13,9 @@
 # limitations under the License.
 
 """Contains the Pytree class."""
+
 import abc
-from jax import tree_util
+from jax import tree_util as jtu
 
 __all__ = [
     "Pytree",
@@ -24,7 +25,7 @@ __all__ = [
 class Pytree(metaclass=abc.ABCMeta):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        tree_util.register_pytree_node(
+        jtu.register_pytree_node(
             cls,
             cls.flatten,
             cls.unflatten,
