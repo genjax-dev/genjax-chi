@@ -124,21 +124,15 @@ class EmptyChoiceMap(ChoiceMap):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return EmptyChoiceMap
+        return EmptyChoiceMap()
 
-    def has_value(self, k):
+    def has_choice(self, k):
         return False
 
-    def get_value(self, k):
+    def get_choice(self, k):
         raise Exception("EmptyChoiceMap does not address any values.")
 
-    def get_submap(self, k):
-        raise Exception("EmptyChoiceMap does not address any submaps.")
-
-    def get_values_shallow(self):
-        return ()
-
-    def get_submaps_shallow(self):
+    def get_choices_shallow(self):
         return ()
 
 

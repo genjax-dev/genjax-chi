@@ -17,19 +17,28 @@ import genjax
 
 
 @genjax.gen
+def submodel(key):
+    key, x = genjax.trace("x", genjax.Normal)(key, ())
+    return key, x
+
+
+@genjax.gen
 def model(key):
     key, x = genjax.trace("x", genjax.Normal)(key, ())
     key, y = genjax.trace("y", genjax.Normal)(key, ())
-    return key, x + y
+    key, q = genjax.trace("q", submodel)(key, ())
+    return key, x + y + q
 
 
 def fn():
     hierarchical = genjax.Selection([("y",)])
+    complement = hierarchical.complement()
     key = jax.random.PRNGKey(314159)
     key, tr = genjax.simulate(model)(key, ())
     chm = tr.get_choices()
-    return hierarchical.filter(chm)
+    return hierarchical.filter(chm), complement.filter(chm)
 
 
-filtered = jax.jit(fn)()
-print(filtered)
+hierarchical, complement = jax.jit(fn)()
+print(hierarchical)
+print(complement)

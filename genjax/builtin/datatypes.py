@@ -111,7 +111,7 @@ class JAXChoiceMap(ChoiceMap):
         return self.trie.get_node(addr)
 
     def get_choices_shallow(self):
-        return self.trie.nodes
+        return self.trie.nodes.items()
 
     def __setitem__(self, k, v):
         self.trie[k] = v
@@ -146,17 +146,50 @@ class JAXSelection(Selection):
 
     def filter(self, chm):
         def _inner(k, v):
-            if chm.has_key(k):
-                sub = chm.get_key(k)
-                return (k, v.filter(sub))
+            if self.trie.has_node(k):
+                sub = self.trie.get_node(k)
+                return k, sub.filter(v)
             else:
-                return (k, EmptyChoiceMap())
+                return k, EmptyChoiceMap()
 
-        return JAXChoiceMap(map(lambda args: _inner(*args), self.trie.items()))
+        new_trie = Trie({})
+        for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
+            new_trie.set_node(k, v)
+
+        return JAXChoiceMap(new_trie)
+
+    def complement(self):
+        return JAXComplementSelection(self.trie)
+
+
+@dataclass
+class JAXComplementSelection(Selection):
+    trie: Trie
+
+    def flatten(self):
+        return (self.trie,), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return JAXComplementSelection(*data, *xs)
+
+    def filter(self, chm):
+        def _inner(k, v):
+            if self.trie.has_node(k):
+                sub = self.trie.get_node(k)
+                return k, sub.complement().filter(v)
+            else:
+                return k, v
+
+        new_trie = Trie({})
+        for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
+            new_trie.set_node(k, v)
+
+        return JAXChoiceMap(new_trie)
 
     def complement(self):
         new_trie = Trie({})
-        for (k, v) in self.trie.items():
+        for (k, v) in self.trie.get_choices_shallow():
             new_trie[k] = v.complement()
         return JAXSelection(new_trie)
 
