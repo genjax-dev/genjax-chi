@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
 from genjax.core.handling import eval_jaxpr_handler
 
 # Our special interpreter -- allows us to dispatch with primitives,
@@ -27,3 +28,17 @@ def handle(handler_stack, expr):
     Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
     """
     return I_prime(handler_stack, expr)
+
+
+def is_concrete(x):
+    return not isinstance(x, jax.core.Tracer)
+
+
+def concrete_cond(pred, true_branch, false_branch, *args):
+    if is_concrete(pred):
+        if pred:
+            return true_branch(*args)
+        else:
+            return false_branch(*args)
+    else:
+        return jax.lax.cond(pred, true_branch, false_branch, *args)

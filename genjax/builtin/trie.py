@@ -102,6 +102,11 @@ class Trie(Pytree):
     def get_choices_shallow(self):
         return self.nodes
 
+    def merge(self, other):
+        for (k, v) in other.get_choices_shallow():
+            self.set_node(k, v)
+        return self
+
     def __getitem__(self, addr):
         return self.get_node(addr)
 

@@ -107,14 +107,24 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def get_choices_shallow(self, addr):
+    def get_choices_shallow(self):
         pass
+
+    @abc.abstractmethod
+    def map(self, fn):
+        pass
+
+    def to_selection(self):
+        return NoneSelection()
 
     def __repr__(self):
         return pp.tree_pformat(self)
 
     def __str__(self):
         return pp.tree_pformat(self)
+
+    def __getitem__(self, k):
+        return self.get_choice(k)
 
 
 @dataclass
@@ -134,6 +144,9 @@ class EmptyChoiceMap(ChoiceMap):
 
     def get_choices_shallow(self):
         return ()
+
+    def map(self, fn):
+        return fn(())
 
 
 #####
@@ -235,9 +248,12 @@ class Trace(Pytree, metaclass=abc.ABCMeta):
         choices = self.get_choices()
         return choices.get_choice(addr)
 
-    def get_choices_shallow(self, addr):
+    def get_choices_shallow(self):
         choices = self.get_choices()
-        return choices.get_choices_shallow(addr)
+        return choices.get_choices_shallow()
+
+    def strip_metadata(self):
+        return self.get_choices().strip_metadata()
 
     def __repr__(self):
         return pp.tree_pformat(self)

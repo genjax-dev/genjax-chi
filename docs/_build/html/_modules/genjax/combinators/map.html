@@ -60,7 +60,13 @@
 
 <span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
-<span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="n">EmptyChoiceMap</span><span class="p">,</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">Trace</span>
+<span class="kn">import</span> <span class="nn">jax.tree_util</span> <span class="k">as</span> <span class="nn">jtu</span>
+<span class="kn">from</span> <span class="nn">genjax.builtin.shape_analysis</span> <span class="kn">import</span> <span class="n">choice_map_shape</span>
+<span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EmptyChoiceMap</span><span class="p">,</span>
+    <span class="n">GenerativeFunction</span><span class="p">,</span>
+    <span class="n">Trace</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span> <span class="nn">genjax.interface</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">sample</span><span class="p">,</span>
     <span class="n">simulate</span><span class="p">,</span>
@@ -143,26 +149,69 @@
 
         <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">map_tr</span>
 
-    <span class="k">def</span> <span class="nf">_importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">chm</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
-            <span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span><span class="o">.</span><span class="n">get_key</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">chm</span> <span class="o">=</span> <span class="n">EmptyChoiceMap</span><span class="p">()</span>
-        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">importance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span>
-
     <span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_importance</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span>
-            <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span>
-        <span class="p">)</span>
-        <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span>
-            <span class="n">tr</span><span class="p">,</span>
-            <span class="n">args</span><span class="p">,</span>
-            <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()),</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">EmptyChoiceMap</span><span class="p">):</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">map_tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">broadcast_dim_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">values</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="n">chm</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">subform</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">choice_map_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="n">binary_mask</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">num_leaves</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">jtu</span><span class="o">.</span><span class="n">tree_leaves</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">broadcast_dim_len</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">chm</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+                    <span class="n">submap</span> <span class="o">=</span> <span class="n">chm</span><span class="o">.</span><span class="n">get_choice</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                    <span class="n">sel</span> <span class="o">=</span> <span class="n">submap</span><span class="o">.</span><span class="n">to_selection</span><span class="p">()</span>
+                    <span class="n">targeted</span> <span class="o">=</span> <span class="n">sel</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+                    <span class="n">mapped</span> <span class="o">=</span> <span class="n">targeted</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="kc">True</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="o">==</span> <span class="p">()</span> <span class="k">else</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">flat</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_leaves</span><span class="p">(</span><span class="n">mapped</span><span class="p">)</span>
+                    <span class="n">binary_mask</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flat</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">binary_mask</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="kc">False</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_leaves</span><span class="p">)])</span>
+            <span class="n">binary_mask</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">binary_mask</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">map_tr</span><span class="p">)</span>
+            <span class="n">stacked</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">values</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">broadcast_dim_len</span><span class="p">)])</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="kc">True</span> <span class="k">if</span> <span class="n">chm</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">else</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">broadcast_dim_len</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">_simulate_branch</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+                <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">_importance_branch</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+                <span class="n">local</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_unflatten</span><span class="p">(</span><span class="n">subform</span><span class="p">,</span> <span class="n">chm</span><span class="p">)</span>
+                <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">local</span><span class="p">)</span>
+                <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">importance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span>
+                    <span class="n">flag</span><span class="p">,</span>
+                    <span class="n">_simulate_branch</span><span class="p">,</span>
+                    <span class="n">_importance_branch</span><span class="p">,</span>
+                    <span class="n">mask</span><span class="p">,</span>
+                    <span class="n">key</span><span class="p">,</span>
+                    <span class="n">chm</span><span class="p">,</span>
+                    <span class="n">args</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">_inner</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span>
+                <span class="n">key</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">binary_mask</span><span class="p">,</span> <span class="n">stacked</span><span class="p">,</span> <span class="n">args</span>
+            <span class="p">)</span>
+            <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span>
+                <span class="n">tr</span><span class="p">,</span>
+                <span class="n">args</span><span class="p">,</span>
+                <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()),</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w</span><span class="p">),</span> <span class="n">map_tr</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">original</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">in_axes</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;in_axes&quot;</span><span class="p">]</span>

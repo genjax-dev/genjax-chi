@@ -36,6 +36,14 @@ key = jax.random.PRNGKey(314159)
 key, tr = jax.jit(genjax.simulate(sw))(key, (1, 0.3))
 print(tr.get_choices())
 
-chm = genjax.ChoiceMap({("m2",): 0.0})
-key, (w, tr) = jax.jit(genjax.importance(sw))(key, chm, (1, 0.3))
-print(tr.get_choices()["m2"])
+
+def fn():
+    key = jax.random.PRNGKey(314159)
+    chm = genjax.ChoiceMap({("m2",): 1.0})
+    key, (w, tr) = jax.jit(genjax.importance(sw))(key, chm, (1, 0.3))
+    new = tr.get_choices()
+    return new
+
+
+new = jax.jit(fn)()
+print(new["m2"].value)

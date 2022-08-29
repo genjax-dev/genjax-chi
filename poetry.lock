@@ -287,7 +287,7 @@ etree-tf = ["etils", "tf-nightly"]
 
 [[package]]
 name = "executing"
-version = "0.10.0"
+version = "1.0.0"
 description = "Get the currently executing AST node of a frame, and other information"
 category = "dev"
 optional = false
@@ -393,7 +393,7 @@ python-versions = "*"
 
 [[package]]
 name = "ipykernel"
-version = "6.15.1"
+version = "6.15.2"
 description = "IPython Kernel for Jupyter"
 category = "dev"
 optional = false
@@ -994,14 +994,6 @@ python-versions = ">=3.6"
 plugins = ["importlib-metadata"]
 
 [[package]]
-name = "pygtrie"
-version = "2.5.0"
-description = "A pure Python trie data structure implementation."
-category = "main"
-optional = false
-python-versions = "*"
-
-[[package]]
 name = "pyparsing"
 version = "3.0.9"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -1403,7 +1395,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <3.11"
-content-hash = "c2ad50ac4cd512398f4aac4b5b22320366381c65fd77b052988f33915d366a3a"
+content-hash = "d6ed85e171b35ac631ac85033fa7b6934f4a7321aa55c6cc28f29edd81ed541a"
 
 [metadata.files]
 absl-py = [
@@ -1657,8 +1649,8 @@ etils = [
     {file = "etils-0.7.1.tar.gz", hash = "sha256:207c097dd4180d5e5ab1c7b7ee78b7bf9471e12534deace23b1d392debd292f3"},
 ]
 executing = [
-    {file = "executing-0.10.0-py2.py3-none-any.whl", hash = "sha256:9c745f80cda11eb22b62cbecf21156491a794eb56ab06f9d286a44e62822b24e"},
-    {file = "executing-0.10.0.tar.gz", hash = "sha256:d1cd87c2e371e9966261410c5b3769d6df2f9e4a79a83eebd2662dd3388f9833"},
+    {file = "executing-1.0.0-py2.py3-none-any.whl", hash = "sha256:550d581b497228b572235e633599133eeee67073c65914ca346100ad56775349"},
+    {file = "executing-1.0.0.tar.gz", hash = "sha256:98daefa9d1916a4f0d944880d5aeaf079e05585689bebd9ff9b32e31dd5e1017"},
 ]
 fastjsonschema = [
     {file = "fastjsonschema-2.16.1-py3-none-any.whl", hash = "sha256:2f7158c4de792555753d6c2277d6a2af2d406dfd97aeca21d17173561ede4fe6"},
@@ -1697,8 +1689,8 @@ iniconfig = [
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
 ]
 ipykernel = [
-    {file = "ipykernel-6.15.1-py3-none-any.whl", hash = "sha256:d8969c5b23b0e453a23166da5a669c954db399789293fcb03fec5cb25367e43c"},
-    {file = "ipykernel-6.15.1.tar.gz", hash = "sha256:37acc3254caa8a0dafcddddc8dc863a60ad1b46487b68aee361d9a15bda98112"},
+    {file = "ipykernel-6.15.2-py3-none-any.whl", hash = "sha256:59183ef833b82c72211aace3fb48fd20eae8e2d0cae475f3d5c39d4a688e81ec"},
+    {file = "ipykernel-6.15.2.tar.gz", hash = "sha256:e7481083b438609c9c8a22d6362e8e1bc6ec94ba0741b666941e634f2d61bdf3"},
 ]
 ipython = [
     {file = "ipython-8.4.0-py3-none-any.whl", hash = "sha256:7ca74052a38fa25fe9bedf52da0be7d3fdd2fb027c3b778ea78dfe8c212937d1"},
@@ -2069,9 +2061,6 @@ pyflakes = [
 pygments = [
     {file = "Pygments-2.13.0-py3-none-any.whl", hash = "sha256:f643f331ab57ba3c9d89212ee4a2dabc6e94f117cf4eefde99a0574720d14c42"},
     {file = "Pygments-2.13.0.tar.gz", hash = "sha256:56a8508ae95f98e2b9bdf93a6be5ae3f7d8af858b43e02c5a2ff083726be40c1"},
-]
-pygtrie = [
-    {file = "pygtrie-2.5.0.tar.gz", hash = "sha256:203514ad826eb403dab1d2e2ddd034e0d1534bbe4dbe0213bb0593f66beba4e2"},
 ]
 pyparsing = [
     {file = "pyparsing-3.0.9-py3-none-any.whl", hash = "sha256:5026bae9a10eeaefb61dab2f09052b9f4307d44aee4eda64b309723d8d206bbc"},

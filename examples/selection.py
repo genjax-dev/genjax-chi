@@ -19,6 +19,7 @@ import genjax
 @genjax.gen
 def submodel(key):
     key, x = genjax.trace("x", genjax.Normal)(key, ())
+    key, y = genjax.trace("y", genjax.Bernoulli)(key, (0.3,))
     return key, x
 
 
@@ -36,9 +37,7 @@ def fn():
     key = jax.random.PRNGKey(314159)
     key, tr = genjax.simulate(model)(key, ())
     chm = tr.get_choices()
-    return hierarchical.filter(chm), complement.filter(chm)
+    return chm, hierarchical.filter(chm), complement.filter(chm)
 
 
-hierarchical, complement = jax.jit(fn)()
-print(hierarchical)
-print(complement)
+chm, hierarchical, complement = jax.jit(fn)()

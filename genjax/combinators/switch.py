@@ -29,10 +29,12 @@ can have different shape/dtype choices.
 
 import jax
 import jax.numpy as jnp
-from genjax.core.datatypes import GenerativeFunction, Trace
-from genjax.builtin.shape_analysis import abstract_choice_map_shape
+import jax.tree_util as jtu
+from genjax.builtin.trie import Trie
+from genjax.core.datatypes import GenerativeFunction, Trace, ChoiceMap
+from genjax.builtin.shape_analysis import trace_shape_no_toplevel
 from dataclasses import dataclass
-from typing import Tuple, Any, Sequence
+from typing import Any, Tuple
 
 #####
 # SwitchTrace
@@ -42,10 +44,9 @@ from typing import Tuple, Any, Sequence
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    forms: dict
-    payload: dict
     mask: dict
     branch: int
+    trie: Trie
     args: Tuple
     retval: Any
     score: jnp.float32
@@ -54,11 +55,7 @@ class SwitchTrace(Trace):
         return self.args
 
     def get_choices(self):
-        leaves = []
-        form = self.forms[self.branch]
-        for (k, v) in self.mask.items():
-            leaves.extend(self.payload[k][0:v])
-        return jax.tree_util.tree_unflatten(form, leaves)
+        return SwitchChoiceMap(self.trie, self.mask)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -71,20 +68,55 @@ class SwitchTrace(Trace):
 
     def flatten(self):
         return (
-            self.payload,
             self.mask,
             self.branch,
+            self.trie,
             self.args,
             self.retval,
             self.score,
-        ), (
-            self.gen_fn,
-            self.forms,
-        )
+        ), (self.gen_fn,)
 
     @classmethod
     def unflatten(cls, data, xs):
         return SwitchTrace(*data, *xs)
+
+
+#####
+# SwitchChoiceMap
+#####
+
+
+@dataclass
+class SwitchChoiceMap(ChoiceMap):
+    trie: Trie
+    mask: dict
+
+    def has_choice(self, addr):
+        if addr not in self.mask:
+            return False
+        check = self.mask[addr]
+        return check
+
+    def get_choice(self, addr):
+        if addr not in self.mask:
+            raise Exception(f"{addr} not found in SwitchChoiceMap")
+        return self.trie[addr]
+
+    def flatten(self):
+        return (self.trie, self.mask), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return SwitchChoiceMap(*data, *xs)
+
+    def map(self, fn):
+        new = Trie({})
+        for (k, v) in self.trie:
+            new.set_node(k, v.map(fn))
+        return SwitchChoiceMap(new, self.mask)
+
+    def get_choices_shallow(self):
+        return self.trie.get_choices_shallow()
 
 
 #####
@@ -123,10 +155,12 @@ class SwitchCombinator(GenerativeFunction):
         a potential branch.
     """
 
-    branches: Sequence[GenerativeFunction]
+    branches: dict[int, GenerativeFunction]
 
     def __init__(self, *branches):
-        self.branches = branches
+        self.branches = {}
+        for (ind, gen_fn) in enumerate(branches):
+            self.branches[ind] = gen_fn
 
     def flatten(self):
         return (), (self.branches,)
@@ -145,141 +179,106 @@ class SwitchCombinator(GenerativeFunction):
 
     # This function does some compile-time code specialization
     # to produce a "sum type" - like trace.
-    def compute_branch_coverage(self, key, args):
-        forms = []
-        shaped_structs = set()
-        branch_maps = []
-        for br in self.branches:
-            values, chm_treedef = abstract_choice_map_shape(br)(key, args)
-            forms.append(chm_treedef)
-            shaped_structs.update(set(values))
-            local_shapes = {}
-            for v in values:
-                num = local_shapes.get((v.shape, v.dtype), 0)
-                local_shapes[(v.shape, v.dtype)] = num + 1
-            branch_maps.append(local_shapes)
-        coverage = {}
-        for shape in shaped_structs:
-            coverage_num = 0
-            for br_map in branch_maps:
-                branch_num = br_map.get((shape.shape, shape.dtype), 0)
-                if branch_num > coverage_num:
-                    coverage_num = branch_num
-            coverage[(shape.shape, shape.dtype)] = coverage_num
-        return coverage, forms
+    def compute_branch_coverage_trie(self, key, args):
+        trie = Trie({})
+        for (_, br) in self.branches.items():
+            values, chm_treedef, shape = trace_shape_no_toplevel(br)(key, args)
+            # shape = shape.strip_metadata()
+            for (k, v) in shape.get_choices_shallow():
+                trie.set_node(k, v)
+        return trie
 
-    def _simulate(self, switch, branch_gen_fn, key, args, forms, coverage):
-        key, tr = branch_gen_fn.simulate(key, args)
-        payload = {}
-        mask = {}
-        leaves = map(
-            lambda l: (l.shape, l.dtype, l),
-            jax.tree_util.tree_leaves(tr.get_choices()),
+    def _simulate(self, branch_gen_fn, key, args):
+        emptied = self.compute_branch_coverage_trie(key, args)
+        emptied = jtu.tree_map(
+            lambda v: jnp.zeros(v.shape, v.dtype),
+            emptied,
         )
-        for (shape, dtype, v) in leaves:
-            sub = payload.get((shape, dtype), [])
-            sub.append(v)
-            payload[(shape, dtype)] = sub
-
-        for ((shape, dtype), v) in coverage.items():
-            sub = payload.get((shape, dtype), [])
-            mask[(shape, dtype)] = len(sub)
-            if len(sub) < v:
-                sub.extend(
-                    [
-                        jnp.zeros(shape, dtype=dtype)
-                        for _ in range(0, v - len(sub))
-                    ]
-                )
-            payload[(shape, dtype)] = sub
-
+        branch_index = list(self.branches.values()).index(branch_gen_fn)
+        key, tr = branch_gen_fn.simulate(key, args)
+        merged = emptied.merge(tr)
+        mask = {}
+        for (k, _) in merged.get_choices_shallow().items():
+            if tr.has_choice(k):
+                mask[k] = True
+            else:
+                mask[k] = False
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
         switch_trace = SwitchTrace(
-            self, forms, payload, mask, switch, args, retval, score
+            self, mask, branch_index, merged, args, retval, score
         )
         return key, switch_trace
 
     def simulate(self, key, args):
         switch = args[0]
-        coverage, forms = self.compute_branch_coverage(key, args[1:])
 
         def __inner(br):
-            return lambda switch, key, *args: self._simulate(
-                switch, br, key, args, forms, coverage
+            return lambda key, *args: self._simulate(
+                br,
+                key,
+                args,
             )
 
         branch_functions = list(
             map(
                 __inner,
-                self.branches,
+                self.branches.values(),
             )
         )
 
         return jax.lax.switch(
             switch,
             branch_functions,
-            switch,
             key,
             *args[1:],
         )
 
-    def _importance(
-        self, switch, branch_gen_fn, key, chm, args, forms, coverage
-    ):
-        key, (w, tr) = branch_gen_fn.importance(key, chm, args)
-        payload = {}
-        mask = {}
-        leaves = map(
-            lambda l: (l.shape, l.dtype, l),
-            jax.tree_util.tree_leaves(tr.get_choices()),
+    def _importance(self, branch_gen_fn, key, chm, args):
+        emptied = self.compute_branch_coverage_trie(key, args)
+        emptied = jtu.tree_map(
+            lambda v: jnp.zeros(v.shape, v.dtype),
+            emptied,
         )
-        for (shape, dtype, v) in leaves:
-            sub = payload.get((shape, dtype), [])
-            sub.append(v)
-            payload[(shape, dtype)] = sub
-
-        for ((shape, dtype), v) in coverage.items():
-            sub = payload.get((shape, dtype), [])
-            mask[(shape, dtype)] = len(sub)
-            if len(sub) < v:
-                sub.extend(
-                    [
-                        jnp.zeros(shape, dtype=dtype)
-                        for _ in range(0, v - len(sub))
-                    ]
-                )
-            payload[(shape, dtype)] = sub
-
+        branch_index = list(self.branches.values()).index(branch_gen_fn)
+        key, (w, tr) = branch_gen_fn.importance(key, chm, args)
+        merged = emptied.merge(tr)
+        mask = {}
+        for (k, _) in merged.get_choices_shallow().items():
+            if tr.has_choice(k):
+                mask[k] = True
+            else:
+                mask[k] = False
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
         switch_trace = SwitchTrace(
-            self, forms, payload, mask, switch, args, retval, score
+            self, mask, branch_index, merged, args, retval, score
         )
         return key, (w, switch_trace)
 
     def importance(self, key, chm, args):
         switch = args[0]
-        coverage, forms = self.compute_branch_coverage(key, args[1:])
 
         def __inner(br):
-            return lambda switch, key, chm, *args: self._importance(
-                switch, br, key, chm, args, forms, coverage
+            return lambda key, chm, *args: self._importance(
+                br,
+                key,
+                chm,
+                args,
             )
 
         branch_functions = list(
             map(
                 __inner,
-                self.branches,
+                self.branches.values(),
             )
         )
 
         return jax.lax.switch(
             switch,
             branch_functions,
-            switch,
             key,
             chm,
             *args[1:],

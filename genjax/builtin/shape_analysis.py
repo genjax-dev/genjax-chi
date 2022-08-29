@@ -22,12 +22,34 @@ from genjax.interface import simulate
 from genjax.core.datatypes import GenerativeFunction
 
 
-def abstract_choice_map_shape(f: GenerativeFunction):
+def trace_shape(f: GenerativeFunction):
+    def __inner(f, *args):
+        _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
+        trace = form[1]
+        values, tr_treedef = jax.tree_util.tree_flatten(trace)
+        return values, tr_treedef, trace
+
+    return lambda *args: __inner(f, *args)
+
+
+def trace_shape_no_toplevel(f: GenerativeFunction):
     def __inner(f, *args):
         _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
         trace = form[1]
         chm = trace.get_choices()
         values, chm_treedef = jax.tree_util.tree_flatten(chm)
-        return values, chm_treedef
+        return values, chm_treedef, chm
+
+    return lambda *args: __inner(f, *args)
+
+
+def choice_map_shape(f: GenerativeFunction):
+    def __inner(f, *args):
+        _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
+        trace = form[1]
+        chm = trace.get_choices()
+        chm = chm.strip_metadata()
+        values, chm_treedef = jax.tree_util.tree_flatten(chm)
+        return values, chm_treedef, chm
 
     return lambda *args: __inner(f, *args)

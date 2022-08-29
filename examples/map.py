@@ -19,8 +19,9 @@ import genjax
 
 @genjax.gen
 def add_normal_noise(key, x):
-    key, noise = genjax.trace("noise", genjax.Normal)(key, ())
-    return (key, x + noise)
+    key, noise1 = genjax.trace("noise1", genjax.Normal)(key, ())
+    key, noise2 = genjax.trace("noise2", genjax.Normal)(key, ())
+    return (key, x + noise1 + noise2)
 
 
 mapped = genjax.MapCombinator(add_normal_noise)
@@ -33,3 +34,11 @@ key, tr = jax.jit(genjax.simulate(mapped))(
     (jnp.array([0.3, 0.8]),),
 )
 print(tr.get_retval())
+
+chm = genjax.ChoiceMap({(1, "noise1"): 0.0})
+key, (w, tr) = jax.jit(genjax.importance(mapped))(
+    subkeys,
+    chm,
+    (jnp.array([0.3, 0.8]),),
+)
+print(w)

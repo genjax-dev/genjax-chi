@@ -18,7 +18,12 @@ This module contains the `Distribution` abstact base class.
 
 import abc
 import jax
-from genjax.core.datatypes import ChoiceMap, Trace, GenerativeFunction
+from genjax.core.datatypes import (
+    ChoiceMap,
+    Trace,
+    GenerativeFunction,
+    AllSelection,
+)
 from dataclasses import dataclass
 from typing import Tuple, Callable, Any
 
@@ -50,6 +55,15 @@ class ValueChoiceMap(ChoiceMap):
 
     def get_value(self):
         return self.value
+
+    def map(self, fn):
+        return fn(self)
+
+    def strip_metadata(self):
+        return self
+
+    def to_selection(self):
+        return AllSelection()
 
 
 #####
@@ -128,29 +142,31 @@ class Distribution(GenerativeFunction):
         v = self.sample(sub_key, *args, **kwargs)
         score = self.logpdf(v, *args)
         tr = DistributionTrace(self, args, v, score)
-        return (key, tr)
+        return key, tr
 
     def importance(self, key, chm, args, **kwargs):
         chm = chm.get_choices()
         assert isinstance(chm, ValueChoiceMap)
         v = chm.get_value()
-        weight = self.logpdf(v, *args)
-        return key, (weight, DistributionTrace(self, args, v, weight))
+        w = self.logpdf(v, *args)
+        return key, (w, DistributionTrace(self, args, v, w))
 
     def diff(self, key, prev, new, args, **kwargs):
-        bwd = prev.get_score()
+        new = new.get_choices()
+        assert isinstance(new, ValueChoiceMap)
         v = new.get_value()
-        fwd = self.logpdf(v, *args, **kwargs)
+        bwd = prev.get_score()
+        fwd = self.logpdf(v, *args)
         return key, (fwd - bwd, (v,))
 
-    def update(self, key, original, chm, args, **kwargs):
-        chm = chm.get_choices()
-        old_weight = original.get_score()
-        assert isinstance(chm, ValueChoiceMap)
-        v = chm.get_value()
+    def update(self, key, prev, new, args, **kwargs):
+        new = new.get_choices()
+        old_weight = prev.get_score()
+        assert isinstance(new, ValueChoiceMap)
+        v = new.get_value()
         weight = self.logpdf(v, *args)
         return key, (
             weight - old_weight,
             DistributionTrace(self, args, v, weight),
-            original.get_choices(),
+            prev.get_choices(),
         )

@@ -152,23 +152,23 @@ class Importance(Handler):
 
 
 class Diff(Handler):
-    def __init__(self, original, new):
+    def __init__(self, prev, new):
         self.handles = [
             gen_fn_p,
         ]
         self.level = []
         self.weight = 0.0
-        self.original = original.get_choices()
+        self.prev = prev.get_choices()
         self.choice_change = new
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_previous = self.original.has_choice(addr)
+        has_previous = self.prev.has_choice(addr)
         constrained = self.choice_change.has_choice(addr)
 
         if has_previous:
-            prev_tr = self.original.get_choice(addr)
+            prev_tr = self.prev.get_choice(addr)
 
         if constrained:
             chm = self.choice_change.get_choice(addr)
@@ -202,7 +202,7 @@ class Diff(Handler):
 
 
 class Update(Handler):
-    def __init__(self, original, new):
+    def __init__(self, prev, new):
         self.handles = [
             gen_fn_p,
         ]
@@ -210,16 +210,16 @@ class Update(Handler):
         self.state = Trie({})
         self.discard = Trie({})
         self.weight = 0.0
-        self.original = original.get_choices()
+        self.prev = prev.get_choices()
         self.choice_change = new
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_previous = self.original.has_choice(addr)
+        has_previous = self.prev.has_choice(addr)
         constrained = self.choice_change.has_choice(addr)
         if has_previous:
-            prev_tr = self.original.get_choice(addr)
+            prev_tr = self.prev.get_choice(addr)
         if constrained:
             chm = self.choice_change.get_choice(addr)
         if has_previous and constrained:
@@ -305,7 +305,7 @@ class ChoiceGradients(Handler):
             key, (w, _) = fn(key, *args)
             return self.tr.get_score() + w, key
 
-        gradded = jax.grad(diff, argnums=1, has_aux=True)
+        gradded = jax.grad(diff, argnums=1, allow_int=True, has_aux=True)
         return gradded
 
     def transform(self, f):

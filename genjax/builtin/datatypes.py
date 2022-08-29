@@ -108,16 +108,35 @@ class JAXChoiceMap(ChoiceMap):
         return self.trie.has_node(addr)
 
     def get_choice(self, addr):
-        return self.trie.get_node(addr)
+        node = self.trie.get_node(addr)
+        if isinstance(node, Trie):
+            return JAXChoiceMap(node)
+        else:
+            return node
 
     def get_choices_shallow(self):
         return self.trie.nodes.items()
 
+    def map(self, fn):
+        new_trie = Trie({})
+        for (k, v) in self.get_choices_shallow():
+            new_trie.set_node(k, v.map(fn))
+        return JAXChoiceMap(new_trie)
+
+    def strip_metadata(self):
+        new_trie = Trie({})
+        for (k, v) in self.get_choices_shallow():
+            new_trie.set_node(k, v.strip_metadata())
+        return JAXChoiceMap(new_trie)
+
+    def to_selection(self):
+        new_trie = Trie({})
+        for (k, v) in self.get_choices_shallow():
+            new_trie.set_node(k, v.to_selection())
+        return JAXSelection(new_trie)
+
     def __setitem__(self, k, v):
         self.trie[k] = v
-
-    def __getitem__(self, k):
-        return self.trie[k]
 
 
 #####
@@ -228,12 +247,12 @@ class JAXGenerativeFunction(GenerativeFunction):
         )
         return key, (w, JAXTrace(f, args, r, chm, score))
 
-    def diff(self, key, original, new, args, **kwargs):
-        return diff(self.source)(key, original, new, args, **kwargs)
+    def diff(self, key, prev, new, args, **kwargs):
+        return diff(self.source)(key, prev, new, args, **kwargs)
 
-    def update(self, key, original, new, args, **kwargs):
+    def update(self, key, prev, new, args, **kwargs):
         key, (w, (f, args, r, chm, score), discard) = update(self.source)(
-            key, original, new, args, **kwargs
+            key, prev, new, args, **kwargs
         )
         return key, (w, JAXTrace(f, args, r, chm, score), discard)
 
@@ -242,8 +261,8 @@ class JAXGenerativeFunction(GenerativeFunction):
             key, tr, args, **kwargs
         )
 
-    def choice_grad(self, key, tr, chm, args):
-        return choice_grad(self.source)(key, tr, chm, args)
+    def choice_grad(self, key, tr, chm, args, **kwargs):
+        return choice_grad(self.source)(key, tr, chm, args, **kwargs)
 
 
 def gen(fn):

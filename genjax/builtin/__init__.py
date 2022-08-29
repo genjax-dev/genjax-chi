@@ -34,5 +34,7 @@ __all__ = [
     "ChoiceMap",
     "Selection",
     "JAXGenerativeFunction",
-    "abstract_choice_map_shape",
+    "trace_shape",
+    "trace_shape_no_toplevel",
+    "choice_map_shape",
 ]

@@ -19,7 +19,13 @@ broadcasting for generative functions -- mapping over vectorial versions of thei
 
 import jax
 import jax.numpy as jnp
-from genjax.core.datatypes import EmptyChoiceMap, GenerativeFunction, Trace
+import jax.tree_util as jtu
+from genjax.builtin.shape_analysis import choice_map_shape
+from genjax.core.datatypes import (
+    EmptyChoiceMap,
+    GenerativeFunction,
+    Trace,
+)
 from genjax.interface import (
     sample,
     simulate,
@@ -102,26 +108,69 @@ class MapCombinator(GenerativeFunction):
 
         return key, map_tr
 
-    def _importance(self, key, chm, args, index, **kwargs):
-        if chm.has_key(index):
-            chm = chm.get_key(index)
-        else:
-            chm = EmptyChoiceMap()
-        key, (w, tr) = importance(self.kernel)(key, chm, args)
-        return key, (w, tr)
-
     def importance(self, key, chm, args, **kwargs):
-        key, (w, tr) = jax.vmap(self._importance, in_axes=(0, None, 0, 0))(
-            key, chm, args
-        )
-        map_tr = MapTrace(
-            self,
-            tr,
-            args,
-            jnp.sum(tr.get_score()),
-        )
+        if isinstance(chm, EmptyChoiceMap):
+            w = 0.0
+            key, map_tr = self.simulate(key, args, **kwargs)
+        else:
+            broadcast_dim_len = len(key)
+            values, _ = jtu.tree_flatten(chm)
+            _, subform, shape = choice_map_shape(self.kernel)(key, args)
+            binary_mask = []
+            num_leaves = len(jtu.tree_leaves(shape))
+            for k in range(0, broadcast_dim_len):
+                if chm.has_choice(k):
+                    submap = chm.get_choice(k)
+                    sel = submap.to_selection()
+                    targeted = sel.filter(shape)
+                    mapped = targeted.map(
+                        lambda v: True if not v == () else False,
+                    )
+                    flat = jtu.tree_leaves(mapped)
+                    binary_mask.append(flat)
+                else:
+                    binary_mask.append([False for _ in range(0, num_leaves)])
+            binary_mask = jnp.array(binary_mask)
 
-        return key, (w, map_tr)
+            stacked = jnp.hstack([values for _ in range(0, broadcast_dim_len)])
+            flags = [
+                True if chm.has_choice(k) else False
+                for k in range(0, broadcast_dim_len)
+            ]
+            flags = jnp.array(flags)
+
+            def _simulate_branch(mask, key, chm, args):
+                key, tr = simulate(self.kernel)(key, args)
+                return key, (0.0, tr)
+
+            def _importance_branch(mask, key, chm, args):
+                local = jtu.tree_unflatten(subform, chm)
+                jtu.tree_map(lambda f: print(f), local)
+                key, (w, tr) = importance(self.kernel)(key, local, args)
+                return key, (w, tr)
+
+            def _inner(key, flag, mask, chm, args, **kwargs):
+                return jax.lax.cond(
+                    flag,
+                    _simulate_branch,
+                    _importance_branch,
+                    mask,
+                    key,
+                    chm,
+                    args,
+                )
+
+            key, (w, tr) = jax.vmap(_inner, in_axes=(0, 0, 0, 0, 0))(
+                key, flags, binary_mask, stacked, args
+            )
+            map_tr = MapTrace(
+                self,
+                tr,
+                args,
+                jnp.sum(tr.get_score()),
+            )
+
+        return key, (jnp.sum(w), map_tr)
 
     def diff(self, key, original, new, args, **kwargs):
         in_axes = kwargs["in_axes"]
