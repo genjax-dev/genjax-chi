@@ -43,9 +43,8 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
     """
 
     # Implement the `Pytree` interface methods.
-    @classmethod
     @abc.abstractmethod
-    def flatten(cls):
+    def flatten(self):
         pass
 
     @classmethod

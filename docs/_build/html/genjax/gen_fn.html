@@ -50,12 +50,12 @@ set of interfaces designed to support customizable Bayesian inference
 models that are expressive enough to permit models with random structure,
 including capturing notions of variable existence uncertainty. This is described in <a class="reference external" href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner’s thesis</a>.</p>
 <p>One useful reference implementation of these objects lies in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
-an encoding of generative functions and inference in Julia. In <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code>,
+an encoding of generative functions and inference in Julia. In GenJAX,
 our implementation of these objects is akin to the <code class="code docutils literal notranslate"><span class="pre">static</span> <span class="pre">modeling</span> <span class="pre">language</span></code> of <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - we rely upon JAX to provide us with a useful intermediate representation for programs that we operate on using transformations.</p>
 <p>Speaking of the interface above, if you’d like to jump right to reading about this, visit <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>.</p>
 <section id="what-do-generative-functions-look-like-in-genjax">
 <h2>What do generative functions look like in GenJAX?<a class="headerlink" href="#what-do-generative-functions-look-like-in-genjax" title="Permalink to this heading">¶</a></h2>
-<p>A generative function in <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> looks like a pure Python function,
+<p>A generative function in GenJAX looks like a pure Python function,
 roughly the subset of Python acceptable by JAX.</p>
 <div class="jupyter_cell jupyter_container docutils container">
 <div class="cell_input code_cell docutils container">

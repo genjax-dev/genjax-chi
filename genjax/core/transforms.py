@@ -42,3 +42,10 @@ def concrete_cond(pred, true_branch, false_branch, *args):
             return false_branch(*args)
     else:
         return jax.lax.cond(pred, true_branch, false_branch, *args)
+
+
+def concrete_switch(index, branches, *args):
+    if is_concrete(index):
+        return branches[index](*args)
+    else:
+        return jax.lax.switch(index, branches, *args)

@@ -12,6 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module holds a set of generative function implementations
+called generative function combinators.
+
+These combinators accept generative functions as arguments, and return
+generative functions with modified choice map shapes and behavior.
+
+They are used to express common patterns of computation, including
+if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`).
+
+    🔪 **(Sharp bit) GenJAX combinator restrictions** 🔪
+    
+    The implementations of these combinators are similar to those in `Gen.jl`_,
+    but JAX imposes extra restrictions on their construction and usage.
+
+    In contrast to `Gen.jl`_, :code:`UnfoldCombinator` must have the number of
+    unfold steps specified ahead of time as a static constant. The length of the
+    the unfold chain cannot depend on a variable whose value is known
+    only at runtime.
+
+    Similarly, for :code:`MapCombinator` -- the shape of the vectorial arguments
+    which will be mapped over must be known at JAX tracing time.
+
+    These restrictions are not due to the implementation, but are fundamental to
+    JAX's programming model (as it stands currently).
+
+.. _Gen.jl: https://github.com/probcomp/Gen.jl
+"""
+
+from .vector_choice_map import *
+from .dynamic import *
 from .switch import *
 from .map import *
 from .unfold import *

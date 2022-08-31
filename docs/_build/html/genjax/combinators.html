@@ -41,16 +41,34 @@
 
           <div class="body" role="main">
             
-  <section id="generative-function-combinators">
-<h1>Generative function combinators<a class="headerlink" href="#generative-function-combinators" title="Permalink to this heading">¶</a></h1>
-<p>A generative function combinator is an object which accepts 1 or more generative functions, and returns a new generative function – often changing the structure of the internal choice map, or expressing a structured pattern of computation.</p>
+  <section id="module-genjax.combinators">
+<span id="generative-function-combinators"></span><h1>Generative function combinators<a class="headerlink" href="#module-genjax.combinators" title="Permalink to this heading">¶</a></h1>
+<p>This module holds a set of generative function implementations
+called generative function combinators.</p>
+<p>These combinators accept generative functions as arguments, and return
+generative functions with modified choice map shapes and behavior.</p>
+<p>They are used to express common patterns of computation, including
+if-else (<code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code>), mapping across vectorial arguments (<code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code>), and dependent for-loop (<code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code>).</p>
+<blockquote>
+<div><p>🔪 <strong>(Sharp bit) GenJAX combinator restrictions</strong> 🔪</p>
+<p>The implementations of these combinators are similar to those in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
+but JAX imposes extra restrictions on their construction and usage.</p>
+<p>In contrast to <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>, <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> must have the number of
+unfold steps specified ahead of time as a static constant. The length of the
+the unfold chain cannot depend on a variable whose value is known
+only at runtime.</p>
+<p>Similarly, for <code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code> – the shape of the vectorial arguments
+which will be mapped over must be known at JAX tracing time.</p>
+<p>These restrictions are not due to the implementation, but are fundamental to
+JAX’s programming model (as it stands currently).</p>
+</div></blockquote>
 <section id="module-genjax.combinators.switch">
 <span id="switch"></span><h2>Switch<a class="headerlink" href="#module-genjax.combinators.switch" title="Permalink to this heading">¶</a></h2>
 <p>This module implements a generative function combinator which allows
 branching control flow for combinations of generative functions
 which can return different shaped choice maps.
 It’s based on encoding a trace sum type using JAX - to bypass restrictions from <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.cond.html">jax.lax.cond</a>.</p>
-<p>Generative functions which are passed in as branches to <cite>SwitchCombinator</cite>
+<p>Generative functions which are passed in as branches to <code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code>
 must accept the same argument types, and return the same type of return value.</p>
 <p>The internal choice maps for the branch generative functions
 can have different shape/dtype choices.</p>
@@ -58,12 +76,12 @@ can have different shape/dtype choices.</p>
 <dt class="sig sig-object py" id="genjax.combinators.switch.SwitchCombinator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.switch.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">branches</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/switch.html#SwitchCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.switch.SwitchCombinator" title="Permalink to this definition">¶</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> accepts a set of generative functions as input
-configuration and implements a branch control flow pattern. This
-combinator exposes a <cite>Trace</cite> type which allows the internal
+configuration and implements a branching control flow pattern. This
+combinator provides a “sum” <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> type which allows the internal
 generative functions to have different choice maps.</p>
-<p>This allows pattern allows <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> to express
-existence uncertainty over random choices – as different generative
-function branches need not share addresses.</p>
+<p>This pattern allows <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> to express existence uncertainty
+over random choices – as different generative function branches
+need not share addresses.</p>
 <p>Usage of the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> is detailed below under each
 method implementation.</p>
 <dl class="field-list simple">
@@ -84,16 +102,6 @@ a potential branch.</p>
 </dd></dl>
 
 </section>
-<section id="module-genjax.combinators.map">
-<span id="map"></span><h2>Map<a class="headerlink" href="#module-genjax.combinators.map" title="Permalink to this heading">¶</a></h2>
-<p>This module implements a generative function combinator which allows
-broadcasting for generative functions – mapping over vectorial versions of their arguments.</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.map.</span></span><span class="sig-name descname"><span class="pre">MapCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/map.html#MapCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.map.MapCombinator" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
 <section id="module-genjax.combinators.unfold">
 <span id="unfold"></span><h2>Unfold<a class="headerlink" href="#module-genjax.combinators.unfold" title="Permalink to this heading">¶</a></h2>
 <p>This module implements a generative function combinator which allows
@@ -102,6 +110,17 @@ as kernels (accepting their previous output as input).</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="genjax.combinators.unfold.UnfoldCombinator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.unfold.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/unfold.html#UnfoldCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.unfold.UnfoldCombinator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-genjax.combinators.map">
+<span id="map"></span><h2>Map<a class="headerlink" href="#module-genjax.combinators.map" title="Permalink to this heading">¶</a></h2>
+<p>This module implements a generative function combinator which allows
+broadcasting for generative functions – mapping over
+vectorial versions of their arguments.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.map.</span></span><span class="sig-name descname"><span class="pre">MapCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/map.html#MapCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.map.MapCombinator" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </section>
@@ -141,8 +160,8 @@ as kernels (accepting their previous output as input).</p>
 <li class="toctree-l1"><a class="reference internal" href="interface.html">Generative function interface</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Generative function combinators</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.switch">Switch</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.map">Map</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.unfold">Unfold</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.map">Map</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="c_interface.html">Exposing C++ generative functions</a></li>

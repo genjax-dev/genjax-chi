@@ -20,10 +20,17 @@ as kernels (accepting their previous output as input).
 
 import jax
 import jax.numpy as jnp
-from genjax.core.datatypes import GenerativeFunction, Trace
+import jax.tree_util as jtu
+from genjax.core.datatypes import (
+    GenerativeFunction,
+    Trace,
+)
+from genjax.builtin.shape_analysis import choice_map_shape
 from genjax.interface import simulate, importance
 from dataclasses import dataclass
 from typing import Any, Tuple
+from .dynamic import DynamicJAXGenerativeFunction
+from .vector_choice_map import VectorChoiceMap, prepare_vectorized_choice_map
 
 #####
 # UnfoldTrace
@@ -33,7 +40,8 @@ from typing import Any, Tuple
 @dataclass
 class UnfoldTrace(Trace):
     gen_fn: GenerativeFunction
-    mapped_subtrace: Trace
+    length: int
+    subtrace: Trace
     args: Tuple
     retval: Any
     score: jnp.float32
@@ -42,7 +50,8 @@ class UnfoldTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return self.mapped_subtrace
+        _, form = jtu.tree_flatten(self.subtrace)
+        return VectorChoiceMap(self.subtrace, self.length, form)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -55,7 +64,8 @@ class UnfoldTrace(Trace):
 
     def flatten(self):
         return (
-            self.mapped_subtrace,
+            self.length,
+            self.subtrace,
             self.args,
             self.retval,
             self.score,
@@ -109,6 +119,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         unfold_tr = UnfoldTrace(
             self,
+            self.length,
             tr,
             args,
             retval,
@@ -118,34 +129,38 @@ class UnfoldCombinator(GenerativeFunction):
         return key, unfold_tr
 
     def importance(self, key, chm, args):
-        def __inner(carry, submap):
+        length = self.length
+        assert length > 0
+        _, treedef, shape = choice_map_shape(self.kernel)(key, args)
+        chm_vectored, mask_vectored = prepare_vectorized_choice_map(
+            shape, treedef, length, chm
+        )
+
+        dynamic_kernel = DynamicJAXGenerativeFunction(self.kernel)
+
+        # To be or not to be `scan`d.
+        def __inner(carry, x):
             key, args = carry
-            key, (w, tr) = importance(self.kernel)(key, submap, args)
+            mask, chm = x
+            key, (w, tr) = importance(dynamic_kernel)(key, mask, chm, args)
             retval = tr.get_retval()
             return (key, retval), (w, tr)
-
-        inflated = []
-        for i in range(0, self.length):
-            if chm.has_key(i):
-                inflated.append(chm.get_key(i))
-            else:
-                inflated.append(None)
 
         (key, retval), (w, tr) = jax.lax.scan(
             __inner,
             (key, args),
-            inflated,
+            (mask_vectored, chm_vectored),
             length=self.length,
         )
 
         unfold_tr = UnfoldTrace(
             self,
+            self.length,
             tr,
             args,
             retval,
             jnp.sum(tr.get_score()),
         )
 
-        weight = jnp.sum(w)
-
-        return key, (weight, unfold_tr)
+        w = jnp.sum(w)
+        return key, (w, unfold_tr)

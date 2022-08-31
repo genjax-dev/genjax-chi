@@ -135,6 +135,9 @@ class JAXChoiceMap(ChoiceMap):
             new_trie.set_node(k, v.to_selection())
         return JAXSelection(new_trie)
 
+    def merge(self, other):
+        return JAXChoiceMap(self.trie.merge(other))
+
     def __setitem__(self, k, v):
         self.trie[k] = v
 

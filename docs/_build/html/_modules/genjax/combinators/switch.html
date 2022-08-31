@@ -59,7 +59,7 @@
 <span class="sd">which can return different shaped choice maps.</span>
 <span class="sd">It&#39;s based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.cond`_.</span>
 
-<span class="sd">Generative functions which are passed in as branches to `SwitchCombinator`</span>
+<span class="sd">Generative functions which are passed in as branches to :code:`SwitchCombinator`</span>
 <span class="sd">must accept the same argument types, and return the same type of return value.</span>
 
 <span class="sd">The internal choice maps for the branch generative functions</span>
@@ -169,13 +169,13 @@
 <span class="k">class</span> <span class="nc">SwitchCombinator</span><span class="p">(</span><span class="n">GenerativeFunction</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    :code:`SwitchCombinator` accepts a set of generative functions as input</span>
-<span class="sd">    configuration and implements a branch control flow pattern. This</span>
-<span class="sd">    combinator exposes a `Trace` type which allows the internal</span>
+<span class="sd">    configuration and implements a branching control flow pattern. This</span>
+<span class="sd">    combinator provides a &quot;sum&quot; :code:`Trace` type which allows the internal</span>
 <span class="sd">    generative functions to have different choice maps.</span>
 
-<span class="sd">    This allows pattern allows :code:`GenJAX` to express</span>
-<span class="sd">    existence uncertainty over random choices -- as different generative</span>
-<span class="sd">    function branches need not share addresses.</span>
+<span class="sd">    This pattern allows :code:`GenJAX` to express existence uncertainty</span>
+<span class="sd">    over random choices -- as different generative function branches</span>
+<span class="sd">    need not share addresses.</span>
 
 <span class="sd">    Usage of the :doc:`interface` is detailed below under each</span>
 <span class="sd">    method implementation.</span>
@@ -322,6 +322,89 @@
             <span class="n">branch_functions</span><span class="p">,</span>
             <span class="n">key</span><span class="p">,</span>
             <span class="n">chm</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span> <span class="o">=</span> <span class="n">branch_gen_fn</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_diff</span><span class="p">(</span>
+                <span class="n">br</span><span class="p">,</span>
+                <span class="n">key</span><span class="p">,</span>
+                <span class="n">prev</span><span class="p">,</span>
+                <span class="n">new</span><span class="p">,</span>
+                <span class="n">args</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">branch_functions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">map</span><span class="p">(</span>
+                <span class="n">__inner</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">switch</span><span class="p">(</span>
+            <span class="n">switch</span><span class="p">,</span>
+            <span class="n">branch_functions</span><span class="p">,</span>
+            <span class="n">key</span><span class="p">,</span>
+            <span class="n">prev</span><span class="p">,</span>
+            <span class="n">new</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">emptied</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_branch_coverage_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="n">emptied</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
+            <span class="n">emptied</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">branch_index</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">branch_gen_fn</span><span class="p">)</span>
+        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span> <span class="o">=</span> <span class="n">branch_gen_fn</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="n">emptied</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">merged</span><span class="o">.</span><span class="n">get_choices_shallow</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
+        <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
+        <span class="n">switch_trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">branch_index</span><span class="p">,</span> <span class="n">merged</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">switch_trace</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update</span><span class="p">(</span>
+                <span class="n">br</span><span class="p">,</span>
+                <span class="n">key</span><span class="p">,</span>
+                <span class="n">prev</span><span class="p">,</span>
+                <span class="n">new</span><span class="p">,</span>
+                <span class="n">args</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">branch_functions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">map</span><span class="p">(</span>
+                <span class="n">__inner</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">switch</span><span class="p">(</span>
+            <span class="n">switch</span><span class="p">,</span>
+            <span class="n">branch_functions</span><span class="p">,</span>
+            <span class="n">key</span><span class="p">,</span>
+            <span class="n">prev</span><span class="p">,</span>
+            <span class="n">new</span><span class="p">,</span>
             <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
         <span class="p">)</span></div>
 </pre></div>

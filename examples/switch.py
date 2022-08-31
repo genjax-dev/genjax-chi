@@ -39,11 +39,11 @@ print(tr.get_choices())
 
 def fn():
     key = jax.random.PRNGKey(314159)
+    key, tr = jax.jit(genjax.simulate(sw))(key, (1, 0.3))
     chm = genjax.ChoiceMap({("m2",): 1.0})
-    key, (w, tr) = jax.jit(genjax.importance(sw))(key, chm, (1, 0.3))
-    new = tr.get_choices()
-    return new
+    key, (w, r) = jax.jit(genjax.diff(sw))(key, tr, chm, (1, 0.6))
+    return w
 
 
-new = jax.jit(fn)()
-print(new["m2"].value)
+w = jax.jit(fn)()
+print(w)

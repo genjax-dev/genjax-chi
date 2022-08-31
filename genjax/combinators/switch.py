@@ -18,7 +18,7 @@ branching control flow for combinations of generative functions
 which can return different shaped choice maps.
 It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.cond`_.
 
-Generative functions which are passed in as branches to `SwitchCombinator`
+Generative functions which are passed in as branches to :code:`SwitchCombinator`
 must accept the same argument types, and return the same type of return value.
 
 The internal choice maps for the branch generative functions
@@ -128,13 +128,13 @@ class SwitchChoiceMap(ChoiceMap):
 class SwitchCombinator(GenerativeFunction):
     """
     :code:`SwitchCombinator` accepts a set of generative functions as input
-    configuration and implements a branch control flow pattern. This
-    combinator exposes a `Trace` type which allows the internal
+    configuration and implements a branching control flow pattern. This
+    combinator provides a "sum" :code:`Trace` type which allows the internal
     generative functions to have different choice maps.
 
-    This allows pattern allows :code:`GenJAX` to express
-    existence uncertainty over random choices -- as different generative
-    function branches need not share addresses.
+    This pattern allows :code:`GenJAX` to express existence uncertainty
+    over random choices -- as different generative function branches
+    need not share addresses.
 
     Usage of the :doc:`interface` is detailed below under each
     method implementation.
@@ -281,5 +281,88 @@ class SwitchCombinator(GenerativeFunction):
             branch_functions,
             key,
             chm,
+            *args[1:],
+        )
+
+    def _diff(self, branch_gen_fn, key, prev, new, args):
+        key, (w, r) = branch_gen_fn.diff(key, prev, new, args)
+        return key, (w, r)
+
+    def diff(self, key, prev, new, args):
+        switch = args[0]
+
+        def __inner(br):
+            return lambda key, prev, new, *args: self._diff(
+                br,
+                key,
+                prev,
+                new,
+                args,
+            )
+
+        branch_functions = list(
+            map(
+                __inner,
+                self.branches.values(),
+            )
+        )
+
+        return jax.lax.switch(
+            switch,
+            branch_functions,
+            key,
+            prev,
+            new,
+            *args[1:],
+        )
+
+    def _update(self, branch_gen_fn, key, prev, new, args):
+        emptied = self.compute_branch_coverage_trie(key, args)
+        emptied = jtu.tree_map(
+            lambda v: jnp.zeros(v.shape, v.dtype),
+            emptied,
+        )
+        branch_index = list(self.branches.values()).index(branch_gen_fn)
+        key, (w, tr, discard) = branch_gen_fn.update(key, prev, new, args)
+        merged = emptied.merge(tr)
+        mask = {}
+        for (k, _) in merged.get_choices_shallow().items():
+            if tr.has_choice(k):
+                mask[k] = True
+            else:
+                mask[k] = False
+        score = tr.get_score()
+        args = tr.get_args()
+        retval = tr.get_retval()
+        switch_trace = SwitchTrace(
+            self, mask, branch_index, merged, args, retval, score
+        )
+        return key, (w, switch_trace, discard)
+
+    def update(self, key, prev, new, args):
+        switch = args[0]
+
+        def __inner(br):
+            return lambda key, prev, new, *args: self._update(
+                br,
+                key,
+                prev,
+                new,
+                args,
+            )
+
+        branch_functions = list(
+            map(
+                __inner,
+                self.branches.values(),
+            )
+        )
+
+        return jax.lax.switch(
+            switch,
+            branch_functions,
+            key,
+            prev,
+            new,
             *args[1:],
         )

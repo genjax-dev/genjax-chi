@@ -10,7 +10,7 @@ models that are expressive enough to permit models with random structure,
 including capturing notions of variable existence uncertainty. This is described in `Marco Cusumano-Towner's thesis`_.
 
 One useful reference implementation of these objects lies in `Gen.jl`_,
-an encoding of generative functions and inference in Julia. In :code:`GenJAX`,
+an encoding of generative functions and inference in Julia. In GenJAX,
 our implementation of these objects is akin to the :code:`static modeling language` of `Gen.jl`_ - we rely upon JAX to provide us with a useful intermediate representation for programs that we operate on using transformations.
 
 Speaking of the interface above, if you'd like to jump right to reading about this, visit :doc:`interface`.
@@ -18,7 +18,7 @@ Speaking of the interface above, if you'd like to jump right to reading about th
 What do generative functions look like in GenJAX?
 -------------------------------------------------
 
-A generative function in :code:`GenJAX` looks like a pure Python function,
+A generative function in GenJAX looks like a pure Python function,
 roughly the subset of Python acceptable by JAX.
 
 .. jupyter-execute::

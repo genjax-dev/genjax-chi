@@ -26,18 +26,19 @@ def add_normal_noise(key, x):
 
 mapped = genjax.MapCombinator(add_normal_noise)
 
-key = jax.random.PRNGKey(314159)
-key, *subkeys = jax.random.split(key, 3)
-arr = jnp.ones(2)
-subkeys = jnp.array(subkeys)
-key, tr = jax.jit(genjax.simulate(mapped))(subkeys, (arr,))
-print(tr.get_retval())
 
-chm = genjax.ChoiceMap({(1, "noise1"): 0.0})
-jitted = jax.jit(genjax.importance(mapped))
-key, (w, tr) = jitted(
-    subkeys,
-    chm,
-    (arr,),
-)
-print(w)
+def test_map_combinator_simulate(benchmark):
+    arr = jnp.ones(1000)
+    key = jax.random.PRNGKey(314159)
+    key, *subkeys = jax.random.split(key, 1001)
+    subkeys = jnp.array(subkeys)
+    benchmark(jax.jit(genjax.simulate(mapped)), subkeys, (arr,))
+
+
+def test_map_combinator_importance(benchmark):
+    arr = jnp.ones(1000)
+    chm = genjax.ChoiceMap({(k, "noise1"): 0.0 for k in range(0, 1000)})
+    key = jax.random.PRNGKey(314159)
+    key, *subkeys = jax.random.split(key, 1001)
+    subkeys = jnp.array(subkeys)
+    benchmark(jax.jit(genjax.importance(mapped)), subkeys, chm, (arr,))

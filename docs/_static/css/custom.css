@@ -26,6 +26,13 @@ dl.py.function {
   border-radius: 5px;
 }
 
+dl.py.class {
+  background-color: #eee;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 5px;
+}
+
 div.sphinxsidebar h3,
 h4 {
   font-family: pt-sans-pro, sans-serif;
@@ -52,7 +59,6 @@ span.pre {
 
 body {
   font-family: pt-sans-pro, sans-serif;
-  font-weight: 300;
   line-height: 19pt;
   margin: 0 auto;
 }
@@ -68,13 +74,13 @@ pre {
 blockquote {
   position: relative;
   padding-left: 1rem;
-  width: 90%;
+  padding-right: 1rem;
   background: #f9f9ff;
-  padding: 0.75rem 1rem 0.75rem 1rem;
-  font-family: pt-sans-pro-narrow, sans-serif;
+  font-family: pt-sans-pro, sans-serif;
   border: 0.5px solid #555599;
   padding-bottom: 0.25rem;
   margin-top: 10px;
+  margin-left: 0px;
 }
 
 div.body h1 {
