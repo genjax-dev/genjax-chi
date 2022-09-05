@@ -71,9 +71,15 @@
 <span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
 <span class="kn">import</span> <span class="nn">jax.tree_util</span> <span class="k">as</span> <span class="nn">jtu</span>
-<span class="kn">from</span> <span class="nn">genjax.builtin.trie</span> <span class="kn">import</span> <span class="n">Trie</span>
-<span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">Trace</span><span class="p">,</span> <span class="n">ChoiceMap</span>
+<span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">GenerativeFunction</span><span class="p">,</span>
+    <span class="n">Trace</span><span class="p">,</span>
+    <span class="n">Mask</span><span class="p">,</span>
+    <span class="n">mask</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">genjax.distributions.distribution</span> <span class="kn">import</span> <span class="n">ValueChoiceMap</span>
 <span class="kn">from</span> <span class="nn">genjax.builtin.shape_analysis</span> <span class="kn">import</span> <span class="n">trace_shape_no_toplevel</span>
+<span class="kn">from</span> <span class="nn">genjax.builtin.trie</span> <span class="kn">import</span> <span class="n">Trie</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
 
@@ -85,9 +91,7 @@
 <span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">SwitchTrace</span><span class="p">(</span><span class="n">Trace</span><span class="p">):</span>
     <span class="n">gen_fn</span><span class="p">:</span> <span class="n">GenerativeFunction</span>
-    <span class="n">mask</span><span class="p">:</span> <span class="nb">dict</span>
-    <span class="n">branch</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">trie</span><span class="p">:</span> <span class="n">Trie</span>
+    <span class="n">chm</span><span class="p">:</span> <span class="n">Mask</span>
     <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span>
     <span class="n">retval</span><span class="p">:</span> <span class="n">Any</span>
     <span class="n">score</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
@@ -96,7 +100,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
 
     <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">SwitchChoiceMap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">chm</span>
 
     <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_fn</span>
@@ -109,9 +113,7 @@
 
     <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">branch</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chm</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span>
@@ -120,44 +122,6 @@
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">SwitchTrace</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
-
-
-<span class="c1">#####</span>
-<span class="c1"># SwitchChoiceMap</span>
-<span class="c1">#####</span>
-
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">SwitchChoiceMap</span><span class="p">(</span><span class="n">ChoiceMap</span><span class="p">):</span>
-    <span class="n">trie</span><span class="p">:</span> <span class="n">Trie</span>
-    <span class="n">mask</span><span class="p">:</span> <span class="nb">dict</span>
-
-    <span class="k">def</span> <span class="nf">has_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">addr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span>
-        <span class="n">check</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">check</span>
-
-    <span class="k">def</span> <span class="nf">get_choice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">addr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">addr</span><span class="si">}</span><span class="s2"> not found in SwitchChoiceMap&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">),</span> <span class="p">()</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">SwitchChoiceMap</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
-        <span class="n">new</span> <span class="o">=</span> <span class="n">Trie</span><span class="p">({})</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="p">:</span>
-            <span class="n">new</span><span class="o">.</span><span class="n">set_node</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">fn</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">SwitchChoiceMap</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">get_choices_shallow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trie</span><span class="o">.</span><span class="n">get_choices_shallow</span><span class="p">()</span>
 
 
 <span class="c1">#####</span>
@@ -194,6 +158,32 @@
 <span class="sd">        implements a branch control flow pattern using each</span>
 <span class="sd">        provided internal generative function (see parameters) as</span>
 <span class="sd">        a potential branch.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    .. jupyter-execute::</span>
+
+<span class="sd">        import jax</span>
+<span class="sd">        import genjax</span>
+
+<span class="sd">        @genjax.gen</span>
+<span class="sd">        def branch_1(key):</span>
+<span class="sd">            key, x = genjax.trace(&quot;x1&quot;, genjax.Normal)(key, (0.0, 1.0))</span>
+<span class="sd">            return (key, )</span>
+
+<span class="sd">        @genjax.gen</span>
+<span class="sd">        def branch_2(key):</span>
+<span class="sd">            key, x = genjax.trace(&quot;x2&quot;, genjax.Bernoulli)(key, (0.3, ))</span>
+<span class="sd">            return (key, )</span>
+
+<span class="sd">        switch = genjax.SwitchCombinator(branch_1, branch_2)</span>
+
+<span class="sd">        key = jax.random.PRNGKey(314159)</span>
+<span class="sd">        jitted = jax.jit(genjax.simulate(switch))</span>
+<span class="sd">        key, _ = jitted(key, (0, ))</span>
+<span class="sd">        key, tr = jitted(key, (1, ))</span>
+<span class="sd">        print(tr)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">branches</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">GenerativeFunction</span><span class="p">]</span>
@@ -220,37 +210,28 @@
 
     <span class="c1"># This function does some compile-time code specialization</span>
     <span class="c1"># to produce a &quot;sum type&quot; - like trace.</span>
-    <span class="k">def</span> <span class="nf">compute_branch_coverage_trie</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">create_masked_trie</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="n">trie</span> <span class="o">=</span> <span class="n">Trie</span><span class="p">({})</span>
         <span class="k">for</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">br</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">values</span><span class="p">,</span> <span class="n">chm_treedef</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">trace_shape_no_toplevel</span><span class="p">(</span><span class="n">br</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-            <span class="c1"># shape = shape.strip_metadata()</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">shape</span><span class="o">.</span><span class="n">get_choices_shallow</span><span class="p">():</span>
-                <span class="n">trie</span><span class="o">.</span><span class="n">set_node</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">trie</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">trace_shape_no_toplevel</span><span class="p">(</span><span class="n">br</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
+                <span class="n">shape</span><span class="p">,</span>
+                <span class="n">is_leaf</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ValueChoiceMap</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">trie</span> <span class="o">=</span> <span class="n">trie</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mask</span><span class="p">(</span><span class="n">trie</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">emptied</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_branch_coverage_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">emptied</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
-            <span class="n">emptied</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">branch_index</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">branch_gen_fn</span><span class="p">)</span>
+        <span class="n">trie</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_masked_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">branch_gen_fn</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">merged</span> <span class="o">=</span> <span class="n">emptied</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">merged</span><span class="o">.</span><span class="n">get_choices_shallow</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">choices</span> <span class="o">=</span> <span class="n">mask</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">trie</span> <span class="o">=</span> <span class="n">trie</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">choices</span><span class="p">)</span>
         <span class="n">score</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span>
         <span class="n">args</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
         <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
-        <span class="n">switch_trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">branch_index</span><span class="p">,</span> <span class="n">merged</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">switch_trace</span>
+        <span class="n">trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trie</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">trace</span>
 
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -277,27 +258,15 @@
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">emptied</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_branch_coverage_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">emptied</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
-            <span class="n">emptied</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">branch_index</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">branch_gen_fn</span><span class="p">)</span>
+        <span class="n">trie</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_masked_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">branch_gen_fn</span><span class="o">.</span><span class="n">importance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">merged</span> <span class="o">=</span> <span class="n">emptied</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">merged</span><span class="o">.</span><span class="n">get_choices_shallow</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">choices</span> <span class="o">=</span> <span class="n">mask</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">trie</span> <span class="o">=</span> <span class="n">trie</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">choices</span><span class="p">)</span>
         <span class="n">score</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span>
         <span class="n">args</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
         <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
-        <span class="n">switch_trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">branch_index</span><span class="p">,</span> <span class="n">merged</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">switch_trace</span><span class="p">)</span>
+        <span class="n">trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trie</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">trace</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -325,69 +294,28 @@
             <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span> <span class="o">=</span> <span class="n">branch_gen_fn</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
-            <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_diff</span><span class="p">(</span>
-                <span class="n">br</span><span class="p">,</span>
-                <span class="n">key</span><span class="p">,</span>
-                <span class="n">prev</span><span class="p">,</span>
-                <span class="n">new</span><span class="p">,</span>
-                <span class="n">args</span><span class="p">,</span>
-            <span class="p">)</span>
-
-        <span class="n">branch_functions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
-            <span class="nb">map</span><span class="p">(</span>
-                <span class="n">__inner</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
-            <span class="p">)</span>
-        <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">switch</span><span class="p">(</span>
-            <span class="n">switch</span><span class="p">,</span>
-            <span class="n">branch_functions</span><span class="p">,</span>
-            <span class="n">key</span><span class="p">,</span>
-            <span class="n">prev</span><span class="p">,</span>
-            <span class="n">new</span><span class="p">,</span>
-            <span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
-        <span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">emptied</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_branch_coverage_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">emptied</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span>
-            <span class="n">emptied</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">branch_index</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">branch_gen_fn</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">branch_gen_fn</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">discard_option</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="n">trie</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_masked_trie</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span> <span class="o">=</span> <span class="n">branch_gen_fn</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">merged</span> <span class="o">=</span> <span class="n">emptied</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span> <span class="ow">in</span> <span class="n">merged</span><span class="o">.</span><span class="n">get_choices_shallow</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">has_choice</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">mask</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">discard</span> <span class="o">=</span> <span class="n">discard_option</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">discard</span><span class="p">)</span>
+        <span class="n">choices</span> <span class="o">=</span> <span class="n">mask</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">trie</span> <span class="o">=</span> <span class="n">trie</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">choices</span><span class="p">)</span>
         <span class="n">score</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()</span>
         <span class="n">args</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
         <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
-        <span class="n">switch_trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">branch_index</span><span class="p">,</span> <span class="n">merged</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">switch_trace</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span>
+        <span class="n">trace</span> <span class="o">=</span> <span class="n">SwitchTrace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trie</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">trace</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">discard_option</span> <span class="o">=</span> <span class="n">mask</span><span class="p">(</span><span class="n">prev</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
 
         <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update</span><span class="p">(</span>
                 <span class="n">br</span><span class="p">,</span>
                 <span class="n">key</span><span class="p">,</span>
                 <span class="n">prev</span><span class="p">,</span>
+                <span class="n">discard_option</span><span class="p">,</span>
                 <span class="n">new</span><span class="p">,</span>
                 <span class="n">args</span><span class="p">,</span>
             <span class="p">)</span>
@@ -438,6 +366,7 @@
 
 <h3>Navigation</h3>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../genjax/tour.html">A tour of fundamentals</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/gen_fn.html">What is a generative function?</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/interface.html">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/combinators.html">Generative function combinators</a></li>

@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#####
-# Welcome to the `genjax` tour!
-#####
-
 import jax
 import genjax
 
@@ -44,7 +40,7 @@ def g(key, x):
 def f(key, x):
     key, m0 = genjax.trace("m0", genjax.Bernoulli)(key, (x,), shape=(3, 3))
     key, m4 = genjax.trace("m4", g)(key, (x,))
-    key, m5 = genjax.trace("m5", genjax.Normal)(key, ())
+    key, m5 = genjax.trace("m5", genjax.Normal)(key, (0.0, 1.0))
     return key, (2 * m0 * m4, m5)
 
 
@@ -53,28 +49,33 @@ key = jax.random.PRNGKey(314159)
 
 # This just shows our raw (not yet desugared/codegen) syntax.
 expr = jax.make_jaxpr(f)(key, 0.3)
+print(expr)
 
-# Here's how you access the `simulate` GFI.
-key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
-
-# Here's how you access the `importance` GFI.
-chm = genjax.ChoiceMap({("m0",): True, ("m4", "m0", "m0"): False})
-key, (w, tr) = jax.jit(genjax.importance(f))(key, chm, (0.3,))
-
-# Here's how you access the `update` GFI.
-jitted = jax.jit(genjax.update(f))
-
-chm = genjax.ChoiceMap({("m0",): False})
-key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
-
-chm = genjax.ChoiceMap({("m4", "m0", "m0"): True})
-key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
-
-# Here's how you access the `arg_grad` interface.
-key, arg_grad = jax.jit(genjax.arg_grad(f, [1]))(key, tr, (0.3,))
-print(arg_grad)
-
-# Here's how you access the `choice_grad` interface.
-chm = genjax.ChoiceMap({("m5",): 0.2})
-key, choice_grad = genjax.choice_grad(f)(key, tr, chm, (0.3,))
-print(choice_grad["m5"])
+## Here's how you access the `simulate` GFI.
+# key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
+#
+## Here's how you access the `importance` GFI.
+# chm = genjax.ChoiceMap({("m0",): True, ("m4", "m0", "m0"): False})
+# key, (w, tr) = jax.jit(genjax.importance(f))(key, chm, (0.3,))
+# assert tr[("m4", "m0", "m0")] == False
+#
+## Here's how you access the `update` GFI.
+# jitted = jax.jit(genjax.update(f))
+#
+# chm = genjax.ChoiceMap({("m0",): False})
+# key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
+#
+# chm = genjax.ChoiceMap({("m4", "m0", "m0"): True})
+# key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
+# assert updated[("m4", "m0", "m0")] == True
+#
+## Here's how you access the `arg_grad` GFI.
+# jitted = jax.jit(genjax.arg_grad(f, argnums=1))
+# key, grad = jitted(key, tr, (0.3,))
+# print(grad)
+#
+## Here's how you access the `choice_grad` GFI.
+# jitted = jax.jit(genjax.choice_grad(f))
+# selected = genjax.Selection(["m5"])
+# key, choice_grad = jitted(key, tr, selected)
+# print(choice_grad["m5"])

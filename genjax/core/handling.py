@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
 import jax.core as jc
 from jax.util import safe_map, safe_zip
 from typing import Any, Dict, Sequence, Callable
@@ -34,6 +35,14 @@ class Handler:
     def __init__(self, handles: Sequence[jc.Primitive], callable: Callable):
         self.handles = handles
         self.callable = callable
+
+    def _transform(self, f, *args, **kwargs):
+        expr = jax.make_jaxpr(f, **kwargs)(*args)
+        fn = handle([self], expr)
+        return fn
+
+    def transform(self, f, **kwargs):
+        return lambda *args: self._transform(f, *args, **kwargs)
 
 
 #####
@@ -117,3 +126,18 @@ def eval_jaxpr_handler(
             return map(read, jaxpr.outvars)
 
     return eval_jaxpr_recurse(jaxpr.eqns, env, jaxpr.invars, args)
+
+
+# Our special interpreter -- allows us to dispatch with primitives,
+# and implements directed CPS-style code generation strategy.
+def I_prime(handler_stack, f):
+    return lambda *xs: eval_jaxpr_handler(
+        handler_stack, f.jaxpr, f.literals, *xs
+    )
+
+
+def handle(handler_stack, expr):
+    """
+    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
+    """
+    return I_prime(handler_stack, expr)

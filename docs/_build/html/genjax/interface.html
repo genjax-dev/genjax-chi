@@ -4,7 +4,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
     <title>Generative function interface &#8212; Gen ⊗ JAX</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
@@ -54,55 +54,6 @@ Python functions. When called with <code class="code docutils literal notranslat
 and <code class="code docutils literal notranslate"><span class="pre">**kwargs</span></code>, they return the corresponding
 <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> method.</p>
 <dl class="py function">
-<dt class="sig sig-object py" id="genjax.interface.sample">
-<span class="sig-prename descclassname"><span class="pre">genjax.interface.</span></span><span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/interface.html#sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.interface.sample" title="Permalink to this definition">¶</a></dt>
-<dd><p><code class="code docutils literal notranslate"><span class="pre">sample</span></code> accepts a function <code class="code docutils literal notranslate"><span class="pre">f</span></code> and
-returns a transformed function which implements the below semantics.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>key</strong> (<code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code>) – A JAX-compatible PRNGKey.</p></li>
-<li><p><strong>args</strong> (<code class="code docutils literal notranslate"><span class="pre">tuple</span></code>) – A tuple of argument values.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><p>Sample <span class="math notranslate nohighlight">\(t \sim p(\cdot;x)\)</span> and <span class="math notranslate nohighlight">\(r \sim p(\cdot;args, t)\)</span> and
-apply the return value function <code class="code docutils literal notranslate"><span class="pre">ret</span> <span class="pre">=</span> <span class="pre">f(args,</span> <span class="pre">t)</span></code>.</p>
-<p>Returns a tuple, with the first element an evolved PRNGKey,
-and the second element is the result of the return value function
-<code class="code docutils literal notranslate"><span class="pre">ret</span> <span class="pre">=</span> <span class="pre">f(args,</span> <span class="pre">t)</span></code></p>
-</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">(new_key:</span> <span class="pre">PRNGKey,</span> <span class="pre">ret:</span> <span class="pre">Any)</span></code></p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="jupyter_cell jupyter_container docutils container">
-<div class="cell_input code_cell docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
-<span class="kn">import</span> <span class="nn">genjax</span>
-
-<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
-<span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
-    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
-
-<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
-<span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">model</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>[DeviceArray(-0.10823099, dtype=float32)]
-</pre></div>
-</div>
-</div>
-</div>
-</dd></dl>
-
-<dl class="py function">
 <dt class="sig sig-object py" id="genjax.interface.simulate">
 <span class="sig-prename descclassname"><span class="pre">genjax.interface.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/interface.html#simulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.interface.simulate" title="Permalink to this definition">¶</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">simulate</span></code> accepts a function <code class="code docutils literal notranslate"><span class="pre">f</span></code> and
@@ -122,12 +73,12 @@ and the score in a <code class="code docutils literal notranslate"><span class="
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>A tuple, with the first element an evolved PRNGKey, and the second
-element is a <cite>Trace</cite> of the sampling execution of the generative
-function.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">(PRNGKey,</span> <span class="pre">Trace)</span></code></p>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>key</strong> (<code class="code docutils literal notranslate"><span class="pre">PRNGKey</span></code>) – An updated <code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code>.</p></li>
+<li><p><strong>tr</strong> (<code class="code docutils literal notranslate"><span class="pre">genjax.Trace</span></code>) – A representation of the recorded random choices, as well as
+inference metadata, accrued during the call.</p></li>
+</ul>
+</p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -138,7 +89,7 @@ function.</p>
 
 <span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
 <span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
 
 <span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
@@ -155,7 +106,12 @@ function.</p>
   choices=Trie(
     nodes={
       &#39;x&#39;:
-      DistributionTrace(gen_fn=_Normal(), args=(), value=f32[], score=f32[])
+      DistributionTrace(
+        gen_fn=_Normal(),
+        args=(0.0, 1.0),
+        value=f32[],
+        score=f32[]
+      )
     }
   ),
   score=f32[]
@@ -198,6 +154,7 @@ function.</p>
 
 <h3>Navigation</h3>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tour.html">A tour of fundamentals</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gen_fn.html">What is a generative function?</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="combinators.html">Generative function combinators</a></li>

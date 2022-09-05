@@ -42,7 +42,6 @@ if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`M
 """
 
 from .vector_choice_map import *
-from .dynamic import *
 from .switch import *
 from .map import *
 from .unfold import *

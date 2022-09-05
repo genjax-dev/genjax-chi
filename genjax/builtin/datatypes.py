@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
 import jax.numpy as jnp
-from typing import Callable, Tuple, Any
+from typing import Any, Callable, Tuple
 from dataclasses import dataclass
 from .trie import Trie
 from genjax.core.datatypes import (
@@ -26,13 +27,12 @@ from genjax.core.datatypes import (
 )
 from genjax.distributions.distribution import ValueChoiceMap
 from genjax.builtin.handlers import (
-    sample,
-    simulate,
-    importance,
-    diff,
-    update,
-    arg_grad,
-    choice_grad,
+    handler_sample,
+    handler_simulate,
+    handler_importance,
+    handler_update,
+    handler_arg_grad,
+    handler_choice_grad,
 )
 
 #####
@@ -72,9 +72,13 @@ class JAXTrace(Trace):
     def get_args(self):
         return self.args
 
-    def __getitem__(self, k):
+    def __getitem__(self, addr):
         trie = self.get_choices()
-        return trie[k]
+        choice = trie.get_choice(addr)
+        if choice.has_value():
+            return choice.get_value()
+        else:
+            return choice
 
 
 #####
@@ -90,7 +94,9 @@ class JAXChoiceMap(ChoiceMap):
         self.trie = Trie({})
         if isinstance(constraints, dict):
             for (k, v) in constraints.items():
-                self.trie[k] = ValueChoiceMap(v)
+                self.trie[k] = (
+                    v if isinstance(v, ChoiceMap) else ValueChoiceMap(v)
+                )
         elif isinstance(constraints, Trie):
             self.trie = constraints
         elif isinstance(constraints, JAXChoiceMap):
@@ -105,23 +111,29 @@ class JAXChoiceMap(ChoiceMap):
         return JAXChoiceMap(*xs)
 
     def has_choice(self, addr):
-        return self.trie.has_node(addr)
+        if self.trie.has_node(addr):
+            node = self.trie.get_node(addr)
+            return not isinstance(node, EmptyChoiceMap)
+        else:
+            return False
 
     def get_choice(self, addr):
+        if not self.trie.has_node(addr):
+            return EmptyChoiceMap()
         node = self.trie.get_node(addr)
         if isinstance(node, Trie):
             return JAXChoiceMap(node)
         else:
             return node
 
+    def has_value(self):
+        return False
+
+    def get_value(self):
+        raise Exception("JAXChoiceMap is not a value choice map.")
+
     def get_choices_shallow(self):
         return self.trie.nodes.items()
-
-    def map(self, fn):
-        new_trie = Trie({})
-        for (k, v) in self.get_choices_shallow():
-            new_trie.set_node(k, v.map(fn))
-        return JAXChoiceMap(new_trie)
 
     def strip_metadata(self):
         new_trie = Trie({})
@@ -167,6 +179,8 @@ class JAXSelection(Selection):
         return JAXSelection(*data, *xs)
 
     def filter(self, chm):
+        chm = chm.get_choices()
+
         def _inner(k, v):
             if self.trie.has_node(k):
                 sub = self.trie.get_node(k)
@@ -233,45 +247,40 @@ class JAXGenerativeFunction(GenerativeFunction):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return JAXGenerativeFunction(*xs)
+        return JAXGenerativeFunction(*data, *xs)
 
     def sample(self, key, args, **kwargs):
-        return sample(self.source)(key, args, **kwargs)
+        return handler_sample(self.source, **kwargs)(key, args)
 
     def simulate(self, key, args, **kwargs):
-        key, (f, args, r, chm, score) = simulate(self.source)(
-            key, args, **kwargs
+        key, (f, args, r, chm, score) = handler_simulate(self.source, **kwargs)(
+            key, args
         )
         return key, JAXTrace(f, args, r, chm, score)
 
     def importance(self, key, chm, args, **kwargs):
-        key, (w, (f, args, r, chm, score)) = importance(self.source)(
-            key, chm, args, **kwargs
-        )
+        key, (w, (f, args, r, chm, score)) = handler_importance(
+            self.source, **kwargs
+        )(key, chm, args)
         return key, (w, JAXTrace(f, args, r, chm, score))
 
-    def diff(self, key, prev, new, args, **kwargs):
-        return diff(self.source)(key, prev, new, args, **kwargs)
-
     def update(self, key, prev, new, args, **kwargs):
-        key, (w, (f, args, r, chm, score), discard) = update(self.source)(
-            key, prev, new, args, **kwargs
-        )
-        return key, (w, JAXTrace(f, args, r, chm, score), discard)
+        key, (w, (f, args, r, chm, score), discard) = handler_update(
+            self.source, **kwargs
+        )(key, prev, new, args)
+        return key, (w, JAXTrace(f, args, r, chm, score), JAXChoiceMap(discard))
 
-    def arg_grad(self, argnums):
-        return lambda key, tr, args, **kwargs: arg_grad(self.source, argnums)(
-            key, tr, args, **kwargs
-        )
+    def arg_grad(self, argnums, **kwargs):
+        return lambda key, tr, args: handler_arg_grad(
+            self.source, argnums, **kwargs
+        )(key, tr, args)
 
-    def choice_grad(self, key, tr, chm, args, **kwargs):
-        return choice_grad(self.source)(key, tr, chm, args, **kwargs)
-
-
-def gen(fn):
-    return JAXGenerativeFunction(fn)
-
-
-Trace = JAXTrace
-ChoiceMap = JAXChoiceMap
-Selection = JAXSelection
+    def choice_grad(self, key, tr, selected, **kwargs):
+        selected = selected.filter(tr).strip_metadata()
+        grad_fn = handler_choice_grad(self.source, **kwargs)
+        grad, key = jax.grad(
+            grad_fn,
+            argnums=2,
+            has_aux=True,
+        )(key, tr, selected)
+        return key, grad

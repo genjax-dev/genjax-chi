@@ -13,21 +13,6 @@
 # limitations under the License.
 
 import jax
-from genjax.core.handling import eval_jaxpr_handler
-
-# Our special interpreter -- allows us to dispatch with primitives,
-# and implements directed CPS-style code generation strategy.
-def I_prime(handler_stack, f):
-    return lambda *xs: eval_jaxpr_handler(
-        handler_stack, f.jaxpr, f.literals, *xs
-    )
-
-
-def handle(handler_stack, expr):
-    """
-    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
-    """
-    return I_prime(handler_stack, expr)
 
 
 def is_concrete(x):

@@ -19,12 +19,12 @@ import genjax
 
 @genjax.gen
 def add_normal_noise(key, x):
-    key, noise1 = genjax.trace("noise1", genjax.Normal)(key, ())
-    key, noise2 = genjax.trace("noise2", genjax.Normal)(key, ())
+    key, noise1 = genjax.trace("noise1", genjax.Normal)(key, (0.0, 1.0))
+    key, noise2 = genjax.trace("noise2", genjax.Normal)(key, (0.0, 1.0))
     return (key, x + noise1 + noise2)
 
 
-mapped = genjax.MapCombinator(add_normal_noise)
+mapped = genjax.MapCombinator(add_normal_noise, in_axes=(0, 0))
 
 
 def test_map_combinator_simulate(benchmark):
@@ -42,3 +42,13 @@ def test_map_combinator_importance(benchmark):
     key, *subkeys = jax.random.split(key, 1001)
     subkeys = jnp.array(subkeys)
     benchmark(jax.jit(genjax.importance(mapped)), subkeys, chm, (arr,))
+
+
+def test_map_combinator_update(benchmark):
+    arr = jnp.ones(1000)
+    key = jax.random.PRNGKey(314159)
+    key, *subkeys = jax.random.split(key, 1001)
+    subkeys = jnp.array(subkeys)
+    _, tr = jax.jit(genjax.simulate(mapped))(subkeys, (arr,))
+    chm = genjax.ChoiceMap({(k, "noise1"): 1.0 for k in range(0, 30)})
+    benchmark(jax.jit(genjax.update(mapped)), subkeys, tr, chm, (arr,))

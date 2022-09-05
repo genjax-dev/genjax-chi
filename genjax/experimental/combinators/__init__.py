@@ -12,23 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import genjax
-
-key = jax.random.PRNGKey(314159)
-
-
-@genjax.gen
-def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, ())
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, ())
-    return key, y1 + y2
-
-
-class TestDiff:
-    def test_simple_normal_diff(self, benchmark):
-        new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
-        original = tr.get_choices()[("y1",)]
-        new = genjax.ChoiceMap({("y1",): 2.0})
-        jitted = jax.jit(genjax.diff(simple_normal))
-        new_key, (w, ret) = benchmark(jitted, key, tr, new, ())
+from .recurse import *

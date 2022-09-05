@@ -27,49 +27,6 @@ and :code:`**kwargs`, they return the corresponding
 """
 
 
-def sample(f, **kwargs):
-    """
-    :code:`sample` accepts a function :code:`f` and
-    returns a transformed function which implements the below semantics.
-
-    Parameters
-    ----------
-    key: :code:`jax.random.PRNGKey`
-        A JAX-compatible PRNGKey.
-
-    args: :code:`tuple`
-        A tuple of argument values.
-
-    Returns
-    -------
-    :code:`(new_key: PRNGKey, ret: Any)`
-        Sample :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and
-        apply the return value function :code:`ret = f(args, t)`.
-
-        Returns a tuple, with the first element an evolved PRNGKey,
-        and the second element is the result of the return value function
-        :code:`ret = f(args, t)`
-
-    Example
-    -------
-
-    .. jupyter-execute::
-
-        import jax
-        import genjax
-
-        @genjax.gen
-        def model(key):
-            key, x = genjax.trace("x", genjax.Normal)(key, ())
-            return key, x
-
-        key = jax.random.PRNGKey(314159)
-        key, x = genjax.sample(model)(key, ())
-        print(x)
-    """
-    return lambda *args: f.sample(*args, **kwargs)
-
-
 def simulate(f, **kwargs):
     """
     :code:`simulate` accepts a function :code:`f` and
@@ -95,10 +52,12 @@ def simulate(f, **kwargs):
 
     Returns
     -------
-    :code:`(PRNGKey, Trace)`
-        A tuple, with the first element an evolved PRNGKey, and the second
-        element is a `Trace` of the sampling execution of the generative
-        function.
+    key: :code:`PRNGKey`
+        An updated :code:`jax.random.PRNGKey`.
+
+    tr: :code:`genjax.Trace`
+        A representation of the recorded random choices, as well as
+        inference metadata, accrued during the call.
 
     Example
     -------
@@ -110,7 +69,7 @@ def simulate(f, **kwargs):
 
         @genjax.gen
         def model(key):
-            key, x = genjax.trace("x", genjax.Normal)(key, ())
+            key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
             return key, x
 
         key = jax.random.PRNGKey(314159)

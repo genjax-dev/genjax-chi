@@ -21,9 +21,10 @@ These handlers build on top of the CPS/effect handling interpreter
 in `genjax.core`.
 """
 
-import jax
 import jax.tree_util as jtu
-from genjax.core import Handler, handle
+from genjax.core import Handler
+from genjax.core.datatypes import collapse_mask, mask
+from genjax.core.specialization import concrete_cond
 from .trie import Trie
 from .intrinsics import gen_fn_p
 
@@ -59,16 +60,6 @@ class Sample(Handler):
             key, *ret = f(key, *v)
             return key, ret
 
-    # Transform a function and return a function which implements
-    # the semantics of `simulate` from Gen.
-    def _transform(self, f, *args):
-        expr = jax.make_jaxpr(f)(*args)
-        fn = handle([self], expr)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
 
 class Simulate(Handler):
     def __init__(self):
@@ -76,7 +67,6 @@ class Simulate(Handler):
             gen_fn_p,
         ]
         self.state = Trie({})
-        self.level = []
         self.score = 0.0
         self.return_or_continue = False
 
@@ -95,16 +85,6 @@ class Simulate(Handler):
             key, *ret = f(key, *v)
             return key, (ret, self.state, self.score)
 
-    # Transform a function and return a function which implements
-    # the semantics of `simulate` from Gen.
-    def _transform(self, f, *args):
-        expr = jax.make_jaxpr(f)(*args)
-        fn = handle([self], expr)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
 
 class Importance(Handler):
     def __init__(self, constraints):
@@ -112,7 +92,6 @@ class Importance(Handler):
             gen_fn_p,
         ]
         self.state = Trie({})
-        self.level = []
         self.score = 0.0
         self.weight = 0.0
         self.constraints = constraints
@@ -120,18 +99,28 @@ class Importance(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        if self.constraints.has_choice(addr):
-            chm = self.constraints.get_choice(addr)
-            key, (w, tr) = gen_fn.importance(key, chm, args)
-            self.state[addr] = tr
-            self.score += tr.get_score()
-            self.weight += w
-            v = tr.get_retval()
-        else:
+        def _simulate_branch(key, args):
             key, tr = gen_fn.simulate(key, args)
-            self.state[addr] = tr
-            self.score += tr.get_score()
-            v = tr.get_retval()
+            return key, (0.0, tr)
+
+        def _importance_branch(key, args):
+            submap = self.constraints.get_choice(addr)
+            key, (w, tr) = gen_fn.importance(key, submap, args)
+            return key, (w, tr)
+
+        check = self.constraints.has_choice(addr)
+        key, (w, tr) = concrete_cond(
+            check,
+            _importance_branch,
+            _simulate_branch,
+            key,
+            args,
+        )
+
+        self.state[addr] = tr
+        self.score += tr.get_score()
+        self.weight += w
+        v = tr.get_retval()
 
         if self.return_or_continue:
             return f(key, *v)
@@ -140,77 +129,16 @@ class Importance(Handler):
             key, *ret = f(key, *v)
             return key, (self.weight, ret, self.state, self.score)
 
-    # Transform a function and return a function which implements
-    # the semantics of `generate` from Gen.
-    def _transform(self, f, *args):
-        expr = jax.make_jaxpr(f)(*args)
-        fn = handle([self], expr)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
-
-class Diff(Handler):
-    def __init__(self, prev, new):
-        self.handles = [
-            gen_fn_p,
-        ]
-        self.level = []
-        self.weight = 0.0
-        self.prev = prev.get_choices()
-        self.choice_change = new
-        self.return_or_continue = False
-
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_previous = self.prev.has_choice(addr)
-        constrained = self.choice_change.has_choice(addr)
-
-        if has_previous:
-            prev_tr = self.prev.get_choice(addr)
-
-        if constrained:
-            chm = self.choice_change.get_choice(addr)
-
-        if has_previous and constrained:
-            key, (w, v) = gen_fn.diff(key, prev_tr, chm, args)
-            self.weight += w
-        elif has_previous:
-            v = prev_tr.get_retval()
-        elif constrained:
-            key, (w, tr) = gen_fn.importance(key, chm, args)
-            self.weight += w
-            v = tr.get_retval()
-
-        if self.return_or_continue:
-            return f(key, *v)
-        else:
-            self.return_or_continue = True
-            key, *ret = f(key, *v)
-            return key, (self.weight, ret)
-
-    # Transform a function and return a function which implements
-    # the semantics of `generate` from Gen.
-    def _transform(self, f, *args):
-        expr = jax.make_jaxpr(f)(*args)
-        fn = handle([self], expr)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
 
 class Update(Handler):
     def __init__(self, prev, new):
         self.handles = [
             gen_fn_p,
         ]
-        self.level = []
         self.state = Trie({})
         self.discard = Trie({})
         self.weight = 0.0
-        self.prev = prev.get_choices()
+        self.prev = prev
         self.choice_change = new
         self.return_or_continue = False
 
@@ -218,24 +146,45 @@ class Update(Handler):
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
         has_previous = self.prev.has_choice(addr)
         constrained = self.choice_change.has_choice(addr)
-        if has_previous:
+
+        def _update_branch(key, args):
             prev_tr = self.prev.get_choice(addr)
-        if constrained:
             chm = self.choice_change.get_choice(addr)
-        if has_previous and constrained:
             key, (w, tr, discard) = gen_fn.update(key, prev_tr, chm, args)
-            self.weight += w
-            self.state[addr] = tr
-            self.discard[addr] = discard
-            v = tr.get_retval()
-        elif has_previous:
-            self.state[addr] = prev_tr
-            v = prev_tr.get_retval()
-        elif constrained:
+            return key, (w, tr, discard)
+
+        def _has_prev_branch(key, args):
+            prev_tr = self.prev.get_choice(addr)
+            w = 0.0
+            discard = mask(prev_tr.get_choices(), False)
+            return key, (w, prev_tr, discard)
+
+        def _constrained_branch(key, args):
+            prev_tr = self.prev.get_choice(addr)
+            chm = self.choice_change.get_choice(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args)
-            v = tr.get_retval()
-            self.state[addr] = tr
-            self.weight += w
+            discard = mask(prev_tr.get_choices(), False)
+            return key, (w, tr, discard)
+
+        key, (w, tr, discard) = concrete_cond(
+            has_previous and constrained,
+            _update_branch,
+            lambda key, args: concrete_cond(
+                has_previous,
+                _has_prev_branch,
+                _constrained_branch,
+                key,
+                args,
+            ),
+            key,
+            args,
+        )
+
+        discard = collapse_mask(discard)
+        self.weight += w
+        self.state[addr] = tr
+        self.discard[addr] = discard
+        v = tr.get_retval()
 
         if self.return_or_continue:
             return f(key, *v)
@@ -244,14 +193,6 @@ class Update(Handler):
             key, *ret = f(key, *v)
             return key, (self.weight, ret, self.state, self.discard)
 
-    def _transform(self, f, *args):
-        expr = jax.make_jaxpr(f)(*args)
-        fn = handle([self], expr)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
 
 class ArgumentGradients(Handler):
     def __init__(self, tr, argnums):
@@ -259,22 +200,34 @@ class ArgumentGradients(Handler):
             gen_fn_p,
         ]
         self.argnums = argnums
-        self.level = []
         self.score = 0.0
         self.source = tr.get_choices()
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        if self.source.has_choice(addr):
+        has_source = self.source.has_choice(addr)
+
+        def _has_source_branch(key, args):
             sub_tr = self.source.get_choice(addr)
             chm = sub_tr.get_choices()
             key, (w, tr) = gen_fn.importance(key, chm, args)
             v = tr.get_retval()
-            self.score += w
-        else:
+            return (w, v)
+
+        def _no_source_branch(key, args):
             key, tr = gen_fn.simulate(key, args)
             v = tr.get_retval()
+            return (0.0, v)
+
+        w, v = concrete_cond(
+            has_source,
+            _has_source_branch,
+            _no_source_branch,
+            key,
+            args,
+        )
+        self.score += w
 
         if self.return_or_continue:
             return f(key, *v)
@@ -283,33 +236,47 @@ class ArgumentGradients(Handler):
             key, *_ = f(key, *v)
             return self.score, key
 
-    def _transform(self, f, *args):
-        expr = jax.make_jaxpr(f)(*args)
-        fn = handle([self], expr)
-        fn = jax.grad(fn, self.argnums, has_aux=True)
-        return fn
-
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
-
 
 class ChoiceGradients(Handler):
-    def __init__(self, tr):
-        self.tr = tr
+    def __init__(self, source, selected):
+        self.handles = [
+            gen_fn_p,
+        ]
+        self.source = source
+        self.selected = selected
+        self.score = 0.0
+        self.return_or_continue = False
 
-    def _transform(self, f, key, *args):
-        def diff(key, chm):
-            handler = Diff(self.tr, chm)
-            expr = jax.make_jaxpr(f)(key, *args)
-            fn = handle([handler], expr)
-            key, (w, _) = fn(key, *args)
-            return self.tr.get_score() + w, key
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+        has_selected = self.selected.has_choice(addr)
 
-        gradded = jax.grad(diff, argnums=1, allow_int=True, has_aux=True)
-        return gradded
+        def _has_selected_branch(key, args):
+            chm = self.selected.get_choice(addr)
+            key, (w, tr) = gen_fn.importance(key, chm, args)
+            v = tr.get_retval()
+            return (w, v)
 
-    def transform(self, f):
-        return lambda *args: self._transform(f, *args)
+        def _not_selected_branch(key, args):
+            tr = self.source.get_choice(addr)
+            v = tr.get_retval()
+            return (0.0, v)
+
+        w, v = concrete_cond(
+            has_selected,
+            _has_selected_branch,
+            _not_selected_branch,
+            key,
+            args,
+        )
+        self.score += w
+
+        if self.return_or_continue:
+            return f(key, *v)
+        else:
+            self.return_or_continue = True
+            key, *_ = f(key, *v)
+            return self.score, key
 
 
 #####
@@ -317,9 +284,9 @@ class ChoiceGradients(Handler):
 #####
 
 
-def sample(f):
+def handler_sample(f, **kwargs):
     def _inner(key, args):
-        fn = Sample().transform(f)(key, *args)
+        fn = Sample().transform(f, **kwargs)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         key, v = fn(key, *in_args)
         return key, v
@@ -327,9 +294,9 @@ def sample(f):
     return lambda key, args: _inner(key, args)
 
 
-def simulate(f):
+def handler_simulate(f, **kwargs):
     def _inner(key, args):
-        fn = Simulate().transform(f)(key, *args)
+        fn = Simulate().transform(f, **kwargs)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         key, (r, chm, score) = fn(key, *in_args)
         return key, (f, args, tuple(r), chm, score)
@@ -337,9 +304,9 @@ def simulate(f):
     return lambda key, args: _inner(key, args)
 
 
-def importance(f):
+def handler_importance(f, **kwargs):
     def _inner(key, chm, args):
-        fn = Importance(chm).transform(f)(key, *args)
+        fn = Importance(chm).transform(f, **kwargs)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         key, (w, r, chm, score) = fn(key, *in_args)
         return key, (w, (f, args, tuple(r), chm, score))
@@ -347,19 +314,9 @@ def importance(f):
     return lambda key, chm, args: _inner(key, chm, args)
 
 
-def diff(f):
+def handler_update(f, **kwargs):
     def _inner(key, prev, new, args):
-        fn = Diff(prev, new).transform(f)(key, *args)
-        in_args, _ = jtu.tree_flatten(args)
-        key, (w, ret) = fn(key, *in_args)
-        return key, (w, ret)
-
-    return lambda key, prev, new, args: _inner(key, prev, new, args)
-
-
-def update(f):
-    def _inner(key, prev, new, args):
-        fn = Update(prev, new).transform(f)(key, *args)
+        fn = Update(prev, new).transform(f, **kwargs)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         key, (w, ret, chm, discard) = fn(key, *in_args)
         return key, (
@@ -371,9 +328,9 @@ def update(f):
     return lambda key, prev, new, args: _inner(key, prev, new, args)
 
 
-def arg_grad(f, argnums):
+def handler_arg_grad(f, argnums, **kwargs):
     def _inner(key, tr, args):
-        fn = ArgumentGradients(tr, argnums).transform(f)(key, *args)
+        fn = ArgumentGradients(tr, argnums).transform(f, **kwargs)(key, *args)
         in_args, _ = jtu.tree_flatten(args)
         arg_grads, key = fn(key, *in_args)
         return key, arg_grads
@@ -381,10 +338,12 @@ def arg_grad(f, argnums):
     return lambda key, tr, args: _inner(key, tr, args)
 
 
-def choice_grad(f):
-    def _inner(key, tr, chm, args):
-        fn = ChoiceGradients(tr).transform(f)(key, *args)
-        choice_grads, key = fn(key, chm)
-        return key, choice_grads
+def handler_choice_grad(f, **kwargs):
+    def _inner(key, tr, selected):
+        args = tr.get_args()
+        fn = ChoiceGradients(tr, selected).transform(f, **kwargs)(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        key, score = fn(key, *in_args)
+        return key, score
 
-    return lambda key, tr, chm, args: _inner(key, tr, chm, args)
+    return lambda key, tr, selected: _inner(key, tr, selected)

@@ -24,11 +24,10 @@ and :code:`vmap`d.
 
 import jax.tree_util as jtu
 import numpy as np
-from genjax.core.datatypes import ChoiceMap, Trace
+from genjax.core.datatypes import ChoiceMap, Trace, EmptyChoiceMap
 from genjax.core.pytree import tree_stack
-from genjax.distributions.distribution import ValueChoiceMap
+from genjax.builtin.datatypes import JAXChoiceMap
 from dataclasses import dataclass
-from typing import Any
 
 #####
 # VectorChoiceMap
@@ -39,25 +38,28 @@ from typing import Any
 class VectorChoiceMap(ChoiceMap):
     subtrace: Trace
     length: int
-    treedef: Any
+
+    def __init__(self, subtrace, length):
+        if isinstance(subtrace, dict):
+            self.subtrace = JAXChoiceMap(subtrace)
+        else:
+            self.subtrace = subtrace
+        self.length = length
 
     def flatten(self):
-        return (self.subtrace, self.length), (self.treedef,)
+        return (self.subtrace,), (self.length,)
 
     @classmethod
     def unflatten(cls, data, xs):
-        return VectorChoiceMap(*data, *xs)
+        return VectorChoiceMap(*xs, *data)
 
-    def get_choice(self, addr):
-        if isinstance(addr, int):
-            slice = jtu.tree_map(lambda v: v[addr], self.subtrace)
-            return slice
-        elif isinstance(addr, tuple):
-            index = addr[0]
-            assert isinstance(index, int)
-            slice = jtu.tree_map(lambda v: v[index], self.subtrace)
-            rest = addr[1:]
-            return slice.get_choice(rest)
+    def get_choice(self, *addr):
+        first = addr[0]
+        if isinstance(first, int):
+            slice = jtu.tree_map(lambda v: v[first], self.subtrace)
+            return slice.get_choice(*addr[1:])
+        else:
+            return EmptyChoiceMap()
 
     def has_choice(self, addr):
         if isinstance(addr, int):
@@ -75,18 +77,17 @@ class VectorChoiceMap(ChoiceMap):
         rest = addr[1:]
         return self.subtrace.get_choices().has_choice(rest)
 
+    def has_value(self):
+        return False
+
+    def get_value(self):
+        raise Exception("VectorChoiceMap is not a value choice map.")
+
     # TODO.
     def get_choices_shallow(self):
         return ()
 
-    def map(self, fn):
-        chm = self.subtrace.get_choices()
-        return chm.map(fn)
 
-
-# This doesn't return an actual `VectorChoiceMap`, but is a utility
-# used by both `Unfold` and `Map` to create a broadcasted chm
-# and a mask, for use with `DynamicJAXGenerativeFunction`.
 def prepare_vectorized_choice_map(shape, treedef, length, chm):
     chm_vectored = []
     mask_vectored = []
@@ -103,11 +104,6 @@ def prepare_vectorized_choice_map(shape, treedef, length, chm):
         else:
             mask = [False for (k, _) in shape.get_choices_shallow()]
             mask = jtu.tree_unflatten(treedef, mask)
-        mask = jtu.tree_map(
-            lambda v: v.value,
-            mask,
-            is_leaf=lambda v: isinstance(v, ValueChoiceMap),
-        )
         chm_vectored.append(emptied)
         mask_vectored.append(mask)
     mask_vectored = tree_stack(mask_vectored)

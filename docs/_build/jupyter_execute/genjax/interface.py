@@ -9,23 +9,7 @@ import genjax
 
 @genjax.gen
 def model(key):
-    key, x = genjax.trace("x", genjax.Normal)(key, ())
-    return key, x
-
-key = jax.random.PRNGKey(314159)
-key, x = genjax.sample(model)(key, ())
-print(x)
-
-
-# In[2]:
-
-
-import jax
-import genjax
-
-@genjax.gen
-def model(key):
-    key, x = genjax.trace("x", genjax.Normal)(key, ())
+    key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
     return key, x
 
 key = jax.random.PRNGKey(314159)

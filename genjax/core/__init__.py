@@ -14,23 +14,18 @@
 
 """
 This module provides the core functionality which the `GenJAX` modeling 
-and inference modules are buillt on top of.
+and inference modules are buillt on top of, as well as utility functionality 
+for coercing class definitions to valid `Pytree` method implementors 
+(guaranteeing compatibility with JAX's serializing/deserializing to `Pytree` instances).
 
-This consists of 2 main components:
-
-1. A CPS/effect handling interpreter in `handling.py`
-2. An abstract propagation interpreter in `propagating.py`
-
-As well as utility functionality for coercing class definitions to valid `Pytree` method implementors (guaranteeing compatibility with JAX's serializing/deserializing to `Pytree` instances).
-
-This module also exports some "core" transformations on `Jaxpr` instances -- allowing the interpreters to run on `Jaxpr`
-representations of Python functions.
+This module also exports some "core" transformations on `Jaxpr` 
+instances - allowing the interpreters to run on `Jaxpr` representations 
+of Python functions.
 """
 
 from .datatypes import *
 from .handling import *
-from .propagating import *
-from .transforms import *
+from .specialization import *
 from .pytree import *
 from .pretty_printer import *
 from .serialization import *

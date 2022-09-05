@@ -16,6 +16,9 @@ import abc
 from dataclasses import dataclass
 from genjax.core.pytree import Pytree
 import genjax.core.pretty_printer as pp
+from genjax.core.specialization import concrete_cond, is_concrete
+import jax.tree_util as jtu
+from typing import Any
 
 #####
 # GenerativeFunction
@@ -52,13 +55,14 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
     def unflatten(cls, data, xs):
         pass
 
+    @abc.abstractmethod
+    def __call__(self, key, *args):
+        pass
+
     def simulate(self, key, args):
         pass
 
     def importance(self, key, chm, args):
-        pass
-
-    def diff(self, key, original, new, args):
         pass
 
     def update(self, key, original, new, args):
@@ -78,15 +82,76 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
 
 
 #####
+# Trace
+#####
+
+
+@dataclass
+class Trace(Pytree, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def get_retval(self):
+        pass
+
+    @abc.abstractmethod
+    def get_score(self):
+        pass
+
+    @abc.abstractmethod
+    def get_args(self):
+        pass
+
+    @abc.abstractmethod
+    def get_choices(self):
+        pass
+
+    @abc.abstractmethod
+    def get_gen_fn(self):
+        pass
+
+    def has_choice(self, addr):
+        choices = self.get_choices()
+        return choices.has_choice(addr)
+
+    def get_choice(self, addr):
+        choices = self.get_choices()
+        return choices.get_choice(addr)
+
+    def has_value(self):
+        choices = self.get_choices()
+        return choices.has_value()
+
+    def get_value(self):
+        choices = self.get_choices()
+        return choices.get_value()
+
+    def get_choices_shallow(self):
+        choices = self.get_choices()
+        return choices.get_choices_shallow()
+
+    def strip_metadata(self):
+        return self.get_choices().strip_metadata()
+
+    def __repr__(self):
+        return pp.tree_pformat(self)
+
+    def __str__(self):
+        return pp.tree_pformat(self)
+
+    def __getitem__(self, addr):
+        choice = self.get_choice(addr)
+        if choice.has_value():
+            return choice.get_value()
+        else:
+            return choice
+
+
+#####
 # ChoiceMap
 #####
 
 
 @dataclass
 class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
-    def get_choices(self):
-        return self
-
     # Implement the `Pytree` interface methods.
     @abc.abstractmethod
     def flatten(self):
@@ -106,12 +171,19 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def get_choices_shallow(self):
+    def has_value(self):
         pass
 
     @abc.abstractmethod
-    def map(self, fn):
+    def get_value(self):
         pass
+
+    @abc.abstractmethod
+    def get_choices_shallow(self):
+        pass
+
+    def get_choices(self):
+        return self
 
     def to_selection(self):
         return NoneSelection()
@@ -122,8 +194,12 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
     def __str__(self):
         return pp.tree_pformat(self)
 
-    def __getitem__(self, k):
-        return self.get_choice(k)
+    def __getitem__(self, addr):
+        choice = self.get_choice(addr)
+        if choice.has_value():
+            return choice.get_value()
+        else:
+            return choice
 
 
 @dataclass
@@ -135,17 +211,146 @@ class EmptyChoiceMap(ChoiceMap):
     def unflatten(cls, data, xs):
         return EmptyChoiceMap()
 
-    def has_choice(self, k):
+    def has_choice(self, addr):
         return False
 
-    def get_choice(self, k):
+    def get_choice(self, addr):
         raise Exception("EmptyChoiceMap does not address any values.")
+
+    def has_value(self):
+        return False
+
+    def get_value(self):
+        raise Exception("EmptyChoiceMap is not a value choice map.")
 
     def get_choices_shallow(self):
         return ()
 
-    def map(self, fn):
-        return fn(())
+    def strip_metadata(self):
+        return self
+
+
+@dataclass
+class Mask(ChoiceMap, Trace):
+    inner: Any
+    mask: Any
+
+    def __init__(self, inner, mask):
+        self.inner = inner
+        self.mask = mask
+
+    def flatten(self):
+        return (self.inner, self.mask), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return Mask(*data, *xs)
+
+    def has_choice(self, addr):
+        if not self.mask.has_choice(addr):
+            return False
+        check = self.mask.get_choice(addr)
+        if isinstance(check, ChoiceMap) and check.has_value():
+            return check.get_value()
+        else:
+            return concrete_cond(
+                check,
+                lambda *addr: True,
+                lambda *addr: False,
+            )
+
+    def get_choice(self, addr):
+        if not self.inner.has_choice(addr):
+            return EmptyChoiceMap()
+        else:
+            check = self.mask.get_choice(addr)
+            inner = self.inner.get_choice(addr)
+            return Mask(inner, check)
+
+    def has_value(self):
+        mask_chm = self.mask.get_choices()
+        if mask_chm.has_value():
+            check = mask_chm.get_value()
+            return check
+        else:
+            return False
+
+    def get_value(self):
+        return self.inner.get_value()
+
+    def get_choices_shallow(self):
+        def _inner(k, v):
+            return k, Mask(v, self.mask.get_choice(k))
+
+        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
+
+    def merge(self, other):
+        if isinstance(other, Mask):
+            return Mask(
+                self.inner.merge(other.inner), self.mask.merge(other.mask)
+            )
+        else:
+            mask_other = mask(other, True)
+            return self.merge(mask_other)
+
+    def get_retval(self):
+        if isinstance(self.inner, Trace):
+            return self.inner.get_retval()
+        else:
+            raise Exception("Mask does not mask a trace.")
+
+    def get_args(self):
+        if isinstance(self.inner, Trace):
+            return self.inner.get_args()
+        else:
+            raise Exception("Mask does not mask a trace.")
+
+    def get_score(self):
+        if isinstance(self.inner, Trace):
+            return self.inner.get_score()
+        else:
+            raise Exception("Mask does not mask a trace.")
+
+    def get_gen_fn(self):
+        if isinstance(self.inner, Trace):
+            return self.inner.get_gen_fn()
+        else:
+            raise Exception("Mask does not mask a trace.")
+
+
+# This is quite complicated -- it's sort of a "postwalk" style
+# pattern which traverses `Pytree`-structured data and simultaneously unwraps
+# inner `Mask` instances (pulling `Mask` to the toplevel wrapper) as well
+# as filling the mask with `fill`.
+def mask(v, fill):
+    if isinstance(v, Mask):
+        new_mask = jtu.tree_map(lambda v: fill, v.inner)
+        return Mask(v.inner, new_mask)
+    else:
+        sub = jtu.tree_map(
+            lambda v: v.inner if isinstance(v, Mask) else v,
+            v,
+            is_leaf=lambda v: isinstance(v, Mask),
+        )
+        new_mask = jtu.tree_map(
+            lambda v: mask(v, True).mask if isinstance(v, Mask) else fill,
+            v,
+            is_leaf=lambda v: isinstance(v, Mask),
+        )
+        return Mask(sub, new_mask)
+
+
+def collapse_mask(chm):
+    def _inner(v):
+        if isinstance(v, Mask):
+            if is_concrete(v.has_value()):
+                return v.inner
+            else:
+                return v
+        else:
+            return v
+
+    return jtu.tree_map(_inner, chm, is_leaf=lambda v: isinstance(v, Mask))
 
 
 #####
@@ -210,52 +415,3 @@ class NoneSelection(Selection):
 
     def complement(self):
         return AllSelection()
-
-
-#####
-# Trace
-#####
-
-
-@dataclass
-class Trace(Pytree, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def get_retval(self):
-        pass
-
-    @abc.abstractmethod
-    def get_score(self):
-        pass
-
-    @abc.abstractmethod
-    def get_args(self):
-        pass
-
-    @abc.abstractmethod
-    def get_choices(self):
-        pass
-
-    @abc.abstractmethod
-    def get_gen_fn(self):
-        pass
-
-    def has_choice(self, addr):
-        choices = self.get_choices()
-        return choices.has_choice(addr)
-
-    def get_choice(self, addr):
-        choices = self.get_choices()
-        return choices.get_choice(addr)
-
-    def get_choices_shallow(self):
-        choices = self.get_choices()
-        return choices.get_choices_shallow()
-
-    def strip_metadata(self):
-        return self.get_choices().strip_metadata()
-
-    def __repr__(self):
-        return pp.tree_pformat(self)
-
-    def __str__(self):
-        return pp.tree_pformat(self)

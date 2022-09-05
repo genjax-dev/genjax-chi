@@ -35,4 +35,4 @@ class _MultivariateNormal(Distribution):
         return jnp.sum(jax.scipy.stats.norm.logpdf(v))
 
 
-MultivariateNormal = _MultivariateNormal()
+MvNormal = _MultivariateNormal()

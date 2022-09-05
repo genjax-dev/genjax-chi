@@ -21,8 +21,8 @@ key = jax.random.PRNGKey(314159)
 
 @genjax.gen
 def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, ())
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, ())
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, (0.0, 1.0))
+    key, y2 = genjax.trace("y2", genjax.Normal)(key, (0.0, 1.0))
     return key, y1 + y2
 
 
@@ -38,10 +38,14 @@ class TestUpdate:
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
-        _, (score1, _) = genjax.Normal.importance(key, updated_chm["y1"], ())
-        _, (score2, _) = genjax.Normal.importance(key, updated_chm["y2"], ())
+        _, (score1, _) = genjax.Normal.importance(
+            key, updated_chm.get_choice("y1"), (0.0, 1.0)
+        )
+        _, (score2, _) = genjax.Normal.importance(
+            key, updated_chm.get_choice("y2"), (0.0, 1.0)
+        )
         test_score = score1 + score2
-        assert original_chm[("y1",)].get_choices() == discard[("y1",)]
+        assert original_chm[("y1",)] == discard[("y1",)]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -51,8 +55,12 @@ class TestUpdate:
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
-        _, (score1, _) = genjax.Normal.importance(key, updated_chm["y1"], ())
-        _, (score2, _) = genjax.Normal.importance(key, updated_chm["y2"], ())
+        _, (score1, _) = genjax.Normal.importance(
+            key, updated_chm.get_choice("y1"), (0.0, 1.0)
+        )
+        _, (score2, _) = genjax.Normal.importance(
+            key, updated_chm.get_choice("y2"), (0.0, 1.0)
+        )
         test_score = score1 + score2
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)

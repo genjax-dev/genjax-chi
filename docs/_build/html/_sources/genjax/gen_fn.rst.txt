@@ -9,9 +9,15 @@ Formally, generative functions are mathematical representation of probabilistic
 models that are expressive enough to permit models with random structure,
 including capturing notions of variable existence uncertainty. This is described in `Marco Cusumano-Towner's thesis`_.
 
-One useful reference implementation of these objects lies in `Gen.jl`_,
-an encoding of generative functions and inference in Julia. In GenJAX,
-our implementation of these objects is akin to the :code:`static modeling language` of `Gen.jl`_ - we rely upon JAX to provide us with a useful intermediate representation for programs that we operate on using transformations.
+  🧠 **(A bit of knowledge) Gen.jl** 🧠
+
+  One useful reference implementation of these objects lies in `Gen.jl`_,
+  an encoding of generative functions and inference in Julia. 
+
+  In GenJAX, our implementation of these objects is akin to the 
+  :code:`static modeling language` of `Gen.jl`_ - we rely upon JAX to provide us
+  with a useful intermediate representation for programs that we operate on 
+  using transformations.
 
 Speaking of the interface above, if you'd like to jump right to reading about this, visit :doc:`interface`.
 
@@ -28,7 +34,7 @@ roughly the subset of Python acceptable by JAX.
 
     @genjax.gen
     def model(key):
-        key, x = genjax.trace("x", genjax.Normal)(key, ())
+        key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
         return key, x
 
     print(model)
@@ -42,7 +48,8 @@ Let's study the JAX representation of the code for this object.
 .. jupyter-execute::
     
     key = jax.random.PRNGKey(314159)
-    print(jax.make_jaxpr(model)(key))
+    jaxpr = jax.make_jaxpr(model)(key)
+    print(jaxpr.pretty_print(use_color=False))
 
 In this lowered form, we can see that our JAX representation has a call to something called :code:`trace`, with a few constant keyword arguments.
 
@@ -53,7 +60,8 @@ We can utilize the interface to transform this representation to implement the s
 .. jupyter-execute::
     
     key = jax.random.PRNGKey(314159)
-    print(jax.make_jaxpr(genjax.simulate(model))(key, ()))
+    jaxpr = jax.make_jaxpr(genjax.simulate(model))(key, ())
+    print(jaxpr.pretty_print(use_color=False))
 
 That's quite a lot of new code! What :code:`genjax.simulate` is doing "under-the-hood" is expanding :code:`trace` to support:
 

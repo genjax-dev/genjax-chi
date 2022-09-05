@@ -68,49 +68,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 
-<div class="viewcode-block" id="sample"><a class="viewcode-back" href="../../genjax/interface.html#genjax.interface.sample">[docs]</a><span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    :code:`sample` accepts a function :code:`f` and</span>
-<span class="sd">    returns a transformed function which implements the below semantics.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    key: :code:`jax.random.PRNGKey`</span>
-<span class="sd">        A JAX-compatible PRNGKey.</span>
-
-<span class="sd">    args: :code:`tuple`</span>
-<span class="sd">        A tuple of argument values.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    :code:`(new_key: PRNGKey, ret: Any)`</span>
-<span class="sd">        Sample :math:`t \sim p(\cdot;x)` and :math:`r \sim p(\cdot;args, t)` and</span>
-<span class="sd">        apply the return value function :code:`ret = f(args, t)`.</span>
-
-<span class="sd">        Returns a tuple, with the first element an evolved PRNGKey,</span>
-<span class="sd">        and the second element is the result of the return value function</span>
-<span class="sd">        :code:`ret = f(args, t)`</span>
-
-<span class="sd">    Example</span>
-<span class="sd">    -------</span>
-
-<span class="sd">    .. jupyter-execute::</span>
-
-<span class="sd">        import jax</span>
-<span class="sd">        import genjax</span>
-
-<span class="sd">        @genjax.gen</span>
-<span class="sd">        def model(key):</span>
-<span class="sd">            key, x = genjax.trace(&quot;x&quot;, genjax.Normal)(key, ())</span>
-<span class="sd">            return key, x</span>
-
-<span class="sd">        key = jax.random.PRNGKey(314159)</span>
-<span class="sd">        key, x = genjax.sample(model)(key, ())</span>
-<span class="sd">        print(x)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
-
-
 <div class="viewcode-block" id="simulate"><a class="viewcode-back" href="../../genjax/interface.html#genjax.interface.simulate">[docs]</a><span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    :code:`simulate` accepts a function :code:`f` and</span>
@@ -136,10 +93,12 @@
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    :code:`(PRNGKey, Trace)`</span>
-<span class="sd">        A tuple, with the first element an evolved PRNGKey, and the second</span>
-<span class="sd">        element is a `Trace` of the sampling execution of the generative</span>
-<span class="sd">        function.</span>
+<span class="sd">    key: :code:`PRNGKey`</span>
+<span class="sd">        An updated :code:`jax.random.PRNGKey`.</span>
+
+<span class="sd">    tr: :code:`genjax.Trace`</span>
+<span class="sd">        A representation of the recorded random choices, as well as</span>
+<span class="sd">        inference metadata, accrued during the call.</span>
 
 <span class="sd">    Example</span>
 <span class="sd">    -------</span>
@@ -151,7 +110,7 @@
 
 <span class="sd">        @genjax.gen</span>
 <span class="sd">        def model(key):</span>
-<span class="sd">            key, x = genjax.trace(&quot;x&quot;, genjax.Normal)(key, ())</span>
+<span class="sd">            key, x = genjax.trace(&quot;x&quot;, genjax.Normal)(key, (0.0, 1.0))</span>
 <span class="sd">            return key, x</span>
 
 <span class="sd">        key = jax.random.PRNGKey(314159)</span>
@@ -210,6 +169,7 @@
 
 <h3>Navigation</h3>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../genjax/tour.html">A tour of fundamentals</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../genjax/gen_fn.html">What is a generative function?</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../genjax/interface.html">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../genjax/combinators.html">Generative function combinators</a></li>

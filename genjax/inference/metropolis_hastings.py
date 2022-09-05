@@ -12,23 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax import simulate, update, importance
 import jax
 import jax.numpy as jnp
 import jax.random as random
+from genjax.core.datatypes import GenerativeFunction, Trace
+from typing import Tuple
 
 
-def metropolis_hastings(model, proposal):
-    def __inner(key, trace, proposal_args):
+def metropolis_hastings(
+    model: GenerativeFunction,
+    proposal: GenerativeFunction,
+):
+    def __inner(key, trace: Trace, proposal_args: Tuple):
         model_args = trace.get_args()
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
-        key, proposal_tr = simulate(proposal)(key, proposal_args_fwd)
+        key, proposal_tr = proposal.simulate(key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
-        key, (weight, new, discard) = update(model)(
+        key, (weight, new, discard) = model.update(
             key, trace, proposal_tr.get_choices(), model_args
         )
         proposal_args_bwd = (new, *proposal_args)
-        key, (bwd_weight, _) = importance(proposal)(
+        key, (bwd_weight, _) = proposal.importance(
             key, discard, proposal_args_bwd
         )
         alpha = weight - fwd_weight + bwd_weight

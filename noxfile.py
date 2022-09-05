@@ -2,7 +2,7 @@ import nox
 
 
 @nox.session(python=["3.10"])
-def tests(session):
+def test(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run(
@@ -13,6 +13,8 @@ def tests(session):
         "--benchmark-warmup",
         "on",
         "--benchmark-disable-gc",
+        "--benchmark-min-rounds",
+        "5000",
     )
     session.run("coverage", "report")
 

@@ -413,6 +413,3 @@ default_call_rules[xla.xla_call_p] = functools.partial(
 default_call_rules[jax_core.call_p] = functools.partial(
     call_rule, jax_core.call_p
 )
-default_call_rules[pe.remat_call_p] = functools.partial(
-    call_rule, pe.remat_call_p
-)

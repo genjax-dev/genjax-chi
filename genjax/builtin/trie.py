@@ -37,9 +37,7 @@ class Trie(Pytree):
             rest = tuple(rest)
             if self.has_node(first):
                 subtrie = self.get_node(first)
-                if not isinstance(subtrie, Trie):
-                    return False
-                return subtrie.has_node(rest)
+                return subtrie.has_choice(rest)
             else:
                 return False
         else:
@@ -53,9 +51,7 @@ class Trie(Pytree):
             rest = tuple(rest)
             if self.has_node(first):
                 subtrie = self.get_node(first)
-                if not isinstance(subtrie, Trie):
-                    raise Exception(f"Found value at address {first}")
-                return subtrie.get_node(rest)
+                return subtrie.get_choice(rest)
             else:
                 raise Exception(f"Trie has no subtree at {first}")
         else:
@@ -84,11 +80,10 @@ class Trie(Pytree):
                 subtrie = self.get_node(first)
                 if not isinstance(subtrie, Trie):
                     return False
-                if subtrie.delete_node(rest):
+                if subtrie.delete_node(*rest):
                     self.delete_node(first)
         else:
-            if isinstance(addr, tuple):
-                addr = addr[0]
+            addr = addr[0]
             self.nodes.pop(addr, None)
 
         return len(self.nodes) == 0
@@ -100,12 +95,15 @@ class Trie(Pytree):
         return self.get_node(addr)
 
     def get_choices_shallow(self):
-        return self.nodes
+        return self.nodes.items()
 
     def merge(self, other):
+        trie = Trie({})
+        for (k, v) in self.get_choices_shallow():
+            trie.set_node(k, v)
         for (k, v) in other.get_choices_shallow():
-            self.set_node(k, v)
-        return self
+            trie.set_node(k, v)
+        return trie
 
     def __getitem__(self, addr):
         return self.get_node(addr)

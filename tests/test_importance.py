@@ -21,8 +21,8 @@ key = jax.random.PRNGKey(314159)
 
 @genjax.gen
 def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, ())
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, ())
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, (0.0, 1.0))
+    key, y2 = genjax.trace("y2", genjax.Normal)(key, (0.0, 1.0))
     return key, y1 + y2
 
 
@@ -34,9 +34,13 @@ class TestImportance:
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
-        _, (score1, _) = genjax.Normal.importance(key, chm["y1"], ())
-        _, (score2, _) = genjax.Normal.importance(key, chm["y2"], ())
+        _, (score1, _) = genjax.Normal.importance(
+            key, chm.get_choice("y1"), (0.0, 1.0)
+        )
+        _, (score2, _) = genjax.Normal.importance(
+            key, chm.get_choice("y2"), (0.0, 1.0)
+        )
         test_score = score1 + score2
-        assert y1 == out[("y1",)].get_choices()
-        assert y2 == out[("y2",)].get_choices()
+        assert y1 == out[("y1",)]
+        assert y2 == out[("y2",)]
         assert tr.get_score() == pytest.approx(test_score, 0.01)

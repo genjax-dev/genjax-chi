@@ -55,32 +55,21 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module implements a generative function combinator which allows</span>
-<span class="sd">broadcasting for generative functions -- mapping over </span>
+<span class="sd">broadcasting for generative functions -- mapping over</span>
 <span class="sd">vectorial versions of their arguments.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
-<span class="kn">import</span> <span class="nn">jax.tree_util</span> <span class="k">as</span> <span class="nn">jtu</span>
 <span class="kn">from</span> <span class="nn">genjax.builtin.shape_analysis</span> <span class="kn">import</span> <span class="n">choice_map_shape</span>
 <span class="kn">from</span> <span class="nn">genjax.core.datatypes</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">EmptyChoiceMap</span><span class="p">,</span>
     <span class="n">GenerativeFunction</span><span class="p">,</span>
     <span class="n">Trace</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="kn">from</span> <span class="nn">genjax.interface</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">sample</span><span class="p">,</span>
-    <span class="n">simulate</span><span class="p">,</span>
-    <span class="n">importance</span><span class="p">,</span>
-    <span class="n">diff</span><span class="p">,</span>
-    <span class="n">update</span><span class="p">,</span>
-    <span class="n">arg_grad</span><span class="p">,</span>
-    <span class="n">choice_grad</span><span class="p">,</span>
+    <span class="n">Mask</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span>
-<span class="kn">from</span> <span class="nn">.dynamic</span> <span class="kn">import</span> <span class="n">DynamicJAXGenerativeFunction</span>
 <span class="kn">from</span> <span class="nn">.vector_choice_map</span> <span class="kn">import</span> <span class="n">VectorChoiceMap</span><span class="p">,</span> <span class="n">prepare_vectorized_choice_map</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span>
 
 <span class="c1">#####</span>
 <span class="c1"># MapTrace</span>
@@ -98,8 +87,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">subtrace</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">form</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subtrace</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">VectorChoiceMap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subtrace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">,</span> <span class="n">form</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">VectorChoiceMap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subtrace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_fn</span>
@@ -130,20 +118,28 @@
 <div class="viewcode-block" id="MapCombinator"><a class="viewcode-back" href="../../../genjax/combinators.html#genjax.combinators.map.MapCombinator">[docs]</a><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">MapCombinator</span><span class="p">(</span><span class="n">GenerativeFunction</span><span class="p">):</span>
     <span class="n">kernel</span><span class="p">:</span> <span class="n">GenerativeFunction</span>
+    <span class="n">in_axes</span><span class="p">:</span> <span class="n">Tuple</span>
 
     <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">(),</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="p">(),</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">unflatten</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">xs</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">MapCombinator</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">sample</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">key_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">arg_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">sample</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">key_axis</span><span class="p">,</span> <span class="n">arg_axes</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">vmapped</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">simulate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">),</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="n">key_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">arg_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">simulate</span><span class="p">,</span>
+            <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">key_axis</span><span class="p">,</span> <span class="n">arg_axes</span><span class="p">),</span>
+        <span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
         <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
@@ -154,23 +150,29 @@
         <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">map_tr</span>
 
     <span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># static</span>
-        <span class="k">assert</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">choice_map_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="p">)</span>
-        <span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span> <span class="o">=</span> <span class="n">prepare_vectorized_choice_map</span><span class="p">(</span>
-            <span class="n">shape</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">chm</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">Mask</span><span class="p">):</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># static</span>
+            <span class="k">assert</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">choice_map_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="p">)</span>
+            <span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span> <span class="o">=</span> <span class="n">prepare_vectorized_choice_map</span><span class="p">(</span>
+                <span class="n">shape</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">chm</span>
+            <span class="p">)</span>
+
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">Mask</span><span class="p">(</span><span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">):</span>
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span><span class="o">.</span><span class="n">subtrace</span>
+
+        <span class="n">key_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">arg_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">importance</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">key_axis</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">arg_axes</span><span class="p">)</span>
+        <span class="p">)(</span>
+            <span class="n">key</span><span class="p">,</span>
+            <span class="n">chm</span><span class="p">,</span>
+            <span class="n">args</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">dynamic_kernel</span> <span class="o">=</span> <span class="n">DynamicJAXGenerativeFunction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
-
-        <span class="c1"># To be or not to be `vmap`d.</span>
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">dynamic_kernel</span><span class="o">.</span><span class="n">importance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-
-        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">__inner</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))(</span>
-            <span class="n">key</span><span class="p">,</span> <span class="n">mask_vectored</span><span class="p">,</span> <span class="n">chm_vectored</span><span class="p">,</span> <span class="n">args</span>
-        <span class="p">)</span>
-
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
         <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
@@ -178,7 +180,40 @@
             <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()),</span>
         <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">map_tr</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">map_tr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">Mask</span><span class="p">):</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1"># static</span>
+            <span class="k">assert</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">choice_map_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="p">)</span>
+            <span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span> <span class="o">=</span> <span class="n">prepare_vectorized_choice_map</span><span class="p">(</span>
+                <span class="n">shape</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">chm</span>
+            <span class="p">)</span>
+
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">Mask</span><span class="p">(</span><span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span><span class="p">)</span>
+
+        <span class="c1"># The previous trace has to have a VectorChoiceMap</span>
+        <span class="c1"># here.</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">get_choices</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span>
+        <span class="n">prev</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">subtrace</span>
+
+        <span class="n">key_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">arg_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">update</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">key_axis</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">arg_axes</span><span class="p">)</span>
+        <span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+        <span class="n">map_tr</span> <span class="o">=</span> <span class="n">MapTrace</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">),</span>
+            <span class="n">tr</span><span class="p">,</span>
+            <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">get_score</span><span class="p">()),</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">map_tr</span><span class="p">,</span> <span class="n">discard</span><span class="p">)</span></div>
 </pre></div>
 
           </div>
@@ -210,6 +245,7 @@
 
 <h3>Navigation</h3>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../genjax/tour.html">A tour of fundamentals</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/gen_fn.html">What is a generative function?</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/interface.html">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../genjax/combinators.html">Generative function combinators</a></li>

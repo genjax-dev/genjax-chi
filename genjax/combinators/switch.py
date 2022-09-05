@@ -30,9 +30,15 @@ can have different shape/dtype choices.
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from genjax.builtin.trie import Trie
-from genjax.core.datatypes import GenerativeFunction, Trace, ChoiceMap
+from genjax.core.datatypes import (
+    GenerativeFunction,
+    Trace,
+    Mask,
+    mask,
+)
+from genjax.distributions.distribution import ValueChoiceMap
 from genjax.builtin.shape_analysis import trace_shape_no_toplevel
+from genjax.builtin.trie import Trie
 from dataclasses import dataclass
 from typing import Any, Tuple
 
@@ -44,9 +50,7 @@ from typing import Any, Tuple
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    mask: dict
-    branch: int
-    trie: Trie
+    chm: Mask
     args: Tuple
     retval: Any
     score: jnp.float32
@@ -55,7 +59,7 @@ class SwitchTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return SwitchChoiceMap(self.trie, self.mask)
+        return self.chm
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -68,9 +72,7 @@ class SwitchTrace(Trace):
 
     def flatten(self):
         return (
-            self.mask,
-            self.branch,
-            self.trie,
+            self.chm,
             self.args,
             self.retval,
             self.score,
@@ -79,44 +81,6 @@ class SwitchTrace(Trace):
     @classmethod
     def unflatten(cls, data, xs):
         return SwitchTrace(*data, *xs)
-
-
-#####
-# SwitchChoiceMap
-#####
-
-
-@dataclass
-class SwitchChoiceMap(ChoiceMap):
-    trie: Trie
-    mask: dict
-
-    def has_choice(self, addr):
-        if addr not in self.mask:
-            return False
-        check = self.mask[addr]
-        return check
-
-    def get_choice(self, addr):
-        if addr not in self.mask:
-            raise Exception(f"{addr} not found in SwitchChoiceMap")
-        return self.trie[addr]
-
-    def flatten(self):
-        return (self.trie, self.mask), ()
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return SwitchChoiceMap(*data, *xs)
-
-    def map(self, fn):
-        new = Trie({})
-        for (k, v) in self.trie:
-            new.set_node(k, v.map(fn))
-        return SwitchChoiceMap(new, self.mask)
-
-    def get_choices_shallow(self):
-        return self.trie.get_choices_shallow()
 
 
 #####
@@ -153,6 +117,32 @@ class SwitchCombinator(GenerativeFunction):
         implements a branch control flow pattern using each
         provided internal generative function (see parameters) as
         a potential branch.
+
+    Example
+    -------
+
+    .. jupyter-execute::
+
+        import jax
+        import genjax
+
+        @genjax.gen
+        def branch_1(key):
+            key, x = genjax.trace("x1", genjax.Normal)(key, (0.0, 1.0))
+            return (key, )
+
+        @genjax.gen
+        def branch_2(key):
+            key, x = genjax.trace("x2", genjax.Bernoulli)(key, (0.3, ))
+            return (key, )
+
+        switch = genjax.SwitchCombinator(branch_1, branch_2)
+
+        key = jax.random.PRNGKey(314159)
+        jitted = jax.jit(genjax.simulate(switch))
+        key, _ = jitted(key, (0, ))
+        key, tr = jitted(key, (1, ))
+        print(tr)
     """
 
     branches: dict[int, GenerativeFunction]
@@ -179,37 +169,28 @@ class SwitchCombinator(GenerativeFunction):
 
     # This function does some compile-time code specialization
     # to produce a "sum type" - like trace.
-    def compute_branch_coverage_trie(self, key, args):
+    def create_masked_trie(self, key, args):
         trie = Trie({})
         for (_, br) in self.branches.items():
-            values, chm_treedef, shape = trace_shape_no_toplevel(br)(key, args)
-            # shape = shape.strip_metadata()
-            for (k, v) in shape.get_choices_shallow():
-                trie.set_node(k, v)
-        return trie
+            _, _, shape = trace_shape_no_toplevel(br)(key, args)
+            shape = jtu.tree_map(
+                lambda v: jnp.zeros(v.shape, v.dtype),
+                shape,
+                is_leaf=lambda v: isinstance(v, ValueChoiceMap),
+            )
+            trie = trie.merge(shape)
+        return mask(trie, False)
 
     def _simulate(self, branch_gen_fn, key, args):
-        emptied = self.compute_branch_coverage_trie(key, args)
-        emptied = jtu.tree_map(
-            lambda v: jnp.zeros(v.shape, v.dtype),
-            emptied,
-        )
-        branch_index = list(self.branches.values()).index(branch_gen_fn)
+        trie = self.create_masked_trie(key, args)
         key, tr = branch_gen_fn.simulate(key, args)
-        merged = emptied.merge(tr)
-        mask = {}
-        for (k, _) in merged.get_choices_shallow().items():
-            if tr.has_choice(k):
-                mask[k] = True
-            else:
-                mask[k] = False
+        choices = mask(tr.get_choices(), True)
+        trie = trie.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        switch_trace = SwitchTrace(
-            self, mask, branch_index, merged, args, retval, score
-        )
-        return key, switch_trace
+        trace = SwitchTrace(self, trie, args, retval, score)
+        return key, trace
 
     def simulate(self, key, args):
         switch = args[0]
@@ -236,27 +217,15 @@ class SwitchCombinator(GenerativeFunction):
         )
 
     def _importance(self, branch_gen_fn, key, chm, args):
-        emptied = self.compute_branch_coverage_trie(key, args)
-        emptied = jtu.tree_map(
-            lambda v: jnp.zeros(v.shape, v.dtype),
-            emptied,
-        )
-        branch_index = list(self.branches.values()).index(branch_gen_fn)
+        trie = self.create_masked_trie(key, args)
         key, (w, tr) = branch_gen_fn.importance(key, chm, args)
-        merged = emptied.merge(tr)
-        mask = {}
-        for (k, _) in merged.get_choices_shallow().items():
-            if tr.has_choice(k):
-                mask[k] = True
-            else:
-                mask[k] = False
+        choices = mask(tr.get_choices(), True)
+        trie = trie.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        switch_trace = SwitchTrace(
-            self, mask, branch_index, merged, args, retval, score
-        )
-        return key, (w, switch_trace)
+        trace = SwitchTrace(self, trie, args, retval, score)
+        return key, (w, trace)
 
     def importance(self, key, chm, args):
         switch = args[0]
@@ -284,69 +253,28 @@ class SwitchCombinator(GenerativeFunction):
             *args[1:],
         )
 
-    def _diff(self, branch_gen_fn, key, prev, new, args):
-        key, (w, r) = branch_gen_fn.diff(key, prev, new, args)
-        return key, (w, r)
-
-    def diff(self, key, prev, new, args):
-        switch = args[0]
-
-        def __inner(br):
-            return lambda key, prev, new, *args: self._diff(
-                br,
-                key,
-                prev,
-                new,
-                args,
-            )
-
-        branch_functions = list(
-            map(
-                __inner,
-                self.branches.values(),
-            )
-        )
-
-        return jax.lax.switch(
-            switch,
-            branch_functions,
-            key,
-            prev,
-            new,
-            *args[1:],
-        )
-
-    def _update(self, branch_gen_fn, key, prev, new, args):
-        emptied = self.compute_branch_coverage_trie(key, args)
-        emptied = jtu.tree_map(
-            lambda v: jnp.zeros(v.shape, v.dtype),
-            emptied,
-        )
-        branch_index = list(self.branches.values()).index(branch_gen_fn)
+    def _update(self, branch_gen_fn, key, prev, discard_option, new, args):
+        trie = self.create_masked_trie(key, args)
         key, (w, tr, discard) = branch_gen_fn.update(key, prev, new, args)
-        merged = emptied.merge(tr)
-        mask = {}
-        for (k, _) in merged.get_choices_shallow().items():
-            if tr.has_choice(k):
-                mask[k] = True
-            else:
-                mask[k] = False
+        discard = discard_option.merge(discard)
+        choices = mask(tr.get_choices(), True)
+        trie = trie.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        switch_trace = SwitchTrace(
-            self, mask, branch_index, merged, args, retval, score
-        )
-        return key, (w, switch_trace, discard)
+        trace = SwitchTrace(self, trie, args, retval, score)
+        return key, (w, trace, discard)
 
     def update(self, key, prev, new, args):
         switch = args[0]
+        discard_option = mask(prev.get_choices(), False)
 
         def __inner(br):
             return lambda key, prev, new, *args: self._update(
                 br,
                 key,
                 prev,
+                discard_option,
                 new,
                 args,
             )

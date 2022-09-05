@@ -9,7 +9,7 @@ import genjax
 
 @genjax.gen
 def model(key):
-    key, x = genjax.trace("x", genjax.Normal)(key, ())
+    key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
     return key, x
 
 print(model)
@@ -19,12 +19,14 @@ print(model)
 
 
 key = jax.random.PRNGKey(314159)
-print(jax.make_jaxpr(model)(key))
+jaxpr = jax.make_jaxpr(model)(key)
+print(jaxpr.pretty_print(use_color=False))
 
 
 # In[3]:
 
 
 key = jax.random.PRNGKey(314159)
-print(jax.make_jaxpr(genjax.simulate(model))(key, ()))
+jaxpr = jax.make_jaxpr(genjax.simulate(model))(key, ())
+print(jaxpr.pretty_print(use_color=False))
 

@@ -12,27 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import genjax
-
-
-@genjax.gen
-def random_walk(key, prev):
-    key, x = genjax.trace("x", genjax.Normal)(key, ())
-    return (key, x + prev)
-
-
-unfold = genjax.UnfoldCombinator(random_walk, 10)
-
-key = jax.random.PRNGKey(314159)
-key, tr = jax.jit(genjax.simulate(unfold))(key, (0.3,))
-print(tr)
-
-chm = genjax.ChoiceMap({(3, "x"): 1.0})
-key, (w, tr) = jax.jit(genjax.importance(unfold))(
-    key,
-    chm,
-    (0.3,),
-)
-unfold_chm = tr.get_choices()
-print(unfold_chm.get_choice((1, "x")).value)
+from .propagating import *

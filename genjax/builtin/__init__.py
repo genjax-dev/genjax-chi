@@ -28,12 +28,14 @@ from .datatypes import *
 from .shape_analysis import *
 
 __all__ = [
-    "gen",
     "trace",
     "Trace",
     "ChoiceMap",
     "Selection",
     "JAXGenerativeFunction",
+    "JAXTrace",
+    "JAXChoiceMap",
+    "JAXSelection",
     "trace_shape",
     "trace_shape_no_toplevel",
     "choice_map_shape",
