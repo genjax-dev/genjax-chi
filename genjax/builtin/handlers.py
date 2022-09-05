@@ -50,7 +50,7 @@ class Sample(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        key, tr = gen_fn.simulate(key, args)
+        key, tr = gen_fn.simulate(key, args, **kwargs)
         v = tr.get_retval()
 
         if self.return_or_continue:
@@ -72,7 +72,7 @@ class Simulate(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        key, tr = gen_fn.simulate(key, args)
+        key, tr = gen_fn.simulate(key, args, **kwargs)
         score = tr.get_score()
         v = tr.get_retval()
         self.state[addr] = tr
@@ -100,12 +100,12 @@ class Importance(Handler):
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
         def _simulate_branch(key, args):
-            key, tr = gen_fn.simulate(key, args)
+            key, tr = gen_fn.simulate(key, args, **kwargs)
             return key, (0.0, tr)
 
         def _importance_branch(key, args):
             submap = self.constraints.get_choice(addr)
-            key, (w, tr) = gen_fn.importance(key, submap, args)
+            key, (w, tr) = gen_fn.importance(key, submap, args, **kwargs)
             return key, (w, tr)
 
         check = self.constraints.has_choice(addr)
@@ -150,7 +150,9 @@ class Update(Handler):
         def _update_branch(key, args):
             prev_tr = self.prev.get_choice(addr)
             chm = self.choice_change.get_choice(addr)
-            key, (w, tr, discard) = gen_fn.update(key, prev_tr, chm, args)
+            key, (w, tr, discard) = gen_fn.update(
+                key, prev_tr, chm, args, **kwargs
+            )
             return key, (w, tr, discard)
 
         def _has_prev_branch(key, args):
@@ -162,7 +164,7 @@ class Update(Handler):
         def _constrained_branch(key, args):
             prev_tr = self.prev.get_choice(addr)
             chm = self.choice_change.get_choice(addr)
-            key, (w, tr) = gen_fn.importance(key, chm, args)
+            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             discard = mask(prev_tr.get_choices(), False)
             return key, (w, tr, discard)
 
@@ -211,12 +213,12 @@ class ArgumentGradients(Handler):
         def _has_source_branch(key, args):
             sub_tr = self.source.get_choice(addr)
             chm = sub_tr.get_choices()
-            key, (w, tr) = gen_fn.importance(key, chm, args)
+            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             v = tr.get_retval()
             return (w, v)
 
         def _no_source_branch(key, args):
-            key, tr = gen_fn.simulate(key, args)
+            key, tr = gen_fn.simulate(key, args, **kwargs)
             v = tr.get_retval()
             return (0.0, v)
 
@@ -253,7 +255,7 @@ class ChoiceGradients(Handler):
 
         def _has_selected_branch(key, args):
             chm = self.selected.get_choice(addr)
-            key, (w, tr) = gen_fn.importance(key, chm, args)
+            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             v = tr.get_retval()
             return (w, v)
 

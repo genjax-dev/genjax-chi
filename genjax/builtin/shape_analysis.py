@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """
-This module provides an abstract interpreter which performs choice map
-shape analysis on JAX generative function source code.
+This module provides utilities which allow shape analysis on
+JAX generative function representations, returning :code:`Pytree`
+representations and forms for their associated :code:`ChoiceMap` and
+:code:`Trace` types.
 """
 
 import jax
@@ -23,28 +25,28 @@ from genjax.core.datatypes import GenerativeFunction
 
 
 def trace_shape(f: GenerativeFunction):
-    def __inner(f, *args):
+    def _inner(f, *args):
         _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
         trace = form[1]
         values, tr_treedef = jax.tree_util.tree_flatten(trace)
         return values, tr_treedef, trace
 
-    return lambda *args: __inner(f, *args)
+    return lambda *args: _inner(f, *args)
 
 
 def trace_shape_no_toplevel(f: GenerativeFunction):
-    def __inner(f, *args):
+    def _inner(f, *args):
         _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
         trace = form[1]
         chm = trace.get_choices()
         values, chm_treedef = jax.tree_util.tree_flatten(chm)
         return values, chm_treedef, chm
 
-    return lambda *args: __inner(f, *args)
+    return lambda *args: _inner(f, *args)
 
 
 def choice_map_shape(f: GenerativeFunction):
-    def __inner(f, *args):
+    def _inner(f, *args):
         _, form = jax.make_jaxpr(simulate(f), return_shape=True)(*args)
         trace = form[1]
         chm = trace.get_choices()
@@ -52,4 +54,4 @@ def choice_map_shape(f: GenerativeFunction):
         values, chm_treedef = jax.tree_util.tree_flatten(chm)
         return values, chm_treedef, chm
 
-    return lambda *args: __inner(f, *args)
+    return lambda *args: _inner(f, *args)

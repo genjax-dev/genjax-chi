@@ -185,24 +185,26 @@
         <span class="k">return</span> <span class="n">UnfoldCombinator</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="n">xs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">carry</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()),</span> <span class="p">()</span>
 
         <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span>
-            <span class="n">__inner</span><span class="p">,</span>
+            <span class="n">_inner</span><span class="p">,</span>
             <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">),</span>
             <span class="kc">None</span><span class="p">,</span>
             <span class="n">length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
             <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="o">*</span><span class="n">carry</span><span class="p">)</span>
             <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="n">tr</span>
 
         <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span>
-            <span class="n">__inner</span><span class="p">,</span>
+            <span class="n">_inner</span><span class="p">,</span>
             <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">),</span>
             <span class="kc">None</span><span class="p">,</span>
             <span class="n">length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">,</span>
@@ -229,25 +231,27 @@
 
         <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
         <span class="k">assert</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">Mask</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">Mask</span><span class="p">):</span>
             <span class="n">_</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">choice_map_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
             <span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span> <span class="o">=</span> <span class="n">prepare_vectorized_choice_map</span><span class="p">(</span>
                 <span class="n">shape</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">chm</span>
             <span class="p">)</span>
 
             <span class="n">chm</span> <span class="o">=</span> <span class="n">Mask</span><span class="p">(</span><span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">):</span>
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span><span class="o">.</span><span class="n">subtrace</span>
 
         <span class="c1"># The actual semantics of importance are carried out by a scan</span>
         <span class="c1"># call.</span>
 
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
             <span class="n">key</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">carry</span>
             <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">importance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
             <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span>
 
         <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span>
-            <span class="n">__inner</span><span class="p">,</span>
+            <span class="n">_inner</span><span class="p">,</span>
             <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">),</span>
             <span class="n">chm</span><span class="p">,</span>
             <span class="n">length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">,</span>
@@ -273,14 +277,15 @@
 
         <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span>
         <span class="k">assert</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="mi">0</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">Mask</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">Mask</span><span class="p">):</span>
             <span class="n">_</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">choice_map_shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
             <span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span> <span class="o">=</span> <span class="n">prepare_vectorized_choice_map</span><span class="p">(</span>
                 <span class="n">shape</span><span class="p">,</span> <span class="n">treedef</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">chm</span>
             <span class="p">)</span>
 
             <span class="n">chm</span> <span class="o">=</span> <span class="n">Mask</span><span class="p">(</span><span class="n">chm_vectored</span><span class="p">,</span> <span class="n">mask_vectored</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">):</span>
+            <span class="n">chm</span> <span class="o">=</span> <span class="n">chm</span><span class="o">.</span><span class="n">subtrace</span>
 
         <span class="n">prev</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">get_choices</span><span class="p">()</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="n">VectorChoiceMap</span><span class="p">)</span>
@@ -289,7 +294,7 @@
         <span class="c1"># The actual semantics of update are carried out by a scan</span>
         <span class="c1"># call.</span>
 
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
             <span class="n">key</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">carry</span>
             <span class="n">prev</span><span class="p">,</span> <span class="n">new</span> <span class="o">=</span> <span class="nb">slice</span>
             <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
@@ -297,7 +302,7 @@
             <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
 
         <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">retval</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span>
-            <span class="n">__inner</span><span class="p">,</span>
+            <span class="n">_inner</span><span class="p">,</span>
             <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">),</span>
             <span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="n">chm</span><span class="p">),</span>
             <span class="n">length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">,</span>

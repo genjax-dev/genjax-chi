@@ -19,11 +19,9 @@ from genjax.core.datatypes import GenerativeFunction, Trace
 from typing import Tuple
 
 
-def metropolis_hastings(
-    model: GenerativeFunction,
-    proposal: GenerativeFunction,
-):
-    def __inner(key, trace: Trace, proposal_args: Tuple):
+def metropolis_hastings(proposal: GenerativeFunction):
+    def _inner(key, trace: Trace, proposal_args: Tuple):
+        model = trace.get_gen_fn()
         model_args = trace.get_args()
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
         key, proposal_tr = proposal.simulate(key, proposal_args_fwd)
@@ -43,4 +41,4 @@ def metropolis_hastings(
             lambda *args: (trace, False),
         )
 
-    return lambda key, trace, proposal_args: __inner(key, trace, proposal_args)
+    return _inner

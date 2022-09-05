@@ -195,7 +195,7 @@ class SwitchCombinator(GenerativeFunction):
     def simulate(self, key, args):
         switch = args[0]
 
-        def __inner(br):
+        def _inner(br):
             return lambda key, *args: self._simulate(
                 br,
                 key,
@@ -204,7 +204,7 @@ class SwitchCombinator(GenerativeFunction):
 
         branch_functions = list(
             map(
-                __inner,
+                _inner,
                 self.branches.values(),
             )
         )
@@ -230,7 +230,7 @@ class SwitchCombinator(GenerativeFunction):
     def importance(self, key, chm, args):
         switch = args[0]
 
-        def __inner(br):
+        def _inner(br):
             return lambda key, chm, *args: self._importance(
                 br,
                 key,
@@ -240,7 +240,7 @@ class SwitchCombinator(GenerativeFunction):
 
         branch_functions = list(
             map(
-                __inner,
+                _inner,
                 self.branches.values(),
             )
         )
@@ -269,7 +269,7 @@ class SwitchCombinator(GenerativeFunction):
         switch = args[0]
         discard_option = mask(prev.get_choices(), False)
 
-        def __inner(br):
+        def _inner(br):
             return lambda key, prev, new, *args: self._update(
                 br,
                 key,
@@ -281,7 +281,7 @@ class SwitchCombinator(GenerativeFunction):
 
         branch_functions = list(
             map(
-                __inner,
+                _inner,
                 self.branches.values(),
             )
         )

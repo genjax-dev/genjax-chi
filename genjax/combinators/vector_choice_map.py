@@ -24,7 +24,7 @@ and :code:`vmap`d.
 
 import jax.tree_util as jtu
 import numpy as np
-from genjax.core.datatypes import ChoiceMap, Trace, EmptyChoiceMap
+from genjax.core.datatypes import ChoiceMap, Trace
 from genjax.core.pytree import tree_stack
 from genjax.builtin.datatypes import JAXChoiceMap
 from dataclasses import dataclass
@@ -53,29 +53,11 @@ class VectorChoiceMap(ChoiceMap):
     def unflatten(cls, data, xs):
         return VectorChoiceMap(*xs, *data)
 
-    def get_choice(self, *addr):
-        first = addr[0]
-        if isinstance(first, int):
-            slice = jtu.tree_map(lambda v: v[first], self.subtrace)
-            return slice.get_choice(*addr[1:])
-        else:
-            return EmptyChoiceMap()
+    def get_choice(self, addr):
+        return self.subtrace.get_choice(addr)
 
     def has_choice(self, addr):
-        if isinstance(addr, int):
-            if addr > self.length:
-                return False
-            else:
-                return True
-
-        if not isinstance(addr, tuple) or not isinstance(addr[0], int):
-            return False
-
-        index = addr[0]
-        if index > self.length:
-            return False
-        rest = addr[1:]
-        return self.subtrace.get_choices().has_choice(rest)
+        return self.subtrace.has_choice(addr)
 
     def has_value(self):
         return False

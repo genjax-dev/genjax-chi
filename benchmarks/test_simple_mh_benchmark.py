@@ -38,7 +38,7 @@ key = jax.random.PRNGKey(314159)
 key, tr = jax.jit(genjax.simulate(normal_model))(key, ())
 
 # Inference with proposal MH.
-inf = jax.jit(genjax.metropolis_hastings(normal_model, uniform_proposal))
+inf = jax.jit(genjax.metropolis_hastings(uniform_proposal))
 
 
 def run_inference(key, tr):

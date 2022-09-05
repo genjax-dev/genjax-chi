@@ -138,7 +138,8 @@ class Trace(Pytree, metaclass=abc.ABCMeta):
         return pp.tree_pformat(self)
 
     def __getitem__(self, addr):
-        choice = self.get_choice(addr)
+        choices = self.get_choices()
+        choice = choices.get_choice(addr)
         if choice.has_value():
             return choice.get_value()
         else:

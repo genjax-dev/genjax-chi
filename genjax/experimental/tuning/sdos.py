@@ -20,18 +20,22 @@ from Domke, 2021.
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
-from genjax.interface import simulate, importance
-from genjax.core.datatypes import GenerativeFunction
+from genjax.core.datatypes import GenerativeFunction, Selection
+from typing import Tuple
 
 
 def estimate_log_ratio(
-    p: GenerativeFunction, q: GenerativeFunction, inf_target, mp: int, mq: int
+    p: GenerativeFunction,
+    q: GenerativeFunction,
+    inf_target: Selection,
+    mp: int,
+    mq: int,
 ):
-    def __inner(key, p_args, q_args):
+    def _inner(key, p_args: Tuple, q_args: Tuple):
         obs_target = inf_target.complement()
 
         # (x, z) ~ p, log p(z, x) / q(z | x)
-        key, tr = simulate(p)(key, p_args)
+        key, tr = p.simulate(key, p_args)
         chm = tr.get_choices()
         latent_chm = inf_target.filter(chm)
         obs_chm = obs_target.filter(chm)
@@ -39,16 +43,20 @@ def estimate_log_ratio(
         # Compute estimate of log p(z, x)
         key, *subkeys = jax.random.split(key, mp + 1)
         subkeys = jnp.array(subkeys)
-        _, (fwd_weights, _) = jax.vmap(importance(p), in_axes=(0, None, None))(
-            subkeys, chm, p_args
+        _, (fwd_weights, _) = jax.vmap(p.importance, in_axes=(0, None, None))(
+            subkeys,
+            chm,
+            p_args,
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(mp)
 
         # Compute estimate of log q(z | x)
         key, *subkeys = jax.random.split(key, mq + 1)
         subkeys = jnp.array(subkeys)
-        _, (bwd_weights, _) = jax.vmap(importance(q), in_axes=(0, None, None))(
-            subkeys, latent_chm, (chm, *q_args)
+        _, (bwd_weights, _) = jax.vmap(q.importance, in_axes=(0, None, None))(
+            subkeys,
+            latent_chm,
+            (chm, *q_args),
         )
         bwd_weight = logsumexp(bwd_weights) - jnp.log(mq)
 
@@ -56,22 +64,26 @@ def estimate_log_ratio(
         logpq = fwd_weight - bwd_weight
 
         # z' ~ q, log p(z', x) / q(z', x)
-        key, inftr = simulate(q)(key, (obs_chm, *q_args))
+        key, inftr = q.simulate(key, (obs_chm, *q_args))
         inf_chm = inftr.get_choices()
 
         # Compute estimate of log p(z', x)
         key, *subkeys = jax.random.split(key, mp + 1)
         subkeys = jnp.array(subkeys)
-        _, (fwd_weights, _) = jax.vmap(importance(p), in_axes=(0, None, None))(
-            subkeys, obs_chm.merge(inf_chm), p_args
+        _, (fwd_weights, _) = jax.vmap(p.importance, in_axes=(0, None, None))(
+            subkeys,
+            obs_chm.merge(inf_chm),
+            p_args,
         )
         fwd_weight_p = logsumexp(fwd_weights) - jnp.log(mp)
 
         # Compute estimate of log q(z' | x)
         key, *subkeys = jax.random.split(key, mp + 1)
         subkeys = jnp.array(subkeys)
-        _, (fwd_weights, _) = jax.vmap(importance(q), in_axes=(0, None, None))(
-            subkeys, inf_chm, (obs_chm, *q_args)
+        _, (fwd_weights, _) = jax.vmap(q.importance, in_axes=(0, None, None))(
+            subkeys,
+            inf_chm,
+            (obs_chm, *q_args),
         )
         bwd_weight_p = logsumexp(bwd_weights) - jnp.log(mq)
 
@@ -80,13 +92,17 @@ def estimate_log_ratio(
 
         return key, logpq - logpq_p
 
-    return lambda key, p_args, q_args: __inner(key, p_args, q_args)
+    return _inner
 
 
 def sdos(
-    p: GenerativeFunction, q: GenerativeFunction, inf_target, mp: int, mq: int
+    p: GenerativeFunction,
+    q: GenerativeFunction,
+    inf_target: Selection,
+    mp: int,
+    mq: int,
 ):
-    def __inner(key, p_args, q_args):
+    def _inner(key, p_args: Tuple, q_args: Tuple):
         key, logpq = estimate_log_ratio(p, q, inf_target, mp, mq)(
             key, p_args, q_args
         )
@@ -95,4 +111,4 @@ def sdos(
         )
         return key, logpq + logqp
 
-    return lambda key, p_args, q_args: __inner(key, p_args, q_args)
+    return _inner

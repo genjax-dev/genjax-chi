@@ -4,7 +4,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
     <title>Generative function combinators &#8212; Gen ⊗ JAX</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
@@ -248,7 +248,7 @@ iterations off.</p>
   ),
   length=i32[],
   subtrace=JAXTrace(
-    gen_fn=&lt;function random_walk&gt;,
+    gen_fn=JAXGenerativeFunction(source=&lt;function random_walk&gt;),
     args=(f32[1000],),
     retval=(f32[1000],),
     choices=Trie(
@@ -341,7 +341,7 @@ interface method.</p>
   ),
   length=i32[],
   subtrace=JAXTrace(
-    gen_fn=&lt;function add_normal_noise&gt;,
+    gen_fn=JAXGenerativeFunction(source=&lt;function add_normal_noise&gt;),
     args=(f32[100],),
     retval=(f32[100],),
     choices=Trie(

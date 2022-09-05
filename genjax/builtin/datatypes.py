@@ -42,7 +42,7 @@ from genjax.builtin.handlers import (
 
 @dataclass
 class JAXTrace(Trace):
-    gen_fn: Callable
+    gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
     choices: Trie
@@ -71,14 +71,6 @@ class JAXTrace(Trace):
 
     def get_args(self):
         return self.args
-
-    def __getitem__(self, addr):
-        trie = self.get_choices()
-        choice = trie.get_choice(addr)
-        if choice.has_value():
-            return choice.get_value()
-        else:
-            return choice
 
 
 #####
@@ -256,19 +248,23 @@ class JAXGenerativeFunction(GenerativeFunction):
         key, (f, args, r, chm, score) = handler_simulate(self.source, **kwargs)(
             key, args
         )
-        return key, JAXTrace(f, args, r, chm, score)
+        return key, JAXTrace(self, args, r, chm, score)
 
     def importance(self, key, chm, args, **kwargs):
         key, (w, (f, args, r, chm, score)) = handler_importance(
             self.source, **kwargs
         )(key, chm, args)
-        return key, (w, JAXTrace(f, args, r, chm, score))
+        return key, (w, JAXTrace(self, args, r, chm, score))
 
     def update(self, key, prev, new, args, **kwargs):
         key, (w, (f, args, r, chm, score), discard) = handler_update(
             self.source, **kwargs
         )(key, prev, new, args)
-        return key, (w, JAXTrace(f, args, r, chm, score), JAXChoiceMap(discard))
+        return key, (
+            w,
+            JAXTrace(self, args, r, chm, score),
+            JAXChoiceMap(discard),
+        )
 
     def arg_grad(self, argnums, **kwargs):
         return lambda key, tr, args: handler_arg_grad(

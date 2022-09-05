@@ -24,6 +24,10 @@ autoflake8 = "^0.3.2"
 Sphinx = "^5.1.1"
 jupyter-sphinx = "^0.4.0"
 
+[tool.poetry.group.dev.dependencies]
+matplotlib = "^3.5.3"
+seaborn = "^0.11.2"
+
 [tool.black]
 line-length = 80
 extend-exclude = '''

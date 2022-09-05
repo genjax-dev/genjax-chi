@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .importance_sampling import *
-from .metropolis_hastings import *
-from .sequential_monte_carlo import *
+from genjax.core.datatypes import GenerativeFunction
+
+
+@dataclass
+class SIRCombinator(GenerativeFunction):
+    model: GenerativeFunction
+    proposal: GenerativeFunction

@@ -44,8 +44,14 @@ def _trace(addr, call, key, args, **kwargs):
         )
 
 
-def trace(addr, call):
-    return lambda key, args, **kwargs: _trace(addr, call, key, args, **kwargs)
+def trace(addr, call, **kwargs):
+    return lambda key, args: _trace(
+        addr,
+        call,
+        key,
+        args,
+        **kwargs,
+    )
 
 
 #####

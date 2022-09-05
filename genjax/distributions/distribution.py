@@ -122,9 +122,9 @@ class Distribution(GenerativeFunction):
     def unflatten(cls, values, slices):
         return cls()
 
-    def __call__(self, key, args):
+    def __call__(self, key, args, **kwargs):
         key, subkey = jax.random.split(key)
-        v = self.sample(*args)
+        v = self.sample(*args, **kwargs)
         return (key, v)
 
     @classmethod

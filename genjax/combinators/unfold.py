@@ -144,24 +144,26 @@ class UnfoldCombinator(GenerativeFunction):
         return UnfoldCombinator(*data, *xs)
 
     def __call__(self, key, *args):
-        def __inner(key, *args, x):
-            return self.kernel(key, *args)
+        def _inner(carry, x):
+            key, args = carry
+            key, tr = self.kernel.simulate(key, args)
+            return (key, tr.get_retval()), ()
 
         return jax.lax.scan(
-            __inner,
+            _inner,
             (key, args),
             None,
             length=self.length,
         )
 
     def simulate(self, key, args):
-        def __inner(carry, x):
+        def _inner(carry, x):
             key, tr = self.kernel.simulate(*carry)
             retval = tr.get_retval()
             return (key, retval), tr
 
         (key, retval), tr = jax.lax.scan(
-            __inner,
+            _inner,
             (key, args),
             None,
             length=self.length,
@@ -188,25 +190,27 @@ class UnfoldCombinator(GenerativeFunction):
 
         length = self.length
         assert length > 0
-        if not isinstance(chm, VectorChoiceMap) or not isinstance(chm, Mask):
+        if not isinstance(chm, VectorChoiceMap) and not isinstance(chm, Mask):
             _, treedef, shape = choice_map_shape(self.kernel)(key, args)
             chm_vectored, mask_vectored = prepare_vectorized_choice_map(
                 shape, treedef, length, chm
             )
 
             chm = Mask(chm_vectored, mask_vectored)
+        if isinstance(chm, VectorChoiceMap):
+            chm = chm.subtrace
 
         # The actual semantics of importance are carried out by a scan
         # call.
 
-        def __inner(carry, slice):
+        def _inner(carry, slice):
             key, args = carry
             key, (w, tr) = self.kernel.importance(key, slice, args)
             retval = tr.get_retval()
             return (key, retval), (w, tr)
 
         (key, retval), (w, tr) = jax.lax.scan(
-            __inner,
+            _inner,
             (key, args),
             chm,
             length=self.length,
@@ -232,14 +236,15 @@ class UnfoldCombinator(GenerativeFunction):
 
         length = self.length
         assert length > 0
-
-        if not isinstance(chm, VectorChoiceMap) or not isinstance(chm, Mask):
+        if not isinstance(chm, VectorChoiceMap) and not isinstance(chm, Mask):
             _, treedef, shape = choice_map_shape(self.kernel)(key, args)
             chm_vectored, mask_vectored = prepare_vectorized_choice_map(
                 shape, treedef, length, chm
             )
 
             chm = Mask(chm_vectored, mask_vectored)
+        if isinstance(chm, VectorChoiceMap):
+            chm = chm.subtrace
 
         prev = prev.get_choices()
         assert isinstance(prev, VectorChoiceMap)
@@ -248,7 +253,7 @@ class UnfoldCombinator(GenerativeFunction):
         # The actual semantics of update are carried out by a scan
         # call.
 
-        def __inner(carry, slice):
+        def _inner(carry, slice):
             key, args = carry
             prev, new = slice
             key, (w, tr, d) = self.kernel.update(key, prev, new, args)
@@ -256,7 +261,7 @@ class UnfoldCombinator(GenerativeFunction):
             return (key, retval), (w, tr, d)
 
         (key, retval), (w, tr, d) = jax.lax.scan(
-            __inner,
+            _inner,
             (key, args),
             (prev, chm),
             length=self.length,

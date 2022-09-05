@@ -117,6 +117,60 @@
 
 <div class="viewcode-block" id="MapCombinator"><a class="viewcode-back" href="../../../genjax/combinators.html#genjax.combinators.map.MapCombinator">[docs]</a><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">MapCombinator</span><span class="p">(</span><span class="n">GenerativeFunction</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :code:`MapCombinator` accepts a single generative function as input and</span>
+<span class="sd">    provides :code:`vmap`-based implementations of the generative function</span>
+<span class="sd">    interface methods. :code:`MapCombinator` also accepts :code:`in_axes` as</span>
+<span class="sd">    an argument to specify exactly which axes of the :code:`(key, *args)`</span>
+<span class="sd">    should be broadcasted over.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    gen_fn: :code:`GenerativeFunction`</span>
+<span class="sd">        A single `GenerativeFunction` instance.</span>
+
+<span class="sd">    in_args: :code:`Tuple[Int]`</span>
+<span class="sd">        A tuple specifying which :code:`(key, *args)` to broadcast</span>
+<span class="sd">        over.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    :code:`MapCombinator`</span>
+<span class="sd">        A single :code:`MapCombinator` generative function which</span>
+<span class="sd">        implements :code:`vmap` support for each generative function</span>
+<span class="sd">        interface method.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    .. jupyter-execute::</span>
+
+<span class="sd">        import jax</span>
+<span class="sd">        import jax.numpy as jnp</span>
+<span class="sd">        import genjax</span>
+
+<span class="sd">        @genjax.gen</span>
+<span class="sd">        def add_normal_noise(key, x):</span>
+<span class="sd">            key, noise1 = genjax.trace(&quot;noise1&quot;, genjax.Normal)(</span>
+<span class="sd">                    key, (0.0, 1.0)</span>
+<span class="sd">            )</span>
+<span class="sd">            key, noise2 = genjax.trace(&quot;noise2&quot;, genjax.Normal)(</span>
+<span class="sd">                    key, (0.0, 1.0)</span>
+<span class="sd">            )</span>
+<span class="sd">            return (key, x + noise1 + noise2)</span>
+
+
+<span class="sd">        mapped = genjax.MapCombinator(add_normal_noise, in_axes=(0, 0))</span>
+
+<span class="sd">        arr = jnp.ones(100)</span>
+<span class="sd">        key = jax.random.PRNGKey(314159)</span>
+<span class="sd">        key, *subkeys = jax.random.split(key, 101)</span>
+<span class="sd">        subkeys = jnp.array(subkeys)</span>
+<span class="sd">        _, tr = jax.jit(genjax.simulate(mapped))(subkeys, (arr, ))</span>
+<span class="sd">        print(tr)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">kernel</span><span class="p">:</span> <span class="n">GenerativeFunction</span>
     <span class="n">in_axes</span><span class="p">:</span> <span class="n">Tuple</span>
 
@@ -130,7 +184,7 @@
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">key_axis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">arg_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_axes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-        <span class="n">vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">sample</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">key_axis</span><span class="p">,</span> <span class="n">arg_axes</span><span class="p">))</span>
+        <span class="n">vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="fm">__call__</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">key_axis</span><span class="p">,</span> <span class="n">arg_axes</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">vmapped</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>

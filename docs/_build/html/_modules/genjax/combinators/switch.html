@@ -236,7 +236,7 @@
     <span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simulate</span><span class="p">(</span>
                 <span class="n">br</span><span class="p">,</span>
                 <span class="n">key</span><span class="p">,</span>
@@ -245,7 +245,7 @@
 
         <span class="n">branch_functions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
             <span class="nb">map</span><span class="p">(</span>
-                <span class="n">__inner</span><span class="p">,</span>
+                <span class="n">_inner</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
             <span class="p">)</span>
         <span class="p">)</span>
@@ -271,7 +271,7 @@
     <span class="k">def</span> <span class="nf">importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
         <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_importance</span><span class="p">(</span>
                 <span class="n">br</span><span class="p">,</span>
                 <span class="n">key</span><span class="p">,</span>
@@ -281,7 +281,7 @@
 
         <span class="n">branch_functions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
             <span class="nb">map</span><span class="p">(</span>
-                <span class="n">__inner</span><span class="p">,</span>
+                <span class="n">_inner</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
             <span class="p">)</span>
         <span class="p">)</span>
@@ -310,7 +310,7 @@
         <span class="n">switch</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">discard_option</span> <span class="o">=</span> <span class="n">mask</span><span class="p">(</span><span class="n">prev</span><span class="o">.</span><span class="n">get_choices</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">__inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">br</span><span class="p">):</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update</span><span class="p">(</span>
                 <span class="n">br</span><span class="p">,</span>
                 <span class="n">key</span><span class="p">,</span>
@@ -322,7 +322,7 @@
 
         <span class="n">branch_functions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
             <span class="nb">map</span><span class="p">(</span>
-                <span class="n">__inner</span><span class="p">,</span>
+                <span class="n">_inner</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">branches</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
             <span class="p">)</span>
         <span class="p">)</span>
