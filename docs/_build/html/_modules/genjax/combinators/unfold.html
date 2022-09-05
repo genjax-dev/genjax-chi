@@ -56,7 +56,8 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module implements a generative function combinator which allows</span>
 <span class="sd">statically unrolled control flow for generative functions which can act</span>
-<span class="sd">as kernels (accepting their previous output as input).</span>
+<span class="sd">as kernels (a kernel generative function can accept</span>
+<span class="sd">their previous output as input).</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">jax</span>
@@ -121,6 +122,58 @@
 
 <div class="viewcode-block" id="UnfoldCombinator"><a class="viewcode-back" href="../../../genjax/combinators.html#genjax.combinators.unfold.UnfoldCombinator">[docs]</a><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">UnfoldCombinator</span><span class="p">(</span><span class="n">GenerativeFunction</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :code:`UnfoldCombinator` accepts a single kernel generative function</span>
+<span class="sd">    as input and a static unroll length which specifies how many iterations</span>
+<span class="sd">    to run the chain for.</span>
+
+<span class="sd">    A kernel generative function is one which accepts and returns</span>
+<span class="sd">    the same signature of arguments. Under the hood, :code:`UnfoldCombinator`</span>
+<span class="sd">    is implemented using :code:`jax.lax.scan` - which has the same</span>
+<span class="sd">    requirements.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    gen_fn: :code:`GenerativeFunction`</span>
+<span class="sd">        A single *kernel* `GenerativeFunction` instance.</span>
+
+<span class="sd">    length: :code:`Int`</span>
+<span class="sd">        An integer specifying the unroll length of the chain of applications.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    :code:`UnfoldCombinator`</span>
+<span class="sd">        A single :code:`UnfoldCombinator` generative function which</span>
+<span class="sd">        implements the generative function interface using a scan-like</span>
+<span class="sd">        pattern. This generative function will perform a dependent-for</span>
+<span class="sd">        iteration (passing the return value of generative function application)</span>
+<span class="sd">        to the next iteration for :code:`length` number of steps.</span>
+<span class="sd">        The programmer must provide an initial value to start the chain of</span>
+<span class="sd">        iterations off.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    -------</span>
+
+<span class="sd">    .. jupyter-execute::</span>
+
+<span class="sd">        import jax</span>
+<span class="sd">        import genjax</span>
+
+
+<span class="sd">        @genjax.gen</span>
+<span class="sd">        def random_walk(key, prev):</span>
+<span class="sd">            key, x = genjax.trace(&quot;x&quot;, genjax.Normal)(key, (prev, 1.0))</span>
+<span class="sd">            return (key, x)</span>
+
+
+<span class="sd">        unfold = genjax.UnfoldCombinator(random_walk, 1000)</span>
+<span class="sd">        init = 0.5</span>
+<span class="sd">        key = jax.random.PRNGKey(314159)</span>
+<span class="sd">        key, tr = jax.jit(genjax.simulate(unfold))(key, (init,))</span>
+<span class="sd">        print(tr)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">kernel</span><span class="p">:</span> <span class="n">GenerativeFunction</span>
     <span class="n">length</span><span class="p">:</span> <span class="nb">int</span>
 

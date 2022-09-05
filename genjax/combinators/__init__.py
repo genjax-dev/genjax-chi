@@ -22,7 +22,7 @@ generative functions with modified choice map shapes and behavior.
 They are used to express common patterns of computation, including
 if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`).
 
-    🔪 **(Sharp bit) GenJAX combinator restrictions** 🔪
+    🔪 **(A sharp bit) GenJAX combinator restrictions** 🔪
     
     The implementations of these combinators are similar to those in `Gen.jl`_,
     but JAX imposes extra restrictions on their construction and usage.
