@@ -14,17 +14,21 @@
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import genjax
 from genjax import Trace
 from typing import Sequence
 
-# A 2D tracking example in GenJAX, with inference using sequential Monte Carlo.
+# A 2D tracking example in GenJAX, with inference using propose-resample SMC.
 
-transition_matrix = jnp.array([[3.0, 0.0], [0.0, 3.0]])
-observation_matrix = jnp.array([[0.3, 0.0], [0.0, 0.3]])
+transition_matrix = np.array([[0.5, 0.0], [0.0, 0.5]])
+observation_matrix = np.array([[0.01, 0.0], [0.0, 0.01]])
 
 
-@genjax.gen(genjax.UnfoldCombinator, length=8)
+# Note how we must specify a `max_length` for `UnfoldCombinator`
+# here. This is required by JAX, so that it can statically reason
+# about the static potential size of arrays.
+@genjax.gen(genjax.UnfoldCombinator, max_length=8)
 def kernel(key, prev_latent):
     key, z = genjax.trace("latent", genjax.MvNormal)(
         key, (prev_latent, transition_matrix)
@@ -34,38 +38,33 @@ def kernel(key, prev_latent):
 
 
 @genjax.gen
-def model(key):
+def model(key, length):
     key, initial_latent = genjax.trace("initial", genjax.Uniform, shape=(2,))(
         key,
-        (-3.0, 3.0),
+        (-0.2, 0.2),
     )
-    key, z = genjax.trace("z", kernel)(key, (initial_latent,))
+    key, z = genjax.trace("z", kernel)(
+        key,
+        (length, initial_latent),
+    )
     return key, z
 
 
-observation_sequence = jnp.array(
-    [
-        [-2.0, -2.0],
-        [2.0, 2.0],
-        [4.0, 4.0],
-        [6.0, 6.0],
-        [8.0, 8.0],
-        [10.0, 10.0],
-        [12.0, 12.0],
-        [14.0, 14.0],
-    ]
-)
+key = jax.random.PRNGKey(314159)
+key, tr = jax.jit(genjax.simulate(model))(key, (8,))
+observation_sequence = tr["z", "obs"]
 
 
 #####
-# Visualizer
+# Inference
 #####
 
 import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
 
-
+# Here's a simple trace visualizer which plots the latent
+# sequence from a trace against the observation sequence.
 def trace_visualizer(observation_sequence: Sequence, tr: Trace):
     fig, ax = plt.subplots()
     value = tr[("z", "latent")]
@@ -82,31 +81,76 @@ def trace_visualizer(observation_sequence: Sequence, tr: Trace):
     plt.show()
 
 
-# Here's an implementation of jittable importance resampling, using
-# the prior as a proposal.
-def importance_resampling(model, key, args, obs, n_particles):
-    key, *subkeys = jax.random.split(key, n_particles + 1)
-    subkeys = jnp.array(subkeys)
-    _, (lws, trs) = jax.vmap(genjax.importance(model), in_axes=(0, None, None))(
-        subkeys, obs, args
+#####
+# Our inference program will utilize a custom initial and transition
+# proposal.
+#####
+
+
+# The `Partial` combinator closes over arguments -- allowing
+# JAX to implement constant propagation.
+#
+# `Partial` always closes from last to first argument.
+#
+# Thus, here we're indicating that `obs_chm` must be static underneath
+# any JAX transformation.
+#
+# Note that JAX will be very upset if you don't pass in a constant
+# argument (as you said you would).
+#
+# Then, a closure will capture a tracer, which is illegal.
+@genjax.gen(genjax.PartialCombinator)
+def initial_proposal(key, obs_chm):
+    v = obs_chm["z", "obs"]
+    key, initial = genjax.trace("initial", genjax.MvNormal)(
+        key, (v, observation_matrix)
     )
-    log_total_weight = jax.scipy.special.logsumexp(lws)
-    log_normalized_weights = lws - log_total_weight
-    ind = jax.random.categorical(key, log_normalized_weights)
-    tr = jax.tree_util.tree_map(lambda v: v[ind], trs)
-    lw = lws[ind]
-    return lw, tr
+    key, first_latent = genjax.trace(("z", "latent"), genjax.MvNormal)(
+        key, (initial, observation_matrix)
+    )
+    return (key,)
 
 
-chm = genjax.ChoiceMap(
-    {("z",): genjax.VectorChoiceMap({("obs",): observation_sequence}, 8)},
+@genjax.gen(genjax.PartialCombinator)
+def transition_proposal(key, prev_tr, obs_chm):
+    v = obs_chm["z", "obs"]
+    key, first_latent = genjax.trace(("z", "latent"), genjax.MvNormal)(
+        key, (v, observation_matrix)
+    )
+    return (key,)
+
+
+# Here's a convenient way to specify a sequence of observations
+# for an algorithm like SMC -- use a `VectorChoiceMap` to store
+# the observations, and create a static indexed mask
+# which will isolate each individual contributed observation
+# (over the time index)
+chm_sequence = genjax.IndexedMask(
+    genjax.ChoiceMap(
+        {
+            ("z",): genjax.VectorChoiceMap(
+                {("obs",): np.array(observation_sequence)}
+            )
+        }
+    ),
+    np.array([0, 1, 2, 3, 4, 5, 6, 7]),
 )
-key = jax.random.PRNGKey(314159)
-key, *subkeys = jax.random.split(key, 1000 + 1)
-subkeys = jnp.array(subkeys)
-ws, trs = jax.vmap(
-    jax.jit(importance_resampling, static_argnums=4),
-    in_axes=(None, 0, None, None, None),
-)(model, subkeys, (), chm, 10000)
 
-trace_visualizer(observation_sequence, trs)
+# SMC allows a progression of different target measures --
+# here, we parametrize that progression using a sequence of different
+# arguments to the model.
+model_arg_sequence = [(ind,) for ind in range(1, 9)]
+
+# Run inference.
+key, *sub_keys = jax.random.split(key, 10 + 1)
+sub_keys = jnp.array(sub_keys)
+jitted = jax.jit(
+    genjax.proposal_sequential_monte_carlo(
+        model, initial_proposal, transition_proposal, 50
+    ),
+    static_argnums=1,
+)
+
+key, (tr, lmle) = jitted(
+    sub_keys, chm_sequence, model_arg_sequence, [() for _ in model_arg_sequence]
+)

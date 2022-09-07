@@ -18,6 +18,7 @@ This module contains the `Distribution` abstact base class.
 
 import abc
 import jax
+import numpy as np
 from genjax.core.datatypes import (
     ChoiceMap,
     EmptyChoiceMap,
@@ -69,6 +70,15 @@ class ValueChoiceMap(ChoiceMap):
 
     def to_selection(self):
         return AllSelection()
+
+    def merge(self, other):
+        return other
+
+    def __hash__(self):
+        if isinstance(self.value, np.ndarray):
+            return hash(self.value.tostring())
+        else:
+            return hash(self.value)
 
 
 #####

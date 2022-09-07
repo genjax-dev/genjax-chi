@@ -26,9 +26,11 @@ from genjax.core.datatypes import (
     Trace,
     Mask,
 )
+import jax.experimental.host_callback as hcb
 from genjax.builtin.shape_analysis import choice_map_shape
+from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Tuple, Sequence
 from .vector_choice_map import VectorChoiceMap, prepare_vectorized_choice_map
 
 #####
@@ -40,6 +42,7 @@ from .vector_choice_map import VectorChoiceMap, prepare_vectorized_choice_map
 class UnfoldTrace(Trace):
     gen_fn: GenerativeFunction
     length: int
+    mask: Sequence
     subtrace: Trace
     args: Tuple
     retval: Any
@@ -49,7 +52,7 @@ class UnfoldTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap(self.subtrace, self.length)
+        return VectorChoiceMap(self.subtrace)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -63,6 +66,7 @@ class UnfoldTrace(Trace):
     def flatten(self):
         return (
             self.length,
+            self.mask,
             self.subtrace,
             self.args,
             self.retval,
@@ -134,16 +138,32 @@ class UnfoldCombinator(GenerativeFunction):
     """
 
     kernel: GenerativeFunction
-    length: int
+    max_length: int
 
     def flatten(self):
-        return (self.length,), (self.kernel,)
+        return (), (self.kernel, self.max_length)
+
+    def _throw_bounds_host_exception(self, count: int):
+        def _inner(count, transforms):
+            raise Exception(
+                f"\nUnfoldCombinator {self} received a length argument ({count}) longer than specified max length ({self.max_length})"
+            )
+
+        hcb.id_tap(
+            lambda *args: _inner(*args),
+            count,
+            result=None,
+        )
+        return None
 
     @classmethod
     def unflatten(cls, data, xs):
         return UnfoldCombinator(*data, *xs)
 
     def __call__(self, key, *args):
+        length = args[0]
+        args = args[1:]
+
         def _inner(carry, x):
             key, args = carry
             key, tr = self.kernel.simulate(key, args)
@@ -153,25 +173,49 @@ class UnfoldCombinator(GenerativeFunction):
             _inner,
             (key, args),
             None,
-            length=self.length,
+            length=self.max_length,
         )
 
     def simulate(self, key, args):
-        def _inner(carry, x):
-            key, tr = self.kernel.simulate(*carry)
-            retval = tr.get_retval()
-            return (key, retval), tr
+        length = args[0]
+        args = args[1:]
 
-        (key, retval), tr = jax.lax.scan(
+        # This inserts a host callback check for bounds checking.
+        check = jnp.less(self.max_length, length)
+        concrete_cond(
+            check,
+            lambda *args: self._throw_bounds_host_exception(length),
+            lambda *args: None,
+        )
+
+        def _inner(carry, x):
+            count, key, retval = carry
+            key, tr = self.kernel.simulate(key, retval)
+            check = jnp.less(count, length)
+            retval = concrete_cond(
+                check,
+                lambda *args: retval,
+                lambda *args: tr.get_retval(),
+            )
+            count = concrete_cond(
+                check,
+                lambda *args: count + 1,
+                lambda *args: count,
+            )
+            retval = tr.get_retval()
+            return (count, key, retval), (tr, check)
+
+        (count, key, retval), (tr, mask) = jax.lax.scan(
             _inner,
-            (key, args),
+            (0, key, args),
             None,
-            length=self.length,
+            length=self.max_length,
         )
 
         unfold_tr = UnfoldTrace(
             self,
-            self.length,
+            count,
+            mask,
             tr,
             args,
             retval,
@@ -188,12 +232,21 @@ class UnfoldCombinator(GenerativeFunction):
         # to the user in terms of how importance is specialized
         # onto the input choice map.
 
-        length = self.length
-        assert length > 0
+        length = args[0]
+        args = args[1:]
+
+        # This inserts a host callback check for bounds checking.
+        check = jnp.less(self.max_length, length)
+        concrete_cond(
+            check,
+            lambda *args: self._throw_bounds_host_exception(length),
+            lambda *args: None,
+        )
+
         if not isinstance(chm, VectorChoiceMap) and not isinstance(chm, Mask):
             _, treedef, shape = choice_map_shape(self.kernel)(key, args)
             chm_vectored, mask_vectored = prepare_vectorized_choice_map(
-                shape, treedef, length, chm
+                shape, treedef, self.max_length, chm
             )
 
             chm = Mask(chm_vectored, mask_vectored)
@@ -204,21 +257,27 @@ class UnfoldCombinator(GenerativeFunction):
         # call.
 
         def _inner(carry, slice):
-            key, args = carry
-            key, (w, tr) = self.kernel.importance(key, slice, args)
-            retval = tr.get_retval()
-            return (key, retval), (w, tr)
+            count, key, retval = carry
+            key, (w, tr) = self.kernel.importance(key, slice, retval)
+            check = jnp.less(count, length)
+            count, retval, weight = concrete_cond(
+                check,
+                lambda *args: (count + 1, tr.get_retval(), w),
+                lambda *args: (count, retval, 0.0),
+            )
+            return (count, key, retval), (w, tr, check)
 
-        (key, retval), (w, tr) = jax.lax.scan(
+        (count, key, retval), (w, tr, mask) = jax.lax.scan(
             _inner,
-            (key, args),
+            (0, key, args),
             chm,
-            length=self.length,
+            length=self.max_length,
         )
 
         unfold_tr = UnfoldTrace(
             self,
-            self.length,
+            count,
+            mask,
             tr,
             args,
             retval,
@@ -234,12 +293,21 @@ class UnfoldCombinator(GenerativeFunction):
         # There's a lot of room for improvement, especially in
         # asymptotics.
 
-        length = self.length
-        assert length > 0
+        length = args[0]
+        args = args[1:]
+
+        # This inserts a host callback check for bounds checking.
+        check = jnp.less(self.max_length, length)
+        concrete_cond(
+            check,
+            lambda *args: self._throw_bounds_host_exception(length),
+            lambda *args: None,
+        )
+
         if not isinstance(chm, VectorChoiceMap) and not isinstance(chm, Mask):
             _, treedef, shape = choice_map_shape(self.kernel)(key, args)
             chm_vectored, mask_vectored = prepare_vectorized_choice_map(
-                shape, treedef, length, chm
+                shape, treedef, self.max_length, chm
             )
 
             chm = Mask(chm_vectored, mask_vectored)
@@ -254,22 +322,28 @@ class UnfoldCombinator(GenerativeFunction):
         # call.
 
         def _inner(carry, slice):
-            key, args = carry
+            count, key, retval = carry
             prev, new = slice
-            key, (w, tr, d) = self.kernel.update(key, prev, new, args)
-            retval = tr.get_retval()
-            return (key, retval), (w, tr, d)
+            key, (w, tr, d) = self.kernel.update(key, prev, new, retval)
+            check = jnp.less(count, length)
+            count, retval, weight = concrete_cond(
+                check,
+                lambda *args: (count + 1, tr.get_retval(), w),
+                lambda *args: (count, retval, 0.0),
+            )
+            return (count, key, retval), (w, tr, d, check)
 
-        (key, retval), (w, tr, d) = jax.lax.scan(
+        (count, key, retval), (w, tr, d, mask) = jax.lax.scan(
             _inner,
-            (key, args),
+            (0, key, args),
             (prev, chm),
-            length=self.length,
+            length=self.max_length,
         )
 
         unfold_tr = UnfoldTrace(
             self,
-            self.length,
+            count,
+            mask,
             tr,
             args,
             retval,

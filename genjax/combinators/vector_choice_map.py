@@ -37,17 +37,15 @@ from dataclasses import dataclass
 @dataclass
 class VectorChoiceMap(ChoiceMap):
     subtrace: Trace
-    length: int
 
-    def __init__(self, subtrace, length):
+    def __init__(self, subtrace):
         if isinstance(subtrace, dict):
             self.subtrace = JAXChoiceMap(subtrace)
         else:
             self.subtrace = subtrace
-        self.length = length
 
     def flatten(self):
-        return (self.subtrace,), (self.length,)
+        return (self.subtrace,), ()
 
     @classmethod
     def unflatten(cls, data, xs):
@@ -67,7 +65,13 @@ class VectorChoiceMap(ChoiceMap):
 
     # TODO.
     def get_choices_shallow(self):
-        return ()
+        return self.subtrace.get_choices_shallow()
+
+    def merge(self, other):
+        return self.subtrace.merge(other)
+
+    def __hash__(self):
+        return hash(self.subtrace)
 
 
 def prepare_vectorized_choice_map(shape, treedef, length, chm):

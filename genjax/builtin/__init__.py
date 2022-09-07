@@ -23,8 +23,8 @@ These programs can utilize other generative functions
 
 from .intrinsics import trace
 from .handlers import *
-from .trie import *
 from .datatypes import *
+from .tree import *
 from .shape_analysis import *
 
 __all__ = [

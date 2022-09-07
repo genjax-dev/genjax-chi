@@ -22,25 +22,25 @@ def random_walk(key, prev):
     return (key, x)
 
 
-unfold = genjax.UnfoldCombinator(random_walk, 1000)
+unfold = genjax.UnfoldCombinator(random_walk, max_length=1000)
 
 
 def test_unfold_combinator_simulate(benchmark):
     init = 0.5
     key = jax.random.PRNGKey(314159)
-    benchmark(jax.jit(genjax.simulate(unfold)), key, (init,))
+    benchmark(jax.jit(genjax.simulate(unfold)), key, (500, init))
 
 
 def test_unfold_combinator_importance(benchmark):
     init = 0.5
     key = jax.random.PRNGKey(314159)
     chm = genjax.ChoiceMap({(10, "x"): 10.0})
-    benchmark(jax.jit(genjax.importance(unfold)), key, chm, (init,))
+    benchmark(jax.jit(genjax.importance(unfold)), key, chm, (500, init))
 
 
 def test_unfold_combinator_update(benchmark):
     init = 0.5
     key = jax.random.PRNGKey(314159)
-    key, tr = jax.jit(genjax.simulate(unfold))(key, (init,))
+    key, tr = jax.jit(genjax.simulate(unfold))(key, (500, init))
     chm = genjax.ChoiceMap({(10, "x"): 10.0})
-    benchmark(jax.jit(genjax.update(unfold)), key, tr, chm, (init,))
+    benchmark(jax.jit(genjax.update(unfold)), key, tr, chm, (500, init))

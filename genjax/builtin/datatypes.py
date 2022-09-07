@@ -16,7 +16,7 @@ import jax
 import jax.numpy as jnp
 from typing import Any, Callable, Tuple
 from dataclasses import dataclass
-from .trie import Trie
+from genjax.builtin.tree import Tree
 from genjax.core.datatypes import (
     Trace,
     ChoiceMap,
@@ -45,7 +45,7 @@ class JAXTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    choices: Trie
+    choices: Tree
     score: jnp.float32
 
     def flatten(self):
@@ -80,40 +80,40 @@ class JAXTrace(Trace):
 
 @dataclass
 class JAXChoiceMap(ChoiceMap):
-    trie: Trie
+    tree: Tree
 
     def __init__(self, constraints):
-        self.trie = Trie({})
+        self.tree = Tree({})
         if isinstance(constraints, dict):
             for (k, v) in constraints.items():
-                self.trie[k] = (
+                self.tree[k] = (
                     v if isinstance(v, ChoiceMap) else ValueChoiceMap(v)
                 )
-        elif isinstance(constraints, Trie):
-            self.trie = constraints
+        elif isinstance(constraints, Tree):
+            self.tree = constraints
         elif isinstance(constraints, JAXChoiceMap):
-            self.trie = constraints.trie
+            self.tree = constraints.tree
 
     # Implement the `Pytree` interfaces.
     def flatten(self):
-        return (self.trie,), ()
+        return (self.tree,), ()
 
     @classmethod
     def unflatten(cls, data, xs):
         return JAXChoiceMap(*xs)
 
     def has_choice(self, addr):
-        if self.trie.has_node(addr):
-            node = self.trie.get_node(addr)
+        if self.tree.has_node(addr):
+            node = self.tree.get_node(addr)
             return not isinstance(node, EmptyChoiceMap)
         else:
             return False
 
     def get_choice(self, addr):
-        if not self.trie.has_node(addr):
+        if not self.tree.has_node(addr):
             return EmptyChoiceMap()
-        node = self.trie.get_node(addr)
-        if isinstance(node, Trie):
+        node = self.tree.get_node(addr)
+        if isinstance(node, Tree):
             return JAXChoiceMap(node)
         else:
             return node
@@ -125,25 +125,28 @@ class JAXChoiceMap(ChoiceMap):
         raise Exception("JAXChoiceMap is not a value choice map.")
 
     def get_choices_shallow(self):
-        return self.trie.nodes.items()
+        return self.tree.nodes.items()
 
     def strip_metadata(self):
-        new_trie = Trie({})
+        new_tree = Tree({})
         for (k, v) in self.get_choices_shallow():
-            new_trie.set_node(k, v.strip_metadata())
-        return JAXChoiceMap(new_trie)
+            new_tree.set_node(k, v.strip_metadata())
+        return JAXChoiceMap(new_tree)
 
     def to_selection(self):
-        new_trie = Trie({})
+        new_tree = Tree({})
         for (k, v) in self.get_choices_shallow():
-            new_trie.set_node(k, v.to_selection())
-        return JAXSelection(new_trie)
+            new_tree.set_node(k, v.to_selection())
+        return JAXSelection(new_tree)
 
     def merge(self, other):
-        return JAXChoiceMap(self.trie.merge(other))
+        return JAXChoiceMap(self.tree.merge(other))
 
     def __setitem__(self, k, v):
-        self.trie[k] = v
+        self.tree[k] = v
+
+    def __hash__(self):
+        return hash(self.tree)
 
 
 #####
@@ -153,18 +156,18 @@ class JAXChoiceMap(ChoiceMap):
 
 @dataclass
 class JAXSelection(Selection):
-    trie: Trie
+    tree: Tree
 
     def __init__(self, selected):
-        self.trie = Trie({})
+        self.tree = Tree({})
         if isinstance(selected, list):
             for k in selected:
-                self.trie[k] = AllSelection()
-        if isinstance(selected, Trie):
-            self.trie = selected
+                self.tree[k] = AllSelection()
+        if isinstance(selected, Tree):
+            self.tree = selected
 
     def flatten(self):
-        return (self.trie,), ()
+        return (self.tree,), ()
 
     @classmethod
     def unflatten(cls, data, xs):
@@ -174,28 +177,28 @@ class JAXSelection(Selection):
         chm = chm.get_choices()
 
         def _inner(k, v):
-            if self.trie.has_node(k):
-                sub = self.trie.get_node(k)
+            if self.tree.has_node(k):
+                sub = self.tree.get_node(k)
                 return k, sub.filter(v)
             else:
                 return k, EmptyChoiceMap()
 
-        new_trie = Trie({})
+        new_tree = Tree({})
         for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
-            new_trie.set_node(k, v)
+            new_tree.set_node(k, v)
 
-        return JAXChoiceMap(new_trie)
+        return JAXChoiceMap(new_tree)
 
     def complement(self):
-        return JAXComplementSelection(self.trie)
+        return JAXComplementSelection(self.tree)
 
 
 @dataclass
 class JAXComplementSelection(Selection):
-    trie: Trie
+    tree: Tree
 
     def flatten(self):
-        return (self.trie,), ()
+        return (self.tree,), ()
 
     @classmethod
     def unflatten(cls, data, xs):
@@ -203,23 +206,23 @@ class JAXComplementSelection(Selection):
 
     def filter(self, chm):
         def _inner(k, v):
-            if self.trie.has_node(k):
-                sub = self.trie.get_node(k)
+            if self.tree.has_node(k):
+                sub = self.tree.get_node(k)
                 return k, sub.complement().filter(v)
             else:
                 return k, v
 
-        new_trie = Trie({})
+        new_tree = Tree({})
         for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
-            new_trie.set_node(k, v)
+            new_tree.set_node(k, v)
 
-        return JAXChoiceMap(new_trie)
+        return JAXChoiceMap(new_tree)
 
     def complement(self):
-        new_trie = Trie({})
-        for (k, v) in self.trie.get_choices_shallow():
-            new_trie[k] = v.complement()
-        return JAXSelection(new_trie)
+        new_tree = Tree({})
+        for (k, v) in self.tree.get_choices_shallow():
+            new_tree[k] = v.complement()
+        return JAXSelection(new_tree)
 
 
 #####

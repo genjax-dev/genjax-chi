@@ -25,7 +25,7 @@ import jax.tree_util as jtu
 from genjax.core import Handler
 from genjax.core.datatypes import collapse_mask, mask
 from genjax.core.specialization import concrete_cond
-from .trie import Trie
+from genjax.builtin.tree import Tree
 from .intrinsics import gen_fn_p
 
 #####
@@ -66,7 +66,7 @@ class Simulate(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = Trie({})
+        self.state = Tree({})
         self.score = 0.0
         self.return_or_continue = False
 
@@ -91,7 +91,7 @@ class Importance(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = Trie({})
+        self.state = Tree({})
         self.score = 0.0
         self.weight = 0.0
         self.constraints = constraints
@@ -135,8 +135,8 @@ class Update(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = Trie({})
-        self.discard = Trie({})
+        self.state = Tree({})
+        self.discard = Tree({})
         self.weight = 0.0
         self.prev = prev
         self.choice_change = new

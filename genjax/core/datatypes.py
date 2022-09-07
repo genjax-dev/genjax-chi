@@ -13,12 +13,16 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
-from genjax.core.pytree import Pytree
-import genjax.core.pretty_printer as pp
-from genjax.core.specialization import concrete_cond, is_concrete
+import collections.abc
+import jax
 import jax.tree_util as jtu
-from typing import Any
+import jax.numpy as jnp
+import numpy as np
+from dataclasses import dataclass
+from genjax.core.pytree import Pytree, squeeze
+from genjax.core.specialization import concrete_cond, is_concrete
+import genjax.core.pretty_printer as pp
+from typing import Any, Sequence
 
 #####
 # GenerativeFunction
@@ -26,7 +30,11 @@ from typing import Any
 
 
 @dataclass
-class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
+class GenerativeFunction(
+    Pytree,
+    collections.abc.Callable,
+    collections.abc.Hashable,
+):
     """
     `GenerativeFunction` class which allows user-defined
     implementations of the generative function interface methods, rather
@@ -44,20 +52,6 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
     To support argument and choice gradients via JAX, the user must
     provide a differentiable `importance` implementation.
     """
-
-    # Implement the `Pytree` interface methods.
-    @abc.abstractmethod
-    def flatten(self):
-        pass
-
-    @classmethod
-    @abc.abstractmethod
-    def unflatten(cls, data, xs):
-        pass
-
-    @abc.abstractmethod
-    def __call__(self, key, *args):
-        pass
 
     def simulate(self, key, args):
         pass
@@ -87,7 +81,7 @@ class GenerativeFunction(Pytree, metaclass=abc.ABCMeta):
 
 
 @dataclass
-class Trace(Pytree, metaclass=abc.ABCMeta):
+class Trace(Pytree, collections.abc.Hashable):
     @abc.abstractmethod
     def get_retval(self):
         pass
@@ -138,6 +132,8 @@ class Trace(Pytree, metaclass=abc.ABCMeta):
         return pp.tree_pformat(self)
 
     def __getitem__(self, addr):
+        if isinstance(addr, slice):
+            return jax.tree_util.tree_map(lambda v: v[addr], self)
         choices = self.get_choices()
         choice = choices.get_choice(addr)
         if choice.has_value():
@@ -152,17 +148,7 @@ class Trace(Pytree, metaclass=abc.ABCMeta):
 
 
 @dataclass
-class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
-    # Implement the `Pytree` interface methods.
-    @abc.abstractmethod
-    def flatten(self):
-        pass
-
-    @classmethod
-    @abc.abstractmethod
-    def unflatten(cls, data, xs):
-        pass
-
+class ChoiceMap(Pytree, collections.abc.Hashable):
     @abc.abstractmethod
     def has_choice(self, addr):
         pass
@@ -183,11 +169,21 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
     def get_choices_shallow(self):
         pass
 
+    def to_selection(self):
+        return NoneSelection()
+
+    @abc.abstractmethod
+    def merge(self, other):
+        pass
+
     def get_choices(self):
         return self
 
-    def to_selection(self):
-        return NoneSelection()
+    def slice(self, arr: Sequence):
+        return jtu.tree_map(
+            lambda v: v[arr],
+            self,
+        )
 
     def __repr__(self):
         return pp.tree_pformat(self)
@@ -196,11 +192,16 @@ class ChoiceMap(Pytree, metaclass=abc.ABCMeta):
         return pp.tree_pformat(self)
 
     def __getitem__(self, addr):
+        if isinstance(addr, slice):
+            return jax.tree_util.tree_map(lambda v: v[addr], self)
         choice = self.get_choice(addr)
         if choice.has_value():
             return choice.get_value()
         else:
             return choice
+
+    def __eq__(self, other):
+        return self.flatten() == other.flatten()
 
 
 @dataclass
@@ -227,6 +228,9 @@ class EmptyChoiceMap(ChoiceMap):
     def get_choices_shallow(self):
         return ()
 
+    def merge(self, other):
+        return other
+
     def strip_metadata(self):
         return self
 
@@ -252,7 +256,13 @@ class Mask(ChoiceMap, Trace):
             return False
         check = self.mask.get_choice(addr)
         if isinstance(check, ChoiceMap) and check.has_value():
-            return check.get_value()
+            value = check.get_value()
+            if isinstance(value, np.ndarray):
+                return np.any(value)
+            elif isinstance(value, jnp.ndarray):
+                return jnp.any(value)
+            else:
+                return value
         else:
             return concrete_cond(
                 check,
@@ -272,6 +282,10 @@ class Mask(ChoiceMap, Trace):
         mask_chm = self.mask.get_choices()
         if mask_chm.has_value():
             check = mask_chm.get_value()
+            if isinstance(check, np.ndarray):
+                return np.any(check)
+            elif isinstance(check, jnp.ndarray):
+                return jnp.any(check)
             return check
         else:
             return False
@@ -318,6 +332,11 @@ class Mask(ChoiceMap, Trace):
         else:
             raise Exception("Mask does not mask a trace.")
 
+    def __hash__(self):
+        hash1 = hash(self.inner)
+        hash2 = hash(self.mask)
+        return hash((hash1, hash2))
+
 
 # This is quite complicated -- it's sort of a "postwalk" style
 # pattern which traverses `Pytree`-structured data and simultaneously unwraps
@@ -352,6 +371,46 @@ def collapse_mask(chm):
             return v
 
     return jtu.tree_map(_inner, chm, is_leaf=lambda v: isinstance(v, Mask))
+
+
+@dataclass
+class IndexedMask(ChoiceMap):
+    inner: Any
+    mask: Sequence
+
+    def __init__(self, inner, mask):
+        self.inner = inner
+        self.mask = mask
+
+    def flatten(self):
+        return (self.inner, self.mask), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return IndexedMask(*data, *xs)
+
+    def has_choice(self, addr):
+        return self.inner.has_choice(addr)
+
+    def get_choice(self, addr):
+        return squeeze(self.inner.slice(self.mask)).get_choice(addr)
+
+    def has_value(self):
+        return self.inner.slice(self.mask).has_value()
+
+    def get_value(self):
+        return squeeze(self.inner.slice(self.mask)).get_value()
+
+    def get_choices_shallow(self):
+        return squeeze(self.inner.slice(self.mask)).get_choices_shallow()
+
+    def merge(self, other):
+        return squeeze(self.inner.slice(self.mask)).merge(other)
+
+    def __hash__(self):
+        hash1 = hash(self.inner)
+        hash2 = hash(self.mask.tostring())
+        return hash((hash1, hash2))
 
 
 #####
