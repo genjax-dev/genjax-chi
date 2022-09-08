@@ -180,9 +180,11 @@ class ChoiceMap(Pytree, collections.abc.Hashable):
         return self
 
     def slice(self, arr: Sequence):
-        return jtu.tree_map(
-            lambda v: v[arr],
-            self,
+        return squeeze(
+            jtu.tree_map(
+                lambda v: v[arr],
+                self,
+            )
         )
 
     def __repr__(self):
@@ -235,8 +237,13 @@ class EmptyChoiceMap(ChoiceMap):
         return self
 
 
+#####
+# Masking
+#####
+
+
 @dataclass
-class Mask(ChoiceMap, Trace):
+class BooleanMask(ChoiceMap, Trace):
     inner: Any
     mask: Any
 
@@ -249,7 +256,7 @@ class Mask(ChoiceMap, Trace):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return Mask(*data, *xs)
+        return BooleanMask(*data, *xs)
 
     def has_choice(self, addr):
         if not self.mask.has_choice(addr):
@@ -276,7 +283,7 @@ class Mask(ChoiceMap, Trace):
         else:
             check = self.mask.get_choice(addr)
             inner = self.inner.get_choice(addr)
-            return Mask(inner, check)
+            return BooleanMask(inner, check)
 
     def has_value(self):
         mask_chm = self.mask.get_choices()
@@ -295,42 +302,45 @@ class Mask(ChoiceMap, Trace):
 
     def get_choices_shallow(self):
         def _inner(k, v):
-            return k, Mask(v, self.mask.get_choice(k))
+            return k, BooleanMask(v, self.mask.get_choice(k))
 
         return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
 
     def merge(self, other):
-        if isinstance(other, Mask):
-            return Mask(
+        if isinstance(other, BooleanMask):
+            return BooleanMask(
                 self.inner.merge(other.inner), self.mask.merge(other.mask)
             )
         else:
             mask_other = mask(other, True)
             return self.merge(mask_other)
 
+    def leaf_push(self):
+        return jtu.tree_map(lambda v: BooleanMask(v, self.mask), self.inner)
+
     def get_retval(self):
         if isinstance(self.inner, Trace):
             return self.inner.get_retval()
         else:
-            raise Exception("Mask does not mask a trace.")
+            raise Exception("BooleanMask does not mask a trace.")
 
     def get_args(self):
         if isinstance(self.inner, Trace):
             return self.inner.get_args()
         else:
-            raise Exception("Mask does not mask a trace.")
+            raise Exception("BooleanMask does not mask a trace.")
 
     def get_score(self):
         if isinstance(self.inner, Trace):
             return self.inner.get_score()
         else:
-            raise Exception("Mask does not mask a trace.")
+            raise Exception("BooleanMask does not mask a trace.")
 
     def get_gen_fn(self):
         if isinstance(self.inner, Trace):
             return self.inner.get_gen_fn()
         else:
-            raise Exception("Mask does not mask a trace.")
+            raise Exception("BooleanMask does not mask a trace.")
 
     def __hash__(self):
         hash1 = hash(self.inner)
@@ -338,31 +348,36 @@ class Mask(ChoiceMap, Trace):
         return hash((hash1, hash2))
 
 
-# This is quite complicated -- it's sort of a "postwalk" style
+# This is quite complicated -- it's a "postwalk" style
 # pattern which traverses `Pytree`-structured data and simultaneously unwraps
-# inner `Mask` instances (pulling `Mask` to the toplevel wrapper) as well
+# inner `BooleanMask` instances (pulling `BooleanMask` to the toplevel wrapper) as well
 # as filling the mask with `fill`.
 def mask(v, fill):
-    if isinstance(v, Mask):
+    if isinstance(v, BooleanMask):
         new_mask = jtu.tree_map(lambda v: fill, v.inner)
-        return Mask(v.inner, new_mask)
+        return BooleanMask(v.inner, new_mask)
     else:
         sub = jtu.tree_map(
-            lambda v: v.inner if isinstance(v, Mask) else v,
+            lambda v: v.inner if isinstance(v, BooleanMask) else v,
             v,
-            is_leaf=lambda v: isinstance(v, Mask),
+            is_leaf=lambda v: isinstance(v, BooleanMask),
         )
         new_mask = jtu.tree_map(
-            lambda v: mask(v, True).mask if isinstance(v, Mask) else fill,
+            lambda v: mask(v, True).mask
+            if isinstance(v, BooleanMask)
+            else fill,
             v,
-            is_leaf=lambda v: isinstance(v, Mask),
+            is_leaf=lambda v: isinstance(v, BooleanMask),
         )
-        return Mask(sub, new_mask)
+        return BooleanMask(sub, new_mask)
 
 
+# This collapses a "concrete" Mask.
+# (one in which the boolean values are concrete)
+# Otherwise, it leaves the passed in value unchanged.
 def collapse_mask(chm):
     def _inner(v):
-        if isinstance(v, Mask):
+        if isinstance(v, BooleanMask):
             if is_concrete(v.has_value()):
                 return v.inner
             else:
@@ -370,46 +385,56 @@ def collapse_mask(chm):
         else:
             return v
 
-    return jtu.tree_map(_inner, chm, is_leaf=lambda v: isinstance(v, Mask))
+    return jtu.tree_map(
+        _inner, chm, is_leaf=lambda v: isinstance(v, BooleanMask)
+    )
 
 
 @dataclass
-class IndexedMask(ChoiceMap):
+class IndexMask(ChoiceMap):
     inner: Any
-    mask: Sequence
+    index: Any
 
-    def __init__(self, inner, mask):
+    def __init__(self, inner, index):
         self.inner = inner
-        self.mask = mask
+        self.index = index
 
     def flatten(self):
-        return (self.inner, self.mask), ()
+        return (self.inner, self.index), ()
 
     @classmethod
     def unflatten(cls, data, xs):
-        return IndexedMask(*data, *xs)
+        return IndexMask(*data, *xs)
+
+    def get_index(self):
+        return self.index
 
     def has_choice(self, addr):
         return self.inner.has_choice(addr)
 
     def get_choice(self, addr):
-        return squeeze(self.inner.slice(self.mask)).get_choice(addr)
+        return IndexMask(squeeze(self.inner.get_choice(addr)), self.index)
 
     def has_value(self):
-        return self.inner.slice(self.mask).has_value()
+        return self.inner.has_value()
 
     def get_value(self):
-        return squeeze(self.inner.slice(self.mask)).get_value()
+        return squeeze(self.inner.get_value())
 
     def get_choices_shallow(self):
-        return squeeze(self.inner.slice(self.mask)).get_choices_shallow()
+        return squeeze(self.inner.get_choices_shallow())
 
     def merge(self, other):
-        return squeeze(self.inner.slice(self.mask)).merge(other)
+        return squeeze(self.inner.merge(other))
+
+    def leaf_push(self, is_leaf):
+        return jtu.tree_map(
+            lambda v: IndexMask(v, self.index), self.inner, is_leaf=is_leaf
+        )
 
     def __hash__(self):
         hash1 = hash(self.inner)
-        hash2 = hash(self.mask.tostring())
+        hash2 = hash(self.index.tostring())
         return hash((hash1, hash2))
 
 

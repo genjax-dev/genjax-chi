@@ -15,7 +15,7 @@
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from genjax.core.datatypes import ChoiceMap, GenerativeFunction
+from genjax.core.datatypes import ChoiceMap, GenerativeFunction, IndexMask
 from genjax.core.pytree import tree_stack
 from typing import Tuple, Sequence
 import jax.experimental.host_callback as hcb
@@ -116,16 +116,12 @@ def proposal_sequential_monte_carlo(
 
         # This is to prevent us from having to duplicate observations
         # over all the `vmap` broadcasts.
-        none_tree_obs = jtu.tree_map(lambda v: None, initial_obs)
+        none_tree_obs = jtu.tree_map(lambda v: None, observation_sequence)
         none_tree_chm = jtu.tree_map(lambda v: 0, p_chm)
         none_tree = none_tree_chm.merge(none_tree_obs)
 
         # Here, we provide the `none_tree` from above, which should tell
         # `vmap` to not broadcast over that part of our choice tree.
-        print(observation_sequence)
-        print(initial_obs)
-        print(p_chm)
-        print(chm)
         _, (lws, m_trs) = jax.vmap(
             model.importance, in_axes=(0, none_tree, None)
         )(
@@ -137,29 +133,30 @@ def proposal_sequential_monte_carlo(
         key, (log_ml_est, m_trs) = multinomial_resampling(key, lws, m_trs)
 
         def _body_fun(carry, slice):
-            key, log_ml_est, m_trs = carry
+            count, key, log_ml_est, m_trs = carry
             obs, m_args, p_args = slice
             key, *sub_keys = jax.random.split(key, n_particles + 1)
             sub_keys = jnp.array(sub_keys)
             _, p_trs = jax.vmap(
-                transition_proposal.simulate, in_axes=(0, (0, *none_))
+                transition_proposal.simulate, in_axes=(0, (0, None, *none_))
             )(sub_keys, (m_trs, obs, *p_args))
-            obs = jax.tree_util.map(lambda v: jnp.repeats(v, n_particles), obs)
             p_chm = p_trs.get_choices()
-            chm = p_chm.merge(obs)
+            none_tree_chm = jtu.tree_map(lambda v: 0, p_chm)
+            none_tree = IndexMask(none_tree_chm.merge(none_tree_obs), None)
+            chm = IndexMask(p_chm.merge(obs), jnp.array(count))
             key, *sub_keys = jax.random.split(key, n_particles + 1)
             sub_keys = jnp.array(sub_keys)
             _, (lws, m_trs, d) = jax.vmap(
-                model.update, in_axes=(0, 0, 0, None)
+                model.update, in_axes=(0, 0, none_tree, None)
             )(sub_keys, m_trs, chm, m_args)
             lws -= p_trs.get_score()
             key, (inc_log_ml_est, trs) = multinomial_resampling(key, lws, m_trs)
             log_ml_est += inc_log_ml_est
-            return (key, log_ml_est, trs), ()
+            return (count + 1, key, log_ml_est, trs), ()
 
-        (key, log_ml_est, trs), () = jax.lax.scan(
+        (_, key, log_ml_est, trs), () = jax.lax.scan(
             _body_fun,
-            (key, log_ml_est, m_trs),
+            (1, key, log_ml_est, m_trs),
             (
                 observation_sequence[1:],
                 tree_stack(model_args[1:]),

@@ -21,7 +21,7 @@ import genjax
 
 # Create a MapCombinator generative function, mapping over
 # the key and sigma arguments.
-@genjax.gen(genjax.MapCombinator, in_axes=(0, None, None, 0))
+@genjax.gen(genjax.Map, in_axes=(0, None, None, 0))
 def plate(key, mu, tau, sigma):
     key, theta = genjax.trace("theta", genjax.Normal)(key, (mu, tau))
     key, obs = genjax.trace("obs", genjax.Normal)(key, (theta, sigma))
@@ -66,12 +66,7 @@ sigma = jnp.array([15.0, 10.0, 16.0, 11.0, 9.0, 11.0, 10.0, 18.0])
 obs = genjax.ChoiceMap(
     {
         ("plate",): genjax.VectorChoiceMap(
-            {
-                ("obs",): jnp.array(
-                    [28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0]
-                )
-            },
-            8,
+            {("obs",): jnp.array([28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0])}
         )
     }
 )

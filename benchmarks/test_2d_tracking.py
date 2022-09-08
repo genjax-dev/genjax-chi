@@ -18,17 +18,18 @@ import numpy as np
 import genjax
 from genjax import Trace
 from typing import Sequence
+import pytest
 
 # A 2D tracking example in GenJAX, with inference using propose-resample SMC.
 
 transition_matrix = np.array([[0.5, 0.0], [0.0, 0.5]])
-observation_matrix = np.array([[0.01, 0.0], [0.0, 0.01]])
+observation_matrix = np.array([[0.05, 0.0], [0.0, 0.05]])
 
 
 # Note how we must specify a `max_length` for `UnfoldCombinator`
 # here. This is required by JAX, so that it can statically reason
 # about the static potential size of arrays.
-@genjax.gen(genjax.UnfoldCombinator, max_length=8)
+@genjax.gen(genjax.Unfold, max_length=50)
 def kernel(key, prev_latent):
     key, z = genjax.trace("latent", genjax.MvNormal)(
         key, (prev_latent, transition_matrix)
@@ -39,9 +40,8 @@ def kernel(key, prev_latent):
 
 @genjax.gen
 def model(key, length):
-    key, initial_latent = genjax.trace("initial", genjax.Uniform, shape=(2,))(
-        key,
-        (-0.2, 0.2),
+    key, initial_latent = genjax.trace("initial", genjax.MvNormal)(
+        key, (np.array([0.0, 0.0]), observation_matrix)
     )
     key, z = genjax.trace("z", kernel)(
         key,
@@ -99,7 +99,7 @@ def trace_visualizer(observation_sequence: Sequence, tr: Trace):
 # argument (as you said you would).
 #
 # Then, a closure will capture a tracer, which is illegal.
-@genjax.gen(genjax.PartialCombinator)
+@genjax.gen(genjax.Partial)
 def initial_proposal(key, obs_chm):
     v = obs_chm["z", "obs"]
     key, initial = genjax.trace("initial", genjax.MvNormal)(
@@ -111,7 +111,7 @@ def initial_proposal(key, obs_chm):
     return (key,)
 
 
-@genjax.gen(genjax.PartialCombinator)
+@genjax.gen(genjax.Partial)
 def transition_proposal(key, prev_tr, obs_chm):
     v = obs_chm["z", "obs"]
     key, first_latent = genjax.trace(("z", "latent"), genjax.MvNormal)(
@@ -122,35 +122,33 @@ def transition_proposal(key, prev_tr, obs_chm):
 
 # Here's a convenient way to specify a sequence of observations
 # for an algorithm like SMC -- use a `VectorChoiceMap` to store
-# the observations, and create a static indexed mask
+# the observations, and create a static index mask
 # which will isolate each individual contributed observation
 # (over the time index)
-chm_sequence = genjax.IndexedMask(
-    genjax.ChoiceMap(
-        {
-            ("z",): genjax.VectorChoiceMap(
-                {("obs",): np.array(observation_sequence)}
-            )
-        }
-    ),
-    np.array([0, 1, 2, 3, 4, 5, 6, 7]),
+chm_sequence = genjax.ChoiceMap(
+    {("z",): genjax.VectorChoiceMap({("obs",): np.array(observation_sequence)})}
 )
 
 # SMC allows a progression of different target measures --
 # here, we parametrize that progression using a sequence of different
 # arguments to the model.
-model_arg_sequence = [(ind,) for ind in range(1, 9)]
+model_arg_sequence = [(ind,) for ind in range(1, len(observation_sequence) + 1)]
 
-# Run inference.
-key, *sub_keys = jax.random.split(key, 10 + 1)
-sub_keys = jnp.array(sub_keys)
-jitted = jax.jit(
-    genjax.proposal_sequential_monte_carlo(
-        model, initial_proposal, transition_proposal, 50
-    ),
-    static_argnums=1,
-)
+# This uses `Pytest` benchmark harness to benchmark.
+def test_2d_tracking(benchmark):
 
-key, (tr, lmle) = jitted(
-    sub_keys, chm_sequence, model_arg_sequence, [() for _ in model_arg_sequence]
-)
+    # Run inference.
+    jitted = jax.jit(
+        genjax.proposal_sequential_monte_carlo(
+            model, initial_proposal, transition_proposal, 50
+        ),
+        static_argnums=1,
+    )
+
+    benchmark(
+        jitted,
+        key,
+        chm_sequence,
+        model_arg_sequence,
+        [() for _ in model_arg_sequence],
+    )

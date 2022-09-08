@@ -33,7 +33,7 @@ import jax.tree_util as jtu
 from genjax.core.datatypes import (
     GenerativeFunction,
     Trace,
-    Mask,
+    BooleanMask,
     mask,
 )
 from genjax.distributions.distribution import ValueChoiceMap
@@ -50,7 +50,7 @@ from typing import Any, Tuple
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    chm: Mask
+    chm: BooleanMask
     args: Tuple
     retval: Any
     score: jnp.float32
