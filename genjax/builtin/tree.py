@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from genjax.core.pytree import Pytree
 from genjax.core.datatypes import ChoiceMap
 import genjax.core.pretty_printer as pp
 

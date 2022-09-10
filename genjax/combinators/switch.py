@@ -34,7 +34,6 @@ from genjax.core.datatypes import (
     GenerativeFunction,
     Trace,
     BooleanMask,
-    mask,
 )
 from genjax.distributions.distribution import ValueChoiceMap
 from genjax.builtin.shape_analysis import trace_shape_no_toplevel
@@ -179,12 +178,12 @@ class SwitchCombinator(GenerativeFunction):
                 is_leaf=lambda v: isinstance(v, ValueChoiceMap),
             )
             tree = tree.merge(shape)
-        return mask(tree, False)
+        return BooleanMask(tree, False)
 
     def _simulate(self, branch_gen_fn, key, args):
         tree = self.create_masked_tree(key, args)
         key, tr = branch_gen_fn.simulate(key, args)
-        choices = mask(tr.get_choices(), True)
+        choices = BooleanMask(tr.get_choices(), True)
         tree = tree.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
@@ -219,7 +218,7 @@ class SwitchCombinator(GenerativeFunction):
     def _importance(self, branch_gen_fn, key, chm, args):
         tree = self.create_masked_tree(key, args)
         key, (w, tr) = branch_gen_fn.importance(key, chm, args)
-        choices = mask(tr.get_choices(), True)
+        choices = BooleanMask(tr.get_choices(), True)
         tree = tree.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
@@ -257,7 +256,7 @@ class SwitchCombinator(GenerativeFunction):
         tree = self.create_masked_tree(key, args)
         key, (w, tr, discard) = branch_gen_fn.update(key, prev, new, args)
         discard = discard_option.merge(discard)
-        choices = mask(tr.get_choices(), True)
+        choices = BooleanMask(tr.get_choices(), True)
         tree = tree.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
@@ -267,7 +266,7 @@ class SwitchCombinator(GenerativeFunction):
 
     def update(self, key, prev, new, args):
         switch = args[0]
-        discard_option = mask(prev.get_choices(), False)
+        discard_option = BooleanMask(prev.get_choices(), False)
 
         def _inner(br):
             return lambda key, prev, new, *args: self._update(

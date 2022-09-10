@@ -18,7 +18,6 @@ import jax.tree_util as jtu
 from genjax.core.datatypes import ChoiceMap, GenerativeFunction, IndexMask
 from genjax.core.pytree import tree_stack
 from typing import Tuple, Sequence
-import jax.experimental.host_callback as hcb
 
 
 def multinomial_resampling(key, lws: Sequence, trs: Sequence):

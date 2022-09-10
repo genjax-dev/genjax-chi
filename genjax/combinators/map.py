@@ -143,8 +143,13 @@ class MapCombinator(GenerativeFunction):
     def __call__(self, key, *args, **kwargs):
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
-        vmapped = jax.vmap(self.kernel.__call__, in_axes=(key_axis, arg_axes))
-        return vmapped(key, args)
+        vmapped = jax.vmap(
+            self.kernel.simulate,
+            in_axes=(key_axis, arg_axes),
+        )
+        key, tr = vmapped(key, args)
+        retval = tr.get_retval()
+        return key, retval
 
     def simulate(self, key, args, **kwargs):
         key_axis = self.in_axes[0]

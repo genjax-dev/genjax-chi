@@ -23,10 +23,10 @@ in `genjax.core`.
 
 import jax.tree_util as jtu
 from genjax.core import Handler
-from genjax.core.datatypes import collapse_mask, mask
+from genjax.core.datatypes import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.builtin.tree import Tree
-from .intrinsics import gen_fn_p
+from genjax.builtin.intrinsics import gen_fn_p
 
 #####
 # GFI handlers
@@ -158,14 +158,14 @@ class Update(Handler):
         def _has_prev_branch(key, args):
             prev_tr = self.prev.get_choice(addr)
             w = 0.0
-            discard = mask(prev_tr.get_choices(), False)
+            discard = BooleanMask(prev_tr.get_choices(), False)
             return key, (w, prev_tr, discard)
 
         def _constrained_branch(key, args):
             prev_tr = self.prev.get_choice(addr)
             chm = self.choice_change.get_choice(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            discard = mask(prev_tr.get_choices(), False)
+            discard = BooleanMask(prev_tr.get_choices(), False)
             return key, (w, tr, discard)
 
         key, (w, tr, discard) = concrete_cond(
@@ -182,7 +182,6 @@ class Update(Handler):
             args,
         )
 
-        discard = collapse_mask(discard)
         self.weight += w
         self.state[addr] = tr
         self.discard[addr] = discard

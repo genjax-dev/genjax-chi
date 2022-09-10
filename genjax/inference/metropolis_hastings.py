@@ -35,10 +35,13 @@ def metropolis_hastings(proposal: GenerativeFunction):
         )
         alpha = weight - fwd_weight + bwd_weight
         check = jnp.log(random.uniform(key)) < alpha
-        return key, jax.lax.cond(
-            check,
-            lambda *args: (new, True),
-            lambda *args: (trace, False),
+        return (
+            key,
+            jax.lax.cond(
+                check,
+                lambda *args: (new, True),
+                lambda *args: (trace, False),
+            ),
         )
 
     return _inner

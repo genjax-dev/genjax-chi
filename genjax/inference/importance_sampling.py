@@ -85,7 +85,6 @@ def bootstrap_importance_resampling(
         log_ml_estimate = log_total_weight - jnp.log(n_particles)
         ind = jax.random.categorical(key, log_normalized_weights)
         tr = jax.tree_util.tree_map(lambda v: v[ind], trs)
-        lw = lws[ind]
         lnw = log_normalized_weights[ind]
         return key, (tr, lnw, log_ml_estimate)
 

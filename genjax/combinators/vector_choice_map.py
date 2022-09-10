@@ -26,7 +26,7 @@ import jax.tree_util as jtu
 import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace
 from genjax.core.pytree import tree_stack
-from genjax.builtin.datatypes import JAXChoiceMap
+from genjax.builtin.datatypes import BuiltinChoiceMap
 from dataclasses import dataclass
 
 #####
@@ -40,7 +40,7 @@ class VectorChoiceMap(ChoiceMap):
 
     def __init__(self, subtrace):
         if isinstance(subtrace, dict):
-            self.subtrace = JAXChoiceMap(subtrace)
+            self.subtrace = BuiltinChoiceMap(subtrace)
         else:
             self.subtrace = subtrace
 

@@ -42,7 +42,7 @@ def J_schools(key, J, sigma):
 # which closes over constants into a `JAXGenerativeFunction`.
 #
 # Here, we specialize on the number of schools.
-eight_schools = genjax.JAXGenerativeFunction(
+eight_schools = genjax.BuiltinGenerativeFunction(
     lambda key, sigma: J_schools(key, 8, sigma)
 )
 

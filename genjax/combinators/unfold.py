@@ -25,15 +25,13 @@ from genjax.core.datatypes import (
     GenerativeFunction,
     Trace,
     EmptyChoiceMap,
-    BooleanMask,
     IndexMask,
 )
 import jax.experimental.host_callback as hcb
-from genjax.builtin.shape_analysis import choice_map_shape
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
 from typing import Any, Tuple, Sequence
-from .vector_choice_map import VectorChoiceMap, prepare_vectorized_choice_map
+from .vector_choice_map import VectorChoiceMap
 
 #####
 # UnfoldTrace
@@ -163,7 +161,6 @@ class UnfoldCombinator(GenerativeFunction):
         return UnfoldCombinator(*data, *xs)
 
     def __call__(self, key, *args):
-        length = args[0]
         args = args[1:]
 
         def _inner(carry, x):

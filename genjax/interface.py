@@ -83,10 +83,6 @@ def importance(f, **kwargs):
     return lambda *args: f.importance(*args, **kwargs)
 
 
-def diff(f, **kwargs):
-    return lambda *args: f.diff(*args, **kwargs)
-
-
 def update(f, **kwargs):
     return lambda *args: f.update(*args, **kwargs)
 

@@ -44,6 +44,20 @@ class Pytree(metaclass=abc.ABCMeta):
         pass
 
 
+#####
+# Pytree sum type
+#####
+
+# If you have multiple Pytrees, you might want
+# to generate a "sum" Pytree with leaves that minimally cover
+# the entire set.
+
+
+#####
+# Utilities
+#####
+
+
 def tree_stack(trees):
     """
     Takes a list of trees and stacks every corresponding leaf.

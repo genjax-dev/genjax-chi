@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax.core.datatypes import GenerativeFunction
-from genjax.builtin.datatypes import JAXGenerativeFunction
+from genjax.builtin.datatypes import BuiltinGenerativeFunction
 from dataclasses import dataclass
 
 
@@ -33,7 +33,7 @@ class PartialCombinator(GenerativeFunction):
 
     def simulate(self, key, args):
         end = args[-1]
-        closed_over = JAXGenerativeFunction(
+        closed_over = BuiltinGenerativeFunction(
             lambda key, *args: self.inner(key, *args, end)
         )
         args = args[0:-1]
@@ -41,7 +41,7 @@ class PartialCombinator(GenerativeFunction):
 
     def importance(self, key, chm, args):
         end = args[-1]
-        closed_over = JAXGenerativeFunction(
+        closed_over = BuiltinGenerativeFunction(
             lambda key, *args: self.inner(key, *args, end)
         )
         args = args[0:-1]
@@ -49,7 +49,7 @@ class PartialCombinator(GenerativeFunction):
 
     def update(self, key, prev, chm, args):
         end = args[-1]
-        closed_over = JAXGenerativeFunction(
+        closed_over = BuiltinGenerativeFunction(
             lambda key, *args: self.inner(key, *args, end)
         )
         args = args[0:-1]

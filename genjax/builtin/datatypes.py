@@ -41,7 +41,7 @@ from genjax.builtin.handlers import (
 
 
 @dataclass
-class JAXTrace(Trace):
+class BuiltinTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -55,13 +55,13 @@ class JAXTrace(Trace):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return JAXTrace(*data, *xs)
+        return BuiltinTrace(*data, *xs)
 
     def get_gen_fn(self):
         return self.gen_fn
 
     def get_choices(self):
-        return JAXChoiceMap(self.choices)
+        return BuiltinChoiceMap(self.choices)
 
     def get_retval(self):
         return self.retval
@@ -74,12 +74,12 @@ class JAXTrace(Trace):
 
 
 #####
-# JAXChoiceMap
+# BuiltinChoiceMap
 #####
 
 
 @dataclass
-class JAXChoiceMap(ChoiceMap):
+class BuiltinChoiceMap(ChoiceMap):
     tree: Tree
 
     def __init__(self, constraints):
@@ -91,7 +91,7 @@ class JAXChoiceMap(ChoiceMap):
                 )
         elif isinstance(constraints, Tree):
             self.tree = constraints
-        elif isinstance(constraints, JAXChoiceMap):
+        elif isinstance(constraints, BuiltinChoiceMap):
             self.tree = constraints.tree
 
     # Implement the `Pytree` interfaces.
@@ -100,7 +100,7 @@ class JAXChoiceMap(ChoiceMap):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return JAXChoiceMap(*xs)
+        return BuiltinChoiceMap(*xs)
 
     def has_choice(self, addr):
         if self.tree.has_node(addr):
@@ -114,7 +114,7 @@ class JAXChoiceMap(ChoiceMap):
             return EmptyChoiceMap()
         node = self.tree.get_node(addr)
         if isinstance(node, Tree):
-            return JAXChoiceMap(node)
+            return BuiltinChoiceMap(node)
         else:
             return node
 
@@ -122,7 +122,7 @@ class JAXChoiceMap(ChoiceMap):
         return False
 
     def get_value(self):
-        raise Exception("JAXChoiceMap is not a value choice map.")
+        raise Exception("BuiltinChoiceMap is not a value choice map.")
 
     def get_choices_shallow(self):
         return self.tree.nodes.items()
@@ -131,16 +131,16 @@ class JAXChoiceMap(ChoiceMap):
         new_tree = Tree({})
         for (k, v) in self.get_choices_shallow():
             new_tree.set_node(k, v.strip_metadata())
-        return JAXChoiceMap(new_tree)
+        return BuiltinChoiceMap(new_tree)
 
     def to_selection(self):
         new_tree = Tree({})
         for (k, v) in self.get_choices_shallow():
             new_tree.set_node(k, v.to_selection())
-        return JAXSelection(new_tree)
+        return BuiltinSelection(new_tree)
 
     def merge(self, other):
-        return JAXChoiceMap(self.tree.merge(other))
+        return BuiltinChoiceMap(self.tree.merge(other))
 
     def __setitem__(self, k, v):
         self.tree[k] = v
@@ -155,7 +155,7 @@ class JAXChoiceMap(ChoiceMap):
 
 
 @dataclass
-class JAXSelection(Selection):
+class BuiltinSelection(Selection):
     tree: Tree
 
     def __init__(self, selected):
@@ -171,7 +171,7 @@ class JAXSelection(Selection):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return JAXSelection(*data, *xs)
+        return BuiltinSelection(*data, *xs)
 
     def filter(self, chm):
         chm = chm.get_choices()
@@ -187,14 +187,14 @@ class JAXSelection(Selection):
         for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
             new_tree.set_node(k, v)
 
-        return JAXChoiceMap(new_tree)
+        return BuiltinChoiceMap(new_tree)
 
     def complement(self):
-        return JAXComplementSelection(self.tree)
+        return BuiltinComplementSelection(self.tree)
 
 
 @dataclass
-class JAXComplementSelection(Selection):
+class BuiltinComplementSelection(Selection):
     tree: Tree
 
     def flatten(self):
@@ -202,7 +202,7 @@ class JAXComplementSelection(Selection):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return JAXComplementSelection(*data, *xs)
+        return BuiltinComplementSelection(*data, *xs)
 
     def filter(self, chm):
         def _inner(k, v):
@@ -216,13 +216,13 @@ class JAXComplementSelection(Selection):
         for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
             new_tree.set_node(k, v)
 
-        return JAXChoiceMap(new_tree)
+        return BuiltinChoiceMap(new_tree)
 
     def complement(self):
         new_tree = Tree({})
         for (k, v) in self.tree.get_choices_shallow():
             new_tree[k] = v.complement()
-        return JAXSelection(new_tree)
+        return BuiltinSelection(new_tree)
 
 
 #####
@@ -231,7 +231,7 @@ class JAXComplementSelection(Selection):
 
 
 @dataclass
-class JAXGenerativeFunction(GenerativeFunction):
+class BuiltinGenerativeFunction(GenerativeFunction):
     source: Callable
 
     def __call__(self, key, *args):
@@ -242,7 +242,7 @@ class JAXGenerativeFunction(GenerativeFunction):
 
     @classmethod
     def unflatten(cls, data, xs):
-        return JAXGenerativeFunction(*data, *xs)
+        return BuiltinGenerativeFunction(*data, *xs)
 
     def sample(self, key, args, **kwargs):
         return handler_sample(self.source, **kwargs)(key, args)
@@ -251,13 +251,13 @@ class JAXGenerativeFunction(GenerativeFunction):
         key, (f, args, r, chm, score) = handler_simulate(self.source, **kwargs)(
             key, args
         )
-        return key, JAXTrace(self, args, r, chm, score)
+        return key, BuiltinTrace(self, args, r, chm, score)
 
     def importance(self, key, chm, args, **kwargs):
         key, (w, (f, args, r, chm, score)) = handler_importance(
             self.source, **kwargs
         )(key, chm, args)
-        return key, (w, JAXTrace(self, args, r, chm, score))
+        return key, (w, BuiltinTrace(self, args, r, chm, score))
 
     def update(self, key, prev, new, args, **kwargs):
         key, (w, (f, args, r, chm, score), discard) = handler_update(
@@ -265,8 +265,8 @@ class JAXGenerativeFunction(GenerativeFunction):
         )(key, prev, new, args)
         return key, (
             w,
-            JAXTrace(self, args, r, chm, score),
-            JAXChoiceMap(discard),
+            BuiltinTrace(self, args, r, chm, score),
+            BuiltinChoiceMap(discard),
         )
 
     def arg_grad(self, argnums, **kwargs):
