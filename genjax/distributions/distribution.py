@@ -112,6 +112,12 @@ class DistributionTrace(Trace):
     def unflatten(cls, data, xs):
         return DistributionTrace(*data, *xs)
 
+    def project(self, selection):
+        if isinstance(selection, AllSelection):
+            return self.get_choices(), self.score
+        else:
+            return EmptyChoiceMap(), 0.0
+
     def get_gen_fn(self):
         return self.gen_fn
 
@@ -154,7 +160,8 @@ class Distribution(GenerativeFunction):
 
     @classmethod
     def get_trace_type(cls, key, *args, **kwargs):
-        return Bottom()
+        shape = kwargs.get("shape", ())
+        return Bottom(shape)
 
     @classmethod
     @abc.abstractmethod

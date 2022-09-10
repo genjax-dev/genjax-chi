@@ -56,6 +56,6 @@ class DefaultImportance(ProxDistribution):
         merged = chm.merge(target.constraints)
         key, retained_tr = target.p.importance(key, merged, target.args)
         constrained = target.constraints.to_selection()
-        retained_w = retained_tr.project(constrained)
+        _, retained_w = constrained.filter(retained_tr)
         lse = logsumexp_with_extra(lws, retained_w)
         return retained_tr.get_score() - lse + np.log(self.num_particles)

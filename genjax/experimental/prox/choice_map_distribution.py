@@ -17,22 +17,28 @@ from genjax.core.datatypes import GenerativeFunction, Selection
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
 from genjax.distributions.distribution import ValueChoiceMap
+from typing import Any, Union
 
 
 @dataclass
 class ChoiceMapDistribution(ProxDistribution):
     p: GenerativeFunction
     selection: Selection
-    custom_q: Any
+    custom_q: Union[None, GenerativeFunction]
+
+    def get_trace_type(self, key, *args, **kwargs):
+        inner_type = self.p.get_trace_type(key, *args)
+        trace_type, _ = self.selection.filter(inner_type)
+        return trace_type
 
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)
         choices = tr.get_choices()
-        selected_choices = self.selection.filter(choices)
+        selected_choices, _ = self.selection.filter(choices)
         if self.custom_q == None:
-            weight = tr.project(self.selection)
+            _, weight = self.selection.filter(tr)
         else:
-            unselected = self.selection.complement.filter(choices)
+            unselected, _ = self.selection.complement.filter(choices)
             target = Target(self.p, args, selected_choices)
             key, (w, _) = self.custom_q.importance(
                 key, ValueChoiceMap(unselected), (target,)

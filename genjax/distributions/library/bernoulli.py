@@ -28,7 +28,7 @@ class _Bernoulli(Distribution):
         return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
 
     def get_trace_type(self, key, p, **kwargs):
-        shape = kwargs.get("shape", 0)
+        shape = kwargs.get("shape", ())
         return Finite(shape, 2)
 
 

@@ -178,21 +178,30 @@ class BuiltinSelection(Selection):
     def unflatten(cls, data, xs):
         return BuiltinSelection(*data, *xs)
 
+    def overload_pprint(self, **kwargs):
+        return gpp._pformat(self.tree, **kwargs)
+
     def filter(self, chm):
         chm = chm.get_choices()
 
         def _inner(k, v):
             if self.tree.has_node(k):
                 sub = self.tree.get_node(k)
-                return k, sub.filter(v)
+                under, s = sub.filter(v)
+                return k, under, s
             else:
-                return k, EmptyChoiceMap()
+                return k, EmptyChoiceMap(), 0.0
 
         new_tree = Tree({})
-        for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
-            new_tree.set_node(k, v)
+        score = 0.0
+        for (k, v, s) in map(
+            lambda args: _inner(*args), chm.get_choices_shallow()
+        ):
+            if not isinstance(v, EmptyChoiceMap):
+                new_tree.set_node(k, v)
+                score += s
 
-        return BuiltinChoiceMap(new_tree)
+        return BuiltinChoiceMap(new_tree), score
 
     def complement(self):
         return BuiltinComplementSelection(self.tree)
@@ -213,15 +222,20 @@ class BuiltinComplementSelection(Selection):
         def _inner(k, v):
             if self.tree.has_node(k):
                 sub = self.tree.get_node(k)
-                return k, sub.complement().filter(v)
+                v, s = sub.complement().filter(v)
+                return k, v, s
             else:
-                return k, v
+                return k, v, 0.0
 
         new_tree = Tree({})
-        for k, v in map(lambda args: _inner(*args), chm.get_choices_shallow()):
+        score = 0.0
+        for (k, v, s) in map(
+            lambda args: _inner(*args), chm.get_choices_shallow()
+        ):
             new_tree.set_node(k, v)
+            score += s
 
-        return BuiltinChoiceMap(new_tree)
+        return BuiltinChoiceMap(new_tree), s
 
     def complement(self):
         new_tree = Tree({})
@@ -284,7 +298,8 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )(key, tr, args)
 
     def choice_grad(self, key, tr, selected, **kwargs):
-        selected = selected.filter(tr).strip_metadata()
+        selected, _ = selected.filter(tr)
+        selected = selected.strip_metadata()
         grad_fn = handler_choice_grad(self.source, **kwargs)
         grad, key = jax.grad(
             grad_fn,

@@ -106,8 +106,11 @@ class Trace(Pytree):
         pass
 
     def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
         return pp.concat(
             [
+                pp.text(f"{type(self)}"),
+                pp.brk(""),
                 gpp._pformat(self.get_gen_fn(), **kwargs),
                 gpp._pformat(self.get_choices(), **kwargs),
                 pp.brk(""),
@@ -191,6 +194,9 @@ class ChoiceMap(Pytree):
 
     def get_choices(self):
         return self
+
+    def get_score(self):
+        return 0.0
 
     def slice(self, arr: Sequence):
         return squeeze(
@@ -418,7 +424,7 @@ class NoneSelection(Selection):
         return AllSelection()
 
     def filter(self, chm):
-        return EmptyChoiceMap()
+        return EmptyChoiceMap(), 0.0
 
     def complement(self):
         return AllSelection()
@@ -434,7 +440,7 @@ class AllSelection(Selection):
         return AllSelection()
 
     def filter(self, chm):
-        return chm
+        return chm, chm.get_score()
 
     def complement(self):
         return NoneSelection()

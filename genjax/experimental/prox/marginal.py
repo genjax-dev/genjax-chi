@@ -30,8 +30,15 @@ class Marginal(ProxDistribution):
     def flatten(self):
         return (), (self.p, self.q, self.addr)
 
+    @classmethod
     def unflatten(cls, xs, data):
         return Marginal(*xs, *data)
+
+    def get_trace_type(self, key, *args):
+        inner_type = self.p.get_trace_type(key, *args)
+        selection = BuiltinSelection([self.addr])
+        trace_type, _ = selection.filter(inner_type)
+        return trace_type
 
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)
@@ -39,7 +46,7 @@ class Marginal(ProxDistribution):
         choices = tr.get_choices().strip_metadata()
         val = choices[self.addr]
         selection = BuiltinSelection([self.addr]).complement()
-        other_choices = selection.filter(choices)
+        other_choices, _ = selection.filter(choices)
         target = Target(self.p, args, BuiltinChoiceMap({self.addr: val}))
         key, (q_weight, _) = self.q.importance(
             key, ValueChoiceMap(other_choices), (target,)

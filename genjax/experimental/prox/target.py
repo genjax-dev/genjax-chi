@@ -31,14 +31,21 @@ class Target(Pytree):
     def unflatten(cls, xs, data):
         return Target(*xs, *data)
 
+    def get_trace_type(self, key, *args):
+        inner_type = self.p.get_trace_type(key, *self.args)
+        trace_type, _ = self.latent_selection().filter(inner_type)
+        return trace_type
+
     def latent_selection(self):
         return self.constraints.to_selection().complement()
 
     def get_latents(self, v):
         if isinstance(v, ChoiceMap):
-            return self.latent_selection().filter(v)
+            latents, _ = self.latent_selection().filter(v)
+            return latents
         elif isinstance(v, Trace):
-            return self.latent_selection().filter(v.get_choices())
+            latents, _ = self.latent_selection().filter(v.get_choices())
+            return latents
 
     def importance(self, key, chm: ChoiceMap, args: Tuple):
         merged = chm.merge(self.constraints)

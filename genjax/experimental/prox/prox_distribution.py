@@ -45,7 +45,7 @@ class ProxDistribution(Distribution):
 
     def simulate(self, key, args):
         key, (val, weight) = self.random_weighted(key, *args)
-        return DistributionTrace(self, args, val, weight)
+        return key, DistributionTrace(self, args, val, weight)
 
     def importance(self, key, chm, args):
         assert isinstance(chm, ValueChoiceMap)

@@ -13,23 +13,17 @@
 # limitations under the License.
 
 import jax
-import jax.numpy as jnp
-from dataclasses import dataclass
-from genjax.core.tracetypes import PositiveReals
-from genjax.distributions.distribution import Distribution
+import genjax
 
 
-@dataclass
-class _Cauchy(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.cauchy(key, **kwargs)
-
-    def logpdf(self, key, v):
-        return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
-
-    def get_trace_type(self, key, **kwargs):
-        shape = kwargs.get("shape", ())
-        return PositiveReals(shape)
+@genjax.gen
+def h(key, mu, std):
+    key, m1 = genjax.trace("m1", genjax.Normal)(key, (mu, std))
+    key, m2 = genjax.trace("m2", genjax.Normal)(key, (mu, std))
+    return (key, m1 + m2)
 
 
-Cauchy = _Cauchy()
+key = jax.random.PRNGKey(314159)
+marginalized = genjax.ChoiceMapDistribution(h, genjax.Selection(["m1"]), None)
+key, tr = marginalized.simulate(key, (5.0, 1.0))
+print(tr)

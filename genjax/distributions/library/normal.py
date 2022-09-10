@@ -34,7 +34,7 @@ class _Normal(Distribution):
         )
 
     def get_trace_type(self, key, mu, std, **kwargs):
-        shape = kwargs.get("shape", 0)
+        shape = kwargs.get("shape", ())
         return Reals(shape)
 
 

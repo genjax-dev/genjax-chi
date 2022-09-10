@@ -15,6 +15,7 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
+from genjax.core.tracetypes import Finite
 from genjax.distributions.distribution import Distribution
 
 
@@ -23,8 +24,12 @@ class _Categorical(Distribution):
     def sample(self, key, logits, **kwargs):
         return jax.random.categorical(key, logits, **kwargs)
 
-    def logpdf(self, key, v, a, b, **kwargs):
-        return jnp.sum(jax.scipy.stats.categorical.logpdf(v, a, b))
+    def logpdf(self, key, v, logits, **kwargs):
+        return jnp.sum(logits[v])
+
+    def get_trace_type(self, key, logits, **kwargs):
+        shape = kwargs.get("shape", ())
+        return Finite(shape, len(logits))
 
 
 Categorical = _Categorical()
