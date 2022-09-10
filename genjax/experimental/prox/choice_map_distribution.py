@@ -14,10 +14,12 @@
 
 from dataclasses import dataclass
 from genjax.core.datatypes import GenerativeFunction, Selection
+from genjax.builtin.tree import Tree
+from genjax.builtin.tracetypes import BuiltinTraceType
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
 from genjax.distributions.distribution import ValueChoiceMap
-from typing import Any, Union
+from typing import Union
 
 
 @dataclass
@@ -26,10 +28,12 @@ class ChoiceMapDistribution(ProxDistribution):
     selection: Selection
     custom_q: Union[None, GenerativeFunction]
 
-    def get_trace_type(self, key, *args, **kwargs):
-        inner_type = self.p.get_trace_type(key, *args)
+    def get_trace_type(self, key, args, **kwargs):
+        inner_type = self.p.get_trace_type(key, args)
+        return_type = inner_type.get_ret_type()
         trace_type, _ = self.selection.filter(inner_type)
-        return trace_type
+        tree = Tree({}).merge(trace_type)
+        return BuiltinTraceType(tree, return_type)
 
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)

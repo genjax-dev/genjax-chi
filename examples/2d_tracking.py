@@ -56,6 +56,9 @@ observation_sequence = np.array(
     ]
 )
 
+trace_type = genjax.get_trace_type(model)(key, (100,))
+print(trace_type)
+
 
 #####
 # Inference

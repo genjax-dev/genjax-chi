@@ -158,10 +158,12 @@ class Distribution(GenerativeFunction):
         v = self.sample(subkey, *args, **kwargs)
         return (key, v)
 
-    @classmethod
-    def get_trace_type(cls, key, *args, **kwargs):
+    def __trace_type__(self, key, *args, **kwargs):
         shape = kwargs.get("shape", ())
         return Bottom(shape)
+
+    def get_trace_type(self, key, args, **kwargs):
+        return self.__trace_type__(key, *args, **kwargs)
 
     @classmethod
     @abc.abstractmethod

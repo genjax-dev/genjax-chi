@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Here, the MIT Probabilistic Computing maintainers have changed a few
+# elements of the printing strategy, including adding an overload method
+# which can be accessed by any class object which implements `overload_pprint`.
+
 import dataclasses
 import functools as ft
 import types
@@ -28,6 +32,7 @@ PrettyPrintable = Pytree
 
 
 _comma_sep = pp.concat([pp.text(","), pp.brk()])
+_newline_sep = pp.concat([pp.text(","), pp.brk(), pp.brk()])
 
 
 def _nest(n: int, doc: pp.Doc) -> pp.Doc:

@@ -24,6 +24,7 @@ These programs can utilize other generative functions
 from .intrinsics import trace
 from .handlers import *
 from .datatypes import *
+from .tracetypes import *
 from .tree import *
 from .shape_analysis import *
 
@@ -36,6 +37,7 @@ __all__ = [
     "BuiltinTrace",
     "BuiltinChoiceMap",
     "BuiltinSelection",
+    "BuiltinTraceType",
     "trace_shape",
     "trace_shape_no_toplevel",
     "choice_map_shape",

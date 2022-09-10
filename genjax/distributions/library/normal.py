@@ -33,7 +33,7 @@ class _Normal(Distribution):
             / (2 - jnp.log(std))
         )
 
-    def get_trace_type(self, key, mu, std, **kwargs):
+    def __trace_type__(self, key, mu, std, **kwargs):
         shape = kwargs.get("shape", ())
         return Reals(shape)
 

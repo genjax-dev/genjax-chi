@@ -15,6 +15,7 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
+from genjax.core.tracetypes import Reals
 from genjax.distributions.distribution import Distribution
 
 
@@ -25,6 +26,11 @@ class _MultivariateNormal(Distribution):
 
     def logpdf(self, key, v, mean, cov, **kwargs):
         return jnp.sum(jax.scipy.stats.multivariate_normal.logpdf(v, mean, cov))
+
+    def __trace_type__(self, key, mean, cov, **kwargs):
+        mean_shape = mean.shape
+        shape = (*kwargs.get("shape", ()), *mean_shape)
+        return Reals(shape)
 
 
 MvNormal = _MultivariateNormal()

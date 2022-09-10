@@ -27,14 +27,13 @@ from genjax.core.datatypes import (
 )
 from genjax.distributions.distribution import ValueChoiceMap
 from genjax.builtin.handlers import (
-    handler_sample,
     handler_simulate,
     handler_importance,
     handler_update,
     handler_arg_grad,
     handler_choice_grad,
 )
-from genjax.builtin.typing import get_trace_type
+from genjax.builtin.tracetypes import get_trace_type
 import genjax.core.pretty_printer as gpp
 
 #####
@@ -263,26 +262,27 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def __call__(self, key, *args):
         return self.source(key, *args)
 
-    def get_trace_type(self, key, *args, **kwargs):
+    def get_trace_type(self, key, args, **kwargs):
+        assert isinstance(args, Tuple)
         jaxpr = jax.make_jaxpr(self.__call__)(key, *args)
         return get_trace_type(jaxpr)
 
-    def sample(self, key, args, **kwargs):
-        return handler_sample(self.source, **kwargs)(key, args)
-
     def simulate(self, key, args, **kwargs):
+        assert isinstance(args, Tuple)
         key, (f, args, r, chm, score) = handler_simulate(self.source, **kwargs)(
             key, args
         )
         return key, BuiltinTrace(self, args, r, chm, score)
 
     def importance(self, key, chm, args, **kwargs):
+        assert isinstance(args, Tuple)
         key, (w, (f, args, r, chm, score)) = handler_importance(
             self.source, **kwargs
         )(key, chm, args)
         return key, (w, BuiltinTrace(self, args, r, chm, score))
 
     def update(self, key, prev, new, args, **kwargs):
+        assert isinstance(args, Tuple)
         key, (w, (f, args, r, chm, score), discard) = handler_update(
             self.source, **kwargs
         )(key, prev, new, args)
@@ -293,9 +293,13 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )
 
     def arg_grad(self, argnums, **kwargs):
-        return lambda key, tr, args: handler_arg_grad(
-            self.source, argnums, **kwargs
-        )(key, tr, args)
+        def _inner(key, tr, args):
+            assert isinstance(args, Tuple)
+            return handler_arg_grad(self.source, argnums, **kwargs)(
+                key, tr, args
+            )
+
+        return _inner
 
     def choice_grad(self, key, tr, selected, **kwargs):
         selected, _ = selected.filter(tr)

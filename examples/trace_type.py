@@ -37,5 +37,5 @@ def f(key, x):
 
 
 key = jax.random.PRNGKey(314159)
-trace_type = genjax.get_trace_type(f)(key, 0.3)
+trace_type = genjax.get_trace_type(f)(key, (0.3,))
 print(trace_type)

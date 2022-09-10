@@ -15,7 +15,9 @@
 
 import jax
 import jax.numpy as jnp
+import jax.core as jc
 from dataclasses import dataclass
+from genjax.core.tracetypes import Reals, Bottom
 from genjax.distributions.distribution import Distribution
 
 
@@ -26,6 +28,15 @@ class _Uniform(Distribution):
 
     def logpdf(self, key, v, minval, maxval):
         return jnp.sum(jax.scipy.stats.uniform.logpdf(v, minval, maxval))
+
+    def __trace_type__(self, key, minval, maxval, **kwargs):
+        shape = kwargs.get("shape", ())
+        if isinstance(minval, jc.ShapedArray) or isinstance(
+            maxval, jc.ShapedArray
+        ):
+            return Reals(shape)
+        else:
+            return Bottom(shape)
 
 
 Uniform = _Uniform()

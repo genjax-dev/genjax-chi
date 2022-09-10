@@ -27,7 +27,7 @@ class _Bernoulli(Distribution):
     def logpdf(self, key, v, *args, **kwargs):
         return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
 
-    def get_trace_type(self, key, p, **kwargs):
+    def __trace_type__(self, key, p, **kwargs):
         shape = kwargs.get("shape", ())
         return Finite(shape, 2)
 

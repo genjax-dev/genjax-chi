@@ -27,11 +27,14 @@ from genjax.core.datatypes import (
     EmptyChoiceMap,
     IndexMask,
 )
+from genjax.core.tracetypes import TraceType
 import jax.experimental.host_callback as hcb
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
+from genjax.combinators.vector_choice_map import VectorChoiceMap
+import jax._src.pretty_printer as pp
+import genjax.core.pretty_printer as gpp
 from typing import Any, Tuple, Sequence
-from .vector_choice_map import VectorChoiceMap
 
 #####
 # UnfoldTrace
@@ -76,6 +79,44 @@ class UnfoldTrace(Trace):
     @classmethod
     def unflatten(cls, data, xs):
         return UnfoldTrace(*data, *xs)
+
+
+#####
+# ListTraceType
+#####
+
+
+@dataclass
+class ListTraceType(TraceType):
+    inner: TraceType
+    length: int
+
+    def flatten(self):
+        return (), (self.inner, self.length)
+
+    @classmethod
+    def unflatten(cls, xs, data):
+        return ListTraceType(*xs, *data)
+
+    def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
+        return pp.concat(
+            [
+                pp.text(f"[{self.length}; "),
+                gpp._nest(indent, gpp._pformat(self.inner, **kwargs)),
+                pp.brk(),
+                pp.text("]"),
+                pp.brk(),
+                pp.text("return_type -> "),
+                gpp._pformat(self.inner.get_rettype(), **kwargs),
+            ]
+        )
+
+    def __subseteq__(self, other):
+        return False
+
+    def get_rettype(self):
+        return self.inner.get_rettype()
 
 
 #####
@@ -139,6 +180,12 @@ class UnfoldCombinator(GenerativeFunction):
 
     kernel: GenerativeFunction
     max_length: int
+
+    def get_trace_type(self, key, args, **kwargs):
+        _ = args[0]
+        args = args[1:]
+        inner_type = self.kernel.get_trace_type(key, args, **kwargs)
+        return ListTraceType(inner_type, self.max_length)
 
     def flatten(self):
         return (), (self.kernel, self.max_length)

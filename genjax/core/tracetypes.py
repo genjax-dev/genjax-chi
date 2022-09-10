@@ -33,6 +33,10 @@ class TraceType(Pytree):
     def __subseteq__(self, other):
         pass
 
+    @abc.abstractmethod
+    def get_rettype(self):
+        pass
+
 
 @dataclass
 class Reals(TraceType):
@@ -51,6 +55,9 @@ class Reals(TraceType):
         else:
             return False
 
+    def get_rettype(self):
+        return self
+
     def __repr__(self):
         return f"ℝ (shape = {self.shape})"
 
@@ -67,13 +74,16 @@ class PositiveReals(TraceType):
 
     @classmethod
     def unflatten(cls, xs, data):
-        return Reals(*xs, *data)
+        return PositiveReals(*xs, *data)
 
     def __subseteq__(self, other):
         if isinstance(other, PositiveReals):
             return np.sum(self.shape) <= np.sum(other.shape)
         else:
             return False
+
+    def get_rettype(self):
+        return self
 
     def __repr__(self):
         return f"ℝ⁺ (shape = {self.shape})"
@@ -105,6 +115,9 @@ class RealInterval(TraceType):
         else:
             return False
 
+    def get_rettype(self):
+        return self
+
     def __repr__(self):
         return (
             f"ℝ[{self.lower_bound}, {self.upper_bound}] (shape = {self.shape})"
@@ -117,6 +130,33 @@ class RealInterval(TraceType):
 
 
 @dataclass
+class Integers(TraceType):
+    shape: Tuple
+
+    def flatten(self):
+        return (), (self.shape,)
+
+    @classmethod
+    def unflatten(cls, xs, data):
+        return Integers(*xs, *data)
+
+    def __subseteq__(self, other):
+        if isinstance(other, Integers) or isinstance(other, Reals):
+            return np.sum(self.shape) <= np.sum(other.shape)
+        else:
+            return False
+
+    def get_rettype(self):
+        return self
+
+    def __repr__(self):
+        return f"ℕ (shape = {self.shape})"
+
+    def __str__(self):
+        return f"ℕ (shape = {self.shape})"
+
+
+@dataclass
 class Naturals(TraceType):
     shape: Tuple
 
@@ -125,7 +165,7 @@ class Naturals(TraceType):
 
     @classmethod
     def unflatten(cls, xs, data):
-        return Reals(*xs, *data)
+        return Naturals(*xs, *data)
 
     def __subseteq__(self, other):
         if (
@@ -136,6 +176,9 @@ class Naturals(TraceType):
             return np.sum(self.shape) <= np.sum(other.shape)
         else:
             return False
+
+    def get_rettype(self):
+        return self
 
     def __repr__(self):
         return f"ℕ (shape = {self.shape})"
@@ -170,6 +213,9 @@ class Finite(TraceType):
         else:
             return False
 
+    def get_rettype(self):
+        return self
+
     def __repr__(self):
         return f"𝔽[{self.limit}] (shape = {self.shape})"
 
@@ -190,6 +236,9 @@ class Bottom(TraceType):
 
     def __subseteq__(self, other):
         return np.sum(self.shape) <= np.sum(other.shape)
+
+    def get_rettype(self):
+        return self
 
     def __repr__(self):
         return "⊥"

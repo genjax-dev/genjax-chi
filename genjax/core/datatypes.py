@@ -53,8 +53,9 @@ class GenerativeFunction(Pytree):
     def __call__(self, key, *args):
         pass
 
-    def get_trace_type(self, key, *args):
-        return Bottom()
+    def get_trace_type(self, key, args, **kwargs):
+        shape = kwargs.get("shape", ())
+        return Bottom(shape)
 
     def simulate(self, key, args):
         pass
@@ -106,7 +107,6 @@ class Trace(Pytree):
         pass
 
     def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
         return pp.concat(
             [
                 pp.text(f"{type(self)}"),
