@@ -14,24 +14,16 @@
 
 import jax.numpy as jnp
 import jax
-from jax._src import abstract_arrays
 from dataclasses import dataclass
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Poisson(Distribution):
-    @classmethod
-    def abstract_eval(cls, key, lam, shape=None):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.int),
-        )
-
     def sample(self, key, lam, **kwargs):
         return jax.random.poisson(key, lam, **kwargs)
 
-    def logpdf(self, v, lam, **kwargs):
+    def logpdf(self, key, v, lam, **kwargs):
         return jnp.sum(jax.scipy.stats.poisson.logpmf(v, lam))
 
 

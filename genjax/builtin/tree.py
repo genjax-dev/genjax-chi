@@ -14,7 +14,8 @@
 
 from dataclasses import dataclass
 from genjax.core.datatypes import ChoiceMap
-import genjax.core.pretty_printer as pp
+import jax._src.pretty_printer as pp
+import genjax.core.pretty_printer as gpp
 
 
 @dataclass
@@ -27,6 +28,21 @@ class Tree(ChoiceMap):
     @classmethod
     def unflatten(cls, xs, data):
         return Tree(*data)
+
+    def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
+        text_list = []
+        for (k, v) in self.get_choices_shallow():
+            v = gpp._named_entry(k, v, **kwargs)
+            text_list.append(v)
+        return pp.concat(
+            [
+                pp.text("("),
+                gpp._nest(indent, pp.join(gpp._comma_sep, text_list)),
+                pp.brk(""),
+                pp.text(")"),
+            ]
+        )
 
     def has_value(self):
         return False
@@ -129,10 +145,10 @@ class Tree(ChoiceMap):
         return self.set_node(addr, value)
 
     def __repr__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __str__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __hash__(self):
         hash_list = []

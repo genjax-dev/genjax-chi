@@ -1,0 +1,45 @@
+# Copyright 2022 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from dataclasses import dataclass
+from genjax.core.pytree import Pytree
+from genjax.core.datatypes import GenerativeFunction, ChoiceMap, Trace
+from typing import Tuple
+
+
+@dataclass
+class Target(Pytree):
+    p: GenerativeFunction
+    args: Tuple
+    constraints: ChoiceMap
+
+    def flatten(self):
+        return (self.args, self.constraints), (self.p,)
+
+    @classmethod
+    def unflatten(cls, xs, data):
+        return Target(*xs, *data)
+
+    def latent_selection(self):
+        return self.constraints.to_selection().complement()
+
+    def get_latents(self, v):
+        if isinstance(v, ChoiceMap):
+            return self.latent_selection().filter(v)
+        elif isinstance(v, Trace):
+            return self.latent_selection().filter(v.get_choices())
+
+    def importance(self, key, chm: ChoiceMap, args: Tuple):
+        merged = chm.merge(self.constraints)
+        return self.p.importance(key, merged, self.args)

@@ -34,6 +34,8 @@ from genjax.builtin.handlers import (
     handler_arg_grad,
     handler_choice_grad,
 )
+from genjax.builtin.typing import get_trace_type
+import genjax.core.pretty_printer as gpp
 
 #####
 # Trace
@@ -101,6 +103,9 @@ class BuiltinChoiceMap(ChoiceMap):
     @classmethod
     def unflatten(cls, data, xs):
         return BuiltinChoiceMap(*xs)
+
+    def overload_pprint(self, **kwargs):
+        return gpp._pformat(self.tree, **kwargs)
 
     def has_choice(self, addr):
         if self.tree.has_node(addr):
@@ -234,15 +239,19 @@ class BuiltinComplementSelection(Selection):
 class BuiltinGenerativeFunction(GenerativeFunction):
     source: Callable
 
-    def __call__(self, key, *args):
-        return self.source(key, *args)
-
     def flatten(self):
         return (), (self.source,)
 
     @classmethod
     def unflatten(cls, data, xs):
         return BuiltinGenerativeFunction(*data, *xs)
+
+    def __call__(self, key, *args):
+        return self.source(key, *args)
+
+    def get_trace_type(self, key, *args, **kwargs):
+        jaxpr = jax.make_jaxpr(self.__call__)(key, *args)
+        return get_trace_type(jaxpr)
 
     def sample(self, key, args, **kwargs):
         return handler_sample(self.source, **kwargs)(key, args)

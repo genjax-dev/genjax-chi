@@ -12,19 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import jax.numpy as jnp
-from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
-
-
-@dataclass
-class _Exponential(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.exponential(key, **kwargs)
-
-    def logpdf(self, key, v):
-        return jnp.sum(jax.scipy.stats.expon.logpdf(v))
-
-
-Exponential = _Exponential()
+from .prox_distribution import *
+from .choice_map_distribution import *
+from .target import *
+from .marginal import *
+from .inference import *

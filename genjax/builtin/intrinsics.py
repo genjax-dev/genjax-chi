@@ -59,12 +59,9 @@ def trace(addr, call, **kwargs):
 #####
 
 
-def gen_fn_abstract_eval(*args, addr, gen_fn, **kwargs):
-    if hasattr(gen_fn, "abstract_eval"):
-        return gen_fn.abstract_eval(*args, **kwargs)
-    else:
-        jaxpr = make_jaxpr(gen_fn)(*args)
-        return jaxpr.out_avals
+def gen_fn_abstract_eval(key, *args, addr, gen_fn, **kwargs):
+    jaxpr = make_jaxpr(gen_fn.__call__)(key, *args)
+    return jaxpr.out_avals
 
 
 gen_fn_p.def_abstract_eval(gen_fn_abstract_eval)

@@ -24,6 +24,7 @@ of Python functions.
 """
 
 from .datatypes import *
+from .tracetypes import *
 from .handling import *
 from .specialization import *
 from .pytree import *

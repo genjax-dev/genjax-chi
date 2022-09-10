@@ -14,24 +14,16 @@
 
 import jax
 import jax.numpy as jnp
-from jax._src import abstract_arrays
 from dataclasses import dataclass
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Logistic(Distribution):
-    @classmethod
-    def abstract_eval(cls, key, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
-        )
-
     def sample(self, key, **kwargs):
         return jax.random.logistic(key, **kwargs)
 
-    def logpdf(self, v, **kwargs):
+    def logpdf(self, key, v, **kwargs):
         return jnp.sum(jax.scipy.stats.logistic.logpdf(v))
 
 

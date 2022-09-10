@@ -14,24 +14,22 @@
 
 import jax
 import jax.numpy as jnp
-from jax._src import abstract_arrays
 from dataclasses import dataclass
+from genjax.core.tracetypes import RealInterval
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Beta(Distribution):
-    def abstract_eval(self, key, a, b, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
-        )
-
     def sample(self, key, a, b, **kwargs):
         return jax.random.beta(key, a, b, **kwargs)
 
-    def logpdf(self, v, a, b, **kwargs):
+    def logpdf(self, key, v, a, b, **kwargs):
         return jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))
+
+    def get_trace_type(self, key, a, b, **kwargs):
+        shape = kwargs.get("shape", 0)
+        return RealInterval(shape, a, b)
 
 
 Beta = _Beta()

@@ -15,9 +15,11 @@
 import abc
 import jax
 import jax.tree_util as jtu
+import jax._src.pretty_printer as pp
+import genjax.core.pretty_printer as gpp
 from dataclasses import dataclass
 from genjax.core.pytree import Pytree, squeeze
-import genjax.core.pretty_printer as pp
+from genjax.core.tracetypes import Bottom
 from typing import Any, Sequence
 
 #####
@@ -48,8 +50,11 @@ class GenerativeFunction(Pytree):
     """
 
     @abc.abstractmethod
-    def __call__(self, key, args):
+    def __call__(self, key, *args):
         pass
+
+    def get_trace_type(self, key, *args):
+        return Bottom()
 
     def simulate(self, key, args):
         pass
@@ -67,10 +72,10 @@ class GenerativeFunction(Pytree):
         pass
 
     def __repr__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __str__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
 
 #####
@@ -100,6 +105,16 @@ class Trace(Pytree):
     def get_gen_fn(self):
         pass
 
+    def overload_pprint(self, **kwargs):
+        return pp.concat(
+            [
+                gpp._pformat(self.get_gen_fn(), **kwargs),
+                gpp._pformat(self.get_choices(), **kwargs),
+                pp.brk(""),
+                pp.text(f"score: {self.score}"),
+            ]
+        )
+
     def has_choice(self, addr):
         choices = self.get_choices()
         return choices.has_choice(addr)
@@ -124,10 +139,10 @@ class Trace(Pytree):
         return self.get_choices().strip_metadata()
 
     def __repr__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __str__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __getitem__(self, addr):
         if isinstance(addr, slice):
@@ -186,10 +201,10 @@ class ChoiceMap(Pytree):
         )
 
     def __repr__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __str__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __getitem__(self, addr):
         if isinstance(addr, slice):
@@ -387,10 +402,10 @@ class Selection(Pytree):
         pass
 
     def __repr__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
     def __str__(self):
-        return pp.tree_pformat(self)
+        return gpp.tree_pformat(self)
 
 
 @dataclass

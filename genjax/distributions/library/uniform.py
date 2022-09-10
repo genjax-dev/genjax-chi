@@ -15,24 +15,16 @@
 
 import jax
 import jax.numpy as jnp
-from jax._src import abstract_arrays
 from dataclasses import dataclass
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Uniform(Distribution):
-    @classmethod
-    def abstract_eval(cls, key, *params, shape=(), **kwargs):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
-        )
-
     def sample(self, key, minval, maxval, **kwargs):
         return jax.random.uniform(key, minval=minval, maxval=maxval, **kwargs)
 
-    def logpdf(self, v, minval, maxval):
+    def logpdf(self, key, v, minval, maxval):
         return jnp.sum(jax.scipy.stats.uniform.logpdf(v, minval, maxval))
 
 

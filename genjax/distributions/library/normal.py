@@ -14,30 +14,28 @@
 
 import jax
 import jax.numpy as jnp
-from jax._src import abstract_arrays
 from dataclasses import dataclass
+from genjax.core.tracetypes import Reals
 from genjax.distributions.distribution import Distribution
 from math import pi
 
 
 @dataclass
 class _Normal(Distribution):
-    def abstract_eval(self, key, mu, std, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
-        )
-
     def sample(self, key, mu, std, **kwargs):
         return mu + std * jax.random.normal(key, **kwargs)
 
-    def logpdf(self, v, mu, std, **kwargs):
+    def logpdf(self, key, v, mu, std, **kwargs):
         z = (v - mu) / std
         return jnp.sum(
             -1.0
             * (jnp.square(jnp.abs(z)) + jnp.log(2.0 * pi))
             / (2 - jnp.log(std))
         )
+
+    def get_trace_type(self, key, mu, std, **kwargs):
+        shape = kwargs.get("shape", 0)
+        return Reals(shape)
 
 
 Normal = _Normal()

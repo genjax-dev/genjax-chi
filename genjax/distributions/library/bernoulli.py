@@ -14,25 +14,22 @@
 
 import jax
 import jax.numpy as jnp
-from jax._src import abstract_arrays
 from dataclasses import dataclass
+from genjax.core.tracetypes import Finite
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Bernoulli(Distribution):
-    @classmethod
-    def abstract_eval(cls, key, p, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=bool),
-        )
-
     def sample(self, key, *args, **kwargs):
         return jax.random.bernoulli(key, *args, **kwargs)
 
-    def logpdf(self, v, *args, **kwargs):
+    def logpdf(self, key, v, *args, **kwargs):
         return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
+
+    def get_trace_type(self, key, p, **kwargs):
+        shape = kwargs.get("shape", 0)
+        return Finite(shape, 2)
 
 
 Bernoulli = _Bernoulli()

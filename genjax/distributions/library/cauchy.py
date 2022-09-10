@@ -15,24 +15,21 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from jax._src import abstract_arrays
+from genjax.core.tracetypes import PositiveReals
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Cauchy(Distribution):
-    @classmethod
-    def abstract_eval(cls, key, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=shape, dtype=jnp.float32),
-        )
-
     def sample(self, key, **kwargs):
         return jax.random.cauchy(key, **kwargs)
 
-    def logpdf(self, v):
+    def logpdf(self, key, v):
         return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
+
+    def get_trace_type(self, key, **kwargs):
+        shape = kwargs.get("shape", 0)
+        return PositiveReals(shape)
 
 
 Cauchy = _Cauchy()

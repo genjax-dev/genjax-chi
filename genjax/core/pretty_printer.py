@@ -93,7 +93,7 @@ def _pformat_dict(obj: Dict, **kwargs) -> pp.Doc:
 
 
 def _named_entry(name: str, value: Any, **kwargs) -> pp.Doc:
-    return pp.concat([pp.text(name), pp.text("="), _pformat(value, **kwargs)])
+    return pp.concat([pp.text(name), pp.text(" = "), _pformat(value, **kwargs)])
 
 
 def _pformat_namedtuple(obj: NamedTuple, **kwargs) -> pp.Doc:
@@ -165,6 +165,8 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
     truncate_leaf = kwargs["truncate_leaf"]
     if truncate_leaf(obj):
         return pp.text(f"{type(obj).__name__}(...)")
+    if hasattr(obj, "overload_pprint"):
+        return obj.overload_pprint(**kwargs)
     elif dataclasses.is_dataclass(obj):
         return _pformat_dataclass(obj, **kwargs)
     elif isinstance(obj, list):

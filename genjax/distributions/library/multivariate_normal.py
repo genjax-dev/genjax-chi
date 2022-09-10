@@ -14,24 +14,16 @@
 
 import jax
 import jax.numpy as jnp
-from jax._src import abstract_arrays
 from dataclasses import dataclass
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _MultivariateNormal(Distribution):
-    @classmethod
-    def abstract_eval(cls, key, mean, cov, shape=()):
-        return (
-            key,
-            abstract_arrays.ShapedArray(shape=mean.shape, dtype=jnp.float32),
-        )
-
     def sample(self, key, mean, cov, **kwargs):
         return jax.random.multivariate_normal(key, mean, cov, **kwargs)
 
-    def logpdf(self, v, mean, cov, **kwargs):
+    def logpdf(self, key, v, mean, cov, **kwargs):
         return jnp.sum(jax.scipy.stats.multivariate_normal.logpdf(v, mean, cov))
 
 

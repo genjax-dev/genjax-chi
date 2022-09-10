@@ -93,3 +93,7 @@ def arg_grad(f, argnums, **kwargs):
 
 def choice_grad(f, **kwargs):
     return lambda *args: f.choice_grad(*args, **kwargs)
+
+
+def get_trace_type(f, **kwargs):
+    return lambda *args: f.get_trace_type(*args, **kwargs)

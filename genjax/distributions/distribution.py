@@ -28,6 +28,9 @@ from genjax.core.datatypes import (
     BooleanMask,
 )
 from genjax.core.specialization import concrete_cond
+from genjax.core.tracetypes import Bottom
+import jax._src.pretty_printer as pp
+import genjax.core.pretty_printer as gpp
 from dataclasses import dataclass
 from typing import Tuple, Callable, Any
 
@@ -46,6 +49,15 @@ class ValueChoiceMap(ChoiceMap):
     @classmethod
     def unflatten(cls, data, xs):
         return ValueChoiceMap(*data, *xs)
+
+    def overload_pprint(self, **kwargs):
+        return pp.concat(
+            [
+                pp.text("(value = "),
+                gpp._pformat(self.value, **kwargs),
+                pp.text(")"),
+            ]
+        )
 
     def has_value(self):
         return True
@@ -93,6 +105,13 @@ class DistributionTrace(Trace):
     value: Any
     score: Any
 
+    def flatten(self):
+        return (self.args, self.value, self.score), (self.gen_fn,)
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return DistributionTrace(*data, *xs)
+
     def get_gen_fn(self):
         return self.gen_fn
 
@@ -108,15 +127,8 @@ class DistributionTrace(Trace):
     def get_choices(self):
         return ValueChoiceMap(self.value)
 
-    def flatten(self):
-        return (self.args, self.value, self.score), (self.gen_fn,)
-
     def merge(self, other):
         return other
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return DistributionTrace(*data, *xs)
 
 
 #####
@@ -135,15 +147,14 @@ class Distribution(GenerativeFunction):
     def unflatten(cls, values, slices):
         return cls()
 
-    def __call__(self, key, args, **kwargs):
+    def __call__(self, key, *args, **kwargs):
         key, subkey = jax.random.split(key)
-        v = self.sample(*args, **kwargs)
+        v = self.sample(subkey, *args, **kwargs)
         return (key, v)
 
     @classmethod
-    @abc.abstractmethod
-    def abstract_eval(cls, key, p, shape=()):
-        pass
+    def get_trace_type(cls, key, *args, **kwargs):
+        return Bottom()
 
     @classmethod
     @abc.abstractmethod
@@ -152,13 +163,14 @@ class Distribution(GenerativeFunction):
 
     @classmethod
     @abc.abstractmethod
-    def logpdf(cls, v, *args, **kwargs):
+    def logpdf(cls, key, v, *args, **kwargs):
         pass
 
     def simulate(self, key, args, **kwargs):
         key, sub_key = jax.random.split(key)
         v = self.sample(sub_key, *args, **kwargs)
-        score = self.logpdf(v, *args)
+        key, sub_key = jax.random.split(key)
+        score = self.logpdf(sub_key, v, *args)
         tr = DistributionTrace(self, args, v, score)
         return key, tr
 
@@ -169,12 +181,14 @@ class Distribution(GenerativeFunction):
             key, sub_key = jax.random.split(key)
             v = self.sample(sub_key, *args, **kwargs)
             w = 0.0
-            score = self.logpdf(v, *args)
+            key, sub_key = jax.random.split(key)
+            score = self.logpdf(sub_key, v, *args)
             return key, v, w, score
 
         def _importance_branch(key, chm, args):
             v = chm.get_value()
-            w = self.logpdf(v, *args)
+            key, sub_key = jax.random.split(key)
+            w = self.logpdf(sub_key, v, *args)
             return key, v, w, w
 
         key, v, w, score = concrete_cond(
@@ -195,7 +209,8 @@ class Distribution(GenerativeFunction):
         def _update_branch(key, args):
             prev_score = prev.get_score()
             v = new.get_value()
-            fwd = self.logpdf(v, *args)
+            key, sub_key = jax.random.split(key)
+            fwd = self.logpdf(sub_key, v, *args)
             discard = BooleanMask(prev.get_choices(), True)
             return key, (fwd - prev_score, v, discard)
 

@@ -13,18 +13,29 @@
 # limitations under the License.
 
 import jax
-import jax.numpy as jnp
-from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
+import genjax
 
 
-@dataclass
-class _Exponential(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.exponential(key, **kwargs)
-
-    def logpdf(self, key, v):
-        return jnp.sum(jax.scipy.stats.expon.logpdf(v))
+@genjax.gen
+def h(key, x):
+    key, m1 = genjax.trace("m0", genjax.Bernoulli)(key, (x,))
+    return (key, m1)
 
 
-Exponential = _Exponential()
+@genjax.gen
+def g(key, x):
+    key, m1 = genjax.trace("m0", h)(key, (x,))
+    return (key, m1)
+
+
+@genjax.gen
+def f(key, x):
+    key, m0 = genjax.trace("m0", genjax.Bernoulli, shape=(3, 3))(key, (x,))
+    key, m4 = genjax.trace("m4", g)(key, (x,))
+    key, m5 = genjax.trace("m5", genjax.Normal)(key, (0.0, 1.0))
+    return key, (2 * m0 * m4, m5)
+
+
+key = jax.random.PRNGKey(314159)
+trace_type = genjax.get_trace_type(f)(key, 0.3)
+print(trace_type)

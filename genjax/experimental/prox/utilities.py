@@ -14,17 +14,15 @@
 
 import jax
 import jax.numpy as jnp
-from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
+import numpy as np
 
 
-@dataclass
-class _Exponential(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.exponential(key, **kwargs)
-
-    def logpdf(self, key, v):
-        return jnp.sum(jax.scipy.stats.expon.logpdf(v))
+def logsumexp_with_extra(arr, x):
+    max_arr = jnp.maximum(jnp.maximum(arr), x)
+    return max_arr + jnp.log(
+        jnp.sum(jnp.exp(arr - max_arr)) + jnp.exp(x - max - arr)
+    )
 
 
-Exponential = _Exponential()
+def logmeanexp(arr):
+    return jax.scipy.special.logsumexp(arr) - np.log(len(arr))

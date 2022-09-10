@@ -53,6 +53,7 @@ print(expr)
 
 # Here's how you access the `simulate` GFI.
 key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
+print(tr.get_choices())
 
 # Here's how you access the `importance` GFI.
 chm = genjax.ChoiceMap({("m0",): True, ("m4", "m0", "m0"): False})
