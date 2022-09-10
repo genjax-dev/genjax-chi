@@ -30,7 +30,7 @@ class ChoiceMapDistribution(ProxDistribution):
 
     def get_trace_type(self, key, args, **kwargs):
         inner_type = self.p.get_trace_type(key, args)
-        return_type = inner_type.get_ret_type()
+        return_type = inner_type.get_rettype()
         trace_type, _ = self.selection.filter(inner_type)
         tree = Tree({}).merge(trace_type)
         return BuiltinTraceType(tree, return_type)

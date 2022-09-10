@@ -25,5 +25,8 @@ def h(key, mu, std):
 
 key = jax.random.PRNGKey(314159)
 marginalized = genjax.ChoiceMapDistribution(h, genjax.Selection(["m1"]), None)
-key, tr = marginalized.simulate(key, (5.0, 1.0))
+
+trace_type = genjax.get_trace_type(marginalized)(key, (5.0, 1.0))
+print(trace_type)
+key, tr = jax.jit(genjax.simulate(marginalized))(key, (5.0, 1.0))
 print(tr)
