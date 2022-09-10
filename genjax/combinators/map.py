@@ -24,7 +24,7 @@ from genjax.builtin.shape_analysis import choice_map_shape
 from genjax.core.datatypes import (
     GenerativeFunction,
     Trace,
-    Mask,
+    BooleanMask,
 )
 from dataclasses import dataclass
 from .vector_choice_map import VectorChoiceMap, prepare_vectorized_choice_map
@@ -46,7 +46,7 @@ class MapTrace(Trace):
         return self.subtrace.get_args()
 
     def get_choices(self):
-        return VectorChoiceMap(self.subtrace, self.length)
+        return VectorChoiceMap(self.subtrace)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -143,8 +143,13 @@ class MapCombinator(GenerativeFunction):
     def __call__(self, key, *args, **kwargs):
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
-        vmapped = jax.vmap(self.kernel.__call__, in_axes=(key_axis, arg_axes))
-        return vmapped(key, args)
+        vmapped = jax.vmap(
+            self.kernel.simulate,
+            in_axes=(key_axis, arg_axes),
+        )
+        key, tr = vmapped(key, args)
+        retval = tr.get_retval()
+        return key, retval
 
     def simulate(self, key, args, **kwargs):
         key_axis = self.in_axes[0]
@@ -163,7 +168,9 @@ class MapCombinator(GenerativeFunction):
         return key, map_tr
 
     def importance(self, key, chm, args):
-        if not isinstance(chm, VectorChoiceMap) and not isinstance(chm, Mask):
+        if not isinstance(chm, VectorChoiceMap) and not isinstance(
+            chm, BooleanMask
+        ):
             length = len(key)  # static
             assert length > 0
             _, treedef, shape = choice_map_shape(self.kernel)(key[0], args)
@@ -171,7 +178,7 @@ class MapCombinator(GenerativeFunction):
                 shape, treedef, length, chm
             )
 
-            chm = Mask(chm_vectored, mask_vectored)
+            chm = BooleanMask(chm_vectored, mask_vectored)
         if isinstance(chm, VectorChoiceMap):
             chm = chm.subtrace
 
@@ -196,7 +203,9 @@ class MapCombinator(GenerativeFunction):
         return key, (w, map_tr)
 
     def update(self, key, prev, chm, args):
-        if not isinstance(chm, VectorChoiceMap) or not isinstance(chm, Mask):
+        if not isinstance(chm, VectorChoiceMap) or not isinstance(
+            chm, BooleanMask
+        ):
             length = len(key)  # static
             assert length > 0
             _, treedef, shape = choice_map_shape(self.kernel)(key[0], args)
@@ -204,7 +213,7 @@ class MapCombinator(GenerativeFunction):
                 shape, treedef, length, chm
             )
 
-            chm = Mask(chm_vectored, mask_vectored)
+            chm = BooleanMask(chm_vectored, mask_vectored)
 
         # The previous trace has to have a VectorChoiceMap
         # here.

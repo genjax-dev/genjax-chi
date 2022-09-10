@@ -4,11 +4,11 @@ Generative function combinators
 .. automodule:: genjax.combinators
    :members:
 
-Switch
-------
-
-.. automodule:: genjax.combinators.switch
-   :members: SwitchCombinator
+.. Switch
+.. ------
+.. 
+.. .. automodule:: genjax.combinators.switch
+..    :members: SwitchCombinator
 
 Unfold
 ------

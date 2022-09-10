@@ -24,9 +24,11 @@ from typing import Any, Dict, Sequence, Callable
 
 class Handler:
     """
-    A handler dispatchs a `jc.Primitive` - and must provide
-    a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
-    where `*args` must match the `jc.Primitive` declaration signature.
+    A handler dispatchs a :code:`jax.core.Primitive` - and must provide
+    a :code:`Callable` with signature
+    :code:`def (name_of_primitive)(continuation, *args)`
+    where :code:`*args` must match the :core:`jax.core.Primitive`
+    declaration signature.
     """
 
     handles: Sequence[jc.Primitive]
@@ -58,10 +60,10 @@ def eval_jaxpr_handler(
 ):
     """
     This is an interpreter which is parametrized by a handler stack.
-    The handler stack is consulted when a `jc.Primitive` with a `must_handle`
-    attribute is encountered.
+    The handler stack is consulted when a :code:`jax.core.Primitive`
+    with a :code:`must_handle` attribute is encountered.
 
-    This interpreter should always be staged out onto a `Jaxpr`
+    This interpreter should always be staged out onto a :code:`Jaxpr`
     - so that handling primitives is a zero runtime cost process.
     """
 
@@ -138,6 +140,7 @@ def I_prime(handler_stack, f):
 
 def handle(handler_stack, expr):
     """
-    Sugar: Abstract interpret a `Jaxpr` with a `handler_stack :: List Handler`
+    Sugar: Abstract interpret a :code:`Jaxpr` with a
+    :code:`handler_stack: Sequence[Handler]`
     """
     return I_prime(handler_stack, expr)

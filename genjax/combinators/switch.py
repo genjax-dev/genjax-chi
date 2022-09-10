@@ -33,12 +33,11 @@ import jax.tree_util as jtu
 from genjax.core.datatypes import (
     GenerativeFunction,
     Trace,
-    Mask,
-    mask,
+    BooleanMask,
 )
 from genjax.distributions.distribution import ValueChoiceMap
 from genjax.builtin.shape_analysis import trace_shape_no_toplevel
-from genjax.builtin.trie import Trie
+from genjax.builtin.tree import Tree
 from dataclasses import dataclass
 from typing import Any, Tuple
 
@@ -50,7 +49,7 @@ from typing import Any, Tuple
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    chm: Mask
+    chm: BooleanMask
     args: Tuple
     retval: Any
     score: jnp.float32
@@ -169,8 +168,8 @@ class SwitchCombinator(GenerativeFunction):
 
     # This function does some compile-time code specialization
     # to produce a "sum type" - like trace.
-    def create_masked_trie(self, key, args):
-        trie = Trie({})
+    def create_masked_tree(self, key, args):
+        tree = Tree({})
         for (_, br) in self.branches.items():
             _, _, shape = trace_shape_no_toplevel(br)(key, args)
             shape = jtu.tree_map(
@@ -178,18 +177,18 @@ class SwitchCombinator(GenerativeFunction):
                 shape,
                 is_leaf=lambda v: isinstance(v, ValueChoiceMap),
             )
-            trie = trie.merge(shape)
-        return mask(trie, False)
+            tree = tree.merge(shape)
+        return BooleanMask(tree, False)
 
     def _simulate(self, branch_gen_fn, key, args):
-        trie = self.create_masked_trie(key, args)
+        tree = self.create_masked_tree(key, args)
         key, tr = branch_gen_fn.simulate(key, args)
-        choices = mask(tr.get_choices(), True)
-        trie = trie.merge(choices)
+        choices = BooleanMask(tr.get_choices(), True)
+        tree = tree.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(self, trie, args, retval, score)
+        trace = SwitchTrace(self, tree, args, retval, score)
         return key, trace
 
     def simulate(self, key, args):
@@ -217,14 +216,14 @@ class SwitchCombinator(GenerativeFunction):
         )
 
     def _importance(self, branch_gen_fn, key, chm, args):
-        trie = self.create_masked_trie(key, args)
+        tree = self.create_masked_tree(key, args)
         key, (w, tr) = branch_gen_fn.importance(key, chm, args)
-        choices = mask(tr.get_choices(), True)
-        trie = trie.merge(choices)
+        choices = BooleanMask(tr.get_choices(), True)
+        tree = tree.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(self, trie, args, retval, score)
+        trace = SwitchTrace(self, tree, args, retval, score)
         return key, (w, trace)
 
     def importance(self, key, chm, args):
@@ -254,20 +253,20 @@ class SwitchCombinator(GenerativeFunction):
         )
 
     def _update(self, branch_gen_fn, key, prev, discard_option, new, args):
-        trie = self.create_masked_trie(key, args)
+        tree = self.create_masked_tree(key, args)
         key, (w, tr, discard) = branch_gen_fn.update(key, prev, new, args)
         discard = discard_option.merge(discard)
-        choices = mask(tr.get_choices(), True)
-        trie = trie.merge(choices)
+        choices = BooleanMask(tr.get_choices(), True)
+        tree = tree.merge(choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(self, trie, args, retval, score)
+        trace = SwitchTrace(self, tree, args, retval, score)
         return key, (w, trace, discard)
 
     def update(self, key, prev, new, args):
         switch = args[0]
-        discard_option = mask(prev.get_choices(), False)
+        discard_option = BooleanMask(prev.get_choices(), False)
 
         def _inner(br):
             return lambda key, prev, new, *args: self._update(

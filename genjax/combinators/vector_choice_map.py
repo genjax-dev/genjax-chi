@@ -26,7 +26,7 @@ import jax.tree_util as jtu
 import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace
 from genjax.core.pytree import tree_stack
-from genjax.builtin.datatypes import JAXChoiceMap
+from genjax.builtin.datatypes import BuiltinChoiceMap
 from dataclasses import dataclass
 
 #####
@@ -37,17 +37,15 @@ from dataclasses import dataclass
 @dataclass
 class VectorChoiceMap(ChoiceMap):
     subtrace: Trace
-    length: int
 
-    def __init__(self, subtrace, length):
+    def __init__(self, subtrace):
         if isinstance(subtrace, dict):
-            self.subtrace = JAXChoiceMap(subtrace)
+            self.subtrace = BuiltinChoiceMap(subtrace)
         else:
             self.subtrace = subtrace
-        self.length = length
 
     def flatten(self):
-        return (self.subtrace,), (self.length,)
+        return (self.subtrace,), ()
 
     @classmethod
     def unflatten(cls, data, xs):
@@ -67,7 +65,18 @@ class VectorChoiceMap(ChoiceMap):
 
     # TODO.
     def get_choices_shallow(self):
-        return ()
+        def _inner(k, v):
+            return k, VectorChoiceMap(v)
+
+        return map(
+            lambda args: _inner(*args), self.subtrace.get_choices_shallow()
+        )
+
+    def merge(self, other):
+        return self.subtrace.merge(other)
+
+    def __hash__(self):
+        return hash(self.subtrace)
 
 
 def prepare_vectorized_choice_map(shape, treedef, length, chm):

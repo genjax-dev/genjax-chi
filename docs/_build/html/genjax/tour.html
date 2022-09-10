@@ -81,10 +81,10 @@ well-known.</p>
 
 <span class="c1"># If one ever needs to specialize on arguments, you can just</span>
 <span class="c1"># pass a lambda which closes over constants into</span>
-<span class="c1"># a `JAXGenerativeFunction`.</span>
+<span class="c1"># a `BuiltinGenerativeFunction`.</span>
 <span class="c1">#</span>
 <span class="c1"># Here, we specialize on the number of schools.</span>
-<span class="n">eight_schools</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">JAXGenerativeFunction</span><span class="p">(</span>
+<span class="n">eight_schools</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">BuiltinGenerativeFunction</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">key</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="n">J_schools</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
 <span class="p">)</span>
 </pre></div>

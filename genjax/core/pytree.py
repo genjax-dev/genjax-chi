@@ -17,6 +17,8 @@
 import abc
 import jax.tree_util as jtu
 import jax.numpy as jnp
+import numpy as np
+from genjax.core.specialization import is_concrete
 
 __all__ = [
     "Pytree",
@@ -42,6 +44,20 @@ class Pytree(metaclass=abc.ABCMeta):
         pass
 
 
+#####
+# Pytree sum type
+#####
+
+# If you have multiple Pytrees, you might want
+# to generate a "sum" Pytree with leaves that minimally cover
+# the entire set.
+
+
+#####
+# Utilities
+#####
+
+
 def tree_stack(trees):
     """
     Takes a list of trees and stacks every corresponding leaf.
@@ -51,6 +67,9 @@ def tree_stack(trees):
 
     Useful for turning a list of objects into something you can feed to a
     vmapped function.
+
+    This function respects concrete vs. traced values. It will leave concrete
+    leaves unchanged (it will not lift them to :code:`jax.core.Tracer`).
     """
     leaves_list = []
     treedef_list = []
@@ -60,7 +79,10 @@ def tree_stack(trees):
         treedef_list.append(treedef)
 
     grouped_leaves = zip(*leaves_list)
-    result_leaves = [jnp.stack(leaf) for leaf in grouped_leaves]
+    result_leaves = [
+        np.stack(leaf) if all(map(is_concrete, leaf)) else jnp.stack(leaf)
+        for leaf in grouped_leaves
+    ]
     return treedef_list[0].unflatten(result_leaves)
 
 
@@ -82,3 +104,15 @@ def tree_unstack(tree):
             new_leaves[i].append(leaf[i])
     new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
     return new_trees
+
+
+def squeeze(tree):
+    def _inner(v):
+        if isinstance(v, np.ndarray):
+            return np.squeeze(v)
+        elif isinstance(v, jnp.ndarray):
+            return jnp.squeeze(v)
+        else:
+            return v
+
+    return jtu.tree_map(_inner, tree)

@@ -16,18 +16,19 @@ import jax
 import numpy as np
 import genjax
 from genjax import Trace
+import matplotlib.pyplot as plt
 from typing import Sequence
 
 # A 2D tracking example in GenJAX, with inference using propose-resample SMC.
 
-transition_matrix = np.array([[1.0, 0.0], [0.0, 1.0]])
-observation_matrix = np.array([[3.0, 0.0], [0.0, 3.0]])
+transition_matrix = np.array([[0.5, 0.0], [0.0, 0.5]])
+observation_matrix = np.array([[0.05, 0.0], [0.0, 0.05]])
 
 
 # Note how we must specify a `max_length` for `UnfoldCombinator`
 # here. This is required by JAX, so that it can statically reason
 # about the static potential size of arrays.
-@genjax.gen(genjax.Unfold, max_length=100)
+@genjax.gen(genjax.Unfold, max_length=50)
 def kernel(key, prev_latent):
     key, z = genjax.trace("latent", genjax.MvNormal)(
         key, (prev_latent, transition_matrix)
@@ -49,19 +50,13 @@ def model(key, length):
 
 
 key = jax.random.PRNGKey(314159)
-observation_sequence = np.array(
-    [
-        [i, i] if i % 2 == 0 else [i, -i] if i < 50 else [100 - 3 * i, 3 * i]
-        for i in range(0, 100)
-    ]
-)
+key, tr = jax.jit(genjax.simulate(model))(key, (8,))
+observation_sequence = tr["z", "obs"]
 
 
 #####
 # Inference
 #####
-
-import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
 
@@ -75,8 +70,8 @@ def trace_visualizer(observation_sequence: Sequence, tr: Trace):
     obs_x = observation_sequence[:, 0]
     obs_y = observation_sequence[:, 1]
     plt.scatter(latent_x, latent_y, marker=".")
-    plt.scatter(obs_x, obs_y, marker="x")
-    plt.title("Observation sequence vs. particle traces")
+    plt.scatter(obs_x, obs_y, marker=".")
+    plt.title("Observation sequence vs. trace")
     plt.xlabel("x")
     plt.ylabel("y")
     fig.set_size_inches(10, 8)
@@ -117,7 +112,7 @@ def initial_proposal(key, obs_chm):
 def transition_proposal(key, prev_tr, obs_chm):
     v = obs_chm["z", "obs"]
     key, first_latent = genjax.trace(("z", "latent"), genjax.MvNormal)(
-        key, (v, transition_matrix)
+        key, (v, observation_matrix)
     )
     return (key,)
 
@@ -136,16 +131,21 @@ chm_sequence = genjax.ChoiceMap(
 # arguments to the model.
 model_arg_sequence = [(ind,) for ind in range(1, len(observation_sequence) + 1)]
 
+# This uses `Pytest` benchmark harness to benchmark.
+def test_2d_tracking(benchmark):
 
-# Run inference.
-jitted = jax.jit(
-    genjax.proposal_sequential_monte_carlo(
-        model, initial_proposal, transition_proposal, 100
-    ),
-    static_argnums=1,
-)
+    # Run inference.
+    jitted = jax.jit(
+        genjax.proposal_sequential_monte_carlo(
+            model, initial_proposal, transition_proposal, 50
+        ),
+        static_argnums=1,
+    )
 
-_, (tr, lmle) = jitted(
-    key, chm_sequence, model_arg_sequence, [() for _ in model_arg_sequence]
-)
-trace_visualizer(observation_sequence, tr)
+    benchmark(
+        jitted,
+        key,
+        chm_sequence,
+        model_arg_sequence,
+        [() for _ in model_arg_sequence],
+    )

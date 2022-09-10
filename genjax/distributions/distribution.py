@@ -18,13 +18,14 @@ This module contains the `Distribution` abstact base class.
 
 import abc
 import jax
+import numpy as np
 from genjax.core.datatypes import (
     ChoiceMap,
     EmptyChoiceMap,
     Trace,
     GenerativeFunction,
     AllSelection,
-    mask,
+    BooleanMask,
 )
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
@@ -70,6 +71,15 @@ class ValueChoiceMap(ChoiceMap):
     def to_selection(self):
         return AllSelection()
 
+    def merge(self, other):
+        return other
+
+    def __hash__(self):
+        if isinstance(self.value, np.ndarray):
+            return hash(self.value.tostring())
+        else:
+            return hash(self.value)
+
 
 #####
 # DistributionTrace
@@ -100,6 +110,9 @@ class DistributionTrace(Trace):
 
     def flatten(self):
         return (self.args, self.value, self.score), (self.gen_fn,)
+
+    def merge(self, other):
+        return other
 
     @classmethod
     def unflatten(cls, data, xs):
@@ -183,19 +196,19 @@ class Distribution(GenerativeFunction):
             prev_score = prev.get_score()
             v = new.get_value()
             fwd = self.logpdf(v, *args)
-            discard = mask(prev.get_choices(), True)
+            discard = BooleanMask(prev.get_choices(), True)
             return key, (fwd - prev_score, v, discard)
 
         def _has_prev_branch(key, args):
             v = prev.get_value()
-            discard = mask(prev.get_choices(), False)
+            discard = BooleanMask(prev.get_choices(), False)
             return key, (0.0, v, discard)
 
         def _constrained_branch(key, args):
             chm = new.get_choice(())
             key, (w, tr) = self.importance(key, chm, args)
             v = tr.get_value()
-            discard = mask(prev.get_choices(), False)
+            discard = BooleanMask(prev.get_choices(), False)
             return key, (w, v, discard)
 
         key, (w, v, discard) = concrete_cond(

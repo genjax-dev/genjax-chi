@@ -45,3 +45,9 @@ from .vector_choice_map import *
 from .switch import *
 from .map import *
 from .unfold import *
+from .partial import *
+
+Switch = SwitchCombinator
+Map = MapCombinator
+Unfold = UnfoldCombinator
+Partial = PartialCombinator

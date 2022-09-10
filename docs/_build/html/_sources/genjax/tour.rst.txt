@@ -41,10 +41,10 @@ well-known.
 
     # If one ever needs to specialize on arguments, you can just 
     # pass a lambda which closes over constants into 
-    # a `JAXGenerativeFunction`.
+    # a `BuiltinGenerativeFunction`.
     #
     # Here, we specialize on the number of schools.
-    eight_schools = genjax.JAXGenerativeFunction(
+    eight_schools = genjax.BuiltinGenerativeFunction(
         lambda key, sigma: J_schools(key, 8, sigma)
     )
 

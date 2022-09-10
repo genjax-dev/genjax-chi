@@ -13,12 +13,12 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from genjax.core.pytree import Pytree
+from genjax.core.datatypes import ChoiceMap
 import genjax.core.pretty_printer as pp
 
 
 @dataclass
-class Trie(Pytree):
+class Tree(ChoiceMap):
     nodes: dict
 
     def flatten(self):
@@ -26,7 +26,13 @@ class Trie(Pytree):
 
     @classmethod
     def unflatten(cls, xs, data):
-        return Trie(*data)
+        return Tree(*data)
+
+    def has_value(self):
+        return False
+
+    def get_value(self):
+        raise Exception("Tree is not a value choice map.")
 
     def is_empty(self):
         return len(self.nodes) == 0
@@ -36,8 +42,8 @@ class Trie(Pytree):
             first, *rest = addr
             rest = tuple(rest)
             if self.has_node(first):
-                subtrie = self.get_node(first)
-                return subtrie.has_choice(rest)
+                subtree = self.get_node(first)
+                return subtree.has_choice(rest)
             else:
                 return False
         else:
@@ -50,10 +56,10 @@ class Trie(Pytree):
             first, *rest = addr
             rest = tuple(rest)
             if self.has_node(first):
-                subtrie = self.get_node(first)
-                return subtrie.get_choice(rest)
+                subtree = self.get_node(first)
+                return subtree.get_choice(rest)
             else:
-                raise Exception(f"Trie has no subtree at {first}")
+                raise Exception(f"Tree has no subtree at {first}")
         else:
             if isinstance(addr, tuple):
                 addr = addr[0]
@@ -64,10 +70,10 @@ class Trie(Pytree):
             first, *rest = addr
             rest = tuple(rest)
             if not self.has_node(first):
-                subtrie = Trie({})
-                self.nodes[first] = subtrie
-            subtrie = self.nodes[first]
-            subtrie.set_node(rest, value)
+                subtree = Tree({})
+                self.nodes[first] = subtree
+            subtree = self.nodes[first]
+            subtree.set_node(rest, value)
         else:
             if isinstance(addr, tuple):
                 addr = addr[0]
@@ -77,10 +83,10 @@ class Trie(Pytree):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
             if self.has_node(first):
-                subtrie = self.get_node(first)
-                if not isinstance(subtrie, Trie):
+                subtree = self.get_node(first)
+                if not isinstance(subtree, Tree):
                     return False
-                if subtrie.delete_node(*rest):
+                if subtree.delete_node(*rest):
                     self.delete_node(first)
         else:
             addr = addr[0]
@@ -97,13 +103,24 @@ class Trie(Pytree):
     def get_choices_shallow(self):
         return self.nodes.items()
 
-    def merge(self, other):
-        trie = Trie({})
+    def to_selection(self):
+        tree = Tree({})
         for (k, v) in self.get_choices_shallow():
-            trie.set_node(k, v)
+            tree[k] = v.to_selection()
+        return tree
+
+    def merge(self, other):
+        tree = Tree({})
+        for (k, v) in self.get_choices_shallow():
+            if other.has_choice(k):
+                sub = other[k]
+                tree[k] = v.merge(sub)
+            else:
+                tree[k] = v
         for (k, v) in other.get_choices_shallow():
-            trie.set_node(k, v)
-        return trie
+            if not self.has_choice(k):
+                tree[k] = v
+        return tree
 
     def __getitem__(self, addr):
         return self.get_node(addr)
@@ -116,3 +133,9 @@ class Trie(Pytree):
 
     def __str__(self):
         return pp.tree_pformat(self)
+
+    def __hash__(self):
+        hash_list = []
+        for (k, v) in self.get_choices_shallow():
+            hash_list.append((k, v))
+        return hash(tuple(hash_list))

@@ -54,9 +54,9 @@ from .inference import *
 from .experimental import *
 
 
-Trace = JAXTrace
-ChoiceMap = JAXChoiceMap
-Selection = JAXSelection
+Trace = BuiltinTrace
+ChoiceMap = BuiltinChoiceMap
+Selection = BuiltinSelection
 
 #####
 # Decorator
@@ -67,6 +67,8 @@ import inspect
 
 def gen(callable, **kwargs):
     if inspect.isclass(callable):
-        return lambda source: callable(JAXGenerativeFunction(source), **kwargs)
+        return lambda source: callable(
+            BuiltinGenerativeFunction(source), **kwargs
+        )
     else:
-        return JAXGenerativeFunction(callable)
+        return BuiltinGenerativeFunction(callable)

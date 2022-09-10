@@ -23,8 +23,8 @@ These programs can utilize other generative functions
 
 from .intrinsics import trace
 from .handlers import *
-from .trie import *
 from .datatypes import *
+from .tree import *
 from .shape_analysis import *
 
 __all__ = [
@@ -32,10 +32,10 @@ __all__ = [
     "Trace",
     "ChoiceMap",
     "Selection",
-    "JAXGenerativeFunction",
-    "JAXTrace",
-    "JAXChoiceMap",
-    "JAXSelection",
+    "BuiltinGenerativeFunction",
+    "BuiltinTrace",
+    "BuiltinChoiceMap",
+    "BuiltinSelection",
     "trace_shape",
     "trace_shape_no_toplevel",
     "choice_map_shape",
