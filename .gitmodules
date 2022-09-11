@@ -1,0 +1,6 @@
+[submodule "experiments/exposing_c++_gen_fn/third_party/Eigen"]
+	path = experiments/exposing_c++_gen_fn/third_party/Eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "experiments/exposing_c++_gen_fn/third_party/GenTL"]
+	path = experiments/exposing_c++_gen_fn/third_party/GenTL
+	url = https://github.com/OpenGen/GenTL
