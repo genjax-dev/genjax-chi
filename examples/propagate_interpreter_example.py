@@ -22,7 +22,7 @@ from genjax.experimental.interpreters import trace_utils
 # Here's an example of defining a simple forward-mode like interface
 # using a graph-based propagation interpreter.
 #
-# This interpreter is also JIT compilable.
+# The interpreter interface `propagate` is also JIT compilable.
 
 
 # First, we must define the lattice.
