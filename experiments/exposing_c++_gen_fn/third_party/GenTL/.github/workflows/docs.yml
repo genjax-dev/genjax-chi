@@ -1,0 +1,48 @@
+name: Build and Deploy Docs
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout GenTL repository
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Checkout gentl-docs repository
+      uses: actions/checkout@v2
+      with:
+        repository: OpenGen/gentl-docs 
+        path: gentl-docs
+        ssh-key: ${{secrets.GENTL_DOCS_PUSH_KEY }}
+
+    - name: Install C++ compiler and Doxygen
+      run: |
+        sudo apt update
+        sudo apt install gcc-11 g++-11
+        sudo apt install doxygen doxygen-doc graphviz
+        
+    - name: Configure CMake
+      env:
+        CXX: g++-11
+      run: cmake -S ${{github.workspace}} -B ${{github.workspace}}/build
+      
+    - name: Build GenTL HTML documentation using Doxygen
+      run: |
+        cmake --build ${{github.workspace}}/build
+        cmake --build ${{github.workspace}}/build --target docs
+
+    - name: Commit and push GenTL HTML documentation to gen-docs repository
+      run: |
+        cp -RT ${{github.workspace}}/build/docs/html/ ${{github.workspace}}/gentl-docs/latest/
+        cd ${{github.workspace}}/gentl-docs
+        git add -A
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "GenTL documentation bot"
+        git commit -m "Documentation update"
+        git push

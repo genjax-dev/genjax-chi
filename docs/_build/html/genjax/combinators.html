@@ -1,0 +1,342 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Generative function combinators &#8212; Gen ⊗ JAX</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/css/custom.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Exposing C++ generative functions" href="c_interface.html" />
+    <link rel="prev" title="Generative function interface" href="interface.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-genjax.combinators">
+<span id="generative-function-combinators"></span><h1>Generative function combinators<a class="headerlink" href="#module-genjax.combinators" title="Permalink to this heading">¶</a></h1>
+<p>This module holds a set of generative function implementations
+called generative function combinators.</p>
+<p>These combinators accept generative functions as arguments, and return
+generative functions with modified choice map shapes and behavior.</p>
+<p>They are used to express common patterns of computation, including
+if-else (<code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code>), mapping across vectorial arguments (<code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code>), and dependent for-loop (<code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code>).</p>
+<blockquote>
+<div><p>🔪 <strong>(A sharp bit) GenJAX combinator restrictions</strong> 🔪</p>
+<p>The implementations of these combinators are similar to those in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
+but JAX imposes extra restrictions on their construction and usage.</p>
+<p>In contrast to <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>, <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> must have the number of
+unfold steps specified ahead of time as a static constant. The length of the
+the unfold chain cannot depend on a variable whose value is known
+only at runtime.</p>
+<p>Similarly, for <code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code> – the shape of the vectorial arguments
+which will be mapped over must be known at JAX tracing time.</p>
+<p>These restrictions are not due to the implementation, but are fundamental to
+JAX’s programming model (as it stands currently).</p>
+</div></blockquote>
+<section id="module-genjax.combinators.unfold">
+<span id="unfold"></span><h2>Unfold<a class="headerlink" href="#module-genjax.combinators.unfold" title="Permalink to this heading">¶</a></h2>
+<p>This module implements a generative function combinator which allows
+statically unrolled control flow for generative functions which can act
+as kernels (a kernel generative function can accept
+their previous output as input).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.unfold.UnfoldCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.unfold.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/unfold.html#UnfoldCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.unfold.UnfoldCombinator" title="Permalink to this definition">¶</a></dt>
+<dd><p><code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> accepts a single kernel generative function
+as input and a static unroll length which specifies how many iterations
+to run the chain for.</p>
+<p>A kernel generative function is one which accepts and returns
+the same signature of arguments. Under the hood, <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code>
+is implemented using <code class="code docutils literal notranslate"><span class="pre">jax.lax.scan</span></code> - which has the same
+requirements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gen_fn</strong> (<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>) – A single <em>kernel</em> <cite>GenerativeFunction</cite> instance.</p></li>
+<li><p><strong>length</strong> (<code class="code docutils literal notranslate"><span class="pre">Int</span></code>) – An integer specifying the unroll length of the chain of applications.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A single <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> generative function which
+implements the generative function interface using a scan-like
+pattern. This generative function will perform a dependent-for
+iteration (passing the return value of generative function application)
+to the next iteration for <code class="code docutils literal notranslate"><span class="pre">length</span></code> number of steps.
+The programmer must provide an initial value to start the chain of
+iterations off.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<span class="kn">import</span> <span class="nn">genjax</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">random_walk</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+
+<span class="n">unfold</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">UnfoldCombinator</span><span class="p">(</span><span class="n">random_walk</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+<span class="n">init</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">unfold</span><span class="p">))(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="n">init</span><span class="p">,))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>UnfoldTrace(
+  gen_fn=UnfoldCombinator(
+    kernel=BuiltinGenerativeFunction(source=&lt;function random_walk&gt;),
+    max_length=1000
+  ),
+  length=i32[],
+  mask=bool[1000],
+  subtrace=BuiltinTrace(
+    gen_fn=BuiltinGenerativeFunction(source=&lt;function random_walk&gt;),
+    args=(f32[1000],),
+    retval=(f32[1000],),
+    choices=Tree(
+      nodes={
+        &#39;x&#39;:
+        DistributionTrace(
+          gen_fn=_Normal(),
+          args=(f32[1000], f32[1000]),
+          value=f32[1000],
+          score=f32[1000]
+        )
+      }
+    ),
+    score=f32[1000]
+  ),
+  args=(f32[],),
+  retval=(f32[],),
+  score=f32[]
+)
+</pre></div>
+</div>
+</div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-genjax.combinators.map">
+<span id="map"></span><h2>Map<a class="headerlink" href="#module-genjax.combinators.map" title="Permalink to this heading">¶</a></h2>
+<p>This module implements a generative function combinator which allows
+broadcasting for generative functions – mapping over
+vectorial versions of their arguments.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.map.MapCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.map.</span></span><span class="sig-name descname"><span class="pre">MapCombinator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/genjax/combinators/map.html#MapCombinator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.map.MapCombinator" title="Permalink to this definition">¶</a></dt>
+<dd><p><code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code> accepts a single generative function as input and
+provides <code class="code docutils literal notranslate"><span class="pre">vmap</span></code>-based implementations of the generative function
+interface methods. <code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code> also accepts <code class="code docutils literal notranslate"><span class="pre">in_axes</span></code> as
+an argument to specify exactly which axes of the <code class="code docutils literal notranslate"><span class="pre">(key,</span> <span class="pre">*args)</span></code>
+should be broadcasted over.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gen_fn</strong> (<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>) – A single <cite>GenerativeFunction</cite> instance.</p></li>
+<li><p><strong>in_args</strong> (<code class="code docutils literal notranslate"><span class="pre">Tuple[Int]</span></code>) – A tuple specifying which <code class="code docutils literal notranslate"><span class="pre">(key,</span> <span class="pre">*args)</span></code> to broadcast
+over.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A single <code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code> generative function which
+implements <code class="code docutils literal notranslate"><span class="pre">vmap</span></code> support for each generative function
+interface method.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<span class="kn">import</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span>
+<span class="kn">import</span> <span class="nn">genjax</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">add_normal_noise</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">noise1</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;noise1&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span>
+            <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">noise2</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;noise2&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span>
+            <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">+</span> <span class="n">noise1</span> <span class="o">+</span> <span class="n">noise2</span><span class="p">)</span>
+
+<span class="n">mapped</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">MapCombinator</span><span class="p">(</span><span class="n">add_normal_noise</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+<span class="n">arr</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">subkeys</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">101</span><span class="p">)</span>
+<span class="n">subkeys</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">subkeys</span><span class="p">)</span>
+<span class="n">_</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">mapped</span><span class="p">))(</span><span class="n">subkeys</span><span class="p">,</span> <span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>MapTrace(
+  gen_fn=MapCombinator(
+    kernel=BuiltinGenerativeFunction(source=&lt;function add_normal_noise&gt;),
+    in_axes=(0, 0)
+  ),
+  length=i32[],
+  subtrace=BuiltinTrace(
+    gen_fn=BuiltinGenerativeFunction(source=&lt;function add_normal_noise&gt;),
+    args=(f32[100],),
+    retval=(f32[100],),
+    choices=Tree(
+      nodes={
+        &#39;noise1&#39;:
+        DistributionTrace(
+          gen_fn=_Normal(),
+          args=(f32[100], f32[100]),
+          value=f32[100],
+          score=f32[100]
+        ),
+        &#39;noise2&#39;:
+        DistributionTrace(
+          gen_fn=_Normal(),
+          args=(f32[100], f32[100]),
+          value=f32[100],
+          score=f32[100]
+        )
+      }
+    ),
+    score=f32[100]
+  ),
+  score=f32[]
+)
+</pre></div>
+</div>
+</div>
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/assets/logo.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=probcomp&repo=genjax&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="tour.html">A tour of fundamentals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gen_fn.html">What is a generative function?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interface.html">Generative function interface</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Generative function combinators</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.unfold">Unfold</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-genjax.combinators.map">Map</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="c_interface.html">Exposing C++ generative functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wasm_interface.html">From GenJAX to WebAssembly</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="interface.html" title="previous chapter">Generative function interface</a></li>
+      <li>Next: <a href="c_interface.html" title="next chapter">Exposing C++ generative functions</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, MIT Probabilistic Computing Project.
+      
+      |
+      <a href="../_sources/genjax/combinators.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
