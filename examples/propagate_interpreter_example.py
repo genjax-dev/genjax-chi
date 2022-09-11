@@ -88,9 +88,19 @@ def add_rule(invals, outvals):
     return invals, outvals, None
 
 
+def mul_rule(invals, outvals):
+    (a, b) = invals
+    (outval,) = outvals
+    if not a.bottom() and not b.bottom():
+        outval = Dual.new(a.val * b.val, dual=a.dual * b.val + a.val * b.dual)
+        outvals = [outval]
+    return invals, outvals, None
+
+
 forward_ad_rules = {}
 forward_ad_rules[lax.exp_p] = exp_rule
 forward_ad_rules[lax.add_p] = add_rule
+forward_ad_rules[lax.mul_p] = mul_rule
 
 #####
 # Test
@@ -98,7 +108,7 @@ forward_ad_rules[lax.add_p] = add_rule
 
 
 def f(x):
-    return jnp.exp(x) + x
+    return x * (jnp.exp(x) + x)
 
 
 def forward_mode(f):
@@ -118,7 +128,9 @@ def forward_mode(f):
     return _inner
 
 
-jaxpr = jax.make_jaxpr(forward_mode(f))(2.0)
+jaxpr = jax.make_jaxpr(f)(2.0)
+forward_jaxpr = jax.make_jaxpr(forward_mode(f))(2.0)
 dual = jax.jit(forward_mode(f))(2.0)
 print(jaxpr)
+print(forward_jaxpr)
 print(dual)
