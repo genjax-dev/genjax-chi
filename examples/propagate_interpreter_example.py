@@ -118,5 +118,7 @@ def forward_mode(f):
     return _inner
 
 
+jaxpr = jax.make_jaxpr(forward_mode(f))(2.0)
 dual = jax.jit(forward_mode(f))(2.0)
+print(jaxpr)
 print(dual)
