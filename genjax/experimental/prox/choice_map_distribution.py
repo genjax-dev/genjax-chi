@@ -26,7 +26,7 @@ from typing import Union
 class ChoiceMapDistribution(ProxDistribution):
     p: GenerativeFunction
     selection: Selection
-    custom_q: Union[None, GenerativeFunction]
+    custom_q: Union[None, ProxDistribution]
 
     def get_trace_type(self, key, args, **kwargs):
         inner_type = self.p.get_trace_type(key, args)

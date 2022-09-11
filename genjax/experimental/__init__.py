@@ -20,5 +20,4 @@ from .mem import *
 from .tuning import *
 from .combinators import *
 from .interpreters import *
-from .incremental import *
 from .prox import *

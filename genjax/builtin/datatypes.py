@@ -24,8 +24,8 @@ from genjax.core.datatypes import (
     GenerativeFunction,
     AllSelection,
     EmptyChoiceMap,
+    ValueChoiceMap,
 )
-from genjax.distributions.distribution import ValueChoiceMap
 from genjax.builtin.handlers import (
     handler_simulate,
     handler_importance,

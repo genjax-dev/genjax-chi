@@ -183,8 +183,19 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
             return _pformat_namedtuple(obj, **kwargs)
         else:
             return _pformat_tuple(obj, **kwargs)
-    elif isinstance(obj, (np.ndarray, jnp.ndarray)):
-        return _pformat_array(obj, **kwargs)
+    elif isinstance(obj, np.ndarray) or isinstance(obj, jnp.ndarray):
+        if hasattr(obj, "aval"):
+            wrapped = pp.text(repr(obj))
+            return pp.concat(
+                [
+                    wrapped,
+                    pp.text("("),
+                    _pformat_array(obj.aval, **kwargs),
+                    pp.text(")"),
+                ]
+            )
+        else:
+            return _pformat_array(obj, **kwargs)
     elif isinstance(obj, (jax.custom_jvp, jax.custom_vjp)):
         return _pformat(obj.__wrapped__, **kwargs)
     elif hasattr(obj, "__wrapped__") and follow_wrapped:

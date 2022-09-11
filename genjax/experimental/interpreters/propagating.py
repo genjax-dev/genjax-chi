@@ -54,26 +54,30 @@ from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
 from jax._src import dtypes
 
-from genjax.core import pytree
+from genjax.core import Pytree
+import genjax.core.pretty_printer as gpp
 
 __all__ = ["Cell", "Equation", "Environment", "propagate"]
 
 State = Any
 VarOrLiteral = Union[jax_core.Var, jax_core.Literal]
+
 safe_map = jax_core.safe_map
 
 
-class Cell(pytree.Pytree):
+class Cell(Pytree):
     """
     Base interface for objects used during propagation.
 
     A `Cell` represents a member of a lattice, defined by the `top`, `bottom`
-    and `join` methods. Conceptually, a "top" cell represents complete information
-    about a value and a "bottom" cell represents no information about a value.
+    and `join` methods. Conceptually, a "top" cell represents complete
+    information about a value and a "bottom" cell represents no
+    information about a value.
+
     Cells that are neither top nor bottom thus have partial information.
-    The `join` method is used to combine two cells to create a cell no less than
-    the two input cells. During the propagation, we hope to join cells until
-    all cells are "top".
+    The `join` method is used to combine two cells to create a cell
+    no less than the two input cells. During the propagation,
+    we hope to join cells until all cells are "top".
 
     Transformations that use `propagate` need to pass in objects
     that are `Cell`-like.
@@ -124,7 +128,9 @@ class Cell(pytree.Pytree):
 
 @dataclasses.dataclass(frozen=True)
 class Equation:
-    """Hashable wrapper for `jax.core.Jaxpr`."""
+    """
+    Hashable wrapper for :code:`jax.core.Jaxpr`.
+    """
 
     invars: Tuple[jax_core.Var]
     outvars: Tuple[jax_core.Var]
@@ -167,7 +173,9 @@ class Equation:
 
 
 class Environment:
-    """Keeps track of variables and their values during propagation."""
+    """
+    Keeps track of variables and their values during propagation.
+    """
 
     def __init__(self, cell_type, jaxpr):
         self.cell_type = cell_type
@@ -210,9 +218,17 @@ class Environment:
     def write_state(self, eqn: Equation, state: State) -> None:
         self.states[eqn] = state
 
+    def __repr__(self):
+        return gpp.tree_pformat(self.env)
+
+    def __str__(self):
+        return gpp.tree_pformat(self.env)
+
 
 def construct_graph_representation(eqns):
-    """Constructs a graph representation of a Jaxpr."""
+    """
+    Constructs a graph representation of a Jaxpr.
+    """
     neighbors = collections.defaultdict(set)
     for eqn in eqns:
         for var in it.chain(eqn.invars, eqn.outvars):
@@ -237,7 +253,9 @@ def update_queue_state(
     new_incells,
     new_outcells,
 ):
-    """Updates the queue from the result of a propagation."""
+    """
+    Updates the queue from the result of a propagation.
+    """
     all_vars = cur_eqn.invars + cur_eqn.outvars
     old_cells = incells + outcells
     new_cells = new_incells + new_outcells
@@ -267,7 +285,9 @@ def extract_call_jaxpr(primitive, params):
 
 
 def get_shaped_aval(x):
-    """Converts a JAX value type into a shaped abstract value."""
+    """
+    Converts a JAX value type into a shaped abstract value.
+    """
     if hasattr(x, "dtype") and hasattr(x, "shape"):
         return abstract_arrays.ShapedArray(
             x.shape, dtypes.canonicalize_dtype(x.dtype)
@@ -293,7 +313,7 @@ def propagate(
     initial_state: State = None,
 ) -> Tuple[Environment, State]:
     """
-    Propagates cells in a Jaxpr using a set of rules.
+    Propagates cells in a :code:`Jaxpr` using a set of rules.
 
     Args:
         cell_type: used to instantiate literals into cells
@@ -303,13 +323,14 @@ def propagate(
         incells: used to populate the Jaxpr's invars
         outcells: used to populate the Jaxpr's outcells
         reducer: An optional callable used to reduce over the state at each
-            equation in the Jaxpr. `reducer` takes in `(env, eqn, state, new_state)`
-            as arguments and should return an updated state. The `new_state` value
-            is provided by each equation.
-        initial_state: The initial `state` value used in the reducer
+            equation in the Jaxpr. :code:`reducer`: takes in
+            :code:`(env, eqn, state, new_state)` as arguments and should
+            return an updated state. The :code:`new_state` value is provided
+            by each equation.
+        initial_state: The initial :code:`state` value used in the reducer
 
     Returns:
-        The Jaxpr environment after propagation has terminated
+        The :code:`Jaxpr` environment after propagation has terminated
     """
 
     env = Environment(cell_type, jaxpr)
@@ -318,7 +339,6 @@ def propagate(
     safe_map(env.write, jaxpr.outvars, outcells)
 
     eqns = safe_map(Equation.from_jaxpr_eqn, jaxpr.eqns)
-
     get_neighbor_eqns = construct_graph_representation(eqns)
     # Initialize propagation queue with equations neighboring constvars,
     # invars, and outvars.
@@ -394,7 +414,9 @@ def flat_propagate(tree, *flat_invals):
 
 
 def call_rule(prim, incells, outcells, **params):
-    """Propagate rule for call primitives."""
+    """
+    Propagate rule for call primitives.
+    """
     f, incells = incells[0], incells[1:]
     flat_vals, in_tree = tree_util.tree_flatten((incells, outcells))
     new_params = dict(params)

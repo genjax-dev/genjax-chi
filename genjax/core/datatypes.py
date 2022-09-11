@@ -16,6 +16,7 @@ import abc
 import jax
 import jax.tree_util as jtu
 import jax._src.pretty_printer as pp
+import numpy as np
 import genjax.core.pretty_printer as gpp
 from dataclasses import dataclass
 from genjax.core.pytree import Pytree, squeeze
@@ -254,6 +255,60 @@ class EmptyChoiceMap(ChoiceMap):
 
     def strip_metadata(self):
         return self
+
+
+@dataclass
+class ValueChoiceMap(ChoiceMap):
+    value: Any
+
+    def flatten(self):
+        return (self.value,), ()
+
+    @classmethod
+    def unflatten(cls, data, xs):
+        return ValueChoiceMap(*data, *xs)
+
+    def overload_pprint(self, **kwargs):
+        return pp.concat(
+            [
+                pp.text("(value = "),
+                gpp._pformat(self.value, **kwargs),
+                pp.text(")"),
+            ]
+        )
+
+    def has_value(self):
+        return True
+
+    def get_value(self):
+        return self.value
+
+    def has_choice(self, *addr):
+        return len(addr) == 0
+
+    def get_choice(self, *addr):
+        if len(addr) == 0:
+            return self.value
+        else:
+            return EmptyChoiceMap()
+
+    def get_choices_shallow(self, k):
+        return ((), self.value)
+
+    def strip_metadata(self):
+        return self
+
+    def to_selection(self):
+        return AllSelection()
+
+    def merge(self, other):
+        return other
+
+    def __hash__(self):
+        if isinstance(self.value, np.ndarray):
+            return hash(self.value.tostring())
+        else:
+            return hash(self.value)
 
 
 #####
