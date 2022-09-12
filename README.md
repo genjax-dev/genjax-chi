@@ -50,9 +50,10 @@ poetry run python examples/tour.py
 
 Many bits of knowledge have gone into this project -- [you can find many of these bits at the MIT Probabilistic Computing Project page](http://probcomp.csail.mit.edu/) under publications. Here's an abbreviated list of high value references:
 
-* [Marco Cusumano-Towner's thesis on Gen](https://www.mct.dev/assets/mct-thesis.pdf)
-* [The main Gen.jl repository](https://github.com/probcomp/Gen.jl)
-* (Trace types) [Alex Lew's paper on trace types](https://dl.acm.org/doi/10.1145/3371087)
+- [Marco Cusumano-Towner's thesis on Gen](https://www.mct.dev/assets/mct-thesis.pdf)
+- [The main Gen.jl repository](https://github.com/probcomp/Gen.jl)
+- (Trace types) [Alex Lew's paper on trace types](https://dl.acm.org/doi/10.1145/3371087)
+- [Alex Lew's paper on recursive auxiliary-variable inference (RAVI)](https://arxiv.org/abs/2203.02836)
 
 ---
 
