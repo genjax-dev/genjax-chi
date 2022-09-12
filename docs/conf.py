@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "genjax"
-copyright = "2022, MIT Probabilistic Computing Project"
+copyright = "2022 MIT Probabilistic Computing Project"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
