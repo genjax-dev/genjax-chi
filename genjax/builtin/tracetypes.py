@@ -43,6 +43,9 @@ class BuiltinTraceType(TraceType):
     def get_choices(self):
         return self.tree
 
+    def get_choices_shallow(self):
+        return self.tree.get_choices_shallow()
+
     def get_rettype(self):
         return self.return_type
 
@@ -56,8 +59,31 @@ class BuiltinTraceType(TraceType):
             ]
         )
 
+    def subseteq(self, other):
+        if not isinstance(other, BuiltinTraceType):
+            return False, self
+        else:
+            check = True
+            tree = Tree({})
+            for (k, v) in self.get_choices_shallow():
+                if other.tree.has_choice(k):
+                    sub = other.tree[k]
+                    subcheck, mismatch = v.subseteq(sub)
+                    if not subcheck:
+                        tree[k] = mismatch
+                else:
+                    check = False
+                    tree[k] = (v, None)
+
+            for (k, v) in other.get_choices_shallow():
+                if not self.tree.has_choice(k):
+                    check = False
+                    tree[k] = (None, v)
+            return check, tree
+
     def __subseteq__(self, other):
-        return False
+        check, _ = self.subseteq(other)
+        return check
 
     def __repr__(self):
         return gpp.tree_pformat(self)

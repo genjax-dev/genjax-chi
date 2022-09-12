@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module is a GenJAX implementation of Alexander K. Lew's
+framework for inference-as-generative-functions (RAVI) 
+https://arxiv.org/abs/2203.02836 and his Gen implementation GenProx.
+"""
+
 from .prox_distribution import *
 from .choice_map_distribution import *
 from .target import *

@@ -231,10 +231,11 @@ class BuiltinComplementSelection(Selection):
         for (k, v, s) in map(
             lambda args: _inner(*args), chm.get_choices_shallow()
         ):
-            new_tree.set_node(k, v)
-            score += s
+            if not isinstance(v, EmptyChoiceMap):
+                new_tree.set_node(k, v)
+                score += s
 
-        return BuiltinChoiceMap(new_tree), s
+        return BuiltinChoiceMap(new_tree), score
 
     def complement(self):
         new_tree = Tree({})

@@ -13,8 +13,10 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from genjax.builtin.tracetypes import BuiltinTraceType
 from genjax.core.pytree import Pytree
 from genjax.core.datatypes import GenerativeFunction, ChoiceMap, Trace
+import genjax.core.pretty_printer as gpp
 from typing import Tuple
 
 
@@ -32,8 +34,10 @@ class Target(Pytree):
         return Target(*xs, *data)
 
     def get_trace_type(self, key, *args):
-        inner_type = self.p.get_trace_type(key, *self.args)
-        trace_type, _ = self.latent_selection().filter(inner_type)
+        inner_type = self.p.get_trace_type(key, self.args)
+        latent_selection = self.latent_selection()
+        trace_type, _ = latent_selection.filter(inner_type)
+        trace_type = BuiltinTraceType(trace_type, inner_type.get_rettype())
         return trace_type
 
     def latent_selection(self):
@@ -50,3 +54,9 @@ class Target(Pytree):
     def importance(self, key, chm: ChoiceMap, args: Tuple):
         merged = chm.merge(self.constraints)
         return self.p.importance(key, merged, self.args)
+
+    def __repr__(self):
+        return gpp.tree_pformat(self)
+
+    def __str__(self):
+        return gpp.tree_pformat(self)

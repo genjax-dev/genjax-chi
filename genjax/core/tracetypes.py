@@ -24,7 +24,11 @@ from typing import Tuple, Any
 class TraceType(Pytree):
     def subseteq(self, other):
         assert isinstance(other, TraceType)
-        return self.__subseteq__(other)
+        check = self.__subseteq__(other)
+        if check:
+            return check, ()
+        else:
+            return check, (self, other)
 
     def overload_pprint(self, **kwargs):
         return pp.text(self.__repr__())

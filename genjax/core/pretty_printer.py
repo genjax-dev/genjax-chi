@@ -141,18 +141,30 @@ def _pformat_dataclass(obj: Dataclass, **kwargs) -> pp.Doc:
 
 def _pformat_array(obj, **kwargs) -> pp.Doc:
     short = kwargs["short_arrays"]
-    if short:
-        dtype_str = (
-            obj.dtype.name.replace("float", "f")
-            .replace("uint", "u")
-            .replace("int", "i")
-            .replace("complex", "c")
-        )
-        shape_str = ",".join(map(str, obj.shape))
-        backend = "(numpy)" if isinstance(obj, np.ndarray) else ""
-        return pp.text(f"{dtype_str}[{shape_str}]{backend}")
-    else:
-        return pp.text(repr(obj))
+    try:
+        if short:
+            dtype_str = (
+                obj.dtype.name.replace("float", "f")
+                .replace("uint", "u")
+                .replace("int", "i")
+                .replace("complex", "c")
+            )
+            shape_str = ",".join(map(str, obj.shape))
+            backend = "(numpy)" if isinstance(obj, np.ndarray) else ""
+            return pp.text(f"{dtype_str}[{shape_str}]{backend}")
+    except Exception:
+        if hasattr(obj, "aval"):
+            wrapped = pp.text(repr(obj))
+            return pp.concat(
+                [
+                    wrapped,
+                    pp.text("("),
+                    _pformat_array(obj.aval, **kwargs),
+                    pp.text(")"),
+                ]
+            )
+        else:
+            return pp.text(repr(obj))
 
 
 def _pformat_function(obj: types.FunctionType, **kwargs) -> pp.Doc:
@@ -184,18 +196,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
         else:
             return _pformat_tuple(obj, **kwargs)
     elif isinstance(obj, np.ndarray) or isinstance(obj, jnp.ndarray):
-        if hasattr(obj, "aval"):
-            wrapped = pp.text(repr(obj))
-            return pp.concat(
-                [
-                    wrapped,
-                    pp.text("("),
-                    _pformat_array(obj.aval, **kwargs),
-                    pp.text(")"),
-                ]
-            )
-        else:
-            return _pformat_array(obj, **kwargs)
+        return _pformat_array(obj, **kwargs)
     elif isinstance(obj, (jax.custom_jvp, jax.custom_vjp)):
         return _pformat(obj.__wrapped__, **kwargs)
     elif hasattr(obj, "__wrapped__") and follow_wrapped:

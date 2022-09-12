@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from genjax.core.datatypes import GenerativeFunction, Selection
+from genjax.core.datatypes import GenerativeFunction, Selection, AllSelection
 from genjax.builtin.tree import Tree
 from genjax.builtin.tracetypes import BuiltinTraceType
 from genjax.experimental.prox.prox_distribution import ProxDistribution
@@ -27,6 +27,15 @@ class ChoiceMapDistribution(ProxDistribution):
     p: GenerativeFunction
     selection: Selection
     custom_q: Union[None, ProxDistribution]
+
+    def __init__(self, p, selection, custom_q=None):
+        self.p = p
+        self.selection = selection
+        self.custom_q = custom_q
+
+    @classmethod
+    def new(cls, p: GenerativeFunction, selection=AllSelection()):
+        return ChoiceMapDistribution(p, selection, None)
 
     def get_trace_type(self, key, args, **kwargs):
         inner_type = self.p.get_trace_type(key, args)
@@ -42,8 +51,20 @@ class ChoiceMapDistribution(ProxDistribution):
         if self.custom_q == None:
             _, weight = self.selection.filter(tr)
         else:
-            unselected, _ = self.selection.complement.filter(choices)
+            unselected, _ = self.selection.complement().filter(choices)
             target = Target(self.p, args, selected_choices)
+
+            # Check trace type.
+            proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
+            target_trace_type = target.get_trace_type(key)
+            check, mismatch = target_trace_type.subseteq(proposal_trace_type)
+            if not check:
+                raise Exception(
+                    f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
+                    f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
+                )
+
+            # Proceed.
             key, (w, _) = self.custom_q.importance(
                 key, ValueChoiceMap(unselected), (target,)
             )
@@ -55,6 +76,18 @@ class ChoiceMapDistribution(ProxDistribution):
             key, (weight, _) = self.p.importance(key, choices, args)
         else:
             target = Target(self.p, args, choices)
+
+            # Check trace type.
+            proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
+            target_trace_type = target.get_trace_type(key)
+            check, mismatch = target_trace_type.subseteq(proposal_trace_type)
+            if not check:
+                raise Exception(
+                    f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
+                    f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
+                )
+
+            # Proceed.
             key, tr = self.custom_q.simulate(key, (target,))
             key, (w, _) = target.importance(key, tr.get_retval(), ())
             weight = w - tr.get_score()

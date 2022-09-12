@@ -139,6 +139,9 @@ class Trace(Pytree):
         choices = self.get_choices()
         return choices.get_choices_shallow()
 
+    def to_selection(self):
+        return self.get_choices().to_selection()
+
     def strip_metadata(self):
         return self.get_choices().strip_metadata()
 
