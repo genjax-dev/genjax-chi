@@ -16,6 +16,11 @@ import jax
 import genjax
 import genjax.experimental.prox as prox
 
+# This is showcasing auxiliary-variable inference strategies from
+# an experimental implementation of `GenProx`.
+#
+# (GenProx, Alex Lew) https://github.com/probcomp/GenProx.jl
+
 
 @genjax.gen(prox.ChoiceMapDistribution, selection=genjax.Selection(["x"]))
 def should_mismatch_proposal(key, target):
