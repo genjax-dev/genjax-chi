@@ -115,7 +115,8 @@ class Trace(Pytree):
                 gpp._pformat(self.get_gen_fn(), **kwargs),
                 gpp._pformat(self.get_choices(), **kwargs),
                 pp.brk(""),
-                pp.text(f"score: {self.score}"),
+                pp.text("score: "),
+                gpp._pformat(self.score, **kwargs),
             ]
         )
 
@@ -464,6 +465,9 @@ class Selection(Pytree):
     @abc.abstractmethod
     def complement(self):
         pass
+
+    def to_selection(self):
+        return self
 
     def __repr__(self):
         return gpp.tree_pformat(self)

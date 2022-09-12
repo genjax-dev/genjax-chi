@@ -17,7 +17,7 @@ import jax
 import jax.numpy as jnp
 import jax.core as jc
 from dataclasses import dataclass
-from genjax.core.tracetypes import Reals, Bottom
+from genjax.core.tracetypes import RealInterval, Reals
 from genjax.distributions.distribution import Distribution
 
 
@@ -36,7 +36,7 @@ class _Uniform(Distribution):
         ):
             return Reals(shape)
         else:
-            return Bottom(shape)
+            return RealInterval(shape, minval, maxval)
 
 
 Uniform = _Uniform()

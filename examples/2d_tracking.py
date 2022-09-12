@@ -17,6 +17,10 @@ import numpy as np
 import genjax
 from genjax import Trace
 from typing import Sequence
+import matplotlib.pyplot as plt
+
+plt.style.use("ggplot")
+
 
 # A 2D tracking example in GenJAX, with inference using propose-resample SMC.
 
@@ -63,10 +67,6 @@ print(trace_type)
 #####
 # Inference
 #####
-
-import matplotlib.pyplot as plt
-
-plt.style.use("ggplot")
 
 # Here's a simple trace visualizer which plots the latent
 # sequence from a trace against the observation sequence.

@@ -42,7 +42,19 @@ class ChoiceMapDistribution(ProxDistribution):
         return_type = inner_type.get_rettype()
         trace_type, _ = self.selection.filter(inner_type)
         tree = Tree({}).merge(trace_type)
-        return BuiltinTraceType(tree, return_type)
+        correct_if_check = BuiltinTraceType(tree, return_type)
+        if self.custom_q == None:
+            return correct_if_check
+        else:
+            target = Target(self.p, args, self.selection)
+            proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
+            target_trace_type = target.get_trace_type(key)
+            check, mismatch = target_trace_type.subseteq(proposal_trace_type)
+            if not check:
+                raise Exception(
+                    f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
+                    f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
+                )
 
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)

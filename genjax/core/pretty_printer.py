@@ -152,6 +152,8 @@ def _pformat_array(obj, **kwargs) -> pp.Doc:
             shape_str = ",".join(map(str, obj.shape))
             backend = "(numpy)" if isinstance(obj, np.ndarray) else ""
             return pp.text(f"{dtype_str}[{shape_str}]{backend}")
+        else:
+            return pp.text(repr(obj))
     except Exception:
         if hasattr(obj, "aval"):
             wrapped = pp.text(repr(obj))

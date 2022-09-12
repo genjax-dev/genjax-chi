@@ -12,17 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .beta import *
-from .bernoulli import *
-from .cauchy import *
-from .categorical import *
-from .dirichlet import *
-from .exponential import *
-from .gamma import *
-from .normal import *
-from .laplace import *
-from .logistic import *
-from .multivariate_normal import *
-from .pareto import *
-from .poisson import *
-from .uniform import *
+from dataclasses import dataclass
+from genjax.experimental.prox.target import Target
+from genjax.experimental.prox.prox_distribution import ProxDistribution
+from typing import Any, Callable
+
+
+@dataclass
+class CustomSMC(ProxDistribution):
+    initial_state: Callable[[Target], Any]
+    step_model: Callable[[Any, Target], Target]
+    step_proposal: ProxDistribution

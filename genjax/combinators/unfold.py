@@ -208,23 +208,26 @@ class UnfoldCombinator(GenerativeFunction):
         return UnfoldCombinator(*data, *xs)
 
     def __call__(self, key, *args):
-        args = args[1:]
+        state = args[1]
+        static_args = args[2:]
 
         def _inner(carry, x):
-            key, args = carry
-            key, tr = self.kernel.simulate(key, args)
-            return (key, tr.get_retval()), ()
+            key, state = carry
+            key, tr = self.kernel.simulate(key, (state, *static_args))
+            return (key, *tr.get_retval()), ()
 
-        return jax.lax.scan(
+        (key, retval), _ = jax.lax.scan(
             _inner,
-            (key, args),
+            (key, state),
             None,
             length=self.max_length,
         )
+        return key, retval
 
     def simulate(self, key, args):
         length = args[0]
-        args = args[1:]
+        state = args[1]
+        static_args = args[2:]
 
         # This inserts a host callback check for bounds checking.
         check = jnp.less(self.max_length, length)
@@ -235,12 +238,12 @@ class UnfoldCombinator(GenerativeFunction):
         )
 
         def _inner(carry, x):
-            count, key, retval = carry
-            key, tr = self.kernel.simulate(key, retval)
+            count, key, state = carry
+            key, tr = self.kernel.simulate(key, (state, *static_args))
             check = jnp.less(count, length)
             retval = concrete_cond(
                 check,
-                lambda *args: retval,
+                lambda *args: (state,),
                 lambda *args: tr.get_retval(),
             )
             count = concrete_cond(
@@ -248,12 +251,11 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count + 1,
                 lambda *args: count,
             )
-            retval = tr.get_retval()
-            return (count, key, retval), (tr, check)
+            return (count, key, *retval), (tr, check)
 
         (count, key, retval), (tr, mask) = jax.lax.scan(
             _inner,
-            (0, key, args),
+            (0, key, state),
             None,
             length=self.max_length,
         )
@@ -264,7 +266,7 @@ class UnfoldCombinator(GenerativeFunction):
             mask,
             tr,
             args,
-            retval,
+            (retval,),
             jnp.sum(tr.get_score()),
         )
 
