@@ -99,23 +99,13 @@ inference metadata, accrued during the call.</p></li>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinTrace(
-  gen_fn=BuiltinGenerativeFunction(source=&lt;function model&gt;),
-  args=(),
-  retval=(f32[],),
-  choices=Tree(
-    nodes={
-      &#39;x&#39;:
-      DistributionTrace(
-        gen_fn=_Normal(),
-        args=(0.0, 1.0),
-        value=f32[],
-        score=f32[]
-      )
-    }
-  ),
-  score=f32[]
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;class &#39;genjax.builtin.datatypes.BuiltinTrace&#39;&gt;
+BuiltinGenerativeFunction(source = &lt;function model&gt;)(
+  x = &lt;class &#39;genjax.distributions.distribution.DistributionTrace&#39;&gt;
+  _Normal()(value = f32[])
+  score: -0.9247955083847046
 )
+score: -0.9247955083847046
 </pre></div>
 </div>
 </div>
@@ -158,6 +148,7 @@ inference metadata, accrued during the call.</p></li>
 <li class="toctree-l1"><a class="reference internal" href="gen_fn.html">What is a generative function?</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="combinators.html">Generative function combinators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="diff_jl.html">Diffing with Gen.jl</a></li>
 <li class="toctree-l1"><a class="reference internal" href="c_interface.html">Exposing C++ generative functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wasm_interface.html">From GenJAX to WebAssembly</a></li>
 </ul>

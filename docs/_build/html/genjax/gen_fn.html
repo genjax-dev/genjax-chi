@@ -78,7 +78,7 @@ roughly the subset of Python acceptable by JAX.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source = &lt;function model&gt;)
 </pre></div>
 </div>
 </div>
@@ -138,21 +138,36 @@ transformation abilities.</p>
     u:f32[] = mul 1.4142135381698608 t
     v:f32[] = mul 1.0 u
     w:f32[] = add 0.0 v
-    x:f32[] = sub w 0.0
-    y:f32[] = div x 1.0
-    z:f32[] = abs y
-    ba:f32[] = integer_pow[y=2] z
-    bb:f32[] = log 6.283185307179586
-    bc:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bb
-    bd:f32[] = add ba bc
-    be:f32[] = mul -1.0 bd
-    bf:f32[] = log 1.0
-    bg:f32[] = sub 2.0 bf
-    bh:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bg
-    bi:f32[] = div be bh
-    bj:f32[] = reduce_sum[axes=()] bi
-    bk:f32[] = add 0.0 bj
-  in (f, w, 0.0, 1.0, w, bj, bk) }
+    x:key&lt;fry&gt;[] = random_wrap[impl=fry] f
+    y:key&lt;fry&gt;[2] = random_split[count=2] x
+    z:u32[2,2] = random_unwrap y
+    ba:u32[1,2] = slice[
+      limit_indices=(1, 2)
+      start_indices=(0, 0)
+      strides=(1, 1)
+    ] z
+    bb:u32[2] = squeeze[dimensions=(0,)] ba
+    bc:u32[1,2] = slice[
+      limit_indices=(2, 2)
+      start_indices=(1, 0)
+      strides=(1, 1)
+    ] z
+    _:u32[2] = squeeze[dimensions=(0,)] bc
+    bd:f32[] = sub w 0.0
+    be:f32[] = div bd 1.0
+    bf:f32[] = abs be
+    bg:f32[] = integer_pow[y=2] bf
+    bh:f32[] = log 6.283185307179586
+    bi:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bh
+    bj:f32[] = add bg bi
+    bk:f32[] = mul -1.0 bj
+    bl:f32[] = log 1.0
+    bm:f32[] = sub 2.0 bl
+    bn:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bm
+    bo:f32[] = div bk bn
+    bp:f32[] = reduce_sum[axes=()] bo
+    bq:f32[] = add 0.0 bp
+  in (bb, w, 0.0, 1.0, w, bp, bq) }
 </pre></div>
 </div>
 </div>
@@ -205,6 +220,7 @@ transformation abilities.</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="interface.html">Generative function interface</a></li>
 <li class="toctree-l1"><a class="reference internal" href="combinators.html">Generative function combinators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="diff_jl.html">Diffing with Gen.jl</a></li>
 <li class="toctree-l1"><a class="reference internal" href="c_interface.html">Exposing C++ generative functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wasm_interface.html">From GenJAX to WebAssembly</a></li>
 </ul>
