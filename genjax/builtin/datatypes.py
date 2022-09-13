@@ -181,11 +181,10 @@ class BuiltinSelection(Selection):
         return gpp._pformat(self.tree, **kwargs)
 
     def filter(self, chm):
-        chm = chm.get_choices()
-
         def _inner(k, v):
             if self.tree.has_node(k):
                 sub = self.tree.get_node(k)
+                sub = BuiltinSelection(sub) if isinstance(sub, Tree) else sub
                 under, s = sub.filter(v)
                 return k, under, s
             else:
@@ -221,6 +220,7 @@ class BuiltinComplementSelection(Selection):
         def _inner(k, v):
             if self.tree.has_node(k):
                 sub = self.tree.get_node(k)
+                sub = BuiltinSelection(sub) if isinstance(sub, Tree) else sub
                 v, s = sub.complement().filter(v)
                 return k, v, s
             else:

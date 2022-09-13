@@ -23,6 +23,7 @@ and :code:`vmap`d.
 """
 
 import jax.tree_util as jtu
+import jax.numpy as jnp
 import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace
 from genjax.core.pytree import tree_stack
@@ -63,7 +64,6 @@ class VectorChoiceMap(ChoiceMap):
     def get_value(self):
         raise Exception("VectorChoiceMap is not a value choice map.")
 
-    # TODO.
     def get_choices_shallow(self):
         def _inner(k, v):
             return k, VectorChoiceMap(v)
@@ -74,6 +74,9 @@ class VectorChoiceMap(ChoiceMap):
 
     def merge(self, other):
         return self.subtrace.merge(other)
+
+    def get_score(self):
+        return jnp.sum(self.subtrace.get_score())
 
     def __hash__(self):
         return hash(self.subtrace)

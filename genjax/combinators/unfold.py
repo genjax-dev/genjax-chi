@@ -112,6 +112,12 @@ class ListTraceType(TraceType):
             ]
         )
 
+    def get_choices_shallow(self):
+        def _inner(k, v):
+            return (k, ListTraceType(v, self.length))
+
+        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
+
     def __subseteq__(self, other):
         return False
 

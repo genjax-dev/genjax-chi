@@ -53,9 +53,8 @@ Many bits of knowledge have gone into this project -- [you can find many of thes
 - [Marco Cusumano-Towner's thesis on Gen](https://www.mct.dev/assets/mct-thesis.pdf)
 - [The main Gen.jl repository](https://github.com/probcomp/Gen.jl)
 - (Trace types) [Alex Lew's paper on trace types](https://dl.acm.org/doi/10.1145/3371087)
-- [Alex Lew's paper on recursive auxiliary-variable inference (RAVI)](https://arxiv.org/abs/2203.02836)
-
----
+- (Prox) [Alex Lew's paper on recursive auxiliary-variable inference (RAVI)](https://arxiv.org/abs/2203.02836)
+- (GenProx) [Alex Lew's Gen.jl implementation of Prox](https://github.com/probcomp/GenProx.jl)
 
 <div align="center">
 Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a>. All code is licensed under the <a href="LICENSE">Apache 2.0 License</a>.
