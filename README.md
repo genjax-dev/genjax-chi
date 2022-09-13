@@ -13,19 +13,6 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-- Generative functions (models) are represented as pure functions from `(PRNGKey, *args)` to `(PRNGKey, retval)`.
-- Exposes [the generative function interface](https://www.gen.dev/stable/ref/gfi/) as staged effect handlers built on top of `jax`.
-
-  | Interface     | Semantics (informal)                                                                |
-  | ------------- | ----------------------------------------------------------------------------------- |
-  | `simulate`    | Sample from normalized measure over choice maps                                     |
-  | `importance`  | Importance sample from conditioned measure, and compute an importance weight        |
-  | `update`      | Given a new set of arguments and choice map, compute an updated trace               |
-  | `arg_grad`    | Compute gradient of `logpdf` of choice map with respect to arguments                |
-  | `choice_grad` | Compute gradient of `logpdf` of choice map with respect to values inside choice map |
-
-- Supports usage of any computations acceptable by JAX (tbd) within generative function programs.
-
 <div align="center">
 <b>(Early stage)</b> 🔪 expect sharp edges 🔪
 </div>
