@@ -23,7 +23,7 @@ import genjax.experimental.prox as prox
 
 
 @genjax.gen(prox.ChoiceMapDistribution, selection=genjax.Selection(["y"]))
-def should_mismatch_proposal(key, target: prox.Target):
+def proposal(key, target: prox.Target):
     key, v = genjax.trace("v", genjax.Normal)(key, (0.0, 1.0))
     key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
     key, y = genjax.trace("y", genjax.Normal)(key, (0.0, 1.0))
@@ -33,7 +33,7 @@ def should_mismatch_proposal(key, target: prox.Target):
 @genjax.gen(
     prox.ChoiceMapDistribution,
     selection=genjax.Selection(["x"]),
-    custom_q=should_mismatch_proposal,
+    custom_q=proposal,
 )
 def model(key):
     key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))

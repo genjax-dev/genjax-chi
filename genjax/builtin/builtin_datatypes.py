@@ -24,6 +24,7 @@ from typing import Any, Tuple
 from genjax.core.hashabledict import HashableDict, hashabledict
 from genjax.core.datatypes import EmptyChoiceMap, Selection, AllSelection
 from genjax.core.tracetypes import TraceType
+from genjax.builtin.builtin_trace_type import BuiltinTraceType
 from typing import Dict
 
 #####
@@ -181,12 +182,26 @@ class BuiltinSelection(Selection):
         self.inner = hashabledict()
         if isinstance(selected, list):
             for k in selected:
-                self.inner[k] = AllSelection()
+                self.trie_insert(k, AllSelection())
         if isinstance(selected, Dict):
             self.inner = HashableDict(selected)
 
     def flatten(self):
         return (self.inner,), ()
+
+    def trie_insert(self, addr, value):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if first not in self.inner:
+                subtree = BuiltinSelection(hashabledict())
+                self.inner[first] = subtree
+            subtree = self.inner[first]
+            subtree.trie_insert(rest, value)
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            self.inner[addr] = value
 
     def filter(self, chm):
         def _inner(k, v):
@@ -208,8 +223,9 @@ class BuiltinSelection(Selection):
             if not isinstance(v, EmptyChoiceMap):
                 new_tree[k] = v
                 score += s
+
         if isinstance(chm, TraceType):
-            return type(chm)(new_tree, chm.get_rettype()), score
+            return BuiltinTraceType(new_tree, chm.get_rettype()), score
         else:
             return BuiltinChoiceMap(new_tree), score
 

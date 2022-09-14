@@ -128,12 +128,16 @@ def kernel(key, prev, transition_tensor, observation_tensor):
 
 
 def initial_position(config: DiscreteHMMConfiguration):
-    return config.linear_grid_dim / 2
+    return jnp.array(int(config.linear_grid_dim / 2))
 
 
 # TODO: to use Prox-based SMC as `custom_q`,
 # coerce into required form or modify to allow initial
 # proposal.
+sel = genjax.Selection([("z", "latent")])
+print(sel)
+
+
 @genjax.gen(
     prox.ChoiceMapDistribution,
     selection=genjax.Selection([("z", "latent")]),
@@ -157,4 +161,4 @@ print(trace_type)
 # Inference
 #####
 
-custom_smc = CustomSMC(initial_position)
+# custom_smc = CustomSMC(initial_position)

@@ -160,7 +160,7 @@ class Integers(TraceType):
         return self
 
     def overload_pprint(self, **kwargs):
-        return pp.text(f"ℕ (shape = {self.shape})")
+        return pp.text(f"ℤ (shape = {self.shape})")
 
 
 @dataclass
