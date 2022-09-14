@@ -40,10 +40,6 @@ class CustomSMC(ProxDistribution):
             self.num_particles,
         )
 
-    @classmethod
-    def unflatten(cls, xs, data):
-        return CustomSMC(*xs, *data)
-
     def random_weighted(self, key, target):
         init = self.initial_state(target)
         states = jnp.repeat(init, self.num_particles)

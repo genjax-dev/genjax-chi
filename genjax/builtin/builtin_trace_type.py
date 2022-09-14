@@ -18,56 +18,33 @@ import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
 from genjax.builtin.intrinsics import gen_fn_p
-from genjax.builtin.tree import Tree
 from genjax.core.tracetypes import TraceType, Reals, Integers, Finite
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
-
-#####
-# BuiltinTraceType
-#####
+from typing import Dict
 
 
 @dataclass
 class BuiltinTraceType(TraceType):
-    tree: Tree
+    inner: Dict
     return_type: TraceType
 
     def flatten(self):
-        return (), (self.tree, self.return_type)
+        return (), (self.inner, self.return_type)
 
-    @classmethod
-    def unflatten(cls, xs, data):
-        return BuiltinTraceType(*xs, *data)
-
-    def get_choices(self):
-        return self.tree
-
-    def get_choices_shallow(self):
-        return self.tree.get_choices_shallow()
+    def get_types_shallow(self):
+        return self.inner.items()
 
     def get_rettype(self):
         return self.return_type
-
-    def overload_pprint(self, **kwargs):
-        return pp.concat(
-            [
-                gpp._pformat(self.tree, **kwargs),
-                pp.brk(""),
-                pp.text("return_type -> "),
-                gpp._pformat(self.return_type, **kwargs),
-            ]
-        )
 
     def subseteq(self, other):
         if not isinstance(other, BuiltinTraceType):
             return False, self
         else:
             check = True
-            tree = Tree({})
-            for (k, v) in self.get_choices_shallow():
-                if other.tree.has_choice(k):
-                    sub = other.tree[k]
+            tree = dict()
+            for (k, v) in self.get_types_shallow():
+                if k in other.inner:
+                    sub = other.inner[k]
                     subcheck, mismatch = v.subseteq(sub)
                     if not subcheck:
                         tree[k] = mismatch
@@ -75,8 +52,8 @@ class BuiltinTraceType(TraceType):
                     check = False
                     tree[k] = (v, None)
 
-            for (k, v) in other.get_choices_shallow():
-                if not self.tree.has_choice(k):
+            for (k, v) in other.get_types_shallow():
+                if k not in self.inner:
                     check = False
                     tree[k] = (None, v)
             return check, tree
@@ -85,16 +62,10 @@ class BuiltinTraceType(TraceType):
         check, _ = self.subseteq(other)
         return check
 
-    def __repr__(self):
-        return gpp.tree_pformat(self)
-
-    def __str__(self):
-        return gpp.tree_pformat(self)
-
 
 def get_trace_type(jaxpr: jc.ClosedJaxpr):
     env = {}
-    trace_type = Tree({})
+    trace_type = dict()
 
     def read(var):
         if type(var) is jc.Literal:

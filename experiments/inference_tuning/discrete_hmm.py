@@ -62,10 +62,6 @@ class DiscreteHMMConfiguration(Pytree):
         )
 
     @classmethod
-    def unflatten(cls, xs, data):
-        return DiscreteHMMConfiguration(*xs, *data)
-
-    @classmethod
     def new(
         cls,
         linear_grid_dim: Int,

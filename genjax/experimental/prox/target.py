@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from genjax.builtin.tracetypes import BuiltinTraceType
 from genjax.core.pytree import Pytree
 from genjax.core.datatypes import GenerativeFunction, ChoiceMap, Trace
 import genjax.core.pretty_printer as gpp
@@ -29,19 +28,14 @@ class Target(Pytree):
     def flatten(self):
         return (self.args, self.constraints), (self.p,)
 
-    @classmethod
-    def unflatten(cls, xs, data):
-        return Target(*xs, *data)
-
     def get_trace_type(self, key, *args):
         inner_type = self.p.get_trace_type(key, self.args)
         latent_selection = self.latent_selection()
         trace_type, _ = latent_selection.filter(inner_type)
-        trace_type = BuiltinTraceType(trace_type, inner_type.get_rettype())
         return trace_type
 
     def latent_selection(self):
-        return self.constraints.to_selection().complement()
+        return self.constraints.get_selection().complement()
 
     def get_latents(self, v):
         if isinstance(v, ChoiceMap):

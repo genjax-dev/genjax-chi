@@ -20,14 +20,9 @@ vectorial versions of their arguments.
 
 import jax
 import jax.numpy as jnp
-from genjax.builtin.shape_analysis import choice_map_shape
-from genjax.core.datatypes import (
-    GenerativeFunction,
-    Trace,
-    BooleanMask,
-)
+from genjax.core.datatypes import GenerativeFunction, Trace
 from dataclasses import dataclass
-from .vector_choice_map import VectorChoiceMap, prepare_vectorized_choice_map
+from .vector_choice_map import VectorChoiceMap
 from typing import Tuple
 
 #####
@@ -41,6 +36,13 @@ class MapTrace(Trace):
     length: int
     subtrace: Trace
     score: jnp.float32
+
+    def flatten(self):
+        return (
+            self.length,
+            self.subtrace,
+            self.score,
+        ), (self.gen_fn,)
 
     def get_args(self):
         return self.subtrace.get_args()
@@ -56,17 +58,6 @@ class MapTrace(Trace):
 
     def get_score(self):
         return self.score
-
-    def flatten(self):
-        return (
-            self.length,
-            self.subtrace,
-            self.score,
-        ), (self.gen_fn,)
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return MapTrace(*data, *xs)
 
 
 #####
@@ -136,10 +127,6 @@ class MapCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.kernel, self.in_axes)
 
-    @classmethod
-    def unflatten(cls, data, xs):
-        return MapCombinator(*data, *xs)
-
     def __call__(self, key, *args, **kwargs):
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
@@ -168,20 +155,6 @@ class MapCombinator(GenerativeFunction):
         return key, map_tr
 
     def importance(self, key, chm, args):
-        if not isinstance(chm, VectorChoiceMap) and not isinstance(
-            chm, BooleanMask
-        ):
-            length = len(key)  # static
-            assert length > 0
-            _, treedef, shape = choice_map_shape(self.kernel)(key[0], args)
-            chm_vectored, mask_vectored = prepare_vectorized_choice_map(
-                shape, treedef, length, chm
-            )
-
-            chm = BooleanMask(chm_vectored, mask_vectored)
-        if isinstance(chm, VectorChoiceMap):
-            chm = chm.subtrace
-
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
         key, (w, tr) = jax.vmap(
@@ -203,18 +176,6 @@ class MapCombinator(GenerativeFunction):
         return key, (w, map_tr)
 
     def update(self, key, prev, chm, args):
-        if not isinstance(chm, VectorChoiceMap) or not isinstance(
-            chm, BooleanMask
-        ):
-            length = len(key)  # static
-            assert length > 0
-            _, treedef, shape = choice_map_shape(self.kernel)(key[0], args)
-            chm_vectored, mask_vectored = prepare_vectorized_choice_map(
-                shape, treedef, length, chm
-            )
-
-            chm = BooleanMask(chm_vectored, mask_vectored)
-
         # The previous trace has to have a VectorChoiceMap
         # here.
         prev = prev.get_choices()

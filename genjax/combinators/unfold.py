@@ -21,19 +21,13 @@ their previous output as input).
 
 import jax
 import jax.numpy as jnp
-from genjax.core.datatypes import (
-    GenerativeFunction,
-    Trace,
-    EmptyChoiceMap,
-    IndexMask,
-)
-from genjax.core.tracetypes import TraceType
+from genjax.core.datatypes import GenerativeFunction, Trace, EmptyChoiceMap
+from genjax.core.masks import IndexMask
 import jax.experimental.host_callback as hcb
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
 from genjax.combinators.vector_choice_map import VectorChoiceMap
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
+from genjax.combinators.list_trace_type import ListTraceType
 from typing import Any, Tuple, Sequence
 
 #####
@@ -46,16 +40,26 @@ class UnfoldTrace(Trace):
     gen_fn: GenerativeFunction
     length: int
     mask: Sequence
-    subtrace: Trace
+    inner: Trace
     args: Tuple
     retval: Any
     score: jnp.float32
+
+    def flatten(self):
+        return (
+            self.length,
+            self.mask,
+            self.inner,
+            self.args,
+            self.retval,
+            self.score,
+        ), (self.gen_fn,)
 
     def get_args(self):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap(self.subtrace)
+        return VectorChoiceMap(self.inner)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -65,64 +69,6 @@ class UnfoldTrace(Trace):
 
     def get_score(self):
         return self.score
-
-    def flatten(self):
-        return (
-            self.length,
-            self.mask,
-            self.subtrace,
-            self.args,
-            self.retval,
-            self.score,
-        ), (self.gen_fn,)
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return UnfoldTrace(*data, *xs)
-
-
-#####
-# ListTraceType
-#####
-
-
-@dataclass
-class ListTraceType(TraceType):
-    inner: TraceType
-    length: int
-
-    def flatten(self):
-        return (), (self.inner, self.length)
-
-    @classmethod
-    def unflatten(cls, xs, data):
-        return ListTraceType(*xs, *data)
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"[{self.length}; "),
-                gpp._nest(indent, gpp._pformat(self.inner, **kwargs)),
-                pp.brk(),
-                pp.text("]"),
-                pp.brk(),
-                pp.text("return_type -> "),
-                gpp._pformat(self.inner.get_rettype(), **kwargs),
-            ]
-        )
-
-    def get_choices_shallow(self):
-        def _inner(k, v):
-            return (k, ListTraceType(v, self.length))
-
-        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
-
-    def __subseteq__(self, other):
-        return False
-
-    def get_rettype(self):
-        return self.inner.get_rettype()
 
 
 #####
@@ -208,10 +154,6 @@ class UnfoldCombinator(GenerativeFunction):
             result=None,
         )
         return None
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return UnfoldCombinator(*data, *xs)
 
     def __call__(self, key, *args):
         state = args[1]
@@ -352,7 +294,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         prev = prev.get_choices()
         assert isinstance(prev, VectorChoiceMap)
-        prev = prev.subtrace
+        prev = prev.inner
 
         # The actual semantics of update are carried out by a scan
         # call.

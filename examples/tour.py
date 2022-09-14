@@ -53,20 +53,20 @@ print(expr)
 
 # Here's how you access the `simulate` GFI.
 key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
-print(tr.get_choices())
 
 # Here's how you access the `importance` GFI.
-chm = genjax.ChoiceMap({("m0",): True, ("m4", "m0", "m0"): False})
+chm = genjax.ChoiceMap.new({("m0",): True, ("m4", "m0", "m0"): False})
 key, (w, tr) = jax.jit(genjax.importance(f))(key, chm, (0.3,))
 assert tr[("m4", "m0", "m0")] == False
 
 # Here's how you access the `update` GFI.
 jitted = jax.jit(genjax.update(f))
 
-chm = genjax.ChoiceMap({("m0",): False})
+chm = genjax.ChoiceMap.new({("m0",): False})
 key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
 
-chm = genjax.ChoiceMap({("m4", "m0", "m0"): True})
+chm = genjax.ChoiceMap.new({("m4", "m0", "m0"): True})
+print(chm)
 key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
 assert updated[("m4", "m0", "m0")] == True
 

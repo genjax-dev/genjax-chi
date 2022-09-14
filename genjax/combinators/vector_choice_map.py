@@ -27,8 +27,10 @@ import jax.numpy as jnp
 import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace
 from genjax.core.pytree import tree_stack
-from genjax.builtin.datatypes import BuiltinChoiceMap
 from dataclasses import dataclass
+from typing import Union
+import jax._src.pretty_printer as pp
+import genjax.core.pretty_printer as gpp
 
 #####
 # VectorChoiceMap
@@ -37,49 +39,46 @@ from dataclasses import dataclass
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
-    subtrace: Trace
-
-    def __init__(self, subtrace):
-        if isinstance(subtrace, dict):
-            self.subtrace = BuiltinChoiceMap(subtrace)
-        else:
-            self.subtrace = subtrace
+    inner: Union[ChoiceMap, Trace]
 
     def flatten(self):
-        return (self.subtrace,), ()
+        return (self.inner,), ()
 
-    @classmethod
-    def unflatten(cls, data, xs):
-        return VectorChoiceMap(*xs, *data)
+    def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
+        return pp.concat(
+            [
+                pp.text(f"{type(self).__name__}"),
+                gpp._nest(indent, gpp._pformat(self.inner, **kwargs)),
+            ]
+        )
 
     def get_choice(self, addr):
-        return self.subtrace.get_choice(addr)
+        return self.inner.get_choice(addr)
 
     def has_choice(self, addr):
-        return self.subtrace.has_choice(addr)
+        return self.inner.has_choice(addr)
 
     def has_value(self):
-        return False
+        return self.inner.has_value()
 
     def get_value(self):
-        raise Exception("VectorChoiceMap is not a value choice map.")
+        return self.inner.get_value()
 
     def get_choices_shallow(self):
         def _inner(k, v):
             return k, VectorChoiceMap(v)
 
-        return map(
-            lambda args: _inner(*args), self.subtrace.get_choices_shallow()
-        )
+        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
 
     def merge(self, other):
-        return self.subtrace.merge(other)
+        return self.inner.merge(other)
 
     def get_score(self):
-        return jnp.sum(self.subtrace.get_score())
+        return jnp.sum(self.inner.get_score())
 
     def __hash__(self):
-        return hash(self.subtrace)
+        return hash(self.inner)
 
 
 def prepare_vectorized_choice_map(shape, treedef, length, chm):

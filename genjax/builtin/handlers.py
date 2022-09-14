@@ -23,9 +23,10 @@ in `genjax.core`.
 
 import jax.tree_util as jtu
 from genjax.core import Handler
-from genjax.core.datatypes import BooleanMask
+from genjax.core.hashabledict import hashabledict
+from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
-from genjax.builtin.tree import Tree
+from genjax.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax.builtin.intrinsics import gen_fn_p
 
 #####
@@ -66,7 +67,7 @@ class Simulate(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = Tree({})
+        self.state = BuiltinChoiceMap(hashabledict())
         self.score = 0.0
         self.return_or_continue = False
 
@@ -91,7 +92,7 @@ class Importance(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = Tree({})
+        self.state = BuiltinChoiceMap(hashabledict())
         self.score = 0.0
         self.weight = 0.0
         self.constraints = constraints
@@ -105,6 +106,7 @@ class Importance(Handler):
 
         def _importance_branch(key, args):
             submap = self.constraints.get_choice(addr)
+            submap = submap.get_choices()  # Sometimes, this can be a trace.
             key, (w, tr) = gen_fn.importance(key, submap, args, **kwargs)
             return key, (w, tr)
 
@@ -135,8 +137,8 @@ class Update(Handler):
         self.handles = [
             gen_fn_p,
         ]
-        self.state = Tree({})
-        self.discard = Tree({})
+        self.state = BuiltinChoiceMap(hashabledict())
+        self.discard = BuiltinChoiceMap(hashabledict())
         self.weight = 0.0
         self.prev = prev
         self.choice_change = new

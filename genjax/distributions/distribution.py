@@ -24,8 +24,8 @@ from genjax.core.datatypes import (
     Trace,
     GenerativeFunction,
     AllSelection,
-    BooleanMask,
 )
+from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.core.tracetypes import Bottom
 from dataclasses import dataclass
@@ -45,10 +45,6 @@ class DistributionTrace(Trace):
 
     def flatten(self):
         return (self.args, self.value, self.score), (self.gen_fn,)
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return DistributionTrace(*data, *xs)
 
     def project(self, selection):
         if isinstance(selection, AllSelection):
@@ -82,14 +78,8 @@ class DistributionTrace(Trace):
 
 @dataclass
 class Distribution(GenerativeFunction):
-
-    # Default implementations of the `Pytree` interfaces.
     def flatten(self):
         return (), ()
-
-    @classmethod
-    def unflatten(cls, values, slices):
-        return cls()
 
     def __call__(self, key, *args, **kwargs):
         key, subkey = jax.random.split(key)

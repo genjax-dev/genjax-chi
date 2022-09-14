@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax.core.datatypes import GenerativeFunction
-from genjax.builtin.datatypes import BuiltinGenerativeFunction
+from genjax.builtin.builtin_gen_fn import BuiltinGenerativeFunction
 from dataclasses import dataclass
 
 
@@ -26,10 +26,6 @@ class PartialCombinator(GenerativeFunction):
 
     def __call__(self, key, *args):
         return self.inner.__call__(key, *args, **self.kwargs)
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return PartialCombinator(*data, *xs)
 
     def simulate(self, key, args):
         end = args[-1]

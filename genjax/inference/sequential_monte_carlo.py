@@ -15,7 +15,8 @@
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from genjax.core.datatypes import ChoiceMap, GenerativeFunction, IndexMask
+from genjax.core.datatypes import ChoiceMap, GenerativeFunction
+from genjax.core.masks import IndexMask
 from genjax.core.pytree import tree_stack
 from typing import Tuple, Sequence
 

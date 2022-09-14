@@ -23,10 +23,12 @@ instances - allowing the interpreters to run on `Jaxpr` representations
 of Python functions.
 """
 
+from .hashabledict import *
 from .datatypes import *
 from .tracetypes import *
 from .handling import *
 from .specialization import *
+from .masks import *
 from .pytree import *
 from .pretty_printer import *
 from .serialization import *

@@ -29,15 +29,8 @@ can have different shape/dtype choices.
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
-from genjax.core.datatypes import (
-    GenerativeFunction,
-    Trace,
-    BooleanMask,
-)
-from genjax.distributions.distribution import ValueChoiceMap
-from genjax.builtin.shape_analysis import trace_shape_no_toplevel
-from genjax.builtin.tree import Tree
+from genjax.core.datatypes import GenerativeFunction, Trace
+from genjax.core.masks import BooleanMask
 from dataclasses import dataclass
 from typing import Any, Tuple
 
@@ -54,6 +47,14 @@ class SwitchTrace(Trace):
     retval: Any
     score: jnp.float32
 
+    def flatten(self):
+        return (
+            self.chm,
+            self.args,
+            self.retval,
+            self.score,
+        ), (self.gen_fn,)
+
     def get_args(self):
         return self.args
 
@@ -68,18 +69,6 @@ class SwitchTrace(Trace):
 
     def get_score(self):
         return self.score
-
-    def flatten(self):
-        return (
-            self.chm,
-            self.args,
-            self.retval,
-            self.score,
-        ), (self.gen_fn,)
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return SwitchTrace(*data, *xs)
 
 
 #####
@@ -154,10 +143,6 @@ class SwitchCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.branches,)
 
-    @classmethod
-    def unflatten(cls, xs, data):
-        return SwitchCombinator(*xs, *data)
-
     def __call__(self, key, *args):
         return jax.lax.switch(
             args[0],
@@ -165,20 +150,6 @@ class SwitchCombinator(GenerativeFunction):
             key,
             *args[1:],
         )
-
-    # This function does some compile-time code specialization
-    # to produce a "sum type" - like trace.
-    def create_masked_tree(self, key, args):
-        tree = Tree({})
-        for (_, br) in self.branches.items():
-            _, _, shape = trace_shape_no_toplevel(br)(key, args)
-            shape = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype),
-                shape,
-                is_leaf=lambda v: isinstance(v, ValueChoiceMap),
-            )
-            tree = tree.merge(shape)
-        return BooleanMask(tree, False)
 
     def _simulate(self, branch_gen_fn, key, args):
         tree = self.create_masked_tree(key, args)

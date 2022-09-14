@@ -28,7 +28,6 @@ def normal_model(key):
 @genjax.gen
 def uniform_proposal(key, tr, d):
     current = tr["x"]
-    print(current)
     key, x = genjax.trace("x", genjax.Uniform)(key, (current - d, current + d))
     return key, x
 

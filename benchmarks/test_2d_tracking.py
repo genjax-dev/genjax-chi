@@ -122,8 +122,8 @@ def transition_proposal(key, prev_tr, obs_chm):
 # the observations, and create a static index mask
 # which will isolate each individual contributed observation
 # (over the time index)
-chm_sequence = genjax.ChoiceMap(
-    {("z",): genjax.VectorChoiceMap({("obs",): np.array(observation_sequence)})}
+chm_sequence = genjax.VectorChoiceMap(
+    genjax.ChoiceMap.new({("z", "obs"): np.array(observation_sequence)})
 )
 
 # SMC allows a progression of different target measures --

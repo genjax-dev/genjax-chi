@@ -39,14 +39,8 @@ class Pytree(metaclass=abc.ABCMeta):
         pass
 
     @classmethod
-    @abc.abstractmethod
     def unflatten(cls, data, xs):
-        pass
-
-    # This is overloaded here to support generic interfaces
-    # to `genjax.Selection.filter`.
-    def get_score(self):
-        return 0.0
+        return cls(*data, *xs)
 
 
 #####

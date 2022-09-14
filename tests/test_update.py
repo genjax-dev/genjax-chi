@@ -31,7 +31,7 @@ class TestUpdate:
         new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_normal))
 
-        new = genjax.ChoiceMap({("y1",): 2.0})
+        new = genjax.ChoiceMap.new({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         new_key, (w, updated, discard) = benchmark(jitted, new_key, tr, new, ())
@@ -49,7 +49,7 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-        new = genjax.ChoiceMap({("y1",): 2.0, ("y2",): 3.0})
+        new = genjax.ChoiceMap.new({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
         new_key, (w, updated, discard) = jitted(new_key, tr, new, ())
         updated_chm = updated.get_choices()

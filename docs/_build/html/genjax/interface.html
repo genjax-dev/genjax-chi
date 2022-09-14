@@ -99,13 +99,15 @@ inference metadata, accrued during the call.</p></li>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;class &#39;genjax.builtin.datatypes.BuiltinTrace&#39;&gt;
-BuiltinGenerativeFunction(source = &lt;function model&gt;)(
-  x = &lt;class &#39;genjax.distributions.distribution.DistributionTrace&#39;&gt;
-  _Normal()(value = f32[])
-  score: -0.9247955083847046
-)
-score: -0.9247955083847046
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinTrace
+  BuiltinGenerativeFunction(source = &lt;function model&gt;)
+  BuiltinChoiceMap
+    &#39;x&#39;:
+    DistributionTrace
+      _Normal()
+      (value = f32[])
+    return: (f32[],)
+return: (f32[],)
 </pre></div>
 </div>
 </div>

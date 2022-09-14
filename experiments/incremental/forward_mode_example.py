@@ -34,6 +34,9 @@ class Dual(Cell):
         self.val = val
         self.dual = dual
 
+    def flatten(self):
+        return (self.val, self.dual), (self.aval,)
+
     def __lt__(self, other):
         return self.bottom() and other.top()
 
@@ -57,13 +60,6 @@ class Dual(Cell):
     @classmethod
     def unknown(cls, aval):
         return Dual(aval, None, None)
-
-    def flatten(self):
-        return (self.val, self.dual), (self.aval,)
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return Dual(*data, *xs)
 
     def __repr__(self):
         return f"Dual({self.val}, {self.dual})"

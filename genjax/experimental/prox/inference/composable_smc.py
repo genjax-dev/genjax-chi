@@ -48,10 +48,6 @@ class ParticleCollection(Pytree):
     def flatten(self):
         return (self.particles, self.weights, self.lml_est), ()
 
-    @classmethod
-    def unflatten(cls, xs, data):
-        return ParticleCollection(*xs, *data)
-
     def log_marginal_likelihood(self):
         return (
             self.lml_est + logsumexp(self.weights) - np.log(len(self.weights))

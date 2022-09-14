@@ -12,17 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module provides a builtin modeling language built on top of JAX interpreters.
+import jax.tree_util as jtu
+from jax.util import safe_zip
 
-It exposes a set of JAX primitives which allow compositional 
-construction of generative programs.
-These programs can utilize other generative functions 
-(for example, see the `distributions`) library.
-"""
 
-from .intrinsics import trace
-from .handlers import *
-from .builtin_datatypes import *
-from .builtin_gen_fn import *
-from .builtin_trace_type import *
+class HashableDict(dict):
+    def __key(self):
+        return tuple((k, self[k]) for k in sorted(self))
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        return self.__key() == other.__key()
+
+
+jtu.register_pytree_node(
+    HashableDict,
+    lambda x: (list(x.values()), list(x.keys())),
+    lambda keys, values: HashableDict(safe_zip(keys, values)),
+)
+
+
+def hashabledict():
+    return HashableDict({})

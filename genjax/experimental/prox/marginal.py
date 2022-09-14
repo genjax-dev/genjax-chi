@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass
 from genjax.core.datatypes import GenerativeFunction
-from genjax.builtin.datatypes import BuiltinSelection, BuiltinChoiceMap
+from genjax.builtin.builtin_datatypes import BuiltinSelection, BuiltinChoiceMap
 from genjax.distributions.distribution import Distribution, ValueChoiceMap
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
@@ -29,10 +29,6 @@ class Marginal(ProxDistribution):
 
     def flatten(self):
         return (), (self.p, self.q, self.addr)
-
-    @classmethod
-    def unflatten(cls, xs, data):
-        return Marginal(*xs, *data)
 
     def get_trace_type(self, key, *args):
         inner_type = self.p.get_trace_type(key, *args)

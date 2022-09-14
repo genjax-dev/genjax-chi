@@ -35,10 +35,6 @@ class ImportanceSampling(ProxDistribution):
     def flatten(self):
         return (), (self.num_particles, self.proposal)
 
-    @classmethod
-    def unflatten(cls, xs, data):
-        return ImportanceSampling(*xs, *data)
-
     def default_random_weighted(self, key, target: Target):
         key, sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
@@ -86,7 +82,7 @@ class ImportanceSampling(ProxDistribution):
         )
         merged = chm.merge(target.constraints)
         key, retained_tr = target.p.importance(key, merged, target.args)
-        constrained = target.constraints.to_selection()
+        constrained = target.constraints.get_selection()
         _, retained_w = constrained.filter(retained_tr)
         lse = logsumexp_with_extra(lws, retained_w)
         return key, retained_tr.get_score() - lse + np.log(self.num_particles)

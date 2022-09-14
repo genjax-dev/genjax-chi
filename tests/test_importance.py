@@ -29,7 +29,7 @@ def simple_normal(key):
 class TestImportance:
     def test_simple_normal_importance(self, benchmark):
         jitted = jax.jit(genjax.importance(simple_normal))
-        chm = genjax.ChoiceMap({("y1",): 0.5, ("y2",): 0.5})
+        chm = genjax.ChoiceMap.new({("y1",): 0.5, ("y2",): 0.5})
         new_key, (w, tr) = benchmark(jitted, key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]

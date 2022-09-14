@@ -15,13 +15,13 @@
 import abc
 import jax
 import jax.tree_util as jtu
-import jax._src.pretty_printer as pp
 import numpy as np
-import genjax.core.pretty_printer as gpp
 from dataclasses import dataclass
 from genjax.core.pytree import Pytree, squeeze
 from genjax.core.tracetypes import Bottom
-from typing import Any, Sequence
+from typing import Any, Sequence, Union
+import jax._src.pretty_printer as pp
+import genjax.core.pretty_printer as gpp
 
 #####
 # GenerativeFunction
@@ -108,15 +108,23 @@ class Trace(Pytree):
         pass
 
     def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
         return pp.concat(
             [
-                pp.text(f"{type(self)}"),
-                pp.brk(""),
-                gpp._pformat(self.get_gen_fn(), **kwargs),
-                gpp._pformat(self.get_choices(), **kwargs),
-                pp.brk(""),
-                pp.text("score: "),
-                gpp._pformat(self.score, **kwargs),
+                pp.text(f"{type(self).__name__}"),
+                gpp._nest(
+                    indent,
+                    pp.concat(
+                        [
+                            gpp._pformat(self.get_gen_fn(), **kwargs),
+                            pp.brk(),
+                            gpp._pformat(self.get_choices(), **kwargs),
+                        ]
+                    ),
+                ),
+                pp.brk(),
+                pp.text("return: "),
+                gpp._pformat(self.get_retval(), **kwargs),
             ]
         )
 
@@ -140,8 +148,11 @@ class Trace(Pytree):
         choices = self.get_choices()
         return choices.get_choices_shallow()
 
-    def to_selection(self):
-        return self.get_choices().to_selection()
+    def merge(self, other):
+        return self.get_choices().merge(other.get_choices())
+
+    def get_selection(self):
+        return self.get_choices().get_selection()
 
     def strip_metadata(self):
         return self.get_choices().strip_metadata()
@@ -194,19 +205,32 @@ class ChoiceMap(Pytree):
     def merge(self, other):
         pass
 
-    def to_selection(self):
+    def overload_pprint(self, **kwargs):
+        entries = []
+        indent = kwargs["indent"]
+        for (k, v) in self.get_choices_shallow():
+            entry = gpp._dict_entry(k, v, **kwargs)
+            entries.append(entry)
+        return pp.concat(
+            [
+                pp.text(f"{type(self).__name__}"),
+                gpp._nest(indent, pp.join(gpp._comma_sep, entries)),
+            ]
+        )
+
+    def get_selection(self):
         return NoneSelection()
 
     def get_choices(self):
         return self
 
-    def get_score(self):
-        return 0.0
-
     def slice(self, arr: Sequence):
+        def _inner(v):
+            return v[arr]
+
         return squeeze(
             jtu.tree_map(
-                lambda v: v[arr],
+                _inner,
                 self,
             )
         )
@@ -234,10 +258,6 @@ class ChoiceMap(Pytree):
 class EmptyChoiceMap(ChoiceMap):
     def flatten(self):
         return (), ()
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return EmptyChoiceMap()
 
     def has_choice(self, addr):
         return False
@@ -268,10 +288,6 @@ class ValueChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.value,), ()
 
-    @classmethod
-    def unflatten(cls, data, xs):
-        return ValueChoiceMap(*data, *xs)
-
     def overload_pprint(self, **kwargs):
         return pp.concat(
             [
@@ -296,13 +312,13 @@ class ValueChoiceMap(ChoiceMap):
         else:
             return EmptyChoiceMap()
 
-    def get_choices_shallow(self, k):
-        return ((), self.value)
+    def get_choices_shallow(self):
+        return [((), self.value)]
 
     def strip_metadata(self):
         return self
 
-    def to_selection(self):
+    def get_selection(self):
         return AllSelection()
 
     def merge(self, other):
@@ -316,148 +332,12 @@ class ValueChoiceMap(ChoiceMap):
 
 
 #####
-# Masking
-#####
-
-
-@dataclass
-class BooleanMask(ChoiceMap):
-    inner: Any
-    mask: Any
-
-    def __init__(self, inner, mask):
-        if isinstance(inner, BooleanMask):
-            self.inner = inner.inner
-        elif isinstance(inner, EmptyChoiceMap):
-            return inner
-        else:
-            self.inner = inner
-        self.mask = mask
-
-    def flatten(self):
-        return (self.inner, self.mask), ()
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return BooleanMask(*data, *xs)
-
-    def has_choice(self, addr):
-        if not self.inner.has_choice(addr):
-            return False
-        return self.mask
-
-    def get_choice(self, addr):
-        if not self.inner.has_choice(addr):
-            return EmptyChoiceMap()
-        else:
-            inner = self.inner.get_choice(addr)
-            return BooleanMask(inner, self.mask)
-
-    def has_value(self):
-        if self.inner.has_value():
-            return self.mask
-        else:
-            return False
-
-    def get_value(self):
-        assert self.inner.has_value()
-        return self.inner.get_value()
-
-    def get_choices_shallow(self):
-        def _inner(k, v):
-            return k, BooleanMask(v, self.mask)
-
-        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
-
-    def merge(self, other):
-        pushed = self.leaf_push()
-        return pushed.merge(other)
-
-    def leaf_push(self):
-        return jtu.tree_map(
-            lambda v: BooleanMask(v, self.mask),
-            self.inner,
-            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.has_value(),
-        )
-
-    def __hash__(self):
-        hash1 = hash(self.inner)
-        hash2 = hash(self.mask)
-        return hash((hash1, hash2))
-
-
-@dataclass
-class IndexMask(ChoiceMap):
-    inner: Any
-    index: Any
-
-    def __init__(self, inner, index):
-        if isinstance(inner, IndexMask):
-            self.inner = inner.inner
-        elif isinstance(inner, EmptyChoiceMap):
-            return inner
-        else:
-            self.inner = inner
-        self.index = index
-
-    def flatten(self):
-        return (self.inner, self.index), ()
-
-    @classmethod
-    def unflatten(cls, data, xs):
-        return IndexMask(*data, *xs)
-
-    def get_index(self):
-        return self.index
-
-    def has_choice(self, addr):
-        return self.inner.has_choice(addr)
-
-    def get_choice(self, addr):
-        return IndexMask(squeeze(self.inner.get_choice(addr)), self.index)
-
-    def has_value(self):
-        return self.inner.has_value()
-
-    def get_value(self):
-        return squeeze(self.inner.get_value())
-
-    def get_choices_shallow(self):
-        return squeeze(self.inner.get_choices_shallow())
-
-    def merge(self, other):
-        return squeeze(self.inner.merge(other))
-
-    def leaf_push(self, is_leaf):
-        return jtu.tree_map(
-            lambda v: IndexMask(v, self.index),
-            self.inner,
-            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.has_value(),
-        )
-
-    def __hash__(self):
-        hash1 = hash(self.inner)
-        hash2 = hash(self.index)
-        return hash((hash1, hash2))
-
-
-#####
 # Selection
 #####
 
 
 @dataclass
 class Selection(Pytree):
-    # Implement the `Pytree` interface methods.
-    @abc.abstractmethod
-    def flatten(self):
-        pass
-
-    @classmethod
-    @abc.abstractmethod
-    def unflatten(cls, data, xs):
-        pass
-
     @abc.abstractmethod
     def filter(self, chm):
         pass
@@ -466,7 +346,7 @@ class Selection(Pytree):
     def complement(self):
         pass
 
-    def to_selection(self):
+    def get_selection(self):
         return self
 
     def __repr__(self):
@@ -481,10 +361,6 @@ class NoneSelection(Selection):
     def flatten(self):
         return (), ()
 
-    @classmethod
-    def unflatten(cls, data, xs):
-        return AllSelection()
-
     def filter(self, chm):
         return EmptyChoiceMap(), 0.0
 
@@ -497,12 +373,11 @@ class AllSelection(Selection):
     def flatten(self):
         return (), ()
 
-    @classmethod
-    def unflatten(cls, data, xs):
-        return AllSelection()
-
-    def filter(self, chm):
-        return chm, chm.get_score()
+    def filter(self, v: Union[Trace, ChoiceMap]):
+        if isinstance(v, Trace):
+            return v, v.get_score()
+        else:
+            return v, 0.0
 
     def complement(self):
         return NoneSelection()

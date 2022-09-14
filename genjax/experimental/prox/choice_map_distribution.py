@@ -14,8 +14,6 @@
 
 from dataclasses import dataclass
 from genjax.core.datatypes import GenerativeFunction, Selection, AllSelection
-from genjax.builtin.tree import Tree
-from genjax.builtin.tracetypes import BuiltinTraceType
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
 from genjax.distributions.distribution import ValueChoiceMap
@@ -39,10 +37,8 @@ class ChoiceMapDistribution(ProxDistribution):
 
     def get_trace_type(self, key, args, **kwargs):
         inner_type = self.p.get_trace_type(key, args)
-        return_type = inner_type.get_rettype()
         trace_type, _ = self.selection.filter(inner_type)
-        tree = Tree({}).merge(trace_type)
-        correct_if_check = BuiltinTraceType(tree, return_type)
+        correct_if_check = trace_type
         if self.custom_q == None:
             return correct_if_check
         else:
@@ -55,6 +51,7 @@ class ChoiceMapDistribution(ProxDistribution):
                     f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
                     f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
                 )
+            return correct_if_check
 
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)

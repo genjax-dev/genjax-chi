@@ -37,7 +37,6 @@ from genjax.core.datatypes import (
     GenerativeFunction,
     Trace,
 )
-from genjax.builtin.shape_analysis import trace_shape
 from dataclasses import dataclass
 from typing import Any, Tuple, Callable
 
@@ -59,10 +58,6 @@ class RecurseTrace(Trace):
         return (self.inner, self.iter, self.args, self.retval, self.score), (
             self.gen_fn,
         )
-
-    @classmethod
-    def unflatten(cls, xs, data):
-        return RecurseTrace(*xs, *data)
 
     def get_retval(self):
         return self.retval
@@ -106,10 +101,6 @@ class RecurseCombinator(GenerativeFunction):
             self.shape_bound,
             self.growth_interval,
         )
-
-    @classmethod
-    def unflatten(cls, xs, data):
-        return RecurseCombinator(*xs, *data)
 
     def simulate(self, key, args):
         def _check(key, tr, count, *args):
