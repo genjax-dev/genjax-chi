@@ -100,7 +100,7 @@ class DiscreteHMMConfiguration(Pytree):
 
 
 def sequence_visualizer(sequence: Sequence):
-    fig, ax = plt.subplots()
+    fig, _ = plt.subplots()
     plt.scatter(range(0, len(sequence)), sequence)
     plt.title("State sequence vs. time")
     plt.xlabel("Time")

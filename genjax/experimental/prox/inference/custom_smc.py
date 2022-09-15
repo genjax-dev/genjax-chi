@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module supports a JAX compatible implementation of SMC as a :code:`ProxDistribution`.
+"""
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -106,5 +110,96 @@ class CustomSMC(ProxDistribution):
             final_target_scores[selected_particle] - average_weight,
         )
 
-    def estimate_logpdf(self, k, v, *args):
-        pass
+    # `estimate_logpdf` uses conditional Sequential Monte Carlo (cSMC)
+    # to produce an unbiased estimate of the density at retained_choices.
+    def estimate_logpdf(self, key, retained_choices, target):
+        init = self.initial_state(target)
+        states = jnp.repeat(init, self.num_particles)
+        target_weights = jnp.zeros(self.num_particles)
+        weights = jnp.zeros(self.num_particles)
+        N = self.num_steps(target)
+
+        def _particle_step_retained(key, retained_choices, state):
+            new_target = self.step_model(state)
+            key, (_, particle) = self.step_proposal.importance(
+                key, retained_choices, (state, new_target, target)
+            )
+            key, (_, new_target_trace) = new_target.importance(
+                key, particle.get_retval(), ()
+            )
+            target_weight = new_target_trace.get_score()
+            weight = new_target_trace.get_score() - particle.get_score()
+            new_state = new_target_trace.get_retval()
+            return key, (new_state, particle, target_weight, weight)
+
+        def _particle_step_fallthrough(key, retained_choices, state):
+            new_target = self.step_model(state)
+            key, particle = self.step_proposal.simulate(
+                key, (state, new_target, target)
+            )
+            key, (_, new_target_trace) = new_target.importance(
+                key, particle.get_retval(), ()
+            )
+            target_weight = new_target_trace.get_score()
+            weight = new_target_trace.get_score() - particle.get_score()
+            new_state = new_target_trace.get_retval()
+            return key, (new_state, particle, target_weight, weight)
+
+        def _particle_step(key, retained_choices, state, index):
+            check = index == 0
+            return jax.lax.cond(
+                check,
+                _particle_step_retained,
+                _particle_step_fallthrough,
+                key,
+                retained_choices,
+                state,
+            )
+
+        # Allows `cond`ing on particle index in `jax.vmap`.
+        indices = jnp.array([i for i in range(0, self.num_particles)])
+
+        def _inner(carry, retained_choices):
+            key, states, target_weights, weights = carry
+            key, sub_keys = jax.random.split(key, self.num_particles + 1)
+            sub_keys = jnp.array(sub_keys)
+            _, (particles, target_weights, weights, states) = jax.vmap(
+                _particle_step, in_axes=(0, None, 0, 0)
+            )(sub_keys, retained_choices, states, indices)
+            total_weight = jax.scipy.special.logsumexp(weights)
+            log_normalized_weights = weights - total_weight
+            key, sub_key = jax.random.split(key)
+            selected_particle_indices = jax.random.categorical(
+                sub_key, log_normalized_weights, shape=(self.num_particles)
+            )
+
+            # This is a potentially expensive operation in JAX,
+            # in interpreter mode -- this will copy the array.
+            # However, in JIT mode -- it should modified to
+            # operate in place.
+            selected_particle_indices.at[0].set(0)
+
+            target_weights = target_weights[selected_particle_indices]
+            average_weight = total_weight - np.log(self.num_particles)
+            weights = jnp.repeat(average_weight, self.num_particles)
+            states = states[selected_particle_indices]
+            return (key, states, target_weights, weights), particles
+
+        (key, states, target_weights, weights), particles = jax.lax.scan(
+            _inner,
+            (key, states, target_weights, weights),
+            retained_choices,
+        )
+
+        key, sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
+        final_target_scores = jax.vmap(
+            target.importance,
+            in_axes=(0, 0, None),
+            length=N,
+        )(sub_keys, particles, ())
+        final_weights = weights - target_weights + final_target_scores
+        total_weight = jax.scipy.special.logsumexp(final_weights)
+        # log_normalized_weights = final_weights - total_weight
+        average_weight = total_weight - np.log(self.num_particles)
+        return key, final_target_scores[0] - average_weight
