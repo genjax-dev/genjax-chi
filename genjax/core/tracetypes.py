@@ -101,7 +101,7 @@ class Reals(LeafTraceType):
         return self
 
     def overload_pprint(self, **kwargs):
-        return pp.text("ℝ (shape = {self.shape})")
+        return pp.text(f"ℝ (shape = {self.shape})")
 
 
 @dataclass
