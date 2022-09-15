@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-This module provides a hashable dictionary class - allowing the 
-usage of :code:`dict`-like instances as JAX JIT cache keys 
+This module provides a hashable dictionary class - allowing the
+usage of :code:`dict`-like instances as JAX JIT cache keys
 (and allowing their usage with JAX :code:`static_argnums` in :code:`jax.jit`).
 """
 
