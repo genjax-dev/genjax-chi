@@ -104,7 +104,7 @@ class SMCClone(SMCAlgorithm):
     factor: Int
 
     def num_particles(self):
-        return self.previous.num_particles() * factor
+        return self.previous.num_particles() * self.factor
 
     def final_target(self):
         return self.previous.final_target()

@@ -55,7 +55,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         return key, BuiltinTrace(self, args, r, chm, score)
 
     def importance(self, key, chm, args, **kwargs):
-        assert isinstance(chm, ChoiceMap)
+        assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
         assert isinstance(args, Tuple)
         key, (w, (f, args, r, chm, score)) = handler_importance(
             self.source, **kwargs

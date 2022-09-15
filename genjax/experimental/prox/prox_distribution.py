@@ -49,7 +49,7 @@ class ProxDistribution(Distribution):
 
     def importance(self, key, chm, args):
         assert isinstance(chm, ValueChoiceMap)
-        val = chm.get_value()
+        val = chm.get_leaf_value()
         key, w = self.estimate_logpdf(key, val, *args)
         tr = DistributionTrace(self, args, val, w)
         return key, (w, tr)

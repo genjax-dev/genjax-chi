@@ -15,18 +15,18 @@
 import abc
 from dataclasses import dataclass
 import numpy as np
+from genjax.core.choice_tree import ChoiceTree
+from typing import Tuple, Any
 import jax._src.pretty_printer as pp
 import genjax.core.pretty_printer as gpp
-from genjax.core.pytree import Pytree
-from typing import Tuple, Any
 
 
 @dataclass
-class TraceType(Pytree):
+class TraceType(ChoiceTree):
     def overload_pprint(self, **kwargs):
         entries = []
         indent = kwargs["indent"]
-        for (k, v) in self.get_types_shallow():
+        for (k, v) in self.get_subtrees_shallow():
             entry = gpp._dict_entry(k, v, **kwargs)
             entries.append(entry)
         return pp.concat(
@@ -48,10 +48,6 @@ class TraceType(Pytree):
             return check, (self, other)
 
     @abc.abstractmethod
-    def get_types_shallow(self):
-        pass
-
-    @abc.abstractmethod
     def __subseteq__(self, other):
         pass
 
@@ -64,7 +60,29 @@ class TraceType(Pytree):
 
 
 @dataclass
-class Reals(TraceType):
+class LeafTraceType(TraceType):
+    def is_leaf(self):
+        return True
+
+    def get_leaf_value(self):
+        return self
+
+    def has_subtree(self, addr):
+        return False
+
+    @classmethod
+    def get_subtree(cls, addr):
+        raise Exception(f"{cls} is a leaf choice tree.")
+
+    def get_subtrees_shallow(self):
+        return ()
+
+    def merge(self, other):
+        return other
+
+
+@dataclass
+class Reals(LeafTraceType):
     shape: Tuple
 
     def flatten(self):
@@ -87,7 +105,7 @@ class Reals(TraceType):
 
 
 @dataclass
-class PositiveReals(TraceType):
+class PositiveReals(LeafTraceType):
     shape: Tuple
 
     def flatten(self):
@@ -110,7 +128,7 @@ class PositiveReals(TraceType):
 
 
 @dataclass
-class RealInterval(TraceType):
+class RealInterval(LeafTraceType):
     shape: Tuple
     lower_bound: Any
     upper_bound: Any
@@ -141,7 +159,7 @@ class RealInterval(TraceType):
 
 
 @dataclass
-class Integers(TraceType):
+class Integers(LeafTraceType):
     shape: Tuple
 
     def flatten(self):
@@ -164,7 +182,7 @@ class Integers(TraceType):
 
 
 @dataclass
-class Naturals(TraceType):
+class Naturals(LeafTraceType):
     shape: Tuple
 
     def flatten(self):
@@ -191,7 +209,7 @@ class Naturals(TraceType):
 
 
 @dataclass
-class Finite(TraceType):
+class Finite(LeafTraceType):
     shape: Tuple
     limit: int
 
@@ -223,7 +241,7 @@ class Finite(TraceType):
 
 
 @dataclass
-class Bottom(TraceType):
+class Bottom(LeafTraceType):
     shape: Tuple
 
     def flatten(self):

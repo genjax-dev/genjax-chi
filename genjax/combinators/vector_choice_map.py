@@ -53,23 +53,25 @@ class VectorChoiceMap(ChoiceMap):
             ]
         )
 
-    def get_choice(self, addr):
-        return self.inner.get_choice(addr)
+    def is_leaf(self):
+        return self.inner.is_leaf()
 
-    def has_choice(self, addr):
-        return self.inner.has_choice(addr)
+    def get_leaf_value(self):
+        return self.inner.get_leaf_value()
 
-    def has_value(self):
-        return self.inner.has_value()
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
 
-    def get_value(self):
-        return self.inner.get_value()
+    def get_subtree(self, addr):
+        return self.inner.get_subtree(addr)
 
-    def get_choices_shallow(self):
+    def get_subtrees_shallow(self):
         def _inner(k, v):
             return k, VectorChoiceMap(v)
 
-        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
+        return map(
+            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
+        )
 
     def merge(self, other):
         return self.inner.merge(other)
@@ -86,16 +88,16 @@ def prepare_vectorized_choice_map(shape, treedef, length, chm):
     mask_vectored = []
     for k in range(0, length):
         emptied = jtu.tree_map(lambda v: np.zeros((), v.dtype), shape)
-        if chm.has_choice(k):
-            submap = chm.get_choice(k)
+        if chm.has_subtree(k):
+            submap = chm.get_subtree(k)
             emptied = emptied.merge(submap)
             mask = [
-                True if submap.has_choice(k) else False
-                for (k, _) in shape.get_choices_shallow()
+                True if submap.has_subtree(k) else False
+                for (k, _) in shape.get_subtrees_shallow()
             ]
             mask = jtu.tree_unflatten(treedef, mask)
         else:
-            mask = [False for (k, _) in shape.get_choices_shallow()]
+            mask = [False for (k, _) in shape.get_subtrees_shallow()]
             mask = jtu.tree_unflatten(treedef, mask)
         chm_vectored.append(emptied)
         mask_vectored.append(mask)

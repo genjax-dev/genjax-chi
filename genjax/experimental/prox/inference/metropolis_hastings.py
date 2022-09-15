@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import jax
+import jax.numpy as jnp
 from genjax.core.datatypes import Trace
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from typing import Tuple

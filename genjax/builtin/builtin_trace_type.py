@@ -18,20 +18,70 @@ import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
 from genjax.builtin.intrinsics import gen_fn_p
+from genjax.core.hashabledict import hashabledict, HashableDict
 from genjax.core.tracetypes import TraceType, Reals, Integers, Finite
-from typing import Dict
 
 
 @dataclass
 class BuiltinTraceType(TraceType):
-    inner: Dict
+    inner: HashableDict
     return_type: TraceType
 
     def flatten(self):
         return (), (self.inner, self.return_type)
 
-    def get_types_shallow(self):
+    def is_leaf(self):
+        return False
+
+    def get_leaf_value(self):
+        raise Exception("BuiltinTraceType is not a leaf choice tree.")
+
+    def has_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.has_subtree(rest)
+            else:
+                return False
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return addr in self.inner
+
+    def get_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.get_subtree(rest)
+            else:
+                raise Exception(f"Tree has no subtree at {first}")
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return self.inner[addr]
+
+    def get_subtrees_shallow(self):
         return self.inner.items()
+
+    def merge(self, other):
+        new = hashabledict()
+        for (k, v) in self.get_subtrees_shallow():
+            if other.has_subtree(k):
+                sub = other[k]
+                new[k] = v.merge(sub)
+            else:
+                new[k] = v
+        for (k, v) in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
+                new[k] = v
+        if isinstance(other, BuiltinTraceType):
+            return BuiltinTraceType(new, other.get_rettype())
+        else:
+            return BuiltinTraceType(new, self.get_rettype())
 
     def get_rettype(self):
         return self.return_type
@@ -42,7 +92,7 @@ class BuiltinTraceType(TraceType):
         else:
             check = True
             tree = dict()
-            for (k, v) in self.get_types_shallow():
+            for (k, v) in self.get_subtrees_shallow():
                 if k in other.inner:
                     sub = other.inner[k]
                     subcheck, mismatch = v.subseteq(sub)
@@ -52,7 +102,7 @@ class BuiltinTraceType(TraceType):
                     check = False
                     tree[k] = (v, None)
 
-            for (k, v) in other.get_types_shallow():
+            for (k, v) in other.get_subtrees_shallow():
                 if k not in self.inner:
                     check = False
                     tree[k] = (None, v)

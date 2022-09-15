@@ -48,11 +48,29 @@ class ListTraceType(TraceType):
             ]
         )
 
-    def get_types_shallow(self):
+    def is_leaf(self):
+        return self.inner.is_leaf()
+
+    def get_leaf_value(self):
+        return self.inner.get_leaf_value()
+
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        v = self.inner.get_subtree(addr)
+        return ListTraceType(v, self.length)
+
+    def get_subtrees_shallow(self):
         def _inner(k, v):
             return (k, ListTraceType(v, self.length))
 
-        return map(lambda args: _inner(*args), self.inner.get_types_shallow())
+        return map(
+            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
+        )
+
+    def merge(self, other):
+        raise Exception("Not implemented.")
 
     def __subseteq__(self, other):
         return False

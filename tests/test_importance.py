@@ -35,10 +35,10 @@ class TestImportance:
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
         _, (score1, _) = genjax.Normal.importance(
-            key, chm.get_choice("y1"), (0.0, 1.0)
+            key, chm.get_subtree("y1"), (0.0, 1.0)
         )
         _, (score2, _) = genjax.Normal.importance(
-            key, chm.get_choice("y2"), (0.0, 1.0)
+            key, chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
         assert y1 == out[("y1",)]

@@ -15,5 +15,4 @@ exclude =
     docs,
     examples,
     experiments,
-    experiments/exposing_c++_gen_fn,
-    genjax/experimental
+    experiments/exposing_c++_gen_fn

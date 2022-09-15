@@ -32,10 +32,10 @@ class TestSimulate:
         new_key, tr = benchmark(jitted, key, ())
         chm = tr.get_choices()
         _, (score1, _) = genjax.Normal.importance(
-            key, chm.get_choice("y1"), (0.0, 1.0)
+            key, chm.get_subtree("y1"), (0.0, 1.0)
         )
         _, (score2, _) = genjax.Normal.importance(
-            key, chm.get_choice("y2"), (0.0, 1.0)
+            key, chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)

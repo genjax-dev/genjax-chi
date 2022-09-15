@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module provides a hashable dictionary class - allowing the 
+usage of :code:`dict`-like instances as JAX JIT cache keys 
+(and allowing their usage with JAX :code:`static_argnums` in :code:`jax.jit`).
+"""
+
 import jax.tree_util as jtu
 from jax.util import safe_zip
 

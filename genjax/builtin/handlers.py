@@ -105,12 +105,11 @@ class Importance(Handler):
             return key, (0.0, tr)
 
         def _importance_branch(key, args):
-            submap = self.constraints.get_choice(addr)
-            submap = submap.get_choices()  # Sometimes, this can be a trace.
+            submap = self.constraints.get_subtree(addr)
             key, (w, tr) = gen_fn.importance(key, submap, args, **kwargs)
             return key, (w, tr)
 
-        check = self.constraints.has_choice(addr)
+        check = self.constraints.has_subtree(addr)
         key, (w, tr) = concrete_cond(
             check,
             _importance_branch,
@@ -146,26 +145,26 @@ class Update(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_previous = self.prev.has_choice(addr)
-        constrained = self.choice_change.has_choice(addr)
+        has_previous = self.prev.has_subtree(addr)
+        constrained = self.choice_change.has_subtree(addr)
 
         def _update_branch(key, args):
-            prev_tr = self.prev.get_choice(addr)
-            chm = self.choice_change.get_choice(addr)
+            prev_tr = self.prev.get_subtree(addr)
+            chm = self.choice_change.get_subtree(addr)
             key, (w, tr, discard) = gen_fn.update(
                 key, prev_tr, chm, args, **kwargs
             )
             return key, (w, tr, discard)
 
         def _has_prev_branch(key, args):
-            prev_tr = self.prev.get_choice(addr)
+            prev_tr = self.prev.get_subtree(addr)
             w = 0.0
             discard = BooleanMask(prev_tr.get_choices(), False)
             return key, (w, prev_tr, discard)
 
         def _constrained_branch(key, args):
-            prev_tr = self.prev.get_choice(addr)
-            chm = self.choice_change.get_choice(addr)
+            prev_tr = self.prev.get_subtree(addr)
+            chm = self.choice_change.get_subtree(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             discard = BooleanMask(prev_tr.get_choices(), False)
             return key, (w, tr, discard)
@@ -209,10 +208,10 @@ class ArgumentGradients(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_source = self.source.has_choice(addr)
+        has_source = self.source.has_subtree(addr)
 
         def _has_source_branch(key, args):
-            sub_tr = self.source.get_choice(addr)
+            sub_tr = self.source.get_subtree(addr)
             chm = sub_tr.get_choices()
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             v = tr.get_retval()
@@ -252,16 +251,16 @@ class ChoiceGradients(Handler):
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        has_selected = self.selected.has_choice(addr)
+        has_selected = self.selected.has_subtree(addr)
 
         def _has_selected_branch(key, args):
-            chm = self.selected.get_choice(addr)
+            chm = self.selected.get_subtree(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             v = tr.get_retval()
             return (w, v)
 
         def _not_selected_branch(key, args):
-            tr = self.source.get_choice(addr)
+            tr = self.source.get_subtree(addr)
             v = tr.get_retval()
             return (0.0, v)
 

@@ -123,13 +123,13 @@ class Distribution(GenerativeFunction):
             return key, v, w, score
 
         def _importance_branch(key, chm, args):
-            v = chm.get_value()
+            v = chm.get_leaf_value()
             key, sub_key = jax.random.split(key)
             w = self.logpdf(sub_key, v, *args)
             return key, v, w, w
 
         key, v, w, score = concrete_cond(
-            chm.has_value(),
+            chm.is_leaf(),
             _importance_branch,
             _simulate_branch,
             key,
@@ -140,26 +140,26 @@ class Distribution(GenerativeFunction):
         return key, (w, DistributionTrace(self, args, v, score))
 
     def update(self, key, prev, new, args, **kwargs):
-        has_previous = prev.has_value()
-        constrained = new.has_value()
+        has_previous = prev.is_leaf()
+        constrained = new.is_leaf()
 
         def _update_branch(key, args):
             prev_score = prev.get_score()
-            v = new.get_value()
+            v = new.get_leaf_value()
             key, sub_key = jax.random.split(key)
             fwd = self.logpdf(sub_key, v, *args)
             discard = BooleanMask(prev.get_choices(), True)
             return key, (fwd - prev_score, v, discard)
 
         def _has_prev_branch(key, args):
-            v = prev.get_value()
+            v = prev.get_leaf_value()
             discard = BooleanMask(prev.get_choices(), False)
             return key, (0.0, v, discard)
 
         def _constrained_branch(key, args):
             chm = new.get_choice(())
             key, (w, tr) = self.importance(key, chm, args)
-            v = tr.get_value()
+            v = tr.get_leaf_value()
             discard = BooleanMask(prev.get_choices(), False)
             return key, (w, v, discard)
 

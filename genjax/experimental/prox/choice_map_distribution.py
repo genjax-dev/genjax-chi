@@ -32,14 +32,16 @@ class ChoiceMapDistribution(ProxDistribution):
         self.custom_q = custom_q
 
     @classmethod
-    def new(cls, p: GenerativeFunction, selection=AllSelection()):
+    def new(cls, p: GenerativeFunction, selection=None):
+        if selection is None:
+            selection = AllSelection()
         return ChoiceMapDistribution(p, selection, None)
 
     def get_trace_type(self, key, args, **kwargs):
         inner_type = self.p.get_trace_type(key, args)
         trace_type, _ = self.selection.filter(inner_type)
         correct_if_check = trace_type
-        if self.custom_q == None:
+        if self.custom_q is None:
             return correct_if_check
         else:
             target = Target(self.p, args, self.selection)
@@ -57,7 +59,7 @@ class ChoiceMapDistribution(ProxDistribution):
         key, tr = self.p.simulate(key, args)
         choices = tr.get_choices()
         selected_choices, _ = self.selection.filter(choices)
-        if self.custom_q == None:
+        if self.custom_q is None:
             _, weight = self.selection.filter(tr)
         else:
             unselected, _ = self.selection.complement().filter(choices)
@@ -81,7 +83,7 @@ class ChoiceMapDistribution(ProxDistribution):
         return key, (selected_choices, weight)
 
     def estimate_logpdf(self, key, choices, *args):
-        if self.custom_q == None:
+        if self.custom_q is None:
             key, (weight, _) = self.p.importance(key, choices, args)
         else:
             target = Target(self.p, args, choices)

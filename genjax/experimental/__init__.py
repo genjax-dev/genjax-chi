@@ -18,6 +18,5 @@ This module supports experimental features of `GenJAX`.
 
 from .mem import *
 from .tuning import *
-from .combinators import *
 from .interpreters import *
 from .prox import *

@@ -59,33 +59,35 @@ class BooleanMask(ChoiceMap):
             ]
         )
 
-    def has_choice(self, addr):
-        if not self.inner.has_choice(addr):
+    def has_subtree(self, addr):
+        if not self.inner.has_subtree(addr):
             return False
         return self.mask
 
-    def get_choice(self, addr):
-        if not self.inner.has_choice(addr):
+    def get_subtree(self, addr):
+        if not self.inner.has_subtree(addr):
             return EmptyChoiceMap()
         else:
-            inner = self.inner.get_choice(addr)
+            inner = self.inner.get_subtree(addr)
             return BooleanMask(inner, self.mask)
 
-    def has_value(self):
-        if self.inner.has_value():
+    def is_leaf(self):
+        if self.inner.is_leaf():
             return self.mask
         else:
             return False
 
-    def get_value(self):
-        assert self.inner.has_value()
-        return self.inner.get_value()
+    def get_leaf_value(self):
+        assert self.inner.is_leaf()
+        return self.inner.get_leaf_value()
 
-    def get_choices_shallow(self):
+    def get_subtrees_shallow(self):
         def _inner(k, v):
             return k, BooleanMask(v, self.mask)
 
-        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
+        return map(
+            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
+        )
 
     def merge(self, other):
         pushed = self.leaf_push()
@@ -95,7 +97,7 @@ class BooleanMask(ChoiceMap):
         return jtu.tree_map(
             lambda v: BooleanMask(v, self.mask),
             self.inner,
-            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.has_value(),
+            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
         )
 
     def __hash__(self):
@@ -140,23 +142,25 @@ class IndexMask(ChoiceMap):
     def get_index(self):
         return self.index
 
-    def has_choice(self, addr):
-        return self.inner.has_choice(addr)
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
 
-    def get_choice(self, addr):
-        return IndexMask(squeeze(self.inner.get_choice(addr)), self.index)
+    def get_subtree(self, addr):
+        return IndexMask(squeeze(self.inner.get_subtree(addr)), self.index)
 
-    def has_value(self):
-        return self.inner.has_value()
+    def is_leaf(self):
+        return self.inner.is_leaf()
 
-    def get_value(self):
-        return squeeze(self.inner.get_value())
+    def get_leaf_value(self):
+        return squeeze(self.inner.get_leaf_value())
 
-    def get_choices_shallow(self):
+    def get_subtrees_shallow(self):
         def _inner(k, v):
             return k, IndexMask(v, self.index)
 
-        return map(lambda args: _inner(*args), self.inner.get_choices_shallow())
+        return map(
+            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
+        )
 
     def merge(self, other):
         return squeeze(self.inner.merge(other))
@@ -165,7 +169,7 @@ class IndexMask(ChoiceMap):
         return jtu.tree_map(
             lambda v: IndexMask(v, self.index),
             self.inner,
-            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.has_value(),
+            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
         )
 
     def __hash__(self):

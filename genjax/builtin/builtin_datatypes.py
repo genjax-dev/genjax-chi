@@ -72,19 +72,19 @@ class BuiltinChoiceMap(ChoiceMap):
                 addr = addr[0]
             self.inner[addr] = value
 
-    def has_value(self):
+    def is_leaf(self):
         return False
 
-    def get_value(self):
-        raise Exception("BuiltinChoiceMap is not a value choice map.")
+    def get_leaf_value(self):
+        raise Exception("BuiltinChoiceMap is not a leaf choice tree.")
 
-    def has_choice(self, addr):
+    def has_subtree(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
             rest = tuple(rest)
-            if self.has_choice(first):
-                subtree = self.get_choice(first)
-                return subtree.has_choice(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.has_subtree(rest)
             else:
                 return False
         else:
@@ -92,13 +92,13 @@ class BuiltinChoiceMap(ChoiceMap):
                 addr = addr[0]
             return addr in self.inner
 
-    def get_choice(self, addr):
+    def get_subtree(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
             rest = tuple(rest)
-            if self.has_choice(first):
-                subtree = self.get_choice(first)
-                return subtree.get_choice(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.get_subtree(rest)
             else:
                 raise Exception(f"Tree has no subtree at {first}")
         else:
@@ -106,25 +106,25 @@ class BuiltinChoiceMap(ChoiceMap):
                 addr = addr[0]
             return self.inner[addr]
 
-    def get_choices_shallow(self):
+    def get_subtrees_shallow(self):
         return self.inner.items()
 
     def get_selection(self):
         new_tree = hashabledict()
-        for (k, v) in self.get_choices_shallow():
+        for (k, v) in self.get_subtrees_shallow():
             new_tree[k] = v.get_selection()
         return BuiltinSelection(new_tree)
 
     def merge(self, other):
         new = hashabledict()
-        for (k, v) in self.get_choices_shallow():
-            if other.has_choice(k):
+        for (k, v) in self.get_subtrees_shallow():
+            if other.has_subtree(k):
                 sub = other[k]
                 new[k] = v.merge(sub)
             else:
                 new[k] = v
-        for (k, v) in other.get_choices_shallow():
-            if not self.has_choice(k):
+        for (k, v) in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
                 new[k] = v
         return BuiltinChoiceMap(new)
 
@@ -214,11 +214,7 @@ class BuiltinSelection(Selection):
 
         new_tree = hashabledict()
         score = 0.0
-        iter = (
-            chm.get_types_shallow()
-            if isinstance(chm, TraceType)
-            else chm.get_choices_shallow()
-        )
+        iter = chm.get_subtrees_shallow()
         for (k, v, s) in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoiceMap):
                 new_tree[k] = v
@@ -231,6 +227,56 @@ class BuiltinSelection(Selection):
 
     def complement(self):
         return BuiltinComplementSelection(self.inner)
+
+    def is_leaf(self):
+        return False
+
+    def get_leaf_value(self):
+        raise Exception("BuiltinSelection is not a leaf type.")
+
+    def has_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.has_subtree(rest)
+            else:
+                return False
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return addr in self.inner
+
+    def get_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.get_subtree(rest)
+            else:
+                raise Exception(f"Tree has no subtree at {first}")
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return self.inner[addr]
+
+    def get_subtrees_shallow(self):
+        return self.inner.items()
+
+    def merge(self, other):
+        new = hashabledict()
+        for (k, v) in self.get_subtrees_shallow():
+            if other.has_subtree(k):
+                sub = other[k]
+                new[k] = v.merge(sub)
+            else:
+                new[k] = v
+        for (k, v) in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
+                new[k] = v
+        return BuiltinSelection(new)
 
 
 @dataclass
@@ -251,11 +297,7 @@ class BuiltinComplementSelection(Selection):
 
         new_tree = hashabledict()
         score = 0.0
-        iter = (
-            chm.get_types_shallow()
-            if isinstance(chm, TraceType)
-            else chm.get_choices_shallow()
-        )
+        iter = chm.get_subtrees_shallow()
         for (k, v, s) in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoiceMap):
                 new_tree[k] = v
@@ -271,3 +313,53 @@ class BuiltinComplementSelection(Selection):
         for (k, v) in self.inner.items():
             new_tree[k] = v.complement()
         return BuiltinSelection(new_tree)
+
+    def is_leaf(self):
+        return False
+
+    def get_leaf_value(self):
+        raise Exception("BuiltinComplementSelection is not a leaf type.")
+
+    def has_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.has_subtree(rest)
+            else:
+                return False
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return addr in self.inner
+
+    def get_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.get_subtree(rest)
+            else:
+                raise Exception(f"Tree has no subtree at {first}")
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return self.inner[addr]
+
+    def get_subtrees_shallow(self):
+        return self.inner.items()
+
+    def merge(self, other):
+        new = hashabledict()
+        for (k, v) in self.get_subtrees_shallow():
+            if other.has_subtree(k):
+                sub = other[k]
+                new[k] = v.merge(sub)
+            else:
+                new[k] = v
+        for (k, v) in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
+                new[k] = v
+        return BuiltinComplementSelection(new)

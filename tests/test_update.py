@@ -39,10 +39,10 @@ class TestUpdate:
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
         _, (score1, _) = genjax.Normal.importance(
-            key, updated_chm.get_choice("y1"), (0.0, 1.0)
+            key, updated_chm.get_subtree("y1"), (0.0, 1.0)
         )
         _, (score2, _) = genjax.Normal.importance(
-            key, updated_chm.get_choice("y2"), (0.0, 1.0)
+            key, updated_chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
         assert original_chm[("y1",)] == discard[("y1",)]
@@ -56,10 +56,10 @@ class TestUpdate:
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
         _, (score1, _) = genjax.Normal.importance(
-            key, updated_chm.get_choice("y1"), (0.0, 1.0)
+            key, updated_chm.get_subtree("y1"), (0.0, 1.0)
         )
         _, (score2, _) = genjax.Normal.importance(
-            key, updated_chm.get_choice("y2"), (0.0, 1.0)
+            key, updated_chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
         assert updated.get_score() == original_score + w

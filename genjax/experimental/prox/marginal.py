@@ -39,7 +39,7 @@ class Marginal(ProxDistribution):
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)
         weight = tr.get_score()
-        choices = tr.get_choices().strip_metadata()
+        choices = tr.get_choices()
         val = choices[self.addr]
         selection = BuiltinSelection([self.addr]).complement()
         other_choices, _ = selection.filter(choices)
