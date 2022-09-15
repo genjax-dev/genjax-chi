@@ -116,7 +116,7 @@ def sequence_visualizer(sequence: Sequence):
 # Below, `genjax.Categorical` expects logit tensors,
 # not normalized probability tensors, so `trow`
 # and `orow` are not normalized.
-@genjax.gen(genjax.Unfold, max_length=50)
+@genjax.gen(genjax.Unfold, max_length=100)
 def kernel(key, prev, transition_tensor, observation_tensor):
     trow = transition_tensor[prev, :]
     key, latent = genjax.trace("latent", genjax.Categorical)(key, (trow,))
@@ -134,10 +134,6 @@ def initial_position(config: DiscreteHMMConfiguration):
 # TODO: to use Prox-based SMC as `custom_q`,
 # coerce into required form or modify to allow initial
 # proposal.
-sel = genjax.Selection([("z", "latent")])
-print(sel)
-
-
 @genjax.gen(
     prox.ChoiceMapDistribution,
     selection=genjax.Selection([("z", "latent")]),
@@ -153,9 +149,11 @@ def hidden_markov_model(key, T, config):
 
 
 key = jax.random.PRNGKey(314159)
-config = DiscreteHMMConfiguration.new(10, 1, 1, 0.3, 0.3)
-trace_type = genjax.get_trace_type(hidden_markov_model)(key, (5, config))
-print(trace_type)
+config = DiscreteHMMConfiguration.new(10, 1, 1, 0.1, 0.1)
+key, tr = jax.jit(genjax.simulate(hidden_markov_model))(key, (100, config))
+(chm,) = tr.get_retval()
+sequence = chm[("z", "latent")]
+sequence_visualizer(sequence)
 
 #####
 # Inference
