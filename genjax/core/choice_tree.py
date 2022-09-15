@@ -40,10 +40,6 @@ class ChoiceTree(Pytree):
         )
 
     @abc.abstractmethod
-    def get_subtrees_shallow(self):
-        pass
-
-    @abc.abstractmethod
     def is_leaf(self):
         pass
 
@@ -57,6 +53,10 @@ class ChoiceTree(Pytree):
 
     @abc.abstractmethod
     def get_subtree(self, addr):
+        pass
+
+    @abc.abstractmethod
+    def get_subtrees_shallow(self):
         pass
 
     @abc.abstractmethod

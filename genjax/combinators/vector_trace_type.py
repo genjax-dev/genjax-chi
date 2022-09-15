@@ -18,12 +18,12 @@ import jax._src.pretty_printer as pp
 import genjax.core.pretty_printer as gpp
 
 #####
-# ListTraceType
+# VectorTraceType
 #####
 
 
 @dataclass
-class ListTraceType(TraceType):
+class VectorTraceType(TraceType):
     inner: TraceType
     length: int
 
@@ -59,11 +59,11 @@ class ListTraceType(TraceType):
 
     def get_subtree(self, addr):
         v = self.inner.get_subtree(addr)
-        return ListTraceType(v, self.length)
+        return VectorTraceType(v, self.length)
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
-            return (k, ListTraceType(v, self.length))
+            return (k, VectorTraceType(v, self.length))
 
         return map(
             lambda args: _inner(*args), self.inner.get_subtrees_shallow()

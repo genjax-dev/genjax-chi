@@ -27,7 +27,7 @@ import jax.experimental.host_callback as hcb
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
 from genjax.combinators.vector_choice_map import VectorChoiceMap
-from genjax.combinators.list_trace_type import ListTraceType
+from genjax.combinators.vector_trace_type import VectorTraceType
 from typing import Any, Tuple, Sequence
 
 #####
@@ -137,7 +137,7 @@ class UnfoldCombinator(GenerativeFunction):
         _ = args[0]
         args = args[1:]
         inner_type = self.kernel.get_trace_type(key, args, **kwargs)
-        return ListTraceType(inner_type, self.max_length)
+        return VectorTraceType(inner_type, self.max_length)
 
     def flatten(self):
         return (), (self.kernel, self.max_length)
