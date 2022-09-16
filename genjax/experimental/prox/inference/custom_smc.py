@@ -66,21 +66,26 @@ class CustomSMC(ProxDistribution):
 
         def _inner(carry, x):
             key, states, target_weights, weights = carry
+
+            # Perform SMC update step.
             key, sub_keys = jax.random.split(key, self.num_particles + 1)
             sub_keys = jnp.array(sub_keys)
             _, (particles, target_weights, weights, states) = jax.vmap(
                 _particle_step, in_axes=(0, 0)
             )(sub_keys, states)
+
+            # Perform resampling.
             total_weight = jax.scipy.special.logsumexp(weights)
             log_normalized_weights = weights - total_weight
             key, sub_key = jax.random.split(key)
             selected_particle_indices = jax.random.categorical(
-                sub_key, log_normalized_weights, shape=(self.num_particles)
+                sub_key, log_normalized_weights, shape=(self.num_particles,)
             )
+            states = states[selected_particle_indices]
             target_weights = target_weights[selected_particle_indices]
             average_weight = total_weight - np.log(self.num_particles)
             weights = jnp.repeat(average_weight, self.num_particles)
-            states = states[selected_particle_indices]
+            particles = particles[selected_particle_indices]
             return (key, states, target_weights, weights), particles
 
         (key, states, target_weights, weights), particles = jax.lax.scan(
@@ -119,6 +124,15 @@ class CustomSMC(ProxDistribution):
         weights = jnp.zeros(self.num_particles)
         N = self.num_steps(target)
 
+        # Two variants of the particle update step:
+        #
+        # 1. _particle_step_retained -- operates on the sole
+        # propagating particle (convention: this at index 0 of all tensors
+        # involved in `estimate_logpdf`)
+        #
+        # 2. _particle_step_fallthrough -- operates on all the other particles,
+        # (required to compute the ultimate density).
+
         def _particle_step_retained(key, retained_choices, state):
             new_target = self.step_model(state)
             key, (_, particle) = self.step_proposal.importance(
@@ -145,6 +159,8 @@ class CustomSMC(ProxDistribution):
             new_state = new_target_trace.get_retval()
             return key, (new_state, particle, target_weight, weight)
 
+        # This switches on the array index value (choosing either to apply the
+        # retained computation or the fallthrough computation).
         def _particle_step(key, retained_choices, state, index):
             check = index == 0
             return jax.lax.cond(
