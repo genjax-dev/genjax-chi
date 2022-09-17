@@ -16,6 +16,16 @@
 # elements of the printing strategy, including adding an overload method
 # which can be accessed by any class object which implements `overload_pprint`.
 
+"""
+This module contains an extensible pretty printing infrastructure based
+on JAX's :code:`_src/pretty_printing` as well as extensions
+created by the Equinox package maintainers.
+
+It has similarly been extended here to allowed :code:`dataclass` based
+overloading -- providing pretty printing functionality to types like
+implementors of :code:`ChoiceTree` for free.
+"""
+
 import dataclasses
 import functools as ft
 import types

@@ -23,9 +23,10 @@ in `genjax.core`.
 
 import jax.tree_util as jtu
 from genjax.core import Handler
+from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
 from genjax.core.masks import BooleanMask
-from genjax.core.specialization import concrete_cond
+from genjax.core.specialization import concrete_cond, concrete_and
 from genjax.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax.builtin.intrinsics import gen_fn_p
 
@@ -151,26 +152,35 @@ class Update(Handler):
         def _update_branch(key, args):
             prev_tr = self.prev.get_subtree(addr)
             chm = self.choice_change.get_subtree(addr)
+            if isinstance(chm, EmptyChoiceMap):
+                discard = BooleanMask.new(False, prev_tr.strip_metadata())
+                return key, (0.0, prev_tr, discard)
+
             key, (w, tr, discard) = gen_fn.update(
                 key, prev_tr, chm, args, **kwargs
             )
+            discard = discard.strip_metadata()
+            if isinstance(prev_tr, BooleanMask):
+                tr = BooleanMask.new(prev_tr.mask, tr)
             return key, (w, tr, discard)
 
         def _has_prev_branch(key, args):
             prev_tr = self.prev.get_subtree(addr)
             w = 0.0
-            discard = BooleanMask(prev_tr.get_choices(), False)
+            discard = BooleanMask.new(False, prev_tr.strip_metadata())
             return key, (w, prev_tr, discard)
 
         def _constrained_branch(key, args):
             prev_tr = self.prev.get_subtree(addr)
             chm = self.choice_change.get_subtree(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            discard = BooleanMask(prev_tr.get_choices(), False)
+            discard = BooleanMask.new(False, prev_tr.strip_metadata())
+            if isinstance(prev_tr, BooleanMask):
+                tr = BooleanMask.new(prev_tr.mask, tr)
             return key, (w, tr, discard)
 
         key, (w, tr, discard) = concrete_cond(
-            has_previous and constrained,
+            concrete_and(has_previous, constrained),
             _update_branch,
             lambda key, args: concrete_cond(
                 has_previous,

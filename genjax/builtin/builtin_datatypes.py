@@ -24,7 +24,7 @@ from typing import Any, Tuple
 from genjax.core.hashabledict import HashableDict, hashabledict
 from genjax.core.datatypes import EmptyChoiceMap, Selection, AllSelection
 from genjax.core.tracetypes import TraceType
-from genjax.builtin.builtin_trace_type import BuiltinTraceType
+from genjax.builtin.builtin_tracetype import BuiltinTraceType
 from typing import Dict
 
 #####
@@ -104,6 +104,8 @@ class BuiltinChoiceMap(ChoiceMap):
         else:
             if isinstance(addr, tuple):
                 addr = addr[0]
+            if addr not in self.inner:
+                return EmptyChoiceMap()
             return self.inner[addr]
 
     def get_subtrees_shallow(self):
@@ -119,7 +121,7 @@ class BuiltinChoiceMap(ChoiceMap):
         new = hashabledict()
         for (k, v) in self.get_subtrees_shallow():
             if other.has_subtree(k):
-                sub = other[k]
+                sub = other.get_subtree(k)
                 new[k] = v.merge(sub)
             else:
                 new[k] = v

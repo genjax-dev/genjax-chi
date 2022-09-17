@@ -12,11 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module holds some JAX-specific utilities to force
+evaluation (where possible) or else create branch primitives
+(e.g. :code:`jax.lax.switch`) when a value is not concrete.
+
+These utilities are used throughout the codebase -- to gain some confidence
+that tracing will actually collapse potential branches when values are known
+statically.
+"""
+
 import jax
+import jax.numpy as jnp
+import operator
+from functools import reduce
 
 
 def is_concrete(x):
     return not isinstance(x, jax.core.Tracer)
+
+
+def concrete_and(*args):
+    if all(map(is_concrete, args)):
+        return reduce(operator.and_, args, True)
+    else:
+        return jnp.logical_and(*args)
 
 
 def concrete_cond(pred, true_branch, false_branch, *args):

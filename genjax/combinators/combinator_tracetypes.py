@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 from dataclasses import dataclass
 from genjax.core.tracetypes import TraceType
 import jax._src.pretty_printer as pp
 import genjax.core.pretty_printer as gpp
+from typing import Sequence
 
 #####
 # VectorTraceType
@@ -77,3 +79,63 @@ class VectorTraceType(TraceType):
 
     def get_rettype(self):
         return self.inner.get_rettype()
+
+
+#####
+# SumTraceType
+#####
+
+
+@dataclass
+class SumTraceType(TraceType):
+    summands: Sequence[TraceType]
+
+    def flatten(self):
+        return (), (self.summands,)
+
+    def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
+        return pp.concat(
+            [
+                pp.text(f"{type(self).__name__}"),
+                gpp._nest(
+                    indent,
+                    pp.concat(
+                        [
+                            pp.text("return: "),
+                            gpp._pformat(self.get_rettype(), **kwargs),
+                            pp.brk(),
+                            gpp._pformat(self.summands, **kwargs),
+                        ]
+                    ),
+                ),
+            ]
+        )
+
+    def is_leaf(self):
+        return all(map(lambda v: v.is_leaf(), self.summands))
+
+    def get_leaf_value(self):
+        pass
+
+    def has_subtree(self, addr):
+        return any(map(lambda v: v.has_subtree(addr), self.summands))
+
+    def get_subtree(self, addr):
+        pass
+
+    def get_subtrees_shallow(self):
+        sub_iterators = map(
+            lambda v: v.get_subtrees_shallow(),
+            self.summands,
+        )
+        return itertools.chain(*sub_iterators)
+
+    def merge(self, other):
+        raise Exception("Not implemented.")
+
+    def __subseteq__(self, other):
+        return False
+
+    def get_rettype(self):
+        return self.summands[0].get_rettype()

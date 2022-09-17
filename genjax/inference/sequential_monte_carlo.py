@@ -142,8 +142,8 @@ def proposal_sequential_monte_carlo(
             )(sub_keys, (m_trs, obs, *p_args))
             p_chm = p_trs.get_choices()
             none_tree_chm = jtu.tree_map(lambda v: 0, p_chm)
-            none_tree = IndexMask(none_tree_chm.merge(none_tree_obs), None)
-            chm = IndexMask(p_chm.merge(obs), jnp.array(count))
+            none_tree = IndexMask(None, none_tree_chm.merge(none_tree_obs))
+            chm = IndexMask(jnp.array(count), p_chm.merge(obs))
             key, *sub_keys = jax.random.split(key, n_particles + 1)
             sub_keys = jnp.array(sub_keys)
             _, (lws, m_trs, d) = jax.vmap(

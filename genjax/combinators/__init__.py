@@ -41,8 +41,8 @@ if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`M
 .. _Gen.jl: https://github.com/probcomp/Gen.jl
 """
 
-from .vector_trace_type import *
-from .vector_choice_map import *
+from .combinator_tracetypes import *
+from .combinator_datatypes import *
 from .switch_combinator import *
 from .map_combinator import *
 from .unfold_combinator import *

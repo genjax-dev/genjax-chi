@@ -117,15 +117,23 @@ class Trace(Pytree):
                     indent,
                     pp.concat(
                         [
+                            pp.text("gen_fn: "),
                             gpp._pformat(self.get_gen_fn(), **kwargs),
                             pp.brk(),
+                            pp.text("args: "),
+                            gpp._pformat(self.get_args(), **kwargs),
+                            pp.brk(),
+                            pp.text("return: "),
+                            gpp._pformat(self.get_retval(), **kwargs),
+                            pp.brk(),
+                            pp.text("score: "),
+                            gpp._pformat(self.get_score(), **kwargs),
+                            pp.brk(),
+                            pp.text("choices: "),
                             gpp._pformat(self.get_choices(), **kwargs),
                         ]
                     ),
                 ),
-                pp.brk(),
-                pp.text("return: "),
-                gpp._pformat(self.get_retval(), **kwargs),
             ]
         )
 
@@ -154,6 +162,21 @@ class Trace(Pytree):
 
     def get_selection(self):
         return self.get_choices().get_selection()
+
+    def strip_metadata(self):
+        def _check(v):
+            return isinstance(v, Trace)
+
+        def _inner(v):
+            if isinstance(v, Trace):
+                return v.strip_metadata()
+            else:
+                return v
+
+        return jtu.tree_map(_inner, self.get_choices(), is_leaf=_check)
+
+    def dump(self):
+        print(gpp.tree_pformat(self, short_arrays=False))
 
     def __repr__(self):
         return gpp.tree_pformat(self)
@@ -193,6 +216,21 @@ class ChoiceMap(ChoiceTree):
             )
         )
 
+    def strip_metadata(self):
+        def _check(v):
+            return isinstance(v, Trace)
+
+        def _inner(v):
+            if isinstance(v, Trace):
+                return v.strip_metadata()
+            else:
+                return v
+
+        return jtu.tree_map(_inner, self, is_leaf=_check)
+
+    def dump(self):
+        print(gpp.tree_pformat(self, short_arrays=False))
+
     def __repr__(self):
         return gpp.tree_pformat(self)
 
@@ -221,7 +259,7 @@ class EmptyChoiceMap(ChoiceMap):
         return pp.text("EmptyChoiceMap")
 
     def is_leaf(self):
-        return True
+        return False
 
     def get_leaf_value(self):
         return self
@@ -252,7 +290,8 @@ class ValueChoiceMap(ChoiceMap):
     def overload_pprint(self, **kwargs):
         return pp.concat(
             [
-                pp.text("(value = "),
+                pp.text(f"{type(self).__name__}"),
+                pp.text("(value: "),
                 gpp._pformat(self.value, **kwargs),
                 pp.text(")"),
             ]
@@ -271,7 +310,7 @@ class ValueChoiceMap(ChoiceMap):
         raise Exception("ValueChoiceMap is a leaf choice tree.")
 
     def get_subtrees_shallow(self):
-        return [((), self.value)]
+        return ()
 
     def get_selection(self):
         return AllSelection()

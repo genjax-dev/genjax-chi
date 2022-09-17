@@ -26,8 +26,8 @@ from genjax.core.masks import IndexMask
 import jax.experimental.host_callback as hcb
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
-from genjax.combinators.vector_choice_map import VectorChoiceMap
-from genjax.combinators.vector_trace_type import VectorTraceType
+from genjax.combinators.combinator_datatypes import VectorChoiceMap
+from genjax.combinators.combinator_tracetypes import VectorTraceType
 from typing import Any, Tuple, Sequence
 
 #####

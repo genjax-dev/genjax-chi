@@ -22,7 +22,7 @@ import jax
 import jax.numpy as jnp
 from genjax.core.datatypes import GenerativeFunction, Trace
 from dataclasses import dataclass
-from .vector_choice_map import VectorChoiceMap
+from genjax.combinators.combinator_datatypes import VectorChoiceMap
 from typing import Tuple
 
 #####

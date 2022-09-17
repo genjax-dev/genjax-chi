@@ -26,7 +26,7 @@ from genjax.core.datatypes import (
     AllSelection,
 )
 from genjax.core.masks import BooleanMask
-from genjax.core.specialization import concrete_cond
+from genjax.core.specialization import concrete_cond, concrete_and
 from genjax.core.tracetypes import Bottom
 from dataclasses import dataclass
 from typing import Tuple, Callable, Any
@@ -40,7 +40,7 @@ from typing import Tuple, Callable, Any
 class DistributionTrace(Trace):
     gen_fn: Callable
     args: Tuple
-    value: Any
+    value: ValueChoiceMap
     score: Any
 
     def flatten(self):
@@ -56,7 +56,7 @@ class DistributionTrace(Trace):
         return self.gen_fn
 
     def get_retval(self):
-        return (self.value,)
+        return (self.value.get_leaf_value(),)
 
     def get_args(self):
         return self.args
@@ -65,7 +65,7 @@ class DistributionTrace(Trace):
         return self.score
 
     def get_choices(self):
-        return ValueChoiceMap(self.value)
+        return self.value
 
     def merge(self, other):
         return other
@@ -108,11 +108,15 @@ class Distribution(GenerativeFunction):
         v = self.sample(sub_key, *args, **kwargs)
         key, sub_key = jax.random.split(key)
         score = self.logpdf(sub_key, v, *args)
-        tr = DistributionTrace(self, args, v, score)
+        tr = DistributionTrace(self, args, ValueChoiceMap(v), score)
         return key, tr
 
     def importance(self, key, chm, args, **kwargs):
-        chm = chm.get_choices()
+        def _importance_branch(key, chm, args):
+            v = chm.get_leaf_value()
+            key, sub_key = jax.random.split(key)
+            w = self.logpdf(sub_key, v, *args)
+            return key, v, w, w
 
         def _simulate_branch(key, chm, args):
             key, sub_key = jax.random.split(key)
@@ -122,12 +126,6 @@ class Distribution(GenerativeFunction):
             score = self.logpdf(sub_key, v, *args)
             return key, v, w, score
 
-        def _importance_branch(key, chm, args):
-            v = chm.get_leaf_value()
-            key, sub_key = jax.random.split(key)
-            w = self.logpdf(sub_key, v, *args)
-            return key, v, w, w
-
         key, v, w, score = concrete_cond(
             chm.is_leaf(),
             _importance_branch,
@@ -136,8 +134,7 @@ class Distribution(GenerativeFunction):
             chm,
             args,
         )
-
-        return key, (w, DistributionTrace(self, args, v, score))
+        return key, (w, DistributionTrace(self, args, ValueChoiceMap(v), score))
 
     def update(self, key, prev, new, args, **kwargs):
         has_previous = prev.is_leaf()
@@ -148,23 +145,23 @@ class Distribution(GenerativeFunction):
             v = new.get_leaf_value()
             key, sub_key = jax.random.split(key)
             fwd = self.logpdf(sub_key, v, *args)
-            discard = BooleanMask(prev.get_choices(), True)
+            discard = BooleanMask.new(True, prev.get_choices())
             return key, (fwd - prev_score, v, discard)
 
         def _has_prev_branch(key, args):
             v = prev.get_leaf_value()
-            discard = BooleanMask(prev.get_choices(), False)
+            discard = BooleanMask.new(False, prev.get_choices())
             return key, (0.0, v, discard)
 
         def _constrained_branch(key, args):
-            chm = new.get_choice(())
+            chm = prev.get_choices()
             key, (w, tr) = self.importance(key, chm, args)
             v = tr.get_leaf_value()
-            discard = BooleanMask(prev.get_choices(), False)
+            discard = BooleanMask.new(False, prev.get_choices())
             return key, (w, v, discard)
 
         key, (w, v, discard) = concrete_cond(
-            has_previous * constrained,
+            concrete_and(has_previous, constrained),
             _update_branch,
             lambda key, args: concrete_cond(
                 has_previous, _has_prev_branch, _constrained_branch, key, args
@@ -173,4 +170,8 @@ class Distribution(GenerativeFunction):
             args,
         )
 
-        return key, (w, DistributionTrace(self, args, v, w), discard)
+        return key, (
+            w,
+            DistributionTrace(self, args, ValueChoiceMap(v), w),
+            discard,
+        )

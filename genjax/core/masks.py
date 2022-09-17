@@ -12,11 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This module contains a set of utility types for "masking" :code:`ChoiceTree`-based
+data (like :code:`ChoiceMap` implementors).
+
+This masking functionality is designed to support dynamic control flow concepts
+in Gen modeling languages (e.g. :code:`SwitchCombinator`).
+"""
+
 import jax.tree_util as jtu
 import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
-from genjax.core.datatypes import Trace, ChoiceMap, EmptyChoiceMap
+from genjax.core.datatypes import (
+    Trace,
+    ChoiceMap,
+    EmptyChoiceMap,
+    ValueChoiceMap,
+)
 from genjax.core.pytree import squeeze
 from typing import Union
 import jax._src.pretty_printer as pp
@@ -28,33 +41,36 @@ Int32 = Union[jnp.int32, np.int32]
 
 @dataclass
 class BooleanMask(ChoiceMap):
-    inner: Union[Trace, ChoiceMap]
     mask: Bool
+    inner: Union[Trace, ChoiceMap]
 
-    def __init__(self, inner, mask):
+    @classmethod
+    def new(cls, mask, inner):
         if isinstance(inner, BooleanMask):
-            self.inner = inner.inner
+            return BooleanMask.new(mask, inner.inner)
         elif isinstance(inner, EmptyChoiceMap):
             return inner
         else:
-            self.inner = inner
-        self.mask = mask
+            return BooleanMask(mask, inner)
 
     def flatten(self):
-        return (self.inner, self.mask), ()
+        return (self.mask, self.inner), ()
 
     def overload_pprint(self, **kwargs):
         indent = kwargs["indent"]
         return pp.concat(
             [
                 pp.text(f"{type(self).__name__}"),
-                gpp._nest(indent, gpp._pformat(self.inner, **kwargs)),
-                pp.brk(),
-                pp.concat(
-                    [
-                        pp.text("index = "),
-                        gpp._pformat(self.mask, **kwargs),
-                    ]
+                gpp._nest(
+                    indent,
+                    pp.concat(
+                        [
+                            pp.text("mask = "),
+                            gpp._pformat(self.mask, **kwargs),
+                            pp.brk(),
+                            gpp._pformat(self.inner, **kwargs),
+                        ]
+                    ),
                 ),
             ]
         )
@@ -69,7 +85,7 @@ class BooleanMask(ChoiceMap):
             return EmptyChoiceMap()
         else:
             inner = self.inner.get_subtree(addr)
-            return BooleanMask(inner, self.mask)
+            return BooleanMask.new(self.mask, inner)
 
     def is_leaf(self):
         if self.inner.is_leaf():
@@ -78,12 +94,11 @@ class BooleanMask(ChoiceMap):
             return False
 
     def get_leaf_value(self):
-        assert self.inner.is_leaf()
         return self.inner.get_leaf_value()
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
-            return k, BooleanMask(v, self.mask)
+            return k, BooleanMask.new(self.mask, v)
 
         return map(
             lambda args: _inner(*args), self.inner.get_subtrees_shallow()
@@ -91,14 +106,36 @@ class BooleanMask(ChoiceMap):
 
     def merge(self, other):
         pushed = self.leaf_push()
+        if isinstance(other, BooleanMask):
+            return BooleanMask(other.mask, pushed.inner.merge(other.inner))
         return pushed.merge(other)
 
     def leaf_push(self):
+        def _check(v):
+            return isinstance(v, ValueChoiceMap) or isinstance(v, BooleanMask)
+
         return jtu.tree_map(
-            lambda v: BooleanMask(v, self.mask),
+            lambda v: BooleanMask.new(self.mask, v)
+            if isinstance(v, ValueChoiceMap) or isinstance(v, BooleanMask)
+            else v,
             self.inner,
-            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
+            is_leaf=_check,
         )
+
+    def get_retval(self):
+        if isinstance(self.inner, Trace):
+            return self.inner.get_retval()
+        else:
+            raise Exception("This BooleanMask does not wrap a Trace.")
+
+    def get_score(self):
+        if isinstance(self.inner, Trace):
+            return self.inner.get_score()
+        else:
+            raise Exception("This BooleanMask does not wrap a Trace.")
+
+    def strip_metadata(self):
+        return BooleanMask(self.mask, self.inner.strip_metadata())
 
     def __hash__(self):
         hash1 = hash(self.inner)
@@ -108,10 +145,10 @@ class BooleanMask(ChoiceMap):
 
 @dataclass
 class IndexMask(ChoiceMap):
-    inner: Union[Trace, ChoiceMap]
     index: Int32
+    inner: Union[Trace, ChoiceMap]
 
-    def __init__(self, inner, index):
+    def __init__(self, index, inner):
         if isinstance(inner, IndexMask):
             self.inner = inner.inner
         elif isinstance(inner, EmptyChoiceMap):
@@ -121,20 +158,23 @@ class IndexMask(ChoiceMap):
         self.index = index
 
     def flatten(self):
-        return (self.inner, self.index), ()
+        return (self.index, self.inner), ()
 
     def overload_pprint(self, **kwargs):
         indent = kwargs["indent"]
         return pp.concat(
             [
                 pp.text(f"{type(self).__name__}"),
-                gpp._nest(indent, gpp._pformat(self.inner, **kwargs)),
-                pp.brk(),
-                pp.concat(
-                    [
-                        pp.text("index = "),
-                        gpp._pformat(self.index, **kwargs),
-                    ]
+                gpp._nest(
+                    indent,
+                    pp.concat(
+                        [
+                            pp.text("index: "),
+                            gpp._pformat(self.index, **kwargs),
+                            pp.brk(),
+                            gpp._pformat(self.inner, **kwargs),
+                        ]
+                    ),
                 ),
             ]
         )
@@ -146,7 +186,7 @@ class IndexMask(ChoiceMap):
         return self.inner.has_subtree(addr)
 
     def get_subtree(self, addr):
-        return IndexMask(squeeze(self.inner.get_subtree(addr)), self.index)
+        return IndexMask(self.index, squeeze(self.inner.get_subtree(addr)))
 
     def is_leaf(self):
         return self.inner.is_leaf()
@@ -156,7 +196,7 @@ class IndexMask(ChoiceMap):
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
-            return k, IndexMask(v, self.index)
+            return k, IndexMask(self.index, v)
 
         return map(
             lambda args: _inner(*args), self.inner.get_subtrees_shallow()
@@ -167,7 +207,7 @@ class IndexMask(ChoiceMap):
 
     def leaf_push(self, is_leaf):
         return jtu.tree_map(
-            lambda v: IndexMask(v, self.index),
+            lambda v: IndexMask(self.index, v),
             self.inner,
             is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
         )

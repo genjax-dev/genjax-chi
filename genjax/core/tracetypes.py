@@ -32,10 +32,17 @@ class TraceType(ChoiceTree):
         return pp.concat(
             [
                 pp.text(f"{type(self).__name__}"),
-                gpp._nest(indent, pp.join(gpp._comma_sep, entries)),
-                pp.brk(),
-                pp.text("return: "),
-                gpp._pformat(self.get_rettype(), **kwargs),
+                gpp._nest(
+                    indent,
+                    pp.concat(
+                        [
+                            pp.text("return: "),
+                            gpp._pformat(self.get_rettype(), **kwargs),
+                            pp.brk(),
+                            pp.join(gpp._comma_sep, entries),
+                        ]
+                    ),
+                ),
             ]
         )
 

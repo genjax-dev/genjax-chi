@@ -28,7 +28,7 @@ from genjax.builtin.handlers import (
     handler_arg_grad,
     handler_choice_grad,
 )
-from genjax.builtin.builtin_trace_type import get_trace_type
+from genjax.builtin.builtin_tracetype import get_trace_type
 from typing import Callable, Tuple
 
 
@@ -63,7 +63,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         return key, (w, BuiltinTrace(self, args, r, chm, score))
 
     def update(self, key, prev, new, args, **kwargs):
-        assert isinstance(prev, Trace)
         assert isinstance(new, ChoiceMap)
         assert isinstance(args, Tuple)
         key, (w, (f, args, r, chm, score), discard) = handler_update(

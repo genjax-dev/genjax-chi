@@ -25,4 +25,4 @@ from .intrinsics import trace
 from .handlers import *
 from .builtin_datatypes import *
 from .builtin_gen_fn import *
-from .builtin_trace_type import *
+from .builtin_tracetype import *
