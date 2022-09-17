@@ -17,7 +17,6 @@ import numpy as np
 import genjax
 from genjax import Trace
 from typing import Sequence
-import timeit
 import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
