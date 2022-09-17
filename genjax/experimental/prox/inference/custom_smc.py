@@ -191,7 +191,7 @@ class CustomSMC(ProxDistribution):
 
             # This is a potentially expensive operation in JAX,
             # in interpreter mode -- this will copy the array.
-            # However, in JIT mode -- it should modified to
+            # However, in JIT mode -- it should be modified to
             # operate in place.
             selected_particle_indices.at[0].set(0)
 
