@@ -71,6 +71,10 @@ obs = genjax.ChoiceMap(
     }
 )
 
+# Check trace type.
+trace_type = genjax.get_trace_type(eight_schools)(key, (sigma,))
+print(trace_type)
+
 
 # We JIT -- we specialize on the number of particles so JAX's PRNG
 # split function traces properly.

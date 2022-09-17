@@ -14,15 +14,17 @@
 
 """
 This module implements a generative function combinator which allows
-broadcasting for generative functions -- mapping over
-vectorial versions of their arguments.
+broadcasting for generative functions -- mapping over vectorial
+versions of their arguments.
 """
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from genjax.core.datatypes import GenerativeFunction, Trace
-from dataclasses import dataclass
 from genjax.combinators.combinator_datatypes import VectorChoiceMap
+from genjax.combinators.combinator_tracetypes import VectorTraceType
+from dataclasses import dataclass
 from typing import Tuple
 
 #####
@@ -86,6 +88,7 @@ class MapCombinator(GenerativeFunction):
 
     Returns
     -------
+
     :code:`MapCombinator`
         A single :code:`MapCombinator` generative function which
         implements :code:`vmap` support for each generative function
@@ -137,6 +140,20 @@ class MapCombinator(GenerativeFunction):
         key, tr = vmapped(key, args)
         retval = tr.get_retval()
         return key, retval
+
+    # This is a terrible and needs to be re-written.
+    # Why do I need to `vmap` to get the correct trace type
+    # from the inner kernel? Fix.
+    def get_trace_type(self, keys, args, **kwargs):
+        key_axis = self.in_axes[0]
+        arg_axes = self.in_axes[1:]
+        keys = jtu.tree_map(lambda v: jnp.zeros(v.shape, v.dtype), keys)
+        args = jtu.tree_map(lambda v: jnp.zeros(v.shape, v.dtype), args)
+        kernel_tt = jax.vmap(
+            self.kernel.get_trace_type, in_axes=(key_axis, arg_axes)
+        )(keys, args)
+        kernel_tt = jtu.tree_map(lambda v: v[0], kernel_tt)
+        return VectorTraceType(kernel_tt, len(keys))
 
     def simulate(self, key, args, **kwargs):
         key_axis = self.in_axes[0]

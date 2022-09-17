@@ -27,7 +27,7 @@ class _Cauchy(Distribution):
     def logpdf(self, key, v):
         return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
 
-    def get_trace_type(self, key, **kwargs):
+    def __trace_type__(self, key, **kwargs):
         shape = kwargs.get("shape", ())
         return PositiveReals(shape)
 
