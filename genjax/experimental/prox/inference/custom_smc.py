@@ -205,6 +205,7 @@ class CustomSMC(ProxDistribution):
             _inner,
             (key, states, target_weights, weights),
             retained_choices,
+            length=N,
         )
 
         key, sub_keys = jax.random.split(key, self.num_particles + 1)
@@ -212,10 +213,8 @@ class CustomSMC(ProxDistribution):
         final_target_scores = jax.vmap(
             target.importance,
             in_axes=(0, 0, None),
-            length=N,
         )(sub_keys, particles, ())
         final_weights = weights - target_weights + final_target_scores
         total_weight = jax.scipy.special.logsumexp(final_weights)
-        # log_normalized_weights = final_weights - total_weight
         average_weight = total_weight - np.log(self.num_particles)
         return key, final_target_scores[0] - average_weight

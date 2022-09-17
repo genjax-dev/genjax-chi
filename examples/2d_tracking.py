@@ -17,6 +17,7 @@ import numpy as np
 import genjax
 from genjax import Trace
 from typing import Sequence
+import timeit
 import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
@@ -148,7 +149,7 @@ jitted = jax.jit(
     static_argnums=1,
 )
 
-_, (tr, lmle) = jitted(
+key, (tr, lmle) = jitted(
     key, chm_sequence, model_arg_sequence, [() for _ in model_arg_sequence]
 )
 
