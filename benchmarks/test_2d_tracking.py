@@ -122,7 +122,7 @@ def transition_proposal(key, prev_tr, obs_chm):
 # the observations, and create a static index mask
 # which will isolate each individual contributed observation
 # (over the time index)
-chm_sequence = genjax.VectorChoiceMap(
+chm_sequence = genjax.VectorChoiceMap.new(
     genjax.ChoiceMap.new({("z", "obs"): np.array(observation_sequence)})
 )
 

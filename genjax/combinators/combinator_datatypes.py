@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.numpy as jnp
-import numpy as np
 import itertools
-from genjax.core.masks import BooleanMask
+import jax.numpy as jnp
+import jax.tree_util as jtu
+import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace, EmptyChoiceMap
+from genjax.core.masks import BooleanMask
 from dataclasses import dataclass
 from typing import Union, Sequence
 import jax._src.pretty_printer as pp
 import genjax.core.pretty_printer as gpp
 
-Int = Union[jnp.int32, np.int32]
+Int32 = Union[jnp.int32, np.int32]
+IntTensor = Union[jnp.ndarray, np.ndarray]
 
 #####
 # VectorChoiceMap
@@ -31,19 +33,40 @@ Int = Union[jnp.int32, np.int32]
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
+    indices: IntTensor
     inner: Union[ChoiceMap, Trace]
 
     def flatten(self):
-        return (self.inner,), ()
+        return (self.indices, self.inner), ()
 
     def overload_pprint(self, **kwargs):
         indent = kwargs["indent"]
         return pp.concat(
             [
                 pp.text(f"{type(self).__name__}"),
-                gpp._nest(indent, gpp._pformat(self.inner, **kwargs)),
+                gpp._nest(
+                    indent,
+                    pp.concat(
+                        [
+                            pp.text("indices: "),
+                            gpp._pformat(self.indices, **kwargs),
+                            pp.brk(),
+                            gpp._pformat(self.inner, **kwargs),
+                        ]
+                    ),
+                ),
             ]
         )
+
+    @classmethod
+    def new(cls, inner, indices=None):
+        lengths = []
+        jtu.tree_map(lambda v: lengths.append(len(v)), inner)
+        lengths = set(lengths)
+        (length,) = lengths
+        if indices is None:
+            indices = np.array([i for i in range(0, length)], dtype=np.int32)
+        return VectorChoiceMap(indices, inner)
 
     def is_leaf(self):
         return self.inner.is_leaf()
@@ -55,21 +78,21 @@ class VectorChoiceMap(ChoiceMap):
         return self.inner.has_subtree(addr)
 
     def get_subtree(self, addr):
-        return self.inner.get_subtree(addr)
+        return VectorChoiceMap(self.indices, self.inner.get_subtree(addr))
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
-            return k, VectorChoiceMap(v)
+            return k, VectorChoiceMap(self.indices, v)
 
         return map(
             lambda args: _inner(*args), self.inner.get_subtrees_shallow()
         )
 
     def merge(self, other):
-        return self.inner.merge(other)
+        return VectorChoiceMap(self.indices, self.inner.merge(other))
 
-    def get_score(self):
-        return jnp.sum(self.inner.get_score())
+    def get_index(self):
+        return self.indices
 
     def __hash__(self):
         return hash(self.inner)
@@ -90,7 +113,7 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class IndexedChoiceMap(ChoiceMap):
-    index: Int
+    index: Int32
     submaps: Sequence[Union[ChoiceMap, Trace]]
 
     def flatten(self):

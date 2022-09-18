@@ -38,8 +38,7 @@ from typing import Any, Tuple, Sequence
 @dataclass
 class UnfoldTrace(Trace):
     gen_fn: GenerativeFunction
-    length: int
-    mask: Sequence
+    indices: Sequence
     inner: Trace
     args: Tuple
     retval: Any
@@ -47,8 +46,7 @@ class UnfoldTrace(Trace):
 
     def flatten(self):
         return (
-            self.length,
-            self.mask,
+            self.indices,
             self.inner,
             self.args,
             self.retval,
@@ -59,7 +57,7 @@ class UnfoldTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap(self.inner)
+        return VectorChoiceMap(self.indices, self.inner)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -194,14 +192,19 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: (state,),
                 lambda *args: tr.get_retval(),
             )
+            index = concrete_cond(
+                check,
+                lambda *args: count,
+                lambda *args: -1,
+            )
             count = concrete_cond(
                 check,
                 lambda *args: count + 1,
                 lambda *args: count,
             )
-            return (count, key, *retval), (tr, check)
+            return (count, key, *retval), (tr, index)
 
-        (count, key, retval), (tr, mask) = jax.lax.scan(
+        (count, key, retval), (tr, indices) = jax.lax.scan(
             _inner,
             (0, key, state),
             None,
@@ -210,8 +213,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         unfold_tr = UnfoldTrace(
             self,
-            count,
-            mask,
+            indices,
             tr,
             args,
             (retval,),
@@ -235,7 +237,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         def _inner(carry, slice):
             count, key, retval = carry
-            if isinstance(chm, IndexMask):
+            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
                 check = count == chm.get_index()
             else:
                 check = True
@@ -252,14 +254,19 @@ class UnfoldCombinator(GenerativeFunction):
                 )
 
                 check = jnp.less(count, length)
+                index = concrete_cond(
+                    check,
+                    lambda *args: count,
+                    lambda *args: -1,
+                )
                 count, retval, weight = concrete_cond(
                     check,
                     lambda *args: (count + 1, tr.get_retval(), w),
                     lambda *args: (count, retval, 0.0),
                 )
-                return (count, key, retval), (w, tr, check)
+                return (count, key, retval), (w, tr, index)
 
-        (count, key, retval), (w, tr, mask) = jax.lax.scan(
+        (count, key, retval), (w, tr, indices) = jax.lax.scan(
             _inner,
             (0, key, args),
             None,
@@ -268,8 +275,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         unfold_tr = UnfoldTrace(
             self,
-            count,
-            mask,
+            indices,
             tr,
             args,
             retval,
@@ -303,7 +309,7 @@ class UnfoldCombinator(GenerativeFunction):
             count, key, retval = carry
             prev = slice
 
-            if isinstance(chm, IndexMask):
+            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
                 check = count == chm.get_index()
             else:
                 check = False
@@ -319,14 +325,19 @@ class UnfoldCombinator(GenerativeFunction):
             )
 
             check = jnp.less(count, length)
+            index = concrete_cond(
+                check,
+                lambda *args: count,
+                lambda *args: -1,
+            )
             count, retval, weight = concrete_cond(
                 check,
                 lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, retval, 0.0),
             )
-            return (count, key, retval), (w, tr, d, check)
+            return (count, key, retval), (w, tr, d, index)
 
-        (count, key, retval), (w, tr, d, mask) = jax.lax.scan(
+        (count, key, retval), (w, tr, d, indices) = jax.lax.scan(
             _inner,
             (0, key, args),
             prev,
@@ -335,8 +346,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         unfold_tr = UnfoldTrace(
             self,
-            count,
-            mask,
+            indices,
             tr,
             args,
             retval,
