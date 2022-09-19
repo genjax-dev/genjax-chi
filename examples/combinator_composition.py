@@ -17,6 +17,9 @@ import jax.numpy as jnp
 import numpy as np
 import genjax
 
+# An example of combining multiple combinators to form
+# larger patterns of generative computation.
+
 
 @genjax.gen(genjax.Map, in_axes=(0, 0))
 def model1(key, x):
