@@ -196,7 +196,13 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(self, choice_map, args, retval, score)
+        trace = SwitchTrace(
+            self,
+            choice_map,
+            args,
+            retval,
+            score,
+        )
         return key, trace
 
     def simulate(self, key, args):
@@ -233,9 +239,16 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(self, choice_map, args, retval, score)
+        trace = SwitchTrace(
+            self,
+            choice_map,
+            args,
+            retval,
+            score,
+        )
         return key, (w, trace)
 
+    @IndexedChoiceMap.indexed_choice_mask_collapse_boundary
     @BooleanMask.boolean_mask_collapse_boundary
     def importance(self, key, chm, args):
         switch = args[0]
@@ -286,9 +299,16 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(self, choice_map, args, retval, score)
+        trace = SwitchTrace(
+            self,
+            choice_map,
+            args,
+            retval,
+            score,
+        )
         return key, (w, trace, discard_option)
 
+    @IndexedChoiceMap.indexed_choice_mask_collapse_boundary
     @BooleanMask.boolean_mask_collapse_boundary
     def update(self, key, prev, new, args):
         switch = args[0]

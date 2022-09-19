@@ -139,11 +139,11 @@ class BooleanMask(ChoiceMap):
         return BooleanMask(self.mask, self.inner.strip_metadata())
 
     @classmethod
-    def collapse_boolean_mask(cls, v):
+    def collapse(cls, v):
         def _inner(v):
             if isinstance(v, BooleanMask) and is_concrete(v.mask):
                 if v.mask:
-                    return BooleanMask.collapse_boolean_mask(v.inner)
+                    return BooleanMask.collapse(v.inner)
                 else:
                     return EmptyChoiceMap()
             else:
@@ -157,7 +157,7 @@ class BooleanMask(ChoiceMap):
     @classmethod
     def boolean_mask_collapse_boundary(cls, fn):
         def _inner(self, key, *args, **kwargs):
-            args = BooleanMask.collapse_boolean_mask(args)
+            args = BooleanMask.collapse(args)
             return fn(self, key, *args, **kwargs)
 
         return _inner

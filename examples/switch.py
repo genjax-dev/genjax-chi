@@ -38,10 +38,17 @@ def model3(key):
 
 sw = genjax.Switch([model1, model2, model3])
 
-key = jax.random.PRNGKey(314159)
-trace_type = genjax.get_trace_type(sw)(key, (1,))
-key, tr = genjax.simulate(sw)(key, (1,))
-print(trace_type)
-chm = genjax.ChoiceMap.new({("z",): 2.0})
-key, (w, new, d) = jax.jit(genjax.update(sw))(key, tr, chm, (2,))
-d.dump()
+
+def fn():
+    key = jax.random.PRNGKey(314159)
+    key, tr = genjax.simulate(sw)(key, (1,))
+    chm = genjax.ChoiceMap.new({("z",): 2.0})
+    key, (w, new, d) = jax.jit(genjax.update(sw))(key, tr, chm, (2,))
+    chm = new.get_choices()
+    chm["z"] = genjax.ValueChoiceMap(3.0)
+    key, (w, new, d) = jax.jit(genjax.update(sw))(key, tr, chm, (2,))
+    return new
+
+
+new = jax.jit(fn)()
+print(new)

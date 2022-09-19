@@ -18,6 +18,7 @@ import jax.tree_util as jtu
 import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace, EmptyChoiceMap
 from genjax.core.masks import BooleanMask
+from genjax.core.specialization import is_concrete
 from dataclasses import dataclass
 from typing import Union, Sequence
 import jax._src.pretty_printer as pp
@@ -178,3 +179,28 @@ class IndexedChoiceMap(ChoiceMap):
     def merge(self, other):
         new_submaps = list(map(lambda v: v.merge(other), self.submaps))
         return IndexedChoiceMap(self.index, new_submaps)
+
+    @classmethod
+    def collapse(cls, v):
+        def _inner(v):
+            if isinstance(v, IndexedChoiceMap) and is_concrete(v.index):
+                return IndexedChoiceMap.collapse(v.submaps[v.index])
+            else:
+                return v
+
+        def _check(v):
+            return isinstance(v, IndexedChoiceMap)
+
+        return jtu.tree_map(_inner, v, is_leaf=_check)
+
+    @classmethod
+    def indexed_choice_mask_collapse_boundary(cls, fn):
+        def _inner(self, key, *args, **kwargs):
+            args = IndexedChoiceMap.collapse(args)
+            return fn(self, key, *args, **kwargs)
+
+        return _inner
+
+    def __setitem__(self, k, v):
+        for sub in self.submaps:
+            sub[k] = v
