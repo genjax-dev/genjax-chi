@@ -60,13 +60,9 @@ class VectorChoiceMap(ChoiceMap):
         )
 
     @classmethod
-    def new(cls, inner, indices=None):
-        lengths = []
-        jtu.tree_map(lambda v: lengths.append(len(v)), inner)
-        lengths = set(lengths)
-        (length,) = lengths
-        if indices is None:
-            indices = np.array([i for i in range(0, length)], dtype=np.int32)
+    def new(cls, indices, inner):
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
         return VectorChoiceMap(indices, inner)
 
     def is_leaf(self):
@@ -79,18 +75,21 @@ class VectorChoiceMap(ChoiceMap):
         return self.inner.has_subtree(addr)
 
     def get_subtree(self, addr):
-        return VectorChoiceMap(self.indices, self.inner.get_subtree(addr))
+        return VectorChoiceMap.new(self.indices, self.inner.get_subtree(addr))
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
-            return k, VectorChoiceMap(self.indices, v)
+            return k, VectorChoiceMap.new(self.indices, v)
 
         return map(
             lambda args: _inner(*args), self.inner.get_subtrees_shallow()
         )
 
     def merge(self, other):
-        return VectorChoiceMap(self.indices, self.inner.merge(other))
+        return VectorChoiceMap.new(self.indices, self.inner.merge(other))
+
+    def get_score(self):
+        return self.inner.get_score()
 
     def get_index(self):
         return self.indices
@@ -194,7 +193,7 @@ class IndexedChoiceMap(ChoiceMap):
         return jtu.tree_map(_inner, v, is_leaf=_check)
 
     @classmethod
-    def indexed_choice_mask_collapse_boundary(cls, fn):
+    def collapse_boundary(cls, fn):
         def _inner(self, key, *args, **kwargs):
             args = IndexedChoiceMap.collapse(args)
             return fn(self, key, *args, **kwargs)

@@ -124,16 +124,13 @@ class BooleanMask(ChoiceMap):
         )
 
     def get_retval(self):
-        if isinstance(self.inner, Trace):
-            return self.inner.get_retval()
-        else:
-            raise Exception("This BooleanMask does not wrap a Trace.")
+        return self.inner.get_retval()
 
     def get_score(self):
-        if isinstance(self.inner, Trace):
-            return self.inner.get_score()
-        else:
-            raise Exception("This BooleanMask does not wrap a Trace.")
+        return self.inner.get_score()
+
+    def get_choices(self):
+        return BooleanMask(self.mask, self.inner.get_choices())
 
     def strip_metadata(self):
         return BooleanMask(self.mask, self.inner.strip_metadata())
@@ -152,13 +149,41 @@ class BooleanMask(ChoiceMap):
         def _check(v):
             return isinstance(v, BooleanMask)
 
-        return jtu.tree_map(_inner, v, is_leaf=_check)
+        if isinstance(v, BooleanMask):
+            return jtu.tree_map(_inner, v, is_leaf=_check)
+        else:
+            return v
 
     @classmethod
-    def boolean_mask_collapse_boundary(cls, fn):
+    def collapse_boundary(cls, fn):
         def _inner(self, key, *args, **kwargs):
             args = BooleanMask.collapse(args)
+            args = tuple(
+                map(
+                    lambda v: v.leaf_push()
+                    if isinstance(v, BooleanMask)
+                    else v,
+                    args,
+                )
+            )
             return fn(self, key, *args, **kwargs)
+
+        return _inner
+
+    @classmethod
+    def canonicalize(cls, fn):
+        def __inner(v):
+            if isinstance(v, BooleanMask):
+                return BooleanMask.new(jnp.all(v.mask), v.inner)
+            else:
+                return v
+
+        def _check(v):
+            return isinstance(v, BooleanMask)
+
+        def _inner(self, key, *args, **kwargs):
+            ret = fn(self, key, *args, **kwargs)
+            return jtu.tree_map(__inner, ret, is_leaf=_check)
 
         return _inner
 
@@ -231,12 +256,25 @@ class IndexMask(ChoiceMap):
     def merge(self, other):
         return squeeze(self.inner.merge(other))
 
-    def leaf_push(self, is_leaf):
+    def leaf_push(self):
         return jtu.tree_map(
             lambda v: IndexMask(self.index, v),
             self.inner,
             is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
         )
+
+    @classmethod
+    def collapse_boundary(cls, fn):
+        def _inner(self, key, *args, **kwargs):
+            args = tuple(
+                map(
+                    lambda v: v.leaf_push() if isinstance(v, IndexMask) else v,
+                    args,
+                )
+            )
+            return fn(self, key, *args, **kwargs)
+
+        return _inner
 
     def __hash__(self):
         hash1 = hash(self.inner)

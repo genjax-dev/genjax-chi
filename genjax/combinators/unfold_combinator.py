@@ -222,7 +222,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         return key, unfold_tr
 
-    @BooleanMask.boolean_mask_collapse_boundary
+    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
 
         length = args[0]
@@ -286,7 +286,7 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    @BooleanMask.boolean_mask_collapse_boundary
+    @BooleanMask.collapse_boundary
     def update(self, key, prev, chm, args):
 
         length = args[0]

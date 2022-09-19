@@ -32,7 +32,6 @@ import jax.numpy as jnp
 from genjax.core.pytree import SumPytree
 from genjax.core.datatypes import GenerativeFunction, Trace
 from genjax.core.masks import BooleanMask
-from genjax.builtin.builtin_datatypes import BuiltinTrace
 from genjax.combinators.combinator_datatypes import IndexedChoiceMap
 from genjax.combinators.combinator_tracetypes import SumTraceType
 from dataclasses import dataclass
@@ -80,13 +79,7 @@ class SwitchTrace(Trace):
         submap = indexed_chm.submaps[passed_in_index]
         return BooleanMask.new(
             check,
-            BuiltinTrace(
-                self.get_gen_fn(),
-                self.get_args(),
-                self.get_retval(),
-                submap,
-                self.get_score(),
-            ),
+            submap,
         )
 
 
@@ -183,7 +176,7 @@ class SwitchCombinator(GenerativeFunction):
             _, (key, abstr) = jax.make_jaxpr(
                 gen_fn.simulate, return_shape=True
             )(key, args)
-            covers.append(abstr.get_choices())
+            covers.append(abstr)
         return SumPytree.new(choices, covers)
 
     def _simulate(self, branch_gen_fn, key, args):
@@ -248,8 +241,8 @@ class SwitchCombinator(GenerativeFunction):
         )
         return key, (w, trace)
 
-    @IndexedChoiceMap.indexed_choice_mask_collapse_boundary
-    @BooleanMask.boolean_mask_collapse_boundary
+    @IndexedChoiceMap.collapse_boundary
+    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         switch = args[0]
 
@@ -308,8 +301,8 @@ class SwitchCombinator(GenerativeFunction):
         )
         return key, (w, trace, discard_option)
 
-    @IndexedChoiceMap.indexed_choice_mask_collapse_boundary
-    @BooleanMask.boolean_mask_collapse_boundary
+    @IndexedChoiceMap.collapse_boundary
+    @BooleanMask.collapse_boundary
     def update(self, key, prev, new, args):
         switch = args[0]
 

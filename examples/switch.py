@@ -13,25 +13,27 @@
 # limitations under the License.
 
 import jax
+import jax.numpy as jnp
+import numpy as np
 import genjax
 
 
-@genjax.gen
-def model1(key):
+@genjax.gen(genjax.Map, in_axes=(0, 0))
+def model1(key, x):
     key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
     key, q = genjax.trace("y", genjax.Bernoulli)(key, (0.3,))
     return (key,)
 
 
-@genjax.gen
-def model2(key):
+@genjax.gen(genjax.Map, in_axes=(0, 0))
+def model2(key, x):
     key, x = genjax.trace("y", genjax.Bernoulli)(key, (0.3,))
     return (key,)
 
 
-@genjax.gen
-def model3(key):
-    key, x = genjax.trace("z", genjax.Uniform)(key, (0.5, 3.0))
+@genjax.gen(genjax.Map, in_axes=(0, 0))
+def model3(key, x):
+    key, x = genjax.trace("z", genjax.Normal)(key, (0.5, 1.0))
     key, y = genjax.trace("m", genjax.Normal)(key, (0.3, 2.0))
     return (key,)
 
@@ -41,14 +43,23 @@ sw = genjax.Switch([model1, model2, model3])
 
 def fn():
     key = jax.random.PRNGKey(314159)
-    key, tr = genjax.simulate(sw)(key, (1,))
-    chm = genjax.ChoiceMap.new({("z",): 2.0})
-    key, (w, new, d) = jax.jit(genjax.update(sw))(key, tr, chm, (2,))
-    chm = new.get_choices()
-    chm["z"] = genjax.ValueChoiceMap(3.0)
-    key, (w, new, d) = jax.jit(genjax.update(sw))(key, tr, chm, (2,))
-    return new
+    key, *sub_keys = jax.random.split(key, 6)
+    sub_keys = jnp.array(sub_keys)
+    _, tr = genjax.simulate(sw)(sub_keys, (1, np.ones(5)))
+    key, *sub_keys = jax.random.split(key, 6)
+    sub_keys = jnp.array(sub_keys)
+    chm = genjax.VectorChoiceMap.new(
+        genjax.ChoiceMap.new({("z",): np.array([0.5 for _ in range(0, 5)])})
+    )
+    _, (w, new, d) = jax.jit(genjax.update(sw))(
+        sub_keys,
+        tr,
+        chm,
+        (2, np.ones(5)),
+    )
+    return w, new
 
 
-new = jax.jit(fn)()
+w, new = jax.jit(fn)()
 print(new)
+print(w)

@@ -268,7 +268,7 @@ class EmptyChoiceMap(ChoiceMap):
         return False
 
     def get_subtree(self, addr):
-        raise Exception("EmptyChoiceMap is a leaf tree.")
+        return self
 
     def get_subtrees_shallow(self):
         return ()

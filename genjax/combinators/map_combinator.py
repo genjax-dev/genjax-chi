@@ -39,27 +39,27 @@ from typing import Tuple, Sequence
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
     indices: Sequence
-    subtrace: Trace
+    inner: Trace
     score: jnp.float32
 
     def flatten(self):
         return (
             self.indices,
-            self.subtrace,
+            self.inner,
             self.score,
         ), (self.gen_fn,)
 
     def get_args(self):
-        return self.subtrace.get_args()
+        return self.inner.get_args()
 
     def get_choices(self):
-        return VectorChoiceMap(self.indices, self.subtrace)
+        return VectorChoiceMap.new(self.inner, indices=self.indices)
 
     def get_gen_fn(self):
         return self.gen_fn
 
     def get_retval(self):
-        return self.subtrace.get_retval()
+        return self.inner.get_retval()
 
     def get_score(self):
         return self.score
@@ -175,7 +175,7 @@ class MapCombinator(GenerativeFunction):
 
         return key, map_tr
 
-    @BooleanMask.boolean_mask_collapse_boundary
+    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
@@ -218,10 +218,15 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
-    @BooleanMask.boolean_mask_collapse_boundary
+    @BooleanMask.canonicalize
+    @BooleanMask.collapse_boundary
     def update(self, key, prev, chm, args):
+        assert isinstance(prev, MapTrace)
+        vchm = prev.get_choices()
+
         def _update(key, prev, chm, args):
-            return self.kernel.update(key, prev, chm, args)
+            key, (w, tr, d) = self.kernel.update(key, prev, chm, args)
+            return key, (w, tr, d)
 
         def _fallback(key, prev, chm, args):
             key, (w, tr, d) = self.kernel.update(
@@ -229,11 +234,12 @@ class MapCombinator(GenerativeFunction):
             )
             return key, (w, tr, d)
 
-        def _inner(key, index, prev, chm, args):
+        def _inner(key, index, vchm, chm, args):
             if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
                 check = index == chm.get_index()
             else:
                 check = True
+            prev = vchm.inner
             return concrete_cond(
                 check,
                 _update,
@@ -247,9 +253,13 @@ class MapCombinator(GenerativeFunction):
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
         indices = np.array([i for i in range(0, len(key))])
+        prev_outaxes_tree, vchm_inaxes_tree = jtu.tree_map(
+            lambda v: None if v.shape == () else 0, (prev.inner, vchm)
+        )
         key, (w, tr, discard) = jax.vmap(
-            _inner, in_axes=(key_axis, 0, 0, 0, arg_axes)
-        )(key, indices, prev, chm, args)
+            _inner,
+            in_axes=(key_axis, 0, vchm_inaxes_tree, 0, arg_axes),
+        )(key, indices, vchm, chm, args)
 
         w = jnp.sum(w)
         map_tr = MapTrace(

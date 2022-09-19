@@ -130,9 +130,10 @@ def transition_proposal(key, prev_tr, obs_chm):
 # which will isolate each individual contributed observation
 # (over the time index)
 chm_sequence = genjax.VectorChoiceMap.new(
+    np.array([ind for ind in range(0, len(observation_sequence))]),
     genjax.ChoiceMap.new(
         {("z", "obs"): np.array(observation_sequence, dtype=np.int32)}
-    )
+    ),
 )
 
 # SMC allows a progression of different target measures --

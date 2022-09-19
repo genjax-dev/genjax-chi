@@ -114,7 +114,7 @@ class Distribution(GenerativeFunction):
         tr = DistributionTrace(self, args, ValueChoiceMap(v), score)
         return key, tr
 
-    @BooleanMask.boolean_mask_collapse_boundary
+    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args, **kwargs):
         def _importance_branch(key, chm, args):
             v = chm.get_leaf_value()
@@ -143,8 +143,10 @@ class Distribution(GenerativeFunction):
             DistributionTrace(self, args, ValueChoiceMap(v), score),
         )
 
-    @BooleanMask.boolean_mask_collapse_boundary
+    @BooleanMask.collapse_boundary
     def update(self, key, prev, new, args, **kwargs):
+        assert isinstance(prev, DistributionTrace)
+
         has_previous = prev.is_leaf()
         constrained = new.is_leaf()
 
@@ -178,8 +180,19 @@ class Distribution(GenerativeFunction):
             args,
         )
 
+        # This ensures Pytree type consistency.
+        # The weight, values, etc -- are all computed
+        # correctly (dynamically), but we have to ensure
+        # that leaves which are returned have the same type
+        # as leaves which come in.
+        if isinstance(prev.get_choices(), BooleanMask):
+            mask = prev.get_choices().mask
+            vchm = BooleanMask(mask, ValueChoiceMap(v))
+        else:
+            vchm = ValueChoiceMap(v)
+
         return key, (
             w,
-            DistributionTrace(self, args, ValueChoiceMap(v), w),
+            DistributionTrace(self, args, vchm, w),
             discard,
         )
