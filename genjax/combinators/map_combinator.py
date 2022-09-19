@@ -21,11 +21,14 @@ versions of their arguments.
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from genjax.core.datatypes import GenerativeFunction, Trace
+import numpy as np
+from genjax.core.datatypes import GenerativeFunction, Trace, EmptyChoiceMap
+from genjax.core.masks import IndexMask, BooleanMask
+from genjax.core.specialization import concrete_cond
 from genjax.combinators.combinator_datatypes import VectorChoiceMap
 from genjax.combinators.combinator_tracetypes import VectorTraceType
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Sequence
 
 #####
 # MapTrace
@@ -35,13 +38,13 @@ from typing import Tuple
 @dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
-    length: int
+    indices: Sequence
     subtrace: Trace
     score: jnp.float32
 
     def flatten(self):
         return (
-            self.length,
+            self.indices,
             self.subtrace,
             self.score,
         ), (self.gen_fn,)
@@ -50,7 +53,7 @@ class MapTrace(Trace):
         return self.subtrace.get_args()
 
     def get_choices(self):
-        return VectorChoiceMap(self.subtrace)
+        return VectorChoiceMap(self.indices, self.subtrace)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -158,26 +161,49 @@ class MapCombinator(GenerativeFunction):
     def simulate(self, key, args, **kwargs):
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
+        indices = np.array([i for i in range(0, len(key))])
         key, tr = jax.vmap(
             self.kernel.simulate,
             in_axes=(key_axis, arg_axes),
         )(key, args)
         map_tr = MapTrace(
             self,
-            len(key),
+            indices,
             tr,
             jnp.sum(tr.get_score()),
         )
 
         return key, map_tr
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def importance(self, key, chm, args):
+        def _importance(key, chm, args):
+            return self.kernel.importance(key, chm, args)
+
+        def _simulate(key, chm, args):
+            key, tr = self.kernel.simulate(key, args)
+            return key, (0.0, tr)
+
+        def _inner(key, index, chm, args):
+            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
+                check = index == chm.get_index()
+            else:
+                check = True
+            return concrete_cond(
+                check,
+                _importance,
+                _simulate,
+                key,
+                chm,
+                args,
+            )
+
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
-        key, (w, tr) = jax.vmap(
-            self.kernel.importance, in_axes=(key_axis, 0, arg_axes)
-        )(
+        indices = np.array([i for i in range(0, len(key))])
+        key, (w, tr) = jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
             key,
+            indices,
             chm,
             args,
         )
@@ -185,30 +211,50 @@ class MapCombinator(GenerativeFunction):
         w = jnp.sum(w)
         map_tr = MapTrace(
             self,
-            len(key),
+            indices,
             tr,
             jnp.sum(tr.get_score()),
         )
 
         return key, (w, map_tr)
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def update(self, key, prev, chm, args):
-        # The previous trace has to have a VectorChoiceMap
-        # here.
-        prev = prev.get_choices()
-        assert isinstance(prev, VectorChoiceMap)
-        prev = prev.subtrace
+        def _update(key, prev, chm, args):
+            return self.kernel.update(key, prev, chm, args)
+
+        def _fallback(key, prev, chm, args):
+            key, (w, tr, d) = self.kernel.update(
+                key, prev, EmptyChoiceMap(), args
+            )
+            return key, (w, tr, d)
+
+        def _inner(key, index, prev, chm, args):
+            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
+                check = index == chm.get_index()
+            else:
+                check = True
+            return concrete_cond(
+                check,
+                _update,
+                _fallback,
+                key,
+                prev,
+                chm,
+                args,
+            )
 
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
+        indices = np.array([i for i in range(0, len(key))])
         key, (w, tr, discard) = jax.vmap(
-            self.kernel.update, in_axes=(key_axis, 0, 0, arg_axes)
-        )(key, prev, chm, args)
+            _inner, in_axes=(key_axis, 0, 0, 0, arg_axes)
+        )(key, indices, prev, chm, args)
 
         w = jnp.sum(w)
         map_tr = MapTrace(
             self,
-            len(key),
+            indices,
             tr,
             jnp.sum(tr.get_score()),
         )

@@ -26,7 +26,10 @@ from genjax.core.datatypes import (
     AllSelection,
 )
 from genjax.core.masks import BooleanMask
-from genjax.core.specialization import concrete_cond, concrete_and
+from genjax.core.specialization import (
+    concrete_cond,
+    concrete_and,
+)
 from genjax.core.tracetypes import Bottom
 from dataclasses import dataclass
 from typing import Tuple, Callable, Any
@@ -111,6 +114,7 @@ class Distribution(GenerativeFunction):
         tr = DistributionTrace(self, args, ValueChoiceMap(v), score)
         return key, tr
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def importance(self, key, chm, args, **kwargs):
         def _importance_branch(key, chm, args):
             v = chm.get_leaf_value()
@@ -134,8 +138,12 @@ class Distribution(GenerativeFunction):
             chm,
             args,
         )
-        return key, (w, DistributionTrace(self, args, ValueChoiceMap(v), score))
+        return key, (
+            w,
+            DistributionTrace(self, args, ValueChoiceMap(v), score),
+        )
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def update(self, key, prev, new, args, **kwargs):
         has_previous = prev.is_leaf()
         constrained = new.is_leaf()

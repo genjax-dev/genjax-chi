@@ -31,6 +31,7 @@ from genjax.core.datatypes import (
     ValueChoiceMap,
 )
 from genjax.core.pytree import squeeze
+from genjax.core.specialization import is_concrete
 from typing import Union
 import jax._src.pretty_printer as pp
 import genjax.core.pretty_printer as gpp
@@ -137,6 +138,30 @@ class BooleanMask(ChoiceMap):
     def strip_metadata(self):
         return BooleanMask(self.mask, self.inner.strip_metadata())
 
+    @classmethod
+    def collapse_boolean_mask(cls, v):
+        def _inner(v):
+            if isinstance(v, BooleanMask) and is_concrete(v.mask):
+                if v.mask:
+                    return BooleanMask.collapse_boolean_mask(v.inner)
+                else:
+                    return EmptyChoiceMap()
+            else:
+                return v
+
+        def _check(v):
+            return isinstance(v, BooleanMask)
+
+        return jtu.tree_map(_inner, v, is_leaf=_check)
+
+    @classmethod
+    def boolean_mask_collapse_boundary(cls, fn):
+        def _inner(self, key, *args, **kwargs):
+            args = BooleanMask.collapse_boolean_mask(args)
+            return fn(self, key, *args, **kwargs)
+
+        return _inner
+
     def __hash__(self):
         hash1 = hash(self.inner)
         hash2 = hash(self.mask)
@@ -199,7 +224,8 @@ class IndexMask(ChoiceMap):
             return k, IndexMask(self.index, v)
 
         return map(
-            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
+            lambda args: _inner(*args),
+            self.inner.get_subtrees_shallow(),
         )
 
     def merge(self, other):

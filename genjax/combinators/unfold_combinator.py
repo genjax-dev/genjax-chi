@@ -22,13 +22,13 @@ their previous output as input).
 import jax
 import jax.numpy as jnp
 from genjax.core.datatypes import GenerativeFunction, Trace, EmptyChoiceMap
-from genjax.core.masks import IndexMask
-import jax.experimental.host_callback as hcb
+from genjax.core.masks import IndexMask, BooleanMask
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
 from genjax.combinators.combinator_datatypes import VectorChoiceMap
 from genjax.combinators.combinator_tracetypes import VectorTraceType
 from typing import Any, Tuple, Sequence
+import jax.experimental.host_callback as hcb
 
 #####
 # UnfoldTrace
@@ -222,6 +222,7 @@ class UnfoldCombinator(GenerativeFunction):
 
         return key, unfold_tr
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def importance(self, key, chm, args):
 
         length = args[0]
@@ -285,6 +286,7 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def update(self, key, prev, chm, args):
 
         length = args[0]

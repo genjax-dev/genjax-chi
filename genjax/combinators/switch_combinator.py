@@ -236,6 +236,7 @@ class SwitchCombinator(GenerativeFunction):
         trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, (w, trace)
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def importance(self, key, chm, args):
         switch = args[0]
 
@@ -288,6 +289,7 @@ class SwitchCombinator(GenerativeFunction):
         trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, (w, trace, discard_option)
 
+    @BooleanMask.boolean_mask_collapse_boundary
     def update(self, key, prev, new, args):
         switch = args[0]
 
