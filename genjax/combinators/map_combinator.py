@@ -53,7 +53,7 @@ class MapTrace(Trace):
         return self.inner.get_args()
 
     def get_choices(self):
-        return VectorChoiceMap.new(self.inner, indices=self.indices)
+        return VectorChoiceMap.new(self.indices, self.inner)
 
     def get_gen_fn(self):
         return self.gen_fn

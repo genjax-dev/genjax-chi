@@ -49,7 +49,8 @@ def fn():
     key, *sub_keys = jax.random.split(key, 6)
     sub_keys = jnp.array(sub_keys)
     chm = genjax.VectorChoiceMap.new(
-        genjax.ChoiceMap.new({("z",): np.array([0.5 for _ in range(0, 5)])})
+        np.array([i for i in range(0, 5)]),
+        genjax.ChoiceMap.new({("z",): np.array([0.5 for _ in range(0, 5)])}),
     )
     _, (w, new, d) = jax.jit(genjax.update(sw))(
         sub_keys,
