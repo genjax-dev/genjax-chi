@@ -53,4 +53,4 @@ Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
 Partial = PartialCombinator
-Learn = LearnableCombinator
+Learnable = LearnableCombinator

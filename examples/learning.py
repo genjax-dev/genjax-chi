@@ -18,7 +18,7 @@ import optax
 
 
 @genjax.gen(
-    genjax.Learn,
+    genjax.Learnable,
     params={"x": 0.5},
 )
 def model(key, params):
@@ -42,4 +42,3 @@ key = jax.random.PRNGKey(314159)
 learning_rate = 3e-3
 obs = genjax.ChoiceMap.new({("y",): 0.2})
 trained = jax.jit(learning)(key, learning_rate, obs)
-print(trained)
