@@ -28,7 +28,7 @@ def model(key, params):
 
 
 def learning(key, lr, chm):
-    optim = optax.adam(learning_rate)
+    optim = optax.adam(lr)
     opt_state = optim.init(model.params)
     for _ in range(0, 100):
         key, (w, tr) = genjax.importance(model)(key, chm, ())
