@@ -23,9 +23,6 @@ from genjax.core.datatypes import GenerativeFunction
 # Generative function trace intrinsic.
 gen_fn_p = core.Primitive("trace")
 
-# Learnable parameter intrinsic.
-param_p = core.Primitive("param")
-
 #####
 # trace
 #####
@@ -55,18 +52,6 @@ def trace(addr, call, **kwargs):
         args,
         **kwargs,
     )
-
-
-#####
-# param
-#####
-
-
-def param(addr, **kwargs):
-    return param_p.bind(addr=addr, **kwargs)
-
-
-param_p.must_handle = True
 
 
 #####
