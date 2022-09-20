@@ -24,8 +24,8 @@ class PartialCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.inner,)
 
-    def __call__(self, key, *args):
-        return self.inner.__call__(key, *args, **self.kwargs)
+    def __call__(self, key, *args, **kwargs):
+        return self.inner.__call__(key, *args, **kwargs)
 
     def simulate(self, key, args):
         end = args[-1]

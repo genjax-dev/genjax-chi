@@ -68,7 +68,8 @@ import inspect
 def gen(callable, **kwargs):
     if inspect.isclass(callable):
         return lambda source: callable(
-            BuiltinGenerativeFunction(source), **kwargs
+            BuiltinGenerativeFunction(source),
+            **kwargs,
         )
     else:
         return BuiltinGenerativeFunction(callable)

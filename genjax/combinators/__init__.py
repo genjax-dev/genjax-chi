@@ -47,8 +47,10 @@ from .switch_combinator import *
 from .map_combinator import *
 from .unfold_combinator import *
 from .partial_combinator import *
+from .learnable_combinator import *
 
 Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
 Partial = PartialCombinator
+Learn = LearnableCombinator

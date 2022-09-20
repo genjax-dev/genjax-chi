@@ -63,13 +63,19 @@ class Sample(Handler):
 
 
 class Simulate(Handler):
-    def __init__(self):
+    def __init__(self, parameters=None):
         self.handles = [
             gen_fn_p,
         ]
         self.state = BuiltinChoiceMap(hashabledict())
+        self.parameters = parameters
         self.score = 0.0
         self.return_or_continue = False
+
+    # Handle param sites -- perform codegen onto the `Jaxpr` trace.
+    def param(self, f, addr):
+        v = self.parameters[addr]
+        return f(v)
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, **kwargs):
