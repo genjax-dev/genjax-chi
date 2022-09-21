@@ -12,7 +12,7 @@ It exposes the ability to programmatically construct *generative functions*
 (c.f. :doc:`genjax/gen_fn`), computational objects which represent measures 
 over structured sample spaces. These objects also expose a concise interface 
 for expressing differentiable programming and Monte Carlo inference algorithms.
-These objects are given a precise mathematicaly formulation in `Marco Cusumano-Towner's
+These objects are given a precise mathematical formulation in `Marco Cusumano-Towner's
 PhD thesis`_.
 
   If you're new to `Gen`_ and probabilistic programming in general, you'll 
