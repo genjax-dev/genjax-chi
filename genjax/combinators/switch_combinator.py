@@ -137,7 +137,7 @@ class SwitchCombinator(GenerativeFunction):
             key, x = genjax.trace("x2", genjax.Bernoulli)(key, (0.3, ))
             return (key, )
 
-        switch = genjax.SwitchCombinator(branch_1, branch_2)
+        switch = genjax.SwitchCombinator([branch_1, branch_2])
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(genjax.simulate(switch))

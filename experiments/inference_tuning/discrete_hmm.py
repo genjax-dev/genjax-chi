@@ -19,11 +19,10 @@ from scipy.linalg import circulant
 from dataclasses import dataclass
 import genjax
 from genjax.core.pytree import Pytree
-import genjax.experimental.prox as prox
 from typing import Union, Sequence
 import matplotlib.pyplot as plt
 
-plt.style.use("seaborn")
+plt.style.use("ggplot")
 
 Int = int
 Float32 = Union[np.float32, jnp.float32]
@@ -131,13 +130,7 @@ def initial_position(config: DiscreteHMMConfiguration):
     return jnp.array(int(config.linear_grid_dim / 2))
 
 
-# TODO: to use Prox-based SMC as `custom_q`,
-# coerce into required form or modify to allow initial
-# proposal.
-@genjax.gen(
-    prox.ChoiceMapDistribution,
-    selection=genjax.Selection([("z", "latent")]),
-)
+@genjax.gen
 def hidden_markov_model(key, T, config):
     transition_tensor = config.transition_tensor
     observation_tensor = config.observation_tensor
@@ -149,8 +142,11 @@ def hidden_markov_model(key, T, config):
 
 
 key = jax.random.PRNGKey(314159)
+num_steps = 100
 config = DiscreteHMMConfiguration.new(10, 1, 1, 0.1, 0.1)
-key, tr = jax.jit(genjax.simulate(hidden_markov_model))(key, (100, config))
+key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
+    key, (num_steps, config)
+)
 (chm,) = tr.get_retval()
 sequence = chm[("z", "latent")]
 sequence_visualizer(sequence)
@@ -159,4 +155,20 @@ sequence_visualizer(sequence)
 # Inference
 #####
 
-# custom_smc = CustomSMC(initial_position)
+
+def hmm_meta_next_target(state, constraints, final_target):
+    pass
+
+
+@genjax.gen
+def hmm_meta_proposal(state, new_target, final_target):
+    pass
+
+
+custom_smc = genjax.CustomSMC(
+    initial_position,
+    hmm_meta_next_target,
+    hmm_meta_proposal,
+    lambda _: num_steps,
+    50,
+)

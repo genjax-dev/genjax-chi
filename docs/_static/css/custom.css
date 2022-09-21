@@ -4,42 +4,24 @@
 
 div.attr {
   font-family: "Fira Code", monospace;
-  font-size: 0.95rem;
-}
-
-div.admonition {
-  border-radius: 10px;
-}
-
-div.admonition p.admonition-title {
-  font-family: pt-sans-pro-narrow, sans-serif;
-}
-
-p.admonition-title::after {
-  display: none;
 }
 
 dl.py.function {
-  background-color: #eee;
   padding: 10px;
   margin-top: 10px;
   border-radius: 5px;
 }
 
 dl.py.class {
-  background-color: #eee;
   padding: 10px;
   margin-top: 10px;
   border-radius: 5px;
 }
 
-div.sphinxsidebar h3,
-h4 {
-  font-family: pt-sans-pro, sans-serif;
-}
-
-div.sphinxsidebar ul {
-  font-family: pt-sans-pro-narrow, sans-serif;
+dl.py.method {
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 5px;
 }
 
 div.footer {
@@ -48,49 +30,25 @@ div.footer {
 
 code {
   font-family: "Fira Code", monospace;
-  font-size: 0.95rem;
   font-weight: 400;
 }
 
 span.pre {
   font-family: "Fira Code", monospace;
-  font-size: 0.95rem;
-}
-
-body {
-  font-family: pt-sans-pro, sans-serif;
-  line-height: 19pt;
-  margin: 0 auto;
 }
 
 pre {
   font-family: "Fira Code", monospace;
   font-variant-ligatures: common-ligatures;
-  padding: 1rem;
-  margin: 1rem auto;
   white-space: pre-wrap !important;
 }
 
-blockquote {
-  position: relative;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  background: #f9f9ff;
+body {
   font-family: pt-sans-pro, sans-serif;
-  border: 0.5px solid #555599;
-  padding-bottom: 0.25rem;
-  margin-top: 10px;
-  margin-left: 0px;
+  font-size: 17px;
 }
 
-div.body h1 {
-  text-align: center;
-  padding-bottom: 10px;
-}
-
-div.body h1,
-div.body h2,
-div.body h3 {
-  font-weight: 600;
-  font-family: pt-sans-pro-narrow;
+p {
+  margin-top: 1.15rem;
+  margin-bottom: 1.15rem;
 }

@@ -15,10 +15,9 @@ copyright = "2022 MIT Probabilistic Computing Project"
 extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.autodoc",
-    "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
-    "sphinx.ext.viewcode",
+    "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.inheritance_diagram",
     "jupyter_sphinx",
@@ -40,20 +39,25 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
+html_theme = "sphinx_book_theme"
+html_title = "Gen ⊗ JAX"
+html_logo = "_static/assets/logo.png"
 html_theme_options = {
-    "logo": "assets/logo.png",
-    "github_user": "probcomp",
-    "github_repo": "genjax",
-    "github_button": True,
-    "show_powered_by": False,
-    "body_text_align": "center",
+    "repository_url": "https://github.com/probcomp/genjax",
+    "path_to_docs": "docs",
+    "use_repository_button": True,
+    "use_issues_button": True,
+    "use_edit_page_button": True,
+    "repository_branch": "main",
+    "logo_only": True,
 }
+
+autodoc_class_signature = "separated"
+
 html_static_path = ["_static"]
 html_css_files = [
     "css/custom.css",
 ]
-html_title = "Gen ⊗ JAX"
 
 import os
 import sys

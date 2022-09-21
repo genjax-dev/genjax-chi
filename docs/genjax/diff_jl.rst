@@ -1,7 +1,7 @@
 Diffing with Gen.jl
 ===================
 
-:code:`GenJAX` is descended and mostly inherits concepts and reference implementations from `Gen.jl`_ - but there are a few differences 
+:code:`GenJAX` is descended and inherits concepts and reference implementations from `Gen.jl`_ - but there are a few differences 
 that mostly stem from JAX's underlying array programming model. In this section, we describe several of these differences and try to highlight
 workarounds or discuss the reason for the discrepancy.
 
