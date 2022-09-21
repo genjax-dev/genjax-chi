@@ -107,10 +107,42 @@
    Generative function interface
   </a>
  </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="genjax/combinators.html">
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="genjax/combinators/combinators.html">
    Generative function combinators
   </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
+  <label for="toctree-checkbox-1">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2">
+    <a class="reference internal" href="genjax/combinators/switch.html">
+     Switch combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="genjax/combinators/unfold.html">
+     Unfold combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="genjax/combinators/map.html">
+     Map combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="genjax/combinators/partial.html">
+     Partial combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="genjax/combinators/learnable.html">
+     Learnable combinator
+    </a>
+   </li>
+  </ul>
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="genjax/diff_jl.html">
@@ -325,47 +357,21 @@ title="Print to PDF"
                 
   <section id="index">
 <h1>Index<a class="headerlink" href="#index" title="Permalink to this heading">#</a></h1>
-<p><a class="reference external" href="https://github.com/probcomp/genjax">GenJAX</a> is a probabilistic programming framework constructed by combining the
-concepts of <a class="reference external" href="https://www.gen.dev">Gen</a> with the hardware accelerator compilation capabilities
-of <a class="reference external" href="https://github.com/google/jax">JAX</a>.</p>
-<p>It exposes the ability to programmatically construct <em>generative functions</em>
-(c.f. <a class="reference internal" href="genjax/gen_fn.html"><span class="doc">What is a generative function?</span></a>), computational objects which represent measures
-over structured sample spaces. These objects also expose a concise interface
-for expressing differentiable programming and Monte Carlo inference algorithms.
-These objects are given a precise mathematical formulation in <a class="reference external" href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner’s
-PhD thesis</a>.</p>
-<blockquote>
-<div><p>If you’re new to <a class="reference external" href="https://www.gen.dev">Gen</a> and probabilistic programming in general, you’ll
-likely want to start with <a class="reference internal" href="genjax/tour.html"><span class="doc">A tour of fundamentals</span></a>.</p>
+<p><a class="reference external" href="https://github.com/probcomp/genjax">GenJAX</a> is system for probabilistic programming constructed by combining the concepts of <a class="reference external" href="https://www.gen.dev">Gen</a> with the hardware accelerator compilation capabilities of <a class="reference external" href="https://github.com/google/jax">JAX</a>.</p>
+<p>GenJAX exposes the ability to programmatically construct and manipulate <em>generative functions</em>
+(c.f. <a class="reference internal" href="genjax/gen_fn.html"><span class="doc">What is a generative function?</span></a>): computational objects which represent probability measures
+over structured sample spaces.</p>
+<p>These objects also expose a concise interface
+for expressing differentiable programming and Monte Carlo inference algorithms. A precise mathematical formulation is given in <a class="reference external" href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner’s PhD thesis</a>.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>If you’re new to <a class="reference external" href="https://www.gen.dev">Gen</a> (or probabilistic programming in general),
+you’ll likely want to start with <a class="reference internal" href="genjax/tour.html"><span class="doc">A tour of fundamentals</span></a>.</p>
 <p>If you don’t mind perusing carefully crafted documentation
-(albeit in another language), you might also enjoy the <a class="reference external" href="https://www.gen.dev">Gen</a>
+(albeit in another language), you might also enjoy the <a class="reference external" href="https://www.gen.dev/stable/">Gen.jl</a>
 Julia documentation.</p>
-</div></blockquote>
+</div>
 <div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="genjax/tour.html">A tour of fundamentals</a></li>
-<li class="toctree-l1"><a class="reference internal" href="genjax/gen_fn.html">What is a generative function?</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="genjax/gen_fn.html#what-do-generative-functions-look-like-in-genjax">What do generative functions look like in GenJAX?</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="genjax/interface.html">Generative function interface</a></li>
-<li class="toctree-l1"><a class="reference internal" href="genjax/combinators.html">Generative function combinators</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="genjax/combinators.html#module-genjax.combinators.switch_combinator">Switch</a></li>
-<li class="toctree-l2"><a class="reference internal" href="genjax/combinators.html#module-genjax.combinators.unfold_combinator">Unfold</a></li>
-<li class="toctree-l2"><a class="reference internal" href="genjax/combinators.html#module-genjax.combinators.map_combinator">Map</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="genjax/diff_jl.html">Diffing with Gen.jl</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="genjax/diff_jl.html#turing-universality">Turing universality</a></li>
-<li class="toctree-l2"><a class="reference internal" href="genjax/diff_jl.html#to-jit-or-not-to-jit">To JIT or not to JIT</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="genjax/c_interface.html">Exposing C++ generative functions</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="genjax/c_interface.html#a-new-module">A new module</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="genjax/wasm_interface.html">From GenJAX to WebAssembly</a></li>
-</ul>
 </div>
 </section>
 

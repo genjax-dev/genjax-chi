@@ -59,6 +59,22 @@ html_css_files = [
     "css/custom.css",
 ]
 
+# Workaround for static content:
+# https://github.com/sphinx-doc/sphinx/issues/2090
+
+
+def env_get_outdated(app, env, added, changed, removed):
+    return ["index"]
+
+
+def setup(app):
+    app.connect("env-get-outdated", env_get_outdated)
+
+
+#####
+# Path setup
+#####
+
 import os
 import sys
 

@@ -28,6 +28,7 @@ Sphinx = "^5.1.1"
 jupyter-sphinx = "^0.4.0"
 psutil = "^5.9.2"
 lxml = "^4.9.1"
+sphinx-autobuild = "^2021.3.14"
 
 [tool.black]
 line-length = 80

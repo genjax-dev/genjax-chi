@@ -108,10 +108,42 @@
    Generative function interface
   </a>
  </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="combinators.html">
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="combinators/combinators.html">
    Generative function combinators
   </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
+  <label for="toctree-checkbox-1">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2">
+    <a class="reference internal" href="combinators/switch.html">
+     Switch combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="combinators/unfold.html">
+     Unfold combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="combinators/map.html">
+     Map combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="combinators/partial.html">
+     Partial combinator
+    </a>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="combinators/learnable.html">
+     Learnable combinator
+    </a>
+   </li>
+  </ul>
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="diff_jl.html">
@@ -327,14 +359,12 @@ title="Print to PDF"
   <section id="a-tour-of-fundamentals">
 <h1>A tour of fundamentals<a class="headerlink" href="#a-tour-of-fundamentals" title="Permalink to this heading">#</a></h1>
 <p>It’s useful to start with a dead simple modeling example (often the first example in many probabilistic programming frameworks) called <em>eight schools</em>.</p>
-<blockquote>
-<div><p>The <em>Eight schools</em> problem is covered extensively in Gelman et al.,
-Bayesian Data Analysis: Sec. 5.5, 2003. The problem description is below.</p>
+<p>The <em>Eight schools</em> problem is covered extensively in Gelman et al., Bayesian Data Analysis: Sec. 5.5, 2003.</p>
+<div class="admonition-eight-schools admonition">
+<p class="admonition-title">Eight schools</p>
 <p>A study was performed for the Educational Testing Service to analyze the effects of special coaching programs for SAT-V (Scholastic Aptitude Test-Verbal) in each of eight high schools. The outcome variable in each study was the score on a special administration of the SAT-V, a standardized multiple choice test administered by the Educational Testing Service and used to help colleges make admissions decisions; the scores can vary between 200 and 800, with mean about 500 and standard deviation about 100. The SAT examinations are designed to be resistant to short-term efforts directed specifically toward improving performance on the test; instead they are designed to reflect knowledge acquired and abilities developed over many years of education. Nevertheless, each of the eight schools in this study considered its short-term coaching program to be very successful at increasing SAT scores. Also, there was no prior reason to believe that any of the eight programs was more effective than any other or that some were more similar in effect to each other than to any other.</p>
-</div></blockquote>
-<p>This example is also covered in <a class="reference external" href="https://github.com/pyro-ppl/numpyro">NumPyro</a> - so it is useful to compare
-the modeling and inference idioms in the context of something which is
-well-known.</p>
+</div>
+<p>This example is also covered in <a class="reference external" href="https://github.com/pyro-ppl/numpyro">NumPyro</a> - so it is useful to compare the modeling and inference idioms in the context of something which is well-known.</p>
 <div class="jupyter_cell jupyter_container docutils container">
 <div class="cell_input code_cell docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Eight schools in idiomatic GenJAX.</span>

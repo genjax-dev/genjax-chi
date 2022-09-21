@@ -22,7 +22,7 @@ Generative functions which are passed in as branches to :code:`SwitchCombinator`
 must accept the same argument types, and return the same type of return value.
 
 The internal choice maps for the branch generative functions
-can have different shape/dtype choices.
+can have different shape/dtype choices. The resulting :code:`SwitchTrace` will efficiently share :code:`(shape, dtype)` storage across branches.
 
 .. _jax.lax.switch: https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html
 """
@@ -35,7 +35,7 @@ from genjax.core.masks import BooleanMask
 from genjax.combinators.combinator_datatypes import IndexedChoiceMap
 from genjax.combinators.combinator_tracetypes import SumTraceType
 from dataclasses import dataclass
-from typing import Any, Tuple, Sequence
+from typing import Any, Tuple, List
 
 #####
 # SwitchTrace
@@ -92,32 +92,13 @@ class SwitchTrace(Trace):
 class SwitchCombinator(GenerativeFunction):
     """
     :code:`SwitchCombinator` accepts a set of generative functions as input
-    configuration and implements a branching control flow pattern. This
-    combinator provides a "sum" :code:`Trace` type which allows the internal
-    generative functions to have different choice maps.
+    configuration and implements :code:`GenerativeFunction` interface semantics that support branching control flow patterns, including control flow patterns which branch on other stochastic choices.
 
-    This pattern allows :code:`GenJAX` to express existence uncertainty
-    over random choices -- as different generative function branches
-    need not share addresses.
+    This combinator provides a "sum" :code:`Trace` type which allows the internal generative functions to have different choice maps.
 
-    Usage of the :doc:`interface` is detailed below under each
-    method implementation.
-
-    Parameters
-    ----------
-
-    *args: :code:`GenerativeFunction`
-        A splatted sequence of `GenerativeFunction` instances should be provided
-        to the :code:`SwitchCombinator` constructor.
-
-    Returns
-    -------
-
-    :code:`SwitchCombinator`
-        A single :code:`SwitchCombinator` generative function which
-        implements a branch control flow pattern using each
-        provided internal generative function (see parameters) as
-        a potential branch.
+    This pattern allows :code:`GenJAX` to express existence
+    uncertainty over random choices -- as different generative
+    function branches need not share addresses.
 
     Example
     -------
@@ -148,7 +129,14 @@ class SwitchCombinator(GenerativeFunction):
 
     branches: dict[int, GenerativeFunction]
 
-    def __init__(self, branches: Sequence):
+    def __init__(self, branches: List[GenerativeFunction]):
+        """
+        Parameters
+        ----------
+
+        branches: :code:`List[GenerativeFunction]`
+            A :code:`List` of :code:`GenerativeFunction` instances which shares the same argument signature, and return type.
+        """
         self.branches = {}
         for (ind, gen_fn) in enumerate(branches):
             self.branches[ind] = gen_fn
