@@ -23,6 +23,16 @@ from math import pi
 @dataclass
 class _Normal(Distribution):
     def sample(self, key, mu, std, **kwargs):
+        """
+        Parameters
+        ----------
+
+        key: :code:`jax.random.PRNGKey`
+
+        mu: :code:`jax.ndarray`
+
+        std: :code:`jax.ndarray`
+        """
         return mu + std * jax.random.normal(key, **kwargs)
 
     def logpdf(self, key, v, mu, std, **kwargs):

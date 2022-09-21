@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>What is a generative function? &#8212; Gen ⊗ JAX</title>
+    <title>Anatomy of a generative function &#8212; Gen ⊗ JAX</title>
     
   <!-- Loaded before other Sphinx assets -->
   <link href="../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
@@ -100,7 +100,7 @@
  </li>
  <li class="toctree-l1 current active">
   <a class="current reference internal" href="#">
-   What is a generative function?
+   Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1">
@@ -355,8 +355,13 @@ title="Print to PDF"
     <nav id="bd-toc-nav" aria-label="Page">
         <ul class="visible nav section-nav flex-column">
  <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#what-do-generative-functions-look-like-in-genjax">
-   What do generative functions look like in GenJAX?
+  <a class="reference internal nav-link" href="#distributions-are-generative-functions">
+   Distributions are generative functions
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#function-like-generative-functions-in-genjax">
+   Function-like generative functions in GenJAX
   </a>
  </li>
 </ul>
@@ -368,7 +373,7 @@ title="Print to PDF"
         <div class="col pl-md-3 pl-lg-5 content-container">
             <!-- Table of contents that is only displayed when printing the page -->
             <div id="jb-print-docs-body" class="onlyprint">
-                <h1>What is a generative function?</h1>
+                <h1>Anatomy of a generative function</h1>
                 <!-- Table of contents -->
                 <div id="print-main-content">
                     <div id="jb-print-toc">
@@ -379,8 +384,13 @@ title="Print to PDF"
                         <nav aria-label="Page">
                             <ul class="visible nav section-nav flex-column">
  <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#what-do-generative-functions-look-like-in-genjax">
-   What do generative functions look like in GenJAX?
+  <a class="reference internal nav-link" href="#distributions-are-generative-functions">
+   Distributions are generative functions
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#function-like-generative-functions-in-genjax">
+   Function-like generative functions in GenJAX
   </a>
  </li>
 </ul>
@@ -393,28 +403,59 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="what-is-a-generative-function">
-<h1>What is a generative function?<a class="headerlink" href="#what-is-a-generative-function" title="Permalink to this heading">#</a></h1>
+  <section id="anatomy-of-a-generative-function">
+<h1>Anatomy of a generative function<a class="headerlink" href="#anatomy-of-a-generative-function" title="Permalink to this heading">#</a></h1>
 <p>A generative function is a computational object which supports a concise
 set of interfaces designed to support customizable Bayesian inference
 (<em>programmable inference</em>).</p>
 <p>Formally, generative functions are mathematical representation of probabilistic
 models that are expressive enough to permit models with random structure,
 including capturing notions of variable existence uncertainty. This is described in <a class="reference external" href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner’s thesis</a>.</p>
-<blockquote>
-<div><p>🧠 <strong>(A bit of knowledge) Gen.jl</strong> 🧠</p>
+<div class="admonition-a-bit-of-knowledge-gen-jl admonition">
+<p class="admonition-title">🧠 <strong>(A bit of knowledge) Gen.jl</strong> 🧠</p>
 <p>One useful reference implementation of these objects lies in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
 an encoding of generative functions and inference in Julia.</p>
 <p>In GenJAX, our implementation of these objects is akin to the
 <code class="code docutils literal notranslate"><span class="pre">static</span> <span class="pre">modeling</span> <span class="pre">language</span></code> of <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - we rely upon JAX to provide us
 with a useful intermediate representation for programs that we operate on
 using transformations.</p>
-</div></blockquote>
-<p>Speaking of the interface above, if you’d like to jump right to reading about this, visit <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>.</p>
-<section id="what-do-generative-functions-look-like-in-genjax">
-<h2>What do generative functions look like in GenJAX?<a class="headerlink" href="#what-do-generative-functions-look-like-in-genjax" title="Permalink to this heading">#</a></h2>
-<p>A generative function in GenJAX looks like a pure Python function,
-roughly the subset of Python acceptable by JAX.</p>
+</div>
+<p>If you’d like to jump right to reading about the generative function interface, visit <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>.</p>
+<section id="distributions-are-generative-functions">
+<h2>Distributions are generative functions<a class="headerlink" href="#distributions-are-generative-functions" title="Permalink to this heading">#</a></h2>
+<p>Let’s start with simple examples of generative function – classical distributions (objects like <code class="code docutils literal notranslate"><span class="pre">Normal</span></code>, or <code class="code docutils literal notranslate"><span class="pre">Uniform</span></code>).</p>
+<p>Here’s an implementation of one of these objects (GenJAX exposes <code class="code docutils literal notranslate"><span class="pre">Normal</span></code> as an instantiated alias of <code class="code docutils literal notranslate"><span class="pre">_Normal</span></code>)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">_Normal</span><span class="p">(</span><span class="n">Distribution</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">std</span> <span class="o">*</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">logpdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">/</span> <span class="n">std</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+            <span class="o">-</span><span class="mf">1.0</span>
+            <span class="o">*</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">))</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">pi</span><span class="p">))</span>
+            <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">std</span><span class="p">))</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__trace_type__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shape&quot;</span><span class="p">,</span> <span class="p">())</span>
+        <span class="k">return</span> <span class="n">Reals</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="n">Normal</span> <span class="o">=</span> <span class="n">_Normal</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This object should roughly match intuition of what a distribution should provide:</p>
+<ol class="arabic simple">
+<li><p>(<code class="code docutils literal notranslate"><span class="pre">sample</span></code>) The ability to sample a value in the target space given access
+to a bit of pseudo-randomness.</p></li>
+<li><p>(<code class="code docutils literal notranslate"><span class="pre">logpdf</span></code>) The ability to assess the density of any sampled
+value from the target space, given access to parameters of
+the distribution (here: <code class="code docutils literal notranslate"><span class="pre">mu</span></code> and <code class="code docutils literal notranslate"><span class="pre">std</span></code>)</p></li>
+</ol>
+</section>
+<section id="function-like-generative-functions-in-genjax">
+<h2>Function-like generative functions in GenJAX<a class="headerlink" href="#function-like-generative-functions-in-genjax" title="Permalink to this heading">#</a></h2>
+<p>GenJAX also exposes a modeling language which allows programmatic construction of generative functions based on pure Python functions (pure meaning: the subset of Python acceptable by JAX).</p>
 <div class="jupyter_cell jupyter_container docutils container">
 <div class="cell_input code_cell docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>

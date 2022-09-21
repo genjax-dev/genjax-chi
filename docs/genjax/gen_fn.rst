@@ -1,5 +1,5 @@
-What is a generative function? 
-==============================
+Anatomy of a generative function
+================================
 
 A generative function is a computational object which supports a concise
 set of interfaces designed to support customizable Bayesian inference 
@@ -9,7 +9,7 @@ Formally, generative functions are mathematical representation of probabilistic
 models that are expressive enough to permit models with random structure,
 including capturing notions of variable existence uncertainty. This is described in `Marco Cusumano-Towner's thesis`_.
 
-  🧠 **(A bit of knowledge) Gen.jl** 🧠
+.. admonition:: 🧠 **(A bit of knowledge) Gen.jl** 🧠
 
   One useful reference implementation of these objects lies in `Gen.jl`_,
   an encoding of generative functions and inference in Julia. 
@@ -19,13 +19,48 @@ including capturing notions of variable existence uncertainty. This is described
   with a useful intermediate representation for programs that we operate on 
   using transformations.
 
-Speaking of the interface above, if you'd like to jump right to reading about this, visit :doc:`interface`.
+If you'd like to jump right to reading about the generative function interface, visit :doc:`interface`.
 
-What do generative functions look like in GenJAX?
--------------------------------------------------
+Distributions are generative functions
+--------------------------------------
 
-A generative function in GenJAX looks like a pure Python function,
-roughly the subset of Python acceptable by JAX.
+Let's start with simple examples of generative function -- classical distributions (objects like :code:`Normal`, or :code:`Uniform`). 
+
+Here's an implementation of one of these objects (GenJAX exposes :code:`Normal` as an instantiated alias of :code:`_Normal`)
+
+::
+
+  class _Normal(Distribution):
+      def sample(self, key, mu, std, **kwargs):
+          return mu + std * jax.random.normal(key, **kwargs)
+
+      def logpdf(self, key, v, mu, std, **kwargs):
+          z = (v - mu) / std
+          return jnp.sum(
+              -1.0
+              * (jnp.square(jnp.abs(z)) + jnp.log(2.0 * pi))
+              / (2 - jnp.log(std))
+          )
+
+      def __trace_type__(self, key, mu, std, **kwargs):
+          shape = kwargs.get("shape", ())
+          return Reals(shape)
+
+  Normal = _Normal()
+
+This object should roughly match intuition of what a distribution should provide:
+
+1. (:code:`sample`) The ability to sample a value in the target space given access
+   to a bit of pseudo-randomness.
+
+2. (:code:`logpdf`) The ability to assess the density of any sampled 
+   value from the target space, given access to parameters of 
+   the distribution (here: :code:`mu` and :code:`std`)
+
+Function-like generative functions in GenJAX
+--------------------------------------------
+
+GenJAX also exposes a modeling language which allows programmatic construction of generative functions based on pure Python functions (pure meaning: the subset of Python acceptable by JAX).
 
 .. jupyter-execute::
 
