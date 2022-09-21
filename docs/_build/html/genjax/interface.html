@@ -43,7 +43,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Generative function combinators" href="combinators/combinators.html" />
-    <link rel="prev" title="What is a generative function?" href="gen_fn.html" />
+    <link rel="prev" title="Anatomy of a generative function" href="gen_fn.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="en">
     
@@ -101,7 +101,7 @@
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="gen_fn.html">
-   What is a generative function?
+   Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1 current active">
@@ -370,7 +370,7 @@ and <code class="code docutils literal notranslate"><span class="pre">**kwargs</
 <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> method.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="genjax.interface.simulate">
-<span class="sig-prename descclassname"><span class="pre">genjax.interface.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/tree/main/genjax/interface.py"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.interface.simulate" title="Permalink to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">genjax.interface.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L30-L79"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.interface.simulate" title="Permalink to this definition">#</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">simulate</span></code> accepts a function <code class="code docutils literal notranslate"><span class="pre">f</span></code> and
 returns a transformed function which implements the below semantics.</p>
 <p>Given <code class="code docutils literal notranslate"><span class="pre">key:</span> <span class="pre">PRNGKey</span></code> and <code class="code docutils literal notranslate"><span class="pre">args:</span> <span class="pre">Tuple</span></code>, sample
@@ -447,7 +447,7 @@ inference metadata, accrued during the call.</p></li>
         <i class="fas fa-angle-left"></i>
         <div class="prev-next-info">
             <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">What is a generative function?</p>
+            <p class="prev-next-title">Anatomy of a generative function</p>
         </div>
     </a>
     <a class='right-next' id="next-link" href="combinators/combinators.html" title="next page">

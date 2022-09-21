@@ -4,3 +4,5 @@ Switch combinator
 .. automodule:: genjax.combinators.switch_combinator
 
 .. autoclass:: genjax.combinators.SwitchCombinator
+   :members: __init__, simulate 
+   :undoc-members:

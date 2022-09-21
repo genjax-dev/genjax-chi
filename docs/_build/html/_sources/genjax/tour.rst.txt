@@ -1,9 +1,13 @@
 A tour of fundamentals
 ======================
 
-It's useful to start with a dead simple modeling example (often the first example in many probabilistic programming frameworks) called *eight schools*. 
+It's useful to start with a dead simple modeling example (often the first example in many probabilistic programming frameworks) called the *eight schools* problem.
 
-The *Eight schools* problem is covered extensively in Gelman et al., Bayesian Data Analysis: Sec. 5.5, 2003. 
+.. hint::
+   See further: `Everything I need to know about Bayesian statistics, I learned in eight schools.`_
+
+  The *Eight schools* problem is also covered extensively in Gelman et al., Bayesian Data Analysis: Sec. 5.5, 2003. 
+  
 
 .. admonition:: Eight schools
 
@@ -48,3 +52,5 @@ This example is also covered in `NumPyro`_ - so it is useful to compare the mode
     )
 
 .. _NumPyro: https://github.com/pyro-ppl/numpyro
+.. _Everything I need to know about Bayesian statistics, I learned in eight schools.: https://statmodeling.stat.columbia.edu/2014/01/21/everything-need-know-bayesian-statistics-learned-eight-schools/
+

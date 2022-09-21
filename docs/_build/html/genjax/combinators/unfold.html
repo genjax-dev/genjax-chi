@@ -100,7 +100,7 @@
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="../gen_fn.html">
-   What is a generative function?
+   Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1">
@@ -363,8 +363,8 @@ statically unrolled control flow for generative functions which can act
 as kernels (a kernel generative function can accept
 their previous output as input).</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="genjax.combinators.unfold_combinator.UnfoldCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.unfold_combinator.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/tree/main/genjax/combinators/unfold_combinator.py"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.unfold_combinator.UnfoldCombinator" title="Permalink to this definition">#</a></dt>
+<dt class="sig sig-object py" id="genjax.combinators.UnfoldCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/combinators/unfold_combinator.py#L77-L359"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.UnfoldCombinator" title="Permalink to this definition">#</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> accepts a single kernel generative function
 as input and a static unroll length which specifies how many iterations
 to run the chain for.</p>
@@ -441,8 +441,13 @@ iterations off.</p>
 </div>
 </div>
 <dl class="py method">
-<dt class="sig sig-object py" id="genjax.combinators.unfold_combinator.UnfoldCombinator.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/tree/main/genjax/combinators/unfold_combinator.py"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.unfold_combinator.UnfoldCombinator.__init__" title="Permalink to this definition">#</a></dt>
+<dt class="sig sig-object py" id="genjax.combinators.UnfoldCombinator.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#genjax.combinators.UnfoldCombinator.__init__" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.combinators.UnfoldCombinator.__new__">
+<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#genjax.combinators.UnfoldCombinator.__new__" title="Permalink to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>

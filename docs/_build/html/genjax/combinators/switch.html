@@ -100,7 +100,7 @@
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="../gen_fn.html">
-   What is a generative function?
+   Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1">
@@ -368,7 +368,7 @@ must accept the same argument types, and return the same type of return value.</
 can have different shape/dtype choices. The resulting <code class="code docutils literal notranslate"><span class="pre">SwitchTrace</span></code> will efficiently share <code class="code docutils literal notranslate"><span class="pre">(shape,</span> <span class="pre">dtype)</span></code> storage across branches.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="genjax.combinators.SwitchCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/tree/main/genjax/combinators.py"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/combinators/switch_combinator.py#L91-L320"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> accepts a set of generative functions as input
 configuration and implements <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> interface semantics that support branching control flow patterns, including control flow patterns which branch on other stochastic choices.</p>
 <p>This combinator provides a “sum” <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> type which allows the internal generative functions to have different choice maps.</p>
@@ -450,7 +450,7 @@ function branches need not share addresses.</p>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="genjax.combinators.SwitchCombinator.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">branches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">GenerativeFunction</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/tree/main/genjax/combinators.py"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.SwitchCombinator.__init__" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">branches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">GenerativeFunction</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/combinators/switch_combinator.py#L132-L142"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.SwitchCombinator.__init__" title="Permalink to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>branches</strong> (<code class="code docutils literal notranslate"><span class="pre">List[GenerativeFunction]</span></code>) – A <code class="code docutils literal notranslate"><span class="pre">List</span></code> of <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> instances which shares the same argument signature, and return type.</p>
@@ -460,7 +460,12 @@ function branches need not share addresses.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="genjax.combinators.SwitchCombinator.__new__">
-<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/tree/main/genjax/combinators.py"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.SwitchCombinator.__new__" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#genjax.combinators.SwitchCombinator.__new__" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.combinators.SwitchCombinator.simulate">
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/combinators/switch_combinator.py#L189-L211"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.SwitchCombinator.simulate" title="Permalink to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
