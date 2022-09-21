@@ -28,6 +28,11 @@ div.footer {
   text-align: right;
 }
 
+.viewcode-link {
+  padding: 10px;
+  float: none;
+}
+
 code {
   font-family: "Fira Code", monospace;
   font-weight: 400;

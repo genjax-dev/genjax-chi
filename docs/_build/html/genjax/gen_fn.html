@@ -403,7 +403,7 @@ roughly the subset of Python acceptable by JAX.</p>
 </div>
 </div>
 </div>
-<p>This decorator returns a <code class="code docutils literal notranslate"><span class="pre">JAXGenerativeFunction</span></code> - a generative function
+<p>This decorator returns a <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code> - a generative function
 which implements the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> by utilizing JAX’s tracing and program
 transformation abilities.</p>
 <p>Let’s study the JAX representation of the code for this object.</p>
@@ -423,9 +423,9 @@ transformation abilities.</p>
 </div>
 </div>
 </div>
-<p>In this lowered form, we can see that our JAX representation has a call to something called <code class="code docutils literal notranslate"><span class="pre">trace</span></code>, with a few constant keyword arguments.</p>
-<p>JAX doesn’t natively know how to handle <code class="code docutils literal notranslate"><span class="pre">trace</span></code> - it’s a primitive that we’ve defined to support the generative function interface semantics.</p>
-<p>We can utilize the interface to transform this representation to implement the semantics.</p>
+<p>In this lowered form, we can see that our JAX representation has a call to something called <code class="code docutils literal notranslate"><span class="pre">trace</span></code>, with a few constant keyword arguments (including an <code class="code docutils literal notranslate"><span class="pre">addr</span></code> and a <code class="code docutils literal notranslate"><span class="pre">gen_fn</span></code> as constant metadata associated with the operation).</p>
+<p>JAX doesn’t natively know how to handle <code class="code docutils literal notranslate"><span class="pre">trace</span></code> - it’s a primitive that we’ve defined to support the generative function interface semantics. We get to tell JAX how to interpret this operation in terms of operations that it understands.</p>
+<p>The interfaces are defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code> by implementing transformations which operate on this code representation to implement the semantics. Here’s one interface - <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> - whose semantics require that we return a representation of the execution (a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code>) along with an updated <code class="code docutils literal notranslate"><span class="pre">PRNGKey</span></code>.</p>
 <div class="jupyter_cell jupyter_container docutils container">
 <div class="cell_input code_cell docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
@@ -492,14 +492,16 @@ transformation abilities.</p>
 </div>
 </div>
 </div>
-<p>That’s quite a lot of new code! What <code class="code docutils literal notranslate"><span class="pre">genjax.simulate</span></code> is doing “under-the-hood” is expanding <code class="code docutils literal notranslate"><span class="pre">trace</span></code> to support:</p>
+<p>That’s quite a lot of new code! What <code class="code docutils literal notranslate"><span class="pre">genjax.simulate</span></code> is doing “under-the-hood” is expanding the <code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive to support:</p>
 <ul class="simple">
-<li><p>sampling from the <code class="code docutils literal notranslate"><span class="pre">gen_fn</span></code> (keyword argument to <code class="code docutils literal notranslate"><span class="pre">trace</span></code>).</p></li>
+<li><p>recursively calling <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> on <code class="code docutils literal notranslate"><span class="pre">gen_fn</span></code> (keyword argument to <code class="code docutils literal notranslate"><span class="pre">trace</span></code>).</p></li>
 <li><p>updating JAX’s PRNG key.</p></li>
 <li><p>recording the log probability density of the resultant sample.</p></li>
-<li><p>returning these pieces of data out.</p></li>
+<li><p>returning these pieces of data out (in a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> instance)</p></li>
 </ul>
-<p>This essential pattern is repeated for each <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> method.</p>
+<p>All this is happening before runtime – JAX’s tracer stages out these transformations into the clean (<code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive free) <code class="code docutils literal notranslate"><span class="pre">Jaxpr</span></code> above.</p>
+<p>This essential pattern is repeated for each <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> method defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code>.</p>
+<p>Other generative function “languages” in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function <em>need not</em> introspect on the implementation of a callee’s interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. <a class="reference internal" href="combinators.html"><span class="doc">Generative function combinators</span></a>) other generative functions in composable patterns.</p>
 </section>
 </section>
 
