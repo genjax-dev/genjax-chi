@@ -5,8 +5,6 @@
 
 import sys
 import os
-import subprocess
-import pathlib
 import inspect
 import importlib
 

@@ -19,7 +19,7 @@ It exposes an extended set of interfaces (new: :code:`param_grad`
 and :code:`update_params`) which allow programmatic computation of
 gradients with respect to held parameters, as well as updating parameters.
 
-It enables learning idioms which cohere with other packages 
+It enables learning idioms which cohere with other packages
 in the JAX ecosystem (e.g. supporting :code:`optax` optimizers).
 """
 
