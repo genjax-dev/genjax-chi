@@ -42,7 +42,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Exposing C++ generative functions" href="c_interface.html" />
-    <link rel="prev" title="Learnable combinator" href="combinators/learnable.html" />
+    <link rel="prev" title="Inference best practices" href="inference/best_practices.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="en">
     
@@ -118,29 +118,68 @@
    </i>
   </label>
   <ul>
+   <li class="toctree-l2 has-children">
+    <a class="reference internal" href="combinators/classes/classes.html">
+     Combinators classes
+    </a>
+    <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
+    <label for="toctree-checkbox-2">
+     <i class="fas fa-chevron-down">
+     </i>
+    </label>
+    <ul>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/switch.html">
+       Switch combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/map.html">
+       Map combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/unfold.html">
+       Unfold combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/partial.html">
+       Partial combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/trainable.html">
+       Trainable combinator
+      </a>
+     </li>
+    </ul>
+   </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="combinators/switch.html">
-     Switch combinator
+    <a class="reference internal" href="combinators/vector_combinators.html">
+     Vector combinators
+    </a>
+   </li>
+  </ul>
+ </li>
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="inference/inference.html">
+   Inference
+  </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
+  <label for="toctree-checkbox-3">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2">
+    <a class="reference internal" href="inference/library/library.html">
+     Inference library
     </a>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="combinators/unfold.html">
-     Unfold combinator
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="combinators/map.html">
-     Map combinator
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="combinators/partial.html">
-     Partial combinator
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="combinators/learnable.html">
-     Learnable combinator
+    <a class="reference internal" href="inference/best_practices.html">
+     Inference best practices
     </a>
    </li>
   </ul>
@@ -360,6 +399,11 @@ title="Print to PDF"
   </a>
  </li>
  <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#mutation">
+   Mutation
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#to-jit-or-not-to-jit">
    To JIT or not to JIT
   </a>
@@ -389,6 +433,11 @@ title="Print to PDF"
   </a>
  </li>
  <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#mutation">
+   Mutation
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#to-jit-or-not-to-jit">
    To JIT or not to JIT
   </a>
@@ -412,15 +461,17 @@ workarounds or discuss the reason for the discrepancy.</p>
 <h2>Turing universality<a class="headerlink" href="#turing-universality" title="Permalink to this heading">#</a></h2>
 <p><a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> is Turing universal - it can encode any computable distribution, including those
 expressed by forms of unbounded recursion.</p>
-<p><code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> is not – because JAX does not feature mechanisms for dynamic shape allocations.
-While JAX does feature primitives for unbounded recursion, to support Gen’s interfaces we also need
-the ability to dynamically allocate choice data. This requirement is currently at tension with XLA’s
-requirements of knowing the static shape of everything.</p>
+<p>It is a bit ambiguous whether or not <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> falls in this category: JAX does not feature mechanisms for dynamic shape allocations, but it does feature mechanisms for unbounded recursion.</p>
+<p>The former provides a technical barrier to implementing Gen’s trace machinery. While JAX allows for unbounded recursion, to support Gen’s interfaces we also need the ability to dynamically allocate choice data. This requirement is currently at tension with XLA’s requirements of knowing the static shape of everything.</p>
 <p>However, <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> supports generative function combinators with bounded recursion / unfold chain length.
 Ahead of time, these combinators can be directed to pre-allocate arrays with enough size to handle recursion/looping
 within the bounds that the programmer sets. If these bounds are exceeded, a Python runtime error will be thrown (both on
-and off JAX device). In practice, this means that some performance engineering (space vs. expressivity) is required of
-the programmer.</p>
+and off JAX device).</p>
+<p>In practice, this means that some performance engineering (space vs. expressivity) is required of the programmer. It’s certainly feasible to express bounded recursive computations which terminate with probability 1 - but you’ll need to ahead of time allocate space for it.</p>
+</section>
+<section id="mutation">
+<h2>Mutation<a class="headerlink" href="#mutation" title="Permalink to this heading">#</a></h2>
+<p>Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place. See further: <a class="reference external" href="https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html">JAX - The Sharp Bits</a></p>
 </section>
 <section id="to-jit-or-not-to-jit">
 <h2>To JIT or not to JIT<a class="headerlink" href="#to-jit-or-not-to-jit" title="Permalink to this heading">#</a></h2>
@@ -428,7 +479,8 @@ the programmer.</p>
 constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed.
 Thus, the idioms that are used to express inference code has a small diff compared to <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - inference
 algorithms normally accept some set of static arguments (like generative function instances) and return
-functions which can be jitted by the user.</p>
+functions which close over these arguments, and can be jitted by the user. You can read a bit more about this in <a class="reference internal" href="inference/best_practices.html"><span class="doc">Inference best practices</span></a>.</p>
+<p>In general, it’s productive to enclose as much of a computation as possible in a <code class="code docutils literal notranslate"><span class="pre">jax.jit</span></code> block. This can sometimes lead to long trace times. If trace times are ballooning, a common source is explicit for-loops (with known bounds, else JAX will complain). In these cases, you might look at <a class="reference external" href="https://github.com/google/jax/discussions/3732">Advice on speeding up compilation time</a>.</p>
 </section>
 </section>
 
@@ -440,11 +492,11 @@ functions which can be jitted by the user.</p>
                 
     <!-- Previous / next buttons -->
 <div class='prev-next-area'>
-    <a class='left-prev' id="prev-link" href="combinators/learnable.html" title="previous page">
+    <a class='left-prev' id="prev-link" href="inference/best_practices.html" title="previous page">
         <i class="fas fa-angle-left"></i>
         <div class="prev-next-info">
             <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">Learnable combinator</p>
+            <p class="prev-next-title">Inference best practices</p>
         </div>
     </a>
     <a class='right-next' id="next-link" href="c_interface.html" title="next page">

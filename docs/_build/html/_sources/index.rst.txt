@@ -14,7 +14,7 @@ over structured sample spaces.
 These objects also expose a concise interface 
 for expressing differentiable programming and Monte Carlo inference algorithms. A precise mathematical formulation is given in `Marco Cusumano-Towner's PhD thesis`_.
 
-.. hint::
+.. admonition:: Novice
   
   If you're new to `Gen`_ (or probabilistic programming in general), 
   you'll likely want to start with :doc:`genjax/tour`.
@@ -32,6 +32,7 @@ for expressing differentiable programming and Monte Carlo inference algorithms. 
    genjax/gen_fn
    genjax/interface
    genjax/combinators/combinators
+   genjax/inference/inference
    genjax/diff_jl
    genjax/c_interface
    genjax/wasm_interface

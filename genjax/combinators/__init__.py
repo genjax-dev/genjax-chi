@@ -20,10 +20,10 @@ These combinators accept generative functions as arguments, and return
 generative functions with modified choice map shapes and behavior.
 
 They are used to express common patterns of computation, including
-if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`).
+if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`TrainableCombinator`), or partial specialization on argments (:code:`PartialCombinator`).
 
-    🔪 **(A sharp bit) GenJAX combinator restrictions** 🔪
-    
+.. attention::
+
     The implementations of these combinators are similar to those in `Gen.jl`_,
     but JAX imposes extra restrictions on their construction and usage.
 
@@ -47,10 +47,10 @@ from .switch_combinator import *
 from .map_combinator import *
 from .unfold_combinator import *
 from .partial_combinator import *
-from .learnable_combinator import *
+from .trainable_combinator import *
 
 Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
 Partial = PartialCombinator
-Learnable = LearnableCombinator
+Trainable = TrainableCombinator

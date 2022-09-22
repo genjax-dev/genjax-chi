@@ -141,7 +141,6 @@ chm_sequence = genjax.VectorChoiceMap.new(
 # arguments to the model.
 model_arg_sequence = [(ind,) for ind in range(1, len(observation_sequence) + 1)]
 
-
 # Run inference.
 jitted = jax.jit(
     genjax.proposal_sequential_monte_carlo(

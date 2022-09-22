@@ -1,13 +1,12 @@
 Generative function combinators
 ===============================
 
+.. automodule:: genjax.combinators
+
 .. toctree::
    :hidden:
    :glob:
    :maxdepth: 2
 
-   switch
-   unfold
-   map
-   partial
-   learnable
+   classes/classes
+   vector_combinators

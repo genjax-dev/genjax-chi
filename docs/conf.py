@@ -50,6 +50,7 @@ html_theme_options = {
 }
 
 autodoc_class_signature = "separated"
+autoclass_content = "class"
 
 html_static_path = ["_static"]
 html_css_files = [

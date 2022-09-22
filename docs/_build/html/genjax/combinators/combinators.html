@@ -41,7 +41,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Switch combinator" href="switch.html" />
+    <link rel="next" title="Combinators classes" href="classes/classes.html" />
     <link rel="prev" title="Generative function interface" href="../interface.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="en">
@@ -118,29 +118,68 @@
    </i>
   </label>
   <ul>
+   <li class="toctree-l2 has-children">
+    <a class="reference internal" href="classes/classes.html">
+     Combinators classes
+    </a>
+    <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
+    <label for="toctree-checkbox-2">
+     <i class="fas fa-chevron-down">
+     </i>
+    </label>
+    <ul>
+     <li class="toctree-l3">
+      <a class="reference internal" href="classes/switch.html">
+       Switch combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="classes/map.html">
+       Map combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="classes/unfold.html">
+       Unfold combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="classes/partial.html">
+       Partial combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="classes/trainable.html">
+       Trainable combinator
+      </a>
+     </li>
+    </ul>
+   </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="switch.html">
-     Switch combinator
+    <a class="reference internal" href="vector_combinators.html">
+     Vector combinators
+    </a>
+   </li>
+  </ul>
+ </li>
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="../inference/inference.html">
+   Inference
+  </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
+  <label for="toctree-checkbox-3">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2">
+    <a class="reference internal" href="../inference/library/library.html">
+     Inference library
     </a>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="unfold.html">
-     Unfold combinator
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="map.html">
-     Map combinator
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="partial.html">
-     Partial combinator
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="learnable.html">
-     Learnable combinator
+    <a class="reference internal" href="../inference/best_practices.html">
+     Inference best practices
     </a>
    </li>
   </ul>
@@ -356,8 +395,27 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="generative-function-combinators">
-<h1>Generative function combinators<a class="headerlink" href="#generative-function-combinators" title="Permalink to this heading">#</a></h1>
+  <section id="module-genjax.combinators">
+<span id="generative-function-combinators"></span><h1>Generative function combinators<a class="headerlink" href="#module-genjax.combinators" title="Permalink to this heading">#</a></h1>
+<p>This module holds a set of generative function implementations
+called generative function combinators.</p>
+<p>These combinators accept generative functions as arguments, and return
+generative functions with modified choice map shapes and behavior.</p>
+<p>They are used to express common patterns of computation, including
+if-else (<code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code>), mapping across vectorial arguments (<code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code>), and dependent for-loop (<code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code>), as well as exposing new interfaces - including training learnable parameters (<code class="code docutils literal notranslate"><span class="pre">TrainableCombinator</span></code>), or partial specialization on argments (<code class="code docutils literal notranslate"><span class="pre">PartialCombinator</span></code>).</p>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p>The implementations of these combinators are similar to those in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
+but JAX imposes extra restrictions on their construction and usage.</p>
+<p>In contrast to <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>, <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> must have the number of
+unfold steps specified ahead of time as a static constant. The length of the
+the unfold chain cannot depend on a variable whose value is known
+only at runtime.</p>
+<p>Similarly, for <code class="code docutils literal notranslate"><span class="pre">MapCombinator</span></code> – the shape of the vectorial arguments
+which will be mapped over must be known at JAX tracing time.</p>
+<p>These restrictions are not due to the implementation, but are fundamental to
+JAX’s programming model (as it stands currently).</p>
+</div>
 <div class="toctree-wrapper compound">
 </div>
 </section>
@@ -377,10 +435,10 @@ title="Print to PDF"
             <p class="prev-next-title">Generative function interface</p>
         </div>
     </a>
-    <a class='right-next' id="next-link" href="switch.html" title="next page">
+    <a class='right-next' id="next-link" href="classes/classes.html" title="next page">
     <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Switch combinator</p>
+        <p class="prev-next-title">Combinators classes</p>
     </div>
     <i class="fas fa-angle-right"></i>
     </a>

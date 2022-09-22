@@ -3,6 +3,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Kreon:wght@500&display=swap");
 
+main#main-content {
+  max-width: 87%;
+}
+
 div.attr {
   font-family: "Fira Code", monospace;
 }
@@ -30,7 +34,6 @@ div.footer {
 }
 
 .viewcode-link {
-  padding: 10px;
   float: none;
 }
 
@@ -77,6 +80,6 @@ h3 {
   font-size: 1.6rem;
 }
 
-h1 {
-  text-align: center;
+div.jupyter_cell.jupyter_container.docutils.container {
+  max-width: 95%;
 }

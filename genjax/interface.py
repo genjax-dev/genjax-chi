@@ -13,39 +13,49 @@
 # limitations under the License.
 
 """
-The generative function interface is a set of methods defined for
-generative functions which support the implementation of
-programmable inference algorithms.
+The generative function interface is a set of methods and associated types
+defined for an implementor which support the generic construction (via interface abstraction)
+of programmable inference algorithms and differentiable programming.
 
-Combined with the trace and choice map datatypes, these interface methods
-are the conceptual core of generative functions.
+Combined with the trace and choice map associated datatypes, the generative function interface
+methods form the conceptual core of the computational behavior of generative functions.
 
-This module exposes the generative function interface as a set of generic
-Python functions. When called with :code:`f: GenerativeFunction`
-and :code:`**kwargs`, they return the corresponding
-:code:`GenerativeFunction` method.
+.. note::
+
+    This module exposes the generative function interface as a set of
+    Python functions. When called with :code:`f: GenerativeFunction`
+    and :code:`**kwargs`, they return the corresponding
+    :code:`GenerativeFunction` method.
+
+    Here's an example:
+
+    .. jupyter-execute::
+
+        import genjax
+        fn = genjax.simulate(genjax.Normal)
+        print(fn)
+
+    If you know you have a :code:`GenerativeFunction`, you can just refer to the
+    methods directly - but sometimes it is useful to use the getter variants
+    (there's no runtime cost when using the getter variants in jitted code, JAX eliminates it).
 """
 
 
 def simulate(f, **kwargs):
     """
-    :code:`simulate` accepts a function :code:`f` and
-    returns a transformed function which implements the below semantics.
+    Given a :code:`key: jax.random.PRNGKey` and :code:`args: Tuple`, perform the
+    following steps:
 
-    Given :code:`key: PRNGKey` and :code:`args: Tuple`, sample
-    :math:`t\sim p(\cdot;x)` and :math:`r\sim p(\cdot;args, t)` and
-    apply the return value function :math:`ret = f(args, t)`.
-
-    Compute the score of the sample :math:`t` under :math:`p(\cdot; x)`.
-
-    Return the return value :math:`ret`, the sample :math:`t`,
-    and the score in a :code:`Trace` instance, along with an evolved
-    :code:`PRNGKey`.
+    * Sample :math:`t\sim p(\cdot;x)` and :math:`r\sim p(\cdot;x, t)`.
+    * Compute the score of the sample :math:`t` under :math:`p(\cdot; x)`.
+    * Return the return value :math:`r`, the choice samples :math:`t`, and the score :math:`s`
+      in a :code:`Trace` instance (including the arguments :math:`x`) :math:`(x, r, t, s)`,
+      along with an evolved :code:`jax.random.PRNGKey`.
 
     Parameters
     ----------
     key: :code:`jax.random.PRNGKey`
-        A JAX-compatible PRNGKey.
+        A JAX-compatible pseudo-random number generator key.
 
     args: :code:`tuple`
         A tuple of argument values.
@@ -73,7 +83,10 @@ def simulate(f, **kwargs):
             return key, x
 
         key = jax.random.PRNGKey(314159)
+
+        # Usage here.
         key, tr = genjax.simulate(model)(key, ())
+
         print(tr)
     """
     return lambda *args: f.simulate(*args, **kwargs)
@@ -96,4 +109,45 @@ def choice_grad(f, **kwargs):
 
 
 def get_trace_type(f, **kwargs):
+    """
+    Given :code:`key: jax.random.PRNGKey` and :code:`args: Tuple`, compute the
+    trace type (c.f. `Trace types and denotational semantics`_) for a generative function
+    - characterizing the internal choice map shape (and types) and return type.
+
+    Parameters
+    ----------
+    key: :code:`jax.random.PRNGKey`
+        A JAX-compatible pseudo-random number generator key.
+
+    args: :code:`tuple`
+        A tuple of argument values.
+
+    Returns
+    -------
+    trace_type: :code:`genjax.TraceType`
+        A static type representation of the internal structure of random choices in
+        a generative function, including the return type.
+
+    Example
+    -------
+
+    .. jupyter-execute::
+
+        import jax
+        import genjax
+
+        @genjax.gen
+        def model(key):
+            key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
+            return key, x
+
+        key = jax.random.PRNGKey(314159)
+
+        # Usage here.
+        trace_type = genjax.get_trace_type(model)(key, ())
+
+        print(trace_type)
+
+    .. _Trace types and denotational semantics: https://dl.acm.org/doi/10.1145/3371087
+    """
     return lambda *args: f.get_trace_type(*args, **kwargs)
