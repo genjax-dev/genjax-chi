@@ -111,8 +111,8 @@ def choice_grad(f, **kwargs):
 def get_trace_type(f, **kwargs):
     """
     Given :code:`key: jax.random.PRNGKey` and :code:`args: Tuple`, compute the
-    trace type (c.f. `Trace types and denotational semantics`_) for a generative function
-    - characterizing the internal choice map shape (and types) and return type.
+    trace type for a generative function - a static piece of data
+    characterizing the internal choice map shape (and types) and return type.
 
     Parameters
     ----------
@@ -147,7 +147,5 @@ def get_trace_type(f, **kwargs):
         trace_type = genjax.get_trace_type(model)(key, ())
 
         print(trace_type)
-
-    .. _Trace types and denotational semantics: https://dl.acm.org/doi/10.1145/3371087
     """
     return lambda *args: f.get_trace_type(*args, **kwargs)

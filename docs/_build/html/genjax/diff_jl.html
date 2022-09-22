@@ -41,8 +41,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Exposing C++ generative functions" href="c_interface.html" />
-    <link rel="prev" title="Inference best practices" href="inference/best_practices.html" />
+    <link rel="next" title="Generative function combinators" href="combinators/combinators.html" />
+    <link rel="prev" title="Generative function interface" href="interface.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="en">
     
@@ -92,7 +92,12 @@
   <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
 </form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item active">
-        <ul class="current nav bd-sidenav">
+        <p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Getting started
+ </span>
+</p>
+<ul class="current nav bd-sidenav">
  <li class="toctree-l1">
   <a class="reference internal" href="tour.html">
    A tour of fundamentals
@@ -108,6 +113,18 @@
    Generative function interface
   </a>
  </li>
+ <li class="toctree-l1 current active">
+  <a class="current reference internal" href="#">
+   Diffing with Gen.jl
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Modeling and inference
+ </span>
+</p>
+<ul class="nav bd-sidenav">
  <li class="toctree-l1 has-children">
   <a class="reference internal" href="combinators/combinators.html">
    Generative function combinators
@@ -184,11 +201,35 @@
    </li>
   </ul>
  </li>
- <li class="toctree-l1 current active">
-  <a class="current reference internal" href="#">
-   Diffing with Gen.jl
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Experimental
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/diagnostics.html">
+   Density diagnostics
   </a>
  </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/trace_types.html">
+   Trace types
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/prox.html">
+   Prox: compositional approximate densities
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Foreign function interfaces
+ </span>
+</p>
+<ul class="nav bd-sidenav">
  <li class="toctree-l1">
   <a class="reference internal" href="c_interface.html">
    Exposing C++ generative functions
@@ -471,7 +512,11 @@ and off JAX device).</p>
 </section>
 <section id="mutation">
 <h2>Mutation<a class="headerlink" href="#mutation" title="Permalink to this heading">#</a></h2>
-<p>Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place. See further: <a class="reference external" href="https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html">JAX - The Sharp Bits</a></p>
+<p>Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>See further: <a class="reference external" href="https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html">JAX - The Sharp Bits</a></p>
+</div>
 </section>
 <section id="to-jit-or-not-to-jit">
 <h2>To JIT or not to JIT<a class="headerlink" href="#to-jit-or-not-to-jit" title="Permalink to this heading">#</a></h2>
@@ -492,17 +537,17 @@ functions which close over these arguments, and can be jitted by the user. You c
                 
     <!-- Previous / next buttons -->
 <div class='prev-next-area'>
-    <a class='left-prev' id="prev-link" href="inference/best_practices.html" title="previous page">
+    <a class='left-prev' id="prev-link" href="interface.html" title="previous page">
         <i class="fas fa-angle-left"></i>
         <div class="prev-next-info">
             <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">Inference best practices</p>
+            <p class="prev-next-title">Generative function interface</p>
         </div>
     </a>
-    <a class='right-next' id="next-link" href="c_interface.html" title="next page">
+    <a class='right-next' id="next-link" href="combinators/combinators.html" title="next page">
     <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Exposing C++ generative functions</p>
+        <p class="prev-next-title">Generative function combinators</p>
     </div>
     <i class="fas fa-angle-right"></i>
     </a>

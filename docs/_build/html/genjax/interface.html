@@ -42,7 +42,7 @@
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Generative function combinators" href="combinators/combinators.html" />
+    <link rel="next" title="Diffing with Gen.jl" href="diff_jl.html" />
     <link rel="prev" title="Anatomy of a generative function" href="gen_fn.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="en">
@@ -93,7 +93,12 @@
   <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
 </form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item active">
-        <ul class="current nav bd-sidenav">
+        <p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Getting started
+ </span>
+</p>
+<ul class="current nav bd-sidenav">
  <li class="toctree-l1">
   <a class="reference internal" href="tour.html">
    A tour of fundamentals
@@ -109,6 +114,18 @@
    Generative function interface
   </a>
  </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="diff_jl.html">
+   Diffing with Gen.jl
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Modeling and inference
+ </span>
+</p>
+<ul class="nav bd-sidenav">
  <li class="toctree-l1 has-children">
   <a class="reference internal" href="combinators/combinators.html">
    Generative function combinators
@@ -185,11 +202,35 @@
    </li>
   </ul>
  </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Experimental
+ </span>
+</p>
+<ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="diff_jl.html">
-   Diffing with Gen.jl
+  <a class="reference internal" href="experimental/diagnostics.html">
+   Density diagnostics
   </a>
  </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/trace_types.html">
+   Trace types
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/prox.html">
+   Prox: compositional approximate densities
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Foreign function interfaces
+ </span>
+</p>
+<ul class="nav bd-sidenav">
  <li class="toctree-l1">
   <a class="reference internal" href="c_interface.html">
    Exposing C++ generative functions
@@ -419,7 +460,7 @@ and <code class="code docutils literal notranslate"><span class="pre">**kwargs</
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x104449990&gt;
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x103cf6170&gt;
 </pre></div>
 </div>
 </div>
@@ -496,12 +537,17 @@ inference metadata, accrued during the call.</p></li>
 </div>
 </dd></dl>
 
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The trace type functionality is described in more detail in <a class="reference internal" href="experimental/trace_types.html"><span class="doc">Trace types</span></a>,
+as well as in the original research paper <a class="reference external" href="https://dl.acm.org/doi/10.1145/3371087">Lew et al (2019)</a>.</p>
+</div>
 <dl class="py function">
 <dt class="sig sig-object py" id="genjax.get_trace_type">
-<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">get_trace_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L111-L153"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.get_trace_type" title="Permalink to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">get_trace_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L111-L151"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.get_trace_type" title="Permalink to this definition">#</a></dt>
 <dd><p>Given <code class="code docutils literal notranslate"><span class="pre">key:</span> <span class="pre">jax.random.PRNGKey</span></code> and <code class="code docutils literal notranslate"><span class="pre">args:</span> <span class="pre">Tuple</span></code>, compute the
-trace type (c.f. <a class="reference external" href="https://dl.acm.org/doi/10.1145/3371087">Trace types and denotational semantics</a>) for a generative function
-- characterizing the internal choice map shape (and types) and return type.</p>
+trace type for a generative function - a static piece of data
+characterizing the internal choice map shape (and types) and return type.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -565,10 +611,10 @@ a generative function, including the return type.</p>
             <p class="prev-next-title">Anatomy of a generative function</p>
         </div>
     </a>
-    <a class='right-next' id="next-link" href="combinators/combinators.html" title="next page">
+    <a class='right-next' id="next-link" href="diff_jl.html" title="next page">
     <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Generative function combinators</p>
+        <p class="prev-next-title">Diffing with Gen.jl</p>
     </div>
     <i class="fas fa-angle-right"></i>
     </a>

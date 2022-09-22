@@ -25,7 +25,11 @@ In practice, this means that some performance engineering (space vs. expressivit
 Mutation
 --------
 
-Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place. See further: `JAX - The Sharp Bits`_
+Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place. 
+
+.. tip::
+   
+  See further: `JAX - The Sharp Bits`_
 
 .. _JAX - The Sharp Bits: https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html
 

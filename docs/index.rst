@@ -25,15 +25,33 @@ for expressing differentiable programming and Monte Carlo inference algorithms. 
 
 .. toctree::
    :hidden:
-   :glob:
-   :maxdepth: 2
+   :caption: Getting started
+   :maxdepth: 1
 
    genjax/tour
    genjax/gen_fn
    genjax/interface
+   genjax/diff_jl
+  
+.. toctree::
+   :hidden:
+   :caption: Modeling and inference
+   
    genjax/combinators/combinators
    genjax/inference/inference
-   genjax/diff_jl
+
+.. toctree::
+   :hidden:
+   :caption: Experimental
+
+   genjax/experimental/diagnostics
+   genjax/experimental/trace_types
+   genjax/experimental/prox
+
+.. toctree::
+   :hidden:
+   :caption: Foreign function interfaces
+   
    genjax/c_interface
    genjax/wasm_interface
 

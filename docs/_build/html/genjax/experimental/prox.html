@@ -6,43 +6,43 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Partial combinator &#8212; Gen ⊗ JAX</title>
+    <title>Prox: compositional approximate densities &#8212; Gen ⊗ JAX</title>
     
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+  <link href="../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
 
     
   <link rel="stylesheet"
-    href="../../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
+    href="../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
   <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="../../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
+    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="../../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
 
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" href="../../../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/css/custom.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" href="../../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css" />
     
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
+  <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
 
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="../../../_static/doctools.js"></script>
-    <script src="../../../_static/thebelab-helper.js"></script>
-    <script src="../../../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/thebelab-helper.js"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
-    <link rel="index" title="Index" href="../../../genindex.html" />
-    <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="Trainable combinator" href="trainable.html" />
-    <link rel="prev" title="Unfold combinator" href="unfold.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Exposing C++ generative functions" href="../c_interface.html" />
+    <link rel="prev" title="Trace types" href="trace_types.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="en">
     
@@ -77,17 +77,17 @@
 <div class="bd-sidebar noprint" id="site-navigation">
     <div class="bd-sidebar__content">
         <div class="bd-sidebar__top"><div class="navbar-brand-box">
-    <a class="navbar-brand text-wrap" href="../../../index.html">
+    <a class="navbar-brand text-wrap" href="../../index.html">
       
         <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
         
       
       
-      <img src="../../../_static/logo.png" class="logo" alt="logo">
+      <img src="../../_static/logo.png" class="logo" alt="logo">
       
       
     </a>
-</div><form class="bd-search d-flex align-items-center" action="../../../search.html" method="get">
+</div><form class="bd-search d-flex align-items-center" action="../../search.html" method="get">
   <i class="icon fas fa-search"></i>
   <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
 </form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
@@ -99,22 +99,22 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../tour.html">
+  <a class="reference internal" href="../tour.html">
    A tour of fundamentals
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../gen_fn.html">
+  <a class="reference internal" href="../gen_fn.html">
    Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../interface.html">
+  <a class="reference internal" href="../interface.html">
    Generative function interface
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../diff_jl.html">
+  <a class="reference internal" href="../diff_jl.html">
    Diffing with Gen.jl
   </a>
  </li>
@@ -124,63 +124,63 @@
   Modeling and inference
  </span>
 </p>
-<ul class="current nav bd-sidenav">
- <li class="toctree-l1 current active has-children">
-  <a class="reference internal" href="../combinators.html">
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="../combinators/combinators.html">
    Generative function combinators
   </a>
-  <input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
+  <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
   <label for="toctree-checkbox-1">
    <i class="fas fa-chevron-down">
    </i>
   </label>
-  <ul class="current">
-   <li class="toctree-l2 current active has-children">
-    <a class="reference internal" href="classes.html">
+  <ul>
+   <li class="toctree-l2 has-children">
+    <a class="reference internal" href="../combinators/classes/classes.html">
      Combinators classes
     </a>
-    <input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
+    <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
     <label for="toctree-checkbox-2">
      <i class="fas fa-chevron-down">
      </i>
     </label>
-    <ul class="current">
+    <ul>
      <li class="toctree-l3">
-      <a class="reference internal" href="switch.html">
+      <a class="reference internal" href="../combinators/classes/switch.html">
        Switch combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="map.html">
+      <a class="reference internal" href="../combinators/classes/map.html">
        Map combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="unfold.html">
+      <a class="reference internal" href="../combinators/classes/unfold.html">
        Unfold combinator
       </a>
      </li>
-     <li class="toctree-l3 current active">
-      <a class="current reference internal" href="#">
+     <li class="toctree-l3">
+      <a class="reference internal" href="../combinators/classes/partial.html">
        Partial combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="trainable.html">
+      <a class="reference internal" href="../combinators/classes/trainable.html">
        Trainable combinator
       </a>
      </li>
     </ul>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="../vector_combinators.html">
+    <a class="reference internal" href="../combinators/vector_combinators.html">
      Vector combinators
     </a>
    </li>
   </ul>
  </li>
  <li class="toctree-l1 has-children">
-  <a class="reference internal" href="../../inference/inference.html">
+  <a class="reference internal" href="../inference/inference.html">
    Inference
   </a>
   <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
@@ -190,12 +190,12 @@
   </label>
   <ul>
    <li class="toctree-l2">
-    <a class="reference internal" href="../../inference/library/library.html">
+    <a class="reference internal" href="../inference/library/library.html">
      Inference library
     </a>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="../../inference/best_practices.html">
+    <a class="reference internal" href="../inference/best_practices.html">
      Inference best practices
     </a>
    </li>
@@ -207,19 +207,19 @@
   Experimental
  </span>
 </p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/diagnostics.html">
+  <a class="reference internal" href="diagnostics.html">
    Density diagnostics
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/trace_types.html">
+  <a class="reference internal" href="trace_types.html">
    Trace types
   </a>
  </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/prox.html">
+ <li class="toctree-l1 current active">
+  <a class="current reference internal" href="#">
    Prox: compositional approximate densities
   </a>
  </li>
@@ -231,12 +231,12 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../c_interface.html">
+  <a class="reference internal" href="../c_interface.html">
    Exposing C++ generative functions
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../wasm_interface.html">
+  <a class="reference internal" href="../wasm_interface.html">
    From GenJAX to WebAssembly
   </a>
  </li>
@@ -330,7 +330,7 @@ title="Source repository"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/combinators/classes/partial.html&body=Your%20issue%20content%20here."
+        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/experimental/prox.html&body=Your%20issue%20content%20here."
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -347,7 +347,7 @@ title="Open an issue"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/combinators/classes/partial.rst"
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/experimental/prox.rst"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -375,7 +375,7 @@ title="Edit this page"
   <div class="menu-dropdown__content">
     <ul>
       <li>
-        <a href="../../../_sources/genjax/combinators/classes/partial.rst.txt"
+        <a href="../../_sources/genjax/experimental/prox.rst.txt"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -424,7 +424,7 @@ title="Print to PDF"
         <div class="col pl-md-3 pl-lg-5 content-container">
             <!-- Table of contents that is only displayed when printing the page -->
             <div id="jb-print-docs-body" class="onlyprint">
-                <h1>Partial combinator</h1>
+                <h1>Prox: compositional approximate densities</h1>
                 <!-- Table of contents -->
                 <div id="print-main-content">
                     <div id="jb-print-toc">
@@ -436,29 +436,8 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="module-genjax.combinators.partial_combinator">
-<span id="partial-combinator"></span><h1>Partial combinator<a class="headerlink" href="#module-genjax.combinators.partial_combinator" title="Permalink to this heading">#</a></h1>
-<dl class="py class">
-<dt class="sig sig-object py" id="genjax.combinators.PartialCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.</span></span><span class="sig-name descname"><span class="pre">PartialCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/combinators/partial_combinator.py#L20-L52"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.PartialCombinator" title="Permalink to this definition">#</a></dt>
-<dd><p>PartialCombinator(inner: genjax.core.datatypes.GenerativeFunction)</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="genjax.combinators.PartialCombinator.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GenerativeFunction</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#genjax.combinators.PartialCombinator.__init__" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="genjax.combinators.PartialCombinator.__new__">
-<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#genjax.combinators.PartialCombinator.__new__" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="genjax.combinators.PartialCombinator.simulate">
-<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/combinators/partial_combinator.py#L30-L36"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.combinators.PartialCombinator.simulate" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
+  <section id="prox-compositional-approximate-densities">
+<h1>Prox: compositional approximate densities<a class="headerlink" href="#prox-compositional-approximate-densities" title="Permalink to this heading">#</a></h1>
 </section>
 
 
@@ -469,17 +448,17 @@ title="Print to PDF"
                 
     <!-- Previous / next buttons -->
 <div class='prev-next-area'>
-    <a class='left-prev' id="prev-link" href="unfold.html" title="previous page">
+    <a class='left-prev' id="prev-link" href="trace_types.html" title="previous page">
         <i class="fas fa-angle-left"></i>
         <div class="prev-next-info">
             <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">Unfold combinator</p>
+            <p class="prev-next-title">Trace types</p>
         </div>
     </a>
-    <a class='right-next' id="next-link" href="trainable.html" title="next page">
+    <a class='right-next' id="next-link" href="../c_interface.html" title="next page">
     <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Trainable combinator</p>
+        <p class="prev-next-title">Exposing C++ generative functions</p>
     </div>
     <i class="fas fa-angle-right"></i>
     </a>
@@ -502,7 +481,7 @@ title="Print to PDF"
     </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
+  <script src="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
 
 
   </body>

@@ -4,11 +4,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Kreon:wght@500&display=swap");
 
 main#main-content {
-  max-width: 87%;
+  max-width: 75%;
 }
 
 div.attr {
   font-family: "Fira Code", monospace;
+}
+
+footer.col.footer {
+  font-weight: 600;
 }
 
 dl.py.function {
@@ -68,18 +72,7 @@ h3 {
   font-family: "Kreon", sans-serif;
 }
 
-h1 {
-  font-size: 2.5rem;
-}
-
-h2 {
-  font-size: 2rem;
-}
-
-h3 {
-  font-size: 1.6rem;
-}
-
 div.jupyter_cell.jupyter_container.docutils.container {
+  margin: auto;
   max-width: 95%;
 }

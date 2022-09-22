@@ -6,7 +6,7 @@ It's useful to start with a dead simple modeling example (often the first exampl
 .. hint::
    See further: `Everything I need to know about Bayesian statistics, I learned in eight schools.`_
 
-  The *Eight schools* problem is also covered extensively in Gelman et al., Bayesian Data Analysis: Sec. 5.5, 2003. 
+  The *eight schools* problem is also covered extensively in Gelman et al., Bayesian Data Analysis: Sec. 5.5, 2003. 
   
 
 .. admonition:: Eight schools
