@@ -214,9 +214,10 @@ def evaluate_likelihood(key):
 
 def test_likelihood_evaluation(benchmark):
     key = jax.random.PRNGKey(3)
-    key, sub_key = jax.random.split(key)
-    jitted = jax.jit(evaluate_likelihood)
-    benchmark(jitted, sub_key)
+    key, *sub_keys = jax.random.split(key, 100 + 1)
+    sub_keys = jnp.array(sub_keys)
+    jitted = jax.jit(jax.vmap(evaluate_likelihood))
+    benchmark(jitted, sub_keys)
 
 
 def test_importance(benchmark):
@@ -231,17 +232,18 @@ def test_importance(benchmark):
     gt_image = render_cloud_at_pose(
         object_model_cloud, gt_pose, h, w, fx_fy, cx_cy
     )
-    chm = genjax.ChoiceMap.new({("rendered",): gt_image})
-    key = jax.random.PRNGKey(3)
-    key, sub_key = jax.random.split(key)
 
     def _inner(key, chm, args):
         key, (w, tr) = model.importance(key, chm, args)
         return key, (w, tr)
 
+    chm = genjax.ChoiceMap.new({("rendered",): gt_image})
+    key = jax.random.PRNGKey(3)
+    key, *sub_keys = jax.random.split(key, 100 + 1)
+    sub_keys = jnp.array(sub_keys)
     key, tr = benchmark(
-        jax.jit(_inner),
-        key,
+        jax.jit(jax.vmap(_inner, in_axes=(0, None, None))),
+        sub_keys,
         chm,
         (object_model_cloud,),
     )
