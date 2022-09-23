@@ -32,9 +32,7 @@ class TFPDistribution(Distribution):
         return (), (self.distribution,)
 
     def __trace_type__(self, key, *args, **kwargs):
-        _, ttype = jax.make_jaxpr(self.sample, return_shape=True)(
-            key, *args, **kwargs
-        )
+        _, ttype = jax.make_jaxpr(self.sample, return_shape=True)(key, *args)
         return lift(ttype)
 
     def sample(self, key, *args, **kwargs):

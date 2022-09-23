@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import genjax
 
 # Eight schools in idiomatic GenJAX.
@@ -31,7 +32,7 @@ def plate(key, mu, tau, sigma):
 @genjax.gen
 def J_schools(key, J, sigma):
     key, mu = genjax.trace("mu", genjax.Normal)(key, (0.0, 5.0))
-    key, tau = genjax.trace("tau", genjax.Cauchy)(key, ())
+    key, tau = genjax.trace("tau", genjax.HalfCauchy)(key, (5.0, 1.0))
     key, *subkeys = jax.random.split(key, J + 1)
     subkeys = jnp.array(subkeys)
     _, obs = genjax.trace("plate", plate)(subkeys, (mu, tau, sigma))
@@ -57,7 +58,7 @@ def importance_resampling(model, key, args, obs, n_particles):
     ind = jax.random.categorical(key, w)
     tr = jax.tree_util.tree_map(lambda v: v[ind], tr)
     w = w[ind]
-    return w, tr
+    return key, (w, tr)
 
 
 # Key, arguments, and observations.
@@ -66,7 +67,12 @@ sigma = jnp.array([15.0, 10.0, 16.0, 11.0, 9.0, 11.0, 10.0, 18.0])
 obs = genjax.ChoiceMap(
     {
         ("plate",): genjax.VectorChoiceMap(
-            {("obs",): jnp.array([28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0])}
+            np.array([i for i in range(0, 8)]),
+            {
+                ("obs",): jnp.array(
+                    [28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0]
+                )
+            },
         )
     }
 )
@@ -79,5 +85,5 @@ print(trace_type)
 # We JIT -- we specialize on the number of particles so JAX's PRNG
 # split function traces properly.
 jitted = jax.jit(importance_resampling, static_argnums=4)
-w, tr = jitted(eight_schools, key, (sigma,), obs, 1000)
+key, (w, tr) = jitted(eight_schools, key, (sigma,), obs, 1000)
 print(tr)
