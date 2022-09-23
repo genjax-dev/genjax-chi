@@ -14,7 +14,6 @@
 
 import jax
 import jax.numpy as jnp
-from jax.scipy.special import logsumexp
 import numpy as np
 import genjax
 import functools
