@@ -174,26 +174,6 @@ def model(key, object_model_cloud):
 
 
 #####
-# Inference
-#####
-
-
-def importance_resampling(model, n_particles):
-    def _inner(key, obs, args):
-        key, *subkeys = jax.random.split(key, n_particles + 1)
-        subkeys = jnp.array(subkeys)
-        _, (w, tr) = jax.vmap(model.importance, in_axes=(0, None, None))(
-            subkeys, obs, args
-        )
-        ind = jax.random.categorical(key, w)
-        tr = jax.tree_util.tree_map(lambda v: v[ind], tr)
-        w = w[ind]
-        return key, (w, tr)
-
-    return _inner
-
-
-#####
 # Benchmarks
 #####
 
@@ -210,10 +190,11 @@ gt_pose = jnp.array(
 gt_image = render_cloud_at_pose(object_model_cloud, gt_pose, h, w, fx_fy, cx_cy)
 
 
-@functools.partial(
-    jnp.vectorize,
-)
-def evaluate_likelihood(x: float):
+def evaluate_likelihood(
+    key,
+):
+    x = jax.random.uniform(key, minval=-5.0, maxval=5.0)
+    score = jax.scipy.stats.uniform.logpdf(x, -5.0, 5.0)
     latent_pose = jnp.array(
         [
             [1.0, 0.0, 0.0, x],
@@ -227,18 +208,21 @@ def evaluate_likelihood(x: float):
     )
 
     ### Make distribution whose logscore is
-    score = neural_descriptor_likelihood(
+    score += neural_descriptor_likelihood(
         rendered_image, gt_image, r, outlier_prob
     )
     return score
 
 
 def test_likelihood_evaluation(benchmark):
-    xs = jnp.linspace(0.0, 6.0, 100)
-    benchmark(jax.jit(evaluate_likelihood), xs)
+    key = jax.random.PRNGKey(3)
+    key, *sub_keys = jax.random.split(key, 100 + 1)
+    sub_keys = jnp.array(sub_keys)
+    vmapped = jax.jit(jax.vmap(evaluate_likelihood, in_axes=0))
+    benchmark(vmapped, sub_keys)
 
 
-def test_importance_resampling_benchmark(benchmark):
+def test_importance(benchmark):
     gt_pose = jnp.array(
         [
             [1.0, 0.0, 0.0, 2.0],
@@ -252,9 +236,11 @@ def test_importance_resampling_benchmark(benchmark):
     )
     chm = genjax.ChoiceMap.new({("rendered",): gt_image})
     key = jax.random.PRNGKey(3)
+    key, *sub_keys = jax.random.split(key, 100 + 1)
+    sub_keys = jnp.array(sub_keys)
     key, (_, tr) = benchmark(
-        jax.jit(importance_resampling(model, 100)),
-        key,
+        jax.jit(jax.vmap(model.importance, in_axes=(0, None, None))),
+        sub_keys,
         chm,
         (object_model_cloud,),
     )
