@@ -27,7 +27,7 @@ class _Beta(Distribution):
     def logpdf(self, key, v, a, b, **kwargs):
         return jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))
 
-    def get_trace_type(self, key, a, b, **kwargs):
+    def __trace_type__(self, key, a, b, **kwargs):
         shape = kwargs.get("shape", ())
         return RealInterval(shape, a, b)
 

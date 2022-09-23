@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
 import jax.core as jc
 from jax.util import safe_map
 import jax.numpy as jnp
@@ -154,8 +155,8 @@ def lift(v, shape=()):
     if v == bool:
         return Finite(shape, 2)
     if isinstance(v, jnp.ndarray) or isinstance(v, np.ndarray):
-        ty = lift(v.dtype, shape=v.shape)
-        return ty
+        return lift(v.dtype, shape=v.shape)
+    if isinstance(v, jax.ShapeDtypeStruct):
+        return lift(v.dtype, shape=v.shape)
     elif isinstance(v, jc.ShapedArray):
-        ty = lift(v.dtype, shape=v.shape)
-        return ty
+        return lift(v.dtype, shape=v.shape)

@@ -14,4 +14,4 @@
 
 from .distribution import *
 from .standard import *
-from .geometric import *
+from .tensorflow_probability import *
