@@ -189,10 +189,9 @@ gt_pose = jnp.array(
 gt_image = render_cloud_at_pose(object_model_cloud, gt_pose, h, w, fx_fy, cx_cy)
 
 
-def evaluate_likelihood(
-    key,
-):
-    x = jax.random.uniform(key, minval=-5.0, maxval=5.0)
+def evaluate_likelihood(key):
+    key, sub_key = jax.random.split(key)
+    x = jax.random.uniform(sub_key, minval=-5.0, maxval=5.0)
     score = jax.scipy.stats.uniform.logpdf(x, -5.0, 5.0)
     latent_pose = jnp.array(
         [
@@ -206,19 +205,18 @@ def evaluate_likelihood(
         object_model_cloud, latent_pose, h, w, fx_fy, cx_cy
     )
 
-    ### Make distribution whose logscore is
+    ## Make distribution whose logscore is
     score += neural_descriptor_likelihood(
         rendered_image, gt_image, r, outlier_prob
     )
-    return score
+    return key, score
 
 
 def test_likelihood_evaluation(benchmark):
     key = jax.random.PRNGKey(3)
-    key, *sub_keys = jax.random.split(key, 100 + 1)
-    sub_keys = jnp.array(sub_keys)
-    vmapped = jax.jit(jax.vmap(evaluate_likelihood, in_axes=0))
-    benchmark(vmapped, sub_keys)
+    key, sub_key = jax.random.split(key)
+    jitted = jax.jit(evaluate_likelihood)
+    benchmark(jitted, sub_key)
 
 
 def test_importance(benchmark):
@@ -235,11 +233,15 @@ def test_importance(benchmark):
     )
     chm = genjax.ChoiceMap.new({("rendered",): gt_image})
     key = jax.random.PRNGKey(3)
-    key, *sub_keys = jax.random.split(key, 100 + 1)
-    sub_keys = jnp.array(sub_keys)
-    key, (_, tr) = benchmark(
-        jax.jit(jax.vmap(model.importance, in_axes=(0, None, None))),
-        sub_keys,
+    key, sub_key = jax.random.split(key)
+
+    def _inner(key, chm, args):
+        key, (w, tr) = model.importance(key, chm, args)
+        return key, (w, tr)
+
+    key, tr = benchmark(
+        jax.jit(_inner),
+        key,
         chm,
         (object_model_cloud,),
     )
