@@ -25,4 +25,3 @@ from .logistic import *
 from .multivariate_normal import *
 from .pareto import *
 from .poisson import *
-from .uniform import *

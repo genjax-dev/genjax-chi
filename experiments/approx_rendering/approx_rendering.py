@@ -214,7 +214,7 @@ def evaluate_likelihood(key):
 
 def test_likelihood_evaluation(benchmark):
     key = jax.random.PRNGKey(3)
-    key, *sub_keys = jax.random.split(key, 100 + 1)
+    key, *sub_keys = jax.random.split(key, 300 + 1)
     sub_keys = jnp.array(sub_keys)
     jitted = jax.jit(jax.vmap(evaluate_likelihood))
     benchmark(jitted, sub_keys)
@@ -234,12 +234,12 @@ def test_importance(benchmark):
     )
 
     def _inner(key, chm, args):
-        key, (w, tr) = model.importance(key, chm, args)
-        return key, (w, tr)
+        key, (w, _) = model.importance(key, chm, args)
+        return key, w
 
     chm = genjax.ChoiceMap.new({("rendered",): gt_image})
     key = jax.random.PRNGKey(3)
-    key, *sub_keys = jax.random.split(key, 100 + 1)
+    key, *sub_keys = jax.random.split(key, 300 + 1)
     sub_keys = jnp.array(sub_keys)
     key, tr = benchmark(
         jax.jit(jax.vmap(_inner, in_axes=(0, None, None))),
