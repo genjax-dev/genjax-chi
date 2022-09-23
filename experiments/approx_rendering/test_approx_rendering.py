@@ -35,19 +35,17 @@ def apply_transform(coords, transform):
     return coords
 
 
-def render_cloud_at_pose(input_cloud, pose):
+@functools.partial(jax.jit, static_argnames=["h", "w"])
+def render_cloud_at_pose(input_cloud, pose, h, w, fx_fy, cx_cy):
     transformed_cloud = apply_transform(input_cloud, pose)
     point_cloud = jnp.vstack([jnp.zeros((1, 3)), transformed_cloud])
-
-    fx_fy = jnp.array([200.0, 200.0])
-    cx_cy = jnp.array([100.0, 200.0])
 
     point_cloud_normalized = point_cloud / point_cloud[:, 2].reshape(-1, 1)
     temp1 = point_cloud_normalized[:, :2] * fx_fy.transpose()
     temp2 = temp1 + cx_cy
     pixels = jnp.round(temp2)
 
-    x, y = jnp.meshgrid(jnp.arange(200), jnp.arange(400))
+    x, y = jnp.meshgrid(jnp.arange(h), jnp.arange(w))
     matches = (x[:, :, None] == pixels[:, 0]) & (y[:, :, None] == pixels[:, 1])
     a = jnp.argmax(matches, axis=-1)
     return point_cloud[a]
@@ -95,15 +93,16 @@ def extract_2d_patches(
 
 
 def neural_descriptor_likelihood(
-    rendered_xyz: jnp.ndarray,
-    obs_xyz: jnp.ndarray,
+    obs_xyz, rendered_xyz: jnp.ndarray, r, outlier_prob
 ):
-
+    obs_mask = obs_xyz[:, :, -1]
+    rendered_mask = rendered_xyz[:, :, -1]
+    num_latent_points = rendered_mask.sum()
     rendered_xyz_patches = extract_2d_patches(rendered_xyz, (4, 4))
     log_mixture_prob = log_likelihood_for_pixel(
-        obs_xyz, rendered_xyz_patches, 1.0, 0.01, 0.01
+        obs_xyz, rendered_xyz_patches, r, outlier_prob, num_latent_points
     )
-    return jnp.sum(log_mixture_prob)
+    return jnp.sum(jnp.where(obs_mask, log_mixture_prob, 0.0))
 
 
 @functools.partial(
@@ -136,7 +135,7 @@ class _NeuralDescriptorLikelihood(genjax.Distribution):
         return key, ()
 
     def logpdf(self, key, image, *args):
-        return neural_descriptor_likelihood(*args, image)
+        return neural_descriptor_likelihood(image, *args)
 
 
 NeuralDescriptorLikelihood = _NeuralDescriptorLikelihood()
@@ -145,40 +144,117 @@ NeuralDescriptorLikelihood = _NeuralDescriptorLikelihood()
 # Model
 #####
 
+h, w, fx_fy, cx_cy = (
+    120,
+    160,
+    jnp.array([200.0, 200.0]),
+    jnp.array([60.0, 80.0]),
+)
+r = 0.05
+outlier_prob = 0.01
+
 
 @genjax.gen
-def model(key, object_model_cloud, gt_pose):
-    key, x = genjax.trace("x", genjax.Uniform)(key, (-2.0, 2.0))
+def model(key, object_model_cloud):
+    key, x = genjax.trace("x", genjax.Uniform)(key, (-5.0, 5.0))
     pose = jnp.array(
         [
             [1.0, 0.0, 0.0, x],
             [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 4.0],
+            [0.0, 0.0, 1.0, 10.0],
             [0.0, 0.0, 0.0, 1.0],
         ]
     )
-    rendered_image = render_cloud_at_pose(object_model_cloud, gt_pose)
+    rendered_image = render_cloud_at_pose(
+        object_model_cloud, pose, h, w, fx_fy, cx_cy
+    )
     return genjax.trace("rendered", NeuralDescriptorLikelihood)(
-        key, (rendered_image,)
+        key, (rendered_image, r, outlier_prob)
     )
 
 
-# Test importance.
+#####
+# Inference
+#####
+
+
+def importance_resampling(model, n_particles):
+    def _inner(key, obs, args):
+        key, *subkeys = jax.random.split(key, n_particles + 1)
+        subkeys = jnp.array(subkeys)
+        _, (w, tr) = jax.vmap(model.importance, in_axes=(0, None, None))(
+            subkeys, obs, args
+        )
+        ind = jax.random.categorical(key, w)
+        tr = jax.tree_util.tree_map(lambda v: v[ind], tr)
+        w = w[ind]
+        return key, (w, tr)
+
+    return _inner
+
+
+#####
+# Benchmarks
+#####
+
 object_model_cloud = np.random.rand(88, 3)
 object_model_cloud = jnp.array(object_model_cloud)
 gt_pose = jnp.array(
     [
-        [1.0, 0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0, 2.0],
         [0.0, 1.0, 0.0, 0.0],
-        [0.0, 0.0, 1.0, 4.0],
+        [0.0, 0.0, 1.0, 10.0],
         [0.0, 0.0, 0.0, 1.0],
     ]
 )
-gt_image = render_cloud_at_pose(object_model_cloud, gt_pose)
-chm = genjax.ChoiceMap.new({("rendered",): gt_image})
-key = jax.random.PRNGKey(314159)
-key, (w, tr) = jax.jit(genjax.importance(model))(
-    key, chm, (object_model_cloud, gt_pose)
+gt_image = render_cloud_at_pose(object_model_cloud, gt_pose, h, w, fx_fy, cx_cy)
+
+
+@functools.partial(
+    jnp.vectorize,
 )
-print(w)
-print(tr)
+def evaluate_likelihood(x: float):
+    latent_pose = jnp.array(
+        [
+            [1.0, 0.0, 0.0, x],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 10.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    rendered_image = render_cloud_at_pose(
+        object_model_cloud, latent_pose, h, w, fx_fy, cx_cy
+    )
+
+    ### Make distribution whose logscore is
+    score = neural_descriptor_likelihood(
+        rendered_image, gt_image, r, outlier_prob
+    )
+    return score
+
+
+def test_likelihood_evaluation(benchmark):
+    xs = jnp.linspace(0.0, 6.0, 100)
+    benchmark(jax.jit(evaluate_likelihood), xs)
+
+
+def test_importance_resampling_benchmark(benchmark):
+    gt_pose = jnp.array(
+        [
+            [1.0, 0.0, 0.0, 2.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 10.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    gt_image = render_cloud_at_pose(
+        object_model_cloud, gt_pose, h, w, fx_fy, cx_cy
+    )
+    chm = genjax.ChoiceMap.new({("rendered",): gt_image})
+    key = jax.random.PRNGKey(3)
+    key, (_, tr) = benchmark(
+        jax.jit(importance_resampling(model, 100)),
+        key,
+        chm,
+        (object_model_cloud,),
+    )
