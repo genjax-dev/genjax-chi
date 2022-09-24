@@ -21,7 +21,7 @@ print((gt_image[:,:,2] > 0).sum())
 
 key = jax.random.PRNGKey(3)
 scorer = make_scoring_function(object_model_cloud, h, w, fx_fy, cx_cy ,r, outlier_prob)
-# score = scorer(key, jnp.zeros(3), gt_image)
+score = scorer(key, jnp.zeros(3), gt_image)
 # print(score)
 
 
