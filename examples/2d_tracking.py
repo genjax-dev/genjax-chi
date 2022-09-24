@@ -19,6 +19,8 @@ from genjax import Trace
 from typing import Sequence
 import matplotlib.pyplot as plt
 
+print(genjax)
+
 plt.style.use("ggplot")
 
 

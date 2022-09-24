@@ -86,4 +86,16 @@ print(trace_type)
 # split function traces properly.
 jitted = jax.jit(importance_resampling, static_argnums=4)
 key, (w, tr) = jitted(eight_schools, key, (sigma,), obs, 1000)
-print(tr)
+
+inv_mass_matrix = 0.5 * np.ones(10)
+step_size = 1e-3
+key, states = jax.jit(
+    genjax.nuts(
+        tr,
+        genjax.Selection([("plate", "obs")]).complement(),
+        500,
+        step_size,
+        inv_mass_matrix,
+    )
+)(key)
+print(states)
