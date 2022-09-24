@@ -12,41 +12,90 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import operator
 from genjax.core.datatypes import GenerativeFunction
 from genjax.builtin.builtin_gen_fn import BuiltinGenerativeFunction
 from dataclasses import dataclass
+from typing import List, Any, Tuple
 
 
 @dataclass
 class PartialCombinator(GenerativeFunction):
     inner: GenerativeFunction
+    static_argnums: List
 
     def flatten(self):
-        return (), (self.inner,)
+        return (), (self.inner, self.static_argnums)
 
     def __call__(self, key, *args, **kwargs):
         return self.inner.__call__(key, *args, **kwargs)
 
     def simulate(self, key, args):
-        end = args[-1]
-        closed_over = BuiltinGenerativeFunction(
-            lambda key, *args: self.inner(key, *args, end)
+        total_arg_length = len(args)
+        static_args = tuple(
+            map(
+                lambda ind: args[ind] if ind in self.static_argnums else 0,
+                range(0, len(args)),
+            )
         )
-        args = args[0:-1]
+
+        def _inner(key, *args):
+            new_args = tuple(
+                map(
+                    lambda ind: static_args[ind]
+                    if ind in self.static_argnums
+                    else args[ind],
+                    range(0, len(args)),
+                )
+            )
+            return self.inner(key, *new_args)
+
+        closed_over = BuiltinGenerativeFunction(_inner)
         return closed_over.simulate(key, args)
 
     def importance(self, key, chm, args):
-        end = args[-1]
-        closed_over = BuiltinGenerativeFunction(
-            lambda key, *args: self.inner(key, *args, end)
+        total_arg_length = len(args)
+        static_args = tuple(
+            map(
+                lambda ind: args[ind] if ind in self.static_argnums else 0,
+                range(0, len(args)),
+            )
         )
-        args = args[0:-1]
+
+        def _inner(key, *args):
+            new_args = tuple(
+                map(
+                    lambda ind: static_args[ind]
+                    if ind in self.static_argnums
+                    else args[ind],
+                    range(0, len(args)),
+                )
+            )
+            return self.inner(key, *new_args)
+
+        closed_over = BuiltinGenerativeFunction(_inner)
+
         return closed_over.importance(key, chm, args)
 
     def update(self, key, prev, chm, args):
-        end = args[-1]
-        closed_over = BuiltinGenerativeFunction(
-            lambda key, *args: self.inner(key, *args, end)
+        total_arg_length = len(args)
+        static_args = tuple(
+            map(
+                lambda ind: args[ind] if ind in self.static_argnums else 0,
+                range(0, len(args)),
+            )
         )
-        args = args[0:-1]
+
+        def _inner(key, *args):
+            new_args = tuple(
+                map(
+                    lambda ind: static_args[ind]
+                    if ind in self.static_argnums
+                    else args[ind],
+                    range(0, len(args)),
+                )
+            )
+            return self.inner(key, *new_args)
+
+        closed_over = BuiltinGenerativeFunction(_inner)
         return closed_over.update(key, prev, chm, args)

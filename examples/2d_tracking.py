@@ -19,8 +19,6 @@ from genjax import Trace
 from typing import Sequence
 import matplotlib.pyplot as plt
 
-print(genjax)
-
 plt.style.use("ggplot")
 
 
@@ -93,19 +91,13 @@ def trace_visualizer(observation_sequence: Sequence, tr: Trace):
 #####
 
 
-# The `Partial` combinator closes over arguments -- allowing
-# JAX to implement constant propagation.
-#
-# `Partial` always closes from last to first argument.
-#
-# Thus, here we're indicating that `obs_chm` must be static underneath
-# any JAX transformation.
+# The `Partial` combinator indicates static arguments.
 #
 # Note that JAX will be very upset if you don't pass in a constant
 # argument (as you said you would).
 #
 # Then, a closure will capture a tracer, which is illegal.
-@genjax.gen(genjax.Partial)
+@genjax.gen(genjax.Partial, static_argnums=[-1])
 def initial_proposal(key, obs_chm):
     v = obs_chm["z", "obs"]
     key, initial = genjax.trace("initial", genjax.MvNormal)(
@@ -117,7 +109,7 @@ def initial_proposal(key, obs_chm):
     return (key,)
 
 
-@genjax.gen(genjax.Partial)
+@genjax.gen(genjax.Partial, static_argnums=[-1])
 def transition_proposal(key, prev_tr, obs_chm):
     v = obs_chm["z", "obs"]
     key, first_latent = genjax.trace(("z", "latent"), genjax.MvNormal)(

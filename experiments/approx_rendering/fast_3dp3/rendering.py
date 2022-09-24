@@ -12,17 +12,14 @@ from .utils import apply_transform, extract_2d_patches
 # @functools.partial(jax.jit, static_argnames=["h","w"])
 def render_cloud_at_pose(input_cloud, pose, h, w, fx_fy, cx_cy):
     transformed_cloud = apply_transform(input_cloud, pose)
-    point_cloud = jnp.vstack([
-        -1.0 * jnp.ones((1,3)),
-        transformed_cloud
-    ])
+    point_cloud = jnp.vstack([-1.0 * jnp.ones((1, 3)), transformed_cloud])
 
-    point_cloud_normalized =  point_cloud / point_cloud[:,2].reshape(-1,1)
+    point_cloud_normalized = point_cloud / point_cloud[:, 2].reshape(-1, 1)
     temp1 = point_cloud_normalized[:, :2] * fx_fy
     temp2 = temp1 + cx_cy
     pixels = jnp.round(temp2)
 
-    x,y = jnp.meshgrid(jnp.arange(w), jnp.arange(h))
-    matches = (x[:,:,None] == pixels[:,0]) & (y[:,:,None] == pixels[:,1])
-    a = jnp.argmax(matches,axis=-1)
+    x, y = jnp.meshgrid(jnp.arange(w), jnp.arange(h))
+    matches = (x[:, :, None] == pixels[:, 0]) & (y[:, :, None] == pixels[:, 1])
+    a = jnp.argmax(matches, axis=-1)
     return point_cloud[a]
