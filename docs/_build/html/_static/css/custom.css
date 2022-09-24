@@ -3,10 +3,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Kreon:wght@500&display=swap");
 
-main#main-content {
-  max-width: 75%;
-}
-
 div.attr {
   font-family: "Fira Code", monospace;
 }
