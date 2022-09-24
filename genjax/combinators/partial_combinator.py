@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import operator
 from genjax.core.datatypes import GenerativeFunction
 from genjax.builtin.builtin_gen_fn import BuiltinGenerativeFunction
 from dataclasses import dataclass
-from typing import List, Any, Tuple
+from typing import List
 
 
 @dataclass
@@ -31,7 +30,6 @@ class PartialCombinator(GenerativeFunction):
         return self.inner.__call__(key, *args, **kwargs)
 
     def simulate(self, key, args):
-        total_arg_length = len(args)
         static_args = tuple(
             map(
                 lambda ind: args[ind] if ind in self.static_argnums else 0,
@@ -54,7 +52,6 @@ class PartialCombinator(GenerativeFunction):
         return closed_over.simulate(key, args)
 
     def importance(self, key, chm, args):
-        total_arg_length = len(args)
         static_args = tuple(
             map(
                 lambda ind: args[ind] if ind in self.static_argnums else 0,
@@ -78,7 +75,6 @@ class PartialCombinator(GenerativeFunction):
         return closed_over.importance(key, chm, args)
 
     def update(self, key, prev, chm, args):
-        total_arg_length = len(args)
         static_args = tuple(
             map(
                 lambda ind: args[ind] if ind in self.static_argnums else 0,

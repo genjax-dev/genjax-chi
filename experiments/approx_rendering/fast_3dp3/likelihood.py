@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import functools
-from .utils import apply_transform, extract_2d_patches
+from .utils import extract_2d_patches
 
 # @functools.partial(jax.jit, static_argnames=["r", "outlier_prob"])
 def neural_descriptor_likelihood(
