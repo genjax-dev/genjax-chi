@@ -18,7 +18,7 @@ import numpy as np
 from scipy.linalg import circulant
 from dataclasses import dataclass
 import genjax
-from genjax.core.pytree import Pytree
+import genjax.experimental.prox as prox
 from typing import Union, Sequence
 import matplotlib.pyplot as plt
 
@@ -42,7 +42,7 @@ def scaled_circulant(N, k, epsilon, delta):
 
 
 @dataclass
-class DiscreteHMMConfiguration(Pytree):
+class DiscreteHMMConfiguration(genjax.Pytree):
     linear_grid_dim: Int
     adjacency_distance_trans: Float32
     adjacency_distance_obs: Int
@@ -112,11 +112,11 @@ def sequence_visualizer(sequence: Sequence):
 # Model
 #####
 
-# Below, `genjax.Categorical` expects logit tensors,
-# not normalized probability tensors, so `trow`
-# and `orow` are not normalized.
-@genjax.gen(genjax.Unfold, max_length=100)
-def kernel(key, prev, transition_tensor, observation_tensor):
+
+@genjax.gen
+def kernel_step(key, prev, config):
+    transition_tensor = config.transition_tensor
+    observation_tensor = config.observation_tensor
     trow = transition_tensor[prev, :]
     key, latent = genjax.trace("latent", genjax.Categorical)(key, (trow,))
     orow = observation_tensor[latent, :]
@@ -126,49 +126,87 @@ def kernel(key, prev, transition_tensor, observation_tensor):
     return key, latent
 
 
+kernel = genjax.Unfold(kernel_step, max_length=100)
+
+
 def initial_position(config: DiscreteHMMConfiguration):
     return jnp.array(int(config.linear_grid_dim / 2))
 
 
 @genjax.gen
 def hidden_markov_model(key, T, config):
-    transition_tensor = config.transition_tensor
-    observation_tensor = config.observation_tensor
     z0 = initial_position(config)
-    key, z = genjax.trace("z", kernel)(
-        key, (T, z0, transition_tensor, observation_tensor)
-    )
+    key, z = genjax.trace("z", kernel)(key, (T, z0, config))
     return key, z
 
-
-key = jax.random.PRNGKey(314159)
-num_steps = 100
-config = DiscreteHMMConfiguration.new(10, 1, 1, 0.1, 0.1)
-key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
-    key, (num_steps, config)
-)
-(chm,) = tr.get_retval()
-sequence = chm[("z", "latent")]
-sequence_visualizer(sequence)
 
 #####
 # Inference
 #####
 
 
+@genjax.gen(
+    prox.ChoiceMapDistribution,
+    selection=genjax.AllSelection(),
+)
+def transition_proposal(key, state, new_target, final_target):
+    config = final_target.args[1]
+    obs_chm = new_target.constraints
+    v = obs_chm["z", "observation"]
+    observation_tensor = config.observation_tensor
+    orow = observation_tensor[v, :]
+    key, first_latent = genjax.trace(("z", "latent"), genjax.Categorical)(
+        key, (orow,)
+    )
+    return (key,)
+
+
 def hmm_meta_next_target(state, constraints, final_target):
-    pass
+    args = final_target.args
+    return prox.Target(kernel_step, (state, args[1]), constraints)
 
 
-@genjax.gen
-def hmm_meta_proposal(state, new_target, final_target):
-    pass
+def meta_initial_position(final_state):
+    config = final_state.args[1]
+    return initial_position(config)
 
 
 custom_smc = genjax.CustomSMC(
-    initial_position,
+    meta_initial_position,
     hmm_meta_next_target,
-    hmm_meta_proposal,
+    transition_proposal,
     lambda _: num_steps,
     50,
 )
+
+# Observations.
+observation_sequence = np.array(
+    [
+        [i, i] if i % 2 == 0 else [i, -i] if i < 50 else [100 - 3 * i, 3 * i]
+        for i in range(0, 100)
+    ]
+)
+chm_sequence = genjax.VectorChoiceMap.new(
+    np.array([ind for ind in range(0, len(observation_sequence))]),
+    genjax.ChoiceMap.new(
+        {("z", "observation"): np.array(observation_sequence, dtype=np.int32)}
+    ),
+)
+
+num_steps = 100
+config = DiscreteHMMConfiguration.new(10, 1, 1, 0.1, 0.1)
+key = jax.random.PRNGKey(314159)
+jaxpr = jax.make_jaxpr(hidden_markov_model)(key, num_steps, config)
+key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
+    key, (num_steps, config)
+)
+print(tr)
+assert False
+
+final_target = prox.Target(
+    hidden_markov_model,
+    (num_steps, config),
+    chm_sequence,
+)
+
+key, tr = custom_smc.simulate(key, (final_target,))

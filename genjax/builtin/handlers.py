@@ -42,43 +42,18 @@ from genjax.builtin.intrinsics import gen_fn_p
 # to send out the accumulated state we want.
 
 
-class Sample(Handler):
+class Simulate(Handler):
     def __init__(self):
         self.handles = [
             gen_fn_p,
         ]
-        self.return_or_continue = False
-
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
-        key, tr = gen_fn.simulate(key, args, **kwargs)
-        v = tr.get_retval()
-
-        if self.return_or_continue:
-            return f(key, *v)
-        else:
-            self.return_or_continue = True
-            key, *ret = f(key, *v)
-            return key, ret
-
-
-class Simulate(Handler):
-    def __init__(self, parameters=None):
-        self.handles = [
-            gen_fn_p,
-        ]
         self.state = BuiltinChoiceMap(hashabledict())
-        self.parameters = parameters
         self.score = 0.0
         self.return_or_continue = False
 
-    # Handle param sites -- perform codegen onto the `Jaxpr` trace.
-    def param(self, f, addr):
-        v = self.parameters[addr]
-        return f(v)
-
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
+        args = jtu.tree_unflatten(args_form, args)
         key, tr = gen_fn.simulate(key, args, **kwargs)
         score = tr.get_score()
         v = tr.get_retval()
@@ -105,7 +80,9 @@ class Importance(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
+        args = jtu.tree_unflatten(args_form, args)
+
         def _simulate_branch(key, args):
             key, tr = gen_fn.simulate(key, args, **kwargs)
             return key, (0.0, tr)
@@ -150,7 +127,8 @@ class Update(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
+        args = jtu.tree_unflatten(args_form, args)
         has_previous = self.prev.has_subtree(addr)
         constrained = self.choice_change.has_subtree(addr)
 
@@ -214,7 +192,8 @@ class ArgumentGradients(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
+        args = jtu.tree_unflatten(args_form, args)
         has_source = self.source.has_subtree(addr)
 
         def _has_source_branch(key, args):
@@ -257,7 +236,8 @@ class ChoiceGradients(Handler):
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, **kwargs):
+    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
+        args = jtu.tree_unflatten(args_form, args)
         has_selected = self.selected.has_subtree(addr)
 
         def _has_selected_branch(key, args):
@@ -291,16 +271,6 @@ class ChoiceGradients(Handler):
 #####
 # Generative function interface
 #####
-
-
-def handler_sample(f, **kwargs):
-    def _inner(key, args):
-        fn = Sample().transform(f, **kwargs)(key, *args)
-        in_args, _ = jtu.tree_flatten(args)
-        key, v = fn(key, *in_args)
-        return key, v
-
-    return lambda key, args: _inner(key, args)
 
 
 def handler_simulate(f, **kwargs):

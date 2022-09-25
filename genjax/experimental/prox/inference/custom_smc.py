@@ -18,10 +18,12 @@ This module supports a JAX compatible implementation of SMC as a :code:`ProxDist
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import numpy as np
 from dataclasses import dataclass
 from genjax.experimental.prox.target import Target
 from genjax.experimental.prox.prox_distribution import ProxDistribution
+from genjax.combinators.combinator_datatypes import VectorChoiceMap
 from typing import Any, Callable, Union
 
 Int = Union[np.int32, jnp.int32]
@@ -57,12 +59,13 @@ class CustomSMC(ProxDistribution):
             key, particle = self.step_proposal.simulate(
                 key, (state, new_target, final_target)
             )
+            (particle_chm,) = particle.get_retval()
             key, (_, new_target_trace) = new_target.importance(
-                key, particle.get_retval(), ()
+                key, particle_chm, ()
             )
             target_weight = new_target_trace.get_score()
             weight = new_target_trace.get_score() - particle.get_score()
-            new_state = new_target_trace.get_retval()
+            (new_state,) = new_target_trace.get_retval()
             return key, (new_state, particle, target_weight, weight)
 
         def _inner(carry, x):
@@ -70,9 +73,9 @@ class CustomSMC(ProxDistribution):
             constraints = x
 
             # Perform SMC update step.
-            key, sub_keys = jax.random.split(key, self.num_particles + 1)
+            key, *sub_keys = jax.random.split(key, self.num_particles + 1)
             sub_keys = jnp.array(sub_keys)
-            _, (particles, target_weights, weights, states) = jax.vmap(
+            _, (states, particles, target_weights, weights) = jax.vmap(
                 _particle_step, in_axes=(0, None, 0)
             )(sub_keys, constraints, states)
 
@@ -87,7 +90,9 @@ class CustomSMC(ProxDistribution):
             target_weights = target_weights[selected_particle_indices]
             average_weight = total_weight - np.log(self.num_particles)
             weights = jnp.repeat(average_weight, self.num_particles)
-            particles = particles[selected_particle_indices]
+            particles = jtu.tree_map(
+                lambda v: v[selected_particle_indices], particles
+            )
             return (key, states, target_weights, weights), particles
 
         (key, states, target_weights, weights), particles = jax.lax.scan(
@@ -97,12 +102,23 @@ class CustomSMC(ProxDistribution):
             length=N,
         )
 
-        key, sub_keys = jax.random.split(key, self.num_particles + 1)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
+        (particles_chm,) = particles.get_retval()
+        particles_chm = jtu.tree_map(
+            lambda v: jnp.moveaxis(v, (0, 1), (1, 0)), particles_chm
+        )
+        index_array = np.array([i for i in range(0, N)])
+        inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
+        particles_chm = VectorChoiceMap(
+            index_array,
+            particles_chm,
+        )
+        inaxes_tree = VectorChoiceMap(None, inaxes_tree)
         final_target_scores = jax.vmap(
             final_target.importance,
-            in_axes=(0, 0, None),
-        )(sub_keys, particles, ())
+            in_axes=(0, inaxes_tree, None),
+        )(sub_keys, particles_chm, ())
         final_weights = weights - target_weights + final_target_scores
         total_weight = jax.scipy.special.logsumexp(final_weights)
         log_normalized_weights = final_weights - total_weight
