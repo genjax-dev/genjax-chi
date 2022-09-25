@@ -20,7 +20,7 @@ These combinators accept generative functions as arguments, and return
 generative functions with modified choice map shapes and behavior.
 
 They are used to express common patterns of computation, including
-if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`TrainableCombinator`), or partial specialization on argments (:code:`PartialCombinator`).
+if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`TrainableCombinator`).
 
 .. attention::
 
@@ -46,11 +46,9 @@ from .combinator_datatypes import *
 from .switch_combinator import *
 from .map_combinator import *
 from .unfold_combinator import *
-from .partial_combinator import *
 from .trainable_combinator import *
 
 Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
-Partial = PartialCombinator
 Trainable = TrainableCombinator

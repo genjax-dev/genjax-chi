@@ -43,9 +43,7 @@ def J_schools(key, J, sigma):
 # which closes over constants into a `JAXGenerativeFunction`.
 #
 # Here, we specialize on the number of schools.
-eight_schools = genjax.BuiltinGenerativeFunction(
-    lambda key, sigma: J_schools(key, 8, sigma)
-)
+eight_schools = genjax.gen(lambda key, sigma: J_schools(key, 8, sigma))
 
 # Here's an implementation of jittable importance resampling, using
 # the prior as a proposal.

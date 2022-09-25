@@ -7,5 +7,4 @@ Combinators classes
    switch
    map
    unfold
-   partial
    trainable

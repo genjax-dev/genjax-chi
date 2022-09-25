@@ -115,6 +115,13 @@ chm_sequence = genjax.VectorChoiceMap.new(
     genjax.ChoiceMap.new({("z", "obs"): np.array(observation_sequence)}),
 )
 
+
+def inference(key, model_arg_sequence):
+    return genjax.proposal_sequential_monte_carlo(
+        model, initial_proposal, transition_proposal, 50
+    )(key, chm_sequence, model_arg_sequence, [() for _ in model_arg_sequence])
+
+
 # SMC allows a progression of different target measures --
 # here, we parametrize that progression using a sequence of different
 # arguments to the model.
@@ -124,17 +131,6 @@ model_arg_sequence = [(ind,) for ind in range(1, len(observation_sequence) + 1)]
 def test_2d_tracking(benchmark):
 
     # Run inference.
-    jitted = jax.jit(
-        genjax.proposal_sequential_monte_carlo(
-            model, initial_proposal, transition_proposal, 50
-        ),
-        static_argnums=1,
-    )
+    jitted = jax.jit(inference)
 
-    benchmark(
-        jitted,
-        key,
-        chm_sequence,
-        model_arg_sequence,
-        [() for _ in model_arg_sequence],
-    )
+    benchmark(jitted, key, model_arg_sequence)
