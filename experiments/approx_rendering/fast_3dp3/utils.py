@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 from typing import Tuple
+import jax
 
 def extract_2d_patches(data: jnp.ndarray, filter_shape: Tuple[int, int]) -> jnp.ndarray:
     """For each pixel, extract 2D patches centered at that pixel.
@@ -49,3 +50,14 @@ def apply_transform(coords, transform):
         jnp.concatenate([coords, jnp.ones(coords.shape[:-1] + (1,))], axis=-1),
     )[..., :-1]
     return coords
+
+def make_centered_grid_enumeration_3d_points(x,y,z,num_x,num_y,num_z):
+    gridding = jnp.linspace(-1.0, 1.0, 5)
+    deltas = jnp.stack(jnp.meshgrid(
+        jnp.linspace(-x,x,num_x),
+        jnp.linspace(-y,y,num_y),
+        jnp.linspace(-z,z,num_z)
+    ),
+        axis=-1)
+    deltas = deltas.reshape(-1,3)
+    return deltas
