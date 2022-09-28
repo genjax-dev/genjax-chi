@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import numpy as np
 from typing import Tuple
 import jax
 
@@ -61,3 +62,25 @@ def make_centered_grid_enumeration_3d_points(x,y,z,num_x,num_y,num_z):
         axis=-1)
     deltas = deltas.reshape(-1,3)
     return deltas
+
+def make_cube_point_cloud(side_width, num_points):
+    side_half_width = side_width / 2.0
+    single_side = np.stack(np.meshgrid(
+        np.linspace(-side_half_width, side_half_width, num_points),
+        np.linspace(-side_half_width, side_half_width, num_points),
+        np.linspace(0.0, 0.0, num_points)
+    ),
+        axis=-1
+    ).reshape(-1,3)
+
+    all_faces = []
+    for a in [0,1,2]:
+        for side in [-1.0, 1.0]:        
+            perm = np.arange(3)
+            perm[a] = 2
+            perm[2] = a
+            face = single_side[:,perm]
+            face[:,a] = side * side_half_width
+            all_faces.append(face)
+    object_model_cloud = np.vstack(all_faces)
+    return jnp.array(object_model_cloud)

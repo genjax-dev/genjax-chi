@@ -3,44 +3,62 @@ import jax.numpy as jnp
 import jax
 from fast_3dp3.model import make_scoring_function
 from fast_3dp3.rendering import render_cloud_at_pose
-from fast_3dp3.utils import make_centered_grid_enumeration_3d_points
+from fast_3dp3.utils import make_centered_grid_enumeration_3d_points, make_cube_point_cloud
 import time
 import matplotlib.pyplot as plt
 from PIL import Image
+from scipy.spatial.transform import Rotation as R
 
-object_model_cloud = jnp.array(np.random.rand(200, 3) * 2.0)
+object_model_cloud = make_cube_point_cloud(0.5, 20)
+
 h, w, fx_fy, cx_cy = (
-    120,
-    160,
+    100,
+    100,
     jnp.array([200.0, 200.0]),
-    jnp.array([60.0, 80.0]),
+    jnp.array([50.0, 50.0]),
 )
-r = 0.2
+r = 0.1
 outlier_prob = 0.01
+pixel_smudge = 0
 
-num_frames = 100
+num_frames = 50
+
+
 gt_poses = [
     jnp.array([
-        [1.0, 0.0, 0.0, x],   
-        [0.0, 1.0, 0.0, y],   
-        [0.0, 0.0, 1.0, 20.0],   
-        [0.0, 0.0, 0.0, 1.0],   
-        ]
-    )
-    for (x,y) in np.hstack([np.linspace(-3,3,num_frames).reshape(-1,1),np.linspace(-3,3,num_frames).reshape(-1,1)])
+    [1.0, 0.0, 0.0, -1.0],   
+    [0.0, 1.0, 0.0, -1.0],   
+    [0.0, 0.0, 1.0, 10.0],   
+    [0.0, 0.0, 0.0, 1.0],   
+    ]
+)
 ]
-gt_images = jnp.stack([render_cloud_at_pose(object_model_cloud, p,h,w,fx_fy,cx_cy) for p in gt_poses])
+
+rot = R.from_euler('zyx', [1.0, -0.1, -2.0], degrees=True).as_matrix()
+delta_pose =     jnp.array([
+    [1.0, 0.0, 0.0, 0.09],   
+    [0.0, 1.0, 0.0, 0.05],   
+    [0.0, 0.0, 1.0, 0.02],   
+    [0.0, 0.0, 0.0, 1.0],   
+    ]
+)
+delta_pose = delta_pose.at[:3,:3].set(jnp.array(rot))
+
+for t in range(num_frames):
+    gt_poses.append(gt_poses[-1].dot(delta_pose))
+
+gt_images = jnp.stack([render_cloud_at_pose(object_model_cloud, p,h,w,fx_fy,cx_cy, pixel_smudge) for p in gt_poses])
 print(gt_images.shape)
 print((gt_images[0,:,:,-1] > 0 ).sum())
 
 key = jax.random.PRNGKey(3)
-scorer = make_scoring_function(object_model_cloud, h, w, fx_fy, cx_cy ,r, outlier_prob)
+scorer = make_scoring_function(object_model_cloud, h, w, fx_fy, cx_cy ,r, outlier_prob, pixel_smudge)
 score = scorer(key, jnp.zeros(3), gt_images[0,:,:,:])
 print(score)
 
 scorer_parallel = jax.vmap(scorer, in_axes = (0, 0, None))
 
-grid = make_centered_grid_enumeration_3d_points(0.1, 0.1, 0.1, 10, 10, 10)
+grid = make_centered_grid_enumeration_3d_points(0.1, 0.1, 0.1, 5, 5, 5)
 print("grid ", grid.shape)
 key, *sub_keys = jax.random.split(key, grid.shape[0] + 1)
 sub_keys = jnp.array(sub_keys)
@@ -68,7 +86,7 @@ print ("Time elapsed:", end - start)
 
 
 def render(object_model_cloud, pose):
-    return render_cloud_at_pose(object_model_cloud, pose,h,w,fx_fy,cx_cy)
+    return render_cloud_at_pose(object_model_cloud, pose,h,w,fx_fy,cx_cy, pixel_smudge)
 render_cloud_at_pose_jit = jax.jit(render)
 
 for (i,gt_image) in enumerate(gt_images):
@@ -112,3 +130,5 @@ for (i,gt_image) in enumerate(gt_images):
 img = imgs[0]
 img.save(fp="out.gif", format='GIF', append_images=imgs,
          save_all=True, duration=20, loop=0)
+
+from IPython import embed; embed()
