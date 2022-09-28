@@ -29,18 +29,18 @@ def estimate_log_ratio(
 ):
     def _inner(key, p_args: Tuple, q_args: Tuple):
         key, tr = p.simulate(key, p_args)
-        chm = tr.get_choices()
-        key, *subkeys = jax.random.split(key, mp + 1)
-        subkeys = jnp.array(subkeys)
+        chm = tr.get_choices().strip_metadata()
+        key, *sub_keys = jax.random.split(key, mp + 1)
+        sub_keys = jnp.array(sub_keys)
         _, (fwd_weights, _) = jax.vmap(p.importance, in_axes=(0, None, None))(
-            subkeys,
+            sub_keys,
             chm,
             p_args,
         )
-        key, *subkeys = jax.random.split(key, mq + 1)
-        subkeys = jnp.array(subkeys)
+        key, *sub_keys = jax.random.split(key, mq + 1)
+        sub_keys = jnp.array(sub_keys)
         _, (bwd_weights, _) = jax.vmap(q.importance, in_axes=(0, None, None))(
-            subkeys,
+            sub_keys,
             chm,
             q_args,
         )
@@ -55,6 +55,6 @@ def aide(p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int):
     def _inner(key, p_args, q_args):
         key, logpq = estimate_log_ratio(p, q, mp, mq)(key, p_args, q_args)
         key, logqp = estimate_log_ratio(q, p, mq, mp)(key, q_args, p_args)
-        return key, logpq + logqp
+        return key, logpq + logqp, (logpq, logqp)
 
     return _inner

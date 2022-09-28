@@ -24,33 +24,35 @@ from genjax.distributions.distribution import (
 @dataclass
 class ProxDistribution(Distribution):
     @abc.abstractmethod
-    def random_weighted(self, key, *args):
+    def random_weighted(self, key, target):
         pass
 
     @abc.abstractmethod
-    def estimate_logpdf(self, key, v, *args):
+    def estimate_logpdf(self, key, v, target):
         pass
 
-    def __call__(self, key, *args):
-        key, (v, w) = self.random_weighted(key, *args)
+    def __call__(self, key, target):
+        key, (v, w) = self.random_weighted(key, target)
         return (key, v)
 
-    def sample(self, key, *args):
-        _, (v, _) = self.random_weighted(key, *args)
+    def sample(self, key, target):
+        _, (v, _) = self.random_weighted(key, target)
         return v
 
-    def logpdf(self, key, v, *args):
-        _, w = self.estimate_logpdf(key, v, *args)
-        return
+    def logpdf(self, key, v, target):
+        _, w, _ = self.estimate_logpdf(key, v, target)
+        return w
 
     def simulate(self, key, args):
         key, (val, weight) = self.random_weighted(key, *args)
-        chm = ValueChoiceMap(val)
+        val = val.strip_metadata()
+        chm = ValueChoiceMap.new(val)
         return key, DistributionTrace(self, args, chm, weight)
 
     def importance(self, key, chm, args):
         assert isinstance(chm, ValueChoiceMap)
         val = chm.get_leaf_value()
-        key, w = self.estimate_logpdf(key, val, *args)
-        tr = DistributionTrace(self, args, val, w)
+        val = val.strip_metadata()
+        key, w, new = self.estimate_logpdf(key, val, *args)
+        tr = DistributionTrace(self, args, new, w)
         return key, (w, tr)

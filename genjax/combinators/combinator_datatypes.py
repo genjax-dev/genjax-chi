@@ -94,6 +94,9 @@ class VectorChoiceMap(ChoiceMap):
     def get_index(self):
         return self.indices
 
+    def get_selection(self):
+        return self.inner.get_selection()
+
     def __hash__(self):
         return hash(self.inner)
 

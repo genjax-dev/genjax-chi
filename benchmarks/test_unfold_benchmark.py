@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import jax
+import numpy as np
 import genjax
 
 
@@ -34,7 +35,7 @@ def test_unfold_combinator_simulate(benchmark):
 def test_unfold_combinator_importance(benchmark):
     init = 0.5
     key = jax.random.PRNGKey(314159)
-    chm = genjax.ChoiceMap({(10, "x"): 10.0})
+    chm = genjax.ChoiceMap({("x",): np.array([10.0])})
     benchmark(jax.jit(genjax.importance(unfold)), key, chm, (500, init))
 
 
@@ -42,5 +43,5 @@ def test_unfold_combinator_update(benchmark):
     init = 0.5
     key = jax.random.PRNGKey(314159)
     key, tr = jax.jit(genjax.simulate(unfold))(key, (500, init))
-    chm = genjax.ChoiceMap({(10, "x"): 10.0})
+    chm = genjax.ChoiceMap({("x",): np.array([20.0])})
     benchmark(jax.jit(genjax.update(unfold)), key, tr, chm, (500, init))

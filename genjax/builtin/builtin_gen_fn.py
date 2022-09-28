@@ -20,6 +20,7 @@ from genjax.core.datatypes import (
     Trace,
     Selection,
 )
+from genjax.core.masks import BooleanMask
 from genjax.builtin.builtin_datatypes import BuiltinChoiceMap, BuiltinTrace
 from genjax.builtin.handlers import (
     handler_simulate,
@@ -54,6 +55,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )
         return key, BuiltinTrace(self, args, r, chm, score)
 
+    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args, **kwargs):
         assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
         assert isinstance(args, Tuple)
@@ -62,6 +64,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )(key, chm, args)
         return key, (w, BuiltinTrace(self, args, r, chm, score))
 
+    @BooleanMask.collapse_boundary
     def update(self, key, prev, new, args, **kwargs):
         assert isinstance(new, ChoiceMap)
         assert isinstance(args, Tuple)

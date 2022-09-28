@@ -33,8 +33,16 @@ def is_concrete(x):
 
 
 def concrete_and(*args):
+    # First, walk through arguments and, if any are concrete
+    # False, just return False.
+    for k in args:
+        if is_concrete(k) and not k:
+            return False
+    # Now, reduce over arguments. If all are concrete True,
+    # return True.
     if all(map(is_concrete, args)):
         return reduce(operator.and_, args, True)
+    # Else, return a dynamic Bool value.
     else:
         return jnp.logical_and(*args)
 

@@ -23,7 +23,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 from genjax.core.datatypes import GenerativeFunction, Trace, EmptyChoiceMap
-from genjax.core.masks import IndexMask, BooleanMask
+from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.combinators.combinator_datatypes import VectorChoiceMap
 from genjax.combinators.combinator_tracetypes import VectorTraceType
@@ -175,6 +175,35 @@ class MapCombinator(GenerativeFunction):
 
         return key, map_tr
 
+    def bounds_checker(self, v, key_len):
+        lengths = []
+
+        def _inner(v):
+            if v.shape[-1] > key_len:
+                raise Exception("Length of leaf longer than max length.")
+            else:
+                lengths.append(v.shape[-1])
+                return v
+
+        ret = jtu.tree_map(_inner, v)
+        fixed_len = set(lengths)
+        assert len(fixed_len) == 1
+        return ret, fixed_len.pop()
+
+    # This pads the leaves of a choice map up to
+    # `key_len` -- so that we can vmap
+    # over the leading axes of the leaves.
+    def padder(self, v, key_len):
+        ndim = len(v.shape)
+        pad_axes = list(
+            (0, key_len - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
+        )
+        return (
+            np.pad(v, pad_axes)
+            if isinstance(v, np.ndarray)
+            else jnp.pad(v, pad_axes)
+        )
+
     @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         def _importance(key, chm, args):
@@ -185,10 +214,7 @@ class MapCombinator(GenerativeFunction):
             return key, (0.0, tr)
 
         def _inner(key, index, chm, args):
-            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
-                check = index == chm.get_index()
-            else:
-                check = True
+            check = index == chm.get_index()
             return concrete_cond(
                 check,
                 _importance,
@@ -198,8 +224,26 @@ class MapCombinator(GenerativeFunction):
                 args,
             )
 
+        # Get static axes.
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
+
+        # Check incoming choice map, and coerce to `VectorChoiceMap`
+        # before passing into scan calls.
+        chm, fixed_len = self.bounds_checker(chm, len(key))
+        chm = jtu.tree_map(
+            lambda chm: self.padder(chm, len(key)),
+            chm,
+        )
+        if not isinstance(chm, VectorChoiceMap):
+            indices = np.array(
+                [ind if ind < fixed_len else -1 for ind in range(0, len(key))]
+            )
+            chm = VectorChoiceMap.new(
+                indices,
+                chm,
+            )
+
         indices = np.array([i for i in range(0, len(key))])
         key, (w, tr) = jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
             key,
@@ -235,10 +279,7 @@ class MapCombinator(GenerativeFunction):
             return key, (w, tr, d)
 
         def _inner(key, index, vchm, chm, args):
-            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
-                check = index == chm.get_index()
-            else:
-                check = True
+            check = index == chm.get_index()
             prev = vchm.inner
             return concrete_cond(
                 check,
@@ -250,8 +291,26 @@ class MapCombinator(GenerativeFunction):
                 args,
             )
 
+        # Get static axes.
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
+
+        # Check incoming choice map, and coerce to `VectorChoiceMap`
+        # before passing into scan calls.
+        chm, fixed_len = self.bounds_checker(chm, len(key))
+        chm = jtu.tree_map(
+            lambda chm: self.padder(chm, len(key)),
+            chm,
+        )
+        if not isinstance(chm, VectorChoiceMap):
+            indices = np.array(
+                [ind if ind < fixed_len else -1 for ind in range(0, len(key))]
+            )
+            chm = VectorChoiceMap.new(
+                indices,
+                chm,
+            )
+
         indices = np.array([i for i in range(0, len(key))])
         prev_outaxes_tree, vchm_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, (prev.inner, vchm)

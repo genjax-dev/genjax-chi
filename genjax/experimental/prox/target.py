@@ -16,17 +16,18 @@ from dataclasses import dataclass
 from genjax.core.pytree import Pytree
 from genjax.core.datatypes import GenerativeFunction, ChoiceMap, Trace
 import genjax.core.pretty_printer as gpp
-from typing import Tuple
+from typing import Tuple, Callable, Union
 
 
 @dataclass
 class Target(Pytree):
     p: GenerativeFunction
+    choice_map_coercion: Union[None, Callable]
     args: Tuple
     constraints: ChoiceMap
 
     def flatten(self):
-        return (self.args, self.constraints), (self.p,)
+        return (self.args, self.constraints), (self.p, self.choice_map_coercion)
 
     def get_trace_type(self, key, *args):
         inner_type = self.p.get_trace_type(key, self.args)
@@ -42,11 +43,15 @@ class Target(Pytree):
             latents, _ = self.latent_selection().filter(v)
             return latents
         elif isinstance(v, Trace):
-            latents, _ = self.latent_selection().filter(v.get_choices())
+            latents, _ = self.latent_selection().filter(
+                v.get_choices().strip_metadata()
+            )
             return latents
 
     def importance(self, key, chm: ChoiceMap, args: Tuple):
-        merged = chm.merge(self.constraints)
+        if self.choice_map_coercion is not None:
+            chm = self.choice_map_coercion(chm)
+        merged = self.constraints.merge(chm)
         return self.p.importance(key, merged, self.args)
 
     def __repr__(self):

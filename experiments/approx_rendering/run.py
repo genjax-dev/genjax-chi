@@ -6,7 +6,6 @@ from fast_3dp3.rendering import render_cloud_at_pose
 from fast_3dp3.utils import make_centered_grid_enumeration_3d_points
 import time
 import matplotlib.pyplot as plt
-import glob
 from PIL import Image
 
 object_model_cloud = jnp.array(np.random.rand(200, 3) * 2.0)

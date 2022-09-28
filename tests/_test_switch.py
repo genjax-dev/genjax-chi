@@ -37,7 +37,7 @@ def h2(key, x):
     return (key,)
 
 
-sw = genjax.SwitchCombinator(h1, h2)
+sw = genjax.SwitchCombinator([h1, h2])
 
 
 class TestSwitch:
@@ -48,13 +48,13 @@ class TestSwitch:
 
     def test_simple_two_branch_switch_importance(self, benchmark):
         key = jax.random.PRNGKey(314159)
-        chm = genjax.ChoiceMap({("m11",): 1.0})
+        chm = genjax.ChoiceMap.new({("m11",): 1.0})
         jitted = jax.jit(genjax.importance(sw))
         key, (w, tr) = benchmark(jitted, key, chm, (1, 0.6))
 
     def test_simple_two_branch_switch_update(self, benchmark):
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(sw))(key, (1, 0.3))
-        chm = genjax.ChoiceMap({("m12",): 2.0})
+        chm = genjax.ChoiceMap.new({("m12",): 2.0})
         jitted = jax.jit(genjax.update(sw))
         key, (w, tr, d) = benchmark(jitted, key, tr, chm, (1, 0.6))

@@ -148,7 +148,7 @@ class Distribution(GenerativeFunction):
         assert isinstance(prev, DistributionTrace)
 
         has_previous = prev.is_leaf()
-        constrained = new.is_leaf()
+        constrained = not isinstance(new, EmptyChoiceMap) and new.is_leaf()
 
         def _update_branch(key, args):
             prev_score = prev.get_score()
@@ -174,7 +174,11 @@ class Distribution(GenerativeFunction):
             concrete_and(has_previous, constrained),
             _update_branch,
             lambda key, args: concrete_cond(
-                has_previous, _has_prev_branch, _constrained_branch, key, args
+                has_previous,
+                _has_prev_branch,
+                _constrained_branch,
+                key,
+                args,
             ),
             key,
             args,

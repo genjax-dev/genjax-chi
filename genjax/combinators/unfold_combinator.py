@@ -21,8 +21,10 @@ their previous output as input).
 
 import jax
 import jax.numpy as jnp
+import numpy as np
+import jax.tree_util as jtu
 from genjax.core.datatypes import GenerativeFunction, Trace, EmptyChoiceMap
-from genjax.core.masks import IndexMask, BooleanMask
+from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from dataclasses import dataclass
 from genjax.combinators.combinator_datatypes import VectorChoiceMap
@@ -154,8 +156,17 @@ class UnfoldCombinator(GenerativeFunction):
         return None
 
     def __call__(self, key, *args):
+        length = args[0]
         state = args[1]
         static_args = args[2:]
+
+        # This inserts a host callback check for bounds checking.
+        check = jnp.less(self.max_length, length)
+        concrete_cond(
+            check,
+            lambda *args: self._throw_bounds_host_exception(length),
+            lambda *args: None,
+        )
 
         def _inner(carry, x):
             key, state = carry
@@ -222,13 +233,67 @@ class UnfoldCombinator(GenerativeFunction):
 
         return key, unfold_tr
 
+    # This checks the leaves of a choice map,
+    # to determine if it is "out of bounds" for
+    # the max static length of this combinator.
+    def bounds_checker(self, v):
+        lengths = []
+
+        def _inner(v):
+            if v.shape[-1] > self.max_length:
+                raise Exception("Length of leaf longer than max length.")
+            else:
+                lengths.append(v.shape[-1])
+                return v
+
+        ret = jtu.tree_map(_inner, v)
+        fixed_len = set(lengths)
+        assert len(fixed_len) == 1
+        return ret, fixed_len.pop()
+
+    # This pads the leaves of a choice map up to
+    # `self.max_length` -- so that we can scan
+    # over the leading axes of the leaves.
+    def padder(self, v):
+        ndim = len(v.shape)
+        pad_axes = list(
+            (0, self.max_length - len(v)) if k == 0 else (0, 0)
+            for k in range(0, ndim)
+        )
+        return (
+            np.pad(v, pad_axes)
+            if isinstance(v, np.ndarray)
+            else jnp.pad(v, pad_axes)
+        )
+
     @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
-
         length = args[0]
-        args = args[1:]
+        state = args[1]
+        static_args = args[2:]
+
+        # Check incoming choice map, and coerce to `VectorChoiceMap`
+        # before passing into scan calls.
+        chm, fixed_len = self.bounds_checker(chm)
+        chm = jtu.tree_map(
+            self.padder,
+            chm,
+        )
+        if not isinstance(chm, VectorChoiceMap):
+            indices = np.array(
+                [
+                    ind if ind < fixed_len else -1
+                    for ind in range(0, self.max_length)
+                ]
+            )
+            chm = VectorChoiceMap.new(
+                indices,
+                chm,
+            )
 
         # This inserts a host callback check for bounds checking.
+        # At runtime, if the bounds are exceeded -- an error
+        # will be emitted.
         check = jnp.less(self.max_length, length)
         concrete_cond(
             check,
@@ -237,93 +302,24 @@ class UnfoldCombinator(GenerativeFunction):
         )
 
         def _inner(carry, slice):
-            count, key, retval = carry
-            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
-                check = count == chm.get_index()
-            else:
-                check = True
+            count, key, state = carry
+            chm = slice
 
-                def _importance(key, chm, retval):
-                    return self.kernel.importance(key, chm, retval)
+            def _importance(key, chm, state):
+                return self.kernel.importance(key, chm, (state, *static_args))
 
-                def _simulate(key, chm, retval):
-                    key, tr = self.kernel.simulate(key, retval)
-                    return key, (0.0, tr)
+            def _simulate(key, chm, state):
+                key, tr = self.kernel.simulate(key, (state, *static_args))
+                return key, (0.0, tr)
 
-                key, (w, tr) = concrete_cond(
-                    check, _importance, _simulate, key, chm, retval
-                )
-
-                check = jnp.less(count, length)
-                index = concrete_cond(
-                    check,
-                    lambda *args: count,
-                    lambda *args: -1,
-                )
-                count, retval, weight = concrete_cond(
-                    check,
-                    lambda *args: (count + 1, tr.get_retval(), w),
-                    lambda *args: (count, retval, 0.0),
-                )
-                return (count, key, retval), (w, tr, index)
-
-        (count, key, retval), (w, tr, indices) = jax.lax.scan(
-            _inner,
-            (0, key, args),
-            None,
-            length=self.max_length,
-        )
-
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retval,
-            jnp.sum(tr.get_score()),
-        )
-
-        w = jnp.sum(w)
-        return key, (w, unfold_tr)
-
-    @BooleanMask.collapse_boundary
-    def update(self, key, prev, chm, args):
-
-        length = args[0]
-        args = args[1:]
-
-        # This inserts a host callback check for bounds checking.
-        check = jnp.less(self.max_length, length)
-        concrete_cond(
-            check,
-            lambda *args: self._throw_bounds_host_exception(length),
-            lambda *args: None,
-        )
-
-        prev = prev.get_choices()
-        assert isinstance(prev, VectorChoiceMap)
-        prev = prev.inner
-
-        # The actual semantics of update are carried out by a scan
-        # call.
-
-        def _inner(carry, slice):
-            count, key, retval = carry
-            prev = slice
-
-            if isinstance(chm, IndexMask) or isinstance(chm, VectorChoiceMap):
-                check = count == chm.get_index()
-            else:
-                check = False
-
-            def _update(key, prev, chm, retval):
-                return self.kernel.update(key, prev, chm, retval)
-
-            def _fallthrough(key, prev, chm, retval):
-                return self.kernel.update(key, prev, EmptyChoiceMap(), retval)
-
-            key, (w, tr, d) = concrete_cond(
-                check, _update, _fallthrough, key, prev, chm, retval
+            check = count == chm.get_index()
+            key, (w, tr) = concrete_cond(
+                check,
+                _importance,
+                _simulate,
+                key,
+                chm,
+                state,
             )
 
             check = jnp.less(count, length)
@@ -334,15 +330,15 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, retval, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, tr.get_retval(), w),
-                lambda *args: (count, retval, 0.0),
+                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count, state, 0.0),
             )
-            return (count, key, retval), (w, tr, d, index)
+            return (count, key, retval), (w, tr, index)
 
-        (count, key, retval), (w, tr, d, indices) = jax.lax.scan(
+        (count, key, retval), (w, tr, indices) = jax.lax.scan(
             _inner,
-            (0, key, args),
-            prev,
+            (0, key, state),
+            chm,
             length=self.max_length,
         )
 
@@ -351,7 +347,95 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            retval,
+            (retval,),
+            jnp.sum(tr.get_score()),
+        )
+
+        w = jnp.sum(w)
+        return key, (w, unfold_tr)
+
+    @BooleanMask.collapse_boundary
+    def update(self, key, prev, chm, args):
+        assert isinstance(prev, UnfoldTrace)
+        length = args[0]
+        state = args[1]
+        static_args = args[2:]
+
+        # Unwrap the previous trace at this address
+        # we should get a `VectorChoiceMap`.
+        # We don't need the index indicators, so we can just
+        # unwrap it.
+        prev = prev.get_choices()
+        assert isinstance(prev, VectorChoiceMap)
+        prev = prev.inner
+
+        # Check incoming choice map, and coerce to `VectorChoiceMap`
+        # before passing into scan calls.
+        self.bounds_checker(chm)
+        chm = jtu.tree_map(
+            self.padder,
+            chm,
+        )
+        if not isinstance(chm, VectorChoiceMap):
+            chm = VectorChoiceMap.new(
+                np.array([ind for ind in range(0, self.max_length)]),
+                chm,
+            )
+
+        # This inserts a host callback check for bounds checking.
+        check = jnp.less(self.max_length, length)
+        concrete_cond(
+            check,
+            lambda *args: self._throw_bounds_host_exception(length),
+            lambda *args: None,
+        )
+
+        # The actual semantics of update are carried out by a scan
+        # call.
+
+        def _inner(carry, slice):
+            count, key, state = carry
+            (prev, chm) = slice
+
+            def _update(key, prev, chm, state):
+                return self.kernel.update(key, prev, chm, (state, *static_args))
+
+            def _fallthrough(key, prev, chm, state):
+                return self.kernel.update(
+                    key, prev, EmptyChoiceMap(), (state, *static_args)
+                )
+
+            check = count == chm.get_index()
+            key, (w, tr, d) = concrete_cond(
+                check, _update, _fallthrough, key, prev, chm, state
+            )
+
+            check = jnp.less(count, length)
+            index = concrete_cond(
+                check,
+                lambda *args: count,
+                lambda *args: -1,
+            )
+            count, state, weight = concrete_cond(
+                check,
+                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count, state, 0.0),
+            )
+            return (count, key, state), (w, tr, d, index)
+
+        (count, key, retval), (w, tr, d, indices) = jax.lax.scan(
+            _inner,
+            (0, key, state),
+            (prev, chm),
+            length=self.max_length,
+        )
+
+        unfold_tr = UnfoldTrace(
+            self,
+            indices,
+            tr,
+            args,
+            (retval,),
             jnp.sum(tr.get_score()),
         )
 

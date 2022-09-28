@@ -14,5 +14,4 @@
 
 from .importance_sampling import *
 from .metropolis_hastings import *
-from .sequential_monte_carlo import *
 from .blackjax import *

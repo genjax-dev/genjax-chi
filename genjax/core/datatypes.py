@@ -288,14 +288,23 @@ class ValueChoiceMap(ChoiceMap):
         return (self.value,), ()
 
     def overload_pprint(self, **kwargs):
+        indent = kwargs["indent"]
         return pp.concat(
             [
                 pp.text(f"{type(self).__name__}"),
-                pp.text("(value: "),
-                gpp._pformat(self.value, **kwargs),
-                pp.text(")"),
+                gpp._nest(
+                    indent,
+                    gpp._pformat(self.value, **kwargs),
+                ),
             ]
         )
+
+    @classmethod
+    def new(cls, v):
+        if isinstance(v, ValueChoiceMap):
+            return ValueChoiceMap.new(v.value)
+        else:
+            return ValueChoiceMap(v)
 
     def is_leaf(self):
         return True
@@ -355,6 +364,9 @@ class NoneSelection(Selection):
     def flatten(self):
         return (), ()
 
+    def overload_pprint(self, **kwargs):
+        return pp.text("NoneSelection")
+
     def filter(self, chm):
         return EmptyChoiceMap(), 0.0
 
@@ -384,6 +396,9 @@ class NoneSelection(Selection):
 class AllSelection(Selection):
     def flatten(self):
         return (), ()
+
+    def overload_pprint(self, **kwargs):
+        return pp.text("AllSelection")
 
     def filter(self, v: Union[Trace, ChoiceMap]):
         if isinstance(v, Trace):
