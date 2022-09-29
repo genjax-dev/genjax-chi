@@ -24,7 +24,6 @@ from dataclasses import dataclass
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.experimental.prox.target import Target
 from genjax.experimental.prox.prox_distribution import ProxDistribution
-from genjax.combinators.combinator_datatypes import VectorChoiceMap
 from typing import Any, Callable, Union
 
 Int = Union[np.int32, jnp.int32]
@@ -85,7 +84,9 @@ class CustomSMC(ProxDistribution):
             target_scores = prev_target_scores + target_scores
             weights = prev_weights + weights
 
-            # Perform resampling.
+            # Compute resampling indices and perform resampling on
+            # weights, scores, etc -- we defer resampling the particles
+            # themselves until later.
             total_weight = jax.scipy.special.logsumexp(weights)
             log_normalized_weights = weights - total_weight
             key, sub_key = jax.random.split(key)
@@ -101,32 +102,59 @@ class CustomSMC(ProxDistribution):
             particles = jtu.tree_map(
                 lambda v: v[selected_particle_indices], particles
             )
-            return (key, states, target_scores, weights), particles
+            return (key, states, target_scores, weights), (
+                selected_particle_indices,
+                particles,
+            )
 
-        (key, states, target_scores, weights), particles = jax.lax.scan(
+        (key, states, target_scores, weights), (
+            selected_particle_indices,
+            particles,
+        ) = jax.lax.scan(
             _inner,
             (key, states, target_scores, weights),
             constraints,
             length=N,
         )
 
-        particles = jtu.tree_map(
-            lambda v: jnp.moveaxis(v, (0, 1), (1, 0)), particles
+        # Here, we begin to prepare `particles` for the final target score
+        # evaluation. scan stacks the particles on the last (the 1) axis
+        # so we swap to the front so we can `vmap` over that.
+        particles = jtu.tree_map(lambda v: jnp.swapaxes(v, 0, 1), particles)
+        selected_particle_indices = jtu.tree_map(
+            lambda v: jnp.swapaxes(v, 0, 1), selected_particle_indices
         )
         (particles_chm,) = particles.get_retval()
-        index_array = np.array([i for i in range(0, N)])
-        inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
-        particles_chm = VectorChoiceMap(
-            index_array,
+
+        # Here, we need to perform resampling (which we did not do inside of scan)
+        # before we score particles with the final target.
+        def apply_resample_indices(i, particles):
+            r = jnp.arange(selected_particle_indices.shape[1])
+            ind = selected_particle_indices[:, i]
+            return jtu.tree_map(
+                lambda data: jnp.where(r >= i, data, data[ind]), particles
+            )
+
+        particles_chm = jax.lax.fori_loop(
+            0,
+            selected_particle_indices.shape[1],
+            apply_resample_indices,
             particles_chm,
         )
-        inaxes_tree = VectorChoiceMap(None, inaxes_tree)
+
+        # Now, we prepare for a `vmap` call to final target
+        # importance -- by building an axes tree to tell `vmap`
+        # where to broadcast.
+        inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, (final_target_scores, final_tr) = jax.vmap(
             final_target.importance,
             in_axes=(0, inaxes_tree, None),
         )(sub_keys, particles_chm, ())
+
+        # Compute the final weights and perform the last
+        # resampling step (to select our final chosen particle).
         final_weights = weights - target_scores + final_target_scores
         total_weight = jax.scipy.special.logsumexp(final_weights)
         average_weight = total_weight - np.log(self.num_particles)
@@ -135,10 +163,16 @@ class CustomSMC(ProxDistribution):
         selected_particle_index = jax.random.categorical(
             key, log_normalized_weights
         )
+
+        # `final_tr` comes from `final_target.importance`
+        # instead of just returning a particle choice map,
+        # we allow `final_target` to coerce the constraints
+        # into the shape of the choice map which it returns.
         selected_particle = jtu.tree_map(
             lambda v: v[selected_particle_index],
             final_target.get_latents(final_tr),
         )
+
         return key, (
             selected_particle,
             final_target_scores[selected_particle_index] - average_weight,
@@ -227,8 +261,9 @@ class CustomSMC(ProxDistribution):
             _, (states, particles, target_scores, weights) = jax.vmap(
                 _particle_step, in_axes=(0, None, None, 0, 0)
             )(sub_keys, retained_choices, constraints, states, indices)
-            target_scores = prev_target_scores + target_scores
-            weights = prev_weights + weights
+
+            target_scores += prev_target_scores
+            weights += prev_weights
 
             # Constrained resampling.
             total_weight = jax.scipy.special.logsumexp(weights)
@@ -242,46 +277,73 @@ class CustomSMC(ProxDistribution):
             # in interpreter mode -- this will copy the array.
             # However, in JIT mode -- it should be modified to
             # operate in place.
-            selected_particle_indices.at[0].set(0)
+            fixed = selected_particle_indices.at[0].set(0)
 
-            target_scores = target_scores[selected_particle_indices]
+            target_scores = target_scores[fixed]
             average_weight = total_weight - np.log(self.num_particles)
             weights = jnp.repeat(average_weight, self.num_particles)
-            states = states[selected_particle_indices]
-            particles = jtu.tree_map(
-                lambda v: v[selected_particle_indices], particles
-            )
-            return (key, states, target_scores, weights), particles
+            states = states[fixed]
+            particles = jtu.tree_map(lambda v: v[fixed], particles)
+            return (key, states, target_scores, weights), (fixed, particles)
 
-        (key, states, target_scores, weights), particles = jax.lax.scan(
+        # Here is the main scan loop --
+        # performing SMC update steps, tabulating weights,
+        # target scores, and returning out particles
+        # as well as the ancestor indices.
+        (key, states, target_scores, weights), (
+            selected_particle_indices,
+            particles,
+        ) = jax.lax.scan(
             _inner,
             (key, states, target_scores, weights),
             (retained_choices, constraints),
             length=N,
         )
 
-        particles = jtu.tree_map(
-            lambda v: jnp.moveaxis(v, (0, 1), (1, 0)), particles
+        # Here, we begin to prepare `particles` for the final target score
+        # evaluation. scan stacks the particles on the last (the 1) axis
+        # so we swap to the front so we can `vmap` over that.
+        particles = jtu.tree_map(lambda v: jnp.swapaxes(v, 0, 1), particles)
+        selected_particle_indices = jtu.tree_map(
+            lambda v: jnp.swapaxes(v, 0, 1), selected_particle_indices
         )
         (particles_chm,) = particles.get_retval()
-        index_array = np.array([i for i in range(0, N)])
-        inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
-        particles_chm = VectorChoiceMap(
-            index_array,
+
+        # Here, we need to perform resampling (which we did not do inside of scan)
+        # before we score particles with the final target.
+        def apply_resample_indices(i, particles):
+            r = jnp.arange(selected_particle_indices.shape[1])
+            ind = selected_particle_indices[:, i]
+            return jtu.tree_map(
+                lambda data: jnp.where(r >= i, data, data[ind]), particles
+            )
+
+        particles_chm = jax.lax.fori_loop(
+            0,
+            selected_particle_indices.shape[1],
+            apply_resample_indices,
             particles_chm,
         )
-        inaxes_tree = VectorChoiceMap(None, inaxes_tree)
+
+        # Now, we prepare for a `vmap` call to final target
+        # importance -- by building an axes tree to tell `vmap`
+        # where to broadcast.
+        inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, (final_target_scores, _) = jax.vmap(
             final_target.importance,
             in_axes=(0, inaxes_tree, None),
         )(sub_keys, particles_chm, ())
+
+        # Compute the final weights.
         final_weights = weights - target_scores + final_target_scores
         total_weight = jax.scipy.special.logsumexp(final_weights)
         average_weight = total_weight - np.log(self.num_particles)
+
         return (
             key,
-            final_target_scores[0] - average_weight,
+            average_weight,
+            # final_target_scores[0] - average_weight,
             retained_choices,
         )

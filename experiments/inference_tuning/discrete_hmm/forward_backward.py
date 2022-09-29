@@ -119,8 +119,8 @@ ExactHMMPosterior = _ExactHMMPosterior()
 
 
 key = jax.random.PRNGKey(314159)
-num_steps = 2
-config = DiscreteHMMConfiguration.new(2, 1, 1, 0.01, 0.01)
+num_steps = 20
+config = DiscreteHMMConfiguration.new(20, 1, 1, 0.2, 0.05)
 key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
     key, (num_steps, config)
 )
@@ -157,22 +157,20 @@ custom_smc = genjax.CustomSMC(
     hmm_meta_next_target,
     transition_proposal,
     lambda _: num_steps,
-    2000,
+    50,
 )
 
 n_samples = 100
 key, *sub_keys = jax.random.split(key, n_samples + 1)
 sub_keys = jnp.array(sub_keys)
-key, (w, tr) = jax.jit(
+key, (marg, tr) = jax.jit(
     jax.vmap(custom_smc.importance, in_axes=(0, None, None))
 )(sub_keys, chm, (final_target,))
-w = jax.scipy.special.logsumexp(w) - jnp.log(n_samples)
+marg = jax.scipy.special.logsumexp(marg) - jnp.log(n_samples)
 
-probs, seq = latent_sequence_posterior(
+score = log_data_marginal(
     config,
     observation_sequence,
-    observation_sequence,
 )
-print(w)
-print(probs)
-print(seq)
+print(marg)
+print(score)

@@ -1,4 +1,3 @@
-import numpy as np
 import jax.numpy as jnp
 import jax
 from fast_3dp3.model import make_scoring_function

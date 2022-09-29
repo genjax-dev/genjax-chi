@@ -106,7 +106,7 @@ def kernel_step(key, prev, config):
     return key, latent
 
 
-kernel = genjax.Unfold(kernel_step, max_length=2)
+kernel = genjax.Unfold(kernel_step, max_length=50)
 
 
 def initial_position(config: DiscreteHMMConfiguration):
