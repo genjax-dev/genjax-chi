@@ -58,7 +58,9 @@ class Pytree(metaclass=abc.ABCMeta):
 
 # If you have multiple Pytrees, you might want
 # to generate a "sum" Pytree with leaves that minimally cover
-# the entire set.
+# the entire set of dtypes and shapes.
+#
+# The code below is intended to provide this functionality.
 
 
 def get_call_fallback(d, k, fn, fallback):
@@ -122,9 +124,7 @@ def set_payload(leaf_schema, pytree):
 
 
 def get_visitation(pytree):
-    visitation = []
-    jtu.tree_map(lambda v: visitation.append(v), pytree)
-    return jtu.tree_structure(pytree), visitation
+    return jtu.tree_flatten(pytree)
 
 
 def build_from_payload(visitation, form, payload):
@@ -156,17 +156,19 @@ class SumPytree(Pytree):
     def flatten(self):
         return (self.payload,), (self.visitations, self.forms)
 
-    def new(source: Pytree, covers: Sequence[Pytree]):
+    @classmethod
+    def new(cls, source: Pytree, covers: Sequence[Pytree]):
         leaf_schema = minimum_covering_leaves(covers)
         visitations = []
         forms = []
         for cover in covers:
-            form, visitation = get_visitation(cover)
+            visitation, form = get_visitation(cover)
             visitations.append(visitation)
             forms.append(form)
         visitations = StaticCollection(visitations)
         forms = StaticCollection(forms)
-        return SumPytree(visitations, forms, set_payload(leaf_schema, source))
+        payload = set_payload(leaf_schema, source)
+        return SumPytree(visitations, forms, payload)
 
     def materialize_iterator(self):
         static_visitations = self.visitations.seq

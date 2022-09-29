@@ -169,8 +169,7 @@ class SwitchCombinator(GenerativeFunction):
 
     def _simulate(self, branch_gen_fn, key, args):
         key, tr = branch_gen_fn.simulate(key, args[1:])
-        choices = tr.get_choices()
-        sum_pytree = self.create_sum_pytree(key, choices, args[1:])
+        sum_pytree = self.create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
         choice_map = IndexedChoiceMap(branch_index, choices)
@@ -212,8 +211,7 @@ class SwitchCombinator(GenerativeFunction):
 
     def _importance(self, branch_gen_fn, key, chm, args):
         key, (w, tr) = branch_gen_fn.importance(key, chm, args[1:])
-        choices = tr.get_choices()
-        sum_pytree = self.create_sum_pytree(key, choices, args[1:])
+        sum_pytree = self.create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
         choice_map = IndexedChoiceMap(branch_index, choices)
@@ -270,9 +268,13 @@ class SwitchCombinator(GenerativeFunction):
         )
         discard_branch = discard_option.submaps[concrete_branch_index]
         discard_branch = BooleanMask.new(False, discard_branch).leaf_push()
-        key, (w, tr, discard) = branch_gen_fn.update(key, prev, new, args[1:])
-        choices = tr.get_choices()
-        sum_pytree = self.create_sum_pytree(key, choices, args[1:])
+        key, (w, tr, discard) = branch_gen_fn.update(
+            key,
+            prev,
+            new,
+            args[1:],
+        )
+        sum_pytree = self.create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         choice_map = IndexedChoiceMap(concrete_branch_index, choices)
         discard_branch = discard_branch.merge(discard)
