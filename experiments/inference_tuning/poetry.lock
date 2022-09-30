@@ -8,7 +8,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "blackjax"
-version = "0.9.4"
+version = "0.9.5"
 description = "Flexible and fast inference in Python"
 category = "main"
 optional = false
@@ -128,7 +128,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "fonttools"
-version = "4.37.3"
+version = "4.37.4"
 description = "Tools to manipulate font files"
 category = "main"
 optional = false
@@ -163,7 +163,7 @@ description = "Gen ⊗ JAX"
 category = "main"
 optional = false
 python-versions = ">=3.10, <3.11"
-develop = false
+develop = true
 
 [package.dependencies]
 blackjax = "^0.9.0"
@@ -543,7 +543,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <3.11"
-content-hash = "7b90ddc7cb7dea577d9d442e2538d413203dfc0f82d15bef239fd0c9a1a176ba"
+content-hash = "f8bde7614178a60573fb379faedd865690ef0030770e34c1bd7185a6b4dccc7e"
 
 [metadata.files]
 absl-py = [
@@ -551,8 +551,8 @@ absl-py = [
     {file = "absl_py-1.2.0-py3-none-any.whl", hash = "sha256:5d15f85b8cc859c6245bc9886ba664460ed96a6fee895416caa37d669ee74a9a"},
 ]
 blackjax = [
-    {file = "blackjax-0.9.4-py3-none-any.whl", hash = "sha256:72aea66b86a92ea4b93b8bc39315ad3950952e4f108e695fc18fe98decc2d06a"},
-    {file = "blackjax-0.9.4.tar.gz", hash = "sha256:dc3b358fc154a3fc4aff2218bb7a67fa0800af5a1975047ec24a6c37746f5953"},
+    {file = "blackjax-0.9.5-py3-none-any.whl", hash = "sha256:66c06f51e7bdd65e7443ce37267b328a3fec510602dd8776205b14640f53f2a7"},
+    {file = "blackjax-0.9.5.tar.gz", hash = "sha256:d50e7e4eb7df0b14a38ca1ff2ea8bfc84f7622b3bfe7e38284a4c3fe10040adf"},
 ]
 cloudpickle = [
     {file = "cloudpickle-2.2.0-py3-none-any.whl", hash = "sha256:7428798d5926d8fcbfd092d18d01a2a03daf8237d8fcdc8095d256b8490796f0"},
@@ -716,8 +716,8 @@ fastprogress = [
     {file = "fastprogress-1.0.3.tar.gz", hash = "sha256:7a17d2b438890f838c048eefce32c4ded47197ecc8ea042cecc33d3deb8022f5"},
 ]
 fonttools = [
-    {file = "fonttools-4.37.3-py3-none-any.whl", hash = "sha256:a5bc5f5d48faa4085310b8ebd4c5d33bf27c6636c5f10a7de792510af2745a81"},
-    {file = "fonttools-4.37.3.zip", hash = "sha256:f32ef6ec966cf0e7d2aa88601fed2e3a8f2851c26b5db2c80ccc8f82bee4eedc"},
+    {file = "fonttools-4.37.4-py3-none-any.whl", hash = "sha256:afae1b39555f9c3f0ad1f0f1daf678e5ad157e38c8842ecb567951bf1a9b9fd7"},
+    {file = "fonttools-4.37.4.zip", hash = "sha256:86918c150c6412798e15a0de6c3e0d061ddefddd00f97b4f7b43dfa867ad315e"},
 ]
 gast = [
     {file = "gast-0.5.3-py3-none-any.whl", hash = "sha256:211aac1e58c167b25d3504998f2db694454a24bb1fb1225bce99420166f21d6a"},

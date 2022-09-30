@@ -26,6 +26,8 @@ def test(session):
         "pytest",
         "--benchmark-warmup",
         "on",
+        "--ignore",
+        "experiments",
         "--benchmark-disable-gc",
         "--benchmark-min-rounds",
         "5000",

@@ -92,8 +92,8 @@ class DiscreteHMMConfiguration(Pytree):
             adjacency_distance_obs,
             sigma_trans,
             sigma_obs,
-            transition_tensor,
-            observation_tensor,
+            jnp.array(transition_tensor),
+            jnp.array(observation_tensor),
         )
 
 

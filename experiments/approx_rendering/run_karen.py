@@ -1,4 +1,3 @@
-import numpy as np
 import jax.numpy as jnp
 import jax
 from fast_3dp3.model import make_scoring_function
@@ -9,7 +8,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
-import numpy as np
 import genjax
  
 key = jax.random.PRNGKey(3)

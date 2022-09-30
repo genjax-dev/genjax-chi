@@ -86,7 +86,7 @@ class Distribution(GenerativeFunction):
 
     def __call__(self, key, *args, **kwargs):
         key, (w, v) = self.random_weighted(key, *args, **kwargs)
-        return (key, v)
+        return key, v
 
     def get_trace_type(self, key, args, **kwargs):
         _, (_, (_, ttype)) = jax.make_jaxpr(

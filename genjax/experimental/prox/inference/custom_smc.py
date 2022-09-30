@@ -69,16 +69,10 @@ class CustomSMC(ProxDistribution):
             return key, (new_state, particle, target_score, weight)
 
         def _inner(carry, x):
-            key, states, prev_target_scores, prev_weights = carry
+            key, sub_keys, states, prev_target_scores, prev_weights = carry
             constraints = x
 
-            # Perform SMC update step.
-            key, *sub_keys = jax.random.split(
-                key,
-                self.num_particles + 1,
-            )
-            sub_keys = jnp.array(sub_keys)
-            _, (states, particles, target_scores, weights) = jax.vmap(
+            sub_keys, (states, particles, target_scores, weights) = jax.vmap(
                 _particle_step, in_axes=(0, None, 0)
             )(sub_keys, constraints, states)
             target_scores = prev_target_scores + target_scores
@@ -102,17 +96,24 @@ class CustomSMC(ProxDistribution):
             particles = jtu.tree_map(
                 lambda v: v[selected_particle_indices], particles
             )
-            return (key, states, target_scores, weights), (
+            return (key, sub_keys, states, target_scores, weights), (
                 selected_particle_indices,
                 particles,
             )
 
-        (key, states, target_scores, weights), (
+        # Preallocate sub-keys to carry through the scan call.
+        key, *sub_keys = jax.random.split(
+            key,
+            self.num_particles + 1,
+        )
+        sub_keys = jnp.array(sub_keys)
+
+        (key, sub_keys, states, target_scores, weights), (
             selected_particle_indices,
             particles,
         ) = jax.lax.scan(
             _inner,
-            (key, states, target_scores, weights),
+            (key, sub_keys, states, target_scores, weights),
             constraints,
             length=N,
         )
@@ -146,9 +147,7 @@ class CustomSMC(ProxDistribution):
         # importance -- by building an axes tree to tell `vmap`
         # where to broadcast.
         inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
-        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (final_target_scores, final_tr) = jax.vmap(
+        sub_keys, (final_target_scores, final_tr) = jax.vmap(
             final_target.importance,
             in_axes=(0, inaxes_tree, None),
         )(sub_keys, particles_chm, ())
@@ -252,13 +251,9 @@ class CustomSMC(ProxDistribution):
         indices = jnp.array([i for i in range(0, self.num_particles)])
 
         def _inner(carry, x):
-            key, states, prev_target_scores, prev_weights = carry
+            key, sub_keys, states, prev_target_scores, prev_weights = carry
             retained_choices, constraints = x
-
-            # SMC update step.
-            key, *sub_keys = jax.random.split(key, self.num_particles + 1)
-            sub_keys = jnp.array(sub_keys)
-            _, (states, particles, target_scores, weights) = jax.vmap(
+            sub_keys, (states, particles, target_scores, weights) = jax.vmap(
                 _particle_step, in_axes=(0, None, None, 0, 0)
             )(sub_keys, retained_choices, constraints, states, indices)
 
@@ -284,18 +279,25 @@ class CustomSMC(ProxDistribution):
             weights = jnp.repeat(average_weight, self.num_particles)
             states = states[fixed]
             particles = jtu.tree_map(lambda v: v[fixed], particles)
-            return (key, states, target_scores, weights), (fixed, particles)
+            return (key, sub_keys, states, target_scores, weights), (
+                fixed,
+                particles,
+            )
+
+        # We pre-allocate keys which we carry through.
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
 
         # Here is the main scan loop --
         # performing SMC update steps, tabulating weights,
         # target scores, and returning out particles
         # as well as the ancestor indices.
-        (key, states, target_scores, weights), (
+        (key, sub_keys, states, target_scores, weights), (
             selected_particle_indices,
             particles,
         ) = jax.lax.scan(
             _inner,
-            (key, states, target_scores, weights),
+            (key, sub_keys, states, target_scores, weights),
             (retained_choices, constraints),
             length=N,
         )
@@ -329,9 +331,7 @@ class CustomSMC(ProxDistribution):
         # importance -- by building an axes tree to tell `vmap`
         # where to broadcast.
         inaxes_tree = jtu.tree_map(lambda v: 0, particles_chm)
-        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (final_target_scores, _) = jax.vmap(
+        sub_keys, (final_target_scores, _) = jax.vmap(
             final_target.importance,
             in_axes=(0, inaxes_tree, None),
         )(sub_keys, particles_chm, ())

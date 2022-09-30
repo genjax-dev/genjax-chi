@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 from .utils import apply_transform
-import jax
 
 # render single object model cloud at specified pose to a "coordinate image"
 # "coordinate image" is (h,w,3) where at each pixel we have the 3d coordinate of that point

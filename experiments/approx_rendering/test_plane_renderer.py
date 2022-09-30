@@ -1,12 +1,9 @@
 import numpy as np
 import jax.numpy as jnp
 import jax
-from fast_3dp3.model import make_scoring_function
 from fast_3dp3.rendering import render_planes
-from fast_3dp3.utils import make_centered_grid_enumeration_3d_points, make_cube_point_cloud, quaternion_to_rotation_matrix
 import time
 import matplotlib.pyplot as plt
-from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
 h, w, fx_fy, cx_cy = (

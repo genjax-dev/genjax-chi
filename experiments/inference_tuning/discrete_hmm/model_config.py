@@ -21,12 +21,10 @@ import genjax
 
 
 @genjax.gen
-def kernel_step(key, prev, config):
-    transition_tensor = config.transition_tensor
-    observation_tensor = config.observation_tensor
-    trow = transition_tensor[prev, :]
+def kernel_step(key, prev, transition_t, observation_t):
+    trow = transition_t[prev, :]
     key, latent = genjax.trace("latent", genjax.Categorical)(key, (trow,))
-    orow = observation_tensor[latent, :]
+    orow = observation_t[latent, :]
     key, observation = genjax.trace("observation", genjax.Categorical)(
         key, (orow,)
     )
@@ -43,5 +41,9 @@ def initial_position(config: genjax.DiscreteHMMConfiguration):
 @genjax.gen
 def hidden_markov_model(key, T, config):
     z0 = initial_position(config)
-    key, z = genjax.trace("z", kernel)(key, (T, z0, config))
+    transition_t = config.transition_tensor
+    observation_t = config.observation_tensor
+    key, z = genjax.trace("z", kernel)(
+        key, (T, z0, transition_t, observation_t)
+    )
     return key, z

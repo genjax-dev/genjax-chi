@@ -133,7 +133,7 @@ class _NeuralDescriptorLikelihood(genjax.Distribution):
     def random_weighted(self, key, *args, **kwargs):
         return key, (0.0, None)
 
-    def estimate_logpdf(self, key, image, *args):
+    def estimate_logpdf(self, key, image, *args, **kwargs):
         w = neural_descriptor_likelihood(image, *args)
         return key, (w, image)
 

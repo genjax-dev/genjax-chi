@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.numpy as jnp
 import genjax
 import genjax.experimental.prox as prox
@@ -26,10 +25,9 @@ from model_config import initial_position, kernel_step
 def transition_proposal(key, state, new_target):
     config = new_target.args[1]
     observation = new_target.constraints["observation"]
-    trow = config.transition_tensor[state, :]
-    observation_weights = jax.vmap(
-        lambda v: config.observation_tensor[v, observation]
-    )(jnp.arange(0, config.linear_grid_dim))
+    trow = new_target.args[1][state, :]
+    orow = new_target.args[2][:, observation]
+    observation_weights = orow[jnp.arange(0, len(trow))]
     weights = trow + observation_weights
     key, _ = genjax.trace(("z", "latent"), genjax.Categorical)(key, (weights,))
     return (key,)
@@ -40,9 +38,8 @@ def transition_proposal(key, state, new_target):
     selection=genjax.AllSelection(),
 )
 def prior_proposal(key, state, new_target):
-    config = new_target.args[1]
     v = state
-    transition_tensor = config.transition_tensor
+    transition_tensor = new_target.args[1]
     trow = transition_tensor[v, :]
     key, _ = genjax.trace(("z", "latent"), genjax.Categorical)(key, (trow,))
     return (key,)
@@ -57,10 +54,13 @@ def hmm_meta_next_target(state, constraints, final_target):
     def choice_map_coercion(chm):
         return chm["z"]
 
+    transition_tensor = args[1].transition_tensor
+    observation_tensor = args[1].observation_tensor
+
     return prox.Target(
         kernel_step,
         choice_map_coercion,
-        (state, args[1]),
+        (state, transition_tensor, observation_tensor),
         constraints["z"],
     )
 
