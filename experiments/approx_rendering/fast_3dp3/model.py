@@ -20,16 +20,7 @@ NeuralDescriptorLikelihood = _NeuralDescriptorLikelihood()
 
 def make_scoring_function(object_model_cloud, h, w, fx_fy, cx_cy ,r , outlier_prob, pixel_smudge):
     @genjax.gen
-    def model(key, object_model_cloud):
-        key, pos = genjax.trace("pos", genjax.Uniform)(key, (jnp.array([-10.0, -10.0,-100.0]),jnp.array([10.0, 10.0,100.0])))
-        pose = jnp.array(
-            [
-                [1.0, 0.0, 0.0, pos[0]],
-                [0.0, 1.0, 0.0, pos[1]],
-                [0.0, 0.0, 1.0, pos[2]],
-                [0.0, 0.0, 0.0, 1.0],
-            ]
-        )
+    def model(key, pose, object_model_cloud):
         rendered_image = render_cloud_at_pose(
             object_model_cloud, pose, h, w, fx_fy, cx_cy, pixel_smudge
         )
@@ -38,8 +29,8 @@ def make_scoring_function(object_model_cloud, h, w, fx_fy, cx_cy ,r , outlier_pr
         )
         return key, rendered_image.shape
         
-    def scorer(key, pos, gt_image):
-        obs = genjax.ChoiceMap.new({("pos",): pos, ("observed",): gt_image})
-        key, (weight, tr) = model.importance(key, obs, (object_model_cloud,))
-        return key, weight, pos
+    def scorer(key, pose, gt_image):
+        obs = genjax.ChoiceMap.new({("observed",): gt_image})
+        key, (weight, tr) = model.importance(key, obs, (pose, object_model_cloud,))
+        return key, weight, pose
     return scorer
