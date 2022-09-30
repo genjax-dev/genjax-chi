@@ -2,7 +2,7 @@ import genjax
 from dataclasses import dataclass
 
 from .likelihood import neural_descriptor_likelihood
-from .rendering import render_cloud_at_pose
+from .rendering import render_cloud_at_pose, render_planes
 
 
 @dataclass
@@ -18,13 +18,11 @@ class _NeuralDescriptorLikelihood(genjax.Distribution):
 NeuralDescriptorLikelihood = _NeuralDescriptorLikelihood()
 
 
-def make_scoring_function(
-    object_model_cloud, h, w, fx_fy, cx_cy, r, outlier_prob, pixel_smudge
-):
+def make_scoring_function(shape, h, w, fx_fy, cx_cy ,r , outlier_prob):
     @genjax.gen
-    def model(key, pose, object_model_cloud):
-        rendered_image = render_cloud_at_pose(
-            object_model_cloud, pose, h, w, fx_fy, cx_cy, pixel_smudge
+    def model(key, pose, shape):
+        rendered_image = render_planes(
+            pose, shape, h, w, fx_fy, cx_cy
         )
         key, cloud = genjax.trace("observed", NeuralDescriptorLikelihood)(
             key, (rendered_image, r, outlier_prob)
@@ -33,14 +31,7 @@ def make_scoring_function(
 
     def scorer(key, pose, gt_image):
         obs = genjax.ChoiceMap.new({("observed",): gt_image})
-        key, (weight, tr) = model.importance(
-            key,
-            obs,
-            (
-                pose,
-                object_model_cloud,
-            ),
-        )
+        key, (weight, tr) = model.importance(key, obs, (pose, shape,))
         return key, weight, pose
 
     return scorer
