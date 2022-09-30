@@ -20,11 +20,15 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Laplace(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.laplace(key, **kwargs)
+    def random_weighted(self, key, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.laplace(sub_key, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, **kwargs):
-        return jnp.sum(jax.scipy.stats.laplace.logpdf(v))
+    def estimate_logpdf(self, key, v, **kwargs):
+        w = jnp.sum(jax.scipy.stats.laplace.logpdf(v))
+        return key, (w, v)
 
 
 Laplace = _Laplace()

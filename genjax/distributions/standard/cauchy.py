@@ -21,13 +21,17 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Cauchy(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.cauchy(key, **kwargs)
+    def random_weighted(self, key, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.cauchy(sub_key, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v):
-        return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
+    def estimate_logpdf(self, key, v, **kwargs):
+        w = jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
+        return key, (w, v)
 
-    def __trace_type__(self, key, **kwargs):
+    def get_trace_type(self, key, **kwargs):
         shape = kwargs.get("shape", ())
         return PositiveReals(shape)
 

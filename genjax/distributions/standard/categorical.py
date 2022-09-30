@@ -22,17 +22,21 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Categorical(Distribution):
-    def sample(self, key, logits, **kwargs):
-        return jax.random.categorical(key, logits, **kwargs)
+    def random_weighted(self, key, logits, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.categorical(sub_key, logits, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, logits, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, logits, **kwargs):
+    def estimate_logpdf(self, key, v, logits, **kwargs):
         axis = kwargs.get("axis", -1)
         logpdf = jnp.log(jax.nn.softmax(logits, axis=axis))
-        return jnp.sum(logpdf[v])
+        w = jnp.sum(logpdf[v])
+        return key, (w, v)
 
-    def __trace_type__(self, key, logits, **kwargs):
+    def get_trace_type(self, key, logits, **kwargs):
         shape = kwargs.get("shape", ())
-        return Finite(shape, np.prod(logits.shape))
+        return Finite(np.prod(logits.shape), shape)
 
 
 Categorical = _Categorical()

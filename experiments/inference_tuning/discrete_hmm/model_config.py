@@ -13,80 +13,7 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-import numpy as np
-from scipy.linalg import circulant
-from dataclasses import dataclass
 import genjax
-from typing import Union
-
-Int = int
-Float32 = Union[np.float32, jnp.float32]
-FloatTensor = Union[jnp.ndarray, np.ndarray]
-
-
-def scaled_circulant(N, k, epsilon, delta):
-    source = [
-        epsilon ** abs(index)
-        if index <= k
-        else epsilon ** abs(index - N)
-        if index - N >= -k
-        else -delta
-        for index in range(0, N)
-    ]
-    return circulant(source)
-
-
-@dataclass
-class DiscreteHMMConfiguration(genjax.Pytree):
-    linear_grid_dim: Int
-    adjacency_distance_trans: Float32
-    adjacency_distance_obs: Int
-    sigma_trans: Float32
-    sigma_obs: Float32
-    transition_tensor: FloatTensor
-    observation_tensor: FloatTensor
-
-    def flatten(self):
-        return (self.transition_tensor, self.observation_tensor,), (
-            self.linear_grid_dim,
-            self.adjacency_distance_trans,
-            self.adjacency_distance_obs,
-            self.sigma_trans,
-            self.sigma_obs,
-        )
-
-    @classmethod
-    def new(
-        cls,
-        linear_grid_dim: Int,
-        adjacency_distance_trans: Float32,
-        adjacency_distance_obs: Float32,
-        sigma_trans: Float32,
-        sigma_obs: Float32,
-    ):
-        transition_tensor = scaled_circulant(
-            linear_grid_dim,
-            adjacency_distance_trans,
-            sigma_trans if sigma_trans > 0.0 else -np.inf,
-            1 / sigma_trans if sigma_trans > 0.0 else -np.inf,
-        )
-
-        observation_tensor = scaled_circulant(
-            linear_grid_dim,
-            adjacency_distance_obs,
-            sigma_obs if sigma_obs > 0.0 else -np.inf,
-            1 / sigma_obs if sigma_obs > 0.0 else np.inf,
-        )
-        return DiscreteHMMConfiguration(
-            linear_grid_dim,
-            adjacency_distance_trans,
-            adjacency_distance_obs,
-            sigma_trans,
-            sigma_obs,
-            transition_tensor,
-            observation_tensor,
-        )
-
 
 #####
 # Model
@@ -109,7 +36,7 @@ def kernel_step(key, prev, config):
 kernel = genjax.Unfold(kernel_step, max_length=50)
 
 
-def initial_position(config: DiscreteHMMConfiguration):
+def initial_position(config: genjax.DiscreteHMMConfiguration):
     return jnp.array(int(config.linear_grid_dim / 2))
 
 

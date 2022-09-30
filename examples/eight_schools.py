@@ -17,6 +17,8 @@ import jax.numpy as jnp
 import numpy as np
 import genjax
 
+console = genjax.go_pretty()
+
 # Eight schools in idiomatic GenJAX.
 
 
@@ -77,7 +79,7 @@ obs = genjax.ChoiceMap(
 
 # Check trace type.
 trace_type = genjax.get_trace_type(eight_schools)(key, (sigma,))
-print(trace_type)
+console.print(trace_type)
 
 
 # We JIT -- we specialize on the number of particles so JAX's PRNG
@@ -96,4 +98,4 @@ key, states = jax.jit(
         inv_mass_matrix,
     )
 )(key)
-print(states)
+console.print(states)

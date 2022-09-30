@@ -30,7 +30,7 @@ from genjax.core.specialization import (
     concrete_cond,
     concrete_and,
 )
-from genjax.core.tracetypes import Bottom
+from genjax.builtin.builtin_tracetype import lift
 from dataclasses import dataclass
 from typing import Tuple, Callable, Any
 
@@ -85,33 +85,27 @@ class Distribution(GenerativeFunction):
         return (), ()
 
     def __call__(self, key, *args, **kwargs):
-        key, subkey = jax.random.split(key)
-        v = self.sample(subkey, *args, **kwargs)
+        key, (w, v) = self.random_weighted(key, *args, **kwargs)
         return (key, v)
 
-    def __trace_type__(self, key, *args, **kwargs):
-        shape = kwargs.get("shape", ())
-        return Bottom(shape)
-
     def get_trace_type(self, key, args, **kwargs):
-        return self.__trace_type__(key, *args, **kwargs)
+        _, (_, (_, ttype)) = jax.make_jaxpr(
+            self.random_weighted, return_shape=True
+        )(key, *args)
+        return lift(ttype)
 
-    @classmethod
     @abc.abstractmethod
-    def sample(cls, *args, **kwargs):
+    def random_weighted(self, *args, **kwargs):
         pass
 
     @classmethod
     @abc.abstractmethod
-    def logpdf(cls, key, v, *args, **kwargs):
+    def estimate_logpdf(cls, key, v, *args, **kwargs):
         pass
 
     def simulate(self, key, args, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = self.sample(sub_key, *args, **kwargs)
-        key, sub_key = jax.random.split(key)
-        score = self.logpdf(sub_key, v, *args)
-        tr = DistributionTrace(self, args, ValueChoiceMap(v), score)
+        key, (w, v) = self.random_weighted(key, *args, **kwargs)
+        tr = DistributionTrace(self, args, ValueChoiceMap(v), w)
         return key, tr
 
     @BooleanMask.collapse_boundary
@@ -119,15 +113,12 @@ class Distribution(GenerativeFunction):
         def _importance_branch(key, chm, args):
             v = chm.get_leaf_value()
             key, sub_key = jax.random.split(key)
-            w = self.logpdf(sub_key, v, *args)
+            _, (w, _) = self.estimate_logpdf(sub_key, v, *args)
             return key, v, w, w
 
         def _simulate_branch(key, chm, args):
-            key, sub_key = jax.random.split(key)
-            v = self.sample(sub_key, *args, **kwargs)
+            key, (score, v) = self.random_weighted(key, *args, **kwargs)
             w = 0.0
-            key, sub_key = jax.random.split(key)
-            score = self.logpdf(sub_key, v, *args)
             return key, v, w, score
 
         key, v, w, score = concrete_cond(
@@ -153,8 +144,7 @@ class Distribution(GenerativeFunction):
         def _update_branch(key, args):
             prev_score = prev.get_score()
             v = new.get_leaf_value()
-            key, sub_key = jax.random.split(key)
-            fwd = self.logpdf(sub_key, v, *args)
+            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
             discard = BooleanMask.new(True, prev.get_choices())
             return key, (fwd - prev_score, v, discard)
 

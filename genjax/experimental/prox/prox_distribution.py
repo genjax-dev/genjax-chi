@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
 from dataclasses import dataclass
 from genjax.distributions.distribution import (
     Distribution,
@@ -23,25 +22,9 @@ from genjax.distributions.distribution import (
 
 @dataclass
 class ProxDistribution(Distribution):
-    @abc.abstractmethod
-    def random_weighted(self, key, target):
-        pass
-
-    @abc.abstractmethod
-    def estimate_logpdf(self, key, v, target):
-        pass
-
     def __call__(self, key, target):
         key, (v, w) = self.random_weighted(key, target)
         return (key, v)
-
-    def sample(self, key, target):
-        _, (v, _) = self.random_weighted(key, target)
-        return v
-
-    def logpdf(self, key, v, target):
-        _, w, _ = self.estimate_logpdf(key, v, target)
-        return w
 
     def simulate(self, key, args):
         key, (val, weight) = self.random_weighted(key, *args)
@@ -53,6 +36,6 @@ class ProxDistribution(Distribution):
         assert isinstance(chm, ValueChoiceMap)
         val = chm.get_leaf_value()
         val = val.strip_metadata()
-        key, w, new = self.estimate_logpdf(key, val, *args)
+        key, (w, new) = self.estimate_logpdf(key, val, *args)
         tr = DistributionTrace(self, args, new, w)
         return key, (w, tr)

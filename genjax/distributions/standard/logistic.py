@@ -20,11 +20,15 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Logistic(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.logistic(key, **kwargs)
+    def random_weighted(self, key, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.logistic(sub_key, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, **kwargs):
-        return jnp.sum(jax.scipy.stats.logistic.logpdf(v))
+    def estimate_logpdf(self, key, v, **kwargs):
+        w = jnp.sum(jax.scipy.stats.logistic.logpdf(v))
+        return key, (w, v)
 
 
 Logistic = _Logistic()

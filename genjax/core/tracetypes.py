@@ -15,6 +15,7 @@
 import abc
 from dataclasses import dataclass
 import numpy as np
+from rich.tree import Tree
 from genjax.core.choice_tree import ChoiceTree
 from typing import Tuple, Any
 
@@ -79,6 +80,10 @@ class Reals(LeafTraceType):
     def get_rettype(self):
         return self
 
+    def tree_console_overload(self):
+        tree = Tree(f"[magenta][b]ℝ[/b] {self.shape}")
+        return tree
+
 
 @dataclass
 class PositiveReals(LeafTraceType):
@@ -98,6 +103,10 @@ class PositiveReals(LeafTraceType):
 
     def get_rettype(self):
         return self
+
+    def tree_console_overload(self):
+        tree = Tree(f"[magenta][b]ℝ⁺[/b] {self.shape}")
+        return tree
 
 
 @dataclass
@@ -125,6 +134,12 @@ class RealInterval(LeafTraceType):
     def get_rettype(self):
         return self
 
+    def tree_console_overload(self):
+        tree = Tree(
+            f"[magenta][b]ℝ[/b] [{self.lower_bound}, {self.upper_bound}]{self.shape}"
+        )
+        return tree
+
 
 @dataclass
 class Integers(LeafTraceType):
@@ -144,6 +159,10 @@ class Integers(LeafTraceType):
 
     def get_rettype(self):
         return self
+
+    def tree_console_overload(self):
+        tree = Tree(f"[magenta][b]ℤ[/b] {self.shape}")
+        return tree
 
 
 @dataclass
@@ -168,6 +187,10 @@ class Naturals(LeafTraceType):
 
     def get_rettype(self):
         return self
+
+    def tree_console_overload(self):
+        tree = Tree(f"[magenta][b]ℕ[/b] {self.shape}")
+        return tree
 
 
 @dataclass
@@ -198,6 +221,10 @@ class Finite(LeafTraceType):
     def get_rettype(self):
         return self
 
+    def tree_console_overload(self):
+        tree = Tree(f"[magenta][b]𝔽[/b] [{self.limit}] {self.shape}")
+        return tree
+
 
 @dataclass
 class Bottom(LeafTraceType):
@@ -214,3 +241,7 @@ class Bottom(LeafTraceType):
 
     def get_rettype(self):
         return self
+
+    def tree_console_overload(self):
+        tree = Tree("[magenta][b]⊥[/b]")
+        return tree

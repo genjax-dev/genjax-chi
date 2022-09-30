@@ -16,15 +16,24 @@ import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
 from genjax.distributions.distribution import Distribution
+from genjax.core.tracetypes import PositiveReals
 
 
 @dataclass
 class _Exponential(Distribution):
-    def sample(self, key, **kwargs):
-        return jax.random.exponential(key, **kwargs)
+    def random_weighted(self, key, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.exponential(sub_key, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v):
-        return jnp.sum(jax.scipy.stats.expon.logpdf(v))
+    def estimate_logpdf(self, key, v, **kwargs):
+        w = jnp.sum(jax.scipy.stats.expon.logpdf(v))
+        return key, (w, v)
+
+    def get_trace_type(self, key, **kwargs):
+        shape = kwargs.get("shape", ())
+        return PositiveReals(shape)
 
 
 Exponential = _Exponential()

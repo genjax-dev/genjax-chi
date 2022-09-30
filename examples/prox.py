@@ -16,6 +16,8 @@ import jax
 import genjax
 import genjax.experimental.prox as prox
 
+console = genjax.go_pretty()
+
 # This is showcasing auxiliary-variable inference strategies from
 # an experimental implementation of `GenProx`.
 #
@@ -42,5 +44,7 @@ def model(key):
 
 
 key = jax.random.PRNGKey(314159)
+trace_type = genjax.get_trace_type(model)(key, ())
+console.print(trace_type)
 key, tr = genjax.simulate(model)(key, ())
-print(tr)
+console.print(tr)

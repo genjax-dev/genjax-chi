@@ -17,7 +17,7 @@ import jax.numpy as jnp
 import genjax
 import genjax.experimental.prox as prox
 import numpy as np
-from model_config import DiscreteHMMConfiguration, hidden_markov_model
+from model_config import hidden_markov_model
 from inference_config import (
     meta_initial_position,
     hmm_meta_next_target,
@@ -105,7 +105,7 @@ def sequence_visualizer(
 
 key = jax.random.PRNGKey(314159)
 num_steps = 50
-config = DiscreteHMMConfiguration.new(50, 2, 1, 0.2, 0.3)
+config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.2, 0.3)
 
 # Generate from model.
 key, tr = jax.jit(genjax.simulate(hidden_markov_model))(

@@ -31,19 +31,17 @@ class TFPDistribution(Distribution):
     def flatten(self):
         return (), (self.distribution,)
 
-    def __trace_type__(self, key, *args, **kwargs):
-        _, ttype = jax.make_jaxpr(self.sample, return_shape=True)(key, *args)
-        return lift(ttype)
-
-    def sample(self, key, *args, **kwargs):
-        key, subkey = jax.random.split(key)
+    def random_weighted(self, key, *args, **kwargs):
+        key, sub_key = jax.random.split(key)
         dist = self.distribution(*args, **kwargs)
-        v = dist.sample(seed=subkey)
-        return v
+        v = dist.sample(seed=sub_key)
+        key, (w, _) = self.estimate_logpdf(sub_key, v, *args, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, *args, **kwargs):
+    def estimate_logpdf(self, key, v, *args, **kwargs):
         dist = self.distribution(*args, **kwargs)
-        return jnp.sum(dist.log_prob(v))
+        w = jnp.sum(dist.log_prob(v))
+        return key, (w, v)
 
 
 Bates = TFPDistribution(tfd.Bates)

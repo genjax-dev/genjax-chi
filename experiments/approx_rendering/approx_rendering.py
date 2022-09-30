@@ -130,11 +130,12 @@ def log_likelihood_for_pixel(
 
 @dataclass
 class _NeuralDescriptorLikelihood(genjax.Distribution):
-    def sample(self, key, *args, **kwargs):
-        return key, ()
+    def random_weighted(self, key, *args, **kwargs):
+        return key, (0.0, None)
 
-    def logpdf(self, key, image, *args):
-        return neural_descriptor_likelihood(image, *args)
+    def estimate_logpdf(self, key, image, *args):
+        w = neural_descriptor_likelihood(image, *args)
+        return key, (w, image)
 
 
 NeuralDescriptorLikelihood = _NeuralDescriptorLikelihood()

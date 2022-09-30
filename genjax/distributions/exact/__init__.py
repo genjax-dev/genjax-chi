@@ -12,23 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import jax.numpy as jnp
-from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
-
-
-@dataclass
-class _Gamma(Distribution):
-    def random_weighted(self, key, a, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.gamma(sub_key, a, **kwargs)
-        _, (w, _) = self.estimate_logpdf(sub_key, v, a, **kwargs)
-        return key, (w, v)
-
-    def estimate_logpdf(self, key, v, a, **kwargs):
-        w = jnp.sum(jax.scipy.stats.gamma.logpdf(v, a))
-        return key, (w, v)
-
-
-Gamma = _Gamma()
+from .discrete_hmm import *

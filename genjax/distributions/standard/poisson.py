@@ -20,11 +20,15 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Poisson(Distribution):
-    def sample(self, key, lam, **kwargs):
-        return jax.random.poisson(key, lam, **kwargs)
+    def random_weighted(self, key, lam, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.poisson(sub_key, lam, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, lam, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, lam, **kwargs):
-        return jnp.sum(jax.scipy.stats.poisson.logpmf(v, lam))
+    def estimate_logpdf(self, key, v, lam, **kwargs):
+        w = jnp.sum(jax.scipy.stats.poisson.logpmf(v, lam))
+        return key, (w, v)
 
 
 Poisson = _Poisson()

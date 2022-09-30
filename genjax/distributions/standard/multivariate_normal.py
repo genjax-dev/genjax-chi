@@ -15,22 +15,20 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.core.tracetypes import Reals
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _MultivariateNormal(Distribution):
-    def sample(self, key, mean, cov, **kwargs):
-        return jax.random.multivariate_normal(key, mean, cov, **kwargs)
+    def random_weighted(self, key, mean, cov, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.multivariate_normal(sub_key, mean, cov, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, mean, cov, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, mean, cov, **kwargs):
-        return jnp.sum(jax.scipy.stats.multivariate_normal.logpdf(v, mean, cov))
-
-    def __trace_type__(self, key, mean, cov, **kwargs):
-        mean_shape = mean.shape
-        shape = (*kwargs.get("shape", ()), *mean_shape)
-        return Reals(shape)
+    def estimate_logpdf(self, key, v, mean, cov, **kwargs):
+        w = jnp.sum(jax.scipy.stats.multivariate_normal.logpdf(v, mean, cov))
+        return key, (w, v)
 
 
 MvNormal = _MultivariateNormal()

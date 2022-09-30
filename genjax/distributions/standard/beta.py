@@ -15,21 +15,20 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.core.tracetypes import RealInterval
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Beta(Distribution):
-    def sample(self, key, a, b, **kwargs):
-        return jax.random.beta(key, a, b, **kwargs)
+    def random_weighted(self, key, a, b, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.beta(sub_key, a, b, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, a, b, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, a, b, **kwargs):
-        return jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))
-
-    def __trace_type__(self, key, a, b, **kwargs):
-        shape = kwargs.get("shape", ())
-        return RealInterval(shape, a, b)
+    def estimate_logpdf(self, key, v, a, b, **kwargs):
+        w = jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))
+        return key, (w, v)
 
 
 Beta = _Beta()

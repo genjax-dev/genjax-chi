@@ -44,7 +44,7 @@ class ChoiceMapDistribution(ProxDistribution):
         if self.custom_q is None:
             return correct_if_check
         else:
-            target = Target(self.p, args, self.selection)
+            target = Target(self.p, None, args, self.selection)
             proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
             target_trace_type = target.get_trace_type(key)
             check, mismatch = target_trace_type.subseteq(proposal_trace_type)
@@ -63,7 +63,7 @@ class ChoiceMapDistribution(ProxDistribution):
             _, weight = self.selection.filter(tr)
         else:
             unselected, _ = self.selection.complement().filter(choices)
-            target = Target(self.p, args, selected_choices)
+            target = Target(self.p, None, args, selected_choices)
 
             # Check trace type.
             proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
@@ -86,7 +86,7 @@ class ChoiceMapDistribution(ProxDistribution):
         if self.custom_q is None:
             key, (weight, new) = self.p.importance(key, choices, args)
         else:
-            target = Target(self.p, args, choices)
+            target = Target(self.p, None, args, choices)
 
             # Check trace type.
             proposal_trace_type = self.custom_q.get_trace_type(key, (target,))

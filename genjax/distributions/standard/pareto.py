@@ -20,11 +20,15 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Pareto(Distribution):
-    def sample(self, key, b, **kwargs):
-        return jax.random.pareto(key, b, **kwargs)
+    def random_weighted(self, key, b, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.pareto(sub_key, b, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, b, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, b, **kwargs):
-        return jnp.sum(jax.scipy.stats.pareto.logpdf(v, b))
+    def estimate_logpdf(self, key, v, b, **kwargs):
+        w = jnp.sum(jax.scipy.stats.pareto.logpdf(v, b))
+        return key, (w, v)
 
 
 Pareto = _Pareto()

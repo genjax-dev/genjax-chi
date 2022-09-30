@@ -15,21 +15,20 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.core.tracetypes import Finite
 from genjax.distributions.distribution import Distribution
 
 
 @dataclass
 class _Bernoulli(Distribution):
-    def sample(self, key, *args, **kwargs):
-        return jax.random.bernoulli(key, *args, **kwargs)
+    def random_weighted(self, key, *args, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.bernoulli(sub_key, *args, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, *args, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, *args, **kwargs):
-        return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
-
-    def __trace_type__(self, key, p, **kwargs):
-        shape = kwargs.get("shape", ())
-        return Finite(shape, 2)
+    def estimate_logpdf(self, key, v, *args, **kwargs):
+        w = jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
+        return key, (w, v)
 
 
 Bernoulli = _Bernoulli()

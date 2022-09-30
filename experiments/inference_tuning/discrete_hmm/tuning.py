@@ -15,7 +15,7 @@
 import jax
 import jax.numpy as jnp
 import genjax
-from model_config import DiscreteHMMConfiguration, hidden_markov_model
+from model_config import hidden_markov_model
 from inference_config import (
     meta_initial_position,
     hmm_meta_next_target,
@@ -28,7 +28,7 @@ plt.style.use("ggplot")
 # Global setup.
 key = jax.random.PRNGKey(314159)
 num_steps = 50
-config = DiscreteHMMConfiguration.new(50, 2, 1, 0.8, 0.5)
+config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.8, 0.5)
 
 #####
 # SDOS

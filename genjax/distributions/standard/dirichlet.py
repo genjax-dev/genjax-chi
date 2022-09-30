@@ -20,11 +20,15 @@ from genjax.distributions.distribution import Distribution
 
 @dataclass
 class _Dirichlet(Distribution):
-    def sample(self, key, alpha, **kwargs):
-        return jax.random.dirichlet(key, alpha, **kwargs)
+    def random_weighted(self, key, alpha, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = jax.random.dirichlet(sub_key, alpha, **kwargs)
+        _, (w, _) = self.estimate_logpdf(sub_key, v, alpha, **kwargs)
+        return key, (w, v)
 
-    def logpdf(self, key, v, alpha):
-        return jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))
+    def estimate_logpdf(self, key, v, alpha, **kwargs):
+        w = jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))
+        return key, (w, v)
 
 
 Dirichlet = _Dirichlet()

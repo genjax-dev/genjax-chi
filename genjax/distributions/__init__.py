@@ -15,3 +15,4 @@
 from .distribution import *
 from .standard import *
 from .tensorflow_probability import *
+from .exact import *

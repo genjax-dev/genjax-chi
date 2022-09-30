@@ -15,7 +15,9 @@
 import itertools
 from dataclasses import dataclass
 from genjax.core.tracetypes import TraceType
+import genjax.core.pretty_printing as gpp
 from typing import Sequence
+from rich.tree import Tree
 
 #####
 # VectorTraceType
@@ -59,6 +61,15 @@ class VectorTraceType(TraceType):
 
     def get_rettype(self):
         return self.inner.get_rettype()
+
+    def tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        subk = Tree("[blue]length")
+        subk.add(gpp.tree_pformat(self.length))
+        subt = self.inner.build_rich_tree()
+        tree.add(subk)
+        tree.add(subt)
+        return tree
 
 
 #####

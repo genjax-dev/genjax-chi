@@ -20,7 +20,9 @@ from dataclasses import dataclass
 from genjax.core.pytree import Pytree, squeeze
 from genjax.core.choice_tree import ChoiceTree
 from genjax.core.tracetypes import Bottom
+import genjax.core.pretty_printing as gpp
 from typing import Any, Sequence, Union
+from rich.tree import Tree
 
 #####
 # GenerativeFunction
@@ -262,6 +264,15 @@ class ValueChoiceMap(ChoiceMap):
             return hash(self.value.tobytes())
         else:
             return hash(self.value)
+
+    def tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        if isinstance(self.value, Pytree):
+            subt = self.value.build_rich_tree()
+            tree.add(subt)
+        else:
+            tree.add(gpp.tree_pformat(self.value))
+        return tree
 
 
 #####
