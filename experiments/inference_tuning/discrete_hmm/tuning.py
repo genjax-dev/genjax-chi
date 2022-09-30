@@ -14,71 +14,142 @@
 
 import jax
 import jax.numpy as jnp
+import numpy as np
+import pandas as pd
 import genjax
 from model_config import hidden_markov_model
 from inference_config import (
     meta_initial_position,
     hmm_meta_next_target,
     transition_proposal,
+    prior_proposal,
 )
 import matplotlib.pyplot as plt
+import seaborn as sns
+import ptitprince as pt
+from rich.progress import track
 
-plt.style.use("ggplot")
 
 # Global setup.
+sns.set()
 key = jax.random.PRNGKey(314159)
 num_steps = 50
 config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.8, 0.5)
+
+# Set pretty printing + tracebacks.
+console = genjax.go_pretty()
+
+#####
+# SMC variants
+#####
+
+
+def custom_smc_with_transition(n_particles):
+    return genjax.CustomSMC(
+        meta_initial_position,
+        hmm_meta_next_target,
+        transition_proposal,
+        lambda _: num_steps,
+        n_particles,
+    )
+
+
+def custom_smc_with_prior(n_particles):
+    return genjax.CustomSMC(
+        meta_initial_position,
+        hmm_meta_next_target,
+        prior_proposal,
+        lambda _: num_steps,
+        n_particles,
+    )
+
 
 #####
 # SDOS
 #####
 
 
-def sdos_for_nparticles(key, n):
-    inf_selection = genjax.Selection([("z", "latent")])
-    custom_smc = genjax.CustomSMC(
-        meta_initial_position,
-        hmm_meta_next_target,
-        transition_proposal,
-        lambda _: num_steps,
-        n,
+def sdos_visualizer(fig, axes, df):
+    pal = "Set2"
+    dx, dy = "particles", "Model average symmetric KL estimate"
+    axes = pt.half_violinplot(
+        x=dx,
+        y=dy,
+        data=df,
+        palette=pal,
+        bw=0.2,
+        cut=0.0,
+        scale="area",
+        width=0.6,
+        inner=None,
     )
-    key, *sub_keys = jax.random.split(key, 500 + 1)
-    sub_keys = jnp.array(sub_keys)
-    _, ratio, (fwd, bwd) = jax.vmap(
-        genjax.sdos(
-            hidden_markov_model,
-            custom_smc,
-            inf_selection,
-            1,
-            200,
-        ),
-        in_axes=(0, None),
-    )(sub_keys, (num_steps, config))
+    axes = sns.stripplot(
+        x=dx,
+        y=dy,
+        data=df,
+        palette=pal,
+        edgecolor="white",
+        size=3,
+        jitter=1,
+        zorder=0,
+    )
+    axes = sns.boxplot(
+        x=dx,
+        y=dy,
+        data=df,
+        color="black",
+        width=0.15,
+        zorder=10,
+        showcaps=True,
+        boxprops={"facecolor": "none", "zorder": 10},
+        showfliers=True,
+        whiskerprops={"linewidth": 2, "zorder": 10},
+        saturation=1,
+    )
+
+
+def sdos_for_nparticles(key, custom_smc):
+    inf_selection = genjax.Selection([("z", "latent")])
+    key, ratio, (fwd, bwd) = genjax.sdos(
+        hidden_markov_model,
+        custom_smc,
+        inf_selection,
+        1,
+        100,
+    )(key, (num_steps, config))
     return key, (jnp.mean(ratio), jnp.sqrt(jnp.var(ratio))), ratio
 
 
 def sdos_plot(key, make_custom_smc):
     fig, axes = plt.subplots(figsize=(14, 14), dpi=200)
+    d = {"particles": [], "Model average symmetric KL estimate": []}
+    df = pd.DataFrame(d)
+    custom_smcs = list(
+        map(make_custom_smc, [1, 2, 5, 10, 20, 50, 100, 200, 500])
+    )
+    jitted = jax.jit(sdos_for_nparticles)
 
-    for n_particles in [1, 2, 5, 10, 20, 50, 100, 200, 500]:
-        print(n_particles)
-        custom_smc = make_custom_smc(n_particles)
-        key, (mean, var), ratio = jax.jit(
-            sdos_for_nparticles, static_argnums=1
-        )(key, n_particles)
-        sdos_visualizer(
-            fig,
-            axes,
-            n_particles,
-            ratio,
+    # Warmup.
+    for custom_smc in track(custom_smcs, description="Warm up"):
+        key, (mean, var), ratio = jitted(key, custom_smc)
+
+    # Real runs.
+    for custom_smc in track(custom_smcs, description="Real runs"):
+        key, *sub_keys = jax.random.split(key, 50 + 1)
+        sub_keys = jnp.array(sub_keys)
+        _, (mean, var), ratio = jax.jit(jax.vmap(jitted, in_axes=(0, None)))(
+            sub_keys, custom_smc
         )
+        dx = np.repeat(custom_smc.num_particles, len(ratio))
+        d = {"particles": dx, "Model average symmetric KL estimate": ratio}
+        new = pd.DataFrame(data=d)
+        df = pd.concat([df, new], ignore_index=True)
+
+    sdos_visualizer(fig, axes, df)
 
     labels_handles = {
         label: handle
-        for ax in axes
-        for handle, label in zip(*ax.get_legend_handles_labels())
+        for handle, label in zip(*axes.get_legend_handles_labels())
     }
 
     fig.legend(
@@ -88,6 +159,17 @@ def sdos_plot(key, make_custom_smc):
         fontsize=20,
     )
     return key, fig
+
+
+# Run SMC with prior as proposal.
+key, fig1 = sdos_plot(key, custom_smc_with_prior)
+fig1.suptitle("SDOS (Proposal is prior)", fontsize=24)
+fig1.savefig("sdos_prior_proposal.png")
+
+# Run SMC with transition as proposal.
+key, fig2 = sdos_plot(key, custom_smc_with_transition)
+fig2.suptitle("SDOS (Data-driven proposal)", fontsize=24)
+plt.savefig("sdos_transition_proposal.png")
 
 
 #####

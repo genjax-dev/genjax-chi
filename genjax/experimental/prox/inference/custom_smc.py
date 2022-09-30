@@ -174,8 +174,8 @@ class CustomSMC(ProxDistribution):
         )
 
         return key, (
-            selected_particle,
             final_target_scores[selected_particle_index] - average_weight,
+            selected_particle,
         )
 
     # `estimate_logpdf` uses conditional Sequential Monte Carlo (cSMC)
@@ -341,9 +341,7 @@ class CustomSMC(ProxDistribution):
         total_weight = jax.scipy.special.logsumexp(final_weights)
         average_weight = total_weight - np.log(self.num_particles)
 
-        return (
-            key,
-            # average_weight,
+        return key, (
             final_target_scores[0] - average_weight,
             retained_choices,
         )

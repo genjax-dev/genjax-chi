@@ -48,7 +48,7 @@ class Marginal(ProxDistribution):
             key, ValueChoiceMap(other_choices), (target,)
         )
         weight -= q_weight
-        return key, (val, weight)
+        return key, (weight, val)
 
     def estimate_logpdf(self, key, val, *args):
         chm = BuiltinChoiceMap({self.addr: val})
@@ -58,4 +58,4 @@ class Marginal(ProxDistribution):
         choices = tr.get_choices()
         choices = choices.merge(chm)
         key, (p_w, _) = self.p.importance(key, choices, args)
-        return key, p_w - q_w
+        return key, (p_w - q_w, val)
