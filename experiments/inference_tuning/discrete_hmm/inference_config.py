@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
+import jax.numpy as jnp
 import genjax
 import genjax.experimental.prox as prox
 from model_config import initial_position, kernel_step
@@ -23,11 +25,26 @@ from model_config import initial_position, kernel_step
 )
 def transition_proposal(key, state, new_target):
     config = new_target.args[1]
-    obs_chm = new_target.constraints
-    v = obs_chm["observation"]
-    observation_tensor = config.observation_tensor
-    orow = observation_tensor[v, :]
-    key, _ = genjax.trace(("z", "latent"), genjax.Categorical)(key, (orow,))
+    observation = new_target.constraints["observation"]
+    trow = config.transition_tensor[state, :]
+    observation_weights = jax.vmap(
+        lambda v: config.observation_tensor[v, observation]
+    )(jnp.arange(0, config.linear_grid_dim))
+    weights = trow + observation_weights
+    key, _ = genjax.trace(("z", "latent"), genjax.Categorical)(key, (weights,))
+    return (key,)
+
+
+@genjax.gen(
+    prox.ChoiceMapDistribution,
+    selection=genjax.AllSelection(),
+)
+def prior_proposal(key, state, new_target):
+    config = new_target.args[1]
+    v = state
+    transition_tensor = config.transition_tensor
+    trow = transition_tensor[v, :]
+    key, _ = genjax.trace(("z", "latent"), genjax.Categorical)(key, (trow,))
     return (key,)
 
 

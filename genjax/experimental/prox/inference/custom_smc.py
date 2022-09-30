@@ -343,7 +343,7 @@ class CustomSMC(ProxDistribution):
 
         return (
             key,
-            average_weight,
-            # final_target_scores[0] - average_weight,
+            # average_weight,
+            final_target_scores[0] - average_weight,
             retained_choices,
         )

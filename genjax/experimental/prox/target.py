@@ -15,7 +15,6 @@
 from dataclasses import dataclass
 from genjax.core.pytree import Pytree
 from genjax.core.datatypes import GenerativeFunction, ChoiceMap, Trace
-import genjax.core.pretty_printer as gpp
 from typing import Tuple, Callable, Union
 
 
@@ -53,9 +52,3 @@ class Target(Pytree):
             chm = self.choice_map_coercion(chm)
         merged = self.constraints.merge(chm)
         return self.p.importance(key, merged, self.args)
-
-    def __repr__(self):
-        return gpp.tree_pformat(self)
-
-    def __str__(self):
-        return gpp.tree_pformat(self)

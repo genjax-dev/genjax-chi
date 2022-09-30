@@ -21,8 +21,6 @@ from genjax.core.pytree import Pytree, squeeze
 from genjax.core.choice_tree import ChoiceTree
 from genjax.core.tracetypes import Bottom
 from typing import Any, Sequence, Union
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
 
 #####
 # GenerativeFunction
@@ -74,12 +72,6 @@ class GenerativeFunction(Pytree):
     def choice_grad(self, key, tr, chm, args):
         pass
 
-    def __repr__(self):
-        return gpp.tree_pformat(self)
-
-    def __str__(self):
-        return gpp.tree_pformat(self)
-
 
 #####
 # Trace
@@ -107,35 +99,6 @@ class Trace(Pytree):
     @abc.abstractmethod
     def get_gen_fn(self):
         pass
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("gen_fn: "),
-                            gpp._pformat(self.get_gen_fn(), **kwargs),
-                            pp.brk(),
-                            pp.text("args: "),
-                            gpp._pformat(self.get_args(), **kwargs),
-                            pp.brk(),
-                            pp.text("return: "),
-                            gpp._pformat(self.get_retval(), **kwargs),
-                            pp.brk(),
-                            pp.text("score: "),
-                            gpp._pformat(self.get_score(), **kwargs),
-                            pp.brk(),
-                            pp.text("choices: "),
-                            gpp._pformat(self.get_choices(), **kwargs),
-                        ]
-                    ),
-                ),
-            ]
-        )
 
     def has_subtree(self, addr):
         choices = self.get_choices()
@@ -174,15 +137,6 @@ class Trace(Pytree):
                 return v
 
         return jtu.tree_map(_inner, self.get_choices(), is_leaf=_check)
-
-    def dump(self):
-        print(gpp.tree_pformat(self, short_arrays=False))
-
-    def __repr__(self):
-        return gpp.tree_pformat(self)
-
-    def __str__(self):
-        return gpp.tree_pformat(self)
 
     def __getitem__(self, addr):
         if isinstance(addr, slice):
@@ -228,15 +182,6 @@ class ChoiceMap(ChoiceTree):
 
         return jtu.tree_map(_inner, self, is_leaf=_check)
 
-    def dump(self):
-        print(gpp.tree_pformat(self, short_arrays=False))
-
-    def __repr__(self):
-        return gpp.tree_pformat(self)
-
-    def __str__(self):
-        return gpp.tree_pformat(self)
-
     def __eq__(self, other):
         return self.flatten() == other.flatten()
 
@@ -254,9 +199,6 @@ class ChoiceMap(ChoiceTree):
 class EmptyChoiceMap(ChoiceMap):
     def flatten(self):
         return (), ()
-
-    def overload_pprint(self, **kwargs):
-        return pp.text("EmptyChoiceMap")
 
     def is_leaf(self):
         return False
@@ -286,18 +228,6 @@ class ValueChoiceMap(ChoiceMap):
 
     def flatten(self):
         return (self.value,), ()
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    gpp._pformat(self.value, **kwargs),
-                ),
-            ]
-        )
 
     @classmethod
     def new(cls, v):
@@ -352,20 +282,11 @@ class Selection(ChoiceTree):
     def get_selection(self):
         return self
 
-    def __repr__(self):
-        return gpp.tree_pformat(self)
-
-    def __str__(self):
-        return gpp.tree_pformat(self)
-
 
 @dataclass
 class NoneSelection(Selection):
     def flatten(self):
         return (), ()
-
-    def overload_pprint(self, **kwargs):
-        return pp.text("NoneSelection")
 
     def filter(self, chm):
         return EmptyChoiceMap(), 0.0
@@ -396,9 +317,6 @@ class NoneSelection(Selection):
 class AllSelection(Selection):
     def flatten(self):
         return (), ()
-
-    def overload_pprint(self, **kwargs):
-        return pp.text("AllSelection")
 
     def filter(self, v: Union[Trace, ChoiceMap]):
         if isinstance(v, Trace):

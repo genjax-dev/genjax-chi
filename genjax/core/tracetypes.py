@@ -17,35 +17,10 @@ from dataclasses import dataclass
 import numpy as np
 from genjax.core.choice_tree import ChoiceTree
 from typing import Tuple, Any
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
 
 
 @dataclass
 class TraceType(ChoiceTree):
-    def overload_pprint(self, **kwargs):
-        entries = []
-        indent = kwargs["indent"]
-        for (k, v) in self.get_subtrees_shallow():
-            entry = gpp._dict_entry(k, v, **kwargs)
-            entries.append(entry)
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("return: "),
-                            gpp._pformat(self.get_rettype(), **kwargs),
-                            pp.brk(),
-                            pp.join(gpp._comma_sep, entries),
-                        ]
-                    ),
-                ),
-            ]
-        )
-
     def subseteq(self, other):
         assert isinstance(other, TraceType)
         check = self.__subseteq__(other)
@@ -61,9 +36,6 @@ class TraceType(ChoiceTree):
     @abc.abstractmethod
     def get_rettype(self):
         pass
-
-    def __str__(self):
-        return gpp.tree_pformat(self)
 
 
 @dataclass
@@ -107,9 +79,6 @@ class Reals(LeafTraceType):
     def get_rettype(self):
         return self
 
-    def overload_pprint(self, **kwargs):
-        return pp.text(f"ℝ (shape = {self.shape})")
-
 
 @dataclass
 class PositiveReals(LeafTraceType):
@@ -129,9 +98,6 @@ class PositiveReals(LeafTraceType):
 
     def get_rettype(self):
         return self
-
-    def overload_pprint(self, **kwargs):
-        return pp.text(f"ℝ⁺ (shape = {self.shape})")
 
 
 @dataclass
@@ -159,11 +125,6 @@ class RealInterval(LeafTraceType):
     def get_rettype(self):
         return self
 
-    def overload_pprint(self, **kwargs):
-        return pp.text(
-            f"ℝ[{self.lower_bound}, {self.upper_bound}] (shape = {self.shape})"
-        )
-
 
 @dataclass
 class Integers(LeafTraceType):
@@ -183,9 +144,6 @@ class Integers(LeafTraceType):
 
     def get_rettype(self):
         return self
-
-    def overload_pprint(self, **kwargs):
-        return pp.text(f"ℤ (shape = {self.shape})")
 
 
 @dataclass
@@ -210,9 +168,6 @@ class Naturals(LeafTraceType):
 
     def get_rettype(self):
         return self
-
-    def overload_pprint(self, **kwargs):
-        return pp.text(f"ℕ (shape = {self.shape})")
 
 
 @dataclass
@@ -243,9 +198,6 @@ class Finite(LeafTraceType):
     def get_rettype(self):
         return self
 
-    def overload_pprint(self, **kwargs):
-        return pp.text(f"𝔽[{self.limit}] (shape = {self.shape})")
-
 
 @dataclass
 class Bottom(LeafTraceType):
@@ -262,6 +214,3 @@ class Bottom(LeafTraceType):
 
     def get_rettype(self):
         return self
-
-    def overload_pprint(self, **kwargs):
-        return pp.text("⊥")

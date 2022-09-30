@@ -33,8 +33,6 @@ from genjax.core.datatypes import (
 from genjax.core.pytree import squeeze
 from genjax.core.specialization import is_concrete
 from typing import Union
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
 
 Bool = Union[jnp.bool_, np.bool_]
 Int32 = Union[jnp.int32, np.int32]
@@ -56,25 +54,6 @@ class BooleanMask(ChoiceMap):
 
     def flatten(self):
         return (self.mask, self.inner), ()
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("mask = "),
-                            gpp._pformat(self.mask, **kwargs),
-                            pp.brk(),
-                            gpp._pformat(self.inner, **kwargs),
-                        ]
-                    ),
-                ),
-            ]
-        )
 
     def has_subtree(self, addr):
         if not self.inner.has_subtree(addr):
@@ -209,25 +188,6 @@ class IndexMask(ChoiceMap):
 
     def flatten(self):
         return (self.index, self.inner), ()
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("index: "),
-                            gpp._pformat(self.index, **kwargs),
-                            pp.brk(),
-                            gpp._pformat(self.inner, **kwargs),
-                        ]
-                    ),
-                ),
-            ]
-        )
 
     def get_index(self):
         return self.index

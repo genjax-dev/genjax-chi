@@ -19,10 +19,10 @@ import numpy as np
 from genjax.core.datatypes import ChoiceMap, Trace, EmptyChoiceMap
 from genjax.core.masks import BooleanMask
 from genjax.core.specialization import is_concrete
+import genjax.core.pretty_printing as gpp
+from rich.tree import Tree
 from dataclasses import dataclass
 from typing import Union, Sequence
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
 
 Int32 = Union[jnp.int32, np.int32]
 IntTensor = Union[jnp.ndarray, np.ndarray]
@@ -39,25 +39,6 @@ class VectorChoiceMap(ChoiceMap):
 
     def flatten(self):
         return (self.indices, self.inner), ()
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("indices: "),
-                            gpp._pformat(self.indices, **kwargs),
-                            pp.brk(),
-                            gpp._pformat(self.inner, **kwargs),
-                        ]
-                    ),
-                ),
-            ]
-        )
 
     @classmethod
     def new(cls, indices, inner):
@@ -100,6 +81,15 @@ class VectorChoiceMap(ChoiceMap):
     def __hash__(self):
         return hash(self.inner)
 
+    def tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        subt = self.inner.build_rich_tree()
+        subk = Tree("[blue]indices")
+        subk.add(gpp.tree_pformat(self.indices))
+        tree.add(subk)
+        tree.add(subt)
+        return tree
+
 
 #####
 # IndexedChoiceMap
@@ -121,25 +111,6 @@ class IndexedChoiceMap(ChoiceMap):
 
     def flatten(self):
         return (self.index, self.submaps), ()
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("index = "),
-                            gpp._pformat(self.index, **kwargs),
-                            pp.brk(),
-                            gpp._pformat(self.submaps, **kwargs),
-                        ]
-                    ),
-                ),
-            ]
-        )
 
     def is_leaf(self):
         checks = list(map(lambda v: v.is_leaf(), self.submaps))
@@ -206,3 +177,9 @@ class IndexedChoiceMap(ChoiceMap):
     def __setitem__(self, k, v):
         for sub in self.submaps:
             sub[k] = v
+
+    def tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        subts = list(map(lambda v: v.build_rich_tree(), self.submaps))
+        tree.add(subts)
+        return tree

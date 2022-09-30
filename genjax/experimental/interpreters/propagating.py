@@ -55,7 +55,6 @@ from jax.interpreters import xla
 from jax._src import dtypes
 
 from genjax.core import Pytree
-import genjax.core.pretty_printer as gpp
 
 __all__ = ["Cell", "Equation", "Environment", "propagate"]
 
@@ -217,12 +216,6 @@ class Environment:
 
     def write_state(self, eqn: Equation, state: State) -> None:
         self.states[eqn] = state
-
-    def __repr__(self):
-        return gpp.tree_pformat(self.env)
-
-    def __str__(self):
-        return gpp.tree_pformat(self.env)
 
 
 def construct_graph_representation(eqns):

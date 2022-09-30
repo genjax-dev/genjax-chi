@@ -15,8 +15,6 @@
 import itertools
 from dataclasses import dataclass
 from genjax.core.tracetypes import TraceType
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
 from typing import Sequence
 
 #####
@@ -31,24 +29,6 @@ class VectorTraceType(TraceType):
 
     def flatten(self):
         return (), (self.inner, self.length)
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.join(
-                        gpp._comma_sep,
-                        [
-                            pp.text(f"length = {self.length}"),
-                            gpp._pformat(self.inner, **kwargs),
-                        ],
-                    ),
-                ),
-            ]
-        )
 
     def is_leaf(self):
         return self.inner.is_leaf()
@@ -92,25 +72,6 @@ class SumTraceType(TraceType):
 
     def flatten(self):
         return (), (self.summands,)
-
-    def overload_pprint(self, **kwargs):
-        indent = kwargs["indent"]
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(
-                    indent,
-                    pp.concat(
-                        [
-                            pp.text("return: "),
-                            gpp._pformat(self.get_rettype(), **kwargs),
-                            pp.brk(),
-                            gpp._pformat(self.summands, **kwargs),
-                        ]
-                    ),
-                ),
-            ]
-        )
 
     def is_leaf(self):
         return all(map(lambda v: v.is_leaf(), self.summands))

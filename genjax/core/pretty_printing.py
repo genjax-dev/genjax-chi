@@ -12,18 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Here, the MIT Probabilistic Computing maintainers have changed a few
-# elements of the printing strategy, including adding an overload method
-# which can be accessed by any class object which implements `overload_pprint`.
-
 """
 This module contains an extensible pretty printing infrastructure based
 on JAX's :code:`_src/pretty_printing` as well as extensions
 created by the Equinox package maintainers.
-
-It has similarly been extended here to allowed :code:`dataclass` based
-overloading -- providing pretty printing functionality to types like
-implementors of :code:`ChoiceTree` for free.
 """
 
 import dataclasses
@@ -34,11 +26,10 @@ import jax
 import jax._src.pretty_printer as pp
 import jax.numpy as jnp
 import numpy as np
-from genjax.core.pytree import Pytree
 
 
 Dataclass = Any
-PrettyPrintable = Pytree
+PrettyPrintable = Any
 
 
 _comma_sep = pp.concat([pp.text(","), pp.brk()])
@@ -194,8 +185,6 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
     truncate_leaf = kwargs["truncate_leaf"]
     if truncate_leaf(obj):
         return pp.text(f"{type(obj).__name__}(...)")
-    if hasattr(obj, "overload_pprint"):
-        return obj.overload_pprint(**kwargs)
     elif dataclasses.is_dataclass(obj):
         return _pformat_dataclass(obj, **kwargs)
     elif isinstance(obj, list):

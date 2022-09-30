@@ -200,8 +200,8 @@ class UnfoldCombinator(GenerativeFunction):
             check = jnp.less(count, length)
             retval = concrete_cond(
                 check,
-                lambda *args: (state,),
                 lambda *args: tr.get_retval(),
+                lambda *args: (state,),
             )
             index = concrete_cond(
                 check,

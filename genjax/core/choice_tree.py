@@ -18,27 +18,14 @@ for "tree-like" classes (like :code:`ChoiceMap` and :code:`Selection`).
 """
 
 import abc
-from dataclasses import dataclass
 from genjax.core.pytree import Pytree
-import jax._src.pretty_printer as pp
-import genjax.core.pretty_printer as gpp
+import genjax.core.pretty_printing as gpp
+from rich.tree import Tree
+from dataclasses import dataclass
 
 
 @dataclass
 class ChoiceTree(Pytree):
-    def overload_pprint(self, **kwargs):
-        entries = []
-        indent = kwargs["indent"]
-        for (k, v) in self.get_subtrees_shallow():
-            entry = gpp._dict_entry(k, v, **kwargs)
-            entries.append(entry)
-        return pp.concat(
-            [
-                pp.text(f"{type(self).__name__}"),
-                gpp._nest(indent, pp.join(gpp._comma_sep, entries)),
-            ]
-        )
-
     @abc.abstractmethod
     def is_leaf(self):
         pass
@@ -62,3 +49,15 @@ class ChoiceTree(Pytree):
     @abc.abstractmethod
     def merge(self, other):
         pass
+
+    def tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        for (k, v) in self.get_subtrees_shallow():
+            subk = tree.add(f"[bold][green]{k}")
+            if hasattr(v, "build_rich_tree"):
+                subt = v.build_rich_tree()
+                subk.add(subt)
+            else:
+                subk.add(gpp.tree_pformat(v))
+
+        return tree

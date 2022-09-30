@@ -32,5 +32,4 @@ from .specialization import *
 from .masks import *
 from .pytree import *
 from .choice_tree import *
-from .pretty_printer import *
 from .serialization import *

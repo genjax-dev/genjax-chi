@@ -73,3 +73,23 @@ def gen(callable, **kwargs):
         )
     else:
         return BuiltinGenerativeFunction(callable)
+
+
+#####
+# Pretty tracebacks
+#####
+
+
+def go_pretty():
+    import rich.traceback as traceback
+    from rich.console import Console
+    from rich import pretty
+
+    pretty.install()
+    traceback.install(
+        show_locals=True,
+        max_frames=5,
+    )
+
+    console = Console()
+    return console
