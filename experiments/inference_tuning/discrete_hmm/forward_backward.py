@@ -16,7 +16,7 @@ import jax
 import genjax
 from model_config import hidden_markov_model
 
-genjax.go_pretty()
+console = genjax.go_pretty()
 
 key = jax.random.PRNGKey(314159)
 num_steps = 20
@@ -24,8 +24,9 @@ config = genjax.DiscreteHMMConfiguration.new(20, 1, 1, 0.2, 0.05)
 key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
     key, (num_steps, config)
 )
-observation_sequence = tr["z", "observation"]
-key, sample = jax.jit(genjax.forward_filtering_backward_sampling)(
-    key, config, observation_sequence
+observation_sequence = tr["z", "observation"][0:20]
+key, tr = jax.jit(genjax.DiscreteHMM.simulate)(
+    key, (config, observation_sequence)
 )
-print(sample)
+console.print(observation_sequence)
+console.print(tr.get_choices().get_leaf_value())

@@ -118,9 +118,11 @@ def forward_filtering_backward_sampling(
     #
     # \alpha_1(x_1) = p(x_1) * p(y_1 | x_1) [[ initialization ]]
     #
-    # \alpha_t(x_t) = p(y_t | x_t) * \sum_{x_{t-1}=1}^N [ p(x_{t-1}, y_1, ..., y_{t-1})
-    #                              * p(x_t | x_{t-1}) ]
-    #               = p(y_t | x_t) * \sum_{x_{t-1}=1}^N \alpha_t(x_t) * p(x_t | x_{t-1})
+    # \alpha_t(x_t) = p(y_t | x_t) * \sum_{x_{t-1}=1}^N
+    #           [ p(x_{t-1}, y_1, ..., y_{t-1})* p(x_t | x_{t-1}) ]
+    #
+    #               = p(y_t | x_t)
+    #           * \sum_{x_{t-1}=1}^N \alpha_t(x_t) * p(x_t | x_{t-1})
     #                                for t=2, .., T
 
     def forward_pass(carry, x):
@@ -137,7 +139,7 @@ def forward_filtering_backward_sampling(
             return alpha
 
         def init_branch(prev, obs):
-            alpha = jax.scipy.special.logsumexp(obs_n + prev, axis=1)
+            alpha = obs_n + prev
             alpha = alpha[obs, :]
             return alpha
 
@@ -155,8 +157,11 @@ def forward_filtering_backward_sampling(
     # which is the last forward filter distribution.
     #
     # Then:
-    # p(x_{t-1} | x_t, y_{1:T}) = p(x_{t-1} | y_{1:t-1}) * p(x_t | x_{t-1}) / Z_t
-    # where Z_t = \sum_{x_{t-1}=1}^N p(x_{t-1} | y_{1:t-1}) * p(x_t | x_{t-1})
+    # p(x_{t-1} | x_t, y_{1:T}) = p(x_{t-1} | y_{1:t-1})
+    #                                   * p(x_t | x_{t-1}) / Z_t
+    #
+    # where Z_t = \sum_{x_{t-1}=1}^N p(x_{t-1} | y_{1:t-1})
+    #                                   * p(x_t | x_{t-1})
 
     def backward_sample(carry, x):
         key, index, prev_sample = carry
@@ -180,7 +185,12 @@ def forward_filtering_backward_sampling(
         key, sub_key = jax.random.split(key)
         check = index == 0
         sample = jax.lax.cond(
-            check, end_branch, t_1_branch, sub_key, prev_sample, forward_filter
+            check,
+            end_branch,
+            t_1_branch,
+            sub_key,
+            prev_sample,
+            forward_filter,
         )
         return (key, index + 1, sample), sample
 
@@ -191,6 +201,7 @@ def forward_filtering_backward_sampling(
         (key, 0, 0),
         jnp.flip(forward_filters, axis=0),
     )
+    samples = jnp.flip(samples)
     return key, samples
 
 
@@ -219,27 +230,6 @@ def latent_marginals(config: DiscreteHMMConfiguration, observation_sequence):
 def log_data_marginal(config, observation_sequence):
     hmm, _ = latent_marginals(config, observation_sequence)
     return hmm.log_prob(observation_sequence)
-
-
-def latent_sequence_sample(
-    key, config: DiscreteHMMConfiguration, observation_sequence
-):
-    _, marginals = latent_marginals(config, observation_sequence)
-
-    def _inner(carry, index):
-        key, prev = carry
-        probs = jnp.matmul(jax.nn.softmax(config.transition_tensor), prev)
-        key, sub_key = jax.random.split(key)
-        v = jax.random.categorical(sub_key, jnp.log(probs))
-        return (key, probs), v
-
-    (key, _), v = jax.lax.scan(
-        _inner,
-        (key, jax.nn.softmax(marginals[0].logits)),
-        None,
-        length=len(observation_sequence),
-    )
-    return key, v
 
 
 def latent_sequence_posterior(
@@ -273,7 +263,9 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
 
     def random_weighted(self, key, config, observation_sequence, **kwargs):
         key, sub_key = jax.random.split(key)
-        _, v = latent_sequence_sample(sub_key, config, observation_sequence)
+        _, v = forward_filtering_backward_sampling(
+            sub_key, config, observation_sequence
+        )
         key, (w, _) = self.estimate_logpdf(
             key, v, config, observation_sequence, **kwargs
         )
