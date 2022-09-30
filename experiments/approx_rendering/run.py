@@ -7,7 +7,7 @@ from fast_3dp3.utils import make_centered_grid_enumeration_3d_points, make_cube_
 import time
 import matplotlib.pyplot as plt
 from PIL import Image
-
+from scipy.spatial.transform import Rotation as R
 import genjax
 
 h, w, fx_fy, cx_cy = (
