@@ -15,6 +15,8 @@
 import jax
 import genjax
 
+console = genjax.go_pretty()
+
 # A `genjax` generative function is a pure Python function from
 # `(PRNGKey, *args)` to `(PRNGKey, retval)`
 #
@@ -49,7 +51,7 @@ key = jax.random.PRNGKey(314159)
 
 # This just shows our raw (not yet desugared/codegen) syntax.
 expr = jax.make_jaxpr(f)(key, 0.3)
-print(expr)
+console.graph(expr)
 
 # Here's how you access the `simulate` GFI.
 key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))
