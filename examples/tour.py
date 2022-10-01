@@ -51,7 +51,7 @@ key = jax.random.PRNGKey(314159)
 
 # This just shows our raw (not yet desugared/codegen) syntax.
 expr = jax.make_jaxpr(f)(key, 0.3)
-console.graph(expr)
+print(expr)
 
 # Here's how you access the `simulate` GFI.
 key, tr = jax.jit(genjax.simulate(f))(key, (0.3,))

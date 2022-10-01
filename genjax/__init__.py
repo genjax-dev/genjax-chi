@@ -52,13 +52,6 @@ from .builtin import *
 from .interface import *
 from .inference import *
 from .experimental import *
-from genjax.core.graph_printing import _jaxpr_graph
-
-import rich
-from rich import pretty
-import rich.traceback as traceback
-from rich.console import Console
-from dataclasses import dataclass
 
 
 Trace = BuiltinTrace
@@ -87,28 +80,15 @@ def gen(callable, **kwargs):
 #####
 
 
-@dataclass
-class Console:
-    inner: rich.console.Console
-
-    @classmethod
-    def new(cls):
-        return Console(rich.console.Console())
-
-    def print(self, *args):
-        self.inner.print(*args)
-
-    def graph(self, jaxpr):
-        g = _jaxpr_graph(jaxpr)
-        g.view()
-
-
 def go_pretty():
+    from rich import pretty
+    import rich.traceback as traceback
+    from rich.console import Console
+
     pretty.install()
     traceback.install(
         show_locals=True,
         max_frames=5,
     )
 
-    console = Console.new()
-    return console
+    return Console()
