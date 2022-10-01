@@ -26,9 +26,24 @@ from inference_config import (
 )
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
+import seaborn as sns
 from typing import Sequence
+from rich.progress import track
 
-plt.style.use("ggplot")
+# Globals config.
+sns.set()
+
+SMALL_SIZE = 20
+MEDIUM_SIZE = 20
+BIGGER_SIZE = 28
+
+plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
+plt.rc("axes", titlesize=SMALL_SIZE)  # fontsize of the axes title
+plt.rc("axes", labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+plt.rc("xtick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
+plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
+plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
+plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 #####
 # Visualizer
@@ -51,7 +66,7 @@ def sequence_visualizer(
             s=7,
             marker="s",
             color="darkred",
-            alpha=0.03,
+            alpha=0.08,
             label="particles",
         )
     else:
@@ -61,7 +76,7 @@ def sequence_visualizer(
             s=7,
             marker="s",
             color="darkred",
-            alpha=0.03,
+            alpha=0.08,
             label="particles",
         )
     ax.scatter(
@@ -92,7 +107,6 @@ def sequence_visualizer(
         1.0,
         particle_label,
         transform=ax.transAxes + trans,
-        fontsize="medium",
         verticalalignment="top",
         fontfamily="serif",
         bbox=dict(facecolor="1.0", edgecolor="none", pad=3.0),
@@ -105,7 +119,7 @@ def sequence_visualizer(
 
 key = jax.random.PRNGKey(314159)
 num_steps = 50
-config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.2, 0.3)
+config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.15, 0.1)
 
 # Generate from model.
 key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
@@ -155,16 +169,20 @@ def grid_plot(key, make_custom_smc):
         nrows=3,
         ncols=3,
         sharex=True,
-        figsize=(14, 14),
-        dpi=300,
+        figsize=(18, 18),
+        dpi=400,
     )
     axes = axes.flatten()
 
-    for (ax, n_particles) in zip(
-        axes,
-        [1, 2, 5, 10, 20, 50, 100, 200, 500],
+    for (ax, n_particles) in track(
+        list(
+            zip(
+                axes,
+                [1, 2, 5, 10, 20, 50, 100, 200, 500],
+            )
+        ),
+        description="Creating grid plot...",
     ):
-        print(n_particles)
         ax.set_ylim(-1, config.linear_grid_dim)
         ax.set_xlim(-1, num_steps)
         ax.set_yticks([])
@@ -195,7 +213,6 @@ def grid_plot(key, make_custom_smc):
         labels_handles.values(),
         labels_handles.keys(),
         loc="upper right",
-        fontsize=20,
         # bbox_to_anchor=(0.5, 0),
         # bbox_transform=plt.gcf().transFigure,
     )
@@ -204,10 +221,10 @@ def grid_plot(key, make_custom_smc):
 
 # Run SMC with transition as proposal.
 key, fig2 = grid_plot(key, custom_smc_with_transition)
-fig2.suptitle("SMC (Data-driven proposal)", fontsize=24)
-fig2.savefig("transition_proposal.png")
+fig2.suptitle("SMC (Locally optimal proposal)")
+fig2.savefig("img/transition_proposal.png")
 
 # Run SMC with prior as proposal.
 key, fig1 = grid_plot(key, custom_smc_with_prior)
-fig1.suptitle("SMC (Prior as proposal)", fontsize=24)
-fig1.savefig("prior_proposal.png")
+fig1.suptitle("SMC (Prior as proposal)")
+fig1.savefig("img/prior_proposal.png")

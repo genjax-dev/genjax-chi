@@ -26,6 +26,7 @@ from inference_config import (
 )
 import genjax.experimental.prox as prox
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import seaborn as sns
 import ptitprince as pt
 from rich.progress import track
@@ -34,7 +35,7 @@ from rich.progress import track
 # Global setup.
 key = jax.random.PRNGKey(314159)
 num_steps = 50
-config = genjax.DiscreteHMMConfiguration.new(50, 1, 1, 0.3, 0.1)
+config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.15, 0.1)
 
 sns.set()
 
@@ -84,42 +85,17 @@ def custom_smc_with_prior(n_particles):
 
 
 def run_sdos_experiment(key):
-    def sdos_visualizer(fig, axes, df):
-        pal = "Set2"
-        dx, dy = "particles", "Model average symmetric KL estimate"
-        axes = pt.half_violinplot(
+    def sdos_visualizer(axes, df):
+        dx, dy = "particles", "est"
+        pt.RainCloud(
+            ax=axes,
             x=dx,
             y=dy,
             data=df,
-            palette=pal,
             bw=0.2,
-            cut=0.0,
-            scale="area",
-            width=2.0,
-            inner=None,
-        )
-        axes = sns.stripplot(
-            x=dx,
-            y=dy,
-            data=df,
-            palette=pal,
-            edgecolor="white",
-            size=3,
-            jitter=1,
-            zorder=0,
-        )
-        axes = sns.boxplot(
-            x=dx,
-            y=dy,
-            data=df,
-            color="black",
-            width=0.15,
-            zorder=10,
-            showcaps=True,
-            boxprops={"facecolor": "none", "zorder": 10},
-            showfliers=False,
-            whiskerprops={"linewidth": 2, "zorder": 10},
-            saturation=1,
+            scale="width",
+            width_viol=1.0,
+            box_showfliers=False,
         )
 
     def sdos_for_nparticles(key, custom_smc):
@@ -129,19 +105,18 @@ def run_sdos_experiment(key):
             custom_smc,
             inf_selection,
             1,
-            200,
+            100,
         )(key, (num_steps, config))
         return key, (jnp.mean(ratio), jnp.sqrt(jnp.var(ratio))), ratio
 
-    def sdos_plot(key, make_custom_smc):
-        fig, axes = plt.subplots(dpi=400)
-        d = {"particles": [], "Model average symmetric KL estimate": []}
+    def sdos_plot(key, axes, make_custom_smc):
+        d = {"particles": [], "est": []}
         df = pd.DataFrame(d)
         custom_smcs = list(
             map(make_custom_smc, [1, 2, 5, 10, 20, 50, 100, 200, 500])
         )
 
-        for custom_smc in track(custom_smcs, description="Real runs"):
+        for custom_smc in track(custom_smcs, description="SDOS by # particles"):
             ratio = np.array([], dtype=np.float32)
 
             def _lambda(key, custom_smc):
@@ -157,37 +132,33 @@ def run_sdos_experiment(key):
                 key, r = jitted(key, custom_smc)
                 ratio = np.append(ratio, np.array(r))
             dx = np.repeat(custom_smc.num_particles, len(ratio))
-            d = {"particles": dx, "Model average symmetric KL estimate": ratio}
+            dx = dx.astype(int)
+            d = {"particles": dx, "est": ratio}
             new = pd.DataFrame(data=d)
             df = pd.concat([df, new], ignore_index=True)
 
-        sdos_visualizer(fig, axes, df)
+        df = df.astype({"particles": int, "est": float})
+        sdos_visualizer(axes, df)
 
-        labels_handles = {
-            label: handle
-            for handle, label in zip(*axes.get_legend_handles_labels())
-        }
+        return key
 
-        fig.legend(
-            labels_handles.values(),
-            labels_handles.keys(),
-            loc="upper right",
-        )
-        return key, fig
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(18, 12), dpi=400)
 
     # Run SMC with prior as proposal.
-    key, fig1 = sdos_plot(key, custom_smc_with_prior)
-    fig1.suptitle("SDOS (Proposal is prior)")
-    plt.xlabel("# of particles")
-    plt.ylabel("Estimator")
-    plt.savefig("img/sdos_prior_proposal.png")
+    key = sdos_plot(key, ax1, custom_smc_with_prior)
+    ax1.set_xlabel("# of particles")
+    ax1.set_ylabel("Estimator")
+    ax1.set_title("SMC (Prior as proposal)")
 
     # Run SMC with transition as proposal.
-    key, fig2 = sdos_plot(key, custom_smc_with_transition)
-    fig2.suptitle("SDOS (Data-driven proposal)")
-    plt.xlabel("# of particles")
-    plt.ylabel("Estimator")
-    plt.savefig("img/sdos_transition_proposal.png")
+    key = sdos_plot(key, ax2, custom_smc_with_transition)
+    ax2.set_xlabel("# of particles")
+    ax2.set_ylabel("")
+    ax2.set_title("SMC (Locally optimal proposal)")
+
+    fig.suptitle("Symmetric Divergence over Datasets (SDOS)")
+
+    plt.savefig("img/sdos.png")
     return key
 
 
@@ -209,7 +180,7 @@ def run_aide_experiment(key):
             width_viol=1.0,
             box_showfliers=False,
         )
-        axes.set_xticks([])
+        axes.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
 
     @genjax.gen(
         prox.ChoiceMapDistribution,
@@ -232,7 +203,7 @@ def run_aide_experiment(key):
 
     def aide_plot(key, custom_smc):
         fig, axes = plt.subplots(figsize=(14, 14), dpi=400)
-        axes.set_xticks([])
+        axes.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
         d = {"logpdf": [], "est": []}
         df = pd.DataFrame(d)
         ratio = np.array([], dtype=np.float32)
@@ -247,10 +218,10 @@ def run_aide_experiment(key):
                 chm,
             )
             observations = chm["z", "observation"]
-            key, *sub_keys = jax.random.split(key, 250 + 1)
+            key, *sub_keys = jax.random.split(key, 200 + 1)
             sub_keys = jnp.array(sub_keys)
             _, est, (_, _) = jax.vmap(
-                genjax.aide(exact_hmm_posterior, custom_smc, 1, 250),
+                genjax.aide(exact_hmm_posterior, custom_smc, 1, 200),
                 in_axes=(0, None, None),
             )(sub_keys, (config, observations), (final_target,))
             exact_score = jnp.repeat(exact_score, len(est))
@@ -311,4 +282,5 @@ def run_aide_experiment(key):
     return key
 
 
-key = run_aide_experiment(key)
+# key = run_aide_experiment(key)
+key = run_sdos_experiment(key)
