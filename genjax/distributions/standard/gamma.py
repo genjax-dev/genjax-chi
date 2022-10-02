@@ -15,20 +15,16 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
+from genjax.distributions.distribution import ExactDistribution
 
 
 @dataclass
-class _Gamma(Distribution):
-    def random_weighted(self, key, a, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.gamma(sub_key, a, **kwargs)
-        _, (w, _) = self.estimate_logpdf(sub_key, v, a, **kwargs)
-        return key, (w, v)
+class _Gamma(ExactDistribution):
+    def sample(self, key, a, **kwargs):
+        return jax.random.gamma(key, a, **kwargs)
 
-    def estimate_logpdf(self, key, v, a, **kwargs):
-        w = jnp.sum(jax.scipy.stats.gamma.logpdf(v, a))
-        return key, (w, v)
+    def logpdf(self, v, a, **kwargs):
+        return jnp.sum(jax.scipy.stats.gamma.logpdf(v, a))
 
 
 Gamma = _Gamma()

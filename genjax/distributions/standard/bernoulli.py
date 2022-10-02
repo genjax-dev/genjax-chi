@@ -15,20 +15,16 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
+from genjax.distributions.distribution import ExactDistribution
 
 
 @dataclass
-class _Bernoulli(Distribution):
-    def random_weighted(self, key, *args, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.bernoulli(sub_key, *args, **kwargs)
-        _, (w, _) = self.estimate_logpdf(sub_key, v, *args, **kwargs)
-        return key, (w, v)
+class _Bernoulli(ExactDistribution):
+    def sample(self, key, *args, **kwargs):
+        return jax.random.bernoulli(key, *args, **kwargs)
 
-    def estimate_logpdf(self, key, v, *args, **kwargs):
-        w = jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
-        return key, (w, v)
+    def logpdf(self, v, *args, **kwargs):
+        return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
 
 
 Bernoulli = _Bernoulli()

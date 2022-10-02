@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module holds inference diagnostic and tuning functionality.
-"""
-
 from .aide import aide
 from .sdos import sdos
+from .entropy import iee

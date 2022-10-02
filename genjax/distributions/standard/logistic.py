@@ -15,20 +15,16 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
+from genjax.distributions.distribution import ExactDistribution
 
 
 @dataclass
-class _Logistic(Distribution):
-    def random_weighted(self, key, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.logistic(sub_key, **kwargs)
-        _, (w, _) = self.estimate_logpdf(sub_key, **kwargs)
-        return key, (w, v)
+class _Logistic(ExactDistribution):
+    def sample(self, key, **kwargs):
+        return jax.random.logistic(key, **kwargs)
 
-    def estimate_logpdf(self, key, v, **kwargs):
-        w = jnp.sum(jax.scipy.stats.logistic.logpdf(v))
-        return key, (w, v)
+    def logpdf(self, v, **kwargs):
+        return jnp.sum(jax.scipy.stats.logistic.logpdf(v))
 
 
 Logistic = _Logistic()

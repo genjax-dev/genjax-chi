@@ -190,3 +190,29 @@ class Distribution(GenerativeFunction):
             DistributionTrace(self, args, vchm, w),
             discard,
         )
+
+
+#####
+# ExactDistribution
+#####
+
+
+@dataclass
+class ExactDistribution(Distribution):
+    @abc.abstractmethod
+    def sample(self, key, *args, **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def logpdf(self, v, *args, **kwargs):
+        pass
+
+    def random_weighted(self, key, *args, **kwargs):
+        key, sub_key = jax.random.split(key)
+        v = self.sample(sub_key, *args, **kwargs)
+        w = self.logpdf(v, *args, **kwargs)
+        return key, (w, v)
+
+    def estimate_logpdf(self, key, v, *args, **kwargs):
+        w = self.logpdf(v, *args, **kwargs)
+        return key, (w, v)

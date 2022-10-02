@@ -51,10 +51,15 @@ def estimate_log_ratio(
     return _inner
 
 
-def aide(p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int):
+def auxiliary_inference_divergence_estimator(
+    p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int
+):
     def _inner(key, p_args, q_args):
         key, logpq = estimate_log_ratio(p, q, mp, mq)(key, p_args, q_args)
         key, logqp = estimate_log_ratio(q, p, mq, mp)(key, q_args, p_args)
         return key, logpq + logqp, (logpq, logqp)
 
     return _inner
+
+
+aide = auxiliary_inference_divergence_estimator

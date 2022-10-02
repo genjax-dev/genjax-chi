@@ -15,20 +15,16 @@
 import jax
 import jax.numpy as jnp
 from dataclasses import dataclass
-from genjax.distributions.distribution import Distribution
+from genjax.distributions.distribution import ExactDistribution
 
 
 @dataclass
-class _Dirichlet(Distribution):
-    def random_weighted(self, key, alpha, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.dirichlet(sub_key, alpha, **kwargs)
-        _, (w, _) = self.estimate_logpdf(sub_key, v, alpha, **kwargs)
-        return key, (w, v)
+class _Dirichlet(ExactDistribution):
+    def sample(self, key, alpha, **kwargs):
+        return jax.random.dirichlet(key, alpha, **kwargs)
 
-    def estimate_logpdf(self, key, v, alpha, **kwargs):
-        w = jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))
-        return key, (w, v)
+    def logpdf(self, v, alpha, **kwargs):
+        return jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))
 
 
 Dirichlet = _Dirichlet()

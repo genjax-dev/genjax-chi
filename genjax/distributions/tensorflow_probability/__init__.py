@@ -17,7 +17,7 @@ import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 from genjax.core.tracetypes import TraceType
 from genjax.builtin.builtin_tracetype import lift
-from genjax.distributions.distribution import Distribution
+from genjax.distributions.distribution import ExactDistribution
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,23 +25,19 @@ tfd = tfp.distributions
 
 
 @dataclass
-class TFPDistribution(Distribution):
+class TFPDistribution(ExactDistribution):
     distribution: Any
 
     def flatten(self):
         return (), (self.distribution,)
 
-    def random_weighted(self, key, *args, **kwargs):
-        key, sub_key = jax.random.split(key)
+    def sample(self, key, *args, **kwargs):
         dist = self.distribution(*args, **kwargs)
-        v = dist.sample(seed=sub_key)
-        key, (w, _) = self.estimate_logpdf(sub_key, v, *args, **kwargs)
-        return key, (w, v)
+        return dist.sample(seed=key)
 
-    def estimate_logpdf(self, key, v, *args, **kwargs):
+    def logpdf(self, v, *args, **kwargs):
         dist = self.distribution(*args, **kwargs)
-        w = jnp.sum(dist.log_prob(v))
-        return key, (w, v)
+        return jnp.sum(dist.log_prob(v))
 
 
 Bates = TFPDistribution(tfd.Bates)

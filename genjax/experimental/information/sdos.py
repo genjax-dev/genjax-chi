@@ -105,7 +105,7 @@ def estimate_log_ratio(
     return _inner
 
 
-def sdos(
+def symmetric_divergence_over_datasets(
     p: GenerativeFunction,
     q: prox.ProxDistribution,
     inf_selection: Selection,
@@ -119,3 +119,6 @@ def sdos(
         return key, est, (fwd, bwd)
 
     return _inner
+
+
+sdos = symmetric_divergence_over_datasets

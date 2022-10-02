@@ -17,22 +17,19 @@ import jax.numpy as jnp
 import numpy as np
 from dataclasses import dataclass
 from genjax.core.tracetypes import Finite
-from genjax.distributions.distribution import Distribution
+from genjax.distributions.distribution import ExactDistribution
 
 
 @dataclass
-class _Categorical(Distribution):
-    def random_weighted(self, key, logits, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = jax.random.categorical(sub_key, logits, **kwargs)
-        _, (w, _) = self.estimate_logpdf(sub_key, v, logits, **kwargs)
-        return key, (w, v)
+class _Categorical(ExactDistribution):
+    def sample(self, key, logits, **kwargs):
+        return jax.random.categorical(key, logits, **kwargs)
 
-    def estimate_logpdf(self, key, v, logits, **kwargs):
+    def logpdf(self, v, logits, **kwargs):
         axis = kwargs.get("axis", -1)
         logpdf = jnp.log(jax.nn.softmax(logits, axis=axis))
         w = jnp.sum(logpdf[v])
-        return key, (w, v)
+        return w
 
     def get_trace_type(self, key, logits, **kwargs):
         shape = kwargs.get("shape", ())
