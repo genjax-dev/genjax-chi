@@ -125,3 +125,32 @@ def quaternion_to_rotation_matrix(Q):
                            [r20, r21, r22]])
                             
     return rot_matrix
+
+def depth_to_coords_in_camera(
+    depth: np.ndarray,
+    intrinsics: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Convert depth image to coords in camera space for points in mask.
+    Args:
+        depth: Array of shape (H, W).
+        intrinsics: Array of shape (3, 3), camera intrinsic matrix.
+        mask: Array of shape (H, W), with 1s where points are quried.
+        as_image_shape: If True, return arrays of shape (H, W, 3)
+    Returns:
+        np.ndarray: Array of shape (N, 3) or (H, W, 3), coordinates in camera space.
+        np.ndarray: Array of shape (N, 2) or (H, W, 2), coordinates on image plane.
+            N is the number of 1s in mask.
+    """
+    mask = np.ones_like(depth)
+    vu = np.nonzero(mask)
+
+    depth_for_uv = depth[vu[0], vu[1]]
+    full_vec = np.stack(
+        [vu[1] * depth_for_uv, vu[0] * depth_for_uv, depth_for_uv], axis=0
+    )
+    coords_in_camera = np.moveaxis(
+        np.einsum('ij,j...->i...', np.linalg.inv(intrinsics), full_vec), 0, -1
+    )
+    coords_on_image = np.moveaxis(vu, 0, -1)
+    return coords_in_camera, coords_on_image

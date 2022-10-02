@@ -14,9 +14,7 @@ class _NeuralDescriptorLikelihood(genjax.Distribution):
         w = neural_descriptor_likelihood(image, *args)
         return key, (w, image)
 
-
 NeuralDescriptorLikelihood = _NeuralDescriptorLikelihood()
-
 
 def make_scoring_function(shape, h, w, fx_fy, cx_cy, r, outlier_prob):
     @genjax.gen

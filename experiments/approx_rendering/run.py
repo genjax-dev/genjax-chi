@@ -7,82 +7,28 @@ from fast_3dp3.utils import (
     make_centered_grid_enumeration_3d_points,
     quaternion_to_rotation_matrix,
 )
+from fast_3dp3.shape import get_cube_shape
 import time
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
 import genjax
+import matplotlib.pyplot as plt
 
 console = genjax.go_pretty()
 
 h, w, fx_fy, cx_cy = (
-    120,
-    160,
+    150,
+    150,
     jnp.array([200.0, 200.0]),
     jnp.array([80.0, 60.0]),
 )
 r = 0.1
 outlier_prob = 0.01
-
 num_frames = 50
 
-
-cube_plane_poses = jnp.array(
-    [
-        [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.5],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-        [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, -0.5],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-        [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, -1.0, 0.5],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-        [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, -1.0, -0.5],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-        [
-            [0.0, 0.0, 1.0, 0.5],
-            [0.0, 1.0, 0.0, 0.0],
-            [-1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-        [
-            [0.0, 0.0, 1.0, -0.5],
-            [0.0, 1.0, 0.0, 0.0],
-            [-1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-    ]
-)
-
-plane_dimensions = jnp.array(
-    [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]
-)
-shape = (cube_plane_poses, plane_dimensions)
+shape = get_cube_shape(1.0)
 
 
-gt_poses = [
-    jnp.array(
-        [
-            [1.0, 0.0, 0.0, -1.0],
-            [0.0, 1.0, 0.0, -1.0],
-            [0.0, 0.0, 1.0, 5.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ]
-    )
-]
 
 delta_pose = jnp.array(
     [
@@ -93,64 +39,70 @@ delta_pose = jnp.array(
     ]
 )
 delta_pose = delta_pose.at[:3, :3].set(
-    jnp.array(R.from_euler("xy", [np.pi / 100, np.pi / 50]).as_matrix())
+    jnp.array(R.from_euler("xy", [np.pi / 100, np.pi / 20]).as_matrix())
 )
-
-
+gt_poses = [
+    jnp.array(
+        [
+            [1.0, 0.0, 0.0, -1.0],
+            [0.0, 1.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0, 10.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+]
 for t in range(num_frames):
     gt_poses.append(gt_poses[-1].dot(delta_pose))
 
-
-def render_planes_lambda(pose, shape):
-    return render_planes(pose, shape, h, w, fx_fy, cx_cy)
-
-
-render_planes_lambda_jit = jax.jit(render_planes_lambda)
+render_jit = jax.jit(lambda pose, shape: render_planes(pose, shape, h, w, fx_fy, cx_cy))
+gt_images = jnp.stack([render_jit(p, shape) for p in gt_poses])
 
 key = jax.random.PRNGKey(3)
 
-gt_images = jnp.stack([render_planes_lambda_jit(p, shape) for p in gt_poses])
-print(gt_images.shape)
-print((gt_images[0, :, :, -1] > 0).sum())
-
 scorer = make_scoring_function(shape, h, w, fx_fy, cx_cy, r, outlier_prob)
 score = scorer(key, gt_poses[0], gt_images[0, :, :, :])
-
 scorer_parallel = jax.vmap(scorer, in_axes=(0, 0, None))
 
-key, *sub_keys = jax.random.split(key, 15)
-
-
+key, *sub_keys = jax.random.split(key, 100)
+sub_keys = jnp.array(sub_keys)
 def f(key):
     key, (_, v) = genjax.VonMisesFisher.random_weighted(
         key, jnp.array([1.0, 0.0, 0.0, 0.0]), 1000.0
     )
-    return quaternion_to_rotation_matrix(v)
-
-
-rotation_deltas = [f(sub_key) for sub_key in sub_keys]
-grid = make_centered_grid_enumeration_3d_points(0.2, 0.2, 0.2, 4, 4, 4)
-pose_deltas = [
-    jnp.vstack(
-        [jnp.hstack([R, t.reshape(3, 1)]), jnp.array([0.0, 0.0, 0.0, 1.0])]
+    r =  quaternion_to_rotation_matrix(v)
+    return jnp.vstack(
+        [jnp.hstack([r, jnp.zeros((3, 1)) ]), jnp.array([0.0, 0.0, 0.0, 1.0])]
     )
-    for R in rotation_deltas
-    for t in grid
-]
+f_jit = jax.jit(jax.vmap(f))
+rotation_deltas = f_jit(sub_keys)
 
-pose_deltas = jnp.stack(pose_deltas)
+
+f_jit = jax.jit(jax.vmap(lambda t:     jnp.vstack(
+        [jnp.hstack([jnp.eye(3), t.reshape(3,-1)]), jnp.array([0.0, 0.0, 0.0, 1.0])]
+    )))
+pose_deltas = f_jit(make_centered_grid_enumeration_3d_points(0.2, 0.2, 0.2, 5, 5, 5))
+
+
+print("grid ", rotation_deltas.shape)
+key, *sub_keys = jax.random.split(key, rotation_deltas.shape[0] + 1)
+sub_keys_rotation = jnp.array(sub_keys)
 
 
 print("grid ", pose_deltas.shape)
 key, *sub_keys = jax.random.split(key, pose_deltas.shape[0] + 1)
-sub_keys = jnp.array(sub_keys)
+sub_keys_translation = jnp.array(sub_keys)
 
 
 def _inner(x, gt_image):
-    for _ in range(1):
+    for _ in range(3):
         proposals = jnp.einsum("ij,ajk->aik", x, pose_deltas)
-        _, weights_new, x = scorer_parallel(sub_keys, proposals, gt_image)
+        _, weights_new, x = scorer_parallel(sub_keys_translation, proposals, gt_image)
         x = proposals[jnp.argmax(weights_new)]
+
+        proposals = jnp.einsum("ij,ajk->aik", x, rotation_deltas)
+        _, weights_new, x = scorer_parallel(sub_keys_rotation, proposals, gt_image)
+        x = proposals[jnp.argmax(weights_new)]
+
     return x, x
 
 
@@ -168,33 +120,39 @@ elapsed = end - start
 print("Time elapsed:", elapsed)
 print("FPS:", gt_images.shape[0] / elapsed)
 
-images = []
 middle_width = 20
+cm = plt.get_cmap('turbo')
+max_depth = 10.0
+
+
+images = []
 for i in range(gt_images.shape[0]):
     dst = Image.new(
-        "RGB", (2 * gt_images.shape[2] + middle_width, gt_images.shape[1])
+        "RGBA", (2 * gt_images.shape[2] + middle_width, gt_images.shape[1])
     )
     dst.paste(
         Image.fromarray(
-            np.array(gt_images[i, :, :, 2]) / 10.0 * 255.0, mode="F"
+            np.rint(cm(np.array(gt_images[i, :, :, 2]) / max_depth) * 255.0).astype(np.int8), mode="RGBA"
         ),
         (0, 0),
     )
 
     dst.paste(
-        Image.new("RGB", (middle_width, gt_images.shape[1]), (255, 255, 255)),
+        Image.new("RGBA", (middle_width, gt_images.shape[1]), (255, 255, 255, 255)),
         (gt_images.shape[2], 0),
     )
 
     pose = inferred_poses[i]
-    rendered_image = render_planes_lambda_jit(pose, shape)
+    rendered_image = render_jit(pose, shape)
     dst.paste(
         Image.fromarray(
-            np.array(rendered_image[:, :, 2]) / 10.0 * 255.0, mode="F"
+            (cm(np.array(rendered_image[:, :, 2]) / max_depth) * 255.0).astype(np.int8), mode="RGBA"
         ),
         (gt_images.shape[2] + middle_width, 0),
     )
     images.append(dst)
+
+
 
 images[0].save(
     fp="out.gif",
@@ -208,3 +166,41 @@ images[0].save(
 from IPython import embed
 
 embed()
+
+import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
+
+
+data = np.load("data.npz")
+depth = data["depth"]
+print(depth.shape)
+fx = data["fx"]
+cx = data["cx"]
+fy = data["fy"]
+cy = data["cy"]
+h = data["height"]
+w = data["width"]
+print(h,w,fx,fy,cx,cy)
+
+cm = plt.get_cmap('turbo')
+
+Image.fromarray(
+    np.rint(cm(np.array(depth) / 30.0) * 255.0).astype(np.int8), mode="RGBA"
+).save("out2.png")
+
+shape = get_cube_shape(2.0)
+pose = jnp.array(
+    [
+        [1.0, 0.0, 0.0, 0.00],
+        [0.0, 1.0, 0.0, -4.00],
+        [0.0, 0.0, 1.0, 20.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+)
+img = render_planes(pose, shape, h, w, jnp.array([fx,fy]), jnp.array([cx,cy]))
+
+Image.fromarray(
+    np.rint(cm(np.array(img[:,:,2]) / 30.0) * 255.0).astype(np.int8), mode="RGBA"
+).save("out3.png")
+
