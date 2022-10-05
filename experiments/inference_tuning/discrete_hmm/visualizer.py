@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import seaborn as sns
 from typing import Sequence
+import matplotlib.cm as cm
 from rich.progress import track
 
 # Globals config.
@@ -45,9 +46,19 @@ plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
 plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+num_steps = 50
+
 #####
 # Visualizer
 #####
+
+
+def posterior_visualizer(
+    fig,
+    ax,
+    ffs,
+):
+    ax.imshow(ffs, interpolation="bilinear", cmap="Wistia")
 
 
 def sequence_visualizer(
@@ -117,32 +128,6 @@ def sequence_visualizer(
 # Inference
 #####
 
-key = jax.random.PRNGKey(314159)
-num_steps = 50
-config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.15, 0.1)
-
-# Generate from model.
-key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
-    key, (num_steps, config)
-)
-ground_truth = tr["z", "latent"]
-observation_sequence = tr["z", "observation"]
-
-# Observations.
-chm_sequence = genjax.VectorChoiceMap.new(
-    np.array([ind for ind in range(0, len(observation_sequence))]),
-    genjax.ChoiceMap.new(
-        {("z", "observation"): np.array(observation_sequence, dtype=np.int32)}
-    ),
-)
-
-final_target = prox.Target(
-    hidden_markov_model,
-    None,
-    (num_steps, config),
-    chm_sequence,
-)
-
 
 def custom_smc_with_transition(n_particles):
     return genjax.CustomSMC(
@@ -164,7 +149,7 @@ def custom_smc_with_prior(n_particles):
     )
 
 
-def grid_plot(key, make_custom_smc):
+def grid_plot(key, config, make_custom_smc, sequences=None):
     fig, axes = plt.subplots(
         nrows=3,
         ncols=3,
@@ -173,6 +158,36 @@ def grid_plot(key, make_custom_smc):
         dpi=400,
     )
     axes = axes.flatten()
+
+    if sequences is None:
+        # Generate from model.
+        key, tr = jax.jit(genjax.simulate(hidden_markov_model))(
+            key, (num_steps, config)
+        )
+        ground_truth = tr["z", "latent"]
+        observation_sequence = tr["z", "observation"]
+    else:
+        ground_truth = sequences[0]
+        observation_sequence = sequences[1]
+
+    # Observations.
+    chm_sequence = genjax.VectorChoiceMap.new(
+        np.array([ind for ind in range(0, len(observation_sequence))]),
+        genjax.ChoiceMap.new(
+            {
+                ("z", "observation"): np.array(
+                    observation_sequence, dtype=np.int32
+                )
+            }
+        ),
+    )
+
+    final_target = prox.Target(
+        hidden_markov_model,
+        None,
+        (num_steps, config),
+        chm_sequence,
+    )
 
     for (ax, n_particles) in track(
         list(
@@ -203,6 +218,12 @@ def grid_plot(key, make_custom_smc):
             chm["z", "latent"],
         )
 
+        _, ffs = genjax.DiscreteHMM.get_forward_filters(
+            key, config, observation_sequence
+        )
+
+        posterior_visualizer(fig, ax, np.transpose(ffs))
+
     labels_handles = {
         label: handle
         for ax in axes
@@ -213,18 +234,45 @@ def grid_plot(key, make_custom_smc):
         labels_handles.values(),
         labels_handles.keys(),
         loc="upper right",
-        # bbox_to_anchor=(0.5, 0),
-        # bbox_transform=plt.gcf().transFigure,
     )
-    return key, fig
+    return key, fig, (ground_truth, observation_sequence)
 
 
-# Run SMC with transition as proposal.
-key, fig2 = grid_plot(key, custom_smc_with_transition)
+#####
+# Experiments
+#####
+
+key = jax.random.PRNGKey(314159)
+
+config = genjax.DiscreteHMMConfiguration.new(50, 1, 1, 0.8, 0.8)
+key, fig2, sequences = grid_plot(key, config, custom_smc_with_transition)
 fig2.suptitle("SMC (Locally optimal proposal)")
-fig2.savefig("img/transition_proposal.png")
+fig2.savefig("img/high_entropy_transition_proposal.png")
 
-# Run SMC with prior as proposal.
-key, fig1 = grid_plot(key, custom_smc_with_prior)
+key, fig1, _ = grid_plot(
+    key, config, custom_smc_with_prior, sequences=sequences
+)
 fig1.suptitle("SMC (Prior as proposal)")
-fig1.savefig("img/prior_proposal.png")
+fig1.savefig("img/high_entropy_prior_proposal.png")
+
+config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.1, 0.9)
+key, fig2, sequences = grid_plot(key, config, custom_smc_with_transition)
+fig2.suptitle("SMC (Locally optimal proposal)")
+fig2.savefig("img/mixed_entropy_transition_proposal.png")
+
+key, fig1, _ = grid_plot(
+    key, config, custom_smc_with_prior, sequences=sequences
+)
+fig1.suptitle("SMC (Prior as proposal)")
+fig1.savefig("img/mixed_entropy_prior_proposal.png")
+
+config = genjax.DiscreteHMMConfiguration.new(50, 2, 1, 0.1, 0.1)
+key, fig2, sequences = grid_plot(key, config, custom_smc_with_transition)
+fig2.suptitle("SMC (Locally optimal proposal)")
+fig2.savefig("img/low_entropy_transition_proposal.png")
+
+key, fig1, _ = grid_plot(
+    key, config, custom_smc_with_prior, sequences=sequences
+)
+fig1.suptitle("SMC (Prior as proposal)")
+fig1.savefig("img/low_entropy_prior_proposal.png")
