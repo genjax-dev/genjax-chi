@@ -8,7 +8,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "blackjax"
-version = "0.9.5"
+version = "0.9.6"
 description = "Flexible and fast inference in Python"
 category = "main"
 optional = false
@@ -167,6 +167,7 @@ develop = true
 
 [package.dependencies]
 blackjax = "^0.9.0"
+graphviz = "^0.20.1"
 jax = "^0.3.15"
 jaxlib = "^0.3.15"
 numpy = "^1.23.2"
@@ -176,6 +177,19 @@ tensorflow-probability = "^0.18.0"
 [package.source]
 type = "directory"
 url = "../.."
+
+[[package]]
+name = "graphviz"
+version = "0.20.1"
+description = "Simple Python interface for Graphviz"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.extras]
+dev = ["flake8", "pep8-naming", "tox (>=3)", "twine", "wheel"]
+docs = ["sphinx (>=5)", "sphinx-autodoc-typehints", "sphinx-rtd-theme"]
+test = ["coverage", "mock (>=4)", "pytest (>=7)", "pytest-cov", "pytest-mock (>=3)"]
 
 [[package]]
 name = "importlib-resources"
@@ -191,7 +205,7 @@ testing = ["pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)",
 
 [[package]]
 name = "jax"
-version = "0.3.20"
+version = "0.3.21"
 description = "Differentiate, compile, and transform Numpy code."
 category = "main"
 optional = false
@@ -207,7 +221,7 @@ typing_extensions = "*"
 
 [package.extras]
 australis = ["protobuf (>=3.13,<4)"]
-ci = ["jaxlib (==0.3.15)"]
+ci = ["jaxlib (==0.3.20)"]
 cpu = ["jaxlib (==0.3.20)"]
 cuda = ["jaxlib (==0.3.20+cuda11.cudnn82)"]
 cuda11_cudnn805 = ["jaxlib (==0.3.20+cuda11.cudnn805)"]
@@ -335,6 +349,17 @@ docs = ["furo", "olefile", "sphinx (>=2.4)", "sphinx-copybutton", "sphinx-issues
 tests = ["check-manifest", "coverage", "defusedxml", "markdown2", "olefile", "packaging", "pyroma", "pytest", "pytest-cov", "pytest-timeout"]
 
 [[package]]
+name = "proplot"
+version = "0.9.5"
+description = "A succinct matplotlib wrapper for making beautiful, publication-quality graphics."
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
+
+[package.dependencies]
+matplotlib = "*"
+
+[[package]]
 name = "ptitprince"
 version = "0.2.5"
 description = "A Python implementation of Rainclouds, originally on R, ggplot2. Written on top of seaborn."
@@ -406,7 +431,7 @@ six = ">=1.5"
 
 [[package]]
 name = "pytz"
-version = "2022.2.1"
+version = "2022.4"
 description = "World timezone definitions, modern and historical"
 category = "main"
 optional = false
@@ -414,7 +439,7 @@ python-versions = "*"
 
 [[package]]
 name = "rich"
-version = "12.5.1"
+version = "12.6.0"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 category = "main"
 optional = false
@@ -543,7 +568,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <3.11"
-content-hash = "f8bde7614178a60573fb379faedd865690ef0030770e34c1bd7185a6b4dccc7e"
+content-hash = "f6f7c06819b115a84178c1f36ce1786708487d9830e10536a1f069b6574f9976"
 
 [metadata.files]
 absl-py = [
@@ -551,8 +576,8 @@ absl-py = [
     {file = "absl_py-1.2.0-py3-none-any.whl", hash = "sha256:5d15f85b8cc859c6245bc9886ba664460ed96a6fee895416caa37d669ee74a9a"},
 ]
 blackjax = [
-    {file = "blackjax-0.9.5-py3-none-any.whl", hash = "sha256:66c06f51e7bdd65e7443ce37267b328a3fec510602dd8776205b14640f53f2a7"},
-    {file = "blackjax-0.9.5.tar.gz", hash = "sha256:d50e7e4eb7df0b14a38ca1ff2ea8bfc84f7622b3bfe7e38284a4c3fe10040adf"},
+    {file = "blackjax-0.9.6-py3-none-any.whl", hash = "sha256:d1c20dd15a63944a7b5c835bac4900aadf8630bedb0d7e51ab7fc63255eb0dd7"},
+    {file = "blackjax-0.9.6.tar.gz", hash = "sha256:fb708f183d714750feb475fb87b8162fc1641309f30ee42fd38a5dec82733868"},
 ]
 cloudpickle = [
     {file = "cloudpickle-2.2.0-py3-none-any.whl", hash = "sha256:7428798d5926d8fcbfd092d18d01a2a03daf8237d8fcdc8095d256b8490796f0"},
@@ -724,12 +749,16 @@ gast = [
     {file = "gast-0.5.3.tar.gz", hash = "sha256:cfbea25820e653af9c7d1807f659ce0a0a9c64f2439421a7bba4f0983f532dea"},
 ]
 genjax = []
+graphviz = [
+    {file = "graphviz-0.20.1-py3-none-any.whl", hash = "sha256:587c58a223b51611c0cf461132da386edd896a029524ca61a1462b880bf97977"},
+    {file = "graphviz-0.20.1.zip", hash = "sha256:8c58f14adaa3b947daf26c19bc1e98c4e0702cdc31cf99153e6f06904d492bf8"},
+]
 importlib-resources = [
     {file = "importlib_resources-5.9.0-py3-none-any.whl", hash = "sha256:f78a8df21a79bcc30cfd400bdc38f314333de7c0fb619763f6b9dabab8268bb7"},
     {file = "importlib_resources-5.9.0.tar.gz", hash = "sha256:5481e97fb45af8dcf2f798952625591c58fe599d0735d86b10f54de086a61681"},
 ]
 jax = [
-    {file = "jax-0.3.20.tar.gz", hash = "sha256:69eaf007c0b3d37cd0592090f355c14c2af9c2ec9f1ec62aacc2c70deb142509"},
+    {file = "jax-0.3.21.tar.gz", hash = "sha256:f69fea0f34a3eb6a9d8066726630b71ea6092d214079903900127bcff6a54a5c"},
 ]
 jaxlib = [
     {file = "jaxlib-0.3.20-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:02e5f13ce268531bd873b0a3dcf31b9d6e5f954d6fa1c682025167ff593b1f4e"},
@@ -988,6 +1017,10 @@ Pillow = [
     {file = "Pillow-9.2.0-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:0030fdbd926fb85844b8b92e2f9449ba89607231d3dd597a21ae72dc7fe26927"},
     {file = "Pillow-9.2.0.tar.gz", hash = "sha256:75e636fd3e0fb872693f23ccb8a5ff2cd578801251f3a4f6854c6a5d437d3c04"},
 ]
+proplot = [
+    {file = "proplot-0.9.5-py3-none-any.whl", hash = "sha256:be7a5627726792b2d91d94fc05a0e3405910031185f09d778ce33a53b915c379"},
+    {file = "proplot-0.9.5.tar.gz", hash = "sha256:2c770263296d434ae3bceeb8689268bfe1da5d4b15ae8c1b6c4107d82e5263d0"},
+]
 ptitprince = []
 Pygments = [
     {file = "Pygments-2.13.0-py3-none-any.whl", hash = "sha256:f643f331ab57ba3c9d89212ee4a2dabc6e94f117cf4eefde99a0574720d14c42"},
@@ -1006,12 +1039,12 @@ python-dateutil = [
     {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
 ]
 pytz = [
-    {file = "pytz-2022.2.1-py2.py3-none-any.whl", hash = "sha256:220f481bdafa09c3955dfbdddb7b57780e9a94f5127e35456a48589b9e0c0197"},
-    {file = "pytz-2022.2.1.tar.gz", hash = "sha256:cea221417204f2d1a2aa03ddae3e867921971d0d76f14d87abb4414415bbdcf5"},
+    {file = "pytz-2022.4-py2.py3-none-any.whl", hash = "sha256:2c0784747071402c6e99f0bafdb7da0fa22645f06554c7ae06bf6358897e9c91"},
+    {file = "pytz-2022.4.tar.gz", hash = "sha256:48ce799d83b6f8aab2020e369b627446696619e79645419610b9facd909b3174"},
 ]
 rich = [
-    {file = "rich-12.5.1-py3-none-any.whl", hash = "sha256:2eb4e6894cde1e017976d2975ac210ef515d7548bc595ba20e195fb9628acdeb"},
-    {file = "rich-12.5.1.tar.gz", hash = "sha256:63a5c5ce3673d3d5fbbf23cd87e11ab84b6b451436f1b7f19ec54b6bc36ed7ca"},
+    {file = "rich-12.6.0-py3-none-any.whl", hash = "sha256:a4eb26484f2c82589bd9a17c73d32a010b1e29d89f1604cd9bf3a2097b81bb5e"},
+    {file = "rich-12.6.0.tar.gz", hash = "sha256:ba3a3775974105c221d31141f2c116f4fd65c5ceb0698657a11e9f295ec93fd0"},
 ]
 scipy = [
     {file = "scipy-1.9.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:c61b4a91a702e8e04aeb0bfc40460e1f17a640977c04dda8757efb0199c75332"},

@@ -202,7 +202,7 @@ def forward_filtering_backward_sampling(
         jnp.flip(forward_filters, axis=0),
     )
     samples = jnp.flip(samples)
-    return key, samples
+    return key, (samples, forward_filters)
 
 
 #####
@@ -263,7 +263,7 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
 
     def random_weighted(self, key, config, observation_sequence, **kwargs):
         key, sub_key = jax.random.split(key)
-        _, v = forward_filtering_backward_sampling(
+        _, (v, _) = forward_filtering_backward_sampling(
             sub_key, config, observation_sequence
         )
         key, (w, _) = self.estimate_logpdf(
@@ -277,6 +277,13 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
 
     def data_logpdf(self, config, observation_sequence):
         return log_data_marginal(config, observation_sequence)
+
+    def get_forward_filters(self, key, config, observation_sequence):
+        key, sub_key = jax.random.split(key)
+        _, (_, ffs) = forward_filtering_backward_sampling(
+            sub_key, config, observation_sequence
+        )
+        return key, ffs
 
 
 DiscreteHMM = _DiscreteHMMLatentSequencePosterior()

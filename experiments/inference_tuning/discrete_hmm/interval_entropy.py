@@ -26,7 +26,6 @@ from inference_config import (
 )
 import genjax.experimental.prox as prox
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import seaborn as sns
 import ptitprince as pt
 from rich.progress import track
@@ -38,9 +37,9 @@ num_steps = 50
 
 sns.set()
 
-SMALL_SIZE = 16
-MEDIUM_SIZE = 20
-BIGGER_SIZE = 24
+SMALL_SIZE = 36
+MEDIUM_SIZE = 40
+BIGGER_SIZE = 44
 
 plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
 plt.rc("axes", titlesize=SMALL_SIZE)  # fontsize of the axes title
@@ -49,6 +48,7 @@ plt.rc("xtick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
 plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
 plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
+plt.rcParams["text.usetex"] = True  # Use LaTeX.
 
 # Set pretty printing + tracebacks.
 console = genjax.go_pretty()
@@ -97,159 +97,98 @@ def custom_smc_with_prior(n_particles):
 
 
 #####
-# Custom configs
+# Raincloud plot
 #####
 
 
-def make_config(t):
-    transition_delta = t[0]
-    observation_delta = t[1]
-    config = genjax.DiscreteHMMConfiguration.new(
-        50, 2, 1, transition_delta, observation_delta
-    )
-    return config
-
-
-#####
-# IEE
-#####
-
-
-def run_iee_experiment(key):
-    inf_selection = genjax.Selection([("z", "latent")])
-    iee_jitted = jax.jit(
-        genjax.iee(
-            hidden_markov_model,
-            exact_hmm_posterior,
-            inf_selection,
-            4000,
-            1,
-        )
+def raincloud_plot(axes, df, dx, dy):
+    pt.RainCloud(
+        x=dx,
+        y=dy,
+        data=df,
+        bw=0.2,
+        scale="area",
+        width_viol=1.0,
+        box_showfliers=False,
+        ax=axes,
     )
 
-    def sdos_visualizer(axes, df):
-        dx, dy = "entropy", "est"
-        pt.RainCloud(
-            ax=axes,
-            x=dx,
-            y=dy,
-            data=df,
-            bw=0.2,
-            scale="width",
-            width_viol=1.0,
-            box_showfliers=False,
-        )
 
-    def sdos_for_nparticles(key, config, custom_smc):
-        inf_selection = genjax.Selection([("z", "latent")])
-        key, ratio, (fwd, bwd) = genjax.sdos(
-            hidden_markov_model,
-            custom_smc,
-            inf_selection,
-            1,
-            400,
-        )(key, (num_steps, config))
-        return key, (jnp.mean(ratio), jnp.sqrt(jnp.var(ratio))), ratio
+#####
+# eevi
+#####
 
-    def sdos_plot(key, axes, custom_smc, config_sequence):
-        d = {"entropy": [], "est": []}
+inf_selection = genjax.Selection([("z", "latent")])
+
+
+def run_eevi(key, inference, config):
+    key, (lower, upper), _ = genjax.iee(
+        hidden_markov_model,
+        inference,
+        inf_selection,
+        1000,
+        1,
+    )(key, (num_steps, config))
+    entropy = (lower + upper) / 2
+    return key, entropy
+
+
+jitted = jax.jit(run_eevi)
+
+
+def run_eevi_experiment(key, config):
+    def eevi_plot(key, axes, make_custom_smc):
+        d = {"particles": [], "est": []}
         df = pd.DataFrame(d)
-        custom_configs = list(map(make_config, config_sequence))
-
-        for custom_config in track(
-            custom_configs, description="SDOS by entropy"
+        key, exact_inf_entropy = jitted(key, exact_hmm_posterior, config)
+        vmap_jitted = jax.jit(jax.vmap(run_eevi, in_axes=(0, None, None)))
+        for n_particles in track(
+            [1, 2, 5, 10, 20, 50, 100, 200], "Entropy by num. particles"
         ):
-            ratio = np.array([], dtype=np.float32)
-
-            def _lambda(key, custom_config, custom_smc):
-                key, *sub_keys = jax.random.split(key, 100 + 1)
+            custom_smc = make_custom_smc(n_particles)
+            for _ in range(0, 10):
+                key, *sub_keys = jax.random.split(key, 10)
                 sub_keys = jnp.array(sub_keys)
-                _, (_, _), r = jax.vmap(
-                    sdos_for_nparticles, in_axes=(0, None, None)
-                )(sub_keys, custom_config, custom_smc)
-                return key, r
+                _, means = vmap_jitted(sub_keys, custom_smc, config)
+                d = {
+                    "particles": np.repeat(n_particles, len(means)),
+                    "est": means,
+                }
+                new = pd.DataFrame(data=d)
+                df = pd.concat([df, new], ignore_index=True)
+                df = df.astype({"particles": int, "est": float})
 
-            jitted = jax.jit(_lambda)
-            for _ in range(0, 4):
-                key, r = jitted(key, custom_config, custom_smc)
-                ratio = np.append(ratio, np.array(r))
-            key, entropy, _ = iee_jitted(key, (num_steps, custom_config))
-            console.print(custom_config)
-            console.print(entropy)
-            console.print(jnp.mean(ratio))
-            entropy = (entropy[0] + entropy[1]) / 2
-            dx = np.repeat(entropy, len(ratio))
-            d = {"entropy": dx, "est": ratio}
-            new = pd.DataFrame(data=d)
-            df = pd.concat([df, new], ignore_index=True)
-
-        df = df.astype({"entropy": int, "est": float})
-        sdos_visualizer(axes, df)
-
+        raincloud_plot(axes, df, "particles", "est")
+        axes.axhline(y=exact_inf_entropy, linewidth=5, label="Exact inference")
+        axes.set_xlabel(r"$\#$ of particles")
+        axes.set_ylabel("$p(x)$ entropy estimate")
         return key
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(18, 12), dpi=400)
-
-    config_sequence = [
-        (0.2, 0.1),
-        (0.2, 0.15),
-        (0.2, 0.2),
-        (0.2, 0.25),
-        (0.2, 0.3),
-        (0.2, 0.35),
-        (0.2, 0.4),
-    ]
-
-    # Run SMC with prior as proposal.
-    _ = sdos_plot(key, ax1, custom_smc_with_prior(100), config_sequence)
-    ax1.set_xlabel("Entropy estimate")
-    ax1.set_ylabel("Estimator")
-    ax1.set_title("SMC (100 particles, prior as proposal)")
-
-    # Run SMC with transition as proposal.
-    key = sdos_plot(key, ax2, custom_smc_with_transition(100), config_sequence)
-    ax2.set_xlabel("Entropy estimate")
-    ax2.set_ylabel("")
-    ax2.set_title("SMC (100 particles, locally optimal proposal)")
-
-    fig.suptitle(
-        "Symmetric Divergence over Datasets (SDOS) vs. entropy\n(Varying over model observation noise)"
+    fig, (ax1, ax2) = plt.subplots(
+        1,
+        2,
+        sharey=True,
+        figsize=(36, 18),
+        dpi=400,
     )
-
-    plt.savefig("img/entropy_sdos_obs.png")
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(18, 12), dpi=400)
-
-    config_sequence = [
-        (0.05, 0.2),
-        (0.1, 0.2),
-        (0.15, 0.2),
-        (0.2, 0.2),
-        (0.25, 0.2),
-        (0.3, 0.2),
-        (0.35, 0.2),
-        (0.4, 0.2),
-        (0.45, 0.2),
-        (0.5, 0.2),
-    ]
-
-    # Run SMC with prior as proposal.
-    _ = sdos_plot(key, ax1, custom_smc_with_prior(100), config_sequence)
-    ax1.set_xlabel("Entropy estimate")
-    ax1.set_ylabel("Estimator")
-    ax1.set_title("SMC (100 particles, prior as proposal)")
-
-    # Run SMC with transition as proposal.
-    key = sdos_plot(key, ax2, custom_smc_with_transition(100), config_sequence)
-    ax2.set_xlabel("Entropy estimate")
+    key = eevi_plot(key, ax1, custom_smc_with_prior)
+    key = eevi_plot(key, ax2, custom_smc_with_transition)
+    plt.setp(ax2.get_yticklabels(), visible=False)
     ax2.set_ylabel("")
-    ax2.set_title("SMC (100 particles, locally optimal proposal)")
-
     fig.suptitle(
-        "Symmetric Divergence over Datasets (SDOS) vs. entropy\n(Varying over model transition noise)"
+        "EEVI (model-average posterior entropy) convergence"
+        "\n(SMC, prior as proposal) vs. (SMC, locally optimal proposal)"
     )
+    labels_handles = {
+        label: handle for handle, label in zip(*ax2.get_legend_handles_labels())
+    }
 
-    plt.savefig("img/entropy_sdos_trans.png")
+    fig.legend(
+        labels_handles.values(),
+        labels_handles.keys(),
+        loc="upper right",
+    )
+    plt.savefig("img/eevi_smc_convergence.png")
 
     return key
 
@@ -258,4 +197,5 @@ def run_iee_experiment(key):
 # Experiments
 #####
 
-key = run_iee_experiment(key)
+config = genjax.DiscreteHMMConfiguration.new(50, 1, 1, 0.1, 0.1)
+key = run_eevi_experiment(key, config)

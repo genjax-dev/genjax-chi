@@ -16,7 +16,7 @@ import jax.numpy as jnp
 import genjax
 
 #####
-# Model
+# No prior model
 #####
 
 

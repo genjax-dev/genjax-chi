@@ -31,6 +31,9 @@ class ChoiceMapDistribution(ProxDistribution):
         self.selection = selection
         self.custom_q = custom_q
 
+    def flatten(self):
+        return (), (self.p, self.selection, self.custom_q)
+
     @classmethod
     def new(cls, p: GenerativeFunction, selection=None):
         if selection is None:

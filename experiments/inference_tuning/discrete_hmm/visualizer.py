@@ -33,9 +33,9 @@ from rich.progress import track
 # Globals config.
 sns.set()
 
-SMALL_SIZE = 20
-MEDIUM_SIZE = 20
-BIGGER_SIZE = 28
+SMALL_SIZE = 28
+MEDIUM_SIZE = 32
+BIGGER_SIZE = 36
 
 plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
 plt.rc("axes", titlesize=SMALL_SIZE)  # fontsize of the axes title
