@@ -28,7 +28,6 @@ import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import seaborn as sns
 from typing import Sequence
-import matplotlib.cm as cm
 from rich.progress import track
 
 # Globals config.
