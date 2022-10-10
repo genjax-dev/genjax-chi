@@ -1,4 +1,4 @@
-name: Testing, linting, and building
+name: Static checks - safety + mypy
 
 on:
   # Runs on pushes targeting the default branch
