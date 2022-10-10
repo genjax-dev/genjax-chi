@@ -25,6 +25,8 @@ Make sure these are installed and on path with a Python environment `^3.10.0`. R
 
 <div align="center">
 <a href="/examples/tour.py">Jump into the tour!</a>
+<br>
+<br>
 </div>
 
 ```
