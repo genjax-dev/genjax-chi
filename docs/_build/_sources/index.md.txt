@@ -1,4 +1,4 @@
-# GenJAX
+# Overview
 
 [GenJAX][genjax] is system for probabilistic programming constructed by combining the concepts of [Gen][gen] with the hardware accelerator compilation capabilities of [JAX][jax]
 
