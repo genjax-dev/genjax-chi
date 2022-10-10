@@ -187,5 +187,6 @@ class IndexedChoiceMap(ChoiceMap):
     def tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
         subts = list(map(lambda v: v.build_rich_tree(), self.submaps))
-        tree.add(subts)
+        for subt in subts:
+            tree.add(subt)
         return tree

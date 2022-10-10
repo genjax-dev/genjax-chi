@@ -18,6 +18,7 @@ import numpy as np
 
 import genjax
 
+console = genjax.go_pretty()
 
 # An example of combining multiple combinators to form
 # larger patterns of generative computation.
@@ -67,5 +68,5 @@ def fn():
 
 
 w, new = jax.jit(fn)()
-print(new)
-print(w)
+console.print(new)
+console.print(w)
