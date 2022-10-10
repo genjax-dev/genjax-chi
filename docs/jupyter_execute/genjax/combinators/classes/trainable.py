@@ -5,8 +5,10 @@
 
 
 import jax
-import genjax
 import optax
+
+import genjax
+
 
 # Here, we can pass params as a keyword argument to
 # genjax.Trainable.
@@ -21,6 +23,7 @@ def model(key, params):
     x = params["x"]
     key, y = genjax.trace("y", genjax.Normal)(key, (x, 0.5))
     return key, y
+
 
 def learning(key, lr, chm):
     optim = optax.adam(lr)
@@ -39,4 +42,3 @@ key = jax.random.PRNGKey(314159)
 learning_rate = 3e-3
 obs = genjax.ChoiceMap.new({("y",): 0.2})
 trained = jax.jit(learning)(key, learning_rate, obs)
-

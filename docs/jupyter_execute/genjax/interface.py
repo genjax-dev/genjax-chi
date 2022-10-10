@@ -5,6 +5,8 @@
 
 
 import genjax
+
+
 fn = genjax.simulate(genjax.Normal)
 print(fn)
 
@@ -13,12 +15,15 @@ print(fn)
 
 
 import jax
+
 import genjax
+
 
 @genjax.gen
 def model(key):
     key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
     return key, x
+
 
 key = jax.random.PRNGKey(314159)
 
@@ -32,12 +37,15 @@ print(tr)
 
 
 import jax
+
 import genjax
+
 
 @genjax.gen
 def model(key):
     key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
     return key, x
+
 
 key = jax.random.PRNGKey(314159)
 
@@ -45,4 +53,3 @@ key = jax.random.PRNGKey(314159)
 trace_type = genjax.get_trace_type(model)(key, ())
 
 print(trace_type)
-

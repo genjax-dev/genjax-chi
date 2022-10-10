@@ -41,9 +41,9 @@ nox.options.sessions = (
     "mypy",
     "test",
     "xdoctest",
+    "docs-build",
     "lint",
     "build",
-    "docs-build",
 )
 
 

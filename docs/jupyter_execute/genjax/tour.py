@@ -8,6 +8,7 @@
 
 import jax
 import jax.numpy as jnp
+
 import genjax
 
 
@@ -18,6 +19,7 @@ def plate(key, mu, tau, sigma):
     key, theta = genjax.trace("theta", genjax.Normal)(key, (mu, tau))
     key, obs = genjax.trace("obs", genjax.Normal)(key, (theta, sigma))
     return key, obs
+
 
 @genjax.gen
 def J_schools(key, J, sigma):
@@ -37,4 +39,3 @@ def J_schools(key, J, sigma):
 eight_schools = genjax.BuiltinGenerativeFunction(
     lambda key, sigma: J_schools(key, 8, sigma)
 )
-

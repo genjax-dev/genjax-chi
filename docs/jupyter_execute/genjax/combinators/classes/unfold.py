@@ -5,7 +5,9 @@
 
 
 import jax
+
 import genjax
+
 
 @genjax.gen
 def random_walk(key, prev):
@@ -16,6 +18,11 @@ def random_walk(key, prev):
 unfold = genjax.UnfoldCombinator(random_walk, 1000)
 init = 0.5
 key = jax.random.PRNGKey(314159)
-key, tr = jax.jit(genjax.simulate(unfold))(key, (1000, init,))
+key, tr = jax.jit(genjax.simulate(unfold))(
+    key,
+    (
+        1000,
+        init,
+    ),
+)
 print(tr)
-
