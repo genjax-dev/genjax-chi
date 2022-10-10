@@ -1,4 +1,4 @@
-name: Static checks - safety + mypy
+name: Static checks
 
 on:
   # Runs on pushes targeting the default branch
