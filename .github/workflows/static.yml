@@ -21,8 +21,8 @@ jobs:
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
-      - name: Install nox-poetry
-        run: pip install nox-poetry
+      - name: Install poetry/nox-poetry
+        run: pip install poetry nox-poetry
 
       - name: Run Nox
         run: nox -s safety mypy
