@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 
+
 def get_cube_shape(side_length):
     half_width = side_length / 2.0
     cube_plane_poses = jnp.array(
@@ -44,6 +45,13 @@ def get_cube_shape(side_length):
     )
 
     plane_dimensions = jnp.array(
-        [[half_width, half_width], [half_width, half_width], [half_width, half_width], [half_width, half_width], [half_width, half_width], [half_width, half_width]]
+        [
+            [half_width, half_width],
+            [half_width, half_width],
+            [half_width, half_width],
+            [half_width, half_width],
+            [half_width, half_width],
+            [half_width, half_width],
+        ]
     )
     return cube_plane_poses, plane_dimensions

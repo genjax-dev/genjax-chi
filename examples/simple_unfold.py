@@ -14,7 +14,9 @@
 
 import jax
 import numpy as np
+
 import genjax
+
 
 console = genjax.go_pretty()
 

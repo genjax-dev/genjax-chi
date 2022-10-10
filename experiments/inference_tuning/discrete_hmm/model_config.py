@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+
 import genjax
+
 
 #####
 # No prior model

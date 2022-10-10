@@ -3,10 +3,11 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import sys
-import os
-import inspect
 import importlib
+import inspect
+import os
+import sys
+from typing import Any
 
 
 # -- Project information -----------------------------------------------------
@@ -27,6 +28,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.inheritance_diagram",
     "jupyter_sphinx",
+    "myst_parser",
 ]
 
 
@@ -48,6 +50,7 @@ html_theme_options = {
     "repository_branch": "main",
     "logo_only": True,
 }
+
 
 autodoc_class_signature = "separated"
 autoclass_content = "class"
@@ -74,20 +77,7 @@ def setup(app):
 #####
 
 github_repo = "https://github.com/probcomp/genjax"
-
-git_ref = None
-try:
-    git_ref = git("name-rev", "--name-only", "--no-undefined", "HEAD")
-    git_ref = re.sub(r"^(remotes/[^/]+|tags)/", "", git_ref)
-except Exception:
-    pass
-
-# (if no name found or relative ref, use commit hash instead)
-if not git_ref or re.search(r"[\^~]", git_ref):
-    try:
-        git_ref = git("rev-parse", "HEAD")
-    except Exception:
-        git_ref = "main"
+git_ref = "main"
 
 _genjax_module_path = os.path.dirname(importlib.util.find_spec("genjax").origin)  # type: ignore
 

@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import jax
-from jax.experimental import jax2tf
 import tensorflow as tf
+from jax.experimental import jax2tf
+
 import genjax
 
 

@@ -12,23 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence
+
 import jax
 import jax.numpy as jnp
-import genjax
-import genjax.experimental.prox as prox
-import numpy as np
-from model_config import hidden_markov_model
-from inference_config import (
-    meta_initial_position,
-    hmm_meta_next_target,
-    transition_proposal,
-    prior_proposal,
-)
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
+import numpy as np
 import seaborn as sns
-from typing import Sequence
+from inference_config import hmm_meta_next_target
+from inference_config import meta_initial_position
+from inference_config import prior_proposal
+from inference_config import transition_proposal
+from model_config import hidden_markov_model
 from rich.progress import track
+
+import genjax
+import genjax.experimental.prox as prox
+
 
 # Globals config.
 sns.set()

@@ -13,11 +13,13 @@
 # limitations under the License.
 
 import jax
-from jax import lax
 import jax.numpy as jnp
+from jax import lax
+
 import genjax
-from genjax.experimental.interpreters.propagating import Cell
 from genjax.experimental.interpreters import trace_utils
+from genjax.experimental.interpreters.propagating import Cell
+
 
 # Here's an example of defining a simple forward-mode like interface
 # using a graph-based propagation interpreter.

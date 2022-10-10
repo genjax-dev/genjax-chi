@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import jax
+
 import genjax
 import genjax.experimental.prox as prox
+
 
 console = genjax.go_pretty()
 

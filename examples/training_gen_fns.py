@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import jax
-import genjax
 import optax
+
+import genjax
 
 
 @genjax.gen(

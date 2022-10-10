@@ -14,21 +14,20 @@
 
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import genjax
-from model_config import hidden_markov_model
-from inference_config import (
-    meta_initial_position,
-    hmm_meta_next_target,
-    transition_proposal,
-    prior_proposal,
-)
-import genjax.experimental.prox as prox
-import matplotlib.pyplot as plt
-import seaborn as sns
 import ptitprince as pt
+import seaborn as sns
+from inference_config import hmm_meta_next_target
+from inference_config import meta_initial_position
+from inference_config import prior_proposal
+from inference_config import transition_proposal
+from model_config import hidden_markov_model
 from rich.progress import track
+
+import genjax
+import genjax.experimental.prox as prox
 
 
 # Global setup.
@@ -180,7 +179,8 @@ def run_eevi_experiment(key, config):
         "\n(SMC, prior as proposal) vs. (SMC, locally optimal proposal)"
     )
     labels_handles = {
-        label: handle for handle, label in zip(*ax2.get_legend_handles_labels())
+        label: handle
+        for handle, label in zip(*ax2.get_legend_handles_labels())
     }
 
     fig.legend(

@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import jax.numpy as jnp
-import numpy as np
-import genjax
 import functools
 from dataclasses import dataclass
 from typing import Tuple
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+import genjax
+
 
 #####
 # Rendering likelihood
@@ -187,7 +190,9 @@ gt_pose = jnp.array(
         [0.0, 0.0, 0.0, 1.0],
     ]
 )
-gt_image = render_cloud_at_pose(object_model_cloud, gt_pose, h, w, fx_fy, cx_cy)
+gt_image = render_cloud_at_pose(
+    object_model_cloud, gt_pose, h, w, fx_fy, cx_cy
+)
 
 
 def evaluate_likelihood(key):

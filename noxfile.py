@@ -12,10 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
+import sys
+from pathlib import Path
+from textwrap import dedent
+
 import nox
 
 
-@nox.session(python=["3.10"])
+try:
+    from nox_poetry import Session
+    from nox_poetry import session
+except ImportError:
+    message = f"""\
+    Nox failed to import the 'nox-poetry' package.
+
+    Please install it using the following command:
+
+    {sys.executable} -m pip install nox-poetry"""
+    raise SystemExit(dedent(message)) from None
+
+package = "genjax"
+python_version = "3.10"
+nox.needs_version = ">= 2021.6.6"
+nox.options.sessions = (
+    "safety",
+    "mypy",
+    "test",
+    "xdoctest",
+    "lint",
+    "build",
+    "docs-build",
+)
+
+
+@session(python=python_version)
 def test(session):
     session.install("poetry")
     session.run("poetry", "install")
@@ -35,10 +67,47 @@ def test(session):
     session.run("coverage", "report")
 
 
-@nox.session(python=["3.10"])
-def lint(session):
-    session.install("poetry")
-    session.run("poetry", "install")
+@session(python=python_version)
+def xdoctest(session) -> None:
+    """Run examples with xdoctest."""
+    if session.posargs:
+        args = [package, *session.posargs]
+    else:
+        args = [f"--modname={package}", "--command=all"]
+        if "FORCE_COLOR" in os.environ:
+            args.append("--colored=1")
+
+    session.install(".")
+    session.install("xdoctest[colors]")
+    session.run("python", "-m", "xdoctest", *args)
+
+
+@session(python=python_version)
+def safety(session) -> None:
+    """Scan dependencies for insecure packages."""
+    requirements = session.poetry.export_requirements()
+    session.install("safety")
+    session.run("safety", "check", "--full-report", f"--file={requirements}")
+
+
+@session(python=python_version)
+def mypy(session) -> None:
+    """Type-check using mypy."""
+    args = session.posargs or ["src", "tests", "docs/conf.py"]
+    session.install(".")
+    session.install("mypy", "pytest")
+    session.run("mypy", *args)
+    if not session.posargs:
+        session.run(
+            "mypy", f"--python-executable={sys.executable}", "noxfile.py"
+        )
+
+
+@session(name="lint", python=python_version)
+def lint(session: Session) -> None:
+    session.install(".")
+    session.install("isort", "black[jupyter]", "autoflake8", "flake8")
+    session.run("isort", ".")
     session.run("black", ".")
     session.run(
         "autoflake8",
@@ -51,36 +120,47 @@ def lint(session):
     session.run("flake8", ".")
 
 
-@nox.session(python=["3.10"])
+@session(python=python_version)
 def build(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run("poetry", "build")
 
 
-@nox.session(python=["3.10"])
-def docs(session):
-    session.install("poetry")
-    session.run("poetry", "install")
-    session.run(
-        "poetry",
-        "run",
-        "sphinx-build",
-        "-b",
-        "html",
-        "docs",
-        "docs/_build",
+@session(name="docs-build", python=python_version)
+def docs_build(session: Session) -> None:
+    """Build the documentation."""
+    args = session.posargs or ["docs", "docs/_build"]
+    if not session.posargs and "FORCE_COLOR" in os.environ:
+        args.insert(0, "--color")
+
+    session.install(".")
+    session.install(
+        "sphinx_book_theme", "sphinx", "jupyter-sphinx", "myst-parser"
     )
 
+    build_dir = Path("docs", "_build")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
 
-@nox.session(python=["3.10"])
-def extern_gen_fn(session):
-    session.install("poetry")
-    session.run("poetry", "install")
-    session.run(
-        "poetry",
-        "run",
-        "pip",
-        "install",
-        "examples/exposing_c++_gen_fn",
+    session.run("sphinx-build", *args)
+
+
+@session(python=python_version)
+def docs(session: Session) -> None:
+    """Build and serve the documentation with live reloading on file changes."""
+    args = session.posargs or ["--open-browser", "docs", "docs/_build"]
+    session.install(".")
+    session.install(
+        "sphinx_book_theme",
+        "sphinx",
+        "jupyter-sphinx",
+        "sphinx-autobuild",
+        "myst-parser",
     )
+
+    build_dir = Path("docs", "_build")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+
+    session.run("sphinx-autobuild", *args)

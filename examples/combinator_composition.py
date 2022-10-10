@@ -15,7 +15,9 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+
 import genjax
+
 
 # An example of combining multiple combinators to form
 # larger patterns of generative computation.

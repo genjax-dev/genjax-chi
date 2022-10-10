@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence
+
 import jax
+import matplotlib.pyplot as plt
 import numpy as np
+
 import genjax
 from genjax import Trace
-from typing import Sequence
-import matplotlib.pyplot as plt
+
 
 plt.style.use("ggplot")
 
@@ -127,7 +130,9 @@ chm_sequence = genjax.VectorChoiceMap.new(
 # SMC allows a progression of different target measures --
 # here, we parametrize that progression using a sequence of different
 # arguments to the model.
-model_arg_sequence = [(ind,) for ind in range(1, len(observation_sequence) + 1)]
+model_arg_sequence = [
+    (ind,) for ind in range(1, len(observation_sequence) + 1)
+]
 
 # Run inference.
 jitted = jax.jit(

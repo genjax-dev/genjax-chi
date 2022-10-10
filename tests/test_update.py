@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import jax
-import genjax
 import pytest
+
+import genjax
+
 
 key = jax.random.PRNGKey(314159)
 
@@ -34,7 +36,9 @@ class TestUpdate:
         new = genjax.ChoiceMap.new({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        new_key, (w, updated, discard) = benchmark(jitted, new_key, tr, new, ())
+        new_key, (w, updated, discard) = benchmark(
+            jitted, new_key, tr, new, ()
+        )
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]

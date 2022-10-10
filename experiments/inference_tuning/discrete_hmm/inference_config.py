@@ -13,9 +13,11 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+from model_config import initial_position
+from model_config import kernel_step
+
 import genjax
 import genjax.experimental.prox as prox
-from model_config import initial_position, kernel_step
 
 
 @genjax.gen(

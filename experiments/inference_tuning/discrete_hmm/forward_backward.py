@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import jax
-import genjax
 from model_config import hidden_markov_model
+
+import genjax
+
 
 console = genjax.go_pretty()
 

@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import jax
+
 import genjax
+
 
 console = genjax.go_pretty()
 
@@ -68,17 +70,17 @@ chm = genjax.ChoiceMap.new({("m0",): False})
 key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
 
 chm = genjax.ChoiceMap.new({("m4", "m0", "m0"): True})
-print(chm)
+console.print(chm)
 key, (w, updated, discard) = jitted(key, tr, chm, (0.3,))
 assert updated[("m4", "m0", "m0")] == True
 
 # Here's how you access the `arg_grad` GFI.
 jitted = jax.jit(genjax.arg_grad(f, argnums=1))
 key, grad = jitted(key, tr, (0.3,))
-print(grad)
+console.print(grad)
 
 # Here's how you access the `choice_grad` GFI.
 jitted = jax.jit(genjax.choice_grad(f))
 selected = genjax.Selection(["m5"])
 key, choice_grad = jitted(key, tr, selected)
-print(choice_grad["m5"])
+console.print(choice_grad["m5"])

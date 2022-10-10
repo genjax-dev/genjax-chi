@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import jax
-import genjax
 import pytest
+
+import genjax
+
 
 key = jax.random.PRNGKey(314159)
 

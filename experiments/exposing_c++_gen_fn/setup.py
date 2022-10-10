@@ -3,8 +3,10 @@ import re
 import subprocess
 import sys
 
-from setuptools import Extension, setup
+from setuptools import Extension
+from setuptools import setup
 from setuptools.command.build_ext import build_ext
+
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -76,7 +78,9 @@ class CMakeBuild(build_ext):
                 try:
                     import ninja  # noqa: F401
 
-                    ninja_executable_path = os.path.join(ninja.BIN_DIR, "ninja")
+                    ninja_executable_path = os.path.join(
+                        ninja.BIN_DIR, "ninja"
+                    )
                     cmake_args += [
                         "-GNinja",
                         f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja_executable_path}",

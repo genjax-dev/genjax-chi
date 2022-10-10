@@ -12,27 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Sequence
+
 import jax
 import jax.numpy as jnp
-import numpy as np
-import pandas as pd
-import genjax
-from model_config import hidden_markov_model
-from inference_config import (
-    meta_initial_position,
-    hmm_meta_next_target,
-    transition_proposal,
-    prior_proposal,
-)
-import genjax.experimental.prox as prox
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import matplotlib.transforms as mtransforms
-import matplotlib.gridspec as gridspec
-import seaborn as sns
+import numpy as np
+import pandas as pd
 import ptitprince as pt
+import seaborn as sns
+from inference_config import hmm_meta_next_target
+from inference_config import meta_initial_position
+from inference_config import prior_proposal
+from inference_config import transition_proposal
+from model_config import hidden_markov_model
 from rich.progress import track
-from typing import Sequence
+
+import genjax
+import genjax.experimental.prox as prox
 
 
 # Global setup.
@@ -138,15 +138,17 @@ def run_sdos_experiment(key):
             map(make_custom_smc, [1, 2, 5, 10, 20, 50, 100, 200, 500])
         )
 
-        for custom_smc in track(custom_smcs, description="SDOS by # particles"):
+        for custom_smc in track(
+            custom_smcs, description="SDOS by # particles"
+        ):
             ratio = np.array([], dtype=np.float32)
 
             def _lambda(key, custom_smc):
                 key, *sub_keys = jax.random.split(key, 10 + 1)
                 sub_keys = jnp.array(sub_keys)
-                _, (_, _), r = jax.vmap(sdos_for_nparticles, in_axes=(0, None))(
-                    sub_keys, custom_smc
-                )
+                _, (_, _), r = jax.vmap(
+                    sdos_for_nparticles, in_axes=(0, None)
+                )(sub_keys, custom_smc)
                 return key, r
 
             jitted = jax.jit(_lambda)
@@ -163,7 +165,9 @@ def run_sdos_experiment(key):
 
         return key
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(18, 12), dpi=400)
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, sharey=True, figsize=(18, 12), dpi=400
+    )
 
     # Run SMC with prior as proposal.
     key = sdos_plot(key, ax1, custom_smc_with_prior)
@@ -191,7 +195,9 @@ def run_sdos_experiment(key):
 def run_aide_experiment(key):
     def sample_and_score(key, config):
         selection = genjax.Selection([("z", "observation")])
-        key, tr = genjax.simulate(hidden_markov_model)(key, (num_steps, config))
+        key, tr = genjax.simulate(hidden_markov_model)(
+            key, (num_steps, config)
+        )
         chm = tr.get_choices().strip_metadata()
         observations = chm["z", "observation"]
         logprob = genjax.DiscreteHMM.data_logpdf(config, observations)
@@ -282,7 +288,9 @@ def run_aide_experiment(key):
 def run_hmm_quad_plot(key, gold_standard, config):
     def sample_and_score(key, config):
         selection = genjax.Selection([("z", "observation")])
-        key, tr = genjax.simulate(hidden_markov_model)(key, (num_steps, config))
+        key, tr = genjax.simulate(hidden_markov_model)(
+            key, (num_steps, config)
+        )
         chm = tr.get_choices().strip_metadata()
         observations = chm["z", "observation"]
         logprob = genjax.DiscreteHMM.data_logpdf(config, observations)
@@ -307,15 +315,17 @@ def run_hmm_quad_plot(key, gold_standard, config):
             map(make_custom_smc, [1, 2, 5, 10, 20, 50, 100, 200, 500])
         )
 
-        for custom_smc in track(custom_smcs, description="SDOS by # particles"):
+        for custom_smc in track(
+            custom_smcs, description="SDOS by # particles"
+        ):
             ratio = np.array([], dtype=np.float32)
 
             def _lambda(key, custom_smc):
                 key, *sub_keys = jax.random.split(key, 10 + 1)
                 sub_keys = jnp.array(sub_keys)
-                _, (_, _), r = jax.vmap(sdos_for_nparticles, in_axes=(0, None))(
-                    sub_keys, custom_smc
-                )
+                _, (_, _), r = jax.vmap(
+                    sdos_for_nparticles, in_axes=(0, None)
+                )(sub_keys, custom_smc)
                 return key, r
 
             jitted = jax.jit(_lambda)
@@ -428,7 +438,9 @@ def run_hmm_quad_plot(key, gold_standard, config):
 
     fig = plt.figure(figsize=(48, 20), dpi=600)
     grid = plt.GridSpec(2, 4, wspace=0.35, hspace=0.4)
-    grid_sub = gridspec.GridSpecFromSubplotSpec(3, 3, subplot_spec=grid[:, 0:2])
+    grid_sub = gridspec.GridSpecFromSubplotSpec(
+        3, 3, subplot_spec=grid[:, 0:2]
+    )
 
     # Logpdf histogram.
     key, *sub_keys = jax.random.split(key, 2000 + 1)
