@@ -16,7 +16,8 @@ import jax
 
 import genjax
 
-
+# `go_pretty` provides a console object which supports
+# pretty printing of `Pytree` objects.
 console = genjax.go_pretty()
 
 # A `genjax` generative function is a pure Python function from
@@ -24,8 +25,7 @@ console = genjax.go_pretty()
 #
 # The programmer is free to use other JAX primitives, etc -- as desired.
 #
-# The models below are rather simplistic, but demonstrate
-# proof of concept.
+# The models below are rather simplistic, but demonstrate the basics.
 
 
 @genjax.gen
