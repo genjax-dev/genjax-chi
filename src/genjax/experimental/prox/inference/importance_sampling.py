@@ -17,6 +17,7 @@ from typing import Union
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import numpy as np
 
 from genjax.core.datatypes import ValueChoiceMap
@@ -38,7 +39,7 @@ class ImportanceSampling(ProxDistribution):
         return (), (self.num_particles, self.proposal)
 
     def default_random_weighted(self, key, target: Target):
-        key, sub_keys = jax.random.split(key, self.num_particles + 1)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, (lws, tr) = jax.vmap(target.p.importance, in_axes=(0, None, None))(
             sub_keys, target.constraints, target.args
@@ -48,10 +49,10 @@ class ImportanceSampling(ProxDistribution):
         aw = tw - np.log(self.num_particles)
         key, sub_key = jax.random.split(key)
         index = jax.random.categorical(sub_key, lnw)
-        selected_particle = tr.slice(index)
+        selected_particle = jtu.tree_map(lambda v: v[index], tr)
         return key, (
-            target.get_latents(tr),
             selected_particle.get_score() - aw,
+            target.get_latents(selected_particle),
         )
 
     def custom_random_weighted(self, key, target: Target):
@@ -70,10 +71,10 @@ class ImportanceSampling(ProxDistribution):
         aw = tw - np.log(self.num_particles)
         key, sub_key = jax.random.split(key)
         index = jax.random.categorical(sub_key, lnw)
-        selected_particle = particles.slice(index)
+        selected_particle = jtu.tree_map(lambda v: v[index], particles)
         return key, (
-            selected_particle.get_retval(),
             selected_particle.get_score() - aw,
+            selected_particle.get_retval(),
         )
 
     def default_estimate_logpdf(self, key, chm, target):
@@ -114,13 +115,13 @@ class ImportanceSampling(ProxDistribution):
         )
 
     def random_weighted(self, key, target: Target):
-        if isinstance(self.proposal, None):
+        if self.proposal is None:
             return self.default_random_weighted(key, target)
         else:
             return self.custom_random_weighted(key, target)
 
     def estimate_logpdf(self, key, chm, target: Target):
-        if isinstance(self.proposal, None):
+        if self.proposal is None:
             return self.default_estimate_logpdf(key, chm, target)
         else:
             return self.custom_estimate_logpdf(key, chm, target)

@@ -62,7 +62,12 @@ def trace(addr, call, **kwargs):
 
 def gen_fn_abstract_eval(key, *args, addr, gen_fn, args_form, **kwargs):
     args = jtu.tree_unflatten(args_form, args)
-    jaxpr = make_jaxpr(gen_fn.__call__)(key, *args)
+
+    # TODO: make sure this works in general.
+    def _inner(key, *args):
+        return gen_fn.__call__(key, *args, **kwargs)
+
+    jaxpr = make_jaxpr(_inner)(key, *args)
     return jaxpr.out_avals
 
 
