@@ -18,6 +18,7 @@ import numpy as np
 
 import genjax
 
+
 console = genjax.go_pretty()
 
 # An example of combining multiple combinators to form

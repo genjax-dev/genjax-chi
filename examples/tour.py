@@ -16,6 +16,7 @@ import jax
 
 import genjax
 
+
 # `go_pretty` provides a console object which supports
 # pretty printing of `Pytree` objects.
 console = genjax.go_pretty()
