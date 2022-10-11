@@ -64,6 +64,7 @@ def test(session):
         "--benchmark-min-rounds",
         "5000",
     )
+    session.run("coverage", "json")
     session.run("coverage", "report")
 
 
