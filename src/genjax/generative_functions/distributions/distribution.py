@@ -150,9 +150,11 @@ class Distribution(GenerativeFunction):
             return key, (fwd - prev_score, v, discard)
 
         def _has_prev_branch(key, args):
+            prev_score = prev.get_score()
             v = prev.get_leaf_value()
+            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
             discard = BooleanMask.new(False, prev.get_choices())
-            return key, (0.0, v, discard)
+            return key, (fwd - prev_score, v, discard)
 
         def _constrained_branch(key, args):
             chm = prev.get_choices()

@@ -23,6 +23,7 @@ in `genjax.core`.
 
 import jax.tree_util as jtu
 
+from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
 from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_and
@@ -148,7 +149,9 @@ class Update(Handler):
 
         def _has_prev_branch(key, args):
             prev_tr = self.prev.get_subtree(addr)
-            w = 0.0
+            key, (w, _, _) = gen_fn.update(
+                key, prev_tr, EmptyChoiceMap(), args, **kwargs
+            )
             discard = BooleanMask.new(False, prev_tr.strip_metadata())
             return key, (w, prev_tr, discard)
 
