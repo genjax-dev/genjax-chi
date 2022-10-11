@@ -14,9 +14,11 @@
 
 from dataclasses import dataclass
 
-from genjax.distributions.distribution import Distribution
-from genjax.distributions.distribution import DistributionTrace
-from genjax.distributions.distribution import ValueChoiceMap
+from genjax.core.datatypes import ValueChoiceMap
+from genjax.generative_functions.distributions.distribution import Distribution
+from genjax.generative_functions.distributions.distribution import (
+    DistributionTrace,
+)
 
 
 @dataclass

@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .blackjax import *
+from .extern import *
 from .importance_sampling import *
-from .metropolis_hastings import *
+from .kernels import *

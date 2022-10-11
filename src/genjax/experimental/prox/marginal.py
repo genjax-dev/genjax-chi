@@ -15,13 +15,17 @@
 from dataclasses import dataclass
 from typing import Any
 
-from genjax.builtin.builtin_datatypes import BuiltinChoiceMap
-from genjax.builtin.builtin_datatypes import BuiltinSelection
 from genjax.core.datatypes import GenerativeFunction
-from genjax.distributions.distribution import Distribution
-from genjax.distributions.distribution import ValueChoiceMap
+from genjax.core.datatypes import ValueChoiceMap
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
+from genjax.generative_functions.builtin.builtin_datatypes import (
+    BuiltinChoiceMap,
+)
+from genjax.generative_functions.builtin.builtin_datatypes import (
+    BuiltinSelection,
+)
+from genjax.generative_functions.distributions.distribution import Distribution
 
 
 @dataclass

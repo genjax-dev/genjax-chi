@@ -1,20 +1,15 @@
-import numpy as np
-import jax.numpy as jnp
+
 import jax
-from fast_3dp3.model import make_scoring_function
-from fast_3dp3.rendering import render_planes
-from fast_3dp3.utils import (
-    make_centered_grid_enumeration_3d_points,
-    quaternion_to_rotation_matrix,
-    depth_to_coords_in_camera
-)
-from fast_3dp3.shape import get_cube_shape, get_rectangular_prism_shape
-import time
-from PIL import Image
-from scipy.spatial.transform import Rotation as R
-import genjax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
-import cv2
+import numpy as np
+from fast_3dp3.rendering import render_planes
+from fast_3dp3.shape import get_rectangular_prism_shape
+from fast_3dp3.utils import quaternion_to_rotation_matrix
+from PIL import Image
+
+import genjax
+
 
 original_fx, original_fy =  385.798, 385.798
 original_cx, original_cy = 321.49, 244.092

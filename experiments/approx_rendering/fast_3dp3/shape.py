@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 
+
 def get_rectangular_prism_shape(s_x,s_y,s_z):
     cube_plane_poses = jnp.array(
         [
