@@ -150,8 +150,7 @@ def depth_to_coords_in_camera(
         np.ndarray: Array of shape (N, 2) or (H, W, 2), coordinates on image plane.
             N is the number of 1s in mask.
     """
-    mask = np.ones_like(depth)
-    vu = np.nonzero(mask)
+    vu = np.mgrid[: depth.shape[0], : depth.shape[1]]
 
     depth_for_uv = depth[vu[0], vu[1]]
     full_vec = np.stack(
