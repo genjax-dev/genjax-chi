@@ -15,3 +15,4 @@
 from .extern import *
 from .importance_sampling import *
 from .kernels import *
+from .map_optimize import *
