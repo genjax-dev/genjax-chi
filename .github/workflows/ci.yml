@@ -8,6 +8,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  CODECOV_TOKEN: 1abb2fd7-0cb5-433c-b2cc-1596466aeb56
+
 jobs:
   test:
     runs-on: ubuntu-latest
