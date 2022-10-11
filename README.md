@@ -10,8 +10,6 @@
 <br>
 
 [![Build Status](https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg)](https://github.com/probcomp/genjax/actions)
-[![codecov](https://codecov.io/github/probcomp/genjax/branch/main/graph/badge.svg?token=I9TAV92KN7)](https://codecov.io/github/probcomp/genjax)
-[![mypy](https://github.com/probcomp/genjax/actions/workflows/mypy.yml/badge.svg)](https://github.com/probcomp/genjax/actions)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
