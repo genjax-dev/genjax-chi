@@ -1,4 +1,4 @@
-name: Static checks
+name: safety
 
 on:
   # Runs on pushes targeting the default branch
