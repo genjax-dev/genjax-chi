@@ -17,6 +17,7 @@ import optax
 
 import genjax
 
+
 console = genjax.go_pretty()
 
 

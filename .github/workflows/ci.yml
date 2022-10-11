@@ -26,3 +26,6 @@ jobs:
 
       - name: Run Nox
         run: nox -s test xdoctest lint build
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3.1.0
