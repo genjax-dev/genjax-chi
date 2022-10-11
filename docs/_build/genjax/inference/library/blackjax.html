@@ -454,26 +454,103 @@ title="Print to PDF"
                 
   <section id="module-genjax.inference.blackjax">
 <span id="hamiltonian-monte-carlo-with-blackjax"></span><h1>Hamiltonian Monte Carlo with BlackJAX<a class="headerlink" href="#module-genjax.inference.blackjax" title="Permalink to this headline">#</a></h1>
-<p>This module supports a set of (WIP) integration interfaces with
-variants of Hamiltonian Monte Carlo exported by the <code class="code docutils literal notranslate"><span class="pre">blackjax</span></code>
-sampling library <a class="reference internal" href="#blackjax" id="id1"><span>[Blackjax]</span></a>.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<dl class="citation">
-<dt class="label" id="blackjax"><span class="brackets"><a class="fn-backref" href="#id1">Blackjax</a></span></dt>
-<dd><p>BlackJAX is a sampling library designed for ease of use, speed and modularity. (<a class="reference external" href="https://github.com/blackjax-devs/blackjax">https://github.com/blackjax-devs/blackjax</a>)</p>
-</dd>
-</dl>
-</div>
 <dl class="py function">
 <dt class="sig sig-object py" id="genjax.inference.blackjax.hmc">
-<span class="sig-prename descclassname"><span class="pre">genjax.inference.blackjax.</span></span><span class="sig-name descname"><span class="pre">hmc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.Trace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.Selection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_steps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">jax._src.basearray.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/inference/blackjax.py#L48-L81"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.inference.blackjax.hmc" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">genjax.inference.blackjax.</span></span><span class="sig-name descname"><span class="pre">hmc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">logprob_fn:</span> <span class="pre">typing.Callable,</span> <span class="pre">step_size:</span> <span class="pre">float,</span> <span class="pre">inverse_mass_matrix:</span> <span class="pre">typing.Union[numpy.ndarray,</span> <span class="pre">jax._src.basearray.Array],</span> <span class="pre">num_integration_steps:</span> <span class="pre">int,</span> <span class="pre">*,</span> <span class="pre">divergence_threshold:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000,</span> <span class="pre">integrator:</span> <span class="pre">typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">velocity_verlet&gt;,</span> <span class="pre">logprob_grad_fn:</span> <span class="pre">typing.Optional[typing.Callable]</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">blackjax.base.SamplingAlgorithm</span></span></span><a class="headerlink" href="#genjax.inference.blackjax.hmc" title="Permalink to this definition">#</a></dt>
+<dd><p>Implements the (basic) user interface for the HMC kernel.</p>
+<p>The general hmc kernel (<code class="xref py py-meth docutils literal notranslate"><span class="pre">blackjax.mcmc.hmc.kernel()</span></code>, alias <cite>blackjax.hmc.kernel</cite>) can be
+cumbersome to manipulate. Since most users only need to specify the kernel
+parameters at initialization time, we provide a helper function that
+specializes the general kernel.</p>
+<p>We also add the general kernel and state generator as an attribute to this class so
+users only need to pass <cite>blackjax.hmc</cite> to SMC, adaptation, etc. algorithms.</p>
+<p class="rubric">Examples</p>
+<p>A new HMC kernel can be initialized and used with the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">hmc</span> <span class="o">=</span> <span class="n">blackjax</span><span class="o">.</span><span class="n">hmc</span><span class="p">(</span><span class="n">logprob_fn</span> <span class="n">step_size</span><span class="p">,</span> <span class="n">inverse_mass_matrix</span><span class="p">,</span> <span class="n">num_integration_steps</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">hmc</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">position</span><span class="p">)</span>
+<span class="n">new_state</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">hmc</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Kernels are not jit-compiled by default so you will need to do it manually:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">step</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">hmc</span><span class="o">.</span><span class="n">step</span><span class="p">)</span>
+<span class="n">new_state</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Should you need to you can always use the base kernel directly:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">blackjax.mcmc.integrators</span> <span class="k">as</span> <span class="nn">integrators</span>
+
+<span class="n">kernel</span> <span class="o">=</span> <span class="n">blackjax</span><span class="o">.</span><span class="n">hmc</span><span class="o">.</span><span class="n">kernel</span><span class="p">(</span><span class="n">integrators</span><span class="o">.</span><span class="n">mclachlan</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">blackjax</span><span class="o">.</span><span class="n">hmc</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">logprob_fn</span><span class="p">)</span>
+<span class="n">state</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">logprob_fn</span><span class="p">,</span> <span class="n">step_size</span><span class="p">,</span> <span class="n">inverse_mass_matrix</span><span class="p">,</span> <span class="n">num_integration_steps</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>logprob_fn</strong> – The logprobability density function we wish to draw samples from. This
+is minus the potential function.</p></li>
+<li><p><strong>step_size</strong> – The value to use for the step size in the symplectic integrator.</p></li>
+<li><p><strong>inverse_mass_matrix</strong> – The value to use for the inverse mass matrix when drawing a value for
+the momentum and computing the kinetic energy.</p></li>
+<li><p><strong>num_integration_steps</strong> – The number of steps we take with the symplectic integrator at each
+sample step before returning a sample.</p></li>
+<li><p><strong>divergence_threshold</strong> – The absolute value of the difference in energy between two states above
+which we say that the transition is divergent. The default value is
+commonly found in other libraries, and yet is arbitrary.</p></li>
+<li><p><strong>integrator</strong> – (algorithm parameter) The symplectic integrator to use to integrate the trajectory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>A <code class="docutils literal notranslate"><span class="pre">SamplingAlgorithm</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="genjax.inference.blackjax.nuts">
-<span class="sig-prename descclassname"><span class="pre">genjax.inference.blackjax.</span></span><span class="sig-name descname"><span class="pre">nuts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.Trace</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.Selection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_steps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">jax._src.basearray.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/inference/blackjax.py#L84-L117"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.inference.blackjax.nuts" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">genjax.inference.blackjax.</span></span><span class="sig-name descname"><span class="pre">nuts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">logprob_fn:</span> <span class="pre">typing.Callable,</span> <span class="pre">step_size:</span> <span class="pre">float,</span> <span class="pre">inverse_mass_matrix:</span> <span class="pre">typing.Union[numpy.ndarray,</span> <span class="pre">jax._src.basearray.Array],</span> <span class="pre">*,</span> <span class="pre">max_num_doublings:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">10,</span> <span class="pre">divergence_threshold:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1000,</span> <span class="pre">integrator:</span> <span class="pre">typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">velocity_verlet&gt;,</span> <span class="pre">logprob_grad_fn:</span> <span class="pre">typing.Optional[typing.Callable]</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">blackjax.base.SamplingAlgorithm</span></span></span><a class="headerlink" href="#genjax.inference.blackjax.nuts" title="Permalink to this definition">#</a></dt>
+<dd><p>Implements the (basic) user interface for the nuts kernel.</p>
+<p class="rubric">Examples</p>
+<p>A new NUTS kernel can be initialized and used with the following code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nuts</span> <span class="o">=</span> <span class="n">blackjax</span><span class="o">.</span><span class="n">nuts</span><span class="p">(</span><span class="n">logprob_fn</span> <span class="n">step_size</span><span class="p">,</span> <span class="n">inverse_mass_matrix</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">nuts</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">position</span><span class="p">)</span>
+<span class="n">new_state</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">nuts</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can JIT-compile the step function for more speed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">step</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">nuts</span><span class="o">.</span><span class="n">step</span><span class="p">)</span>
+<span class="n">new_state</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can always use the base kernel should you need to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">blackjax.mcmc.integrators</span> <span class="k">as</span> <span class="nn">integrators</span>
+
+<span class="n">kernel</span> <span class="o">=</span> <span class="n">blackjax</span><span class="o">.</span><span class="n">nuts</span><span class="o">.</span><span class="n">kernel</span><span class="p">(</span><span class="n">integrators</span><span class="o">.</span><span class="n">yoshida</span><span class="p">)</span>
+<span class="n">state</span> <span class="o">=</span> <span class="n">blackjax</span><span class="o">.</span><span class="n">nuts</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">logprob_fn</span><span class="p">)</span>
+<span class="n">state</span><span class="p">,</span> <span class="n">info</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">rng_key</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">logprob_fn</span><span class="p">,</span> <span class="n">step_size</span><span class="p">,</span> <span class="n">inverse_mass_matrix</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>logprob_fn</strong> – The logprobability density function we wish to draw samples from. This
+is minus the potential function.</p></li>
+<li><p><strong>step_size</strong> – The value to use for the step size in the symplectic integrator.</p></li>
+<li><p><strong>inverse_mass_matrix</strong> – The value to use for the inverse mass matrix when drawing a value for
+the momentum and computing the kinetic energy.</p></li>
+<li><p><strong>max_num_doublings</strong> – The maximum number of times we double the length of the trajectory before
+returning if no U-turn has been obserbed or no divergence has occured.</p></li>
+<li><p><strong>divergence_threshold</strong> – The absolute value of the difference in energy between two states above
+which we say that the transition is divergent. The default value is
+commonly found in other libraries, and yet is arbitrary.</p></li>
+<li><p><strong>integrator</strong> – (algorithm parameter) The symplectic integrator to use to integrate the trajectory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>A <code class="docutils literal notranslate"><span class="pre">SamplingAlgorithm</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 

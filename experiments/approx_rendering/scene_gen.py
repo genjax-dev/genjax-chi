@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pybullet as p
 import pybullet_data
-import matplotlib.pyplot as plt
 from PIL import Image
+
+
 p.resetSimulation()
 p.setGravity(0, 0, -5)
 
