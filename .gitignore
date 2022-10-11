@@ -12,6 +12,7 @@ dist/
 .mypy_cache/
 .pytype/
 .coverage
+coverage.json
 docs/build
 *_pb2.py
 docs/notebooks/.ipynb_checkpoints/
