@@ -74,7 +74,8 @@ class TestUpdateSimpleNormal:
 def simple_linked_normal(key):
     key, y1 = genjax.trace("y1", genjax.Normal)(key, (0.0, 1.0))
     key, y2 = genjax.trace("y2", genjax.Normal)(key, (y1, 1.0))
-    return key, y1 + y2
+    key, y3 = genjax.trace("y3", genjax.Normal)(key, (y1 + y2, 1.0))
+    return key, y1 + y2 + y3
 
 
 class TestUpdateSimpleLinkedNormal:
@@ -91,9 +92,11 @@ class TestUpdateSimpleLinkedNormal:
         updated_chm = updated.get_choices().strip_metadata()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2"]
+        y3 = updated_chm["y3"]
         score1 = genjax.Normal.logpdf(y1, 0.0, 1.0)
         score2 = genjax.Normal.logpdf(y2, y1, 1.0)
-        test_score = score1 + score2
+        score3 = genjax.Normal.logpdf(y3, y1 + y2, 1.0)
+        test_score = score1 + score2 + score3
         assert original_chm[("y1",)] == discard[("y1",)]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
