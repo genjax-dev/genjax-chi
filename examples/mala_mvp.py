@@ -9,16 +9,16 @@ console = genjax.go_pretty()
 @genjax.gen
 def model(key):
     key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
-    key, y = genjax.trace("y", genjax.Normal)(key, (x, 1.0))
+    key, y = genjax.trace("y", genjax.Normal)(key, (x, 0.2))
     return key, y
 
 
 key = jax.random.PRNGKey(314159)
-obs = genjax.ChoiceMap.new({("y",): 2.0})
-console.print(obs)
-key, (_, tr) = model.importance(key, obs, ())
-console.print(tr)
-
 target = genjax.Selection([("x",)])
-k = jax.jit(genjax.mala(target, 0.5))
-key, tr = k(key, tr)
+obs = genjax.ChoiceMap.new({("y",): 3.0})
+key, (_, tr) = model.importance(key, obs, ())
+
+k = jax.jit(genjax.mala(target, 0.05))
+for _ in range(0, 50):
+    key, (tr, _) = k(key, tr)
+    console.print(tr["x"])

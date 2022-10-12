@@ -255,9 +255,10 @@ class ChoiceGradients(Handler):
             return (w, v)
 
         def _not_selected_branch(key, args):
-            tr = self.source.get_subtree(addr)
+            chm = self.source.get_subtree(addr)
+            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             v = tr.get_retval()
-            return (0.0, v)
+            return (w, v)
 
         w, v = concrete_cond(
             has_selected,

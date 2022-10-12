@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.tree_util as jtu
 
 
@@ -28,15 +27,9 @@ def map_update(selection, tau):
             forward_values,
             forward_gradient_trie,
         )
-        key, (_, new_trace, _) = gen_fn.update(
+        key, (w, new_trace, _) = gen_fn.update(
             key, trace, forward_values, args
         )
-        change = new_trace.get_score() - trace.get_score()
-        check = change >= 0.0
-        return key, jax.lax.cond(
-            check,
-            lambda *args: new_trace,
-            lambda *args: trace,
-        )
+        return key, new_trace
 
     return _inner
