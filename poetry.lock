@@ -571,7 +571,7 @@ requirements-deprecated-finder = ["pip-api", "pipreqs"]
 
 [[package]]
 name = "jax"
-version = "0.3.21"
+version = "0.3.23"
 description = "Differentiate, compile, and transform Numpy code."
 category = "main"
 optional = false
@@ -587,13 +587,13 @@ typing_extensions = "*"
 
 [package.extras]
 australis = ["protobuf (>=3.13,<4)"]
-ci = ["jaxlib (==0.3.20)"]
-cpu = ["jaxlib (==0.3.20)"]
-cuda = ["jaxlib (==0.3.20+cuda11.cudnn82)"]
-cuda11-cudnn805 = ["jaxlib (==0.3.20+cuda11.cudnn805)"]
-cuda11-cudnn82 = ["jaxlib (==0.3.20+cuda11.cudnn82)"]
+ci = ["jaxlib (==0.3.22)"]
+cpu = ["jaxlib (==0.3.22)"]
+cuda = ["jaxlib (==0.3.22+cuda11.cudnn82)"]
+cuda11-cudnn805 = ["jaxlib (==0.3.22+cuda11.cudnn805)"]
+cuda11-cudnn82 = ["jaxlib (==0.3.22+cuda11.cudnn82)"]
 minimum-jaxlib = ["jaxlib (==0.3.15)"]
-tpu = ["jaxlib (==0.3.20)", "libtpu-nightly (==0.1.dev20220928)", "requests"]
+tpu = ["jaxlib (==0.3.22)", "libtpu-nightly (==0.1.dev20221011)", "requests"]
 
 [[package]]
 name = "jaxlib"
@@ -2141,7 +2141,7 @@ isort = [
     {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
 ]
 jax = [
-    {file = "jax-0.3.21.tar.gz", hash = "sha256:f69fea0f34a3eb6a9d8066726630b71ea6092d214079903900127bcff6a54a5c"},
+    {file = "jax-0.3.23.tar.gz", hash = "sha256:bff436e15552a82c0ebdef32737043b799e1e10124423c57a6ae6118c3a7b6cd"},
 ]
 jaxlib = [
     {file = "jaxlib-0.3.20-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:02e5f13ce268531bd873b0a3dcf31b9d6e5f954d6fa1c682025167ff593b1f4e"},
