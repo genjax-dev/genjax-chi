@@ -12,6 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .distribution import *
-from .standard import *
-from .tensorflow_probability import *
+from .tiny_gp import *
