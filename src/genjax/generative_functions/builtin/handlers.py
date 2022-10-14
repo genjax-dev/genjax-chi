@@ -39,13 +39,27 @@ from genjax.generative_functions.builtin.intrinsics import gen_fn_p
 # GFI handlers
 #####
 
-# Note: these handlers _do not manipulate runtime values_ --
+# Note:
+#
+# These handlers _do not manipulate runtime values_ --
 # the pointers they hold to objects like `v` and `score` are JAX `Tracer`
 # values. When we do computations with these values,
 # it adds to the `Jaxpr` trace.
 #
-# So the trick is write `callable` to coerce the return of the `Jaxpr`
-# to send out the accumulated state we want.
+# So the trick is write `trace` in each handler
+# to coerce the resulting `Jaxpr` to send out the accumulated state we want.
+
+# One other note:
+#
+# In the code of each handler, you might see `tree_unflatten` and
+# `args_form` -- this is to coerce flattened `Pytree` representations
+# across JAX jit boundaries -- and allow usage of arbitrary `Pytree`
+# types as arguments to GFI calls.
+
+# You'll find that this implementation mimics many aspects of
+# Gen's dynamic DSL -- but it's staged out (by the above Jaxpr discussion)
+# the result is that there's no lookup, storage, or call overhead,
+# it's all pure inlined array code.
 
 
 class Simulate(Handler):
