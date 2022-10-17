@@ -136,9 +136,9 @@ class Distribution(GenerativeFunction):
             DistributionTrace(self, args, ValueChoiceMap(v), score),
         )
 
-    def choice_grad(self, key, tr, selection, retval_grad):
+    def choice_vjp(self, key, tr, selection):
         if isinstance(selection, NoneSelection):
-            return key, (None, None)
+            return key, lambda retval_grad: (None, None)
 
         gen_fn = tr.get_gen_fn()
         args = tr.get_args()
@@ -149,12 +149,11 @@ class Distribution(GenerativeFunction):
             return (w, v), key
 
         _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
-        key, trace_grads, arg_grads = f_vjp((1.0, retval_grad))
-        return key, (trace_grads, arg_grads)
+        return key, lambda retval_grad: f_vjp((1.0, retval_grad))[1:]
 
-    def retval_grad(self, key, tr, selection, retval_grad):
+    def retval_vjp(self, key, tr, selection):
         if isinstance(selection, NoneSelection):
-            return key, (None, None)
+            return key, lambda retval_grad: (None, None)
 
         gen_fn = tr.get_gen_fn()
         args = tr.get_args()
@@ -165,8 +164,7 @@ class Distribution(GenerativeFunction):
             return v, key
 
         _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
-        key, trace_grads, arg_grads = f_vjp(retval_grad)
-        return key, (trace_grads, arg_grads)
+        return key, lambda retval_grad: f_vjp(retval_grad)[1:]
 
     @BooleanMask.collapse_boundary
     def update(self, key, prev, new, args, **kwargs):

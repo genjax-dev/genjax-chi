@@ -205,49 +205,12 @@ class Update(Handler):
             return key, (self.weight, ret, self.state, self.discard)
 
 
-class ArgumentGradients(Handler):
-    def __init__(self, tr, argnums):
-        self.handles = [
-            gen_fn_p,
-        ]
-        self.argnums = argnums
-        self.score = 0.0
-        self.source = tr.get_choices()
-        self.return_or_continue = False
+#####
+# Automatic differentiation
+#####
 
-    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
-    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
-        args = jtu.tree_unflatten(args_form, args)
-        has_source = self.source.has_subtree(addr)
-
-        def _has_source_branch(key, args):
-            sub_tr = self.source.get_subtree(addr)
-            chm = sub_tr.get_choices()
-            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            v = tr.get_retval()
-            return (w, v)
-
-        def _no_source_branch(key, args):
-            key, tr = gen_fn.simulate(key, args, **kwargs)
-            v = tr.get_retval()
-            return (0.0, v)
-
-        w, v = concrete_cond(
-            has_source,
-            _has_source_branch,
-            _no_source_branch,
-            key,
-            args,
-        )
-        self.score += w
-
-        if self.return_or_continue:
-            return f(key, *v)
-        else:
-            self.return_or_continue = True
-            key, *_ = f(key, *v)
-            return self.score, key
-
+# This section is particularly complex.
+# TODO: Extensive comments.
 
 # Adjoint root, for choice gradients.
 @jax.custom_vjp
@@ -266,9 +229,12 @@ def choice_pretend_bwd(res, retval_grad):
     key, trace, selection = res
     gen_fn = trace.get_gen_fn()
     _, (_, v_retval_grad) = retval_grad
-    _, (trace_grads, arg_grads) = gen_fn.choice_grad(
-        key, trace, selection, v_retval_grad
+    key, choice_vjp = gen_fn.choice_vjp(
+        key,
+        trace,
+        selection,
     )
+    trace_grads, arg_grads = choice_vjp(v_retval_grad)
     return (None, trace_grads, None, arg_grads)
 
 
@@ -290,13 +256,17 @@ class ChoiceGradients(Handler):
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
         args = jtu.tree_unflatten(args_form, args)
-        sub_selection = self.selection.get_subtree(addr)
         sub_trace = self.source.get_subtree(addr)
-        key, (w, v) = choice_pretend_generative_function_call(
-            key, sub_trace, sub_selection, args
-        )
-        self.score += w
+        if self.selection.has_subtree(addr):
+            sub_selection = self.selection.get_subtree(addr)
+            key, (w, v) = choice_pretend_generative_function_call(
+                key, sub_trace, sub_selection, args
+            )
+        else:
+            v = sub_trace.get_retval()
+            w = sub_trace.get_score()
 
+        self.score += w
         if self.return_or_continue:
             return f(key, *v)
         else:
@@ -306,30 +276,44 @@ class ChoiceGradients(Handler):
 
 
 # Adjoint root, for retval gradients.
+# NOTE: the order of decorators here matters.
+# Define custom JVPs first, then custom VJPs.
 @jax.custom_vjp
+@jax.custom_jvp
 def retval_pretend_generative_function_call(key, trace, selection, args):
     return key, trace.get_retval()
 
 
-def retval_pretend_fwd(key, trace, selection, args):
+# Custom JVPs.
+def retval_pretend_jvp_fwd(primals, tangents):
+    pass
+
+
+retval_pretend_generative_function_call.defjvp(retval_pretend_jvp_fwd)
+
+# Custom VJPs.
+def retval_pretend_vjp_fwd(key, trace, selection, args):
     ret = retval_pretend_generative_function_call(key, trace, selection, args)
     key, v = ret
     key, sub_key = jax.random.split(key)
     return (key, v), (sub_key, trace, selection)
 
 
-def retval_pretend_bwd(res, retval_grad):
+def retval_pretend_vjp_bwd(res, retval_grad):
     key, trace, selection = res
     gen_fn = trace.get_gen_fn()
     _, v_retval_grad = retval_grad
-    _, (trace_grads, arg_grads) = gen_fn.retval_grad(
-        key, trace, selection, v_retval_grad
+    key, retval_vjp = gen_fn.retval_vjp(
+        key,
+        trace,
+        selection,
     )
+    trace_grads, arg_grads = retval_vjp(v_retval_grad)
     return (None, trace_grads, None, arg_grads)
 
 
 retval_pretend_generative_function_call.defvjp(
-    retval_pretend_fwd, retval_pretend_bwd
+    retval_pretend_vjp_fwd, retval_pretend_vjp_bwd
 )
 
 
@@ -397,16 +381,6 @@ def handler_update(f, **kwargs):
             (f, args, tuple(ret), chm, prev.get_score() + w),
             discard,
         )
-
-    return _inner
-
-
-def handler_arg_grad(f, argnums, **kwargs):
-    def _inner(key, tr, args):
-        fn = ArgumentGradients(tr, argnums).transform(f, **kwargs)(key, *args)
-        in_args, _ = jtu.tree_flatten(args)
-        arg_grads, key = fn(key, *in_args)
-        return key, arg_grads
 
     return _inner
 
