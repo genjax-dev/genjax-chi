@@ -33,6 +33,7 @@ from genjax.generative_functions.builtin.builtin_tracetype import (
 from genjax.generative_functions.builtin.handlers import handler_arg_grad
 from genjax.generative_functions.builtin.handlers import handler_choice_grad
 from genjax.generative_functions.builtin.handlers import handler_importance
+from genjax.generative_functions.builtin.handlers import handler_retval_grad
 from genjax.generative_functions.builtin.handlers import handler_simulate
 from genjax.generative_functions.builtin.handlers import handler_update
 
@@ -91,15 +92,20 @@ class BuiltinGenerativeFunction(GenerativeFunction):
 
         return _inner
 
-    def choice_grad(self, key, tr, selected, **kwargs):
+    def choice_grad(self, key, tr, selection, retval_grad, **kwargs):
         assert isinstance(tr, Trace)
-        assert isinstance(selected, Selection)
-        selected, _ = selected.filter(tr)
-        selected = selected.strip_metadata()
-        grad_fn = handler_choice_grad(self.source, **kwargs)
-        grad, key = jax.grad(
-            grad_fn,
-            argnums=2,
-            has_aux=True,
-        )(key, tr, selected)
-        return key, grad
+        assert isinstance(selection, Selection)
+        args = tr.get_args()
+        fn = handler_choice_grad(self.source, key, selection, **kwargs)
+        _, f_vjp, key = jax.vjp(fn, tr, args, has_aux=True)
+        trace_grads, args_grads = f_vjp((1.0, retval_grad))
+        return key, (trace_grads, args_grads)
+
+    def retval_grad(self, key, tr, selection, retval_grad, **kwargs):
+        assert isinstance(tr, Trace)
+        assert isinstance(selection, Selection)
+        args = tr.get_args()
+        fn = handler_retval_grad(self.source, key, selection, **kwargs)
+        _, f_vjp, key = jax.vjp(fn, tr, args, has_aux=True)
+        trace_grads, args_grads = f_vjp(retval_grad)
+        return key, (trace_grads, args_grads)

@@ -21,6 +21,8 @@ These handlers build on top of the CPS/effect handling interpreter
 in `genjax.core`.
 """
 
+
+import jax
 import jax.tree_util as jtu
 
 from genjax.core.datatypes import EmptyChoiceMap
@@ -247,39 +249,51 @@ class ArgumentGradients(Handler):
             return self.score, key
 
 
+# Adjoint root, for choice gradients.
+@jax.custom_vjp
+def choice_pretend_generative_function_call(key, trace, selection, args):
+    return key, (trace.get_score(), trace.get_retval())
+
+
+def choice_pretend_fwd(key, trace, selection, args):
+    ret = choice_pretend_generative_function_call(key, trace, selection, args)
+    key, (w, v) = ret
+    key, sub_key = jax.random.split(key)
+    return (key, (w, v)), (sub_key, trace, selection)
+
+
+def choice_pretend_bwd(res, retval_grad):
+    key, trace, selection = res
+    gen_fn = trace.get_gen_fn()
+    _, (_, v_retval_grad) = retval_grad
+    _, (trace_grads, arg_grads) = gen_fn.choice_grad(
+        key, trace, selection, v_retval_grad
+    )
+    return (None, trace_grads, None, arg_grads)
+
+
+choice_pretend_generative_function_call.defvjp(
+    choice_pretend_fwd, choice_pretend_bwd
+)
+
+
 class ChoiceGradients(Handler):
-    def __init__(self, source, selected):
+    def __init__(self, source, selection):
         self.handles = [
             gen_fn_p,
         ]
         self.source = source
-        self.selected = selected
+        self.selection = selection
         self.score = 0.0
         self.return_or_continue = False
 
     # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
     def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
         args = jtu.tree_unflatten(args_form, args)
-        has_selected = self.selected.has_subtree(addr)
-
-        def _has_selected_branch(key, args):
-            chm = self.selected.get_subtree(addr)
-            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            v = tr.get_retval()
-            return (w, v)
-
-        def _not_selected_branch(key, args):
-            chm = self.source.get_subtree(addr)
-            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            v = tr.get_retval()
-            return (w, v)
-
-        w, v = concrete_cond(
-            has_selected,
-            _has_selected_branch,
-            _not_selected_branch,
-            key,
-            args,
+        sub_selection = self.selection.get_subtree(addr)
+        sub_trace = self.source.get_subtree(addr)
+        key, (w, v) = choice_pretend_generative_function_call(
+            key, sub_trace, sub_selection, args
         )
         self.score += w
 
@@ -287,8 +301,65 @@ class ChoiceGradients(Handler):
             return f(key, *v)
         else:
             self.return_or_continue = True
-            key, *_ = f(key, *v)
-            return self.score, key
+            key, *ret = f(key, *v)
+            return key, ret, self.score
+
+
+# Adjoint root, for retval gradients.
+@jax.custom_vjp
+def retval_pretend_generative_function_call(key, trace, selection, args):
+    return key, trace.get_retval()
+
+
+def retval_pretend_fwd(key, trace, selection, args):
+    ret = retval_pretend_generative_function_call(key, trace, selection, args)
+    key, v = ret
+    key, sub_key = jax.random.split(key)
+    return (key, v), (sub_key, trace, selection)
+
+
+def retval_pretend_bwd(res, retval_grad):
+    key, trace, selection = res
+    gen_fn = trace.get_gen_fn()
+    _, v_retval_grad = retval_grad
+    _, (trace_grads, arg_grads) = gen_fn.retval_grad(
+        key, trace, selection, v_retval_grad
+    )
+    return (None, trace_grads, None, arg_grads)
+
+
+retval_pretend_generative_function_call.defvjp(
+    retval_pretend_fwd, retval_pretend_bwd
+)
+
+
+class RetvalGradients(Handler):
+    def __init__(self, source, selection):
+        self.handles = [
+            gen_fn_p,
+        ]
+        self.source = source
+        self.selection = selection
+        self.return_or_continue = False
+
+    # Handle trace sites -- perform codegen onto the `Jaxpr` trace.
+    def trace(self, f, key, *args, addr, gen_fn, args_form, **kwargs):
+        args = jtu.tree_unflatten(args_form, args)
+        sub_trace = self.source.get_subtree(addr)
+        if self.selection.has_subtree(addr):
+            sub_selection = self.selection.get_subtree(addr)
+            key, v = retval_pretend_generative_function_call(
+                key, sub_trace, sub_selection, args
+            )
+        else:
+            v = sub_trace.get_retval()
+
+        if self.return_or_continue:
+            return f(key, *v)
+        else:
+            self.return_or_continue = True
+            key, *ret = f(key, *v)
+            return key, ret
 
 
 #####
@@ -303,7 +374,7 @@ def handler_simulate(f, **kwargs):
         key, (r, chm, score) = fn(key, *in_args)
         return key, (f, args, tuple(r), chm, score)
 
-    return lambda key, args: _inner(key, args)
+    return _inner
 
 
 def handler_importance(f, **kwargs):
@@ -313,7 +384,7 @@ def handler_importance(f, **kwargs):
         key, (w, r, chm, score) = fn(key, *in_args)
         return key, (w, (f, args, tuple(r), chm, score))
 
-    return lambda key, chm, args: _inner(key, chm, args)
+    return _inner
 
 
 def handler_update(f, **kwargs):
@@ -327,7 +398,7 @@ def handler_update(f, **kwargs):
             discard,
         )
 
-    return lambda key, prev, new, args: _inner(key, prev, new, args)
+    return _inner
 
 
 def handler_arg_grad(f, argnums, **kwargs):
@@ -337,15 +408,26 @@ def handler_arg_grad(f, argnums, **kwargs):
         arg_grads, key = fn(key, *in_args)
         return key, arg_grads
 
-    return lambda key, tr, args: _inner(key, tr, args)
+    return _inner
 
 
-def handler_choice_grad(f, **kwargs):
-    def _inner(key, tr, selected):
-        args = tr.get_args()
-        fn = ChoiceGradients(tr, selected).transform(f, **kwargs)(key, *args)
+def handler_choice_grad(f, key, selection, **kwargs):
+    def _inner(tr, args):
+        handler = ChoiceGradients(tr, selection).transform(f, **kwargs)
+        fn = handler(key, *args)
         in_args, _ = jtu.tree_flatten(args)
-        key, score = fn(key, *in_args)
-        return key, score
+        new_key, v, score = fn(key, *in_args)
+        return (score, tuple(v)), new_key
 
-    return lambda key, tr, selected: _inner(key, tr, selected)
+    return _inner
+
+
+def handler_retval_grad(f, key, selection, **kwargs):
+    def _inner(tr, args):
+        handler = RetvalGradients(tr, selection).transform(f, **kwargs)
+        fn = handler(key, *args)
+        in_args, _ = jtu.tree_flatten(args)
+        new_key, ret = fn(key, *in_args)
+        return tuple(ret), new_key
+
+    return _inner

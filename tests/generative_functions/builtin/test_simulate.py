@@ -28,14 +28,11 @@ def simple_normal(key):
     return key, y1 + y2
 
 
-class TestImportance:
-    def test_simple_normal_importance(self, benchmark):
-        jitted = jax.jit(genjax.importance(simple_normal))
-        chm = genjax.ChoiceMap.new({("y1",): 0.5, ("y2",): 0.5})
-        new_key, (w, tr) = benchmark(jitted, key, chm, ())
-        out = tr.get_choices()
-        y1 = chm[("y1",)]
-        y2 = chm[("y2",)]
+class TestSimulate:
+    def test_simple_normal_simulate(self):
+        fn = genjax.simulate(simple_normal)
+        new_key, tr = fn(key, ())
+        chm = tr.get_choices()
         _, (score1, _) = genjax.Normal.importance(
             key, chm.get_subtree("y1"), (0.0, 1.0)
         )
@@ -43,6 +40,4 @@ class TestImportance:
             key, chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert y1 == out[("y1",)]
-        assert y2 == out[("y2",)]
         assert tr.get_score() == pytest.approx(test_score, 0.01)

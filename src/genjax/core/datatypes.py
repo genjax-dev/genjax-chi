@@ -75,10 +75,10 @@ class GenerativeFunction(Pytree):
         pass
 
     def arg_grad(self, key, tr, args, argnums):
-        pass
+        raise Exception("Not implemented.")
 
-    def choice_grad(self, key, tr, chm, args):
-        pass
+    def choice_grad(self, key, tr, selection, retval_grad):
+        raise Exception("Not implemented.")
 
 
 #####
