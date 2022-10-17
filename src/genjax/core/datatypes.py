@@ -77,6 +77,13 @@ class GenerativeFunction(Pytree):
     def update(self, key, original, new, args):
         pass
 
+    def choice_grad(self, key, tr, selection, retval_grad):
+        key, choice_vjp = self.choice_vjp(key, tr, selection)
+        trace_grads, arg_grads = choice_vjp(retval_grad)
+        trace_grads, _ = selection.filter(trace_grads)
+        trace_grads = trace_grads.strip_metadata()
+        return key, trace_grads, arg_grads
+
     def choice_vjp(
         self, key, tr, selection
     ) -> Tuple[jax.random.PRNGKey, Callable]:

@@ -57,7 +57,9 @@ def _metropolis_adjusted_langevin_algorithm(selection: Selection, tau):
         std = jnp.sqrt(2 * tau)
 
         # Forward proposal.
-        key, forward_gradient_trie = gen_fn.choice_grad(key, trace, selection)
+        key, forward_gradient_trie, _ = gen_fn.choice_grad(
+            key, trace, selection
+        )
         forward_values, _ = selection.filter(trace)
         forward_values = forward_values.strip_metadata()
         forward_mu = jtu.tree_map(
@@ -78,7 +80,7 @@ def _metropolis_adjusted_langevin_algorithm(selection: Selection, tau):
         )
 
         # Backward proposal.
-        key, backward_gradient_trie = gen_fn.choice_grad(
+        key, backward_gradient_trie, _ = gen_fn.choice_grad(
             key, new_trace, selection
         )
         backward_mu = jtu.tree_map(
