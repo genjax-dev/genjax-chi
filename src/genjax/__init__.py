@@ -77,15 +77,15 @@ def gen(callable, **kwargs):
 #####
 
 
-def go_pretty():
+def go_pretty(show_locals=False, max_frames=10):
     import rich.traceback as traceback
     from rich import pretty
     from rich.console import Console
 
     pretty.install()
     traceback.install(
-        show_locals=True,
-        max_frames=5,
+        show_locals=show_locals,
+        max_frames=max_frames,
     )
 
     return Console()

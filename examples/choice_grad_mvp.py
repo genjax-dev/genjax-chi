@@ -1,4 +1,5 @@
 import jax
+import jax.numpy as jnp
 
 import genjax
 
@@ -25,13 +26,12 @@ def sub(key, m0, x):
 def fn(key, x):
     key, m0 = genjax.trace("m0", genjax.Normal)(key, (x, 1.0))
     key, m_inner = genjax.trace("m", sub)(key, (m0, x))
-    return key, m_inner
+    return key, jnp.array([m_inner, m_inner**2, m_inner**3])
 
 
 key = jax.random.PRNGKey(314159)
 select = genjax.Selection([("m", "m")])
 key, tr = fn.simulate(key, (0.0,))
 
-key, (trace_grads, arg_grads) = fn.retval_grad(key, tr, select, (1.0,))
-console.print(arg_grads)
-console.print(trace_grads["m", "m"])
+key, trace_grads, arg_grads = fn.retval_jacrev(key, tr, select)
+print(trace_grads["m", "m"])

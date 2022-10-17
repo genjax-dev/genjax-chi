@@ -15,10 +15,13 @@
 import abc
 from dataclasses import dataclass
 from typing import Any
+from typing import Callable
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 from rich.tree import Tree
@@ -74,11 +77,35 @@ class GenerativeFunction(Pytree):
     def update(self, key, original, new, args):
         pass
 
-    def arg_grad(self, key, tr, args, argnums):
+    def choice_vjp(
+        self, key, tr, selection
+    ) -> Tuple[jax.random.PRNGKey, Callable]:
         raise Exception("Not implemented.")
 
-    def choice_grad(self, key, tr, selection, retval_grad):
+    def retval_vjp(
+        self, key, tr, selection
+    ) -> Tuple[jax.random.PRNGKey, Callable]:
         raise Exception("Not implemented.")
+
+    def retval_jacrev(self, key, tr, selection, **kwargs):
+        key, retval_vjp = self.retval_vjp(key, tr, selection)
+        retval = tr.get_retval()
+        retval_axis_trie = jtu.tree_map(
+            lambda v: 0
+            if isinstance(v, jnp.ndarray) and v.shape != ()
+            else None,
+            retval,
+        )
+        retval_eye = jtu.tree_map(
+            lambda v: jnp.eye(len(v))
+            if isinstance(v, jnp.ndarray) and v.shape != ()
+            else v,
+            retval,
+        )
+        trace_grads, arg_grads = jax.vmap(
+            retval_vjp, in_axes=(retval_axis_trie,)
+        )(retval_eye)
+        return key, trace_grads, arg_grads
 
 
 #####
