@@ -27,6 +27,7 @@ import jax
 from genjax.core.datatypes import AllSelection
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
+from genjax.core.datatypes import NoneSelection
 from genjax.core.datatypes import Trace
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.masks import BooleanMask
@@ -134,6 +135,38 @@ class Distribution(GenerativeFunction):
             w,
             DistributionTrace(self, args, ValueChoiceMap(v), score),
         )
+
+    def choice_grad(self, key, tr, selection, retval_grad):
+        if isinstance(selection, NoneSelection):
+            return key, (None, None)
+
+        gen_fn = tr.get_gen_fn()
+        args = tr.get_args()
+
+        def _inner(key, tr, args):
+            key, (w, new) = gen_fn.importance(key, tr.get_choices(), args)
+            v = new.get_retval()
+            return (w, v), key
+
+        _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
+        key, trace_grads, arg_grads = f_vjp((1.0, retval_grad))
+        return key, (trace_grads, arg_grads)
+
+    def retval_grad(self, key, tr, selection, retval_grad):
+        if isinstance(selection, NoneSelection):
+            return key, (None, None)
+
+        gen_fn = tr.get_gen_fn()
+        args = tr.get_args()
+
+        def _inner(key, tr, args):
+            _, (_, new) = gen_fn.importance(key, tr.get_choices(), args)
+            v = new.get_retval()
+            return v, key
+
+        _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
+        key, trace_grads, arg_grads = f_vjp(retval_grad)
+        return key, (trace_grads, arg_grads)
 
     @BooleanMask.collapse_boundary
     def update(self, key, prev, new, args, **kwargs):
