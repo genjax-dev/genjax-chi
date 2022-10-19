@@ -1551,7 +1551,7 @@ tfds = ["tensorflow-datasets (>=2.2.0)"]
 
 [[package]]
 name = "tinycss2"
-version = "1.2.0"
+version = "1.2.1"
 description = "A tiny CSS parser"
 category = "dev"
 optional = false
@@ -2877,8 +2877,8 @@ tensorflow-probability = [
     {file = "tensorflow_probability-0.18.0-py2.py3-none-any.whl", hash = "sha256:80d57e7792c78586f12255ab4a7c359b7e86bc06d487fd629119d9e650624a18"},
 ]
 tinycss2 = [
-    {file = "tinycss2-1.2.0-py3-none-any.whl", hash = "sha256:9f16c0a652838606c50b1b660c2021df608d9f7ec5a21673d8a35b0dad1b1718"},
-    {file = "tinycss2-1.2.0.tar.gz", hash = "sha256:b0e04b0d8682c96dabca57654d3650c2d79f8bd0f1a6fc57b0939598ec3f4f5e"},
+    {file = "tinycss2-1.2.1-py3-none-any.whl", hash = "sha256:2b80a96d41e7c3914b8cda8bc7f705a4d9c49275616e886103dd839dfc847847"},
+    {file = "tinycss2-1.2.1.tar.gz", hash = "sha256:8cff3a8f066c2ec677c06dbc7b45619804a6938478d9d73c284b29d14ecb0627"},
 ]
 tinygp = [
     {file = "tinygp-0.2.2-py3-none-any.whl", hash = "sha256:415c18dd9081861e3264d0a3ddf7a9042fba27e69c21e8f6ff39150aa620659e"},
