@@ -611,7 +611,7 @@ scipy = ">=1.5"
 
 [[package]]
 name = "jaxopt"
-version = "0.5"
+version = "0.5.5"
 description = "Hardware accelerated, batchable and differentiable optimizers in JAX."
 category = "main"
 optional = false
@@ -2159,8 +2159,8 @@ jaxlib = [
     {file = "jaxlib-0.3.22-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:eecad425ae6a1889ef92bba2b92af1070fcc7fbd2d4c8c7976b8393476ff1629"},
 ]
 jaxopt = [
-    {file = "jaxopt-0.5-py3-none-any.whl", hash = "sha256:f27b82562db82943e2f023e088daf806bfc1b2e2f225ed857e88f3958824b56d"},
-    {file = "jaxopt-0.5.tar.gz", hash = "sha256:9d48c30c78285ec5beea0264bb21fa69bbf9b82354136f0aaab0f956f82dd797"},
+    {file = "jaxopt-0.5.5-py3-none-any.whl", hash = "sha256:bf0265913f6ee55c7216f12dffeabd38a6f43fd186035a050863d0996b0506fe"},
+    {file = "jaxopt-0.5.5.tar.gz", hash = "sha256:1131fdb8da6d4ee45e7224bc1e3bc84ad60db02cddfce40eda1be9aa9f6ab937"},
 ]
 jedi = [
     {file = "jedi-0.18.1-py2.py3-none-any.whl", hash = "sha256:637c9635fcf47945ceb91cd7f320234a7be540ded6f3e99a50cb6febdfd1ba8d"},
