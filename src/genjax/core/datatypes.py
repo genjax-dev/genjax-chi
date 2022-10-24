@@ -31,88 +31,7 @@ from genjax.core.choice_tree import ChoiceTree
 from genjax.core.pytree import Pytree
 from genjax.core.pytree import squeeze
 from genjax.core.tracetypes import Bottom
-
-
-#####
-# GenerativeFunction
-#####
-
-
-@dataclass
-class GenerativeFunction(Pytree):
-    """
-    :code:`GenerativeFunction` abstract class which allows user-defined
-    implementations of the generative function interface methods.
-    The :code:`builtin` and :code:`distributions` languages both
-    implement a class inheritor of :code:`GenerativeFunction`.
-
-    Any implementation will interact with the JAX tracing machinery,
-    however, so there are specific API requirements above the requirements
-    enforced in other languages (like Gen in Julia). In particular,
-    any implementation must provide a :code:`__call__` method so that
-    JAX can correctly determine output shapes.
-
-    The user *must* match the interface signatures of the native JAX
-    implementation. This is not statically checked - but failure to do so
-    will lead to unintended behavior or errors.
-
-    To support argument and choice gradients via JAX, the user must
-    provide a differentiable `importance` implementation.
-    """
-
-    @abc.abstractmethod
-    def __call__(self, key, *args):
-        pass
-
-    def get_trace_type(self, key, args, **kwargs):
-        shape = kwargs.get("shape", ())
-        return Bottom(shape)
-
-    def simulate(self, key, args):
-        pass
-
-    def importance(self, key, chm, args):
-        pass
-
-    def update(self, key, original, new, args):
-        pass
-
-    def choice_grad(self, key, tr, selection, retval_grad):
-        key, choice_vjp = self.choice_vjp(key, tr, selection)
-        trace_grads, arg_grads = choice_vjp(retval_grad)
-        trace_grads, _ = selection.filter(trace_grads)
-        trace_grads = trace_grads.strip_metadata()
-        return key, trace_grads, arg_grads
-
-    def choice_vjp(
-        self, key, tr, selection
-    ) -> Tuple[jax.random.PRNGKey, Callable]:
-        raise Exception("Not implemented.")
-
-    def retval_vjp(
-        self, key, tr, selection
-    ) -> Tuple[jax.random.PRNGKey, Callable]:
-        raise Exception("Not implemented.")
-
-    def retval_jacrev(self, key, tr, selection, **kwargs):
-        key, retval_vjp = self.retval_vjp(key, tr, selection)
-        retval = tr.get_retval()
-        retval_axis_trie = jtu.tree_map(
-            lambda v: 0
-            if isinstance(v, jnp.ndarray) and v.shape != ()
-            else None,
-            retval,
-        )
-        retval_eye = jtu.tree_map(
-            lambda v: jnp.eye(len(v))
-            if isinstance(v, jnp.ndarray) and v.shape != ()
-            else v,
-            retval,
-        )
-        trace_grads, arg_grads = jax.vmap(
-            retval_vjp, in_axes=(retval_axis_trie,)
-        )(retval_eye)
-        return key, trace_grads, arg_grads
+from genjax.core.tracetypes import TraceType
 
 
 #####
@@ -237,6 +156,138 @@ class ChoiceMap(ChoiceTree):
             return choice
 
 
+#####
+# Selection
+#####
+
+
+@dataclass
+class Selection(ChoiceTree):
+    @abc.abstractmethod
+    def filter(self, chm):
+        pass
+
+    @abc.abstractmethod
+    def complement(self):
+        pass
+
+    def get_selection(self):
+        return self
+
+
+#####
+# GenerativeFunction
+#####
+
+
+@dataclass
+class GenerativeFunction(Pytree):
+    """
+    :code:`GenerativeFunction` abstract class which allows user-defined
+    implementations of the generative function interface methods.
+    The :code:`builtin` and :code:`distributions` languages both
+    implement a class inheritor of :code:`GenerativeFunction`.
+
+    Any implementation will interact with the JAX tracing machinery,
+    however, so there are specific API requirements above the requirements
+    enforced in other languages (like Gen in Julia). In particular,
+    any implementation must provide a :code:`__call__` method so that
+    JAX can correctly determine output shapes.
+
+    The user *must* match the interface signatures of the native JAX
+    implementation. This is not statically checked - but failure to do so
+    will lead to unintended behavior or errors.
+
+    To support argument and choice gradients via JAX, the user must
+    provide a differentiable `importance` implementation.
+    """
+
+    @abc.abstractmethod
+    def __call__(self, key: jax.random.PRNGKey, *args):
+        pass
+
+    def get_trace_type(
+        self,
+        key: jax.random.PRNGKey,
+        args: Tuple,
+        **kwargs,
+    ) -> TraceType:
+        shape = kwargs.get("shape", ())
+        return Bottom(shape)
+
+    def simulate(
+        self,
+        key: jax.random.PRNGKey,
+        args: Tuple,
+    ) -> Tuple[jax.random.PRNGKey, Trace]:
+        pass
+
+    def importance(
+        self,
+        key: jax.random.PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[jax.random.PRNGKey, Tuple[float, Trace]]:
+        pass
+
+    def update(self, key, original, new, args):
+        pass
+
+    def choice_grad(self, key, tr, selection, retval_grad):
+        key, choice_vjp = self.choice_vjp(key, tr, selection)
+        trace_grads, arg_grads = choice_vjp(retval_grad)
+        trace_grads, _ = selection.filter(trace_grads)
+        trace_grads = trace_grads.strip_metadata()
+        return key, trace_grads, arg_grads
+
+    def choice_vjp(
+        self,
+        key: jax.random.PRNGKey,
+        tr: Trace,
+        selection: Selection,
+    ) -> Tuple[jax.random.PRNGKey, Callable]:
+        raise Exception("Not implemented.")
+
+    def retval_vjp(
+        self,
+        key: jax.random.PRNGKey,
+        tr: Trace,
+        selection: Selection,
+    ) -> Tuple[jax.random.PRNGKey, Callable]:
+        raise Exception("Not implemented.")
+
+    def retval_jacrev(
+        self,
+        key: jax.random.PRNGKey,
+        tr: Trace,
+        selection: Selection,
+        **kwargs,
+    ) -> Tuple[jax.random.PRNGKey, Trace, Tuple]:
+        key, retval_vjp = self.retval_vjp(key, tr, selection)
+        retval = tr.get_retval()
+        retval_axis_trie = jtu.tree_map(
+            lambda v: 0
+            if isinstance(v, jnp.ndarray) and v.shape != ()
+            else None,
+            retval,
+        )
+        retval_eye = jtu.tree_map(
+            lambda v: jnp.eye(len(v))
+            if isinstance(v, jnp.ndarray) and v.shape != ()
+            else v,
+            retval,
+        )
+        trace_grads, arg_grads = jax.vmap(
+            retval_vjp, in_axes=(retval_axis_trie,)
+        )(retval_eye)
+        return key, trace_grads, arg_grads
+
+
+#####
+# Concrete choice maps
+#####
+
+
 @dataclass
 class EmptyChoiceMap(ChoiceMap):
     def flatten(self):
@@ -316,22 +367,8 @@ class ValueChoiceMap(ChoiceMap):
 
 
 #####
-# Selection
+# Concrete selections
 #####
-
-
-@dataclass
-class Selection(ChoiceTree):
-    @abc.abstractmethod
-    def filter(self, chm):
-        pass
-
-    @abc.abstractmethod
-    def complement(self):
-        pass
-
-    def get_selection(self):
-        return self
 
 
 @dataclass

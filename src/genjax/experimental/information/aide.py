@@ -27,24 +27,37 @@ from genjax.core.datatypes import GenerativeFunction
 
 
 def estimate_log_ratio(
-    p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int
+    p: GenerativeFunction,
+    q: GenerativeFunction,
+    mp: int,
+    mq: int,
 ):
     def _inner(key, p_args: Tuple, q_args: Tuple):
+
+        # Inner functions -- to be mapped over.
+        # Keys are folded in, for working memory.
+        def _inner_p(key, index, chm, args):
+            new_key = jax.random.fold_in(key, index)
+            _, (w, _) = p.importance(new_key, chm, args)
+            return w
+
+        def _inner_q(key, index, chm, args):
+            new_key = jax.random.fold_in(key, index)
+            _, (w, _) = q.importance(new_key, chm, args)
+            return w
+
+        key_indices_p = jnp.arange(0, mp + 1)
+        key_indices_q = jnp.arange(0, mq + 1)
+
         key, tr = p.simulate(key, p_args)
         chm = tr.get_choices().strip_metadata()
-        key, *sub_keys = jax.random.split(key, mp + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (fwd_weights, _) = jax.vmap(p.importance, in_axes=(0, None, None))(
-            sub_keys,
-            chm,
-            p_args,
+        key, sub_key = jax.random.split(key)
+        fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
+            sub_key, key_indices_p, chm, p_args
         )
-        key, *sub_keys = jax.random.split(key, mq + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (bwd_weights, _) = jax.vmap(q.importance, in_axes=(0, None, None))(
-            sub_keys,
-            chm,
-            q_args,
+        key, sub_key = jax.random.split(key)
+        bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
+            sub_key, key_indices_q, chm, q_args
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(mp)
         bwd_weight = logsumexp(bwd_weights) - jnp.log(mq)
@@ -54,7 +67,10 @@ def estimate_log_ratio(
 
 
 def auxiliary_inference_divergence_estimator(
-    p: GenerativeFunction, q: GenerativeFunction, mp: int, mq: int
+    p: GenerativeFunction,
+    q: GenerativeFunction,
+    mp: int,
+    mq: int,
 ):
     def _inner(key, p_args, q_args):
         key, logpq = estimate_log_ratio(p, q, mp, mq)(key, p_args, q_args)

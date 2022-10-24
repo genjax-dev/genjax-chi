@@ -44,6 +44,12 @@ probabilistic programming library built by combining the conceptual framework fo
 </div>
 """
 
+import inspect
+
+import rich.traceback as traceback
+from rich import pretty
+from rich.console import Console
+
 from .core import *
 from .experimental import *
 from .generative_functions import *
@@ -59,10 +65,8 @@ Selection = BuiltinSelection
 # Decorator
 #####
 
-import inspect
 
-
-def gen(callable, **kwargs):
+def gen(callable: Callable, **kwargs) -> GenerativeFunction:
     if inspect.isclass(callable):
         return lambda source: callable(
             BuiltinGenerativeFunction(source),
@@ -78,10 +82,6 @@ def gen(callable, **kwargs):
 
 
 def go_pretty(show_locals=False, max_frames=10):
-    import rich.traceback as traceback
-    from rich import pretty
-    from rich.console import Console
-
     pretty.install()
     traceback.install(
         show_locals=show_locals,
