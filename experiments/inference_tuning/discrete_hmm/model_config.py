@@ -17,11 +17,6 @@ import jax.numpy as jnp
 import genjax
 
 
-#####
-# No prior model
-#####
-
-
 @genjax.gen
 def kernel_step(key, prev, transition_t, observation_t):
     trow = transition_t[prev, :]

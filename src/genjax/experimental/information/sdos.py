@@ -37,7 +37,22 @@ def estimate_log_ratio(
     mq: int,
 ):
     def _inner(key, p_args: Tuple):
+
+        # Inner functions -- to be mapped over.
+        # Keys are folded in, for working memory.
+        def _inner_p(key, index, chm, args):
+            new_key = jax.random.fold_in(key, index)
+            _, (w, _) = p.importance(new_key, chm, args)
+            return w
+
+        def _inner_q(key, index, chm, args):
+            new_key = jax.random.fold_in(key, index)
+            _, (w, _) = q.importance(new_key, chm, args)
+            return w
+
         obs_target = inf_selection.complement()
+        key_indices_p = jnp.arange(0, mp + 1)
+        key_indices_q = jnp.arange(0, mq + 1)
 
         # (x, z) ~ p, log p(z, x) / q(z | x)
         key, tr = p.simulate(key, p_args)
@@ -50,12 +65,9 @@ def estimate_log_ratio(
         )
 
         # Compute estimate of log p(z, x)
-        key, *sub_keys = jax.random.split(key, mp + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (fwd_weights, _) = jax.vmap(p.importance, in_axes=(0, None, None))(
-            sub_keys,
-            chm,
-            p_args,
+        key, sub_key = jax.random.split(key)
+        fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
+            sub_key, key_indices_p, chm, p_args
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(mp)
 
@@ -63,12 +75,9 @@ def estimate_log_ratio(
         constraints = obs_chm
         target = prox.Target(p, None, p_args, constraints)
         latent_chm = ValueChoiceMap.new(latent_chm)
-        key, *sub_keys = jax.random.split(key, mq + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (bwd_weights, _) = jax.vmap(q.importance, in_axes=(0, None, None))(
-            sub_keys,
-            latent_chm,
-            (target,),
+        key, sub_key = jax.random.split(key)
+        bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
+            sub_key, key_indices_q, latent_chm, (target,)
         )
         bwd_weight = logsumexp(bwd_weights) - jnp.log(mq)
 
@@ -80,24 +89,19 @@ def estimate_log_ratio(
         (inf_chm,) = inftr.get_retval()
 
         # Compute estimate of log p(z', x)
-        key, *sub_keys = jax.random.split(key, mp + 1)
+        key, sub_keys = jax.random.split(key)
         merged = obs_chm.merge(inf_chm)
         sub_keys = jnp.array(sub_keys)
-        _, (fwd_weights, _) = jax.vmap(p.importance, in_axes=(0, None, None))(
-            sub_keys,
-            merged,
-            p_args,
+        fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
+            sub_key, key_indices_p, merged, p_args
         )
         fwd_weight_p = logsumexp(fwd_weights) - jnp.log(mp)
 
         # Compute estimate of log q(z' | x)
         inf_chm = inftr.get_choices()
-        key, *sub_keys = jax.random.split(key, mq + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (bwd_weights, _) = jax.vmap(q.importance, in_axes=(0, None, None))(
-            sub_keys,
-            inf_chm,
-            (target,),
+        key, sub_key = jax.random.split(key)
+        bwd_weights = jax.vmap(q.importance, in_axes=(None, 0, None, None))(
+            sub_key, key_indices_q, inf_chm, (target,)
         )
         bwd_weight_p = logsumexp(bwd_weights) - jnp.log(mq)
 
