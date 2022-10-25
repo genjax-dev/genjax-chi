@@ -15,3 +15,4 @@
 from .builtin import *
 from .combinators import *
 from .distributions import *
+from .exact_posteriors import *

@@ -266,9 +266,7 @@ class SwitchCombinator(GenerativeFunction):
         )
 
     def _update(self, branch_gen_fn, key, prev, new, args):
-        discard_option = BooleanMask.new(
-            True, prev.strip_metadata()
-        ).leaf_push()
+        discard_option = BooleanMask.new(True, prev.strip()).leaf_push()
         concrete_branch_index = list(self.branches.keys())[
             list(self.branches.values()).index(branch_gen_fn)
         ]

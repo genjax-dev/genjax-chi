@@ -31,7 +31,7 @@ def entropy_lower_bound(
     def _inner(key, model_args):
         key, tr = model.simulate(key, model_args)
         obs_targets = targets.complement()
-        observations, _ = obs_targets.filter(tr.get_choices().strip_metadata())
+        observations, _ = obs_targets.filter(tr.get_choices().strip())
         target = prox.Target(model, None, model_args, observations)
         key, *sub_keys = jax.random.split(key, M + 1)
         sub_keys = jnp.array(sub_keys)
@@ -64,7 +64,7 @@ def entropy_upper_bound(
     def _inner(key, model_args):
         key, tr = model.simulate(key, model_args)
         log_p = tr.get_score()
-        chm = tr.get_choices().strip_metadata()
+        chm = tr.get_choices().strip()
         latents, _ = targets.filter(chm)
         observations, _ = targets.complement().filter(chm)
         target = prox.Target(model, None, model_args, observations)

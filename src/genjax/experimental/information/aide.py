@@ -50,7 +50,7 @@ def estimate_log_ratio(
         key_indices_q = jnp.arange(0, mq + 1)
 
         key, tr = p.simulate(key, p_args)
-        chm = tr.get_choices().strip_metadata()
+        chm = tr.get_choices().strip()
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
             sub_key, key_indices_p, chm, p_args

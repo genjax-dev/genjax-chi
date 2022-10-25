@@ -198,7 +198,7 @@ def run_aide_experiment(key):
         key, tr = genjax.simulate(hidden_markov_model)(
             key, (num_steps, config)
         )
-        chm = tr.get_choices().strip_metadata()
+        chm = tr.get_choices().strip()
         observations = chm["z", "observation"]
         logprob = genjax.DiscreteHMM.data_logpdf(config, observations)
         chm, _ = selection.filter(chm)
@@ -291,7 +291,7 @@ def run_hmm_quad_plot(key, gold_standard, config):
         key, tr = genjax.simulate(hidden_markov_model)(
             key, (num_steps, config)
         )
-        chm = tr.get_choices().strip_metadata()
+        chm = tr.get_choices().strip()
         observations = chm["z", "observation"]
         logprob = genjax.DiscreteHMM.data_logpdf(config, observations)
         filtered, _ = selection.filter(chm)

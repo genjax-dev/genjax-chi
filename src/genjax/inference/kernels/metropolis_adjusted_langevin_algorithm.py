@@ -61,7 +61,7 @@ def _metropolis_adjusted_langevin_algorithm(selection: Selection, tau):
             key, trace, selection
         )
         forward_values, _ = selection.filter(trace)
-        forward_values = forward_values.strip_metadata()
+        forward_values = forward_values.strip()
         forward_mu = jtu.tree_map(
             lambda v1, v2: v1 + tau * v2, forward_values, forward_gradient_trie
         )
