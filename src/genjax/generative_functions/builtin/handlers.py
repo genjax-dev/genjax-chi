@@ -263,8 +263,10 @@ class ChoiceGradients(Handler):
                 key, sub_trace, sub_selection, args
             )
         else:
+            key, (w, sub_trace) = gen_fn.importance(
+                key, sub_trace.get_choices(), args
+            )
             v = sub_trace.get_retval()
-            w = sub_trace.get_score()
 
         self.score += w
         if self.return_or_continue:
