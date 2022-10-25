@@ -1,5 +1,4 @@
 import jax
-import jax.numpy as jnp
 
 import genjax
 
@@ -17,24 +16,20 @@ console = genjax.go_pretty()
 
 
 @genjax.gen
-def sub(key, m0, x):
-    key, m_inner = genjax.trace("m", genjax.Normal)(key, (m0 + x, 1.0))
-    return key, m_inner
-
-
-@genjax.gen
-def fn(key, x):
-    key, m0 = genjax.trace("m0", genjax.Normal)(key, (x, 1.0))
-    key, m_inner = genjax.trace("m", sub)(key, (m0, x))
-    return key, (m_inner, jnp.array([m_inner, m_inner**2, m_inner**3]))
+def model(
+    key,
+):
+    key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
+    key, y = genjax.trace("y", genjax.Normal)(key, (x, 0.2))
+    return (key,)
 
 
 key = jax.random.PRNGKey(314159)
-select = genjax.Selection([("m", "m")])
-key, tr = fn.simulate(key, (0.0,))
+select = genjax.Selection([("x",)])
+choices = genjax.ChoiceMap.new({("y",): 0.5})
+key, (_, tr) = jax.jit(model.importance)(key, choices, ())
 
-key, trace_grads, arg_grads = fn.choice_grad(
-    key, tr, select, (2.0, jnp.array([1.0, 1.0, 1.0]))
-)
-console.print(trace_grads["m", "m"])
+key, trace_grads, arg_grads = model.choice_grad(key, tr, select, ())
+console.print(tr["x"])
+console.print(trace_grads["x"])
 console.print(arg_grads)
