@@ -89,7 +89,7 @@ class TestUpdateSimpleLinkedNormal:
         new_key, (w, updated, discard) = benchmark(
             jitted, new_key, tr, new, ()
         )
-        updated_chm = updated.get_choices().strip_metadata()
+        updated_chm = updated.get_choices().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2"]
         y3 = updated_chm["y3"]

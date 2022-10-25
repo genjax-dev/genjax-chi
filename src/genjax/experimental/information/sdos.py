@@ -56,12 +56,12 @@ def estimate_log_ratio(
 
         # (x, z) ~ p, log p(z, x) / q(z | x)
         key, tr = p.simulate(key, p_args)
-        chm = tr.get_choices().strip_metadata()
+        chm = tr.get_choices().strip()
         latent_chm, _ = inf_selection.filter(chm)
         obs_chm, _ = obs_target.filter(chm)
         (latent_chm, obs_chm) = (
-            latent_chm.strip_metadata(),
-            obs_chm.strip_metadata(),
+            latent_chm.strip(),
+            obs_chm.strip(),
         )
 
         # Compute estimate of log p(z, x)

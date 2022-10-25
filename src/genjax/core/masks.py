@@ -27,10 +27,10 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
+from genjax.core.choice_tree import ChoiceTree
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import Trace
-from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.pytree import squeeze
 from genjax.core.specialization import is_concrete
 
@@ -40,18 +40,52 @@ Int32 = Union[jnp.int32, np.int32]
 
 
 @dataclass
-class BooleanMask(ChoiceMap):
-    mask: Bool
-    inner: Union[Trace, ChoiceMap]
-
+class Mask(ChoiceMap):
     @classmethod
     def new(cls, mask, inner):
-        if isinstance(inner, BooleanMask):
-            return BooleanMask.new(mask, inner.inner)
+        if isinstance(inner, cls):
+            return cls.new(mask, inner.inner)
         elif isinstance(inner, EmptyChoiceMap):
             return inner
         else:
-            return BooleanMask(mask, inner)
+            return cls(mask, inner)
+
+    @classmethod
+    def collapse_boundary(cls, fn):
+        def _inner(self, key, *args, **kwargs):
+            args = cls.collapse(args)
+            args = tuple(
+                map(
+                    lambda v: v.leaf_push() if isinstance(v, cls) else v,
+                    args,
+                )
+            )
+            return fn(self, key, *args, **kwargs)
+
+        return _inner
+
+    @classmethod
+    def canonicalize(cls, fn):
+        def __inner(v):
+            if isinstance(v, cls):
+                return cls.new(jnp.all(v.mask), v.inner)
+            else:
+                return v
+
+        def _check(v):
+            return isinstance(v, cls)
+
+        def _inner(self, key, *args, **kwargs):
+            ret = fn(self, key, *args, **kwargs)
+            return jtu.tree_map(__inner, ret, is_leaf=_check)
+
+        return _inner
+
+
+@dataclass
+class BooleanMask(Mask):
+    mask: Bool
+    inner: Union[Trace, ChoiceMap]
 
     def flatten(self):
         return (self.mask, self.inner), ()
@@ -91,18 +125,6 @@ class BooleanMask(ChoiceMap):
             return BooleanMask(other.mask, pushed.inner.merge(other.inner))
         return pushed.merge(other)
 
-    def leaf_push(self):
-        def _check(v):
-            return isinstance(v, ValueChoiceMap) or isinstance(v, BooleanMask)
-
-        return jtu.tree_map(
-            lambda v: BooleanMask.new(self.mask, v)
-            if isinstance(v, ValueChoiceMap) or isinstance(v, BooleanMask)
-            else v,
-            self.inner,
-            is_leaf=_check,
-        )
-
     def get_retval(self):
         return self.inner.get_retval()
 
@@ -112,8 +134,15 @@ class BooleanMask(ChoiceMap):
     def get_choices(self):
         return BooleanMask(self.mask, self.inner.get_choices())
 
-    def strip_metadata(self):
-        return BooleanMask(self.mask, self.inner.strip_metadata())
+    def strip(self):
+        return BooleanMask(self.mask, self.inner.strip())
+
+    def leaf_push(self):
+        return jtu.tree_map(
+            lambda v: BooleanMask.new(self.mask, v),
+            self.inner,
+            is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
+        )
 
     @classmethod
     def collapse(cls, v):
@@ -134,39 +163,6 @@ class BooleanMask(ChoiceMap):
         else:
             return v
 
-    @classmethod
-    def collapse_boundary(cls, fn):
-        def _inner(self, key, *args, **kwargs):
-            args = BooleanMask.collapse(args)
-            args = tuple(
-                map(
-                    lambda v: v.leaf_push()
-                    if isinstance(v, BooleanMask)
-                    else v,
-                    args,
-                )
-            )
-            return fn(self, key, *args, **kwargs)
-
-        return _inner
-
-    @classmethod
-    def canonicalize(cls, fn):
-        def __inner(v):
-            if isinstance(v, BooleanMask):
-                return BooleanMask.new(jnp.all(v.mask), v.inner)
-            else:
-                return v
-
-        def _check(v):
-            return isinstance(v, BooleanMask)
-
-        def _inner(self, key, *args, **kwargs):
-            ret = fn(self, key, *args, **kwargs)
-            return jtu.tree_map(__inner, ret, is_leaf=_check)
-
-        return _inner
-
     def __hash__(self):
         hash1 = hash(self.inner)
         hash2 = hash(self.mask)
@@ -174,18 +170,9 @@ class BooleanMask(ChoiceMap):
 
 
 @dataclass
-class IndexMask(ChoiceMap):
+class IndexMask(Mask):
     index: Int32
-    inner: Union[Trace, ChoiceMap]
-
-    def __init__(self, index, inner):
-        if isinstance(inner, IndexMask):
-            self.inner = inner.inner
-        elif isinstance(inner, EmptyChoiceMap):
-            return inner
-        else:
-            self.inner = inner
-        self.index = index
+    inner: Union[Trace, ChoiceTree]
 
     def flatten(self):
         return (self.index, self.inner), ()
@@ -197,7 +184,7 @@ class IndexMask(ChoiceMap):
         return self.inner.has_subtree(addr)
 
     def get_subtree(self, addr):
-        return IndexMask(self.index, squeeze(self.inner.get_subtree(addr)))
+        return IndexMask.new(self.index, squeeze(self.inner.get_subtree(addr)))
 
     def is_leaf(self):
         return self.inner.is_leaf()
@@ -207,7 +194,7 @@ class IndexMask(ChoiceMap):
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
-            return k, IndexMask(self.index, v)
+            return k, IndexMask.new(self.index, v)
 
         return map(
             lambda args: _inner(*args),
@@ -215,27 +202,32 @@ class IndexMask(ChoiceMap):
         )
 
     def merge(self, other):
-        return squeeze(self.inner.merge(other))
+        if isinstance(other, IndexMask):
+            return IndexMask.new(
+                self.index, squeeze(self.inner.merge(other.inner))
+            )
+        else:
+            return IndexMask.new(self.index, squeeze(self.inner.merge(other)))
 
     def leaf_push(self):
         return jtu.tree_map(
-            lambda v: IndexMask(self.index, v),
+            lambda v: IndexMask.new(self.index, v),
             self.inner,
             is_leaf=lambda v: isinstance(v, ChoiceMap) and v.is_leaf(),
         )
 
-    @classmethod
-    def collapse_boundary(cls, fn):
-        def _inner(self, key, *args, **kwargs):
-            args = tuple(
-                map(
-                    lambda v: v.leaf_push() if isinstance(v, IndexMask) else v,
-                    args,
-                )
-            )
-            return fn(self, key, *args, **kwargs)
+    # TODO: revisit design.
+    def get_selection(self):
+        return IndexMask.new(self.index, self.inner.get_selection())
 
-        return _inner
+    def complement(self):
+        return IndexMask.new(self.index, self.inner.complement())
+
+    def filter(self, chm):
+        inner, w = self.inner.filter(chm)
+        inner = squeeze(inner)
+        inner = jtu.tree_map(lambda v: v[..., self.index], inner)
+        return IndexMask.new(self.index, inner), w
 
     def __hash__(self):
         hash1 = hash(self.inner)

@@ -12,5 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .custom_smc import *
 from .importance_sampling import *
+from .sequential_monte_carlo import *
+
+
+smc = sequential_monte_carlo

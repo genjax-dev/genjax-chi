@@ -58,7 +58,7 @@ def hamiltonian_monte_carlo(
 
         hmc = blackjax.hmc(logprob, *args, **kwargs)
         initial_position, _ = selection.filter(trace)
-        initial_position = initial_position.strip_metadata()
+        initial_position = initial_position.strip()
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
             initial_position,
@@ -94,7 +94,7 @@ def no_u_turn_sampler(
 
         hmc = blackjax.nuts(logprob, *args, **kwargs)
         initial_position, _ = selection.filter(trace)
-        initial_position = initial_position.strip_metadata()
+        initial_position = initial_position.strip()
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
             initial_position,

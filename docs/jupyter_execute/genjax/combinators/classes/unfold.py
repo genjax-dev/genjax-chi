@@ -21,7 +21,7 @@ key = jax.random.PRNGKey(314159)
 key, tr = jax.jit(genjax.simulate(unfold))(
     key,
     (
-        1000,
+        999,
         init,
     ),
 )

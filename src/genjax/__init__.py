@@ -81,7 +81,7 @@ def gen(callable: Callable, **kwargs) -> GenerativeFunction:
 #####
 
 
-def go_pretty(show_locals=False, max_frames=10):
+def go_pretty(show_locals=False, max_frames=20):
     pretty.install()
     traceback.install(
         show_locals=show_locals,

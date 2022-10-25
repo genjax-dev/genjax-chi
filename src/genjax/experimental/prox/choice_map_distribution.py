@@ -112,5 +112,5 @@ class ChoiceMapDistribution(ProxDistribution):
             weight = w - tr.get_score()
         return key, (
             weight,
-            ValueChoiceMap.new(new.get_choices().strip_metadata()),
+            ValueChoiceMap.new(new.get_choices().strip()),
         )

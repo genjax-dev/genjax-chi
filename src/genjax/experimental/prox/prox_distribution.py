@@ -29,14 +29,14 @@ class ProxDistribution(Distribution):
 
     def simulate(self, key, args):
         key, (weight, val) = self.random_weighted(key, *args)
-        val = val.strip_metadata()
+        val = val.strip()
         chm = ValueChoiceMap.new(val)
         return key, DistributionTrace(self, args, chm, weight)
 
     def importance(self, key, chm, args):
         assert isinstance(chm, ValueChoiceMap)
         val = chm.get_leaf_value()
-        val = val.strip_metadata()
+        val = val.strip()
         key, (w, new) = self.estimate_logpdf(key, val, *args)
         tr = DistributionTrace(self, args, new, w)
         return key, (w, tr)

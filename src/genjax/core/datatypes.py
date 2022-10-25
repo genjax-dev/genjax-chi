@@ -87,13 +87,13 @@ class Trace(Pytree):
     def get_selection(self):
         return self.get_choices().get_selection()
 
-    def strip_metadata(self):
+    def strip(self):
         def _check(v):
             return isinstance(v, Trace)
 
         def _inner(v):
             if isinstance(v, Trace):
-                return v.strip_metadata()
+                return v.strip()
             else:
                 return v
 
@@ -131,13 +131,13 @@ class ChoiceMap(ChoiceTree):
             )
         )
 
-    def strip_metadata(self):
+    def strip(self):
         def _check(v):
             return isinstance(v, Trace)
 
         def _inner(v):
             if isinstance(v, Trace):
-                return v.strip_metadata()
+                return v.strip()
             else:
                 return v
 
@@ -237,7 +237,7 @@ class GenerativeFunction(Pytree):
         key, choice_vjp = self.choice_vjp(key, tr, selection)
         trace_grads, arg_grads = choice_vjp(retval_grad)
         trace_grads, _ = selection.filter(trace_grads)
-        trace_grads = trace_grads.strip_metadata()
+        trace_grads = trace_grads.strip()
         return key, trace_grads, arg_grads
 
     def choice_vjp(

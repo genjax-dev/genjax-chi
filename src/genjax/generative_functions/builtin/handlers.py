@@ -160,7 +160,7 @@ class Update(Handler):
             key, (w, tr, discard) = gen_fn.update(
                 key, prev_tr, chm, args, **kwargs
             )
-            discard = discard.strip_metadata()
+            discard = discard.strip()
             return key, (w, tr, discard)
 
         def _has_prev_branch(key, args):
@@ -168,14 +168,14 @@ class Update(Handler):
             key, (w, _, _) = gen_fn.update(
                 key, prev_tr, EmptyChoiceMap(), args, **kwargs
             )
-            discard = BooleanMask.new(False, prev_tr.strip_metadata())
+            discard = BooleanMask.new(False, prev_tr.strip())
             return key, (w, prev_tr, discard)
 
         def _constrained_branch(key, args):
             prev_tr = self.prev.get_subtree(addr)
             chm = self.choice_change.get_subtree(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            discard = BooleanMask.new(False, prev_tr.strip_metadata())
+            discard = BooleanMask.new(False, prev_tr.strip())
             return key, (w, tr, discard)
 
         key, (w, tr, discard) = concrete_cond(
