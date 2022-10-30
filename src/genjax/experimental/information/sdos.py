@@ -100,7 +100,7 @@ def estimate_log_ratio(
         # Compute estimate of log q(z' | x)
         inf_chm = inftr.get_choices()
         key, sub_key = jax.random.split(key)
-        bwd_weights = jax.vmap(q.importance, in_axes=(None, 0, None, None))(
+        bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
             sub_key, key_indices_q, inf_chm, (target,)
         )
         bwd_weight_p = logsumexp(bwd_weights) - jnp.log(mq)
