@@ -115,7 +115,7 @@ class Distribution(GenerativeFunction):
         def _importance_branch(key, chm, args):
             v = chm.get_leaf_value()
             key, sub_key = jax.random.split(key)
-            _, (w, _) = self.estimate_logpdf(sub_key, v, *args)
+            _, (w, v) = self.estimate_logpdf(sub_key, v, *args)
             return key, v, w, w
 
         def _simulate_branch(key, chm, args):
