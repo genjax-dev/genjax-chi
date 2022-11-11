@@ -142,7 +142,7 @@ def forward_filtering_backward_sampling(
             return alpha
 
         def init_branch(prev, obs):
-            alpha = obs_n + prev
+            alpha = obs_n + prev.reshape(-1, 1)
             alpha = alpha[:, obs]
             return alpha
 
