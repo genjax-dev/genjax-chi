@@ -134,10 +134,10 @@ def forward_filtering_backward_sampling(
 
         def t_branch(prev, obs):
             alpha = jax.scipy.special.logsumexp(
-                prev + transition_n,
+                prev.reshape(-1, 1) + transition_n,
                 axis=-1,
             )
-            alpha = obs_n + alpha
+            alpha = obs_n + alpha.reshape(-1, 1)
             alpha = alpha[:, obs]
             return alpha
 
