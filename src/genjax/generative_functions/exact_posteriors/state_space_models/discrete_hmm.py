@@ -137,13 +137,13 @@ def forward_filtering_backward_sampling(
                 prev + transition_n,
                 axis=-1,
             )
-            alpha = obs_n + alpha
-            alpha = alpha[obs, :]
+            alpha = obs_n + alpha.reshape(-1, 1)
+            alpha = alpha[:, obs]
             return alpha
 
         def init_branch(prev, obs):
-            alpha = obs_n + prev
-            alpha = alpha[obs, :]
+            alpha = obs_n + prev.reshape(-1, 1)
+            alpha = alpha[:, obs]
             return alpha
 
         check = index == 0
