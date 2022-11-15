@@ -818,7 +818,7 @@ test = ["black", "check-manifest", "flake8", "ipykernel", "ipython", "ipywidgets
 
 [[package]]
 name = "nbconvert"
-version = "7.2.4"
+version = "7.2.5"
 description = "Converting Jupyter Notebooks"
 category = "dev"
 optional = false
@@ -2350,8 +2350,8 @@ nbclient = [
     {file = "nbclient-0.7.0.tar.gz", hash = "sha256:a1d844efd6da9bc39d2209bf996dbd8e07bf0f36b796edfabaa8f8a9ab77c3aa"},
 ]
 nbconvert = [
-    {file = "nbconvert-7.2.4-py3-none-any.whl", hash = "sha256:ed6eb42c2700a1aa5253db25db932db789e3a1ee01e1adf004bfed13c56bff50"},
-    {file = "nbconvert-7.2.4.tar.gz", hash = "sha256:7bee39e41835642f84599c2841ea53f21f4099257102c07c09347202c3ef732a"},
+    {file = "nbconvert-7.2.5-py3-none-any.whl", hash = "sha256:3e90e108bb5637b5b8a1422af1156af1368b39dd25369ff7faa7dfdcdef18f81"},
+    {file = "nbconvert-7.2.5.tar.gz", hash = "sha256:8fdc44fd7d9424db7fdc6e1e834a02f6b8620ffb653767388be2f9eb16f84184"},
 ]
 nbformat = [
     {file = "nbformat-5.7.0-py3-none-any.whl", hash = "sha256:1b05ec2c552c2f1adc745f4eddce1eac8ca9ffd59bb9fd859e827eaa031319f9"},
