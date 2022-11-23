@@ -326,5 +326,5 @@ class SwitchCombinator(GenerativeFunction):
             key,
             prev,
             new,
-            *args,
+            *diffs,
         )

@@ -24,37 +24,28 @@
 # authors above, as a derivative work.
 
 import abc
-import contextlib
-import copy
-import plum
-
 import collections
 import dataclasses
 import functools
 import itertools as it
 from typing import Any
 from typing import Callable
-from typing import Generator
-from typing import Sequence
 from typing import Dict
 from typing import List
+from typing import Sequence
 from typing import Tuple
 from typing import Type
 from typing import Union
 
-from jax import api_util
+import plum
 from jax import abstract_arrays
+from jax import api_util
 from jax import core as jax_core
 from jax import linear_util as lu
 from jax import tree_util as jtu
-from jax import util as jax_util
 from jax._src import dtypes
 from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
 
 from genjax.core import Pytree
 from genjax.core.datatypes import EmptyChoiceMap
@@ -67,6 +58,7 @@ from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
 from genjax.generative_functions.builtin.intrinsics import gen_fn_p
+
 
 __all__ = [
     "Cell",

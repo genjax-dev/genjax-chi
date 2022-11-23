@@ -15,7 +15,6 @@
 import abc
 from dataclasses import dataclass
 from typing import Any
-from typing import Callable
 from typing import Tuple
 from typing import Union
 
