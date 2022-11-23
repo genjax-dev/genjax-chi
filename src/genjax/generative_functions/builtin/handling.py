@@ -23,19 +23,14 @@ primitives for generative function calls.
 import abc
 import dataclasses
 from typing import Any
-from typing import Callable
 from typing import Dict
-from typing import Sequence
 
 import jax
 import jax.core as jc
-from jax.util import safe_map
 import jax.tree_util as jtu
+from jax.util import safe_map
 
-from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
-from genjax.core.masks import BooleanMask
-from genjax.core.specialization import concrete_and
 from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
