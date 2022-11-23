@@ -27,7 +27,7 @@ from genjax.core.datatypes import GenerativeFunction
 gen_fn_p = core.Primitive("trace")
 
 #####
-# trace
+# Gen's trace (denotes invocation of a generative function)
 #####
 
 
@@ -56,14 +56,13 @@ def trace(addr, call, **kwargs):
 
 
 #####
-# intrinsic_gen_fn
+# Abstract evaluation for generative function calls
 #####
 
 
 def gen_fn_abstract_eval(key, *args, addr, gen_fn, args_form, **kwargs):
     args = jtu.tree_unflatten(args_form, args)
 
-    # TODO: make sure this works in general.
     def _inner(key, *args):
         return gen_fn.__call__(key, *args, **kwargs)
 

@@ -43,13 +43,13 @@ if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`M
 
 from .combinator_datatypes import *
 from .combinator_tracetypes import *
-from .map_combinator import *
-from .switch_combinator import *
-from .trainable_combinator import *
-from .unfold_combinator import *
+from .map import *
+from .switch import *
+from .train import *
+from .unfold import *
 
 
 Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
-Trainable = TrainableCombinator
+Train = TrainCombinator
