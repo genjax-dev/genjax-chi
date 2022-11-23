@@ -30,11 +30,11 @@ from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax.generative_functions.builtin.builtin_tracetype import (
     get_trace_type,
 )
-from genjax.generative_functions.builtin.handlers import handler_choice_grad
-from genjax.generative_functions.builtin.handlers import handler_importance
-from genjax.generative_functions.builtin.handlers import handler_retval_grad
-from genjax.generative_functions.builtin.handlers import handler_simulate
-from genjax.generative_functions.builtin.handlers import handler_update
+from genjax.generative_functions.builtin.handling import handler_choice_grad
+from genjax.generative_functions.builtin.handling import handler_importance
+from genjax.generative_functions.builtin.handling import handler_retval_grad
+from genjax.generative_functions.builtin.handling import handler_simulate
+from genjax.generative_functions.builtin.propagating import handler_update
 
 
 @dataclass
@@ -59,8 +59,8 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )(key, args)
         return key, BuiltinTrace(self, args, r, chm, score)
 
-    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args, **kwargs):
+        chm = BooleanMask.collapse(chm)
         assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
         assert isinstance(args, Tuple)
         key, (w, (f, args, r, chm, score)) = handler_importance(
@@ -68,14 +68,22 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )(key, chm, args)
         return key, (w, BuiltinTrace(self, args, r, chm, score))
 
-    @BooleanMask.collapse_boundary
     def update(self, key, prev, new, args, **kwargs):
+        prev = BooleanMask.collapse(prev)
+        new = BooleanMask.collapse(new)
         assert isinstance(new, ChoiceMap)
         assert isinstance(args, Tuple)
-        key, (w, (f, args, r, chm, score), discard) = handler_update(
-            self.source, **kwargs
-        )(key, prev, new, args)
+        (
+            key,
+            (
+                w,
+                retval_diff,
+                (f, args, r, chm, score),
+                discard,
+            ),
+        ) = handler_update(self.source, **kwargs)(key, prev, new, args)
         return key, (
+            retval_diff,
             w,
             BuiltinTrace(self, args, r, chm, score),
             BuiltinChoiceMap(discard),

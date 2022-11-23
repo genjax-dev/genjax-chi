@@ -33,7 +33,7 @@ from genjax.core.datatypes import GenerativeFunction
 
 
 @dataclass
-class TrainableCombinator(GenerativeFunction):
+class TrainCombinator(GenerativeFunction):
     """
     Example
     -------
@@ -86,7 +86,7 @@ class TrainableCombinator(GenerativeFunction):
 
     @classmethod
     def unflatten(self, xs, data):
-        return TrainableCombinator(*xs, *data)
+        return TrainCombinator(*xs, *data)
 
     def __call__(self, key, *args, **kwargs):
         return self.inner.__call__(

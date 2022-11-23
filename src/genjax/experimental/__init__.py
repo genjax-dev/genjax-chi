@@ -17,6 +17,5 @@ This module supports experimental features of `GenJAX`.
 """
 
 from .information import *
-from .interpreters import *
 from .mem import *
 from .prox import *

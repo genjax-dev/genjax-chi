@@ -112,7 +112,7 @@ class SMCPropagator(Pytree):
 # Propagators operate on `state: SMCState` and transform it
 # potentially changing the target, changing the collection of particles,# etc.
 #
-# They are differentiated from `SMCAlgorithm` below -- because they
+# They are different from `SMCAlgorithm` below -- because they
 # require a `state: SMCState` to run their methods on.
 #
 # You can pair propagators with `Init` (importance sampling to get an
@@ -416,39 +416,6 @@ class Rejuvenate(SMCPropagator):
         state: SMCState,
     ) -> Tuple[jax.random.PRNGKey, SMCState]:
         pass
-
-
-#####
-# Propagator DSL
-#####
-
-
-@dataclass
-class SMCPropagatorProgram(SMCPropagator):
-    source: Callable
-
-    def flatten(self):
-        return (), (self.source,)
-
-    def propagate(
-        self,
-        key: jax.random.PRNGKey,
-        state: SMCState,
-        *args,
-    ) -> Tuple[jax.random.PRNGKey, SMCState]:
-        return self.source(key, state, *args)
-
-    def conditional_propagate(
-        self,
-        key: jax.random.PRNGKey,
-        state: SMCState,
-        *args,
-    ) -> Tuple[jax.random.PRNGKey, SMCState]:
-        return self.source(key, state, *args)
-
-
-def Propagator(source):
-    return SMCPropagatorProgram(source)
 
 
 #####

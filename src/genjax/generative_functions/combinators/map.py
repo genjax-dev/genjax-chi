@@ -274,21 +274,21 @@ class MapCombinator(GenerativeFunction):
 
     @BooleanMask.canonicalize
     @BooleanMask.collapse_boundary
-    def update(self, key, prev, chm, args):
+    def update(self, key, prev, chm, diffs):
         assert isinstance(prev, MapTrace)
         vchm = prev.get_choices()
 
-        def _update(key, prev, chm, args):
-            key, (w, tr, d) = self.kernel.update(key, prev, chm, args)
+        def _update(key, prev, chm, diffs):
+            key, (w, tr, d) = self.kernel.update(key, prev, chm, diffs)
             return key, (w, tr, d)
 
-        def _fallback(key, prev, chm, args):
+        def _fallback(key, prev, chm, diffs):
             key, (w, tr, d) = self.kernel.update(
-                key, prev, EmptyChoiceMap(), args
+                key, prev, EmptyChoiceMap(), diffs
             )
             return key, (w, tr, d)
 
-        def _inner(key, index, vchm, chm, args):
+        def _inner(key, index, vchm, chm, diffs):
             check = index == chm.get_index()
             prev = vchm.inner
             return concrete_cond(
@@ -298,7 +298,7 @@ class MapCombinator(GenerativeFunction):
                 key,
                 prev,
                 chm,
-                args,
+                diffs,
             )
 
         # Get static axes.
@@ -328,7 +328,7 @@ class MapCombinator(GenerativeFunction):
         key, (w, tr, discard) = jax.vmap(
             _inner,
             in_axes=(key_axis, 0, vchm_inaxes_tree, 0, arg_axes),
-        )(key, indices, vchm, chm, args)
+        )(key, indices, vchm, chm, diffs)
 
         w = jnp.sum(w)
         map_tr = MapTrace(

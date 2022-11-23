@@ -265,24 +265,24 @@ class SwitchCombinator(GenerativeFunction):
             *args,
         )
 
-    def _update(self, branch_gen_fn, key, prev, new, args):
+    def _update(self, branch_gen_fn, key, prev, new, diffs):
         discard_option = BooleanMask.new(True, prev.strip()).leaf_push()
         concrete_branch_index = list(self.branches.keys())[
             list(self.branches.values()).index(branch_gen_fn)
         ]
-        argument_index = args[0]
+        argument_index = diffs[0]
         prev = prev.convert_to_boolean_mask(
             concrete_branch_index, argument_index
         )
         discard_branch = discard_option.submaps[concrete_branch_index]
         discard_branch = BooleanMask.new(False, discard_branch).leaf_push()
-        key, (w, tr, discard) = branch_gen_fn.update(
+        key, (retval_diff, w, tr, discard) = branch_gen_fn.update(
             key,
             prev,
             new,
-            args[1:],
+            diffs[1:],
         )
-        sum_pytree = self.create_sum_pytree(key, tr, args[1:])
+        sum_pytree = self.create_sum_pytree(key, tr, diffs[1:])
         choices = list(sum_pytree.materialize_iterator())
         choice_map = IndexedChoiceMap(concrete_branch_index, choices)
         discard_branch = discard_branch.merge(discard)
@@ -297,12 +297,12 @@ class SwitchCombinator(GenerativeFunction):
             retval,
             score,
         )
-        return key, (w, trace, discard_option)
+        return key, (retval_diff, w, trace, discard_option)
 
     @IndexedChoiceMap.collapse_boundary
     @BooleanMask.collapse_boundary
-    def update(self, key, prev, new, args):
-        switch = args[0]
+    def update(self, key, prev, new, diffs):
+        switch = diffs[0]
 
         def _inner(br):
             return lambda key, prev, new, *args: self._update(
