@@ -1,0 +1,2555 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Unfold combinator &#8212; Gen ⊗ JAX</title>
+    
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+
+    
+  <link rel="stylesheet"
+    href="../../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="../../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="../../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" href="../../../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/css/custom.css" />
+    
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
+
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/thebelab-helper.js"></script>
+    <script src="../../../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="Trainable combinator" href="trainable.html" />
+    <link rel="prev" title="Map combinator" href="map.html" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="docsearch:language" content="None">
+    
+
+    <!-- Google Analytics -->
+    
+  </head>
+  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="60">
+<!-- Checkboxes to toggle the left sidebar -->
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle navigation sidebar">
+<label class="overlay overlay-navbar" for="__navigation">
+    <div class="visually-hidden">Toggle navigation sidebar</div>
+</label>
+<!-- Checkboxes to toggle the in-page toc -->
+<input type="checkbox" class="sidebar-toggle" name="__page-toc" id="__page-toc" aria-label="Toggle in-page Table of Contents">
+<label class="overlay overlay-pagetoc" for="__page-toc">
+    <div class="visually-hidden">Toggle in-page Table of Contents</div>
+</label>
+<!-- Headers at the top -->
+<div class="announcement header-item noprint"></div>
+<div class="header header-item noprint"></div>
+
+    
+    <div class="container-fluid" id="banner"></div>
+
+    
+
+    <div class="container-xl">
+      <div class="row">
+          
+<!-- Sidebar -->
+<div class="bd-sidebar noprint" id="site-navigation">
+    <div class="bd-sidebar__content">
+        <div class="bd-sidebar__top"><div class="navbar-brand-box">
+    <a class="navbar-brand text-wrap" href="../../../index.html">
+      
+        <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
+        
+      
+      
+      <img src="../../../_static/logo.png" class="logo" alt="logo">
+      
+      
+    </a>
+</div><form class="bd-search d-flex align-items-center" action="../../../search.html" method="get">
+  <i class="icon fas fa-search"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
+</form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item active">
+        <p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Getting started
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../tour.html">
+   A tour of fundamentals
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../gen_fn.html">
+   Anatomy of a generative function
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../interface.html">
+   Generative function interface
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../diff_jl.html">
+   Diffing with Gen.jl
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Modeling and inference
+ </span>
+</p>
+<ul class="current nav bd-sidenav">
+ <li class="toctree-l1 current active has-children">
+  <a class="reference internal" href="../combinators.html">
+   Generative function combinators
+  </a>
+  <input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
+  <label for="toctree-checkbox-1">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul class="current">
+   <li class="toctree-l2 current active has-children">
+    <a class="reference internal" href="classes.html">
+     Combinators classes
+    </a>
+    <input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
+    <label for="toctree-checkbox-2">
+     <i class="fas fa-chevron-down">
+     </i>
+    </label>
+    <ul class="current">
+     <li class="toctree-l3">
+      <a class="reference internal" href="switch.html">
+       Switch combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="map.html">
+       Map combinator
+      </a>
+     </li>
+     <li class="toctree-l3 current active">
+      <a class="current reference internal" href="#">
+       Unfold combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="trainable.html">
+       Trainable combinator
+      </a>
+     </li>
+    </ul>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="../vector_combinators.html">
+     Vector combinators
+    </a>
+   </li>
+  </ul>
+ </li>
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="../../inference/inference.html">
+   Inference
+  </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
+  <label for="toctree-checkbox-3">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2 has-children">
+    <a class="reference internal" href="../../inference/library/library.html">
+     Inference library
+    </a>
+    <input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
+    <label for="toctree-checkbox-4">
+     <i class="fas fa-chevron-down">
+     </i>
+    </label>
+    <ul>
+     <li class="toctree-l3">
+      <a class="reference internal" href="../../inference/library/blackjax.html">
+       Hamiltonian Monte Carlo with BlackJAX
+      </a>
+     </li>
+    </ul>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="../../inference/best_practices.html">
+     Inference best practices
+    </a>
+   </li>
+  </ul>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Experimental
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../experimental/diagnostics.html">
+   Density diagnostics
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../experimental/trace_types.html">
+   Trace types
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../experimental/prox.html">
+   Prox: compositional approximate densities
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  For developers
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../../contributing.html">
+   Contributor Guide
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../../codeofconduct.html">
+   Code of Conduct
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../../../license.html">
+   License
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference external" href="https://github.com/probcomp/genjax/releases">
+   Changelog
+  </a>
+ </li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="bd-sidebar__bottom">
+             <!-- To handle the deprecated key -->
+            
+            <div class="navbar_extra_footer">
+            Theme by the <a href="https://ebp.jupyterbook.org">Executable Book Project</a>
+            </div>
+            
+        </div>
+    </div>
+    <div id="rtd-footer-container"></div>
+</div>
+
+
+          
+
+
+          
+<!-- A tiny helper pixel to detect if we've scrolled -->
+<div class="sbt-scroll-pixel-helper"></div>
+<!-- Main content -->
+<div class="col py-0 content-container">
+    
+    <div class="header-article row sticky-top noprint">
+        
+
+
+
+<div class="col py-1 d-flex header-article-main">
+    <div class="header-article__left">
+        
+        <label for="__navigation"
+  class="headerbtn"
+  data-toggle="tooltip"
+data-placement="right"
+title="Toggle navigation"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-bars"></i>
+  </span>
+
+</label>
+
+        
+    </div>
+    <div class="header-article__right">
+<button onclick="toggleFullScreen()"
+  class="headerbtn"
+  data-toggle="tooltip"
+data-placement="bottom"
+title="Fullscreen mode"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+<div class="menu-dropdown menu-dropdown-repository-buttons">
+  <button class="headerbtn menu-dropdown__trigger"
+      aria-label="Source repositories">
+      <i class="fab fa-github"></i>
+  </button>
+  <div class="menu-dropdown__content">
+    <ul>
+      <li>
+        <a href="https://github.com/probcomp/genjax"
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Source repository"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="headerbtn__text-container">repository</span>
+</a>
+
+      </li>
+      
+      <li>
+        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/combinators/classes/unfold.html&body=Your%20issue%20content%20here."
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Open an issue"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="headerbtn__text-container">open issue</span>
+</a>
+
+      </li>
+      
+      <li>
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/combinators/classes/unfold.rst"
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Edit this page"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="headerbtn__text-container">suggest edit</span>
+</a>
+
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+<div class="menu-dropdown menu-dropdown-download-buttons">
+  <button class="headerbtn menu-dropdown__trigger"
+      aria-label="Download this page">
+      <i class="fas fa-download"></i>
+  </button>
+  <div class="menu-dropdown__content">
+    <ul>
+      <li>
+        <a href="../../../_sources/genjax/combinators/classes/unfold.rst.txt"
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Download source file"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="headerbtn__text-container">.rst</span>
+</a>
+
+      </li>
+      
+      <li>
+        
+<button onclick="printPdf(this)"
+  class="headerbtn"
+  data-toggle="tooltip"
+data-placement="left"
+title="Print to PDF"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="headerbtn__text-container">.pdf</span>
+</button>
+
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+    </div>
+</div>
+
+<!-- Table of contents -->
+<div class="col-md-3 bd-toc show noprint">
+</div>
+    </div>
+    <div class="article row">
+        <div class="col pl-md-3 pl-lg-5 content-container">
+            <!-- Table of contents that is only displayed when printing the page -->
+            <div id="jb-print-docs-body" class="onlyprint">
+                <h1>Unfold combinator</h1>
+                <!-- Table of contents -->
+                <div id="print-main-content">
+                    <div id="jb-print-toc">
+                        
+                    </div>
+                </div>
+            </div>
+            <main id="main-content" role="main">
+                
+              <div>
+                
+  <section id="module-genjax.combinators.unfold">
+<span id="unfold-combinator"></span><h1>Unfold combinator<a class="headerlink" href="#module-genjax.combinators.unfold" title="Permalink to this headline">#</a></h1>
+<p>This module implements a generative function combinator which allows
+statically unrolled control flow for generative functions which can act
+as kernels (a kernel generative function can accept
+their previous output as input).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.combinators.UnfoldCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><a class="headerlink" href="#genjax.combinators.UnfoldCombinator" title="Permalink to this definition">#</a></dt>
+<dd><p><code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> accepts a single kernel generative function
+as input and a static unroll length which specifies how many iterations
+to run the chain for.</p>
+<p>A kernel generative function is one which accepts and returns
+the same signature of arguments. Under the hood, <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code>
+is implemented using <code class="code docutils literal notranslate"><span class="pre">jax.lax.scan</span></code> - which has the same
+requirements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gen_fn</strong> (<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>) – A single <em>kernel</em> <cite>GenerativeFunction</cite> instance.</p></li>
+<li><p><strong>length</strong> (<code class="code docutils literal notranslate"><span class="pre">Int</span></code>) – An integer specifying the unroll length of the chain of applications.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A single <code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> generative function which
+implements the generative function interface using a scan-like
+pattern. This generative function will perform a dependent-for
+iteration (passing the return value of generative function application)
+to the next iteration for <code class="code docutils literal notranslate"><span class="pre">length</span></code> number of steps.
+The programmer must provide an initial value to start the chain of
+iterations off.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<span class="kn">import</span> <span class="nn">genjax</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">random_walk</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">prev</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+
+<span class="n">unfold</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">UnfoldCombinator</span><span class="p">(</span><span class="n">random_walk</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+<span class="n">init</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">unfold</span><span class="p">))(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">999</span><span class="p">,</span> <span class="n">init</span><span class="p">,))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>UnfoldTrace(gen_fn=UnfoldCombinator(kernel=BuiltinGenerativeFunction(source=&lt;function random_walk at 0x1037beb90&gt;), max_length=1000), indices=DeviceArray([  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,
+              12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,
+              24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,
+              36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+              48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,
+              60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,
+              72,  73,  74,  75,  76,  77,  78,  79,  80,  81,  82,  83,
+              84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
+              96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107,
+             108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
+             120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
+             132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+             144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155,
+             156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167,
+             168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
+             180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+             192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203,
+             204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215,
+             216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227,
+             228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+             240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251,
+             252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263,
+             264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275,
+             276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287,
+             288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299,
+             300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311,
+             312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323,
+             324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335,
+             336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347,
+             348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359,
+             360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371,
+             372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383,
+             384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395,
+             396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407,
+             408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419,
+             420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431,
+             432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443,
+             444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455,
+             456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467,
+             468, 469, 470, 471, 472, 473, 474, 475, 476, 477, 478, 479,
+             480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491,
+             492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 503,
+             504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515,
+             516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527,
+             528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539,
+             540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551,
+             552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563,
+             564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575,
+             576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587,
+             588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599,
+             600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611,
+             612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623,
+             624, 625, 626, 627, 628, 629, 630, 631, 632, 633, 634, 635,
+             636, 637, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647,
+             648, 649, 650, 651, 652, 653, 654, 655, 656, 657, 658, 659,
+             660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671,
+             672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683,
+             684, 685, 686, 687, 688, 689, 690, 691, 692, 693, 694, 695,
+             696, 697, 698, 699, 700, 701, 702, 703, 704, 705, 706, 707,
+             708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719,
+             720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731,
+             732, 733, 734, 735, 736, 737, 738, 739, 740, 741, 742, 743,
+             744, 745, 746, 747, 748, 749, 750, 751, 752, 753, 754, 755,
+             756, 757, 758, 759, 760, 761, 762, 763, 764, 765, 766, 767,
+             768, 769, 770, 771, 772, 773, 774, 775, 776, 777, 778, 779,
+             780, 781, 782, 783, 784, 785, 786, 787, 788, 789, 790, 791,
+             792, 793, 794, 795, 796, 797, 798, 799, 800, 801, 802, 803,
+             804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815,
+             816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827,
+             828, 829, 830, 831, 832, 833, 834, 835, 836, 837, 838, 839,
+             840, 841, 842, 843, 844, 845, 846, 847, 848, 849, 850, 851,
+             852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863,
+             864, 865, 866, 867, 868, 869, 870, 871, 872, 873, 874, 875,
+             876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887,
+             888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 899,
+             900, 901, 902, 903, 904, 905, 906, 907, 908, 909, 910, 911,
+             912, 913, 914, 915, 916, 917, 918, 919, 920, 921, 922, 923,
+             924, 925, 926, 927, 928, 929, 930, 931, 932, 933, 934, 935,
+             936, 937, 938, 939, 940, 941, 942, 943, 944, 945, 946, 947,
+             948, 949, 950, 951, 952, 953, 954, 955, 956, 957, 958, 959,
+             960, 961, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971,
+             972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 983,
+             984, 985, 986, 987, 988, 989, 990, 991, 992, 993, 994, 995,
+             996, 997, 998, 999], dtype=int32, weak_type=True), inner=BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function random_walk at 0x1037beb90&gt;), args=(DeviceArray([ 5.00000000e-01,  3.91769022e-01,  6.66197956e-01,
+             -6.81014597e-01, -1.40978324e+00, -7.97927603e-02,
+             -9.35212001e-02, -9.41611111e-01, -1.49014425e+00,
+             -1.70472090e-03, -2.59251982e-01, -1.49507415e+00,
+             -2.81819177e+00, -2.03869843e+00, -1.88497078e+00,
+             -1.35565388e+00, -1.69137990e+00,  4.10858512e-01,
+             -7.82464683e-01, -1.10316157e+00, -5.46051525e-02,
+             -8.00485313e-01, -5.00853896e-01, -3.32948774e-01,
+             -2.66567636e+00, -2.81128407e+00, -2.66302133e+00,
+             -2.76010489e+00, -2.85675573e+00, -2.19622970e+00,
+             -2.32884693e+00, -2.88512635e+00, -3.27528143e+00,
+             -4.20264530e+00, -2.95565176e+00, -3.72746706e+00,
+             -3.53925180e+00, -2.74862480e+00, -2.58713293e+00,
+             -2.88989854e+00, -3.38522863e+00, -4.46812963e+00,
+             -5.17982531e+00, -5.77326202e+00, -4.11323977e+00,
+             -3.90493131e+00, -2.76091194e+00, -2.96622896e+00,
+             -2.51690173e+00, -3.91588974e+00, -2.56346607e+00,
+             -2.29549217e+00, -2.11953783e+00, -1.77675784e+00,
+             -1.45975208e+00, -1.82943666e+00, -2.52531219e+00,
+             -3.10954165e+00, -4.03704643e+00, -3.97063375e+00,
+             -3.95889425e+00, -1.96321809e+00, -2.49246383e+00,
+             -1.54404020e+00, -2.93234634e+00, -3.43084526e+00,
+             -2.49326420e+00, -2.72131681e+00, -3.01474929e+00,
+             -3.21247292e+00, -5.24304533e+00, -3.78611231e+00,
+             -4.19441700e+00, -6.08465147e+00, -5.36331606e+00,
+             -3.81923342e+00, -3.41137171e+00, -4.18621683e+00,
+             -3.88723135e+00, -4.17200708e+00, -4.35495996e+00,
+             -4.42850542e+00, -3.60499692e+00, -4.35136986e+00,
+             -4.97223568e+00, -5.03434515e+00, -5.33001900e+00,
+             -3.98313022e+00, -3.71358562e+00, -4.65706015e+00,
+             -4.77591848e+00, -3.64056492e+00, -3.89728975e+00,
+             -5.38097191e+00, -5.12816429e+00, -4.25788689e+00,
+             -4.01742649e+00, -4.62200737e+00, -3.44788480e+00,
+             -3.99118471e+00, -3.92267179e+00, -3.75943756e+00,
+             -5.41765118e+00, -4.53864431e+00, -3.96115446e+00,
+             -4.43735838e+00, -3.84720802e+00, -2.98787785e+00,
+             -4.18542337e+00, -4.52754688e+00, -3.66826439e+00,
+             -3.85869122e+00, -4.58965588e+00, -4.97184420e+00,
+             -4.68646097e+00, -5.96809912e+00, -6.24434376e+00,
+             -5.81870985e+00, -4.89691639e+00, -5.45550966e+00,
+             -6.09458494e+00, -5.88325310e+00, -6.00280285e+00,
+             -4.85113144e+00, -2.97829795e+00, -2.86849523e+00,
+             -3.70445275e+00, -3.55153561e+00, -4.84436750e+00,
+             -5.16662931e+00, -4.75310612e+00, -5.10075188e+00,
+             -4.89022112e+00, -5.39702606e+00, -6.13033009e+00,
+             -6.17743349e+00, -7.56803989e+00, -7.12115479e+00,
+             -7.47208786e+00, -7.70995712e+00, -8.30982780e+00,
+             -8.70217228e+00, -9.39192390e+00, -9.40828800e+00,
+             -9.74958897e+00, -1.08328094e+01, -9.09724998e+00,
+             -1.02429905e+01, -9.24330521e+00, -8.71314144e+00,
+             -8.78646278e+00, -9.11185741e+00, -9.20156384e+00,
+             -8.79618168e+00, -8.84477043e+00, -9.82224751e+00,
+             -8.28846169e+00, -9.40781879e+00, -7.60754490e+00,
+             -7.62515354e+00, -9.58142281e+00, -9.48464108e+00,
+             -8.97176266e+00, -1.11815052e+01, -1.15616121e+01,
+             -1.24680939e+01, -1.23926659e+01, -1.35113544e+01,
+             -1.26293297e+01, -1.16220284e+01, -1.37857847e+01,
+             -1.43730831e+01, -1.31684284e+01, -1.34847317e+01,
+             -1.32508383e+01, -1.56213360e+01, -1.58818684e+01,
+             -1.64275246e+01, -1.57854385e+01, -1.66049099e+01,
+             -1.67397728e+01, -1.66082554e+01, -1.45795889e+01,
+             -1.28980036e+01, -1.21700420e+01, -1.18878965e+01,
+             -1.29738169e+01, -1.06097422e+01, -1.14253788e+01,
+             -1.18443708e+01, -1.12552681e+01, -1.18969326e+01,
+             -1.09337740e+01, -1.08316383e+01, -1.06581059e+01,
+             -1.10703859e+01, -1.11111155e+01, -1.06119442e+01,
+             -1.03433437e+01, -1.01217642e+01, -9.92795944e+00,
+             -1.07634811e+01, -1.01537771e+01, -1.15879173e+01,
+             -1.12904167e+01, -1.12915983e+01, -1.16998377e+01,
+             -1.02787266e+01, -9.68189430e+00, -1.12386713e+01,
+             -1.23854303e+01, -1.30780106e+01, -1.28537655e+01,
+             -1.30258894e+01, -1.09974060e+01, -1.03422499e+01,
+             -1.02882290e+01, -9.65948963e+00, -8.66541195e+00,
+             -7.79565668e+00, -7.69939280e+00, -9.28763771e+00,
+             -9.26814461e+00, -9.73795223e+00, -8.60762596e+00,
+             -7.81032658e+00, -7.36013508e+00, -8.74256420e+00,
+             -1.03285913e+01, -8.15768051e+00, -8.14508247e+00,
+             -8.89285088e+00, -1.03635082e+01, -1.03804159e+01,
+             -1.03563166e+01, -1.04996901e+01, -1.20615177e+01,
+             -1.17915888e+01, -1.23087549e+01, -1.06888180e+01,
+             -1.07109756e+01, -1.03908901e+01, -1.04964981e+01,
+             -8.66094875e+00, -8.38392353e+00, -9.23074436e+00,
+             -1.06125040e+01, -1.03925228e+01, -9.78331566e+00,
+             -1.13300009e+01, -9.54242325e+00, -8.44645309e+00,
+             -7.99136686e+00, -6.39347219e+00, -5.58855295e+00,
+             -5.46173334e+00, -6.51790142e+00, -6.09020329e+00,
+             -6.13182545e+00, -6.50607872e+00, -6.72066402e+00,
+             -5.05574369e+00, -4.47414827e+00, -5.05269909e+00,
+             -3.57242036e+00, -3.64440346e+00, -3.05000019e+00,
+             -2.62803292e+00, -2.32468319e+00, -1.62237644e+00,
+             -1.88888204e+00, -8.43597591e-01,  8.00040781e-01,
+             -7.14211822e-01,  2.00721979e-01, -1.48880661e-01,
+              2.06777287e+00,  4.59785640e-01,  4.64062035e-01,
+              1.18513596e+00,  3.37292589e-02, -1.58180952e+00,
+             -7.65897632e-01, -8.40967178e-01,  1.10835409e+00,
+              1.00845659e+00,  2.56827426e+00,  2.85053730e+00,
+              4.03366613e+00,  3.82636285e+00,  4.09540415e+00,
+              3.57281637e+00,  4.92766762e+00,  5.68826723e+00,
+              4.73126030e+00,  5.40809059e+00,  6.04345655e+00,
+              4.62014532e+00,  4.00182486e+00,  5.13675976e+00,
+              5.21831512e+00,  5.60182238e+00,  6.44152164e+00,
+              6.02871847e+00,  5.78845596e+00,  4.66374874e+00,
+              4.45639038e+00,  4.19340754e+00,  4.18800735e+00,
+              4.20946789e+00,  4.42753839e+00,  4.67251015e+00,
+              4.07685328e+00,  3.37401748e+00,  2.30138111e+00,
+              5.36507964e-01, -2.17326671e-01,  7.42410272e-02,
+             -1.05283767e-01, -5.31381249e-01, -1.47453284e+00,
+             -3.21529555e+00, -4.24821568e+00, -4.77316809e+00,
+             -5.46402502e+00, -4.85097980e+00, -5.86514664e+00,
+             -5.98364782e+00, -5.27939844e+00, -6.20787144e+00,
+             -4.97363186e+00, -5.40709734e+00, -5.06977320e+00,
+             -2.61704540e+00, -1.78792000e+00, -6.54668450e-01,
+             -9.26173091e-01,  1.91830456e-01,  1.82499051e-01,
+              9.19783022e-03, -2.02823949e+00, -2.23025680e+00,
+             -4.88615179e+00, -5.35814667e+00, -4.87997627e+00,
+             -6.13680649e+00, -6.79734230e+00, -6.70780993e+00,
+             -7.25967741e+00, -7.07514715e+00, -7.14126778e+00,
+             -6.18358803e+00, -7.02467966e+00, -6.06659746e+00,
+             -7.60473347e+00, -6.49519157e+00, -6.41220903e+00,
+             -5.74218988e+00, -4.73509502e+00, -4.50631094e+00,
+             -4.89323950e+00, -3.70888376e+00, -3.02837753e+00,
+             -4.81087732e+00, -4.95649099e+00, -5.09400988e+00,
+             -4.26096916e+00, -3.95592666e+00, -6.40008545e+00,
+             -5.73513269e+00, -5.82302809e+00, -6.16700649e+00,
+             -6.35586739e+00, -5.57202387e+00, -5.72015190e+00,
+             -5.93870497e+00, -5.20427132e+00, -5.66261768e+00,
+             -4.88627815e+00, -4.76001215e+00, -5.49544668e+00,
+             -7.28000164e+00, -6.83978701e+00, -8.64099026e+00,
+             -8.37485886e+00, -9.14090729e+00, -1.03970184e+01,
+             -1.13816586e+01, -1.14466553e+01, -1.29595985e+01,
+             -1.37914171e+01, -1.45025682e+01, -1.58725672e+01,
+             -1.67672729e+01, -1.43296003e+01, -1.37033157e+01,
+             -1.24847355e+01, -1.14864006e+01, -1.24056501e+01,
+             -1.24412374e+01, -1.40394802e+01, -1.48785162e+01,
+             -1.21289053e+01, -1.22357273e+01, -1.23016853e+01,
+             -1.31576414e+01, -1.46103573e+01, -1.54516449e+01,
+             -1.44863100e+01, -1.63824673e+01, -1.70369320e+01,
+             -1.67279720e+01, -1.77863560e+01, -1.72031269e+01,
+             -1.66300869e+01, -1.71358814e+01, -1.81160622e+01,
+             -1.64331455e+01, -1.68089409e+01, -1.68226166e+01,
+             -1.57301416e+01, -1.40872173e+01, -1.53603086e+01,
+             -1.53057795e+01, -1.57349739e+01, -1.76759224e+01,
+             -1.77808132e+01, -1.75359077e+01, -1.65707359e+01,
+             -1.57662268e+01, -1.49604349e+01, -1.53439884e+01,
+             -1.69983273e+01, -1.56829052e+01, -1.53801861e+01,
+             -1.43019047e+01, -1.21179218e+01, -1.37988119e+01,
+             -1.37184925e+01, -1.41853123e+01, -1.24963036e+01,
+             -1.35274315e+01, -1.39585762e+01, -1.47737303e+01,
+             -1.39961653e+01, -1.53737612e+01, -1.49005861e+01,
+             -1.46564074e+01, -1.57455359e+01, -1.43088675e+01,
+             -1.43053131e+01, -1.51971350e+01, -1.48856535e+01,
+             -1.45200663e+01, -1.48476286e+01, -1.46258402e+01,
+             -1.35498819e+01, -1.28418150e+01, -1.47624197e+01,
+             -1.52463779e+01, -1.43528900e+01, -1.48476973e+01,
+             -1.58140306e+01, -1.62381992e+01, -1.58605003e+01,
+             -1.63308926e+01, -1.76173763e+01, -1.66911125e+01,
+             -1.69926434e+01, -1.64375172e+01, -1.59758711e+01,
+             -1.61786175e+01, -1.72819195e+01, -1.79577389e+01,
+             -1.74435673e+01, -1.80297451e+01, -1.61548233e+01,
+             -1.53496132e+01, -1.42155771e+01, -1.45856276e+01,
+             -1.59833860e+01, -1.68964615e+01, -1.60818863e+01,
+             -1.61175518e+01, -1.72689877e+01, -1.73441887e+01,
+             -1.72253628e+01, -1.89337006e+01, -1.82804623e+01,
+             -1.87036247e+01, -1.90584164e+01, -2.10065861e+01,
+             -2.01843872e+01, -2.00504494e+01, -1.81250343e+01,
+             -1.78573360e+01, -1.82148628e+01, -1.70469303e+01,
+             -1.80336628e+01, -1.68257847e+01, -1.79756641e+01,
+             -1.57769966e+01, -1.64060745e+01, -1.42974739e+01,
+             -1.32308121e+01, -1.34508896e+01, -1.28324661e+01,
+             -1.05564489e+01, -7.59796143e+00, -7.18071747e+00,
+             -6.87512493e+00, -6.06219578e+00, -6.05107021e+00,
+             -6.90680313e+00, -7.34956026e+00, -8.91631508e+00,
+             -7.86102152e+00, -7.26881742e+00, -6.17482424e+00,
+             -7.79608965e+00, -7.70668411e+00, -7.94675207e+00,
+             -7.37047291e+00, -5.82612038e+00, -7.20782757e+00,
+             -5.90419340e+00, -6.61960125e+00, -7.91164827e+00,
+             -8.79358578e+00, -8.23006344e+00, -8.21647549e+00,
+             -7.72709656e+00, -5.81189728e+00, -7.12138081e+00,
+             -5.99621344e+00, -5.87394047e+00, -6.80395031e+00,
+             -7.52890491e+00, -6.42373800e+00, -5.05778217e+00,
+             -5.16377878e+00, -3.36751008e+00, -4.70894194e+00,
+             -5.80068207e+00, -6.60389471e+00, -6.94551086e+00,
+             -6.83902693e+00, -7.31025743e+00, -8.08950710e+00,
+             -7.22096205e+00, -6.81237459e+00, -6.97396374e+00,
+             -6.08157635e+00, -7.62261438e+00, -8.69988823e+00,
+             -8.31871128e+00, -7.00822449e+00, -7.37041521e+00,
+             -5.52778435e+00, -5.86976242e+00, -6.27181530e+00,
+             -6.68739939e+00, -7.23667955e+00, -9.34445763e+00,
+             -8.92614651e+00, -7.99807596e+00, -8.33070469e+00,
+             -8.50328922e+00, -7.02738810e+00, -7.16608238e+00,
+             -7.26354933e+00, -6.85325623e+00, -7.69166470e+00,
+             -9.82869339e+00, -8.36712837e+00, -7.79044104e+00,
+             -7.81506824e+00, -8.45691109e+00, -7.05739880e+00,
+             -6.97967529e+00, -7.04687357e+00, -6.23174763e+00,
+             -5.39697123e+00, -7.34765339e+00, -7.45519400e+00,
+             -7.17608595e+00, -5.45864487e+00, -5.21287155e+00,
+             -4.51906776e+00, -3.40103292e+00, -3.52851343e+00,
+             -3.47329235e+00, -3.45355892e+00, -4.89052963e+00,
+             -7.84470844e+00, -8.86919594e+00, -8.35540581e+00,
+             -9.59708118e+00, -1.01974936e+01, -8.63232327e+00,
+             -8.73869610e+00, -9.58284187e+00, -8.36808777e+00,
+             -7.01834106e+00, -7.73031902e+00, -8.71973515e+00,
+             -9.58318424e+00, -1.00463610e+01, -1.00876904e+01,
+             -9.45402813e+00, -8.00360298e+00, -8.91423607e+00,
+             -8.49901009e+00, -8.21681118e+00, -7.73167801e+00,
+             -7.64672327e+00, -7.39093208e+00, -7.59294653e+00,
+             -7.46248674e+00, -8.43131161e+00, -8.07758904e+00,
+             -7.13080692e+00, -8.31330109e+00, -8.37278557e+00,
+             -8.83422470e+00, -8.44454479e+00, -7.74962473e+00,
+             -8.17052174e+00, -7.45232105e+00, -8.36025429e+00,
+             -8.77905941e+00, -8.73688126e+00, -7.78342247e+00,
+             -7.23929214e+00, -7.66926861e+00, -8.07070637e+00,
+             -8.31295013e+00, -9.89535809e+00, -9.98165798e+00,
+             -8.93481922e+00, -1.06759806e+01, -8.36170673e+00,
+             -8.10539532e+00, -7.36608410e+00, -5.60943890e+00,
+             -4.64587927e+00, -5.83614111e+00, -7.43147326e+00,
+             -8.38317585e+00, -7.20838785e+00, -8.97785187e+00,
+             -8.48861122e+00, -8.90835762e+00, -1.02879829e+01,
+             -8.28680229e+00, -7.55089474e+00, -5.80984068e+00,
+             -4.19810772e+00, -3.66857600e+00, -5.07566929e+00,
+             -5.31462193e+00, -7.08882189e+00, -8.04263878e+00,
+             -8.39473915e+00, -7.31028080e+00, -8.40231991e+00,
+             -9.39234066e+00, -9.62648582e+00, -7.14009428e+00,
+             -7.06499052e+00, -8.75688648e+00, -9.23448467e+00,
+             -9.52395248e+00, -7.77198076e+00, -6.75404882e+00,
+             -5.88444519e+00, -5.51932049e+00, -5.50128508e+00,
+             -6.62403917e+00, -6.11546326e+00, -8.39819050e+00,
+             -9.11159134e+00, -9.76298046e+00, -8.73225880e+00,
+             -8.22627926e+00, -7.76637888e+00, -5.32778978e+00,
+             -4.25748348e+00, -4.48599005e+00, -4.45657015e+00,
+             -5.29349470e+00, -6.71814585e+00, -6.68255901e+00,
+             -7.69074345e+00, -9.33472633e+00, -8.20838642e+00,
+             -8.34831810e+00, -7.44893360e+00, -7.96351957e+00,
+             -8.47328568e+00, -8.42038631e+00, -1.03812580e+01,
+             -9.83841610e+00, -1.10786657e+01, -1.09012508e+01,
+             -1.19488287e+01, -1.10189447e+01, -1.20707893e+01,
+             -1.34555283e+01, -1.21566677e+01, -1.18940430e+01,
+             -1.34403086e+01, -1.50408926e+01, -1.52630854e+01,
+             -1.62527313e+01, -1.54487343e+01, -1.53825932e+01,
+             -1.48086615e+01, -1.42294121e+01, -1.49251690e+01,
+             -1.51616650e+01, -1.57433262e+01, -1.51881771e+01,
+             -1.37026005e+01, -1.53068628e+01, -1.52038832e+01,
+             -1.46693974e+01, -1.40570765e+01, -1.30994520e+01,
+             -1.10969219e+01, -1.19760466e+01, -1.27957249e+01,
+             -1.26361752e+01, -1.32679806e+01, -1.46316805e+01,
+             -1.37919111e+01, -1.43277779e+01, -1.43696709e+01,
+             -1.51508722e+01, -1.47652006e+01, -1.45788946e+01,
+             -1.34704046e+01, -1.30046387e+01, -1.35508747e+01,
+             -1.33282137e+01, -1.28875284e+01, -1.14231834e+01,
+             -1.08917160e+01, -1.21644640e+01, -1.22917604e+01,
+             -1.20388746e+01, -1.18781862e+01, -1.19648552e+01,
+             -1.19998751e+01, -1.19457531e+01, -1.10809755e+01,
+             -1.01565723e+01, -1.13584967e+01, -1.06827621e+01,
+             -1.08090000e+01, -1.05503073e+01, -1.12374201e+01,
+             -1.11692610e+01, -1.29456072e+01, -1.45172625e+01,
+             -1.44005880e+01, -1.55778170e+01, -1.61550884e+01,
+             -1.56219273e+01, -1.66182632e+01, -1.68315144e+01,
+             -1.82901707e+01, -1.72366257e+01, -1.85517254e+01,
+             -1.92969437e+01, -1.88513451e+01, -1.89151344e+01,
+             -1.88517609e+01, -1.82658329e+01, -1.86769428e+01,
+             -1.91661434e+01, -1.95641632e+01, -1.91155910e+01,
+             -2.00331459e+01, -2.04195747e+01, -1.95923176e+01,
+             -2.10920372e+01, -2.21555595e+01, -2.09996014e+01,
+             -1.92105598e+01, -1.96339016e+01, -1.86180782e+01,
+             -1.80600014e+01, -1.81668835e+01, -1.93071899e+01,
+             -1.99776764e+01, -2.00276413e+01, -2.10960369e+01,
+             -2.26384468e+01, -2.44656200e+01, -2.44641705e+01,
+             -2.50512505e+01, -2.38030052e+01, -2.36495514e+01,
+             -2.38255596e+01, -2.26265850e+01, -2.27299957e+01,
+             -2.18569698e+01, -2.10476761e+01, -2.13875980e+01,
+             -2.30195522e+01, -2.11837788e+01, -2.18870583e+01,
+             -2.13884964e+01, -2.12895012e+01, -2.18870983e+01,
+             -2.17978554e+01, -2.16716080e+01, -2.23557415e+01,
+             -2.12638264e+01, -2.03178024e+01, -1.95541134e+01,
+             -1.88865910e+01, -1.94220314e+01, -2.05412445e+01,
+             -2.01033726e+01, -2.05281277e+01, -2.08711967e+01,
+             -2.09785919e+01, -2.13932819e+01, -2.24087410e+01,
+             -2.11163235e+01, -2.04967308e+01, -2.08725109e+01,
+             -2.03203430e+01, -1.97817745e+01, -2.03243294e+01,
+             -2.00650730e+01, -1.92966805e+01, -1.69195404e+01,
+             -1.64889145e+01, -1.59824409e+01, -1.64121742e+01,
+             -1.63611736e+01, -1.57707825e+01, -1.46186113e+01,
+             -1.57492876e+01, -1.71811485e+01, -1.68132095e+01,
+             -1.82634373e+01, -1.94662724e+01, -2.07510414e+01,
+             -2.23158493e+01, -2.17692356e+01, -2.07991714e+01,
+             -1.79210014e+01, -1.79963245e+01, -1.79945297e+01,
+             -1.89324455e+01, -1.86285248e+01, -1.99445896e+01,
+             -2.02264729e+01, -2.16735497e+01, -2.24330807e+01,
+             -2.58097572e+01, -2.64454136e+01, -2.65840874e+01,
+             -2.56876106e+01, -2.46122932e+01, -2.56634846e+01,
+             -2.57665863e+01, -2.71708031e+01, -2.81031628e+01,
+             -2.74096718e+01, -2.66214657e+01, -2.43313084e+01,
+             -2.52965355e+01, -2.46276340e+01, -2.42237415e+01,
+             -2.32498093e+01, -2.26074409e+01, -2.40738354e+01,
+             -2.56685123e+01, -2.62413769e+01, -2.52539825e+01,
+             -2.37199516e+01, -2.32731514e+01, -2.24470329e+01,
+             -2.06317787e+01, -2.04680920e+01, -2.08208694e+01,
+             -2.00182056e+01, -1.92449837e+01, -1.90256596e+01,
+             -1.77238350e+01, -1.89538193e+01, -1.95130157e+01,
+             -2.07838001e+01, -1.96788006e+01, -2.15846024e+01,
+             -2.26133022e+01, -2.20443649e+01, -2.20629673e+01,
+             -2.23122692e+01, -2.17757683e+01, -2.16331482e+01,
+             -2.13277092e+01, -1.97396698e+01, -1.73399620e+01,
+             -1.80386658e+01, -1.79456615e+01, -1.92468796e+01,
+             -2.01703262e+01, -1.77841072e+01, -1.50646572e+01,
+             -1.48563776e+01, -1.48725882e+01, -1.40871372e+01,
+             -1.37836313e+01, -1.19612541e+01, -1.13132534e+01,
+             -1.27780352e+01, -1.25270319e+01, -1.26091595e+01,
+             -1.35529013e+01, -1.41403294e+01, -1.27386389e+01,
+             -1.37741880e+01, -1.24013872e+01, -1.32342501e+01,
+             -1.45350161e+01, -1.53343410e+01, -1.55470247e+01,
+             -1.52042198e+01, -1.64676762e+01, -1.57797565e+01,
+             -1.54094048e+01, -1.48938494e+01, -1.57860718e+01,
+             -1.72089653e+01, -1.82091122e+01, -1.81694717e+01,
+             -1.82440109e+01, -1.69302750e+01, -1.81616383e+01,
+             -2.02796249e+01, -1.98391342e+01, -1.97967987e+01,
+             -2.08429871e+01, -1.90825577e+01, -1.77408104e+01,
+             -1.73469276e+01, -1.81644268e+01, -2.03652916e+01,
+             -1.90407295e+01, -1.76667690e+01, -1.70508823e+01,
+             -1.77479038e+01, -1.65034504e+01, -1.66606712e+01,
+             -1.77413940e+01, -1.65431213e+01, -1.65922546e+01,
+             -1.62571850e+01, -1.58698006e+01, -1.50661793e+01,
+             -1.53957958e+01, -1.69068203e+01, -1.64306946e+01,
+             -1.69761696e+01, -1.58198318e+01, -1.53893652e+01,
+             -1.61353664e+01, -1.48573742e+01, -1.51613655e+01,
+             -1.47677145e+01, -1.37336502e+01, -1.44549131e+01,
+             -1.46897440e+01, -1.61689930e+01, -1.64032421e+01,
+             -1.60828934e+01, -1.58374062e+01, -1.56705103e+01,
+             -1.70836163e+01, -1.65213089e+01, -1.45973206e+01,
+             -1.52763481e+01, -1.60805035e+01, -1.60587139e+01,
+             -1.71671257e+01, -1.55615664e+01, -1.45217581e+01,
+             -1.52220554e+01, -1.38032579e+01, -1.40027227e+01,
+             -1.28154755e+01, -1.35802193e+01, -1.35257654e+01,
+             -1.28142595e+01], dtype=float32, weak_type=True),), retval=DeviceArray([ 3.91769022e-01,  6.66197956e-01, -6.81014597e-01,
+             -1.40978324e+00, -7.97927603e-02, -9.35212001e-02,
+             -9.41611111e-01, -1.49014425e+00, -1.70472090e-03,
+             -2.59251982e-01, -1.49507415e+00, -2.81819177e+00,
+             -2.03869843e+00, -1.88497078e+00, -1.35565388e+00,
+             -1.69137990e+00,  4.10858512e-01, -7.82464683e-01,
+             -1.10316157e+00, -5.46051525e-02, -8.00485313e-01,
+             -5.00853896e-01, -3.32948774e-01, -2.66567636e+00,
+             -2.81128407e+00, -2.66302133e+00, -2.76010489e+00,
+             -2.85675573e+00, -2.19622970e+00, -2.32884693e+00,
+             -2.88512635e+00, -3.27528143e+00, -4.20264530e+00,
+             -2.95565176e+00, -3.72746706e+00, -3.53925180e+00,
+             -2.74862480e+00, -2.58713293e+00, -2.88989854e+00,
+             -3.38522863e+00, -4.46812963e+00, -5.17982531e+00,
+             -5.77326202e+00, -4.11323977e+00, -3.90493131e+00,
+             -2.76091194e+00, -2.96622896e+00, -2.51690173e+00,
+             -3.91588974e+00, -2.56346607e+00, -2.29549217e+00,
+             -2.11953783e+00, -1.77675784e+00, -1.45975208e+00,
+             -1.82943666e+00, -2.52531219e+00, -3.10954165e+00,
+             -4.03704643e+00, -3.97063375e+00, -3.95889425e+00,
+             -1.96321809e+00, -2.49246383e+00, -1.54404020e+00,
+             -2.93234634e+00, -3.43084526e+00, -2.49326420e+00,
+             -2.72131681e+00, -3.01474929e+00, -3.21247292e+00,
+             -5.24304533e+00, -3.78611231e+00, -4.19441700e+00,
+             -6.08465147e+00, -5.36331606e+00, -3.81923342e+00,
+             -3.41137171e+00, -4.18621683e+00, -3.88723135e+00,
+             -4.17200708e+00, -4.35495996e+00, -4.42850542e+00,
+             -3.60499692e+00, -4.35136986e+00, -4.97223568e+00,
+             -5.03434515e+00, -5.33001900e+00, -3.98313022e+00,
+             -3.71358562e+00, -4.65706015e+00, -4.77591848e+00,
+             -3.64056492e+00, -3.89728975e+00, -5.38097191e+00,
+             -5.12816429e+00, -4.25788689e+00, -4.01742649e+00,
+             -4.62200737e+00, -3.44788480e+00, -3.99118471e+00,
+             -3.92267179e+00, -3.75943756e+00, -5.41765118e+00,
+             -4.53864431e+00, -3.96115446e+00, -4.43735838e+00,
+             -3.84720802e+00, -2.98787785e+00, -4.18542337e+00,
+             -4.52754688e+00, -3.66826439e+00, -3.85869122e+00,
+             -4.58965588e+00, -4.97184420e+00, -4.68646097e+00,
+             -5.96809912e+00, -6.24434376e+00, -5.81870985e+00,
+             -4.89691639e+00, -5.45550966e+00, -6.09458494e+00,
+             -5.88325310e+00, -6.00280285e+00, -4.85113144e+00,
+             -2.97829795e+00, -2.86849523e+00, -3.70445275e+00,
+             -3.55153561e+00, -4.84436750e+00, -5.16662931e+00,
+             -4.75310612e+00, -5.10075188e+00, -4.89022112e+00,
+             -5.39702606e+00, -6.13033009e+00, -6.17743349e+00,
+             -7.56803989e+00, -7.12115479e+00, -7.47208786e+00,
+             -7.70995712e+00, -8.30982780e+00, -8.70217228e+00,
+             -9.39192390e+00, -9.40828800e+00, -9.74958897e+00,
+             -1.08328094e+01, -9.09724998e+00, -1.02429905e+01,
+             -9.24330521e+00, -8.71314144e+00, -8.78646278e+00,
+             -9.11185741e+00, -9.20156384e+00, -8.79618168e+00,
+             -8.84477043e+00, -9.82224751e+00, -8.28846169e+00,
+             -9.40781879e+00, -7.60754490e+00, -7.62515354e+00,
+             -9.58142281e+00, -9.48464108e+00, -8.97176266e+00,
+             -1.11815052e+01, -1.15616121e+01, -1.24680939e+01,
+             -1.23926659e+01, -1.35113544e+01, -1.26293297e+01,
+             -1.16220284e+01, -1.37857847e+01, -1.43730831e+01,
+             -1.31684284e+01, -1.34847317e+01, -1.32508383e+01,
+             -1.56213360e+01, -1.58818684e+01, -1.64275246e+01,
+             -1.57854385e+01, -1.66049099e+01, -1.67397728e+01,
+             -1.66082554e+01, -1.45795889e+01, -1.28980036e+01,
+             -1.21700420e+01, -1.18878965e+01, -1.29738169e+01,
+             -1.06097422e+01, -1.14253788e+01, -1.18443708e+01,
+             -1.12552681e+01, -1.18969326e+01, -1.09337740e+01,
+             -1.08316383e+01, -1.06581059e+01, -1.10703859e+01,
+             -1.11111155e+01, -1.06119442e+01, -1.03433437e+01,
+             -1.01217642e+01, -9.92795944e+00, -1.07634811e+01,
+             -1.01537771e+01, -1.15879173e+01, -1.12904167e+01,
+             -1.12915983e+01, -1.16998377e+01, -1.02787266e+01,
+             -9.68189430e+00, -1.12386713e+01, -1.23854303e+01,
+             -1.30780106e+01, -1.28537655e+01, -1.30258894e+01,
+             -1.09974060e+01, -1.03422499e+01, -1.02882290e+01,
+             -9.65948963e+00, -8.66541195e+00, -7.79565668e+00,
+             -7.69939280e+00, -9.28763771e+00, -9.26814461e+00,
+             -9.73795223e+00, -8.60762596e+00, -7.81032658e+00,
+             -7.36013508e+00, -8.74256420e+00, -1.03285913e+01,
+             -8.15768051e+00, -8.14508247e+00, -8.89285088e+00,
+             -1.03635082e+01, -1.03804159e+01, -1.03563166e+01,
+             -1.04996901e+01, -1.20615177e+01, -1.17915888e+01,
+             -1.23087549e+01, -1.06888180e+01, -1.07109756e+01,
+             -1.03908901e+01, -1.04964981e+01, -8.66094875e+00,
+             -8.38392353e+00, -9.23074436e+00, -1.06125040e+01,
+             -1.03925228e+01, -9.78331566e+00, -1.13300009e+01,
+             -9.54242325e+00, -8.44645309e+00, -7.99136686e+00,
+             -6.39347219e+00, -5.58855295e+00, -5.46173334e+00,
+             -6.51790142e+00, -6.09020329e+00, -6.13182545e+00,
+             -6.50607872e+00, -6.72066402e+00, -5.05574369e+00,
+             -4.47414827e+00, -5.05269909e+00, -3.57242036e+00,
+             -3.64440346e+00, -3.05000019e+00, -2.62803292e+00,
+             -2.32468319e+00, -1.62237644e+00, -1.88888204e+00,
+             -8.43597591e-01,  8.00040781e-01, -7.14211822e-01,
+              2.00721979e-01, -1.48880661e-01,  2.06777287e+00,
+              4.59785640e-01,  4.64062035e-01,  1.18513596e+00,
+              3.37292589e-02, -1.58180952e+00, -7.65897632e-01,
+             -8.40967178e-01,  1.10835409e+00,  1.00845659e+00,
+              2.56827426e+00,  2.85053730e+00,  4.03366613e+00,
+              3.82636285e+00,  4.09540415e+00,  3.57281637e+00,
+              4.92766762e+00,  5.68826723e+00,  4.73126030e+00,
+              5.40809059e+00,  6.04345655e+00,  4.62014532e+00,
+              4.00182486e+00,  5.13675976e+00,  5.21831512e+00,
+              5.60182238e+00,  6.44152164e+00,  6.02871847e+00,
+              5.78845596e+00,  4.66374874e+00,  4.45639038e+00,
+              4.19340754e+00,  4.18800735e+00,  4.20946789e+00,
+              4.42753839e+00,  4.67251015e+00,  4.07685328e+00,
+              3.37401748e+00,  2.30138111e+00,  5.36507964e-01,
+             -2.17326671e-01,  7.42410272e-02, -1.05283767e-01,
+             -5.31381249e-01, -1.47453284e+00, -3.21529555e+00,
+             -4.24821568e+00, -4.77316809e+00, -5.46402502e+00,
+             -4.85097980e+00, -5.86514664e+00, -5.98364782e+00,
+             -5.27939844e+00, -6.20787144e+00, -4.97363186e+00,
+             -5.40709734e+00, -5.06977320e+00, -2.61704540e+00,
+             -1.78792000e+00, -6.54668450e-01, -9.26173091e-01,
+              1.91830456e-01,  1.82499051e-01,  9.19783022e-03,
+             -2.02823949e+00, -2.23025680e+00, -4.88615179e+00,
+             -5.35814667e+00, -4.87997627e+00, -6.13680649e+00,
+             -6.79734230e+00, -6.70780993e+00, -7.25967741e+00,
+             -7.07514715e+00, -7.14126778e+00, -6.18358803e+00,
+             -7.02467966e+00, -6.06659746e+00, -7.60473347e+00,
+             -6.49519157e+00, -6.41220903e+00, -5.74218988e+00,
+             -4.73509502e+00, -4.50631094e+00, -4.89323950e+00,
+             -3.70888376e+00, -3.02837753e+00, -4.81087732e+00,
+             -4.95649099e+00, -5.09400988e+00, -4.26096916e+00,
+             -3.95592666e+00, -6.40008545e+00, -5.73513269e+00,
+             -5.82302809e+00, -6.16700649e+00, -6.35586739e+00,
+             -5.57202387e+00, -5.72015190e+00, -5.93870497e+00,
+             -5.20427132e+00, -5.66261768e+00, -4.88627815e+00,
+             -4.76001215e+00, -5.49544668e+00, -7.28000164e+00,
+             -6.83978701e+00, -8.64099026e+00, -8.37485886e+00,
+             -9.14090729e+00, -1.03970184e+01, -1.13816586e+01,
+             -1.14466553e+01, -1.29595985e+01, -1.37914171e+01,
+             -1.45025682e+01, -1.58725672e+01, -1.67672729e+01,
+             -1.43296003e+01, -1.37033157e+01, -1.24847355e+01,
+             -1.14864006e+01, -1.24056501e+01, -1.24412374e+01,
+             -1.40394802e+01, -1.48785162e+01, -1.21289053e+01,
+             -1.22357273e+01, -1.23016853e+01, -1.31576414e+01,
+             -1.46103573e+01, -1.54516449e+01, -1.44863100e+01,
+             -1.63824673e+01, -1.70369320e+01, -1.67279720e+01,
+             -1.77863560e+01, -1.72031269e+01, -1.66300869e+01,
+             -1.71358814e+01, -1.81160622e+01, -1.64331455e+01,
+             -1.68089409e+01, -1.68226166e+01, -1.57301416e+01,
+             -1.40872173e+01, -1.53603086e+01, -1.53057795e+01,
+             -1.57349739e+01, -1.76759224e+01, -1.77808132e+01,
+             -1.75359077e+01, -1.65707359e+01, -1.57662268e+01,
+             -1.49604349e+01, -1.53439884e+01, -1.69983273e+01,
+             -1.56829052e+01, -1.53801861e+01, -1.43019047e+01,
+             -1.21179218e+01, -1.37988119e+01, -1.37184925e+01,
+             -1.41853123e+01, -1.24963036e+01, -1.35274315e+01,
+             -1.39585762e+01, -1.47737303e+01, -1.39961653e+01,
+             -1.53737612e+01, -1.49005861e+01, -1.46564074e+01,
+             -1.57455359e+01, -1.43088675e+01, -1.43053131e+01,
+             -1.51971350e+01, -1.48856535e+01, -1.45200663e+01,
+             -1.48476286e+01, -1.46258402e+01, -1.35498819e+01,
+             -1.28418150e+01, -1.47624197e+01, -1.52463779e+01,
+             -1.43528900e+01, -1.48476973e+01, -1.58140306e+01,
+             -1.62381992e+01, -1.58605003e+01, -1.63308926e+01,
+             -1.76173763e+01, -1.66911125e+01, -1.69926434e+01,
+             -1.64375172e+01, -1.59758711e+01, -1.61786175e+01,
+             -1.72819195e+01, -1.79577389e+01, -1.74435673e+01,
+             -1.80297451e+01, -1.61548233e+01, -1.53496132e+01,
+             -1.42155771e+01, -1.45856276e+01, -1.59833860e+01,
+             -1.68964615e+01, -1.60818863e+01, -1.61175518e+01,
+             -1.72689877e+01, -1.73441887e+01, -1.72253628e+01,
+             -1.89337006e+01, -1.82804623e+01, -1.87036247e+01,
+             -1.90584164e+01, -2.10065861e+01, -2.01843872e+01,
+             -2.00504494e+01, -1.81250343e+01, -1.78573360e+01,
+             -1.82148628e+01, -1.70469303e+01, -1.80336628e+01,
+             -1.68257847e+01, -1.79756641e+01, -1.57769966e+01,
+             -1.64060745e+01, -1.42974739e+01, -1.32308121e+01,
+             -1.34508896e+01, -1.28324661e+01, -1.05564489e+01,
+             -7.59796143e+00, -7.18071747e+00, -6.87512493e+00,
+             -6.06219578e+00, -6.05107021e+00, -6.90680313e+00,
+             -7.34956026e+00, -8.91631508e+00, -7.86102152e+00,
+             -7.26881742e+00, -6.17482424e+00, -7.79608965e+00,
+             -7.70668411e+00, -7.94675207e+00, -7.37047291e+00,
+             -5.82612038e+00, -7.20782757e+00, -5.90419340e+00,
+             -6.61960125e+00, -7.91164827e+00, -8.79358578e+00,
+             -8.23006344e+00, -8.21647549e+00, -7.72709656e+00,
+             -5.81189728e+00, -7.12138081e+00, -5.99621344e+00,
+             -5.87394047e+00, -6.80395031e+00, -7.52890491e+00,
+             -6.42373800e+00, -5.05778217e+00, -5.16377878e+00,
+             -3.36751008e+00, -4.70894194e+00, -5.80068207e+00,
+             -6.60389471e+00, -6.94551086e+00, -6.83902693e+00,
+             -7.31025743e+00, -8.08950710e+00, -7.22096205e+00,
+             -6.81237459e+00, -6.97396374e+00, -6.08157635e+00,
+             -7.62261438e+00, -8.69988823e+00, -8.31871128e+00,
+             -7.00822449e+00, -7.37041521e+00, -5.52778435e+00,
+             -5.86976242e+00, -6.27181530e+00, -6.68739939e+00,
+             -7.23667955e+00, -9.34445763e+00, -8.92614651e+00,
+             -7.99807596e+00, -8.33070469e+00, -8.50328922e+00,
+             -7.02738810e+00, -7.16608238e+00, -7.26354933e+00,
+             -6.85325623e+00, -7.69166470e+00, -9.82869339e+00,
+             -8.36712837e+00, -7.79044104e+00, -7.81506824e+00,
+             -8.45691109e+00, -7.05739880e+00, -6.97967529e+00,
+             -7.04687357e+00, -6.23174763e+00, -5.39697123e+00,
+             -7.34765339e+00, -7.45519400e+00, -7.17608595e+00,
+             -5.45864487e+00, -5.21287155e+00, -4.51906776e+00,
+             -3.40103292e+00, -3.52851343e+00, -3.47329235e+00,
+             -3.45355892e+00, -4.89052963e+00, -7.84470844e+00,
+             -8.86919594e+00, -8.35540581e+00, -9.59708118e+00,
+             -1.01974936e+01, -8.63232327e+00, -8.73869610e+00,
+             -9.58284187e+00, -8.36808777e+00, -7.01834106e+00,
+             -7.73031902e+00, -8.71973515e+00, -9.58318424e+00,
+             -1.00463610e+01, -1.00876904e+01, -9.45402813e+00,
+             -8.00360298e+00, -8.91423607e+00, -8.49901009e+00,
+             -8.21681118e+00, -7.73167801e+00, -7.64672327e+00,
+             -7.39093208e+00, -7.59294653e+00, -7.46248674e+00,
+             -8.43131161e+00, -8.07758904e+00, -7.13080692e+00,
+             -8.31330109e+00, -8.37278557e+00, -8.83422470e+00,
+             -8.44454479e+00, -7.74962473e+00, -8.17052174e+00,
+             -7.45232105e+00, -8.36025429e+00, -8.77905941e+00,
+             -8.73688126e+00, -7.78342247e+00, -7.23929214e+00,
+             -7.66926861e+00, -8.07070637e+00, -8.31295013e+00,
+             -9.89535809e+00, -9.98165798e+00, -8.93481922e+00,
+             -1.06759806e+01, -8.36170673e+00, -8.10539532e+00,
+             -7.36608410e+00, -5.60943890e+00, -4.64587927e+00,
+             -5.83614111e+00, -7.43147326e+00, -8.38317585e+00,
+             -7.20838785e+00, -8.97785187e+00, -8.48861122e+00,
+             -8.90835762e+00, -1.02879829e+01, -8.28680229e+00,
+             -7.55089474e+00, -5.80984068e+00, -4.19810772e+00,
+             -3.66857600e+00, -5.07566929e+00, -5.31462193e+00,
+             -7.08882189e+00, -8.04263878e+00, -8.39473915e+00,
+             -7.31028080e+00, -8.40231991e+00, -9.39234066e+00,
+             -9.62648582e+00, -7.14009428e+00, -7.06499052e+00,
+             -8.75688648e+00, -9.23448467e+00, -9.52395248e+00,
+             -7.77198076e+00, -6.75404882e+00, -5.88444519e+00,
+             -5.51932049e+00, -5.50128508e+00, -6.62403917e+00,
+             -6.11546326e+00, -8.39819050e+00, -9.11159134e+00,
+             -9.76298046e+00, -8.73225880e+00, -8.22627926e+00,
+             -7.76637888e+00, -5.32778978e+00, -4.25748348e+00,
+             -4.48599005e+00, -4.45657015e+00, -5.29349470e+00,
+             -6.71814585e+00, -6.68255901e+00, -7.69074345e+00,
+             -9.33472633e+00, -8.20838642e+00, -8.34831810e+00,
+             -7.44893360e+00, -7.96351957e+00, -8.47328568e+00,
+             -8.42038631e+00, -1.03812580e+01, -9.83841610e+00,
+             -1.10786657e+01, -1.09012508e+01, -1.19488287e+01,
+             -1.10189447e+01, -1.20707893e+01, -1.34555283e+01,
+             -1.21566677e+01, -1.18940430e+01, -1.34403086e+01,
+             -1.50408926e+01, -1.52630854e+01, -1.62527313e+01,
+             -1.54487343e+01, -1.53825932e+01, -1.48086615e+01,
+             -1.42294121e+01, -1.49251690e+01, -1.51616650e+01,
+             -1.57433262e+01, -1.51881771e+01, -1.37026005e+01,
+             -1.53068628e+01, -1.52038832e+01, -1.46693974e+01,
+             -1.40570765e+01, -1.30994520e+01, -1.10969219e+01,
+             -1.19760466e+01, -1.27957249e+01, -1.26361752e+01,
+             -1.32679806e+01, -1.46316805e+01, -1.37919111e+01,
+             -1.43277779e+01, -1.43696709e+01, -1.51508722e+01,
+             -1.47652006e+01, -1.45788946e+01, -1.34704046e+01,
+             -1.30046387e+01, -1.35508747e+01, -1.33282137e+01,
+             -1.28875284e+01, -1.14231834e+01, -1.08917160e+01,
+             -1.21644640e+01, -1.22917604e+01, -1.20388746e+01,
+             -1.18781862e+01, -1.19648552e+01, -1.19998751e+01,
+             -1.19457531e+01, -1.10809755e+01, -1.01565723e+01,
+             -1.13584967e+01, -1.06827621e+01, -1.08090000e+01,
+             -1.05503073e+01, -1.12374201e+01, -1.11692610e+01,
+             -1.29456072e+01, -1.45172625e+01, -1.44005880e+01,
+             -1.55778170e+01, -1.61550884e+01, -1.56219273e+01,
+             -1.66182632e+01, -1.68315144e+01, -1.82901707e+01,
+             -1.72366257e+01, -1.85517254e+01, -1.92969437e+01,
+             -1.88513451e+01, -1.89151344e+01, -1.88517609e+01,
+             -1.82658329e+01, -1.86769428e+01, -1.91661434e+01,
+             -1.95641632e+01, -1.91155910e+01, -2.00331459e+01,
+             -2.04195747e+01, -1.95923176e+01, -2.10920372e+01,
+             -2.21555595e+01, -2.09996014e+01, -1.92105598e+01,
+             -1.96339016e+01, -1.86180782e+01, -1.80600014e+01,
+             -1.81668835e+01, -1.93071899e+01, -1.99776764e+01,
+             -2.00276413e+01, -2.10960369e+01, -2.26384468e+01,
+             -2.44656200e+01, -2.44641705e+01, -2.50512505e+01,
+             -2.38030052e+01, -2.36495514e+01, -2.38255596e+01,
+             -2.26265850e+01, -2.27299957e+01, -2.18569698e+01,
+             -2.10476761e+01, -2.13875980e+01, -2.30195522e+01,
+             -2.11837788e+01, -2.18870583e+01, -2.13884964e+01,
+             -2.12895012e+01, -2.18870983e+01, -2.17978554e+01,
+             -2.16716080e+01, -2.23557415e+01, -2.12638264e+01,
+             -2.03178024e+01, -1.95541134e+01, -1.88865910e+01,
+             -1.94220314e+01, -2.05412445e+01, -2.01033726e+01,
+             -2.05281277e+01, -2.08711967e+01, -2.09785919e+01,
+             -2.13932819e+01, -2.24087410e+01, -2.11163235e+01,
+             -2.04967308e+01, -2.08725109e+01, -2.03203430e+01,
+             -1.97817745e+01, -2.03243294e+01, -2.00650730e+01,
+             -1.92966805e+01, -1.69195404e+01, -1.64889145e+01,
+             -1.59824409e+01, -1.64121742e+01, -1.63611736e+01,
+             -1.57707825e+01, -1.46186113e+01, -1.57492876e+01,
+             -1.71811485e+01, -1.68132095e+01, -1.82634373e+01,
+             -1.94662724e+01, -2.07510414e+01, -2.23158493e+01,
+             -2.17692356e+01, -2.07991714e+01, -1.79210014e+01,
+             -1.79963245e+01, -1.79945297e+01, -1.89324455e+01,
+             -1.86285248e+01, -1.99445896e+01, -2.02264729e+01,
+             -2.16735497e+01, -2.24330807e+01, -2.58097572e+01,
+             -2.64454136e+01, -2.65840874e+01, -2.56876106e+01,
+             -2.46122932e+01, -2.56634846e+01, -2.57665863e+01,
+             -2.71708031e+01, -2.81031628e+01, -2.74096718e+01,
+             -2.66214657e+01, -2.43313084e+01, -2.52965355e+01,
+             -2.46276340e+01, -2.42237415e+01, -2.32498093e+01,
+             -2.26074409e+01, -2.40738354e+01, -2.56685123e+01,
+             -2.62413769e+01, -2.52539825e+01, -2.37199516e+01,
+             -2.32731514e+01, -2.24470329e+01, -2.06317787e+01,
+             -2.04680920e+01, -2.08208694e+01, -2.00182056e+01,
+             -1.92449837e+01, -1.90256596e+01, -1.77238350e+01,
+             -1.89538193e+01, -1.95130157e+01, -2.07838001e+01,
+             -1.96788006e+01, -2.15846024e+01, -2.26133022e+01,
+             -2.20443649e+01, -2.20629673e+01, -2.23122692e+01,
+             -2.17757683e+01, -2.16331482e+01, -2.13277092e+01,
+             -1.97396698e+01, -1.73399620e+01, -1.80386658e+01,
+             -1.79456615e+01, -1.92468796e+01, -2.01703262e+01,
+             -1.77841072e+01, -1.50646572e+01, -1.48563776e+01,
+             -1.48725882e+01, -1.40871372e+01, -1.37836313e+01,
+             -1.19612541e+01, -1.13132534e+01, -1.27780352e+01,
+             -1.25270319e+01, -1.26091595e+01, -1.35529013e+01,
+             -1.41403294e+01, -1.27386389e+01, -1.37741880e+01,
+             -1.24013872e+01, -1.32342501e+01, -1.45350161e+01,
+             -1.53343410e+01, -1.55470247e+01, -1.52042198e+01,
+             -1.64676762e+01, -1.57797565e+01, -1.54094048e+01,
+             -1.48938494e+01, -1.57860718e+01, -1.72089653e+01,
+             -1.82091122e+01, -1.81694717e+01, -1.82440109e+01,
+             -1.69302750e+01, -1.81616383e+01, -2.02796249e+01,
+             -1.98391342e+01, -1.97967987e+01, -2.08429871e+01,
+             -1.90825577e+01, -1.77408104e+01, -1.73469276e+01,
+             -1.81644268e+01, -2.03652916e+01, -1.90407295e+01,
+             -1.76667690e+01, -1.70508823e+01, -1.77479038e+01,
+             -1.65034504e+01, -1.66606712e+01, -1.77413940e+01,
+             -1.65431213e+01, -1.65922546e+01, -1.62571850e+01,
+             -1.58698006e+01, -1.50661793e+01, -1.53957958e+01,
+             -1.69068203e+01, -1.64306946e+01, -1.69761696e+01,
+             -1.58198318e+01, -1.53893652e+01, -1.61353664e+01,
+             -1.48573742e+01, -1.51613655e+01, -1.47677145e+01,
+             -1.37336502e+01, -1.44549131e+01, -1.46897440e+01,
+             -1.61689930e+01, -1.64032421e+01, -1.60828934e+01,
+             -1.58374062e+01, -1.56705103e+01, -1.70836163e+01,
+             -1.65213089e+01, -1.45973206e+01, -1.52763481e+01,
+             -1.60805035e+01, -1.60587139e+01, -1.71671257e+01,
+             -1.55615664e+01, -1.45217581e+01, -1.52220554e+01,
+             -1.38032579e+01, -1.40027227e+01, -1.28154755e+01,
+             -1.35802193e+01, -1.35257654e+01, -1.28142595e+01,
+             -1.17844839e+01], dtype=float32), choices=BuiltinChoiceMap(inner={&#39;x&#39;: DistributionTrace(gen_fn=_Normal(), args=(DeviceArray([ 5.00000000e-01,  3.91769022e-01,  6.66197956e-01,
+             -6.81014597e-01, -1.40978324e+00, -7.97927603e-02,
+             -9.35212001e-02, -9.41611111e-01, -1.49014425e+00,
+             -1.70472090e-03, -2.59251982e-01, -1.49507415e+00,
+             -2.81819177e+00, -2.03869843e+00, -1.88497078e+00,
+             -1.35565388e+00, -1.69137990e+00,  4.10858512e-01,
+             -7.82464683e-01, -1.10316157e+00, -5.46051525e-02,
+             -8.00485313e-01, -5.00853896e-01, -3.32948774e-01,
+             -2.66567636e+00, -2.81128407e+00, -2.66302133e+00,
+             -2.76010489e+00, -2.85675573e+00, -2.19622970e+00,
+             -2.32884693e+00, -2.88512635e+00, -3.27528143e+00,
+             -4.20264530e+00, -2.95565176e+00, -3.72746706e+00,
+             -3.53925180e+00, -2.74862480e+00, -2.58713293e+00,
+             -2.88989854e+00, -3.38522863e+00, -4.46812963e+00,
+             -5.17982531e+00, -5.77326202e+00, -4.11323977e+00,
+             -3.90493131e+00, -2.76091194e+00, -2.96622896e+00,
+             -2.51690173e+00, -3.91588974e+00, -2.56346607e+00,
+             -2.29549217e+00, -2.11953783e+00, -1.77675784e+00,
+             -1.45975208e+00, -1.82943666e+00, -2.52531219e+00,
+             -3.10954165e+00, -4.03704643e+00, -3.97063375e+00,
+             -3.95889425e+00, -1.96321809e+00, -2.49246383e+00,
+             -1.54404020e+00, -2.93234634e+00, -3.43084526e+00,
+             -2.49326420e+00, -2.72131681e+00, -3.01474929e+00,
+             -3.21247292e+00, -5.24304533e+00, -3.78611231e+00,
+             -4.19441700e+00, -6.08465147e+00, -5.36331606e+00,
+             -3.81923342e+00, -3.41137171e+00, -4.18621683e+00,
+             -3.88723135e+00, -4.17200708e+00, -4.35495996e+00,
+             -4.42850542e+00, -3.60499692e+00, -4.35136986e+00,
+             -4.97223568e+00, -5.03434515e+00, -5.33001900e+00,
+             -3.98313022e+00, -3.71358562e+00, -4.65706015e+00,
+             -4.77591848e+00, -3.64056492e+00, -3.89728975e+00,
+             -5.38097191e+00, -5.12816429e+00, -4.25788689e+00,
+             -4.01742649e+00, -4.62200737e+00, -3.44788480e+00,
+             -3.99118471e+00, -3.92267179e+00, -3.75943756e+00,
+             -5.41765118e+00, -4.53864431e+00, -3.96115446e+00,
+             -4.43735838e+00, -3.84720802e+00, -2.98787785e+00,
+             -4.18542337e+00, -4.52754688e+00, -3.66826439e+00,
+             -3.85869122e+00, -4.58965588e+00, -4.97184420e+00,
+             -4.68646097e+00, -5.96809912e+00, -6.24434376e+00,
+             -5.81870985e+00, -4.89691639e+00, -5.45550966e+00,
+             -6.09458494e+00, -5.88325310e+00, -6.00280285e+00,
+             -4.85113144e+00, -2.97829795e+00, -2.86849523e+00,
+             -3.70445275e+00, -3.55153561e+00, -4.84436750e+00,
+             -5.16662931e+00, -4.75310612e+00, -5.10075188e+00,
+             -4.89022112e+00, -5.39702606e+00, -6.13033009e+00,
+             -6.17743349e+00, -7.56803989e+00, -7.12115479e+00,
+             -7.47208786e+00, -7.70995712e+00, -8.30982780e+00,
+             -8.70217228e+00, -9.39192390e+00, -9.40828800e+00,
+             -9.74958897e+00, -1.08328094e+01, -9.09724998e+00,
+             -1.02429905e+01, -9.24330521e+00, -8.71314144e+00,
+             -8.78646278e+00, -9.11185741e+00, -9.20156384e+00,
+             -8.79618168e+00, -8.84477043e+00, -9.82224751e+00,
+             -8.28846169e+00, -9.40781879e+00, -7.60754490e+00,
+             -7.62515354e+00, -9.58142281e+00, -9.48464108e+00,
+             -8.97176266e+00, -1.11815052e+01, -1.15616121e+01,
+             -1.24680939e+01, -1.23926659e+01, -1.35113544e+01,
+             -1.26293297e+01, -1.16220284e+01, -1.37857847e+01,
+             -1.43730831e+01, -1.31684284e+01, -1.34847317e+01,
+             -1.32508383e+01, -1.56213360e+01, -1.58818684e+01,
+             -1.64275246e+01, -1.57854385e+01, -1.66049099e+01,
+             -1.67397728e+01, -1.66082554e+01, -1.45795889e+01,
+             -1.28980036e+01, -1.21700420e+01, -1.18878965e+01,
+             -1.29738169e+01, -1.06097422e+01, -1.14253788e+01,
+             -1.18443708e+01, -1.12552681e+01, -1.18969326e+01,
+             -1.09337740e+01, -1.08316383e+01, -1.06581059e+01,
+             -1.10703859e+01, -1.11111155e+01, -1.06119442e+01,
+             -1.03433437e+01, -1.01217642e+01, -9.92795944e+00,
+             -1.07634811e+01, -1.01537771e+01, -1.15879173e+01,
+             -1.12904167e+01, -1.12915983e+01, -1.16998377e+01,
+             -1.02787266e+01, -9.68189430e+00, -1.12386713e+01,
+             -1.23854303e+01, -1.30780106e+01, -1.28537655e+01,
+             -1.30258894e+01, -1.09974060e+01, -1.03422499e+01,
+             -1.02882290e+01, -9.65948963e+00, -8.66541195e+00,
+             -7.79565668e+00, -7.69939280e+00, -9.28763771e+00,
+             -9.26814461e+00, -9.73795223e+00, -8.60762596e+00,
+             -7.81032658e+00, -7.36013508e+00, -8.74256420e+00,
+             -1.03285913e+01, -8.15768051e+00, -8.14508247e+00,
+             -8.89285088e+00, -1.03635082e+01, -1.03804159e+01,
+             -1.03563166e+01, -1.04996901e+01, -1.20615177e+01,
+             -1.17915888e+01, -1.23087549e+01, -1.06888180e+01,
+             -1.07109756e+01, -1.03908901e+01, -1.04964981e+01,
+             -8.66094875e+00, -8.38392353e+00, -9.23074436e+00,
+             -1.06125040e+01, -1.03925228e+01, -9.78331566e+00,
+             -1.13300009e+01, -9.54242325e+00, -8.44645309e+00,
+             -7.99136686e+00, -6.39347219e+00, -5.58855295e+00,
+             -5.46173334e+00, -6.51790142e+00, -6.09020329e+00,
+             -6.13182545e+00, -6.50607872e+00, -6.72066402e+00,
+             -5.05574369e+00, -4.47414827e+00, -5.05269909e+00,
+             -3.57242036e+00, -3.64440346e+00, -3.05000019e+00,
+             -2.62803292e+00, -2.32468319e+00, -1.62237644e+00,
+             -1.88888204e+00, -8.43597591e-01,  8.00040781e-01,
+             -7.14211822e-01,  2.00721979e-01, -1.48880661e-01,
+              2.06777287e+00,  4.59785640e-01,  4.64062035e-01,
+              1.18513596e+00,  3.37292589e-02, -1.58180952e+00,
+             -7.65897632e-01, -8.40967178e-01,  1.10835409e+00,
+              1.00845659e+00,  2.56827426e+00,  2.85053730e+00,
+              4.03366613e+00,  3.82636285e+00,  4.09540415e+00,
+              3.57281637e+00,  4.92766762e+00,  5.68826723e+00,
+              4.73126030e+00,  5.40809059e+00,  6.04345655e+00,
+              4.62014532e+00,  4.00182486e+00,  5.13675976e+00,
+              5.21831512e+00,  5.60182238e+00,  6.44152164e+00,
+              6.02871847e+00,  5.78845596e+00,  4.66374874e+00,
+              4.45639038e+00,  4.19340754e+00,  4.18800735e+00,
+              4.20946789e+00,  4.42753839e+00,  4.67251015e+00,
+              4.07685328e+00,  3.37401748e+00,  2.30138111e+00,
+              5.36507964e-01, -2.17326671e-01,  7.42410272e-02,
+             -1.05283767e-01, -5.31381249e-01, -1.47453284e+00,
+             -3.21529555e+00, -4.24821568e+00, -4.77316809e+00,
+             -5.46402502e+00, -4.85097980e+00, -5.86514664e+00,
+             -5.98364782e+00, -5.27939844e+00, -6.20787144e+00,
+             -4.97363186e+00, -5.40709734e+00, -5.06977320e+00,
+             -2.61704540e+00, -1.78792000e+00, -6.54668450e-01,
+             -9.26173091e-01,  1.91830456e-01,  1.82499051e-01,
+              9.19783022e-03, -2.02823949e+00, -2.23025680e+00,
+             -4.88615179e+00, -5.35814667e+00, -4.87997627e+00,
+             -6.13680649e+00, -6.79734230e+00, -6.70780993e+00,
+             -7.25967741e+00, -7.07514715e+00, -7.14126778e+00,
+             -6.18358803e+00, -7.02467966e+00, -6.06659746e+00,
+             -7.60473347e+00, -6.49519157e+00, -6.41220903e+00,
+             -5.74218988e+00, -4.73509502e+00, -4.50631094e+00,
+             -4.89323950e+00, -3.70888376e+00, -3.02837753e+00,
+             -4.81087732e+00, -4.95649099e+00, -5.09400988e+00,
+             -4.26096916e+00, -3.95592666e+00, -6.40008545e+00,
+             -5.73513269e+00, -5.82302809e+00, -6.16700649e+00,
+             -6.35586739e+00, -5.57202387e+00, -5.72015190e+00,
+             -5.93870497e+00, -5.20427132e+00, -5.66261768e+00,
+             -4.88627815e+00, -4.76001215e+00, -5.49544668e+00,
+             -7.28000164e+00, -6.83978701e+00, -8.64099026e+00,
+             -8.37485886e+00, -9.14090729e+00, -1.03970184e+01,
+             -1.13816586e+01, -1.14466553e+01, -1.29595985e+01,
+             -1.37914171e+01, -1.45025682e+01, -1.58725672e+01,
+             -1.67672729e+01, -1.43296003e+01, -1.37033157e+01,
+             -1.24847355e+01, -1.14864006e+01, -1.24056501e+01,
+             -1.24412374e+01, -1.40394802e+01, -1.48785162e+01,
+             -1.21289053e+01, -1.22357273e+01, -1.23016853e+01,
+             -1.31576414e+01, -1.46103573e+01, -1.54516449e+01,
+             -1.44863100e+01, -1.63824673e+01, -1.70369320e+01,
+             -1.67279720e+01, -1.77863560e+01, -1.72031269e+01,
+             -1.66300869e+01, -1.71358814e+01, -1.81160622e+01,
+             -1.64331455e+01, -1.68089409e+01, -1.68226166e+01,
+             -1.57301416e+01, -1.40872173e+01, -1.53603086e+01,
+             -1.53057795e+01, -1.57349739e+01, -1.76759224e+01,
+             -1.77808132e+01, -1.75359077e+01, -1.65707359e+01,
+             -1.57662268e+01, -1.49604349e+01, -1.53439884e+01,
+             -1.69983273e+01, -1.56829052e+01, -1.53801861e+01,
+             -1.43019047e+01, -1.21179218e+01, -1.37988119e+01,
+             -1.37184925e+01, -1.41853123e+01, -1.24963036e+01,
+             -1.35274315e+01, -1.39585762e+01, -1.47737303e+01,
+             -1.39961653e+01, -1.53737612e+01, -1.49005861e+01,
+             -1.46564074e+01, -1.57455359e+01, -1.43088675e+01,
+             -1.43053131e+01, -1.51971350e+01, -1.48856535e+01,
+             -1.45200663e+01, -1.48476286e+01, -1.46258402e+01,
+             -1.35498819e+01, -1.28418150e+01, -1.47624197e+01,
+             -1.52463779e+01, -1.43528900e+01, -1.48476973e+01,
+             -1.58140306e+01, -1.62381992e+01, -1.58605003e+01,
+             -1.63308926e+01, -1.76173763e+01, -1.66911125e+01,
+             -1.69926434e+01, -1.64375172e+01, -1.59758711e+01,
+             -1.61786175e+01, -1.72819195e+01, -1.79577389e+01,
+             -1.74435673e+01, -1.80297451e+01, -1.61548233e+01,
+             -1.53496132e+01, -1.42155771e+01, -1.45856276e+01,
+             -1.59833860e+01, -1.68964615e+01, -1.60818863e+01,
+             -1.61175518e+01, -1.72689877e+01, -1.73441887e+01,
+             -1.72253628e+01, -1.89337006e+01, -1.82804623e+01,
+             -1.87036247e+01, -1.90584164e+01, -2.10065861e+01,
+             -2.01843872e+01, -2.00504494e+01, -1.81250343e+01,
+             -1.78573360e+01, -1.82148628e+01, -1.70469303e+01,
+             -1.80336628e+01, -1.68257847e+01, -1.79756641e+01,
+             -1.57769966e+01, -1.64060745e+01, -1.42974739e+01,
+             -1.32308121e+01, -1.34508896e+01, -1.28324661e+01,
+             -1.05564489e+01, -7.59796143e+00, -7.18071747e+00,
+             -6.87512493e+00, -6.06219578e+00, -6.05107021e+00,
+             -6.90680313e+00, -7.34956026e+00, -8.91631508e+00,
+             -7.86102152e+00, -7.26881742e+00, -6.17482424e+00,
+             -7.79608965e+00, -7.70668411e+00, -7.94675207e+00,
+             -7.37047291e+00, -5.82612038e+00, -7.20782757e+00,
+             -5.90419340e+00, -6.61960125e+00, -7.91164827e+00,
+             -8.79358578e+00, -8.23006344e+00, -8.21647549e+00,
+             -7.72709656e+00, -5.81189728e+00, -7.12138081e+00,
+             -5.99621344e+00, -5.87394047e+00, -6.80395031e+00,
+             -7.52890491e+00, -6.42373800e+00, -5.05778217e+00,
+             -5.16377878e+00, -3.36751008e+00, -4.70894194e+00,
+             -5.80068207e+00, -6.60389471e+00, -6.94551086e+00,
+             -6.83902693e+00, -7.31025743e+00, -8.08950710e+00,
+             -7.22096205e+00, -6.81237459e+00, -6.97396374e+00,
+             -6.08157635e+00, -7.62261438e+00, -8.69988823e+00,
+             -8.31871128e+00, -7.00822449e+00, -7.37041521e+00,
+             -5.52778435e+00, -5.86976242e+00, -6.27181530e+00,
+             -6.68739939e+00, -7.23667955e+00, -9.34445763e+00,
+             -8.92614651e+00, -7.99807596e+00, -8.33070469e+00,
+             -8.50328922e+00, -7.02738810e+00, -7.16608238e+00,
+             -7.26354933e+00, -6.85325623e+00, -7.69166470e+00,
+             -9.82869339e+00, -8.36712837e+00, -7.79044104e+00,
+             -7.81506824e+00, -8.45691109e+00, -7.05739880e+00,
+             -6.97967529e+00, -7.04687357e+00, -6.23174763e+00,
+             -5.39697123e+00, -7.34765339e+00, -7.45519400e+00,
+             -7.17608595e+00, -5.45864487e+00, -5.21287155e+00,
+             -4.51906776e+00, -3.40103292e+00, -3.52851343e+00,
+             -3.47329235e+00, -3.45355892e+00, -4.89052963e+00,
+             -7.84470844e+00, -8.86919594e+00, -8.35540581e+00,
+             -9.59708118e+00, -1.01974936e+01, -8.63232327e+00,
+             -8.73869610e+00, -9.58284187e+00, -8.36808777e+00,
+             -7.01834106e+00, -7.73031902e+00, -8.71973515e+00,
+             -9.58318424e+00, -1.00463610e+01, -1.00876904e+01,
+             -9.45402813e+00, -8.00360298e+00, -8.91423607e+00,
+             -8.49901009e+00, -8.21681118e+00, -7.73167801e+00,
+             -7.64672327e+00, -7.39093208e+00, -7.59294653e+00,
+             -7.46248674e+00, -8.43131161e+00, -8.07758904e+00,
+             -7.13080692e+00, -8.31330109e+00, -8.37278557e+00,
+             -8.83422470e+00, -8.44454479e+00, -7.74962473e+00,
+             -8.17052174e+00, -7.45232105e+00, -8.36025429e+00,
+             -8.77905941e+00, -8.73688126e+00, -7.78342247e+00,
+             -7.23929214e+00, -7.66926861e+00, -8.07070637e+00,
+             -8.31295013e+00, -9.89535809e+00, -9.98165798e+00,
+             -8.93481922e+00, -1.06759806e+01, -8.36170673e+00,
+             -8.10539532e+00, -7.36608410e+00, -5.60943890e+00,
+             -4.64587927e+00, -5.83614111e+00, -7.43147326e+00,
+             -8.38317585e+00, -7.20838785e+00, -8.97785187e+00,
+             -8.48861122e+00, -8.90835762e+00, -1.02879829e+01,
+             -8.28680229e+00, -7.55089474e+00, -5.80984068e+00,
+             -4.19810772e+00, -3.66857600e+00, -5.07566929e+00,
+             -5.31462193e+00, -7.08882189e+00, -8.04263878e+00,
+             -8.39473915e+00, -7.31028080e+00, -8.40231991e+00,
+             -9.39234066e+00, -9.62648582e+00, -7.14009428e+00,
+             -7.06499052e+00, -8.75688648e+00, -9.23448467e+00,
+             -9.52395248e+00, -7.77198076e+00, -6.75404882e+00,
+             -5.88444519e+00, -5.51932049e+00, -5.50128508e+00,
+             -6.62403917e+00, -6.11546326e+00, -8.39819050e+00,
+             -9.11159134e+00, -9.76298046e+00, -8.73225880e+00,
+             -8.22627926e+00, -7.76637888e+00, -5.32778978e+00,
+             -4.25748348e+00, -4.48599005e+00, -4.45657015e+00,
+             -5.29349470e+00, -6.71814585e+00, -6.68255901e+00,
+             -7.69074345e+00, -9.33472633e+00, -8.20838642e+00,
+             -8.34831810e+00, -7.44893360e+00, -7.96351957e+00,
+             -8.47328568e+00, -8.42038631e+00, -1.03812580e+01,
+             -9.83841610e+00, -1.10786657e+01, -1.09012508e+01,
+             -1.19488287e+01, -1.10189447e+01, -1.20707893e+01,
+             -1.34555283e+01, -1.21566677e+01, -1.18940430e+01,
+             -1.34403086e+01, -1.50408926e+01, -1.52630854e+01,
+             -1.62527313e+01, -1.54487343e+01, -1.53825932e+01,
+             -1.48086615e+01, -1.42294121e+01, -1.49251690e+01,
+             -1.51616650e+01, -1.57433262e+01, -1.51881771e+01,
+             -1.37026005e+01, -1.53068628e+01, -1.52038832e+01,
+             -1.46693974e+01, -1.40570765e+01, -1.30994520e+01,
+             -1.10969219e+01, -1.19760466e+01, -1.27957249e+01,
+             -1.26361752e+01, -1.32679806e+01, -1.46316805e+01,
+             -1.37919111e+01, -1.43277779e+01, -1.43696709e+01,
+             -1.51508722e+01, -1.47652006e+01, -1.45788946e+01,
+             -1.34704046e+01, -1.30046387e+01, -1.35508747e+01,
+             -1.33282137e+01, -1.28875284e+01, -1.14231834e+01,
+             -1.08917160e+01, -1.21644640e+01, -1.22917604e+01,
+             -1.20388746e+01, -1.18781862e+01, -1.19648552e+01,
+             -1.19998751e+01, -1.19457531e+01, -1.10809755e+01,
+             -1.01565723e+01, -1.13584967e+01, -1.06827621e+01,
+             -1.08090000e+01, -1.05503073e+01, -1.12374201e+01,
+             -1.11692610e+01, -1.29456072e+01, -1.45172625e+01,
+             -1.44005880e+01, -1.55778170e+01, -1.61550884e+01,
+             -1.56219273e+01, -1.66182632e+01, -1.68315144e+01,
+             -1.82901707e+01, -1.72366257e+01, -1.85517254e+01,
+             -1.92969437e+01, -1.88513451e+01, -1.89151344e+01,
+             -1.88517609e+01, -1.82658329e+01, -1.86769428e+01,
+             -1.91661434e+01, -1.95641632e+01, -1.91155910e+01,
+             -2.00331459e+01, -2.04195747e+01, -1.95923176e+01,
+             -2.10920372e+01, -2.21555595e+01, -2.09996014e+01,
+             -1.92105598e+01, -1.96339016e+01, -1.86180782e+01,
+             -1.80600014e+01, -1.81668835e+01, -1.93071899e+01,
+             -1.99776764e+01, -2.00276413e+01, -2.10960369e+01,
+             -2.26384468e+01, -2.44656200e+01, -2.44641705e+01,
+             -2.50512505e+01, -2.38030052e+01, -2.36495514e+01,
+             -2.38255596e+01, -2.26265850e+01, -2.27299957e+01,
+             -2.18569698e+01, -2.10476761e+01, -2.13875980e+01,
+             -2.30195522e+01, -2.11837788e+01, -2.18870583e+01,
+             -2.13884964e+01, -2.12895012e+01, -2.18870983e+01,
+             -2.17978554e+01, -2.16716080e+01, -2.23557415e+01,
+             -2.12638264e+01, -2.03178024e+01, -1.95541134e+01,
+             -1.88865910e+01, -1.94220314e+01, -2.05412445e+01,
+             -2.01033726e+01, -2.05281277e+01, -2.08711967e+01,
+             -2.09785919e+01, -2.13932819e+01, -2.24087410e+01,
+             -2.11163235e+01, -2.04967308e+01, -2.08725109e+01,
+             -2.03203430e+01, -1.97817745e+01, -2.03243294e+01,
+             -2.00650730e+01, -1.92966805e+01, -1.69195404e+01,
+             -1.64889145e+01, -1.59824409e+01, -1.64121742e+01,
+             -1.63611736e+01, -1.57707825e+01, -1.46186113e+01,
+             -1.57492876e+01, -1.71811485e+01, -1.68132095e+01,
+             -1.82634373e+01, -1.94662724e+01, -2.07510414e+01,
+             -2.23158493e+01, -2.17692356e+01, -2.07991714e+01,
+             -1.79210014e+01, -1.79963245e+01, -1.79945297e+01,
+             -1.89324455e+01, -1.86285248e+01, -1.99445896e+01,
+             -2.02264729e+01, -2.16735497e+01, -2.24330807e+01,
+             -2.58097572e+01, -2.64454136e+01, -2.65840874e+01,
+             -2.56876106e+01, -2.46122932e+01, -2.56634846e+01,
+             -2.57665863e+01, -2.71708031e+01, -2.81031628e+01,
+             -2.74096718e+01, -2.66214657e+01, -2.43313084e+01,
+             -2.52965355e+01, -2.46276340e+01, -2.42237415e+01,
+             -2.32498093e+01, -2.26074409e+01, -2.40738354e+01,
+             -2.56685123e+01, -2.62413769e+01, -2.52539825e+01,
+             -2.37199516e+01, -2.32731514e+01, -2.24470329e+01,
+             -2.06317787e+01, -2.04680920e+01, -2.08208694e+01,
+             -2.00182056e+01, -1.92449837e+01, -1.90256596e+01,
+             -1.77238350e+01, -1.89538193e+01, -1.95130157e+01,
+             -2.07838001e+01, -1.96788006e+01, -2.15846024e+01,
+             -2.26133022e+01, -2.20443649e+01, -2.20629673e+01,
+             -2.23122692e+01, -2.17757683e+01, -2.16331482e+01,
+             -2.13277092e+01, -1.97396698e+01, -1.73399620e+01,
+             -1.80386658e+01, -1.79456615e+01, -1.92468796e+01,
+             -2.01703262e+01, -1.77841072e+01, -1.50646572e+01,
+             -1.48563776e+01, -1.48725882e+01, -1.40871372e+01,
+             -1.37836313e+01, -1.19612541e+01, -1.13132534e+01,
+             -1.27780352e+01, -1.25270319e+01, -1.26091595e+01,
+             -1.35529013e+01, -1.41403294e+01, -1.27386389e+01,
+             -1.37741880e+01, -1.24013872e+01, -1.32342501e+01,
+             -1.45350161e+01, -1.53343410e+01, -1.55470247e+01,
+             -1.52042198e+01, -1.64676762e+01, -1.57797565e+01,
+             -1.54094048e+01, -1.48938494e+01, -1.57860718e+01,
+             -1.72089653e+01, -1.82091122e+01, -1.81694717e+01,
+             -1.82440109e+01, -1.69302750e+01, -1.81616383e+01,
+             -2.02796249e+01, -1.98391342e+01, -1.97967987e+01,
+             -2.08429871e+01, -1.90825577e+01, -1.77408104e+01,
+             -1.73469276e+01, -1.81644268e+01, -2.03652916e+01,
+             -1.90407295e+01, -1.76667690e+01, -1.70508823e+01,
+             -1.77479038e+01, -1.65034504e+01, -1.66606712e+01,
+             -1.77413940e+01, -1.65431213e+01, -1.65922546e+01,
+             -1.62571850e+01, -1.58698006e+01, -1.50661793e+01,
+             -1.53957958e+01, -1.69068203e+01, -1.64306946e+01,
+             -1.69761696e+01, -1.58198318e+01, -1.53893652e+01,
+             -1.61353664e+01, -1.48573742e+01, -1.51613655e+01,
+             -1.47677145e+01, -1.37336502e+01, -1.44549131e+01,
+             -1.46897440e+01, -1.61689930e+01, -1.64032421e+01,
+             -1.60828934e+01, -1.58374062e+01, -1.56705103e+01,
+             -1.70836163e+01, -1.65213089e+01, -1.45973206e+01,
+             -1.52763481e+01, -1.60805035e+01, -1.60587139e+01,
+             -1.71671257e+01, -1.55615664e+01, -1.45217581e+01,
+             -1.52220554e+01, -1.38032579e+01, -1.40027227e+01,
+             -1.28154755e+01, -1.35802193e+01, -1.35257654e+01,
+             -1.28142595e+01], dtype=float32, weak_type=True), DeviceArray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+             1., 1., 1., 1., 1., 1., 1., 1., 1., 1.],            dtype=float32, weak_type=True)), value=ValueChoiceMap(value=DeviceArray([ 3.91769022e-01,  6.66197956e-01, -6.81014597e-01,
+             -1.40978324e+00, -7.97927603e-02, -9.35212001e-02,
+             -9.41611111e-01, -1.49014425e+00, -1.70472090e-03,
+             -2.59251982e-01, -1.49507415e+00, -2.81819177e+00,
+             -2.03869843e+00, -1.88497078e+00, -1.35565388e+00,
+             -1.69137990e+00,  4.10858512e-01, -7.82464683e-01,
+             -1.10316157e+00, -5.46051525e-02, -8.00485313e-01,
+             -5.00853896e-01, -3.32948774e-01, -2.66567636e+00,
+             -2.81128407e+00, -2.66302133e+00, -2.76010489e+00,
+             -2.85675573e+00, -2.19622970e+00, -2.32884693e+00,
+             -2.88512635e+00, -3.27528143e+00, -4.20264530e+00,
+             -2.95565176e+00, -3.72746706e+00, -3.53925180e+00,
+             -2.74862480e+00, -2.58713293e+00, -2.88989854e+00,
+             -3.38522863e+00, -4.46812963e+00, -5.17982531e+00,
+             -5.77326202e+00, -4.11323977e+00, -3.90493131e+00,
+             -2.76091194e+00, -2.96622896e+00, -2.51690173e+00,
+             -3.91588974e+00, -2.56346607e+00, -2.29549217e+00,
+             -2.11953783e+00, -1.77675784e+00, -1.45975208e+00,
+             -1.82943666e+00, -2.52531219e+00, -3.10954165e+00,
+             -4.03704643e+00, -3.97063375e+00, -3.95889425e+00,
+             -1.96321809e+00, -2.49246383e+00, -1.54404020e+00,
+             -2.93234634e+00, -3.43084526e+00, -2.49326420e+00,
+             -2.72131681e+00, -3.01474929e+00, -3.21247292e+00,
+             -5.24304533e+00, -3.78611231e+00, -4.19441700e+00,
+             -6.08465147e+00, -5.36331606e+00, -3.81923342e+00,
+             -3.41137171e+00, -4.18621683e+00, -3.88723135e+00,
+             -4.17200708e+00, -4.35495996e+00, -4.42850542e+00,
+             -3.60499692e+00, -4.35136986e+00, -4.97223568e+00,
+             -5.03434515e+00, -5.33001900e+00, -3.98313022e+00,
+             -3.71358562e+00, -4.65706015e+00, -4.77591848e+00,
+             -3.64056492e+00, -3.89728975e+00, -5.38097191e+00,
+             -5.12816429e+00, -4.25788689e+00, -4.01742649e+00,
+             -4.62200737e+00, -3.44788480e+00, -3.99118471e+00,
+             -3.92267179e+00, -3.75943756e+00, -5.41765118e+00,
+             -4.53864431e+00, -3.96115446e+00, -4.43735838e+00,
+             -3.84720802e+00, -2.98787785e+00, -4.18542337e+00,
+             -4.52754688e+00, -3.66826439e+00, -3.85869122e+00,
+             -4.58965588e+00, -4.97184420e+00, -4.68646097e+00,
+             -5.96809912e+00, -6.24434376e+00, -5.81870985e+00,
+             -4.89691639e+00, -5.45550966e+00, -6.09458494e+00,
+             -5.88325310e+00, -6.00280285e+00, -4.85113144e+00,
+             -2.97829795e+00, -2.86849523e+00, -3.70445275e+00,
+             -3.55153561e+00, -4.84436750e+00, -5.16662931e+00,
+             -4.75310612e+00, -5.10075188e+00, -4.89022112e+00,
+             -5.39702606e+00, -6.13033009e+00, -6.17743349e+00,
+             -7.56803989e+00, -7.12115479e+00, -7.47208786e+00,
+             -7.70995712e+00, -8.30982780e+00, -8.70217228e+00,
+             -9.39192390e+00, -9.40828800e+00, -9.74958897e+00,
+             -1.08328094e+01, -9.09724998e+00, -1.02429905e+01,
+             -9.24330521e+00, -8.71314144e+00, -8.78646278e+00,
+             -9.11185741e+00, -9.20156384e+00, -8.79618168e+00,
+             -8.84477043e+00, -9.82224751e+00, -8.28846169e+00,
+             -9.40781879e+00, -7.60754490e+00, -7.62515354e+00,
+             -9.58142281e+00, -9.48464108e+00, -8.97176266e+00,
+             -1.11815052e+01, -1.15616121e+01, -1.24680939e+01,
+             -1.23926659e+01, -1.35113544e+01, -1.26293297e+01,
+             -1.16220284e+01, -1.37857847e+01, -1.43730831e+01,
+             -1.31684284e+01, -1.34847317e+01, -1.32508383e+01,
+             -1.56213360e+01, -1.58818684e+01, -1.64275246e+01,
+             -1.57854385e+01, -1.66049099e+01, -1.67397728e+01,
+             -1.66082554e+01, -1.45795889e+01, -1.28980036e+01,
+             -1.21700420e+01, -1.18878965e+01, -1.29738169e+01,
+             -1.06097422e+01, -1.14253788e+01, -1.18443708e+01,
+             -1.12552681e+01, -1.18969326e+01, -1.09337740e+01,
+             -1.08316383e+01, -1.06581059e+01, -1.10703859e+01,
+             -1.11111155e+01, -1.06119442e+01, -1.03433437e+01,
+             -1.01217642e+01, -9.92795944e+00, -1.07634811e+01,
+             -1.01537771e+01, -1.15879173e+01, -1.12904167e+01,
+             -1.12915983e+01, -1.16998377e+01, -1.02787266e+01,
+             -9.68189430e+00, -1.12386713e+01, -1.23854303e+01,
+             -1.30780106e+01, -1.28537655e+01, -1.30258894e+01,
+             -1.09974060e+01, -1.03422499e+01, -1.02882290e+01,
+             -9.65948963e+00, -8.66541195e+00, -7.79565668e+00,
+             -7.69939280e+00, -9.28763771e+00, -9.26814461e+00,
+             -9.73795223e+00, -8.60762596e+00, -7.81032658e+00,
+             -7.36013508e+00, -8.74256420e+00, -1.03285913e+01,
+             -8.15768051e+00, -8.14508247e+00, -8.89285088e+00,
+             -1.03635082e+01, -1.03804159e+01, -1.03563166e+01,
+             -1.04996901e+01, -1.20615177e+01, -1.17915888e+01,
+             -1.23087549e+01, -1.06888180e+01, -1.07109756e+01,
+             -1.03908901e+01, -1.04964981e+01, -8.66094875e+00,
+             -8.38392353e+00, -9.23074436e+00, -1.06125040e+01,
+             -1.03925228e+01, -9.78331566e+00, -1.13300009e+01,
+             -9.54242325e+00, -8.44645309e+00, -7.99136686e+00,
+             -6.39347219e+00, -5.58855295e+00, -5.46173334e+00,
+             -6.51790142e+00, -6.09020329e+00, -6.13182545e+00,
+             -6.50607872e+00, -6.72066402e+00, -5.05574369e+00,
+             -4.47414827e+00, -5.05269909e+00, -3.57242036e+00,
+             -3.64440346e+00, -3.05000019e+00, -2.62803292e+00,
+             -2.32468319e+00, -1.62237644e+00, -1.88888204e+00,
+             -8.43597591e-01,  8.00040781e-01, -7.14211822e-01,
+              2.00721979e-01, -1.48880661e-01,  2.06777287e+00,
+              4.59785640e-01,  4.64062035e-01,  1.18513596e+00,
+              3.37292589e-02, -1.58180952e+00, -7.65897632e-01,
+             -8.40967178e-01,  1.10835409e+00,  1.00845659e+00,
+              2.56827426e+00,  2.85053730e+00,  4.03366613e+00,
+              3.82636285e+00,  4.09540415e+00,  3.57281637e+00,
+              4.92766762e+00,  5.68826723e+00,  4.73126030e+00,
+              5.40809059e+00,  6.04345655e+00,  4.62014532e+00,
+              4.00182486e+00,  5.13675976e+00,  5.21831512e+00,
+              5.60182238e+00,  6.44152164e+00,  6.02871847e+00,
+              5.78845596e+00,  4.66374874e+00,  4.45639038e+00,
+              4.19340754e+00,  4.18800735e+00,  4.20946789e+00,
+              4.42753839e+00,  4.67251015e+00,  4.07685328e+00,
+              3.37401748e+00,  2.30138111e+00,  5.36507964e-01,
+             -2.17326671e-01,  7.42410272e-02, -1.05283767e-01,
+             -5.31381249e-01, -1.47453284e+00, -3.21529555e+00,
+             -4.24821568e+00, -4.77316809e+00, -5.46402502e+00,
+             -4.85097980e+00, -5.86514664e+00, -5.98364782e+00,
+             -5.27939844e+00, -6.20787144e+00, -4.97363186e+00,
+             -5.40709734e+00, -5.06977320e+00, -2.61704540e+00,
+             -1.78792000e+00, -6.54668450e-01, -9.26173091e-01,
+              1.91830456e-01,  1.82499051e-01,  9.19783022e-03,
+             -2.02823949e+00, -2.23025680e+00, -4.88615179e+00,
+             -5.35814667e+00, -4.87997627e+00, -6.13680649e+00,
+             -6.79734230e+00, -6.70780993e+00, -7.25967741e+00,
+             -7.07514715e+00, -7.14126778e+00, -6.18358803e+00,
+             -7.02467966e+00, -6.06659746e+00, -7.60473347e+00,
+             -6.49519157e+00, -6.41220903e+00, -5.74218988e+00,
+             -4.73509502e+00, -4.50631094e+00, -4.89323950e+00,
+             -3.70888376e+00, -3.02837753e+00, -4.81087732e+00,
+             -4.95649099e+00, -5.09400988e+00, -4.26096916e+00,
+             -3.95592666e+00, -6.40008545e+00, -5.73513269e+00,
+             -5.82302809e+00, -6.16700649e+00, -6.35586739e+00,
+             -5.57202387e+00, -5.72015190e+00, -5.93870497e+00,
+             -5.20427132e+00, -5.66261768e+00, -4.88627815e+00,
+             -4.76001215e+00, -5.49544668e+00, -7.28000164e+00,
+             -6.83978701e+00, -8.64099026e+00, -8.37485886e+00,
+             -9.14090729e+00, -1.03970184e+01, -1.13816586e+01,
+             -1.14466553e+01, -1.29595985e+01, -1.37914171e+01,
+             -1.45025682e+01, -1.58725672e+01, -1.67672729e+01,
+             -1.43296003e+01, -1.37033157e+01, -1.24847355e+01,
+             -1.14864006e+01, -1.24056501e+01, -1.24412374e+01,
+             -1.40394802e+01, -1.48785162e+01, -1.21289053e+01,
+             -1.22357273e+01, -1.23016853e+01, -1.31576414e+01,
+             -1.46103573e+01, -1.54516449e+01, -1.44863100e+01,
+             -1.63824673e+01, -1.70369320e+01, -1.67279720e+01,
+             -1.77863560e+01, -1.72031269e+01, -1.66300869e+01,
+             -1.71358814e+01, -1.81160622e+01, -1.64331455e+01,
+             -1.68089409e+01, -1.68226166e+01, -1.57301416e+01,
+             -1.40872173e+01, -1.53603086e+01, -1.53057795e+01,
+             -1.57349739e+01, -1.76759224e+01, -1.77808132e+01,
+             -1.75359077e+01, -1.65707359e+01, -1.57662268e+01,
+             -1.49604349e+01, -1.53439884e+01, -1.69983273e+01,
+             -1.56829052e+01, -1.53801861e+01, -1.43019047e+01,
+             -1.21179218e+01, -1.37988119e+01, -1.37184925e+01,
+             -1.41853123e+01, -1.24963036e+01, -1.35274315e+01,
+             -1.39585762e+01, -1.47737303e+01, -1.39961653e+01,
+             -1.53737612e+01, -1.49005861e+01, -1.46564074e+01,
+             -1.57455359e+01, -1.43088675e+01, -1.43053131e+01,
+             -1.51971350e+01, -1.48856535e+01, -1.45200663e+01,
+             -1.48476286e+01, -1.46258402e+01, -1.35498819e+01,
+             -1.28418150e+01, -1.47624197e+01, -1.52463779e+01,
+             -1.43528900e+01, -1.48476973e+01, -1.58140306e+01,
+             -1.62381992e+01, -1.58605003e+01, -1.63308926e+01,
+             -1.76173763e+01, -1.66911125e+01, -1.69926434e+01,
+             -1.64375172e+01, -1.59758711e+01, -1.61786175e+01,
+             -1.72819195e+01, -1.79577389e+01, -1.74435673e+01,
+             -1.80297451e+01, -1.61548233e+01, -1.53496132e+01,
+             -1.42155771e+01, -1.45856276e+01, -1.59833860e+01,
+             -1.68964615e+01, -1.60818863e+01, -1.61175518e+01,
+             -1.72689877e+01, -1.73441887e+01, -1.72253628e+01,
+             -1.89337006e+01, -1.82804623e+01, -1.87036247e+01,
+             -1.90584164e+01, -2.10065861e+01, -2.01843872e+01,
+             -2.00504494e+01, -1.81250343e+01, -1.78573360e+01,
+             -1.82148628e+01, -1.70469303e+01, -1.80336628e+01,
+             -1.68257847e+01, -1.79756641e+01, -1.57769966e+01,
+             -1.64060745e+01, -1.42974739e+01, -1.32308121e+01,
+             -1.34508896e+01, -1.28324661e+01, -1.05564489e+01,
+             -7.59796143e+00, -7.18071747e+00, -6.87512493e+00,
+             -6.06219578e+00, -6.05107021e+00, -6.90680313e+00,
+             -7.34956026e+00, -8.91631508e+00, -7.86102152e+00,
+             -7.26881742e+00, -6.17482424e+00, -7.79608965e+00,
+             -7.70668411e+00, -7.94675207e+00, -7.37047291e+00,
+             -5.82612038e+00, -7.20782757e+00, -5.90419340e+00,
+             -6.61960125e+00, -7.91164827e+00, -8.79358578e+00,
+             -8.23006344e+00, -8.21647549e+00, -7.72709656e+00,
+             -5.81189728e+00, -7.12138081e+00, -5.99621344e+00,
+             -5.87394047e+00, -6.80395031e+00, -7.52890491e+00,
+             -6.42373800e+00, -5.05778217e+00, -5.16377878e+00,
+             -3.36751008e+00, -4.70894194e+00, -5.80068207e+00,
+             -6.60389471e+00, -6.94551086e+00, -6.83902693e+00,
+             -7.31025743e+00, -8.08950710e+00, -7.22096205e+00,
+             -6.81237459e+00, -6.97396374e+00, -6.08157635e+00,
+             -7.62261438e+00, -8.69988823e+00, -8.31871128e+00,
+             -7.00822449e+00, -7.37041521e+00, -5.52778435e+00,
+             -5.86976242e+00, -6.27181530e+00, -6.68739939e+00,
+             -7.23667955e+00, -9.34445763e+00, -8.92614651e+00,
+             -7.99807596e+00, -8.33070469e+00, -8.50328922e+00,
+             -7.02738810e+00, -7.16608238e+00, -7.26354933e+00,
+             -6.85325623e+00, -7.69166470e+00, -9.82869339e+00,
+             -8.36712837e+00, -7.79044104e+00, -7.81506824e+00,
+             -8.45691109e+00, -7.05739880e+00, -6.97967529e+00,
+             -7.04687357e+00, -6.23174763e+00, -5.39697123e+00,
+             -7.34765339e+00, -7.45519400e+00, -7.17608595e+00,
+             -5.45864487e+00, -5.21287155e+00, -4.51906776e+00,
+             -3.40103292e+00, -3.52851343e+00, -3.47329235e+00,
+             -3.45355892e+00, -4.89052963e+00, -7.84470844e+00,
+             -8.86919594e+00, -8.35540581e+00, -9.59708118e+00,
+             -1.01974936e+01, -8.63232327e+00, -8.73869610e+00,
+             -9.58284187e+00, -8.36808777e+00, -7.01834106e+00,
+             -7.73031902e+00, -8.71973515e+00, -9.58318424e+00,
+             -1.00463610e+01, -1.00876904e+01, -9.45402813e+00,
+             -8.00360298e+00, -8.91423607e+00, -8.49901009e+00,
+             -8.21681118e+00, -7.73167801e+00, -7.64672327e+00,
+             -7.39093208e+00, -7.59294653e+00, -7.46248674e+00,
+             -8.43131161e+00, -8.07758904e+00, -7.13080692e+00,
+             -8.31330109e+00, -8.37278557e+00, -8.83422470e+00,
+             -8.44454479e+00, -7.74962473e+00, -8.17052174e+00,
+             -7.45232105e+00, -8.36025429e+00, -8.77905941e+00,
+             -8.73688126e+00, -7.78342247e+00, -7.23929214e+00,
+             -7.66926861e+00, -8.07070637e+00, -8.31295013e+00,
+             -9.89535809e+00, -9.98165798e+00, -8.93481922e+00,
+             -1.06759806e+01, -8.36170673e+00, -8.10539532e+00,
+             -7.36608410e+00, -5.60943890e+00, -4.64587927e+00,
+             -5.83614111e+00, -7.43147326e+00, -8.38317585e+00,
+             -7.20838785e+00, -8.97785187e+00, -8.48861122e+00,
+             -8.90835762e+00, -1.02879829e+01, -8.28680229e+00,
+             -7.55089474e+00, -5.80984068e+00, -4.19810772e+00,
+             -3.66857600e+00, -5.07566929e+00, -5.31462193e+00,
+             -7.08882189e+00, -8.04263878e+00, -8.39473915e+00,
+             -7.31028080e+00, -8.40231991e+00, -9.39234066e+00,
+             -9.62648582e+00, -7.14009428e+00, -7.06499052e+00,
+             -8.75688648e+00, -9.23448467e+00, -9.52395248e+00,
+             -7.77198076e+00, -6.75404882e+00, -5.88444519e+00,
+             -5.51932049e+00, -5.50128508e+00, -6.62403917e+00,
+             -6.11546326e+00, -8.39819050e+00, -9.11159134e+00,
+             -9.76298046e+00, -8.73225880e+00, -8.22627926e+00,
+             -7.76637888e+00, -5.32778978e+00, -4.25748348e+00,
+             -4.48599005e+00, -4.45657015e+00, -5.29349470e+00,
+             -6.71814585e+00, -6.68255901e+00, -7.69074345e+00,
+             -9.33472633e+00, -8.20838642e+00, -8.34831810e+00,
+             -7.44893360e+00, -7.96351957e+00, -8.47328568e+00,
+             -8.42038631e+00, -1.03812580e+01, -9.83841610e+00,
+             -1.10786657e+01, -1.09012508e+01, -1.19488287e+01,
+             -1.10189447e+01, -1.20707893e+01, -1.34555283e+01,
+             -1.21566677e+01, -1.18940430e+01, -1.34403086e+01,
+             -1.50408926e+01, -1.52630854e+01, -1.62527313e+01,
+             -1.54487343e+01, -1.53825932e+01, -1.48086615e+01,
+             -1.42294121e+01, -1.49251690e+01, -1.51616650e+01,
+             -1.57433262e+01, -1.51881771e+01, -1.37026005e+01,
+             -1.53068628e+01, -1.52038832e+01, -1.46693974e+01,
+             -1.40570765e+01, -1.30994520e+01, -1.10969219e+01,
+             -1.19760466e+01, -1.27957249e+01, -1.26361752e+01,
+             -1.32679806e+01, -1.46316805e+01, -1.37919111e+01,
+             -1.43277779e+01, -1.43696709e+01, -1.51508722e+01,
+             -1.47652006e+01, -1.45788946e+01, -1.34704046e+01,
+             -1.30046387e+01, -1.35508747e+01, -1.33282137e+01,
+             -1.28875284e+01, -1.14231834e+01, -1.08917160e+01,
+             -1.21644640e+01, -1.22917604e+01, -1.20388746e+01,
+             -1.18781862e+01, -1.19648552e+01, -1.19998751e+01,
+             -1.19457531e+01, -1.10809755e+01, -1.01565723e+01,
+             -1.13584967e+01, -1.06827621e+01, -1.08090000e+01,
+             -1.05503073e+01, -1.12374201e+01, -1.11692610e+01,
+             -1.29456072e+01, -1.45172625e+01, -1.44005880e+01,
+             -1.55778170e+01, -1.61550884e+01, -1.56219273e+01,
+             -1.66182632e+01, -1.68315144e+01, -1.82901707e+01,
+             -1.72366257e+01, -1.85517254e+01, -1.92969437e+01,
+             -1.88513451e+01, -1.89151344e+01, -1.88517609e+01,
+             -1.82658329e+01, -1.86769428e+01, -1.91661434e+01,
+             -1.95641632e+01, -1.91155910e+01, -2.00331459e+01,
+             -2.04195747e+01, -1.95923176e+01, -2.10920372e+01,
+             -2.21555595e+01, -2.09996014e+01, -1.92105598e+01,
+             -1.96339016e+01, -1.86180782e+01, -1.80600014e+01,
+             -1.81668835e+01, -1.93071899e+01, -1.99776764e+01,
+             -2.00276413e+01, -2.10960369e+01, -2.26384468e+01,
+             -2.44656200e+01, -2.44641705e+01, -2.50512505e+01,
+             -2.38030052e+01, -2.36495514e+01, -2.38255596e+01,
+             -2.26265850e+01, -2.27299957e+01, -2.18569698e+01,
+             -2.10476761e+01, -2.13875980e+01, -2.30195522e+01,
+             -2.11837788e+01, -2.18870583e+01, -2.13884964e+01,
+             -2.12895012e+01, -2.18870983e+01, -2.17978554e+01,
+             -2.16716080e+01, -2.23557415e+01, -2.12638264e+01,
+             -2.03178024e+01, -1.95541134e+01, -1.88865910e+01,
+             -1.94220314e+01, -2.05412445e+01, -2.01033726e+01,
+             -2.05281277e+01, -2.08711967e+01, -2.09785919e+01,
+             -2.13932819e+01, -2.24087410e+01, -2.11163235e+01,
+             -2.04967308e+01, -2.08725109e+01, -2.03203430e+01,
+             -1.97817745e+01, -2.03243294e+01, -2.00650730e+01,
+             -1.92966805e+01, -1.69195404e+01, -1.64889145e+01,
+             -1.59824409e+01, -1.64121742e+01, -1.63611736e+01,
+             -1.57707825e+01, -1.46186113e+01, -1.57492876e+01,
+             -1.71811485e+01, -1.68132095e+01, -1.82634373e+01,
+             -1.94662724e+01, -2.07510414e+01, -2.23158493e+01,
+             -2.17692356e+01, -2.07991714e+01, -1.79210014e+01,
+             -1.79963245e+01, -1.79945297e+01, -1.89324455e+01,
+             -1.86285248e+01, -1.99445896e+01, -2.02264729e+01,
+             -2.16735497e+01, -2.24330807e+01, -2.58097572e+01,
+             -2.64454136e+01, -2.65840874e+01, -2.56876106e+01,
+             -2.46122932e+01, -2.56634846e+01, -2.57665863e+01,
+             -2.71708031e+01, -2.81031628e+01, -2.74096718e+01,
+             -2.66214657e+01, -2.43313084e+01, -2.52965355e+01,
+             -2.46276340e+01, -2.42237415e+01, -2.32498093e+01,
+             -2.26074409e+01, -2.40738354e+01, -2.56685123e+01,
+             -2.62413769e+01, -2.52539825e+01, -2.37199516e+01,
+             -2.32731514e+01, -2.24470329e+01, -2.06317787e+01,
+             -2.04680920e+01, -2.08208694e+01, -2.00182056e+01,
+             -1.92449837e+01, -1.90256596e+01, -1.77238350e+01,
+             -1.89538193e+01, -1.95130157e+01, -2.07838001e+01,
+             -1.96788006e+01, -2.15846024e+01, -2.26133022e+01,
+             -2.20443649e+01, -2.20629673e+01, -2.23122692e+01,
+             -2.17757683e+01, -2.16331482e+01, -2.13277092e+01,
+             -1.97396698e+01, -1.73399620e+01, -1.80386658e+01,
+             -1.79456615e+01, -1.92468796e+01, -2.01703262e+01,
+             -1.77841072e+01, -1.50646572e+01, -1.48563776e+01,
+             -1.48725882e+01, -1.40871372e+01, -1.37836313e+01,
+             -1.19612541e+01, -1.13132534e+01, -1.27780352e+01,
+             -1.25270319e+01, -1.26091595e+01, -1.35529013e+01,
+             -1.41403294e+01, -1.27386389e+01, -1.37741880e+01,
+             -1.24013872e+01, -1.32342501e+01, -1.45350161e+01,
+             -1.53343410e+01, -1.55470247e+01, -1.52042198e+01,
+             -1.64676762e+01, -1.57797565e+01, -1.54094048e+01,
+             -1.48938494e+01, -1.57860718e+01, -1.72089653e+01,
+             -1.82091122e+01, -1.81694717e+01, -1.82440109e+01,
+             -1.69302750e+01, -1.81616383e+01, -2.02796249e+01,
+             -1.98391342e+01, -1.97967987e+01, -2.08429871e+01,
+             -1.90825577e+01, -1.77408104e+01, -1.73469276e+01,
+             -1.81644268e+01, -2.03652916e+01, -1.90407295e+01,
+             -1.76667690e+01, -1.70508823e+01, -1.77479038e+01,
+             -1.65034504e+01, -1.66606712e+01, -1.77413940e+01,
+             -1.65431213e+01, -1.65922546e+01, -1.62571850e+01,
+             -1.58698006e+01, -1.50661793e+01, -1.53957958e+01,
+             -1.69068203e+01, -1.64306946e+01, -1.69761696e+01,
+             -1.58198318e+01, -1.53893652e+01, -1.61353664e+01,
+             -1.48573742e+01, -1.51613655e+01, -1.47677145e+01,
+             -1.37336502e+01, -1.44549131e+01, -1.46897440e+01,
+             -1.61689930e+01, -1.64032421e+01, -1.60828934e+01,
+             -1.58374062e+01, -1.56705103e+01, -1.70836163e+01,
+             -1.65213089e+01, -1.45973206e+01, -1.52763481e+01,
+             -1.60805035e+01, -1.60587139e+01, -1.71671257e+01,
+             -1.55615664e+01, -1.45217581e+01, -1.52220554e+01,
+             -1.38032579e+01, -1.40027227e+01, -1.28154755e+01,
+             -1.35802193e+01, -1.35257654e+01, -1.28142595e+01,
+             -1.17844839e+01], dtype=float32)), score=DeviceArray([-0.9247955 , -0.9565941 , -1.8264294 , -1.1844904 ,
+             -1.8033758 , -0.91903275, -1.2785668 , -1.0693828 ,
+             -2.0266647 , -0.9521038 , -1.6825668 , -1.7942586 ,
+             -1.2227434 , -0.9307546 , -1.0590267 , -0.9752945 ,
+             -3.1286416 , -1.6309485 , -0.97036177, -1.4686738 ,
+             -1.1971072 , -0.963828  , -0.9330346 , -3.6397476 ,
+             -0.9295393 , -0.92992944, -0.9236511 , -0.9236092 ,
+             -1.1370858 , -0.92773217, -1.0736619 , -0.995049  ,
+             -1.3489404 , -1.696435  , -1.2167879 , -0.936651  ,
+             -1.231484  , -0.93197834, -0.96477205, -1.0416144 ,
+             -1.5052758 , -1.1721939 , -1.0950221 , -2.2967756 ,
+             -0.9406347 , -1.5733286 , -0.94001603, -1.019886  ,
+             -1.8975222 , -1.8334634 , -0.9548435 , -0.9344185 ,
+             -0.9776876 , -0.9691848 , -0.98727185, -1.1610599 ,
+             -1.0896006 , -1.349071  , -0.92114383, -0.9190074 ,
+             -2.9103003 , -1.058989  , -1.3686922 , -1.8826355 ,
+             -1.043189  , -1.3584677 , -0.94494253, -0.9619898 ,
+             -0.93848586, -2.9805508 , -1.9802654 , -1.0022949 ,
+             -2.7054317 , -1.1791009 , -2.1110342 , -1.002114  ,
+             -1.219131  , -0.96363467, -0.95948714, -0.93567437,
+             -0.92164296, -1.2580216 , -1.1974748 , -1.1116757 ,
+             -0.9208673 , -0.96265   , -1.8259932 , -0.95526564,
+             -1.3640106 , -0.92600214, -1.5634524 , -0.9518923 ,
+             -2.019595  , -0.95089436, -1.29763   , -0.9478491 ,
+             -1.1016976 , -1.6082205 , -1.0665259 , -0.9212855 ,
+             -0.9322612 , -2.2937746 , -1.3052651 , -1.0856857 ,
+             -1.0323236 , -1.0930772 , -1.2881627 , -1.6359962 ,
+             -0.97746277, -1.2881217 , -0.9370697 , -1.1860932 ,
+             -0.99197245, -0.9596603 , -1.7402366 , -0.9570941 ,
+             -1.0095206 , -1.34379   , -1.0749518 , -1.1231471 ,
+             -0.9412691 , -0.9260846 , -1.5821121 , -2.672691  ,
+             -0.9249668 , -1.268351  , -0.9306303 , -1.7546457 ,
+             -0.97086483, -1.0044392 , -0.9793673 , -0.9411001 ,
+             -1.0473641 , -1.1878059 , -0.9200479 , -1.8858316 ,
+             -1.0187917 , -0.98051554, -0.9472294 , -1.098861  ,
+             -0.99590564, -1.1568172 , -0.9190724 , -0.9771817 ,
+             -1.5056218 , -2.425022  , -1.5752991 , -1.4186238 ,
+             -1.0594753 , -0.9216265 , -0.97187936, -0.9229621 ,
+             -1.0011059 , -0.9201189 , -1.3966693 , -2.095188  ,
+             -1.5454187 , -2.5394316 , -0.91909355, -2.8324332 ,
+             -0.9236219 , -1.0504607 , -3.3604195 , -0.99117917,
+             -1.3297931 , -0.9217832 , -1.5446706 , -1.3079224 ,
+             -1.4262666 , -3.2598593 , -1.0913982 , -1.644535  ,
+             -0.9689624 , -0.94629157, -3.7285683 , -0.9528771 ,
+             -1.0678089 , -1.1250757 , -1.2547052 , -0.9280325 ,
+             -0.9275869 , -2.9766824 , -2.332803  , -1.1839025 ,
+             -0.95874155, -1.50855   , -3.7133632 , -1.2515701 ,
+             -1.0067157 , -1.0924596 , -1.1248052 , -1.3827758 ,
+             -0.92415434, -0.9339953 , -1.0039259 , -0.919768  ,
+             -1.0435245 , -0.9550116 , -0.9434873 , -0.93771863,
+             -1.2679868 , -1.104808  , -1.9473176 , -0.9631918 ,
+             -0.91893923, -1.0022682 , -1.9287169 , -1.0970429 ,
+             -2.1307158 , -1.5764667 , -1.1587722 , -0.9440814 ,
+             -0.9337518 , -2.976311  , -1.1335533 , -0.92039764,
+             -1.1165951 , -1.4130337 , -1.2971756 , -0.9235719 ,
+             -2.1801994 , -0.91912854, -1.0292981 , -1.5577573 ,
+             -1.2367817 , -1.0202748 , -1.8744936 , -2.1766796 ,
+             -3.2753654 , -0.91901785, -1.1985173 , -2.000355  ,
+             -0.91908145, -0.9192289 , -0.9292165 , -2.1385913 ,
+             -0.95536935, -1.0526689 , -2.2310364 , -0.91918397,
+             -0.9701659 , -0.92451507, -2.6035593 , -0.95731   ,
+             -1.2774913 , -1.8735684 , -0.94313437, -1.1045052 ,
+             -2.115056  , -2.5166554 , -1.5195138 , -1.0224903 ,
+             -2.1955721 , -1.2428861 , -0.92698014, -1.476684  ,
+             -1.0104014 , -0.9198047 , -0.9889713 , -0.94196194,
+             -2.3049183 , -1.0880651 , -1.0862991 , -2.0145512 ,
+             -0.9215293 , -1.0955962 , -1.0079668 , -0.9649491 ,
+             -1.165556  , -0.95445114, -1.4652483 , -2.269712  ,
+             -2.0654192 , -1.3374904 , -0.9800495 , -3.375715  ,
+             -2.2117498 , -0.91894764, -1.1789123 , -1.5818071 ,
+             -2.2239213 , -1.2517946 , -0.9217562 , -2.8188653 ,
+             -0.92392826, -2.1354542 , -0.95877475, -1.6188354 ,
+             -0.9404259 , -0.9551301 , -1.0554875 , -1.8367494 ,
+             -1.2081944 , -1.3768697 , -1.1479881 , -1.1207834 ,
+             -1.9318459 , -1.1100986 , -1.5629771 , -0.92226416,
+             -0.9924774 , -1.2714859 , -1.0041417 , -0.94780153,
+             -1.5514216 , -0.94043726, -0.9535185 , -0.9189531 ,
+             -0.9191688 , -0.9427159 , -0.9489441 , -1.0963421 ,
+             -1.1659276 , -1.4942129 , -2.4763272 , -1.2030718 ,
+             -0.9614444 , -0.9350531 , -1.0097181 , -1.363706  ,
+             -2.4340658 , -1.4524006 , -1.056726  , -1.1575801 ,
+             -1.1068507 , -1.4332057 , -0.92595977, -1.1669221 ,
+             -1.3499696 , -1.6806122 , -1.0128847 , -0.9758323 ,
+             -3.9268754 , -1.262663  , -1.561068  , -0.9557959 ,
+             -1.5439045 , -0.918982  , -0.9339552 , -2.9945138 ,
+             -0.939344  , -4.4458275 , -1.0303282 , -1.033262  ,
+             -1.7087497 , -1.1370924 , -0.9229465 , -1.0712174 ,
+             -0.9359642 , -0.92112446, -1.3775138 , -1.2726561 ,
+             -1.3778993 , -2.1018698 , -1.5344801 , -0.9223816 ,
+             -1.1434014 , -1.4260585 , -0.9451096 , -0.9937954 ,
+             -1.6202878 , -1.1504829 , -2.5075912 , -0.9295402 ,
+             -0.92839426, -1.265917  , -0.965464  , -3.9058945 ,
+             -1.1400197 , -0.9228013 , -0.9780991 , -0.93677276,
+             -1.2261438 , -0.92990947, -0.94282126, -1.1886349 ,
+             -1.0239792 , -1.2202901 , -0.92691004, -1.1893705 ,
+             -2.5112567 , -1.015833  , -2.541105  , -0.9543515 ,
+             -1.2123536 , -1.7078462 , -1.4036967 , -0.9210508 ,
+             -2.0634372 , -1.2648996 , -1.1718065 , -1.8573871 ,
+             -1.3191878 , -3.8900623 , -1.1150547 , -1.6614075 ,
+             -1.4172748 , -1.3414484 , -0.91957176, -2.1961284 ,
+             -1.2709292 , -4.6991186 , -0.924644  , -0.9211137 ,
+             -1.2852689 , -1.9741303 , -1.272821  , -1.3848742 ,
+             -2.7166448 , -1.1331005 , -0.96666664, -1.4790268 ,
+             -1.0890166 , -1.083126  , -1.0468526 , -1.3993157 ,
+             -2.3350427 , -0.9895496 , -0.91903204, -1.5156893 ,
+             -2.2685387 , -1.7293192 , -0.92042524, -1.0110425 ,
+             -2.802579  , -0.92443955, -0.9489279 , -1.3847169 ,
+             -1.242556  , -1.2435888 , -0.9924952 , -2.287357  ,
+             -1.7841061 , -0.964758  , -1.500284  , -3.303829  ,
+             -2.3316343 , -0.92216414, -1.0278989 , -2.3453138 ,
+             -1.4505509 , -1.0118814 , -1.2511766 , -1.2212422 ,
+             -1.8678237 , -1.0308858 , -0.94875014, -1.512039  ,
+             -1.9509466 , -0.91894484, -1.3166116 , -0.9674489 ,
+             -0.9857655 , -0.97258705, -0.94353354, -1.4977816 ,
+             -1.1696179 , -2.7632997 , -1.0360463 , -1.3180989 ,
+             -1.0413556 , -1.3858386 , -1.008898  , -0.99026674,
+             -1.029573  , -1.7464588 , -1.3479209 , -0.9643989 ,
+             -1.073021  , -1.0254971 , -0.93949157, -1.5275762 ,
+             -1.1473044 , -1.0511247 , -1.0907407 , -2.6766045 ,
+             -1.2431202 , -1.5619574 , -0.9874072 , -1.8958029 ,
+             -1.335792  , -1.2507049 , -0.91957456, -1.5818408 ,
+             -0.9217661 , -0.92599833, -2.3781476 , -1.1322987 ,
+             -1.0084717 , -0.9818771 , -2.816621  , -1.2569441 ,
+             -0.9279082 , -2.77255   , -0.95476973, -0.9828512 ,
+             -1.6009717 , -1.405759  , -1.6484233 , -1.5800499 ,
+             -3.336008  , -1.116808  , -3.142037  , -1.4878223 ,
+             -0.9431556 , -1.1101623 , -3.5090656 , -5.295263  ,
+             -1.0059848 , -0.9656319 , -1.2493654 , -0.9190004 ,
+             -1.2850779 , -1.0169555 , -2.146299  , -1.4757608 ,
+             -1.0942913 , -1.517349  , -2.2331893 , -0.9229352 ,
+             -0.9477548 , -1.0849874 , -2.111451  , -1.8734959 ,
+             -1.7686695 , -1.1748427 , -1.7536312 , -1.3078454 ,
+             -1.0777172 , -0.91903085, -1.0386844 , -2.7529325 ,
+             -1.7763121 , -1.5519394 , -0.92641383, -1.3513976 ,
+             -1.1817181 , -1.5296354 , -1.8518562 , -0.92455614,
+             -2.5322292 , -1.8186582 , -1.5148867 , -1.2415138 ,
+             -0.9772893 , -0.92460793, -1.0299677 , -1.2225535 ,
+             -1.2961237 , -1.0024104 , -0.931994  , -1.3171161 ,
+             -2.1063375 , -1.499198  , -0.99158645, -1.7776263 ,
+             -0.98452955, -2.6165829 , -0.977413  , -0.99976176,
+             -1.0052936 , -1.0697929 , -3.1403027 , -1.0064306 ,
+             -1.349596  , -0.97425944, -0.9338312 , -2.0080805 ,
+             -0.92855656, -0.9236884 , -1.0031087 , -1.2704029 ,
+             -3.2023842 , -1.9870247 , -1.0852226 , -0.9192418 ,
+             -1.1249197 , -1.8982558 , -0.921959  , -0.92119634,
+             -1.2511537 , -1.2673644 , -2.821519  , -0.924721  ,
+             -0.95788914, -2.3937404 , -0.9491408 , -1.1596204 ,
+             -1.5439395 , -0.9270642 , -0.9204632 , -0.91913325,
+             -1.951381  , -5.2825246 , -1.4437258 , -1.0509287 ,
+             -1.6898174 , -1.0991861 , -2.1438174 , -0.92459613,
+             -1.2752296 , -1.6567522 , -1.8298466 , -1.1723949 ,
+             -1.4084107 , -1.2917107 , -1.0262048 , -0.9197926 ,
+             -1.1197025 , -1.970805  , -1.3335649 , -1.0051448 ,
+             -0.9587566 , -1.0366156 , -0.92254716, -0.95165306,
+             -0.93934345, -0.9274484 , -1.3882493 , -0.98149836,
+             -1.3671367 , -1.6180848 , -0.9207077 , -1.0254016 ,
+             -0.99486375, -1.1603955 , -1.0075157 , -1.1768446 ,
+             -1.3311099 , -1.0066373 , -0.919828  , -1.3734803 ,
+             -1.0669774 , -1.0113784 , -0.99951464, -0.94827956,
+             -2.170946  , -0.9226624 , -1.4668742 , -2.4347599 ,
+             -3.5968702 , -0.9517863 , -1.192229  , -2.4618397 ,
+             -1.3831621 , -1.6273001 , -2.1914809 , -1.3718075 ,
+             -1.609002  , -2.48444   , -1.0386168 , -1.007032  ,
+             -1.8706216 , -2.9213004 , -1.1897185 , -2.4345732 ,
+             -2.21778   , -1.0591404 , -1.9088943 , -0.9474877 ,
+             -2.4928312 , -1.3738219 , -0.98092586, -1.5069635 ,
+             -1.5152133 , -1.4090091 , -0.9463505 , -4.01001   ,
+             -0.92175883, -2.3501945 , -1.0329885 , -0.9608343 ,
+             -2.453641  , -1.4370313 , -1.2970438 , -0.98559654,
+             -0.9191012 , -1.5492269 , -1.0482632 , -3.5243604 ,
+             -1.1734089 , -1.1310924 , -1.4501321 , -1.0469462 ,
+             -1.0246927 , -3.8922968 , -1.4917163 , -0.9450461 ,
+             -0.9193713 , -1.2691599 , -1.933754  , -0.91957176,
+             -1.4271564 , -2.2702785 , -1.5532594 , -0.92872894,
+             -1.3233848 , -1.0513378 , -1.0488693 , -0.9203377 ,
+             -2.8414474 , -1.0662771 , -1.6880481 , -0.9346765 ,
+             -1.4676481 , -1.3512806 , -1.4721271 , -1.8776895 ,
+             -1.7624578 , -0.9534244 , -2.114407  , -2.1998732 ,
+             -0.9436233 , -1.4086381 , -1.2421441 , -0.9211258 ,
+             -1.0836374 , -1.0867034 , -1.1609774 , -0.9469037 ,
+             -1.0881034 , -1.0730338 , -2.0224075 , -2.2057674 ,
+             -0.92424095, -1.061776  , -1.1064069 , -1.3774608 ,
+             -2.924002  , -1.3053685 , -1.2548748 , -0.93166655,
+             -1.1185275 , -1.8487773 , -1.2715448 , -1.0625151 ,
+             -0.919816  , -1.2240763 , -0.9933098 , -0.9362935 ,
+             -1.5333135 , -1.0274075 , -1.0681254 , -0.9437275 ,
+             -1.0160403 , -1.9910916 , -1.0601673 , -1.7288822 ,
+             -0.9270407 , -0.95091414, -0.9318489 , -0.92269427,
+             -0.91955173, -0.9204031 , -1.2928586 , -1.3461992 ,
+             -1.6412495 , -1.1472471 , -0.9269065 , -0.9523995 ,
+             -1.1550006 , -0.92126137, -2.4966414 , -2.1539886 ,
+             -0.92574495, -1.6118724 , -1.0855597 , -1.0610689 ,
+             -1.4152812 , -0.94167656, -1.9827776 , -1.473917  ,
+             -1.7836821 , -1.1966137 , -1.0182176 , -0.92097306,
+             -0.9209466 , -1.0905943 , -1.0034442 , -1.0385971 ,
+             -0.9981484 , -1.019547  , -1.339892  , -0.99360216,
+             -1.2611157 , -2.043518  , -1.4844784 , -1.5870582 ,
+             -2.5192733 , -1.0085477 , -1.434887  , -1.0746634 ,
+             -0.92465043, -1.569088  , -1.1437145 , -0.92018676,
+             -1.4896731 , -2.1084526 , -2.5882196 , -0.9189396 ,
+             -1.09127   , -1.6979966 , -0.9307126 , -0.934428  ,
+             -1.6377085 , -0.9242854 , -1.3000256 , -1.2464167 ,
+             -0.976712  , -2.2505758 , -2.6039705 , -1.1662395 ,
+             -1.0432205 , -0.92383856, -1.0974997 , -0.92292064,
+             -0.9269077 , -1.1529579 , -1.5150778 , -1.3664192 ,
+             -1.210549  , -1.1417316 , -1.0622867 , -1.5452574 ,
+             -1.0148045 , -1.0091469 , -0.9777867 , -0.9247054 ,
+             -1.0049224 , -1.434517  , -1.7541101 , -1.1108861 ,
+             -0.98954386, -1.0713832 , -1.0639665 , -1.0661215 ,
+             -0.95254546, -1.2141521 , -3.744336  , -1.0116578 ,
+             -1.0471963 , -1.0112739 , -0.92023903, -1.0932194 ,
+             -1.5826877 , -1.5581529 , -1.9440514 , -0.98662806,
+             -1.9705187 , -1.6423446 , -1.7442542 , -2.1432505 ,
+             -1.0683318 , -1.3894508 , -5.0608697 , -0.9217753 ,
+             -0.9189401 , -1.3587816 , -0.9651224 , -1.7849518 ,
+             -0.9586676 , -1.9659542 , -1.2073822 , -6.6199107 ,
+             -1.120968  , -0.9285537 , -1.3207738 , -1.4970922 ,
+             -1.4714401 , -0.9242535 , -1.9048508 , -1.3535858 ,
+             -1.1594034 , -1.2295729 , -3.5413487 , -1.3847703 ,
+             -1.1426531 , -1.0005031 , -1.3932105 , -1.125257  ,
+             -1.9940948 , -2.190436  , -1.0830255 , -1.4064122 ,
+             -2.095564  , -1.0187538 , -1.2601744 , -2.5665123 ,
+             -0.9323352 , -0.9811645 , -1.2410731 , -1.2178746 ,
+             -0.94299006, -1.7663121 , -1.6753691 , -1.0752889 ,
+             -1.726385  , -1.5294505 , -2.7349787 , -1.4480503 ,
+             -1.0807834 , -0.91911155, -0.95001423, -1.0628551 ,
+             -0.92910874, -0.965585  , -2.179873  , -3.7982373 ,
+             -1.1630319 , -0.92326343, -1.7655227 , -1.3453153 ,
+             -3.765959  , -4.6166425 , -0.9406287 , -0.9190699 ,
+             -1.2274051 , -0.96499646, -2.5794678 , -1.128891  ,
+             -1.9917313 , -0.9504398 , -0.922311  , -1.3642628 ,
+             -1.0914744 , -1.9013066 , -1.4551196 , -1.8612295 ,
+             -1.2657688 , -1.7649347 , -1.2383988 , -0.9415557 ,
+             -0.9776961 , -1.7170994 , -1.1555552 , -0.9875187 ,
+             -1.0518372 , -1.3169689 , -1.9312515 , -1.4190854 ,
+             -0.9197242 , -0.9217166 , -1.7818896 , -1.6770663 ,
+             -3.1618724 , -1.0159546 , -0.9198347 , -1.4661936 ,
+             -2.4684944 , -1.8190814 , -0.9965103 , -1.253091  ,
+             -3.3408415 , -1.7961708 , -1.8628223 , -1.1085967 ,
+             -1.161858  , -1.6932707 , -0.9312977 , -1.5029194 ,
+             -1.6368673 , -0.9201456 , -0.97507435, -0.9939719 ,
+             -1.2418422 , -0.9732621 , -2.060536  , -1.0322864 ,
+             -1.06771   , -1.587497  , -1.0115893 , -1.1971974 ,
+             -1.7355707 , -0.96514386, -0.9964191 , -1.453583  ,
+             -1.1790487 , -0.94651127, -2.0130274 , -0.94637483,
+             -0.9702502 , -0.9490705 , -0.9328656 , -1.9173727 ,
+             -1.0770333 , -2.769804  , -1.1494777 , -1.2422714 ,
+             -0.9191759 , -1.5332268 , -2.207849  , -1.4595392 ,
+             -1.1641467 , -1.9254317 , -0.9388316 , -1.6237166 ,
+             -1.2113551 , -0.9204211 , -1.1720588 , -1.4491575 ],            dtype=float32))}), score=DeviceArray([-0.9247955 , -0.9565941 , -1.8264294 , -1.1844904 ,
+             -1.8033758 , -0.91903275, -1.2785668 , -1.0693828 ,
+             -2.0266647 , -0.9521038 , -1.6825668 , -1.7942586 ,
+             -1.2227434 , -0.9307546 , -1.0590267 , -0.9752945 ,
+             -3.1286416 , -1.6309485 , -0.97036177, -1.4686738 ,
+             -1.1971072 , -0.963828  , -0.9330346 , -3.6397476 ,
+             -0.9295393 , -0.92992944, -0.9236511 , -0.9236092 ,
+             -1.1370858 , -0.92773217, -1.0736619 , -0.995049  ,
+             -1.3489404 , -1.696435  , -1.2167879 , -0.936651  ,
+             -1.231484  , -0.93197834, -0.96477205, -1.0416144 ,
+             -1.5052758 , -1.1721939 , -1.0950221 , -2.2967756 ,
+             -0.9406347 , -1.5733286 , -0.94001603, -1.019886  ,
+             -1.8975222 , -1.8334634 , -0.9548435 , -0.9344185 ,
+             -0.9776876 , -0.9691848 , -0.98727185, -1.1610599 ,
+             -1.0896006 , -1.349071  , -0.92114383, -0.9190074 ,
+             -2.9103003 , -1.058989  , -1.3686922 , -1.8826355 ,
+             -1.043189  , -1.3584677 , -0.94494253, -0.9619898 ,
+             -0.93848586, -2.9805508 , -1.9802654 , -1.0022949 ,
+             -2.7054317 , -1.1791009 , -2.1110342 , -1.002114  ,
+             -1.219131  , -0.96363467, -0.95948714, -0.93567437,
+             -0.92164296, -1.2580216 , -1.1974748 , -1.1116757 ,
+             -0.9208673 , -0.96265   , -1.8259932 , -0.95526564,
+             -1.3640106 , -0.92600214, -1.5634524 , -0.9518923 ,
+             -2.019595  , -0.95089436, -1.29763   , -0.9478491 ,
+             -1.1016976 , -1.6082205 , -1.0665259 , -0.9212855 ,
+             -0.9322612 , -2.2937746 , -1.3052651 , -1.0856857 ,
+             -1.0323236 , -1.0930772 , -1.2881627 , -1.6359962 ,
+             -0.97746277, -1.2881217 , -0.9370697 , -1.1860932 ,
+             -0.99197245, -0.9596603 , -1.7402366 , -0.9570941 ,
+             -1.0095206 , -1.34379   , -1.0749518 , -1.1231471 ,
+             -0.9412691 , -0.9260846 , -1.5821121 , -2.672691  ,
+             -0.9249668 , -1.268351  , -0.9306303 , -1.7546457 ,
+             -0.97086483, -1.0044392 , -0.9793673 , -0.9411001 ,
+             -1.0473641 , -1.1878059 , -0.9200479 , -1.8858316 ,
+             -1.0187917 , -0.98051554, -0.9472294 , -1.098861  ,
+             -0.99590564, -1.1568172 , -0.9190724 , -0.9771817 ,
+             -1.5056218 , -2.425022  , -1.5752991 , -1.4186238 ,
+             -1.0594753 , -0.9216265 , -0.97187936, -0.9229621 ,
+             -1.0011059 , -0.9201189 , -1.3966693 , -2.095188  ,
+             -1.5454187 , -2.5394316 , -0.91909355, -2.8324332 ,
+             -0.9236219 , -1.0504607 , -3.3604195 , -0.99117917,
+             -1.3297931 , -0.9217832 , -1.5446706 , -1.3079224 ,
+             -1.4262666 , -3.2598593 , -1.0913982 , -1.644535  ,
+             -0.9689624 , -0.94629157, -3.7285683 , -0.9528771 ,
+             -1.0678089 , -1.1250757 , -1.2547052 , -0.9280325 ,
+             -0.9275869 , -2.9766824 , -2.332803  , -1.1839025 ,
+             -0.95874155, -1.50855   , -3.7133632 , -1.2515701 ,
+             -1.0067157 , -1.0924596 , -1.1248052 , -1.3827758 ,
+             -0.92415434, -0.9339953 , -1.0039259 , -0.919768  ,
+             -1.0435245 , -0.9550116 , -0.9434873 , -0.93771863,
+             -1.2679868 , -1.104808  , -1.9473176 , -0.9631918 ,
+             -0.91893923, -1.0022682 , -1.9287169 , -1.0970429 ,
+             -2.1307158 , -1.5764667 , -1.1587722 , -0.9440814 ,
+             -0.9337518 , -2.976311  , -1.1335533 , -0.92039764,
+             -1.1165951 , -1.4130337 , -1.2971756 , -0.9235719 ,
+             -2.1801994 , -0.91912854, -1.0292981 , -1.5577573 ,
+             -1.2367817 , -1.0202748 , -1.8744936 , -2.1766796 ,
+             -3.2753654 , -0.91901785, -1.1985173 , -2.000355  ,
+             -0.91908145, -0.9192289 , -0.9292165 , -2.1385913 ,
+             -0.95536935, -1.0526689 , -2.2310364 , -0.91918397,
+             -0.9701659 , -0.92451507, -2.6035593 , -0.95731   ,
+             -1.2774913 , -1.8735684 , -0.94313437, -1.1045052 ,
+             -2.115056  , -2.5166554 , -1.5195138 , -1.0224903 ,
+             -2.1955721 , -1.2428861 , -0.92698014, -1.476684  ,
+             -1.0104014 , -0.9198047 , -0.9889713 , -0.94196194,
+             -2.3049183 , -1.0880651 , -1.0862991 , -2.0145512 ,
+             -0.9215293 , -1.0955962 , -1.0079668 , -0.9649491 ,
+             -1.165556  , -0.95445114, -1.4652483 , -2.269712  ,
+             -2.0654192 , -1.3374904 , -0.9800495 , -3.375715  ,
+             -2.2117498 , -0.91894764, -1.1789123 , -1.5818071 ,
+             -2.2239213 , -1.2517946 , -0.9217562 , -2.8188653 ,
+             -0.92392826, -2.1354542 , -0.95877475, -1.6188354 ,
+             -0.9404259 , -0.9551301 , -1.0554875 , -1.8367494 ,
+             -1.2081944 , -1.3768697 , -1.1479881 , -1.1207834 ,
+             -1.9318459 , -1.1100986 , -1.5629771 , -0.92226416,
+             -0.9924774 , -1.2714859 , -1.0041417 , -0.94780153,
+             -1.5514216 , -0.94043726, -0.9535185 , -0.9189531 ,
+             -0.9191688 , -0.9427159 , -0.9489441 , -1.0963421 ,
+             -1.1659276 , -1.4942129 , -2.4763272 , -1.2030718 ,
+             -0.9614444 , -0.9350531 , -1.0097181 , -1.363706  ,
+             -2.4340658 , -1.4524006 , -1.056726  , -1.1575801 ,
+             -1.1068507 , -1.4332057 , -0.92595977, -1.1669221 ,
+             -1.3499696 , -1.6806122 , -1.0128847 , -0.9758323 ,
+             -3.9268754 , -1.262663  , -1.561068  , -0.9557959 ,
+             -1.5439045 , -0.918982  , -0.9339552 , -2.9945138 ,
+             -0.939344  , -4.4458275 , -1.0303282 , -1.033262  ,
+             -1.7087497 , -1.1370924 , -0.9229465 , -1.0712174 ,
+             -0.9359642 , -0.92112446, -1.3775138 , -1.2726561 ,
+             -1.3778993 , -2.1018698 , -1.5344801 , -0.9223816 ,
+             -1.1434014 , -1.4260585 , -0.9451096 , -0.9937954 ,
+             -1.6202878 , -1.1504829 , -2.5075912 , -0.9295402 ,
+             -0.92839426, -1.265917  , -0.965464  , -3.9058945 ,
+             -1.1400197 , -0.9228013 , -0.9780991 , -0.93677276,
+             -1.2261438 , -0.92990947, -0.94282126, -1.1886349 ,
+             -1.0239792 , -1.2202901 , -0.92691004, -1.1893705 ,
+             -2.5112567 , -1.015833  , -2.541105  , -0.9543515 ,
+             -1.2123536 , -1.7078462 , -1.4036967 , -0.9210508 ,
+             -2.0634372 , -1.2648996 , -1.1718065 , -1.8573871 ,
+             -1.3191878 , -3.8900623 , -1.1150547 , -1.6614075 ,
+             -1.4172748 , -1.3414484 , -0.91957176, -2.1961284 ,
+             -1.2709292 , -4.6991186 , -0.924644  , -0.9211137 ,
+             -1.2852689 , -1.9741303 , -1.272821  , -1.3848742 ,
+             -2.7166448 , -1.1331005 , -0.96666664, -1.4790268 ,
+             -1.0890166 , -1.083126  , -1.0468526 , -1.3993157 ,
+             -2.3350427 , -0.9895496 , -0.91903204, -1.5156893 ,
+             -2.2685387 , -1.7293192 , -0.92042524, -1.0110425 ,
+             -2.802579  , -0.92443955, -0.9489279 , -1.3847169 ,
+             -1.242556  , -1.2435888 , -0.9924952 , -2.287357  ,
+             -1.7841061 , -0.964758  , -1.500284  , -3.303829  ,
+             -2.3316343 , -0.92216414, -1.0278989 , -2.3453138 ,
+             -1.4505509 , -1.0118814 , -1.2511766 , -1.2212422 ,
+             -1.8678237 , -1.0308858 , -0.94875014, -1.512039  ,
+             -1.9509466 , -0.91894484, -1.3166116 , -0.9674489 ,
+             -0.9857655 , -0.97258705, -0.94353354, -1.4977816 ,
+             -1.1696179 , -2.7632997 , -1.0360463 , -1.3180989 ,
+             -1.0413556 , -1.3858386 , -1.008898  , -0.99026674,
+             -1.029573  , -1.7464588 , -1.3479209 , -0.9643989 ,
+             -1.073021  , -1.0254971 , -0.93949157, -1.5275762 ,
+             -1.1473044 , -1.0511247 , -1.0907407 , -2.6766045 ,
+             -1.2431202 , -1.5619574 , -0.9874072 , -1.8958029 ,
+             -1.335792  , -1.2507049 , -0.91957456, -1.5818408 ,
+             -0.9217661 , -0.92599833, -2.3781476 , -1.1322987 ,
+             -1.0084717 , -0.9818771 , -2.816621  , -1.2569441 ,
+             -0.9279082 , -2.77255   , -0.95476973, -0.9828512 ,
+             -1.6009717 , -1.405759  , -1.6484233 , -1.5800499 ,
+             -3.336008  , -1.116808  , -3.142037  , -1.4878223 ,
+             -0.9431556 , -1.1101623 , -3.5090656 , -5.295263  ,
+             -1.0059848 , -0.9656319 , -1.2493654 , -0.9190004 ,
+             -1.2850779 , -1.0169555 , -2.146299  , -1.4757608 ,
+             -1.0942913 , -1.517349  , -2.2331893 , -0.9229352 ,
+             -0.9477548 , -1.0849874 , -2.111451  , -1.8734959 ,
+             -1.7686695 , -1.1748427 , -1.7536312 , -1.3078454 ,
+             -1.0777172 , -0.91903085, -1.0386844 , -2.7529325 ,
+             -1.7763121 , -1.5519394 , -0.92641383, -1.3513976 ,
+             -1.1817181 , -1.5296354 , -1.8518562 , -0.92455614,
+             -2.5322292 , -1.8186582 , -1.5148867 , -1.2415138 ,
+             -0.9772893 , -0.92460793, -1.0299677 , -1.2225535 ,
+             -1.2961237 , -1.0024104 , -0.931994  , -1.3171161 ,
+             -2.1063375 , -1.499198  , -0.99158645, -1.7776263 ,
+             -0.98452955, -2.6165829 , -0.977413  , -0.99976176,
+             -1.0052936 , -1.0697929 , -3.1403027 , -1.0064306 ,
+             -1.349596  , -0.97425944, -0.9338312 , -2.0080805 ,
+             -0.92855656, -0.9236884 , -1.0031087 , -1.2704029 ,
+             -3.2023842 , -1.9870247 , -1.0852226 , -0.9192418 ,
+             -1.1249197 , -1.8982558 , -0.921959  , -0.92119634,
+             -1.2511537 , -1.2673644 , -2.821519  , -0.924721  ,
+             -0.95788914, -2.3937404 , -0.9491408 , -1.1596204 ,
+             -1.5439395 , -0.9270642 , -0.9204632 , -0.91913325,
+             -1.951381  , -5.2825246 , -1.4437258 , -1.0509287 ,
+             -1.6898174 , -1.0991861 , -2.1438174 , -0.92459613,
+             -1.2752296 , -1.6567522 , -1.8298466 , -1.1723949 ,
+             -1.4084107 , -1.2917107 , -1.0262048 , -0.9197926 ,
+             -1.1197025 , -1.970805  , -1.3335649 , -1.0051448 ,
+             -0.9587566 , -1.0366156 , -0.92254716, -0.95165306,
+             -0.93934345, -0.9274484 , -1.3882493 , -0.98149836,
+             -1.3671367 , -1.6180848 , -0.9207077 , -1.0254016 ,
+             -0.99486375, -1.1603955 , -1.0075157 , -1.1768446 ,
+             -1.3311099 , -1.0066373 , -0.919828  , -1.3734803 ,
+             -1.0669774 , -1.0113784 , -0.99951464, -0.94827956,
+             -2.170946  , -0.9226624 , -1.4668742 , -2.4347599 ,
+             -3.5968702 , -0.9517863 , -1.192229  , -2.4618397 ,
+             -1.3831621 , -1.6273001 , -2.1914809 , -1.3718075 ,
+             -1.609002  , -2.48444   , -1.0386168 , -1.007032  ,
+             -1.8706216 , -2.9213004 , -1.1897185 , -2.4345732 ,
+             -2.21778   , -1.0591404 , -1.9088943 , -0.9474877 ,
+             -2.4928312 , -1.3738219 , -0.98092586, -1.5069635 ,
+             -1.5152133 , -1.4090091 , -0.9463505 , -4.01001   ,
+             -0.92175883, -2.3501945 , -1.0329885 , -0.9608343 ,
+             -2.453641  , -1.4370313 , -1.2970438 , -0.98559654,
+             -0.9191012 , -1.5492269 , -1.0482632 , -3.5243604 ,
+             -1.1734089 , -1.1310924 , -1.4501321 , -1.0469462 ,
+             -1.0246927 , -3.8922968 , -1.4917163 , -0.9450461 ,
+             -0.9193713 , -1.2691599 , -1.933754  , -0.91957176,
+             -1.4271564 , -2.2702785 , -1.5532594 , -0.92872894,
+             -1.3233848 , -1.0513378 , -1.0488693 , -0.9203377 ,
+             -2.8414474 , -1.0662771 , -1.6880481 , -0.9346765 ,
+             -1.4676481 , -1.3512806 , -1.4721271 , -1.8776895 ,
+             -1.7624578 , -0.9534244 , -2.114407  , -2.1998732 ,
+             -0.9436233 , -1.4086381 , -1.2421441 , -0.9211258 ,
+             -1.0836374 , -1.0867034 , -1.1609774 , -0.9469037 ,
+             -1.0881034 , -1.0730338 , -2.0224075 , -2.2057674 ,
+             -0.92424095, -1.061776  , -1.1064069 , -1.3774608 ,
+             -2.924002  , -1.3053685 , -1.2548748 , -0.93166655,
+             -1.1185275 , -1.8487773 , -1.2715448 , -1.0625151 ,
+             -0.919816  , -1.2240763 , -0.9933098 , -0.9362935 ,
+             -1.5333135 , -1.0274075 , -1.0681254 , -0.9437275 ,
+             -1.0160403 , -1.9910916 , -1.0601673 , -1.7288822 ,
+             -0.9270407 , -0.95091414, -0.9318489 , -0.92269427,
+             -0.91955173, -0.9204031 , -1.2928586 , -1.3461992 ,
+             -1.6412495 , -1.1472471 , -0.9269065 , -0.9523995 ,
+             -1.1550006 , -0.92126137, -2.4966414 , -2.1539886 ,
+             -0.92574495, -1.6118724 , -1.0855597 , -1.0610689 ,
+             -1.4152812 , -0.94167656, -1.9827776 , -1.473917  ,
+             -1.7836821 , -1.1966137 , -1.0182176 , -0.92097306,
+             -0.9209466 , -1.0905943 , -1.0034442 , -1.0385971 ,
+             -0.9981484 , -1.019547  , -1.339892  , -0.99360216,
+             -1.2611157 , -2.043518  , -1.4844784 , -1.5870582 ,
+             -2.5192733 , -1.0085477 , -1.434887  , -1.0746634 ,
+             -0.92465043, -1.569088  , -1.1437145 , -0.92018676,
+             -1.4896731 , -2.1084526 , -2.5882196 , -0.9189396 ,
+             -1.09127   , -1.6979966 , -0.9307126 , -0.934428  ,
+             -1.6377085 , -0.9242854 , -1.3000256 , -1.2464167 ,
+             -0.976712  , -2.2505758 , -2.6039705 , -1.1662395 ,
+             -1.0432205 , -0.92383856, -1.0974997 , -0.92292064,
+             -0.9269077 , -1.1529579 , -1.5150778 , -1.3664192 ,
+             -1.210549  , -1.1417316 , -1.0622867 , -1.5452574 ,
+             -1.0148045 , -1.0091469 , -0.9777867 , -0.9247054 ,
+             -1.0049224 , -1.434517  , -1.7541101 , -1.1108861 ,
+             -0.98954386, -1.0713832 , -1.0639665 , -1.0661215 ,
+             -0.95254546, -1.2141521 , -3.744336  , -1.0116578 ,
+             -1.0471963 , -1.0112739 , -0.92023903, -1.0932194 ,
+             -1.5826877 , -1.5581529 , -1.9440514 , -0.98662806,
+             -1.9705187 , -1.6423446 , -1.7442542 , -2.1432505 ,
+             -1.0683318 , -1.3894508 , -5.0608697 , -0.9217753 ,
+             -0.9189401 , -1.3587816 , -0.9651224 , -1.7849518 ,
+             -0.9586676 , -1.9659542 , -1.2073822 , -6.6199107 ,
+             -1.120968  , -0.9285537 , -1.3207738 , -1.4970922 ,
+             -1.4714401 , -0.9242535 , -1.9048508 , -1.3535858 ,
+             -1.1594034 , -1.2295729 , -3.5413487 , -1.3847703 ,
+             -1.1426531 , -1.0005031 , -1.3932105 , -1.125257  ,
+             -1.9940948 , -2.190436  , -1.0830255 , -1.4064122 ,
+             -2.095564  , -1.0187538 , -1.2601744 , -2.5665123 ,
+             -0.9323352 , -0.9811645 , -1.2410731 , -1.2178746 ,
+             -0.94299006, -1.7663121 , -1.6753691 , -1.0752889 ,
+             -1.726385  , -1.5294505 , -2.7349787 , -1.4480503 ,
+             -1.0807834 , -0.91911155, -0.95001423, -1.0628551 ,
+             -0.92910874, -0.965585  , -2.179873  , -3.7982373 ,
+             -1.1630319 , -0.92326343, -1.7655227 , -1.3453153 ,
+             -3.765959  , -4.6166425 , -0.9406287 , -0.9190699 ,
+             -1.2274051 , -0.96499646, -2.5794678 , -1.128891  ,
+             -1.9917313 , -0.9504398 , -0.922311  , -1.3642628 ,
+             -1.0914744 , -1.9013066 , -1.4551196 , -1.8612295 ,
+             -1.2657688 , -1.7649347 , -1.2383988 , -0.9415557 ,
+             -0.9776961 , -1.7170994 , -1.1555552 , -0.9875187 ,
+             -1.0518372 , -1.3169689 , -1.9312515 , -1.4190854 ,
+             -0.9197242 , -0.9217166 , -1.7818896 , -1.6770663 ,
+             -3.1618724 , -1.0159546 , -0.9198347 , -1.4661936 ,
+             -2.4684944 , -1.8190814 , -0.9965103 , -1.253091  ,
+             -3.3408415 , -1.7961708 , -1.8628223 , -1.1085967 ,
+             -1.161858  , -1.6932707 , -0.9312977 , -1.5029194 ,
+             -1.6368673 , -0.9201456 , -0.97507435, -0.9939719 ,
+             -1.2418422 , -0.9732621 , -2.060536  , -1.0322864 ,
+             -1.06771   , -1.587497  , -1.0115893 , -1.1971974 ,
+             -1.7355707 , -0.96514386, -0.9964191 , -1.453583  ,
+             -1.1790487 , -0.94651127, -2.0130274 , -0.94637483,
+             -0.9702502 , -0.9490705 , -0.9328656 , -1.9173727 ,
+             -1.0770333 , -2.769804  , -1.1494777 , -1.2422714 ,
+             -0.9191759 , -1.5332268 , -2.207849  , -1.4595392 ,
+             -1.1641467 , -1.9254317 , -0.9388316 , -1.6237166 ,
+             -1.2113551 , -0.9204211 , -1.1720588 , -1.4491575 ],            dtype=float32)), args=(DeviceArray(999, dtype=int32, weak_type=True), DeviceArray(0.5, dtype=float32, weak_type=True)), retval=DeviceArray(-11.784484, dtype=float32, weak_type=True), score=DeviceArray(-1406.6448, dtype=float32))
+</pre></div>
+</div>
+</div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.combinators.UnfoldCombinator.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#genjax.combinators.UnfoldCombinator.__init__" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.combinators.UnfoldCombinator.__new__">
+<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#genjax.combinators.UnfoldCombinator.__new__" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+              </div>
+              
+            </main>
+            <footer class="footer-article noprint">
+                
+    <!-- Previous / next buttons -->
+<div class='prev-next-area'>
+    <a class='left-prev' id="prev-link" href="map.html" title="previous page">
+        <i class="fas fa-angle-left"></i>
+        <div class="prev-next-info">
+            <p class="prev-next-subtitle">previous</p>
+            <p class="prev-next-title">Map combinator</p>
+        </div>
+    </a>
+    <a class='right-next' id="next-link" href="trainable.html" title="next page">
+    <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Trainable combinator</p>
+    </div>
+    <i class="fas fa-angle-right"></i>
+    </a>
+</div>
+            </footer>
+        </div>
+    </div>
+    <div class="footer-content row">
+        <footer class="col footer"><p>
+  
+      &copy; Copyright 2022 MIT Probabilistic Computing Project.<br/>
+</p>
+        </footer>
+    </div>
+    
+</div>
+
+
+      </div>
+    </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
+
+
+  </body>
+</html>

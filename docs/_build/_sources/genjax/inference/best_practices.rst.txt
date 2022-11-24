@@ -1,0 +1,45 @@
+Inference best practices
+========================
+
+Here's some common idioms which are useful when utilizing JAX's :code:`jax.jit` functionality.
+
+Write inference to return a lambda
+----------------------------------
+
+When using JAX, it's often useful to separate arguments into "trace-time static" and "runtime" categories. Some arguments to inference routines (like the model, proposals, kernels, etc) are things which we don't expect to change at runtime.
+
+It's often convenient to write functions that return other functions that *close over* the static arguments. Closed over constant objects are aggressively constant propagated by JAX as part of tracing.
+
+Here's an example:
+
+.. jupyter-execute::
+
+   import jax
+   import genjax
+
+   def bootstrap_importance_sampling(model: genjax.GenerativeFunction, n_particles: int):
+       def _inner(key, model_args: Tuple, observations: genjax.ChoiceMap):
+           key, *subkeys = jax.random.split(key, n_particles + 1)
+           subkeys = jnp.array(subkeys)
+           _, (lws, trs) = jax.vmap(model.importance, in_axes=(0, None, None))(
+               subkeys,
+               observations,
+               model_args,
+           )
+           log_total_weight = jax.scipy.special.logsumexp(lws)
+           log_normalized_weights = lws - log_total_weight
+           log_ml_estimate = log_total_weight - jnp.log(n_particles)
+           return key, (trs, log_normalized_weights, log_ml_estimate)
+
+       return _inner
+
+:code:`bootstrap_importance_sampling` asks you to provide a model, and a positive integer specifying the number of particles to use in inference. It returns a lambda which closes over these arguments. JAX will constant propagate closed over arguments (as long as they are not :code:`jax.Tracer` type).
+
+The lambda returned from :code:`bootstrap_importance_sampling` is fully jittable (and :code:`ChoiceMap` is a :code:`jax.Pytree` -- in fact, basically every type in GenJAX is a :code:`jax.Pytree`).
+
+Feel free to use :code:`jax.vmap`
+---------------------------------
+
+As noted in the JAX documentation, using `jax.jit` on code which contains `jax.vmap` is perfectly fine (nay, encouraged!)
+
+Similarly, many of the library implementations of inference utilize `jax.vmap` to support auto-vectorization.
