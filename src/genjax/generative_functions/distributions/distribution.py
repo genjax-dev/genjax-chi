@@ -34,6 +34,10 @@ from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_and
 from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.builtin.builtin_tracetype import lift
+from genjax.generative_functions.builtin.propagating import Diff
+from genjax.generative_functions.builtin.propagating import NoChange
+from genjax.generative_functions.builtin.propagating import check_no_change
+from genjax.generative_functions.builtin.propagating import diff_strip
 
 
 #####
@@ -61,7 +65,7 @@ class DistributionTrace(Trace):
         return self.gen_fn
 
     def get_retval(self):
-        return (self.value.get_leaf_value(),)
+        return self.value.get_leaf_value()
 
     def get_args(self):
         return self.args
@@ -110,8 +114,9 @@ class Distribution(GenerativeFunction):
         tr = DistributionTrace(self, args, ValueChoiceMap(v), w)
         return key, tr
 
-    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args, **kwargs):
+        chm = BooleanMask.collapse(chm)
+
         def _importance_branch(key, chm, args):
             v = chm.get_leaf_value()
             key, sub_key = jax.random.split(key)
@@ -166,9 +171,10 @@ class Distribution(GenerativeFunction):
         _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
         return key, lambda retval_grad: f_vjp(retval_grad)[1:]
 
-    @BooleanMask.collapse_boundary
-    def update(self, key, prev, new, args, **kwargs):
+    def update(self, key, prev, new, diffs, **kwargs):
         assert isinstance(prev, DistributionTrace)
+        args = tuple(map(diff_strip, diffs))
+        new = BooleanMask.collapse(new)
 
         has_previous = prev.is_leaf()
         constrained = not isinstance(new, EmptyChoiceMap) and new.is_leaf()
@@ -219,7 +225,15 @@ class Distribution(GenerativeFunction):
         else:
             vchm = ValueChoiceMap(v)
 
+        if isinstance(new, EmptyChoiceMap) and all(
+            map(check_no_change, diffs)
+        ):
+            retval_diff = Diff.new(v, change=NoChange)
+        else:
+            retval_diff = Diff.new(v)
+
         return key, (
+            retval_diff,
             w,
             DistributionTrace(self, args, vchm, w),
             discard,

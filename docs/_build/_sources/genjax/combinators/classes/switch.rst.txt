@@ -1,7 +1,7 @@
 Switch combinator
 =================
 
-.. automodule:: genjax.combinators.switch_combinator
+.. automodule:: genjax.combinators.switch
 
 .. autoclass:: genjax.combinators.SwitchCombinator
    :members: __init__, simulate

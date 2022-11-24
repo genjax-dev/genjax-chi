@@ -452,73 +452,14 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="module-genjax.combinators.trainable_combinator">
-<span id="trainable-combinator"></span><h1>Trainable combinator<a class="headerlink" href="#module-genjax.combinators.trainable_combinator" title="Permalink to this headline">#</a></h1>
+  <section id="module-genjax.combinators.train">
+<span id="trainable-combinator"></span><h1>Trainable combinator<a class="headerlink" href="#module-genjax.combinators.train" title="Permalink to this headline">#</a></h1>
 <p>This module provides a combinator which transforms a generative function into a <code class="code docutils literal notranslate"><span class="pre">nn.Module</span></code>-like object that holds learnable parameters.</p>
 <p>It exposes an extended set of interfaces (new: <code class="code docutils literal notranslate"><span class="pre">param_grad</span></code>
 and <code class="code docutils literal notranslate"><span class="pre">update_params</span></code>) which allow programmatic computation of
 gradients with respect to held parameters, as well as updating parameters.</p>
 <p>It enables learning idioms which cohere with other packages
 in the JAX ecosystem (e.g. supporting <code class="code docutils literal notranslate"><span class="pre">optax</span></code> optimizers).</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="genjax.combinators.TrainableCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.combinators.</span></span><span class="sig-name descname"><span class="pre">TrainableCombinator</span></span><a class="headerlink" href="#genjax.combinators.TrainableCombinator" title="Permalink to this definition">#</a></dt>
-<dd><p class="rubric">Example</p>
-<div class="jupyter_cell jupyter_container docutils container">
-<div class="cell_input code_cell docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
-<span class="kn">import</span> <span class="nn">genjax</span>
-<span class="kn">import</span> <span class="nn">optax</span>
-
-<span class="c1"># Here, we can pass params as a keyword argument to</span>
-<span class="c1"># genjax.Trainable.</span>
-<span class="c1">#</span>
-<span class="c1"># The combinator expects a generative function which accepts the params</span>
-<span class="c1"># argument at the last argument position.</span>
-<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span><span class="p">(</span>
-    <span class="n">genjax</span><span class="o">.</span><span class="n">Trainable</span><span class="p">,</span>
-    <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
-<span class="p">)</span>
-<span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">y</span>
-
-<span class="k">def</span> <span class="nf">learning</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">chm</span><span class="p">):</span>
-    <span class="n">optim</span> <span class="o">=</span> <span class="n">optax</span><span class="o">.</span><span class="n">adam</span><span class="p">(</span><span class="n">lr</span><span class="p">)</span>
-    <span class="n">opt_state</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">):</span>
-        <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">tr</span><span class="p">)</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">importance</span><span class="p">(</span><span class="n">model</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="p">())</span>
-
-        <span class="c1"># Usage here.</span>
-        <span class="n">key</span><span class="p">,</span> <span class="n">grad</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">param_grad</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">w</span><span class="p">)</span>
-        <span class="n">updates</span><span class="p">,</span> <span class="n">opt_state</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">grad</span><span class="p">,</span> <span class="n">opt_state</span><span class="p">)</span>
-        <span class="n">model</span><span class="o">.</span><span class="n">update_params</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">params</span>
-
-
-<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
-<span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">3e-3</span>
-<span class="n">obs</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">ChoiceMap</span><span class="o">.</span><span class="n">new</span><span class="p">({(</span><span class="s2">&quot;y&quot;</span><span class="p">,):</span> <span class="mf">0.2</span><span class="p">})</span>
-<span class="n">trained</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">learning</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="n">learning_rate</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-</div>
-</div>
-<dl class="py method">
-<dt class="sig sig-object py" id="genjax.combinators.TrainableCombinator.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">genjax.core.datatypes.GenerativeFunction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#genjax.combinators.TrainableCombinator.__init__" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="genjax.combinators.TrainableCombinator.__new__">
-<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#genjax.combinators.TrainableCombinator.__new__" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
 </section>
 
 
