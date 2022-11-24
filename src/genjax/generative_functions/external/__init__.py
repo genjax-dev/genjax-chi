@@ -13,4 +13,3 @@
 # limitations under the License.
 
 from .gaussian_processes import *
-from .state_space_models import *

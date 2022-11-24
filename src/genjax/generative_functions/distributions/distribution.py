@@ -115,7 +115,6 @@ class Distribution(GenerativeFunction):
         return key, tr
 
     def importance(self, key, chm, args, **kwargs):
-        assert isinstance(chm, ChoiceMap)
         chm = BooleanMask.collapse(chm)
 
         def _importance_branch(key, chm, args):
