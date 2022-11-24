@@ -19,18 +19,19 @@ import jax.numpy as jnp
 
 from genjax.core.datatypes import Trace
 from genjax.experimental.prox.prox_distribution import ProxDistribution
+from genjax.generative_functions.builtin.propagating import Diff
+from genjax.generative_functions.builtin.propagating import NoChange
 
 
 def metropolis_hastings(proposal: ProxDistribution):
     def _inner(key, trace: Trace, proposal_args: Tuple):
         model = trace.get_gen_fn()
         model_args = trace.get_args()
+        diffs = tuple(map(lambda v: Diff.new(v, change=NoChange), model_args))
         key, tr = proposal.simulate(key, (trace, *proposal_args))
         fwd_weight = tr.get_score()
         choices = tr.get_choices()
-        key, (weight, new, discard) = model.update(
-            key, trace, choices, model_args
-        )
+        key, (weight, new, discard) = model.update(key, trace, choices, diffs)
         proposal_args_bwd = (new, *proposal_args)
         key, (bwd_weight, _) = proposal.importance(
             key, discard, proposal_args_bwd

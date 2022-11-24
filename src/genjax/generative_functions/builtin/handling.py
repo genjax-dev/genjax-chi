@@ -294,10 +294,10 @@ class ChoiceGradients(Handler):
 
         self.score += w
         if self.return_or_continue:
-            return f(key, *v)
+            return f(key, v)
         else:
             self.return_or_continue = True
-            key, *ret = f(key, *v)
+            key, ret = f(key, v)
             return key, ret, self.score
 
 
@@ -373,10 +373,10 @@ class RetvalGradients(Handler):
             v = sub_trace.get_retval()
 
         if self.return_or_continue:
-            return f(key, *v)
+            return f(key, v)
         else:
             self.return_or_continue = True
-            key, *ret = f(key, *v)
+            key, ret = f(key, v)
             return key, ret
 
 

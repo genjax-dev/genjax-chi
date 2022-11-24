@@ -624,6 +624,10 @@ class Diff(Cell):
     def unknown(cls, aval):
         return Diff(aval, None, UnknownChange)
 
+    @classmethod
+    def no_change(cls, v):
+        return Diff.new(v, change=NoChange)
+
     def get_change(self):
         return self.change
 

@@ -14,4 +14,5 @@
 
 from .distribution import *
 from .standard import *
+from .state_space_models import *
 from .tensorflow_probability import *
