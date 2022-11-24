@@ -40,7 +40,7 @@ nox.options.sessions = (
     "safety",
     "mypy",
     "test",
-    "benchmark",
+    # "benchmark",
     "xdoctest",
     "docs-build",
     "lint",
@@ -53,6 +53,8 @@ def test(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run(
+        "poetry",
+        "run",
         "coverage",
         "run",
         "-m",
@@ -63,8 +65,8 @@ def test(session):
         "--ignore",
         "benchmarks",
     )
-    session.run("coverage", "json")
-    session.run("coverage", "report")
+    session.run("poetry", "run", "coverage", "json")
+    session.run("poetry", "run", "coverage", "report")
 
 
 @session(python=python_version)

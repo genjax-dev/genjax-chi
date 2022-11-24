@@ -25,7 +25,6 @@ from typing import Tuple
 import jax
 
 from genjax.core.datatypes import AllSelection
-from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import NoneSelection
@@ -37,8 +36,8 @@ from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.builtin.builtin_tracetype import lift
 from genjax.generative_functions.builtin.propagating import Diff
 from genjax.generative_functions.builtin.propagating import NoChange
-from genjax.generative_functions.builtin.propagating import diff_strip
 from genjax.generative_functions.builtin.propagating import check_no_change
+from genjax.generative_functions.builtin.propagating import diff_strip
 
 
 #####
