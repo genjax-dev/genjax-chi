@@ -33,7 +33,7 @@ from genjax.generative_functions.builtin.builtin_tracetype import (
 from genjax.generative_functions.builtin.handling import handler_choice_grad
 from genjax.generative_functions.builtin.handling import handler_importance
 from genjax.generative_functions.builtin.handling import handler_retval_grad
-from genjax.generative_functions.builtin.handling import handler_simulate
+from genjax.generative_functions.builtin.propagating import handler_simulate
 from genjax.generative_functions.builtin.propagating import handler_update
 
 
