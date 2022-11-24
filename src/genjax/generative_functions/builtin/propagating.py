@@ -692,7 +692,7 @@ class Update(Handler):
             and is_concrete(constrained)
             and has_previous
             and not constrained
-            and map(check_no_change, incells)
+            and all(map(check_no_change, incells))
         ):
             prev = self.prev.get_subtree(addr)
             self.state[addr] = prev
