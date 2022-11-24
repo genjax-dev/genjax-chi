@@ -1,4 +1,4 @@
-# Copyright 2022 The oryx Authors & MIT Probabilistic Computing Project
+# Copyright 2022 The MIT Probabilistic Computing Project & the oryx authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 # programming library built on top of JAX.
 #
 # The code has been modified to enable simultaneous propagation of
-# `Cell` abstract/concrete values and static dispatch handling of primitives
-# for probabilistic programming.
+# `Cell` abstract/concrete values and static dispatch handling of
+# primitives for probabilistic programming.
 #
 # The author maintains the code attribution notice from the `oryx`
 # authors above, as a derivative work.
@@ -81,9 +81,9 @@ VarOrLiteral = Union[jax_core.Var, jax_core.Literal]
 safe_map = jax_core.safe_map
 safe_zip = jax_core.safe_zip
 
-#####
-# Utilities
-#####
+#############
+# Utilities #
+#############
 
 
 def get_shaped_aval(x):
@@ -141,9 +141,9 @@ def extract_call_jaxpr(primitive, params):
         return params.pop("call_jaxpr"), params
 
 
-#####
-# Cell
-#####
+###########################
+# Propagation interpreter #
+###########################
 
 
 class Cell(Pytree):
@@ -205,11 +205,6 @@ class Cell(Pytree):
     def unknown(cls, aval):
         """Creates an unknown Cell from an abstract value."""
         raise NotImplementedError
-
-
-#####
-# Propagation interpreter
-#####
 
 
 @dataclasses.dataclass(frozen=True)

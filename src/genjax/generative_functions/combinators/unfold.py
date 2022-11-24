@@ -183,7 +183,7 @@ class UnfoldCombinator(GenerativeFunction):
         def _inner(carry, x):
             key, state = carry
             key, tr = self.kernel.simulate(key, (state, *static_args))
-            return (key, *tr.get_retval()), ()
+            return (key, tr.get_retval()), ()
 
         (key, retval), _ = jax.lax.scan(
             _inner,
@@ -213,7 +213,7 @@ class UnfoldCombinator(GenerativeFunction):
             retval = concrete_cond(
                 check,
                 lambda *args: tr.get_retval(),
-                lambda *args: (state,),
+                lambda *args: state,
             )
             index = concrete_cond(
                 check,
@@ -225,7 +225,7 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count + 1,
                 lambda *args: count,
             )
-            return (count, key, *retval), (tr, index)
+            return (count, key, retval), (tr, index)
 
         (count, key, retval), (tr, indices) = jax.lax.scan(
             _inner,
@@ -239,7 +239,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
@@ -316,7 +316,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, retval, w = concrete_cond(
                 check,
-                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
             return (count, key, retval), (w, tr, index)
@@ -333,7 +333,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
@@ -374,7 +374,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, retval, w = concrete_cond(
                 check,
-                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
             return (count, key, retval), (w, tr, index)
@@ -391,7 +391,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
@@ -451,7 +451,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, retval, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
             return (count, key, retval), (w, tr, index)
@@ -468,7 +468,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
@@ -554,7 +554,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, state, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
             return (count, key, state), (w, tr, d, index)
@@ -571,7 +571,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
@@ -617,7 +617,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, state, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
             return (count, key, state), (w, tr, d, index)
@@ -634,7 +634,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
@@ -689,7 +689,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, state, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, *tr.get_retval(), w),
+                lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
             return (count, key, state), (w, tr, d, index)
@@ -706,7 +706,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            (retval,),
+            retval,
             jnp.sum(tr.get_score()),
         )
 
