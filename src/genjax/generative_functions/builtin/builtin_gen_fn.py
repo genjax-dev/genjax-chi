@@ -30,11 +30,17 @@ from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax.generative_functions.builtin.builtin_tracetype import (
     get_trace_type,
 )
-from genjax.generative_functions.builtin.handling import handler_choice_grad
-from genjax.generative_functions.builtin.handling import handler_importance
-from genjax.generative_functions.builtin.handling import handler_retval_grad
-from genjax.generative_functions.builtin.propagating import handler_simulate
-from genjax.generative_functions.builtin.propagating import handler_update
+from genjax.generative_functions.builtin.propagating import (
+    choice_grad_transform,
+)
+from genjax.generative_functions.builtin.propagating import (
+    importance_transform,
+)
+from genjax.generative_functions.builtin.propagating import (
+    retval_grad_transform,
+)
+from genjax.generative_functions.builtin.propagating import simulate_transform
+from genjax.generative_functions.builtin.propagating import update_transform
 
 
 @dataclass
@@ -54,7 +60,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
 
     def simulate(self, key, args, **kwargs):
         assert isinstance(args, Tuple)
-        key, (f, args, r, chm, score) = handler_simulate(
+        key, (f, args, r, chm, score) = simulate_transform(
             self.source, **kwargs
         )(key, args)
         return key, BuiltinTrace(self, args, r, chm, score)
@@ -63,7 +69,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         chm = BooleanMask.collapse(chm)
         assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
         assert isinstance(args, Tuple)
-        key, (w, (f, args, r, chm, score)) = handler_importance(
+        key, (w, (f, args, r, chm, score)) = importance_transform(
             self.source, **kwargs
         )(key, chm, args)
         return key, (w, BuiltinTrace(self, args, r, chm, score))
@@ -81,7 +87,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
                 (f, args, r, chm, score),
                 discard,
             ),
-        ) = handler_update(self.source, **kwargs)(key, prev, new, args)
+        ) = update_transform(self.source, **kwargs)(key, prev, new, args)
         return key, (
             retval_diff,
             w,
@@ -93,7 +99,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         assert isinstance(tr, Trace)
         assert isinstance(selection, Selection)
         args = tr.get_args()
-        fn = handler_choice_grad(self.source, key, selection, **kwargs)
+        fn = choice_grad_transform(self.source, key, selection, **kwargs)
         _, f_vjp, key = jax.vjp(fn, tr, args, has_aux=True)
         return key, lambda retval_grad: f_vjp((1.0, retval_grad))
 
@@ -101,6 +107,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         assert isinstance(tr, Trace)
         assert isinstance(selection, Selection)
         args = tr.get_args()
-        fn = handler_retval_grad(self.source, key, selection, **kwargs)
+        fn = retval_grad_transform(self.source, key, selection, **kwargs)
         _, f_vjp, key = jax.vjp(fn, tr, args, has_aux=True)
         return key, lambda retval_grad: f_vjp(retval_grad)
