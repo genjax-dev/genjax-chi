@@ -548,15 +548,14 @@ default_call_rules[jax_core.call_p] = functools.partial(
     call_rule, jax_core.call_p
 )
 
-#######################################
-# Change type lattice and propagation #
-#######################################
+######
+# Propagation rules
+######
 
 # We use multiple dispatch to support overloading propagation rules.
 # At tracing time, the dispatch arguments will contain abstract
 # tracer values.
 abstract = plum.dispatch
-
 
 # Fallback: we should error -- we're encountering a primitive with
 # types that we don't have a rule for.
@@ -565,6 +564,72 @@ def propagation_rule(prim: Any, incells: Any, outcells: Any, **params):
     raise Exception(
         f"({prim}, {(*incells,)}) Propagation rule not implemented."
     )
+
+
+##################################################
+# Bare values (for interfaces sans change types) #
+##################################################
+
+
+@dataclasses.dataclass
+class Bare(Cell):
+    val: Any
+
+    def __init__(self, aval, val):
+        super().__init__(aval)
+        self.val = val
+
+    def flatten(self):
+        return (self.val,), (self.aval,)
+
+    def __lt__(self, other):
+        return self.bottom() and other.top()
+
+    def top(self):
+        return self.val is not None
+
+    def bottom(self):
+        return self.val is None
+
+    def join(self, other):
+        if other.bottom():
+            return self
+        else:
+            return other
+
+    @classmethod
+    def new(cls, val):
+        aval = get_shaped_aval(val)
+        return Bare(aval, val)
+
+    @classmethod
+    def unknown(cls, aval):
+        return Bare(aval, None)
+
+    @classmethod
+    def no_change(cls, v):
+        return Bare.new(v)
+
+    def get_val(self):
+        return self.val
+
+
+@abstract
+def propagation_rule(
+    prim: Any, incells: Sequence[Bare], outcells: Any, **params
+):
+    if all(map(lambda v: v.top(), incells)):
+        in_vals = list(map(lambda v: v.get_val(), incells))
+        flat_out = prim.bind(*in_vals, **params)
+        new_out = [Bare.new(flat_out)]
+    else:
+        new_out = outcells
+    return incells, new_out, None
+
+
+#######################################
+# Change type lattice and propagation #
+#######################################
 
 
 class Change(Pytree):
@@ -664,6 +729,58 @@ def check_no_change(diff):
 ######################################
 
 
+class Simulate(Handler):
+    def __init__(self):
+        self.handles = gen_fn_p
+        self.state = BuiltinChoiceMap(hashabledict())
+        self.score = 0.0
+
+    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
+        key, *args = incells
+        key = key.get_val()
+
+        # We haven't handled the predecessors of this trace
+        # call yet, so we return back to the abstract interpreter
+        # to continue propagation.
+        if key is None:
+            return incells, outcells, None
+
+        # Otherwise, we send simulate down to the generative function
+        # callee.
+        args = tuple(map(lambda v: v.get_val(), args))
+        key, tr = gen_fn.simulate(key, args, **kwargs)
+        score = tr.get_score()
+        v = tr.get_retval()
+        self.state[addr] = tr
+        self.score += score
+
+        new_outcells = [Bare.new(key), Bare.new(v)]
+        return incells, new_outcells, None
+
+
+def handler_simulate(f, **kwargs):
+    def _inner(key, args):
+        jaxpr, _ = stage(f)(key, *args, **kwargs)
+        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        handler = Simulate()
+        final_env, ret_state = propagate(
+            Bare,
+            jaxpr,
+            [Bare.new(v) for v in consts],
+            [Bare.new(key), *map(Bare.new, args)],
+            [Bare.unknown(var.aval) for var in jaxpr.outvars],
+            handler=handler,
+        )
+        key, retval = safe_map(final_env.read, jaxpr.outvars)
+        score = handler.score
+        chm = handler.state
+        key = key.get_val()
+        retval = retval.get_val()
+        return key, (f, args, retval, chm, score)
+
+    return _inner
+
+
 class Update(Handler):
     def __init__(self, prev, new):
         self.handles = gen_fn_p
@@ -673,7 +790,7 @@ class Update(Handler):
         self.prev = prev
         self.choice_change = new
 
-    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
         key, *diffs = incells
         key = key.get_val()
 
@@ -751,7 +868,6 @@ class Update(Handler):
 
         key = Diff.new(key)
         new_outcells = [key, retval]
-
         return incells, new_outcells, None
 
 

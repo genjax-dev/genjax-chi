@@ -1,5 +1,5 @@
 Map combinator
 ==============
 
-.. automodule:: genjax.combinators.map_combinator
+.. automodule:: genjax.combinators.map
    :members: MapCombinator
