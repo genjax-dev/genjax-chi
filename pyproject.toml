@@ -44,6 +44,7 @@ xdoctest = "^1.1.0"
 safety = "^2.3.2"
 darglint = "^1.8.1"
 furo = "^2022.9.29"
+jupyterlab = "^3.5.0"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
