@@ -672,7 +672,6 @@ class Update(Handler):
         self.weight = 0.0
         self.prev = prev
         self.choice_change = new
-        self.return_or_continue = False
 
     def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
         key, *args = incells
@@ -696,6 +695,7 @@ class Update(Handler):
             and map(check_no_change, incells)
         ):
             prev = self.prev.get_subtree(addr)
+            self.state[addr] = prev
             return (
                 incells,
                 [
@@ -746,19 +746,19 @@ class Update(Handler):
             args,
         )
 
-        key = Diff.new(key)
-        new_outcells = [key, retval]
-
         self.weight += w
         self.state[addr] = tr
         self.discard[addr] = discard
+
+        key = Diff.new(key)
+        new_outcells = [key, retval]
 
         return incells, new_outcells, None
 
 
 def handler_update(f, **kwargs):
-    def _inner(key, prev, new, args):
-        vals = tuple(map(diff_strip, args))
+    def _inner(key, prev, new, diffs):
+        vals = tuple(map(diff_strip, diffs))
         jaxpr, _ = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
@@ -766,7 +766,7 @@ def handler_update(f, **kwargs):
             Diff,
             jaxpr,
             [Diff.new(v, change=NoChange) for v in consts],
-            [Diff.new(key), *args],
+            [Diff.new(key), *diffs],
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )

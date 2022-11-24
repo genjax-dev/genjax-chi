@@ -38,6 +38,7 @@ from genjax.generative_functions.builtin.builtin_tracetype import lift
 from genjax.generative_functions.builtin.propagating import Diff
 from genjax.generative_functions.builtin.propagating import NoChange
 from genjax.generative_functions.builtin.propagating import diff_strip
+from genjax.generative_functions.builtin.propagating import check_no_change
 
 
 #####
@@ -226,7 +227,7 @@ class Distribution(GenerativeFunction):
             vchm = ValueChoiceMap(v)
 
         if isinstance(new, EmptyChoiceMap) and all(
-            map(lambda v: v.top(), diffs)
+            map(check_no_change, diffs)
         ):
             retval_diff = Diff.new(v, change=NoChange)
         else:
