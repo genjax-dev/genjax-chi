@@ -673,8 +673,8 @@ class Update(Handler):
         self.prev = prev
         self.choice_change = new
 
-    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
-        key, *args = incells
+    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
+        key, *diffs = incells
         key = key.get_val()
 
         # We haven't handled the predecessors of this trace
@@ -706,26 +706,25 @@ class Update(Handler):
             )
 
         # Otherwise, we send the update down to the callee.
-        def _update_branch(key, args):
-            prev_tr = self.prev.get_subtree(addr)
+        prev_tr = self.prev.get_subtree(addr)
+
+        def _update_branch(key, diffs):
             chm = self.choice_change.get_subtree(addr)
             key, (retval, w, tr, discard) = gen_fn.update(
-                key, prev_tr, chm, args, **kwargs
+                key, prev_tr, chm, diffs, **kwargs
             )
             discard = discard.strip()
             return key, (retval, w, tr, discard)
 
-        def _has_prev_branch(key, args):
-            prev_tr = self.prev.get_subtree(addr)
+        def _has_prev_branch(key, diffs):
             key, (retval, w, _, _) = gen_fn.update(
-                key, prev_tr, EmptyChoiceMap(), args, **kwargs
+                key, prev_tr, EmptyChoiceMap(), diffs, **kwargs
             )
             discard = BooleanMask.new(False, prev_tr.strip())
             return key, (retval, w, prev_tr, discard)
 
-        def _constrained_branch(key, args):
-            args = map(diff_strip, args)
-            prev_tr = self.prev.get_subtree(addr)
+        def _constrained_branch(key, diffs):
+            args = map(diff_strip, diffs)
             chm = self.choice_change.get_subtree(addr)
             key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
             discard = BooleanMask.new(False, prev_tr.strip())
@@ -735,15 +734,15 @@ class Update(Handler):
         key, (retval, w, tr, discard) = concrete_cond(
             concrete_and(has_previous, constrained),
             _update_branch,
-            lambda key, args: concrete_cond(
+            lambda key, diffs: concrete_cond(
                 has_previous,
                 _has_prev_branch,
                 _constrained_branch,
                 key,
-                args,
+                diffs,
             ),
             key,
-            args,
+            diffs,
         )
 
         self.weight += w
