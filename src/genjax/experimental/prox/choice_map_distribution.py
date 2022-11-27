@@ -18,9 +18,9 @@ from typing import Union
 from genjax.core.datatypes import AllSelection
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Selection
+from genjax.core.datatypes import ValueChoiceMap
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
-from genjax.core.datatypes import ValueChoiceMap
 
 
 @dataclass

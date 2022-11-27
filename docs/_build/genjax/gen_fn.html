@@ -625,7 +625,7 @@ whose semantics are described below:</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x103512cb0&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x1057eeb90&gt;)
 </pre></div>
 </div>
 </div>
@@ -645,11 +645,7 @@ transformation abilities.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda ; a:u32[2]. let
-    b:u32[2] c:f32[] = trace[
-      addr=x
-      args_form=PyTreeDef((*, *))
-      gen_fn=_Normal()
-    ] a 0.0 1.0
+    b:u32[2] c:f32[] = trace[addr=x gen_fn=_Normal()] a 0.0 1.0
   in (b, c) }
 </pre></div>
 </div>
