@@ -237,8 +237,6 @@ class SwitchCombinator(GenerativeFunction):
         )
         return key, (w, trace)
 
-    @IndexedChoiceMap.collapse_boundary
-    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         switch = args[0]
 
@@ -266,7 +264,7 @@ class SwitchCombinator(GenerativeFunction):
         )
 
     def _update(self, branch_gen_fn, key, prev, new, diffs):
-        discard_option = BooleanMask.new(True, prev.strip()).leaf_push()
+        discard_option = BooleanMask.new(True, prev.strip())
         concrete_branch_index = list(self.branches.keys())[
             list(self.branches.values()).index(branch_gen_fn)
         ]
@@ -275,7 +273,7 @@ class SwitchCombinator(GenerativeFunction):
             concrete_branch_index, argument_index
         )
         discard_branch = discard_option.submaps[concrete_branch_index]
-        discard_branch = BooleanMask.new(False, discard_branch).leaf_push()
+        discard_branch = BooleanMask.new(False, discard_branch)
         key, (retval_diff, w, tr, discard) = branch_gen_fn.update(
             key,
             prev,
@@ -299,8 +297,6 @@ class SwitchCombinator(GenerativeFunction):
         )
         return key, (retval_diff, w, trace, discard_option)
 
-    @IndexedChoiceMap.collapse_boundary
-    @BooleanMask.collapse_boundary
     def update(self, key, prev, new, diffs):
         switch = diffs[0]
 

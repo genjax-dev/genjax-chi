@@ -37,7 +37,6 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-import jax
 import plum
 from jax import abstract_arrays
 from jax import api_util
@@ -993,51 +992,19 @@ def update_transform(f, **kwargs):
 
 
 #####
-# ChoiceGradients
+# Assess
 #####
 
-# The "pretend" calls are adjoint roots, allowing
-# us to define custom pullbacks.
 
-
-@jax.custom_vjp
-def choice_pretend_generative_function_call(key, trace, selection, args):
-    return key, (trace.get_score(), trace.get_retval())
-
-
-def choice_pretend_fwd(key, trace, selection, args):
-    ret = choice_pretend_generative_function_call(key, trace, selection, args)
-    key, (w, v) = ret
-    key, sub_key = jax.random.split(key)
-    return (key, (w, v)), (sub_key, trace, selection)
-
-
-def choice_pretend_bwd(res, retval_grad):
-    key, trace, selection = res
-    gen_fn = trace.get_gen_fn()
-    _, (_, v_retval_grad) = retval_grad
-    key, choice_vjp = gen_fn.choice_vjp(
-        key,
-        trace,
-        selection,
-    )
-    trace_grads, arg_grads = choice_vjp(v_retval_grad)
-    return (None, trace_grads, None, arg_grads)
-
-
-choice_pretend_generative_function_call.defvjp(
-    choice_pretend_fwd, choice_pretend_bwd
-)
-
-
-class ChoiceGradients(Handler):
-    def __init__(self, source, selection):
+class Assess(Handler):
+    def __init__(self, provided):
         self.handles = gen_fn_p
-        self.source = source
-        self.selection = selection
+        self.provided = provided
         self.score = 0.0
 
     def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
+        assert self.provided.has_subtree(addr)
+
         key, *args = incells
         key = key.get_val()
 
@@ -1049,29 +1016,19 @@ class ChoiceGradients(Handler):
 
         # Otherwise, we continue with code generation.
         args = tuple(map(lambda v: v.get_val(), args))
-        sub_trace = self.source.get_subtree(addr)
-        if self.selection.has_subtree(addr):
-            sub_selection = self.selection.get_subtree(addr)
-            key, (w, v) = choice_pretend_generative_function_call(
-                key, sub_trace, sub_selection, args
-            )
-        else:
-            key, (w, sub_trace) = gen_fn.importance(
-                key, sub_trace.get_choices(), args
-            )
-            v = sub_trace.get_retval()
-
-        self.score += w
+        submap = self.provided.get_subtree(addr)
+        key, (v, score) = gen_fn.assess(key, submap, args)
+        self.score += score
 
         new_outcells = [Bare.new(key), Bare.new(v)]
         return incells, new_outcells, None
 
 
-def choice_grad_transform(f, selection, **kwargs):
-    def _inner(key, tr, args):
+def assess_transform(f, **kwargs):
+    def _inner(key, chm, args):
         jaxpr, _ = stage(f)(key, *args, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
-        handler = ChoiceGradients(tr, selection)
+        handler = Assess(chm)
         final_env, ret_state = propagate(
             Bare,
             jaxpr,
@@ -1087,109 +1044,6 @@ def choice_grad_transform(f, selection, **kwargs):
         if len(retvals) == 1:
             retvals = retvals[0]
         score = handler.score
-        return (score, retvals), key
-
-    return _inner
-
-
-#####
-# RetvalGradients
-#####
-
-# The "pretend" calls are adjoint roots, allowing
-# us to define custom pullbacks.
-
-# NOTE: the order of decorators here matters.
-# Define custom JVPs first, then custom VJPs.
-@jax.custom_vjp
-@jax.custom_jvp
-def retval_pretend_generative_function_call(key, trace, selection, args):
-    return key, trace.get_retval()
-
-
-# Custom JVPs.
-def retval_pretend_jvp_fwd(primals, tangents):
-    pass
-
-
-retval_pretend_generative_function_call.defjvp(retval_pretend_jvp_fwd)
-
-# Custom VJPs.
-def retval_pretend_vjp_fwd(key, trace, selection, args):
-    ret = retval_pretend_generative_function_call(key, trace, selection, args)
-    key, v = ret
-    key, sub_key = jax.random.split(key)
-    return (key, v), (sub_key, trace, selection)
-
-
-def retval_pretend_vjp_bwd(res, retval_grad):
-    key, trace, selection = res
-    gen_fn = trace.get_gen_fn()
-    _, v_retval_grad = retval_grad
-    key, retval_vjp = gen_fn.retval_vjp(
-        key,
-        trace,
-        selection,
-    )
-    trace_grads, arg_grads = retval_vjp(v_retval_grad)
-    return (None, trace_grads, None, arg_grads)
-
-
-retval_pretend_generative_function_call.defvjp(
-    retval_pretend_vjp_fwd, retval_pretend_vjp_bwd
-)
-
-
-class RetvalGradients(Handler):
-    def __init__(self, source, selection):
-        self.handles = gen_fn_p
-        self.source = source
-        self.selection = selection
-
-    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
-        key, *args = incells
-        key = key.get_val()
-
-        # We haven't handled the predecessors of this trace
-        # call yet, so we return back to the abstract interpreter
-        # to continue propagation.
-        if key is None:
-            return incells, outcells, None
-
-        # Otherwise, we continue with code generation.
-        args = tuple(map(lambda v: v.get_val(), args))
-        sub_trace = self.source.get_subtree(addr)
-        if self.selection.has_subtree(addr):
-            sub_selection = self.selection.get_subtree(addr)
-            key, v = retval_pretend_generative_function_call(
-                key, sub_trace, sub_selection, args
-            )
-        else:
-            v = sub_trace.get_retval()
-
-        new_outcells = [Bare.new(key), Bare.new(v)]
-        return incells, new_outcells, None
-
-
-def retval_grad_transform(f, selection, **kwargs):
-    def _inner(key, tr, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
-        handler = RetvalGradients(tr, selection)
-        final_env, ret_state = propagate(
-            Bare,
-            jaxpr,
-            [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
-            [Bare.unknown(var.aval) for var in jaxpr.outvars],
-            handler=handler,
-        )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
-        key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
-        if len(retvals) == 1:
-            retvals = retvals[0]
-        return retvals, key
+        return key, (retvals, score)
 
     return _inner

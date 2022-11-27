@@ -20,9 +20,7 @@ import jax
 
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import GenerativeFunction
-from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
-from genjax.core.masks import BooleanMask
 from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
@@ -30,14 +28,9 @@ from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax.generative_functions.builtin.builtin_tracetype import (
     get_trace_type,
 )
-from genjax.generative_functions.builtin.propagating import (
-    choice_grad_transform,
-)
+from genjax.generative_functions.builtin.propagating import assess_transform
 from genjax.generative_functions.builtin.propagating import (
     importance_transform,
-)
-from genjax.generative_functions.builtin.propagating import (
-    retval_grad_transform,
 )
 from genjax.generative_functions.builtin.propagating import simulate_transform
 from genjax.generative_functions.builtin.propagating import update_transform
@@ -66,7 +59,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         return key, BuiltinTrace(self, args, r, chm, score)
 
     def importance(self, key, chm, args, **kwargs):
-        chm = BooleanMask.collapse(chm)
         assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
         assert isinstance(args, Tuple)
         key, (w, (f, args, r, chm, score)) = importance_transform(
@@ -74,9 +66,14 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         )(key, chm, args)
         return key, (w, BuiltinTrace(self, args, r, chm, score))
 
+    def assess(self, key, chm, args, **kwargs):
+        assert isinstance(chm, ChoiceMap)
+        key, (retval, score) = assess_transform(self.source, **kwargs)(
+            key, chm, args
+        )
+        return key, (retval, score)
+
     def update(self, key, prev, new, args, **kwargs):
-        prev = BooleanMask.collapse(prev)
-        new = BooleanMask.collapse(new)
         assert isinstance(new, ChoiceMap)
         assert isinstance(args, Tuple)
         (
@@ -94,19 +91,3 @@ class BuiltinGenerativeFunction(GenerativeFunction):
             BuiltinTrace(self, args, r, chm, score),
             BuiltinChoiceMap(discard),
         )
-
-    def choice_vjp(self, key, tr, selection, **kwargs):
-        assert isinstance(tr, Trace)
-        assert isinstance(selection, Selection)
-        args = tr.get_args()
-        fn = choice_grad_transform(self.source, key, selection, **kwargs)
-        _, f_vjp, key = jax.vjp(fn, tr, args, has_aux=True)
-        return key, lambda retval_grad: f_vjp((1.0, retval_grad))
-
-    def retval_vjp(self, key, tr, selection, **kwargs):
-        assert isinstance(tr, Trace)
-        assert isinstance(selection, Selection)
-        args = tr.get_args()
-        fn = retval_grad_transform(self.source, key, selection, **kwargs)
-        _, f_vjp, key = jax.vjp(fn, tr, args, has_aux=True)
-        return key, lambda retval_grad: f_vjp(retval_grad)
