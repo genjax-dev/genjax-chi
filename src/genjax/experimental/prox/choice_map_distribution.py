@@ -20,9 +20,7 @@ from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Selection
 from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.experimental.prox.target import Target
-from genjax.generative_functions.distributions.distribution import (
-    ValueChoiceMap,
-)
+from genjax.core.datatypes import ValueChoiceMap
 
 
 @dataclass

@@ -49,7 +49,7 @@ class TestUpdateSimpleNormal:
             key, updated_chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert original_chm[("y1",)] == discard[("y1",)]
+        assert original_chm[("y1",)] == discard[("y1",)].unmask()
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -97,6 +97,6 @@ class TestUpdateSimpleLinkedNormal:
         score2 = genjax.Normal.logpdf(y2, y1, 1.0)
         score3 = genjax.Normal.logpdf(y3, y1 + y2, 1.0)
         test_score = score1 + score2 + score3
-        assert original_chm[("y1",)] == discard[("y1",)]
+        assert original_chm[("y1",)] == discard[("y1",)].unmask()
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)

@@ -115,8 +115,6 @@ class Distribution(GenerativeFunction):
         return key, tr
 
     def importance(self, key, chm, args, **kwargs):
-        chm = BooleanMask.collapse(chm)
-
         def _importance_branch(key, chm, args):
             v = chm.get_leaf_value()
             key, sub_key = jax.random.split(key)
@@ -141,40 +139,9 @@ class Distribution(GenerativeFunction):
             DistributionTrace(self, args, ValueChoiceMap(v), score),
         )
 
-    def choice_vjp(self, key, tr, selection):
-        if isinstance(selection, NoneSelection):
-            return key, lambda retval_grad: (None, None)
-
-        gen_fn = tr.get_gen_fn()
-        args = tr.get_args()
-
-        def _inner(key, tr, args):
-            key, (w, new) = gen_fn.importance(key, tr.get_choices(), args)
-            v = new.get_retval()
-            return (w, v), key
-
-        _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
-        return key, lambda retval_grad: f_vjp((1.0, retval_grad))[1:]
-
-    def retval_vjp(self, key, tr, selection):
-        if isinstance(selection, NoneSelection):
-            return key, lambda retval_grad: (None, None)
-
-        gen_fn = tr.get_gen_fn()
-        args = tr.get_args()
-
-        def _inner(key, tr, args):
-            _, (_, new) = gen_fn.importance(key, tr.get_choices(), args)
-            v = new.get_retval()
-            return v, key
-
-        _, f_vjp, key = jax.vjp(_inner, key, tr, args, has_aux=True)
-        return key, lambda retval_grad: f_vjp(retval_grad)[1:]
-
     def update(self, key, prev, new, diffs, **kwargs):
         assert isinstance(prev, DistributionTrace)
         args = tuple(map(diff_strip, diffs))
-        new = BooleanMask.collapse(new)
 
         has_previous = prev.is_leaf()
         constrained = not isinstance(new, EmptyChoiceMap) and new.is_leaf()
@@ -221,7 +188,7 @@ class Distribution(GenerativeFunction):
         # as leaves which come in.
         if isinstance(prev.get_choices(), BooleanMask):
             mask = prev.get_choices().mask
-            vchm = BooleanMask(mask, ValueChoiceMap(v))
+            vchm = BooleanMask.new(mask, ValueChoiceMap(v))
         else:
             vchm = ValueChoiceMap(v)
 

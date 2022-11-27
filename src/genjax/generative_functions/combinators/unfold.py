@@ -33,8 +33,6 @@ import numpy as np
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
-from genjax.core.masks import BooleanMask
-from genjax.core.masks import IndexMask
 from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
@@ -475,7 +473,6 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         length = args[0]
 
@@ -489,9 +486,7 @@ class UnfoldCombinator(GenerativeFunction):
             lambda *args: None,
         )
 
-        if isinstance(chm, IndexMask):
-            return self._importance_indexed(key, chm, args)
-        elif isinstance(chm, VectorChoiceMap):
+        if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
         else:
             return self._importance_fallback(key, chm, args)
@@ -713,7 +708,6 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr, d)
 
-    @BooleanMask.collapse_boundary
     def update(self, key, prev, chm, args):
         length = args[0]
 
@@ -741,9 +735,7 @@ class UnfoldCombinator(GenerativeFunction):
         #
         # The fallback just inflates a choice map to the right shape
         # and runs a generic update.
-        if isinstance(chm, IndexMask):
-            return self._update_indexed(key, prev, chm, args)
-        elif isinstance(chm, VectorChoiceMap):
+        if isinstance(chm, VectorChoiceMap):
             return self._update_vcm(key, prev, chm, args)
         else:
             return self._update_fallback(key, prev, chm, args)

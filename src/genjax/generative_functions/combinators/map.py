@@ -30,7 +30,6 @@ import numpy as np
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
-from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
@@ -214,7 +213,6 @@ class MapCombinator(GenerativeFunction):
             else jnp.pad(v, pad_axes)
         )
 
-    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
@@ -272,8 +270,6 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
-    @BooleanMask.canonicalize
-    @BooleanMask.collapse_boundary
     def update(self, key, prev, chm, diffs):
         assert isinstance(prev, MapTrace)
         vchm = prev.get_choices()
