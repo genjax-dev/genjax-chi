@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import jax.core as core
-import jax.tree_util as jtu
 from jax import make_jaxpr
 
 from genjax.core.datatypes import GenerativeFunction
@@ -34,13 +33,11 @@ gen_fn_p = core.Primitive("trace")
 def _trace(addr, call, key, args, **kwargs):
     assert isinstance(args, tuple)
     assert isinstance(call, GenerativeFunction)
-    args, args_form = jtu.tree_flatten(args)
     return gen_fn_p.bind(
         key,
         *args,
         addr=addr,
         gen_fn=call,
-        args_form=args_form,
         **kwargs,
     )
 
@@ -60,9 +57,7 @@ def trace(addr, call, **kwargs):
 #####
 
 
-def gen_fn_abstract_eval(key, *args, addr, gen_fn, args_form, **kwargs):
-    args = jtu.tree_unflatten(args_form, args)
-
+def gen_fn_abstract_eval(key, *args, addr, gen_fn, **kwargs):
     def _inner(key, *args):
         return gen_fn.__call__(key, *args, **kwargs)
 

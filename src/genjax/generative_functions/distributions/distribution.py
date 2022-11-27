@@ -25,13 +25,12 @@ from typing import Tuple
 import jax
 
 from genjax.core.datatypes import AllSelection
+from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
-from genjax.core.datatypes import NoneSelection
 from genjax.core.datatypes import Trace
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.masks import BooleanMask
-from genjax.core.specialization import concrete_and
 from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.builtin.builtin_tracetype import lift
 from genjax.generative_functions.builtin.propagating import Diff
@@ -141,70 +140,60 @@ class Distribution(GenerativeFunction):
 
     def update(self, key, prev, new, diffs, **kwargs):
         assert isinstance(prev, DistributionTrace)
-        args = tuple(map(diff_strip, diffs))
+        assert isinstance(new, ChoiceMap)
 
-        has_previous = prev.is_leaf()
-        constrained = not isinstance(new, EmptyChoiceMap) and new.is_leaf()
-
-        def _update_branch(key, args):
-            prev_score = prev.get_score()
-            v = new.get_leaf_value()
-            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
-            discard = BooleanMask.new(True, prev.get_choices())
-            return key, (fwd - prev_score, v, discard)
-
-        def _has_prev_branch(key, args):
-            prev_score = prev.get_score()
-            v = prev.get_leaf_value()
-            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
-            discard = BooleanMask.new(False, prev.get_choices())
-            return key, (fwd - prev_score, v, discard)
-
-        def _constrained_branch(key, args):
-            chm = prev.get_choices()
-            key, (w, tr) = self.importance(key, chm, args)
-            v = tr.get_leaf_value()
-            discard = BooleanMask.new(False, prev.get_choices())
-            return key, (w, v, discard)
-
-        key, (w, v, discard) = concrete_cond(
-            concrete_and(has_previous, constrained),
-            _update_branch,
-            lambda key, args: concrete_cond(
-                has_previous,
-                _has_prev_branch,
-                _constrained_branch,
-                key,
-                args,
-            ),
-            key,
-            args,
-        )
-
-        # This ensures Pytree type consistency.
-        # The weight, values, etc -- are all computed
-        # correctly (dynamically), but we have to ensure
-        # that leaves which are returned have the same type
-        # as leaves which come in.
-        if isinstance(prev.get_choices(), BooleanMask):
-            mask = prev.get_choices().mask
-            vchm = BooleanMask.new(mask, ValueChoiceMap(v))
-        else:
-            vchm = ValueChoiceMap(v)
-
+        # Incremental optimization - if nothing has changed,
+        # just return the previous trace.
         if isinstance(new, EmptyChoiceMap) and all(
             map(check_no_change, diffs)
         ):
+            v = prev.get_retval()
             retval_diff = Diff.new(v, change=NoChange)
+            return key, (retval_diff, 0.0, prev, EmptyChoiceMap())
+
+        # Otherwise, we consider the cases.
+        args = tuple(map(diff_strip, diffs))
+
+        # First, we have to check if the trace provided
+        # is masked or not. It's possible that a trace
+        # with a mask is updated.
+        prev_v = prev.get_retval()
+        masked_trace = False
+        trace_mask_value = None
+        if isinstance(prev_v, BooleanMask):
+            prev_v = prev_v.unmask()
+            trace_mask_value = prev_v.mask
+
+        # Case 1: the new choice map is empty here.
+        if isinstance(new, EmptyChoiceMap):
+            prev_score = prev.get_score()
+            v = prev_v
+            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
+            w = fwd - prev_score
+            discard = EmptyChoiceMap()
+            retval_diff = Diff.new(v, change=NoChange)
+
+        # Case 2: the new choice map is not empty here.
         else:
+            prev_score = prev.get_score()
+            v = new.get_leaf_value()
+            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
+            w = fwd - prev_score
+            discard = ValueChoiceMap(prev_v)
             retval_diff = Diff.new(v)
 
         return key, (
             retval_diff,
             w,
-            DistributionTrace(self, args, vchm, w),
+            DistributionTrace(self, args, ValueChoiceMap(v), w),
             discard,
         )
+
+    def assess(self, key, evaluation_point, args):
+        assert isinstance(evaluation_point, ValueChoiceMap)
+        v = evaluation_point.get_leaf_value()
+        key, (score, _) = self.estimate_logpdf(key, v, *args)
+        return key, (v, score)
 
 
 #####

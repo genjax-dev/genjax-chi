@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import abc
-
 from dataclasses import dataclass
-from typing import Union, Any
+from typing import Any
+from typing import Union
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -23,8 +23,8 @@ import numpy as np
 
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
-from genjax.core.datatypes import Trace
-from genjax.core.pytree import squeeze, Pytree
+from genjax.core.pytree import Pytree
+
 
 Bool = Union[jnp.bool_, np.bool_]
 

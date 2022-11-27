@@ -21,7 +21,6 @@ from typing import Tuple
 from typing import Union
 
 import jax
-import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 from rich.tree import Tree
@@ -230,57 +229,43 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[jax.random.PRNGKey, Tuple[float, Trace]]:
         pass
 
-    def update(self, key, original, new, args):
+    def update(
+        self,
+        key: jax.random.PRNGKey,
+        original: Trace,
+        new: ChoiceMap,
+        diffs: Tuple,
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, float, Trace, ChoiceMap]]:
         pass
 
-    def choice_grad(self, key, tr, selection, retval_grad):
-        key, choice_vjp = self.choice_vjp(key, tr, selection)
-        trace_grads, arg_grads = choice_vjp(retval_grad)
-        trace_grads, _ = selection.filter(trace_grads)
-        trace_grads = trace_grads.strip()
-        return key, trace_grads, arg_grads
-
-    def choice_vjp(
+    def assess(
         self,
         key: jax.random.PRNGKey,
-        tr: Trace,
-        selection: Selection,
-    ) -> Tuple[jax.random.PRNGKey, Callable]:
-        raise Exception("Not implemented.")
+        evaluation_point: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, float]]:
+        pass
 
-    def retval_vjp(
+    def unzip(
         self,
         key: jax.random.PRNGKey,
-        tr: Trace,
-        selection: Selection,
-    ) -> Tuple[jax.random.PRNGKey, Callable]:
-        raise Exception("Not implemented.")
+        fixed: ChoiceMap,
+    ) -> Tuple[jax.random.PRNGKey, Callable, Callable]:
+        key, sub_key = jax.random.split(key)
 
-    def retval_jacrev(
-        self,
-        key: jax.random.PRNGKey,
-        tr: Trace,
-        selection: Selection,
-        **kwargs,
-    ) -> Tuple[jax.random.PRNGKey, Trace, Tuple]:
-        key, retval_vjp = self.retval_vjp(key, tr, selection)
-        retval = tr.get_retval()
-        retval_axis_trie = jtu.tree_map(
-            lambda v: 0
-            if isinstance(v, jnp.ndarray) and v.shape != ()
-            else None,
-            retval,
-        )
-        retval_eye = jtu.tree_map(
-            lambda v: jnp.eye(len(v))
-            if isinstance(v, jnp.ndarray) and v.shape != ()
-            else v,
-            retval,
-        )
-        trace_grads, arg_grads = jax.vmap(
-            retval_vjp, in_axes=(retval_axis_trie,)
-        )(retval_eye)
-        return key, trace_grads, arg_grads
+        def score(provided, args):
+            merged = fixed.merge(provided)
+            _, (_, score) = self.assess(sub_key, merged, args)
+            return score
+
+        key, sub_key = jax.random.split(key)
+
+        def retval(provided, args):
+            merged = fixed.merge(provided)
+            _, (retval, _) = self.assess(sub_key, merged, args)
+            return retval
+
+        return key, score, retval
 
 
 #####

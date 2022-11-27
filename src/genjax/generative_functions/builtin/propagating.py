@@ -48,11 +48,7 @@ from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
 
 from genjax.core import Pytree
-from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
-from genjax.core.masks import BooleanMask
-from genjax.core.specialization import concrete_and
-from genjax.core.specialization import concrete_cond
 from genjax.core.specialization import is_concrete
 from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
@@ -734,7 +730,7 @@ class Simulate(Handler):
         self.state = BuiltinChoiceMap(hashabledict())
         self.score = 0.0
 
-    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
+    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
         key, *args = incells
         key = key.get_val()
 
@@ -796,7 +792,7 @@ class Importance(Handler):
         self.weight = 0.0
         self.constraints = constraints
 
-    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
+    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
         key, *args = incells
         key = key.get_val()
 
@@ -808,25 +804,8 @@ class Importance(Handler):
 
         # Otherwise, we proceed with code generation.
         args = tuple(map(lambda v: v.get_val(), args))
-
-        def _simulate_branch(key, args):
-            key, tr = gen_fn.simulate(key, args, **kwargs)
-            return key, (0.0, tr)
-
-        def _importance_branch(key, args):
-            submap = self.constraints.get_subtree(addr)
-            key, (w, tr) = gen_fn.importance(key, submap, args, **kwargs)
-            return key, (w, tr)
-
-        check = self.constraints.has_subtree(addr)
-        key, (w, tr) = concrete_cond(
-            check,
-            _importance_branch,
-            _simulate_branch,
-            key,
-            args,
-        )
-
+        sub_map = self.constraints.get_subtree(addr)
+        key, (w, tr) = gen_fn.importance(key, sub_map, args)
         v = tr.get_retval()
         self.state[addr] = tr
         self.score += tr.get_score()
@@ -877,7 +856,7 @@ class Update(Handler):
         self.prev = prev
         self.choice_change = new
 
-    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
+    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
         key, *diffs = incells
         key = key.get_val()
 
@@ -911,43 +890,8 @@ class Update(Handler):
 
         # Otherwise, we proceed with code generation.
         prev_tr = self.prev.get_subtree(addr)
-
-        def _update_branch(key, diffs):
-            chm = self.choice_change.get_subtree(addr)
-            key, (retval, w, tr, discard) = gen_fn.update(
-                key, prev_tr, chm, diffs, **kwargs
-            )
-            discard = discard.strip()
-            return key, (retval, w, tr, discard)
-
-        def _has_prev_branch(key, diffs):
-            key, (retval, w, _, _) = gen_fn.update(
-                key, prev_tr, EmptyChoiceMap(), diffs, **kwargs
-            )
-            discard = BooleanMask.new(False, prev_tr.strip())
-            return key, (retval, w, prev_tr, discard)
-
-        def _constrained_branch(key, diffs):
-            args = map(diff_strip, diffs)
-            chm = self.choice_change.get_subtree(addr)
-            key, (w, tr) = gen_fn.importance(key, chm, args, **kwargs)
-            discard = BooleanMask.new(False, prev_tr.strip())
-            retval = tr.get_retval()
-            return key, (retval, w, tr, discard)
-
-        key, (retval, w, tr, discard) = concrete_cond(
-            concrete_and(has_previous, constrained),
-            _update_branch,
-            lambda key, diffs: concrete_cond(
-                has_previous,
-                _has_prev_branch,
-                _constrained_branch,
-                key,
-                diffs,
-            ),
-            key,
-            diffs,
-        )
+        chm = self.choice_change.get_subtree(addr)
+        key, (retval, w, tr, discard) = gen_fn.update(key, prev_tr, chm, diffs)
 
         self.weight += w
         self.state[addr] = tr
@@ -1002,7 +946,7 @@ class Assess(Handler):
         self.provided = provided
         self.score = 0.0
 
-    def handle(self, _, incells, outcells, addr, gen_fn, args_form, **kwargs):
+    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
         assert self.provided.has_subtree(addr)
 
         key, *args = incells
