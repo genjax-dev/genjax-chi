@@ -22,6 +22,7 @@ from rich.console import Console
 
 from .core import *
 from .experimental import *
+from .extras import *
 from .generative_functions import *
 from .inference import *
 from .interface import *

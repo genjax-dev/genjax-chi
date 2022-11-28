@@ -12,5 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .blackjax import *
-from .tinygp import *
+import importlib
+import importlib.util
+import sys
+
+
+def lazy_extras_import(name):
+    spec = importlib.util.find_spec(f"genjax.extras.{name}")
+    loader = importlib.util.LazyLoader(spec.loader)
+    spec.loader = loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[f"genjax.extras.{name}"] = module
+    loader.exec_module(module)
+    return module
+
+
+def blackjax():
+    return lazy_extras_import("blackjax")
+
+
+def tinygp():
+    return lazy_extras_import("tinygp")
