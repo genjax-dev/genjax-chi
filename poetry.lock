@@ -2005,14 +2005,14 @@ tests = ["cmake", "codecov", "ninja", "pybind11", "pytest", "pytest", "pytest", 
 tests-strict = ["cmake (==3.21.2)", "codecov (==2.0.15)", "ninja (==1.10.2)", "pybind11 (==2.7.1)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==6.2.5)", "pytest-cov (==2.8.1)", "pytest-cov (==2.8.1)", "pytest-cov (==2.9.0)", "pytest-cov (==3.0.0)", "scikit-build (==0.11.1)", "typing (==3.7.4)"]
 
 [extras]
+all = ["blackjax", "tinygp"]
 blackjax = ["blackjax"]
-oryx = []
 tinygp = ["tinygp"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <4.0"
-content-hash = "33354ed099e2e345879b9cddf7f8b56fd1aca4056e37811bf0ad142aefcc928c"
+content-hash = "9cb2413099c34562154421e9238343e49567e77a6e2226fded6e729db88435d5"
 
 [metadata.files]
 absl-py = [

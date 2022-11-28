@@ -48,9 +48,9 @@ furo = "^2022.9.29"
 jupyterlab = "^3.5.0"
 
 [tool.poetry.extras]
-oryx = ["oryx"]
 tinygp = ["tinygp"]
 blackjax = ["blackjax"]
+all = ["blackjax", "tinygp"]
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
