@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import jax
-import pytest
 
 import genjax
 
@@ -28,21 +27,10 @@ def simple_normal(key):
     return key, y1 + y2
 
 
-class TestImportance:
-    def test_simple_normal_importance(self):
-        fn = genjax.importance(simple_normal)
-        chm = genjax.BuiltinChoiceMap.new({("y1",): 0.5, ("y2",): 0.5})
-        new_key, (w, tr) = fn(key, chm, ())
-        out = tr.get_choices()
-        y1 = chm[("y1",)]
-        y2 = chm[("y2",)]
-        _, (score1, _) = genjax.Normal.importance(
-            key, chm.get_subtree("y1"), (0.0, 1.0)
-        )
-        _, (score2, _) = genjax.Normal.importance(
-            key, chm.get_subtree("y2"), (0.0, 1.0)
-        )
-        test_score = score1 + score2
-        assert y1 == out[("y1",)]
-        assert y2 == out[("y2",)]
-        assert tr.get_score() == pytest.approx(test_score, 0.01)
+class TestAssessSimpleNormal:
+    def test_simple_normal_assess(self, benchmark):
+        new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        jitted = jax.jit(genjax.assess(simple_normal))
+        chm = tr.get_choices().strip()
+        new_key, (retval, score) = benchmark(jitted, key, chm, ())
+        assert score == tr.get_score()

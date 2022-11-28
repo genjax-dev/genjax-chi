@@ -32,6 +32,7 @@ from genjax.core.datatypes import Trace
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
+from genjax.core.tree import Leaf
 from genjax.generative_functions.builtin.builtin_tracetype import lift
 from genjax.generative_functions.builtin.propagating import Diff
 from genjax.generative_functions.builtin.propagating import NoChange
@@ -45,7 +46,7 @@ from genjax.generative_functions.builtin.propagating import diff_strip
 
 
 @dataclass
-class DistributionTrace(Trace):
+class DistributionTrace(Trace, Leaf):
     gen_fn: Callable
     args: Tuple
     value: ValueChoiceMap
@@ -59,6 +60,9 @@ class DistributionTrace(Trace):
             return self.get_choices(), self.score
         else:
             return EmptyChoiceMap(), 0.0
+
+    def get_leaf_value(self):
+        return self.value.get_leaf_value()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -114,25 +118,48 @@ class Distribution(GenerativeFunction):
         return key, tr
 
     def importance(self, key, chm, args, **kwargs):
-        def _importance_branch(key, chm, args):
-            v = chm.get_leaf_value()
-            key, sub_key = jax.random.split(key)
-            _, (w, v) = self.estimate_logpdf(sub_key, v, *args)
-            return key, v, w, w
+        assert isinstance(chm, ChoiceMap)
+        assert isinstance(chm, Leaf)
 
-        def _simulate_branch(key, chm, args):
-            key, (score, v) = self.random_weighted(key, *args, **kwargs)
-            w = 0.0
-            return key, v, w, score
+        # If the choice map is empty, we just simulate
+        # and return 0.0 for the log weight.
+        if isinstance(chm, EmptyChoiceMap):
+            key, tr = self.simulate(key, *args, **kwargs)
+            return key, (0.0, tr)
 
-        key, v, w, score = concrete_cond(
-            chm.is_leaf(),
-            _importance_branch,
-            _simulate_branch,
-            key,
-            chm,
-            args,
-        )
+        # If it's not empty, we should check if it is a mask.
+        # If it is a mask, we need to see if it is active or not,
+        # and then unwrap it - and use the active flag to determine
+        # what to do at runtime.
+        v = chm.get_leaf_value()
+        if isinstance(v, BooleanMask):
+            active = v.mask()
+            v = v.unmask()
+
+            def _active(key, v, args):
+                key, (w, v) = self.estimate_logpdf(key, v, *args)
+                return key, v, w
+
+            def _inactive(key, v, args):
+                w = 0.0
+                return key, v, w
+
+            key, v, w = concrete_cond(
+                active,
+                _active,
+                _inactive,
+                key,
+                v,
+                args,
+            )
+            score = w
+
+        # Otherwise, we just estimate the logpdf of the value
+        # we got out of the choice map.
+        else:
+            key, (w, v) = self.estimate_logpdf(key, v, *args)
+            score = w
+
         return key, (
             w,
             DistributionTrace(self, args, ValueChoiceMap(v), score),

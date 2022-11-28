@@ -48,6 +48,7 @@ from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
 
 from genjax.core import Pytree
+from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
 from genjax.core.specialization import is_concrete
 from genjax.generative_functions.builtin.builtin_datatypes import (
@@ -804,7 +805,10 @@ class Importance(Handler):
 
         # Otherwise, we proceed with code generation.
         args = tuple(map(lambda v: v.get_val(), args))
-        sub_map = self.constraints.get_subtree(addr)
+        if self.constraints.has_subtree(addr):
+            sub_map = self.constraints.get_subtree(addr)
+        else:
+            sub_map = EmptyChoiceMap()
         key, (w, tr) = gen_fn.importance(key, sub_map, args)
         v = tr.get_retval()
         self.state[addr] = tr
@@ -890,7 +894,11 @@ class Update(Handler):
 
         # Otherwise, we proceed with code generation.
         prev_tr = self.prev.get_subtree(addr)
-        chm = self.choice_change.get_subtree(addr)
+        diffs = tuple(diffs)
+        if constrained:
+            chm = self.choice_change.get_subtree(addr)
+        else:
+            chm = EmptyChoiceMap()
         key, (retval, w, tr, discard) = gen_fn.update(key, prev_tr, chm, diffs)
 
         self.weight += w

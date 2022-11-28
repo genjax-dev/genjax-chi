@@ -87,9 +87,9 @@ class VectorChoiceMap(ChoiceMap):
     def __hash__(self):
         return hash(self.inner)
 
-    def tree_console_overload(self):
+    def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
-        subt = self.inner.build_rich_tree()
+        subt = self.inner._build_rich_tree()
         subk = Tree("[blue]indices")
         subk.add(gpp.tree_pformat(self.indices))
         tree.add(subk)
@@ -184,9 +184,9 @@ class IndexedChoiceMap(ChoiceMap):
         for sub in self.submaps:
             sub[k] = v
 
-    def tree_console_overload(self):
+    def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
-        subts = list(map(lambda v: v.build_rich_tree(), self.submaps))
+        subts = list(map(lambda v: v._build_rich_tree(), self.submaps))
         for subt in subts:
             tree.add(subt)
         return tree
