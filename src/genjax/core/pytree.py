@@ -57,9 +57,9 @@ class Pytree(metaclass=abc.ABCMeta):
     def unflatten(cls, data, xs):
         return cls(*data, *xs)
 
-    def build_rich_tree(self):
-        if hasattr(self, "tree_console_overload"):
-            return self.tree_console_overload()
+    def _build_rich_tree(self):
+        if hasattr(self, "_tree_console_overload"):
+            return self._tree_console_overload()
         else:
             tree = Tree(f"[b]{self.__class__.__name__}[/b]")
             if dataclasses.is_dataclass(self):
@@ -69,15 +69,15 @@ class Pytree(metaclass=abc.ABCMeta):
                 )
                 for (k, v) in d.items():
                     subk = tree.add(f"[blue]{k}")
-                    if isinstance(v, Pytree) or hasattr(v, "build_rich_tree"):
-                        subtree = v.build_rich_tree()
+                    if isinstance(v, Pytree) or hasattr(v, "_build_rich_tree"):
+                        subtree = v._build_rich_tree()
                         subk.add(subtree)
                     else:
                         subk.add(gpp.tree_pformat(v))
             return tree
 
     def __rich_console__(self, console, options):
-        tree = self.build_rich_tree()
+        tree = self._build_rich_tree()
         yield tree
 
 

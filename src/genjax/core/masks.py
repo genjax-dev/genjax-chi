@@ -21,9 +21,9 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.pytree import Pytree
+from genjax.core.tree import Leaf
 
 
 Bool = Union[jnp.bool_, np.bool_]
@@ -64,7 +64,7 @@ class BooleanMask(Mask):
         def _inner(v):
             if isinstance(v, BooleanMask):
                 return BooleanMask.new(self.mask, v.unmask())
-            elif isinstance(v, ChoiceMap) and v.is_leaf():
+            elif isinstance(v, Leaf):
                 leaf_value = v.get_leaf_value()
                 if isinstance(leaf_value, BooleanMask):
                     return v.new(BooleanMask(self.mask, leaf_value.unmask()))
@@ -74,9 +74,7 @@ class BooleanMask(Mask):
                 return v
 
         def _check(v):
-            return isinstance(v, BooleanMask) or (
-                isinstance(v, ChoiceMap) and v.is_leaf()
-            )
+            return isinstance(v, BooleanMask) or isinstance(v, Leaf)
 
         return jtu.tree_map(_inner, self.inner, is_leaf=_check)
 

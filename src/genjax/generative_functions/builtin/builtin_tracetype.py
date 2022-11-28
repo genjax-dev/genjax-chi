@@ -37,9 +37,6 @@ class BuiltinTraceType(TraceType):
     def flatten(self):
         return (), (self.inner, self.return_type)
 
-    def is_leaf(self):
-        return False
-
     def get_leaf_value(self):
         raise Exception("BuiltinTraceType is not a leaf choice tree.")
 

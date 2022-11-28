@@ -24,7 +24,6 @@ of Python functions.
 """
 
 from .callback import *
-from .choice_tree import *
 from .datatypes import *
 from .hashabledict import *
 from .masks import *
@@ -32,3 +31,4 @@ from .pytree import *
 from .serialization import *
 from .specialization import *
 from .tracetypes import *
+from .tree import *
