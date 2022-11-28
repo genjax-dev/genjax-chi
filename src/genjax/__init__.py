@@ -15,10 +15,10 @@
 import inspect
 
 import jax
+import objexplore
 import rich
 import rich.traceback as traceback
 from rich.console import Console
-import objexplore
 
 from .core import *
 from .experimental import *
