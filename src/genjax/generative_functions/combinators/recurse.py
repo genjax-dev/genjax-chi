@@ -17,16 +17,10 @@ This module implements a generative function combinator which allows a recursive
 """
 
 from dataclasses import dataclass
-from typing import Any
-from typing import List
-from typing import Tuple
-
-import jax
-import jax.numpy as jnp
 
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
-from genjax.core.masks import BooleanMask
+
 
 #####
 # RecurseTrace

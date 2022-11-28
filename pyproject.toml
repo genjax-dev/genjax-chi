@@ -21,15 +21,12 @@ jax = "^0.3.25"
 jaxlib = "^0.3.25"
 numpy = "^1.23.5"
 tensorflow-probability = "^0.18.0"
-optax = "^0.1.4"
-blackjax = "^0.9.6"
 rich = "^12.6.0"
-tinygp = "^0.2.3"
 tree-math = "^0.1.0"
 plum-dispatch = "^1.7.4"
-pyarrow = "^10.0.1"
-pandas = "^1.5.2"
 objexplore = "^1.6.3"
+blackjax = {version = "^0.9.6", optional = true}
+tinygp = {version = "^0.2.3", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"
@@ -44,10 +41,15 @@ sphinx-autobuild = "^2021.3.14"
 sphinx-copybutton = "^0.5.1"
 isort = "^5.10.1"
 xdoctest = "^1.1.0"
-safety = "^2.3.2"
+safety = "^2.3.3"
 darglint = "^1.8.1"
 furo = "^2022.9.29"
 jupyterlab = "^3.5.0"
+
+[tool.poetry.extras]
+oryx = ["oryx"]
+tinygp = ["tingyp"]
+blackjax = ["blackjax"]
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -62,11 +64,6 @@ fail_under = 45
 
 [tool.black]
 line-length = 79
-extend-exclude = '''
-/(
-  experiments
-)/
-'''
 
 [tool.isort]
 profile = "black"

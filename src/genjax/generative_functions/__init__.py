@@ -15,4 +15,3 @@
 from .builtin import *
 from .combinators import *
 from .distributions import *
-from .external import *

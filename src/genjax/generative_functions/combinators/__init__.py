@@ -44,10 +44,10 @@ if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`M
 from .combinator_datatypes import *
 from .combinator_tracetypes import *
 from .map import *
+from .recurse import *
 from .switch import *
 from .train import *
 from .unfold import *
-from .recurse import *
 
 
 Switch = SwitchCombinator
