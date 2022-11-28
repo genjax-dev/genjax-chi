@@ -47,9 +47,11 @@ from .map import *
 from .switch import *
 from .train import *
 from .unfold import *
+from .recurse import *
 
 
 Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
 Train = TrainCombinator
+Recurse = RecurseCombinator

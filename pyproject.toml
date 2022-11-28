@@ -29,6 +29,7 @@ tree-math = "^0.1.0"
 plum-dispatch = "^1.7.4"
 pyarrow = "^10.0.1"
 pandas = "^1.5.2"
+objexplore = "^1.6.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"

@@ -18,6 +18,7 @@ import jax
 import rich
 import rich.traceback as traceback
 from rich.console import Console
+import objexplore
 
 from .core import *
 from .experimental import *
@@ -46,6 +47,19 @@ def gen(callable: Callable, **kwargs) -> GenerativeFunction:
 #####
 
 
+def is_notebook() -> bool:
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == "ZMQInteractiveShell":
+            return True  # Jupyter notebook or qtconsole
+        elif shell == "TerminalInteractiveShell":
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
 @dataclass
 class GenJAXConsole:
     rich_console: Console
@@ -66,6 +80,12 @@ class GenJAXConsole:
             private=False,
             dunder=False,
         )
+
+    def explore(self, module):
+        if is_notebook():
+            raise Exception("Interactive explore only works in terminal.")
+        else:
+            objexplore.explore(module)
 
 
 def pretty(show_locals=False, max_frames=20, suppress=[jax]):
