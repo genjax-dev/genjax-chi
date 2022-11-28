@@ -159,6 +159,11 @@
        Unfold combinator
       </a>
      </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/train.html">
+       Trainable combinator
+      </a>
+     </li>
     </ul>
    </li>
    <li class="toctree-l2">
@@ -210,13 +215,13 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="experimental/diagnostics.html">
-   Density diagnostics
+  <a class="reference internal" href="experimental/information.html">
+   Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="experimental/trace_types.html">
-   Trace types
+   Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
@@ -358,7 +363,7 @@ title="Open an issue"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/diff_jl.rst"
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/diff_jl.md"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -386,7 +391,7 @@ title="Edit this page"
   <div class="menu-dropdown__content">
     <ul>
       <li>
-        <a href="../_sources/genjax/diff_jl.rst.txt"
+        <a href="../_sources/genjax/diff_jl.md.txt"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -397,7 +402,7 @@ title="Download source file"
 <span class="headerbtn__icon-container">
   <i class="fas fa-file"></i>
   </span>
-<span class="headerbtn__text-container">.rst</span>
+<span class="headerbtn__text-container">.md</span>
 </a>
 
       </li>
@@ -506,16 +511,14 @@ title="Print to PDF"
                 
   <section id="diffing-with-gen-jl">
 <h1>Diffing with Gen.jl<a class="headerlink" href="#diffing-with-gen-jl" title="Permalink to this headline">#</a></h1>
-<p><code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> is descended and inherits concepts and reference implementations from <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - but there are a few differences
-that mostly stem from JAX’s underlying array programming model. In this section, we describe several of these differences and try to highlight
-workarounds or discuss the reason for the discrepancy.</p>
+<p><code class="docutils literal notranslate"><span class="pre">GenJAX</span></code> is descended and inherits concepts and reference implementations from <a class="reference external" href="https://github.com/probcomp/Gen.jl"><code class="docutils literal notranslate"><span class="pre">Gen.jl</span></code></a> - but there are a few differences that mostly stem from JAX’s underlying array programming model. In this section, we describe several of these differences and try to highlight workarounds or discuss the reason for the discrepancy.</p>
 <section id="turing-universality">
 <h2>Turing universality<a class="headerlink" href="#turing-universality" title="Permalink to this headline">#</a></h2>
-<p><a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> is Turing universal - it can encode any computable distribution, including those
+<p><a class="reference external" href="https://github.com/probcomp/Gen.jl"><code class="docutils literal notranslate"><span class="pre">Gen.jl</span></code></a> is Turing universal - it can encode any computable distribution, including those
 expressed by forms of unbounded recursion.</p>
-<p>It is a bit ambiguous whether or not <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> falls in this category: JAX does not feature mechanisms for dynamic shape allocations, but it does feature mechanisms for unbounded recursion.</p>
+<p>It is a bit ambiguous whether or not <code class="docutils literal notranslate"><span class="pre">GenJAX</span></code> falls in this category: JAX does not feature mechanisms for dynamic shape allocations, but it does feature mechanisms for unbounded recursion.</p>
 <p>The former provides a technical barrier to implementing Gen’s trace machinery. While JAX allows for unbounded recursion, to support Gen’s interfaces we also need the ability to dynamically allocate choice data. This requirement is currently at tension with XLA’s requirements of knowing the static shape of everything.</p>
-<p>However, <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> supports generative function combinators with bounded recursion / unfold chain length.
+<p>However, <code class="docutils literal notranslate"><span class="pre">GenJAX</span></code> supports generative function combinators with bounded recursion / unfold chain length.
 Ahead of time, these combinators can be directed to pre-allocate arrays with enough size to handle recursion/looping
 within the bounds that the programmer sets. If these bounds are exceeded, a Python runtime error will be thrown (both on
 and off JAX device).</p>
@@ -524,19 +527,11 @@ and off JAX device).</p>
 <section id="mutation">
 <h2>Mutation<a class="headerlink" href="#mutation" title="Permalink to this headline">#</a></h2>
 <p>Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place.</p>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>See further: <a class="reference external" href="https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html">JAX - The Sharp Bits</a></p>
-</div>
 </section>
 <section id="to-jit-or-not-to-jit">
 <h2>To JIT or not to JIT<a class="headerlink" href="#to-jit-or-not-to-jit" title="Permalink to this headline">#</a></h2>
-<p><a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> is written in Julia, which automatically JITs everything. <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code>, by virtue of being
-constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed.
-Thus, the idioms that are used to express inference code has a small diff compared to <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - inference
-algorithms normally accept some set of static arguments (like generative function instances) and return
-functions which close over these arguments, and can be jitted by the user. You can read a bit more about this in <a class="reference internal" href="inference/best_practices.html"><span class="doc">Inference best practices</span></a>.</p>
-<p>In general, it’s productive to enclose as much of a computation as possible in a <code class="code docutils literal notranslate"><span class="pre">jax.jit</span></code> block. This can sometimes lead to long trace times. If trace times are ballooning, a common source is explicit for-loops (with known bounds, else JAX will complain). In these cases, you might look at <a class="reference external" href="https://github.com/google/jax/discussions/3732">Advice on speeding up compilation time</a>.</p>
+<p><a class="reference external" href="https://github.com/probcomp/Gen.jl"><code class="docutils literal notranslate"><span class="pre">Gen.jl</span></code></a> is written in Julia, which automatically JITs everything. <code class="docutils literal notranslate"><span class="pre">GenJAX</span></code>, by virtue of being constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed. Thus, the idioms that are used to express inference code has a small diff compared to <a class="reference external" href="https://github.com/probcomp/Gen.jl"><code class="docutils literal notranslate"><span class="pre">Gen.jl</span></code></a> - inference algorithms normally accept some set of static arguments (like generative function instances) and return functions which close over these arguments, and can be jitted by the user. You can read a bit more about this in :doc:<code class="docutils literal notranslate"><span class="pre">inference/best_practices</span></code>.</p>
+<p>In general, it’s productive to enclose as much of a computation as possible in a :code:<code class="docutils literal notranslate"><span class="pre">jax.jit</span></code> block. This can sometimes lead to long trace times. If trace times are ballooning, a common source is explicit for-loops (with known bounds, else JAX will complain). In these cases, you might look at <a class="reference external" href="https://github.com/google/jax/discussions/3732">Advice on speeding up compilation time</a>.</p>
 </section>
 </section>
 

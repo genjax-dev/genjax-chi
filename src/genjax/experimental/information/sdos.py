@@ -13,8 +13,7 @@
 # limitations under the License.
 
 """
-An implementation of (Symmetric divergence over datasets)
-from Domke, 2021.
+This module contains an implementation of (Symmetric divergence over datasets) from Domke, 2021.
 """
 
 from typing import Tuple
