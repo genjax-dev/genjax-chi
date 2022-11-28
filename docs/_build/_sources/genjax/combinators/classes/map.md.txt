@@ -1,5 +1,5 @@
 # Map combinator
 
-```{automodule}
-genjax.combinators.map
+```{automodule} genjax.combinators.map
+
 ```

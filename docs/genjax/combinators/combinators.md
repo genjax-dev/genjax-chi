@@ -1,7 +1,7 @@
 # Generative function combinators
 
-```{automodule}
-genjax.combinators
+```{automodule} genjax.combinators
+
 ```
 
 ```{toctree}

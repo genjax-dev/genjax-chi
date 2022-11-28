@@ -8,5 +8,5 @@ maxdepth: 2
 switch
 map
 unfold
-trainable
+train
 ```

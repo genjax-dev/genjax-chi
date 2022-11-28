@@ -48,7 +48,7 @@ hidden:
 caption: Experimental
 ---
 
-genjax/experimental/diagnostics
+genjax/experimental/information
 genjax/experimental/trace_types
 genjax/experimental/prox
 ```
