@@ -12,11 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module implements a generative function combinator which allows
-broadcasting for generative functions -- mapping over vectorial
-versions of their arguments.
-"""
+"""This module implements a generative function combinator which allows
+broadcasting for generative functions -- mapping over vectorial versions of
+their arguments."""
 
 from dataclasses import dataclass
 from typing import Sequence

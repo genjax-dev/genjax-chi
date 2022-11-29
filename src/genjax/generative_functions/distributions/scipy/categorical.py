@@ -19,13 +19,11 @@ import jax.numpy as jnp
 import numpy as np
 
 from genjax.core.tracetypes import Finite
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Categorical(ExactDistribution):
+class _Categorical(ExactDensity):
     def sample(self, key, logits, **kwargs):
         return jax.random.categorical(key, logits, **kwargs)
 

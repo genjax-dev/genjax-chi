@@ -17,13 +17,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Pareto(ExactDistribution):
+class _Pareto(ExactDensity):
     def sample(self, key, b, **kwargs):
         return jax.random.pareto(key, b, **kwargs)
 

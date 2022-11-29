@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module holds some JAX-specific utilities to force
-evaluation (where possible) or else create branch primitives
-(e.g. :code:`jax.lax.switch`) when a value is not concrete.
+"""This module holds some JAX-specific utilities to force evaluation (where
+possible) or else create branch primitives (e.g. :code:`jax.lax.switch`) when a
+value is not concrete.
 
-These utilities are used throughout the codebase -- to gain some confidence
-that tracing will actually collapse potential branches when values are known
-statically.
+These utilities are used throughout the codebase -- to gain some
+confidence that tracing will actually collapse potential branches when
+values are known statically.
 """
 
 import operator

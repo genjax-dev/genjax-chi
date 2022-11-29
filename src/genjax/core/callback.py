@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module implements a utility class which wraps the
-:code:`jax.experimental.host_callback.call` functionality,
-allowing a convenient way to declare and use Python callbacks in
-device-intended code.
-"""
+"""This module implements a utility class which wraps the
+`jax.experimental.host_callback.call` functionality, allowing a convenient way
+to declare and use Python callbacks in device-intended code."""
 
 from dataclasses import dataclass
 from typing import Callable

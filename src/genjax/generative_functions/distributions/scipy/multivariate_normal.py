@@ -17,13 +17,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _MultivariateNormal(ExactDistribution):
+class _MultivariateNormal(ExactDensity):
     def sample(self, key, mean, cov, **kwargs):
         return jax.random.multivariate_normal(key, mean, cov, **kwargs)
 

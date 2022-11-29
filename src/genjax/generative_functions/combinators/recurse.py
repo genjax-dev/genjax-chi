@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module implements a generative function combinator which allows a recursive grammar-like pattern for generative functions.
-"""
+"""This module implements a generative function combinator which allows a
+recursive grammar-like pattern for generative functions."""
 
 from dataclasses import dataclass
 

@@ -17,13 +17,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Dirichlet(ExactDistribution):
+class _Dirichlet(ExactDensity):
     def sample(self, key, alpha, **kwargs):
         return jax.random.dirichlet(key, alpha, **kwargs)
 

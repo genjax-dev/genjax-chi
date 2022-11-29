@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module provides a builtin modeling language built on top of JAX interpreters.
+"""This module provides a function-like modeling language built on top of JAX
+interpreters.
 
-It exposes a set of JAX primitives which allow compositional 
-construction of generative programs.
-These programs can utilize other generative functions 
-(for example, see the `distributions`) library.
+It exposes a set of JAX primitives which allow compositional
+construction of generative programs. These programs can utilize other
+generative functions inside of a new JAX primitive (`trace`) to create
+hiearchical patterns of Bayesian computation.
 """
 
 from .builtin_datatypes import *

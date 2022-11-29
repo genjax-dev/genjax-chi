@@ -17,13 +17,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Beta(ExactDistribution):
+class _Beta(ExactDensity):
     def sample(self, key, a, b, **kwargs):
         return jax.random.beta(key, a, b, **kwargs)
 

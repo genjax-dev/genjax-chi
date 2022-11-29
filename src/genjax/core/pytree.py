@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module contains a utility class for defining new :code:`jax.Pytree`
+"""This module contains a utility class for defining new :code:`jax.Pytree`
 implementors.
 
 In addition to this functionality, there's a "sum type" :code:`Pytree`
@@ -214,8 +213,7 @@ class SumPytree(Pytree):
 
 
 def tree_stack(trees):
-    """
-    Takes a list of trees and stacks every corresponding leaf.
+    """Takes a list of trees and stacks every corresponding leaf.
 
     For example, given two trees ((a, b), c) and ((a', b'), c'), returns
     ((stack(a, a'), stack(b, b')), stack(c, c')).
@@ -242,8 +240,7 @@ def tree_stack(trees):
 
 
 def tree_unstack(tree):
-    """
-    Takes a tree and turns it into a list of trees. Inverse of tree_stack.
+    """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
 
     For example, given a tree ((a, b), c), where a, b, and c all have first
     dimension k, will make k trees

@@ -12,21 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+"""This module contains a set of types and type aliases which are used
+throughout the codebase."""
 
-import jax
-import jax.numpy as jnp
+from typing import Any
 
-from genjax.generative_functions.distributions.distribution import ExactDensity
-
-
-@dataclass
-class _Laplace(ExactDensity):
-    def sample(self, key, **kwargs):
-        return jax.random.laplace(key, **kwargs)
-
-    def logpdf(self, v, **kwargs):
-        return jnp.sum(jax.scipy.stats.laplace.logpdf(v))
+from jaxtyping import Array
+from jaxtyping import Bool
+from jaxtyping import Float
+from jaxtyping import Integer
 
 
-Laplace = _Laplace()
+PRNGKey = Integer[Array, "..."]
+PrettyPrintable = Any
+Dataclass = Any
+FloatTensor = Float[Array, "..."]
+Float = float
+BoolTensor = Bool[Array, "..."]
+Bool = bool
+IntegerTensor = Integer[Array, "..."]
+Integer = int

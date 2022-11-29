@@ -121,7 +121,8 @@ def stage(f, dynamic=True):
 
 
 def trees(f):
-    """Returns a function that determines input and output pytrees from inputs."""
+    """Returns a function that determines input and output pytrees from
+    inputs."""
 
     def wrapped(*args, **kwargs):
         return stage(f)(*args, **kwargs)[1]
@@ -143,8 +144,7 @@ def extract_call_jaxpr(primitive, params):
 
 
 class Cell(Pytree):
-    """
-    Base interface for objects used during propagation.
+    """Base interface for objects used during propagation.
 
     A `Cell` represents a member of a lattice, defined by the `top`, `bottom`
     and `join` methods. Conceptually, a "top" cell represents complete
@@ -205,9 +205,7 @@ class Cell(Pytree):
 
 @dataclasses.dataclass(frozen=True)
 class Equation:
-    """
-    Hashable wrapper for :code:`jax.core.Jaxpr`.
-    """
+    """Hashable wrapper for :code:`jax.core.Jaxpr`."""
 
     invars: Tuple[jax_core.Var]
     outvars: Tuple[jax_core.Var]
@@ -251,9 +249,7 @@ class Equation:
 
 
 class Environment:
-    """
-    Keeps track of variables and their values during propagation.
-    """
+    """Keeps track of variables and their values during propagation."""
 
     def __init__(self, cell_type, jaxpr):
         self.cell_type = cell_type
@@ -316,9 +312,7 @@ class Handler(Pytree):
 
 
 def construct_graph_representation(eqns):
-    """
-    Constructs a graph representation of a Jaxpr.
-    """
+    """Constructs a graph representation of a Jaxpr."""
     neighbors = collections.defaultdict(set)
     for eqn in eqns:
         for var in it.chain(eqn.invars, eqn.outvars):
@@ -343,9 +337,7 @@ def update_queue_state(
     new_incells,
     new_outcells,
 ):
-    """
-    Updates the queue from the result of a propagation.
-    """
+    """Updates the queue from the result of a propagation."""
     all_vars = cur_eqn.invars + cur_eqn.outvars
     old_cells = incells + outcells
     new_cells = new_incells + new_outcells
@@ -384,8 +376,7 @@ def propagate(
     initial_state: State = None,
     handler: Union[None, Handler] = None,
 ) -> Tuple[Environment, State]:
-    """
-    This interpreter converts a `Jaxpr` to a directed graph where
+    """This interpreter converts a `Jaxpr` to a directed graph where
     `jax.core.Var` instances are nodes and primitives are edges.
 
     It initializes `invars` and `outvars` with `Cell` instances,
@@ -518,9 +509,7 @@ def flat_propagate(tree, *flat_invals):
 
 
 def call_rule(prim, incells, outcells, **params):
-    """
-    Propagation rule for JAX/XLA call primitives.
-    """
+    """Propagation rule for JAX/XLA call primitives."""
     f, incells = incells[0], incells[1:]
     flat_vals, in_tree = jtu.tree_flatten((incells, outcells))
     new_params = dict(params)

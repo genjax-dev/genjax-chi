@@ -12,33 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module holds a set of generative function implementations
-called generative function combinators.
+"""This module holds a set of generative function implementations called
+generative function combinators.
 
 These combinators accept generative functions as arguments, and return
 generative functions with modified choice map shapes and behavior.
 
 They are used to express common patterns of computation, including
-if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`TrainableCombinator`).
+if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator`), and dependent for-loop (`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (`TrainableCombinator`).
 
-.. attention::
+```{attention}
+The implementations of these combinators are similar to those in `Gen.jl`, but JAX imposes extra restrictions on their construction and usage.
 
-    The implementations of these combinators are similar to those in `Gen.jl`_,
-    but JAX imposes extra restrictions on their construction and usage.
+In contrast to `Gen.jl`, `UnfoldCombinator` must have the number of
+unfold steps specified ahead of time as a static constant. The length of the unfold chain cannot depend on a variable whose value is known
+only at runtime.
 
-    In contrast to `Gen.jl`_, :code:`UnfoldCombinator` must have the number of
-    unfold steps specified ahead of time as a static constant. The length of the
-    the unfold chain cannot depend on a variable whose value is known
-    only at runtime.
+Similarly, for `MapCombinator` - the shape of the vectorial arguments
+which will be mapped over must be known at JAX tracing time.
 
-    Similarly, for :code:`MapCombinator` -- the shape of the vectorial arguments
-    which will be mapped over must be known at JAX tracing time.
+These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
+```
 
-    These restrictions are not due to the implementation, but are fundamental to
-    JAX's programming model (as it stands currently).
-
-.. _Gen.jl: https://github.com/probcomp/Gen.jl
+[Gen.jl]: https://github.com/probcomp/Gen.jl
 """
 
 from .combinator_datatypes import *
@@ -50,8 +46,21 @@ from .train import *
 from .unfold import *
 
 
-Switch = SwitchCombinator
 Map = MapCombinator
 Unfold = UnfoldCombinator
-Train = TrainCombinator
+Switch = SwitchCombinator
 Recurse = RecurseCombinator
+Train = TrainCombinator
+
+__all__ = [
+    "Map",
+    "MapCombinator",
+    "Unfold",
+    "UnfoldCombinator",
+    "Switch",
+    "SwitchCombinator",
+    "Recurse",
+    "RecurseCombinator",
+    "Train",
+    "TrainCombinator",
+]

@@ -18,13 +18,11 @@ import jax
 import jax.numpy as jnp
 
 from genjax.core.tracetypes import PositiveReals
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Cauchy(ExactDistribution):
+class _Cauchy(ExactDensity):
     def sample(self, key, **kwargs):
         return jax.random.cauchy(key, **kwargs)
 
