@@ -17,8 +17,6 @@ from typing import Any
 
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import ValueChoiceMap
-from genjax.experimental.prox.prox_distribution import ProxDistribution
-from genjax.experimental.prox.target import Target
 from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
@@ -26,6 +24,8 @@ from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinSelection,
 )
 from genjax.generative_functions.distributions.distribution import Distribution
+from genjax.prox.prox_distribution import ProxDistribution
+from genjax.prox.target import Target
 
 
 @dataclass

@@ -16,7 +16,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-import genjax.experimental.prox as prox
+import genjax.prox as prox
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import ValueChoiceMap

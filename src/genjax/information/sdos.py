@@ -21,7 +21,7 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
-import genjax.experimental.prox as prox
+import genjax.prox as prox
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import ValueChoiceMap

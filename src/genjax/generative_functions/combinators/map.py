@@ -92,7 +92,7 @@ class MapCombinator(GenerativeFunction):
     gen_fn: :code:`GenerativeFunction`
         A single `GenerativeFunction` instance.
 
-    in_args: :code:`Tuple[Int]`
+    in_args: :code:`Tuple[Int, ...]`
         A tuple specifying which :code:`(key, *args)` to broadcast
         over.
 
@@ -182,7 +182,7 @@ class MapCombinator(GenerativeFunction):
 
         return key, map_tr
 
-    def bounds_checker(self, v, key_len):
+    def _bounds_checker(self, v, key_len):
         lengths = []
 
         def _inner(v):
@@ -200,7 +200,7 @@ class MapCombinator(GenerativeFunction):
     # This pads the leaves of a choice map up to
     # `key_len` -- so that we can vmap
     # over the leading axes of the leaves.
-    def padder(self, v, key_len):
+    def _padder(self, v, key_len):
         ndim = len(v.shape)
         pad_axes = list(
             (0, key_len - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
@@ -236,9 +236,9 @@ class MapCombinator(GenerativeFunction):
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self.bounds_checker(chm, len(key))
+        chm, fixed_len = self._bounds_checker(chm, len(key))
         chm = jtu.tree_map(
-            lambda chm: self.padder(chm, len(key)),
+            lambda chm: self._padder(chm, len(key)),
             chm,
         )
         if not isinstance(chm, VectorChoiceMap):
@@ -301,9 +301,9 @@ class MapCombinator(GenerativeFunction):
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self.bounds_checker(chm, len(key))
+        chm, fixed_len = self._bounds_checker(chm, len(key))
         chm = jtu.tree_map(
-            lambda chm: self.padder(chm, len(key)),
+            lambda chm: self._padder(chm, len(key)),
             chm,
         )
         if not isinstance(chm, VectorChoiceMap):
