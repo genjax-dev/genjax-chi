@@ -18,9 +18,9 @@ import jax
 import jax.numpy as jnp
 
 from genjax.core.datatypes import Trace
-from genjax.experimental.prox.prox_distribution import ProxDistribution
 from genjax.generative_functions.builtin.propagating import Diff
 from genjax.generative_functions.builtin.propagating import NoChange
+from genjax.prox.prox_distribution import ProxDistribution
 
 
 def metropolis_hastings(proposal: ProxDistribution):

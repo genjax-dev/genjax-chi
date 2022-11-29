@@ -26,9 +26,9 @@ from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.pytree import Pytree
-from genjax.experimental.prox.prox_distribution import ProxDistribution
-from genjax.experimental.prox.target import Target
 from genjax.inference.kernels.kernel import MCMCKernel
+from genjax.prox.prox_distribution import ProxDistribution
+from genjax.prox.target import Target
 
 
 #####

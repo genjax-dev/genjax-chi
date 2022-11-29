@@ -17,5 +17,7 @@ from .core import *
 from .extras import *
 from .generative_functions import *
 from .inference import *
+from .information import *
 from .interface import *
 from .language_decorator import *
+from .prox import *

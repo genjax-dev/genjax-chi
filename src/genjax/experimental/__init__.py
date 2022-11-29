@@ -13,6 +13,3 @@
 # limitations under the License.
 
 """This module supports experimental features of `GenJAX`."""
-
-from .information import *
-from .prox import *
