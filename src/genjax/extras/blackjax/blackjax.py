@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module supports a set of (WIP) integration interfaces with
-variants of Hamiltonian Monte Carlo exported by the :code:`blackjax`
-sampling library [Blackjax]_.
+"""This module supports a set of (WIP) integration interfaces with variants of
+Hamiltonian Monte Carlo exported by the :code:`blackjax` sampling library.
+
+[Blackjax]_.
 
 .. note::
 

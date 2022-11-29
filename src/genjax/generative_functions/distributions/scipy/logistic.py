@@ -17,13 +17,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Logistic(ExactDistribution):
+class _Logistic(ExactDensity):
     def sample(self, key, **kwargs):
         return jax.random.logistic(key, **kwargs)
 

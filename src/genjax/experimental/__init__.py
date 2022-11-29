@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module supports experimental features of `GenJAX`.
-"""
+"""This module supports experimental features of `GenJAX`."""
 
 from .information import *
 from .prox import *

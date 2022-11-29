@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module implements a generative function combinator which allows
-branching control flow for combinations of generative functions
-which can return different shaped choice maps.
+"""This module implements a generative function combinator which allows
+branching control flow for combinations of generative functions which can
+return different shaped choice maps.
+
 It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.switch`_.
 
 Generative functions which are passed in as branches to :code:`SwitchCombinator`

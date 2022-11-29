@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module contains the `Distribution` abstact base class.
-"""
+"""This module contains the `Distribution` abstract base class."""
 
 import abc
 from dataclasses import dataclass
@@ -23,6 +21,7 @@ from typing import Callable
 from typing import Tuple
 
 import jax
+import jax.numpy as jnp
 
 from genjax.core.datatypes import AllSelection
 from genjax.core.datatypes import ChoiceMap
@@ -185,28 +184,62 @@ class Distribution(GenerativeFunction):
         # is masked or not. It's possible that a trace
         # with a mask is updated.
         prev_v = prev.get_retval()
-        masked_trace = False
-        trace_mask_value = None
+        active = True
         if isinstance(prev_v, BooleanMask):
             prev_v = prev_v.unmask()
-            trace_mask_value = prev_v.mask
+            active = prev_v.mask
 
         # Case 1: the new choice map is empty here.
         if isinstance(new, EmptyChoiceMap):
             prev_score = prev.get_score()
             v = prev_v
-            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
-            w = fwd - prev_score
+
+            # If the value is active, we compute any weight
+            # corrections from changing arguments.
+            def _active(key, v, *args):
+                key, (fwd, _) = self.estimate_logpdf(key, v, *args)
+                return key, fwd - prev_score
+
+            # If the value is inactive, we do nothing.
+            def _inactive(key, v, *args):
+                return key, prev_score
+
+            key, w = concrete_cond(active, _active, _inactive, key, v, *args)
             discard = EmptyChoiceMap()
-            retval_diff = Diff.new(v, change=NoChange)
+            retval_diff = Diff.new(prev.get_retval(), change=NoChange)
 
         # Case 2: the new choice map is not empty here.
         else:
             prev_score = prev.get_score()
             v = new.get_leaf_value()
-            key, (fwd, _) = self.estimate_logpdf(key, v, *args)
-            w = fwd - prev_score
-            discard = ValueChoiceMap(prev_v)
+
+            # Now, we must check if the choice map has a masked
+            # leaf value, and dispatch accordingly.
+            active_chm = True
+            if isinstance(v, BooleanMask):
+                v = v.unmask()
+                active_chm = v.mask
+
+            # The only time this flag is on is when both leaf values
+            # are concrete, or they are both masked with true mask
+            # values.
+            active = jnp.all(jnp.logical_and(active_chm, active))
+
+            def _new_active(key, v, *args):
+                key, (fwd, _) = self.estimate_logpdf(key, v, *args)
+                return key, v, fwd - prev_score
+
+            def _new_inactive(key, v, *args):
+                return key, prev_v, 0.0
+
+            key, v, w = concrete_cond(
+                active_chm, _new_active, _new_inactive, key, v, *args
+            )
+
+            # Now, we also must check if the trace has a masked
+            # leaf value. If it does, we decide what to do.
+
+            discard = ValueChoiceMap(prev.get_leaf_value())
             retval_diff = Diff.new(v)
 
         return key, (
@@ -224,12 +257,12 @@ class Distribution(GenerativeFunction):
 
 
 #####
-# ExactDistribution
+# ExactDensity
 #####
 
 
 @dataclass
-class ExactDistribution(Distribution):
+class ExactDensity(Distribution):
     @abc.abstractmethod
     def sample(self, key, *args, **kwargs):
         pass

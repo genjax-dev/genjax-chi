@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module implements a generative function combinator which allows
-statically unrolled control flow for generative functions which can act
-as kernels (a kernel generative function can accept
-their previous output as input).
-"""
+"""This module implements a generative function combinator which allows
+statically unrolled control flow for generative functions which can act as
+kernels (a kernel generative function can accept their previous output as
+input)."""
 
 from dataclasses import dataclass
 from typing import Any

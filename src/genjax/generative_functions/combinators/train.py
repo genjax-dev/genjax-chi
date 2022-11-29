@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module provides a combinator which transforms a generative function into a :code:`nn.Module`-like object that holds learnable parameters.
+"""This module provides a combinator which transforms a generative function
+into a :code:`nn.Module`-like object that holds learnable parameters.
 
 It exposes an extended set of interfaces (new: :code:`param_grad` and :code:`update_params`) which allow programmatic computation of gradients with respect to held parameters, as well as updating parameters.
 

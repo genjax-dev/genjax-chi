@@ -18,13 +18,11 @@ from math import pi
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Normal(ExactDistribution):
+class _Normal(ExactDensity):
     def sample(self, key, mu, std, **kwargs):
         return mu + std * jax.random.normal(key, **kwargs)
 

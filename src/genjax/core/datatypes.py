@@ -30,6 +30,8 @@ from genjax.core.tracetypes import Bottom
 from genjax.core.tracetypes import TraceType
 from genjax.core.tree import Leaf
 from genjax.core.tree import Tree
+from genjax.core.typing import Bool
+from genjax.core.typing import Float
 
 
 #####
@@ -79,30 +81,30 @@ class ChoiceMap(Tree):
 @dataclass
 class Trace(Tree):
     @abc.abstractmethod
-    def get_retval(self):
+    def get_retval(self) -> Any:
         pass
 
     @abc.abstractmethod
-    def get_score(self):
+    def get_score(self) -> Float:
         pass
 
     @abc.abstractmethod
-    def get_args(self):
+    def get_args(self) -> Tuple:
         pass
 
     @abc.abstractmethod
-    def get_choices(self):
+    def get_choices(self) -> ChoiceMap:
         pass
 
     @abc.abstractmethod
-    def get_gen_fn(self):
+    def get_gen_fn(self) -> "GenerativeFunction":
         pass
 
-    def has_subtree(self, addr):
+    def has_subtree(self, addr) -> Bool:
         choices = self.get_choices()
         return choices.has_subtree(addr)
 
-    def get_subtree(self, addr):
+    def get_subtree(self, addr) -> ChoiceMap:
         choices = self.get_choices()
         return choices.get_subtree(addr)
 
@@ -110,7 +112,7 @@ class Trace(Tree):
         choices = self.get_choices()
         return choices.get_subtrees_shallow()
 
-    def merge(self, other):
+    def merge(self, other) -> ChoiceMap:
         return self.get_choices().merge(other.get_choices())
 
     def get_selection(self):
@@ -198,6 +200,7 @@ class GenerativeFunction(Pytree):
         shape = kwargs.get("shape", ())
         return Bottom(shape)
 
+    @abc.abstractmethod
     def simulate(
         self,
         key: jax.random.PRNGKey,
@@ -205,46 +208,51 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[jax.random.PRNGKey, Trace]:
         pass
 
+    @abc.abstractmethod
     def importance(
         self,
         key: jax.random.PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[float, Trace]]:
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Float, Trace]]:
         pass
 
+    @abc.abstractmethod
     def update(
         self,
         key: jax.random.PRNGKey,
         original: Trace,
         new: ChoiceMap,
         diffs: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, float, Trace, ChoiceMap]]:
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, Float, Trace, ChoiceMap]]:
         pass
 
+    @abc.abstractmethod
     def assess(
         self,
         key: jax.random.PRNGKey,
         evaluation_point: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, float]]:
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, Float]]:
         pass
 
     def unzip(
         self,
         key: jax.random.PRNGKey,
         fixed: ChoiceMap,
-    ) -> Tuple[jax.random.PRNGKey, Callable, Callable]:
+    ) -> Tuple[
+        jax.random.PRNGKey,
+        Callable[[ChoiceMap, Tuple], Float],
+        Callable[[ChoiceMap, Tuple], Any],
+    ]:
         key, sub_key = jax.random.split(key)
 
-        def score(provided, args):
+        def score(provided, args) -> Float:
             merged = fixed.merge(provided)
             _, (_, score) = self.assess(sub_key, merged, args)
             return score
 
-        key, sub_key = jax.random.split(key)
-
-        def retval(provided, args):
+        def retval(provided, args) -> Any:
             merged = fixed.merge(provided)
             _, (retval, _) = self.assess(sub_key, merged, args)
             return retval

@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module contains an implementation of (Auxiliary inference divergence estimator) from Cusumano-Towner et al, 2017.
-"""
+"""This module contains an implementation of (Auxiliary inference divergence
+estimator) from Cusumano-Towner et al, 2017."""
 
 from typing import Tuple
 

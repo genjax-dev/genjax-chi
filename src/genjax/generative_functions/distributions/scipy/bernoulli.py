@@ -17,13 +17,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class _Bernoulli(ExactDistribution):
+class _Bernoulli(ExactDensity):
     def sample(self, key, *args, **kwargs):
         return jax.random.bernoulli(key, *args, **kwargs)
 

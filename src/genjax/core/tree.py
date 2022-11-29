@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module holds an abstract class which forms the core functionality
-for "tree-like" classes (like :code:`ChoiceMap` and :code:`Selection`).
-"""
+"""This module holds an abstract class which forms the core functionality for
+"tree-like" classes (like :code:`ChoiceMap` and :code:`Selection`)."""
 
 import abc
 import dataclasses

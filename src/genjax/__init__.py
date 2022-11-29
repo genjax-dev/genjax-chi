@@ -12,89 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
-
-import jax
-import objexplore
-import rich
-import rich.traceback as traceback
-from rich.console import Console
-
+from .console import *
 from .core import *
-from .experimental import *
 from .extras import *
 from .generative_functions import *
 from .inference import *
 from .interface import *
-
-
-#####
-# Language decorator
-#####
-
-
-def gen(callable: Callable, **kwargs) -> GenerativeFunction:
-    if inspect.isclass(callable):
-        return lambda source: callable(
-            BuiltinGenerativeFunction(source),
-            **kwargs,
-        )
-    else:
-        return BuiltinGenerativeFunction(callable)
-
-
-#####
-# Pretty printing
-#####
-
-
-def is_notebook() -> bool:
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == "ZMQInteractiveShell":
-            return True  # Jupyter notebook or qtconsole
-        elif shell == "TerminalInteractiveShell":
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False  # Probably standard Python interpreter
-
-
-@dataclass
-class GenJAXConsole:
-    rich_console: Console
-
-    def print(self, obj):
-        self.rich_console.print(obj)
-
-    def inspect(self, obj, **kwargs):
-        rich.inspect(obj, console=self.rich_console, **kwargs)
-
-    def help(self, obj):
-        rich.inspect(
-            obj,
-            console=self.rich_console,
-            methods=True,
-            help=True,
-            value=False,
-            private=False,
-            dunder=False,
-        )
-
-    def explore(self, module):
-        if is_notebook():
-            raise Exception("Interactive explore only works in terminal.")
-        else:
-            objexplore.explore(module)
-
-
-def pretty(show_locals=False, max_frames=20, suppress=[jax]):
-    rich.pretty.install()
-    traceback.install(
-        show_locals=show_locals,
-        max_frames=max_frames,
-        suppress=[jax],
-    )
-
-    return GenJAXConsole(Console(soft_wrap=True))
+from .language_decorator import *

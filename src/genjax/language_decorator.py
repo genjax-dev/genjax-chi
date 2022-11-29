@@ -12,21 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+import inspect
+from typing import Callable
 
-import jax
-import jax.numpy as jnp
-
-from genjax.generative_functions.distributions.distribution import ExactDensity
-
-
-@dataclass
-class _Laplace(ExactDensity):
-    def sample(self, key, **kwargs):
-        return jax.random.laplace(key, **kwargs)
-
-    def logpdf(self, v, **kwargs):
-        return jnp.sum(jax.scipy.stats.laplace.logpdf(v))
+from genjax.core import GenerativeFunction
+from genjax.generative_functions.builtin import BuiltinGenerativeFunction
 
 
-Laplace = _Laplace()
+__all__ = ["gen"]
+
+#####
+# Language decorator
+#####
+
+
+def gen(callable: Callable, **kwargs) -> GenerativeFunction:
+    if inspect.isclass(callable):
+        return lambda source: callable(
+            BuiltinGenerativeFunction(source),
+            **kwargs,
+        )
+    else:
+        return BuiltinGenerativeFunction(callable)

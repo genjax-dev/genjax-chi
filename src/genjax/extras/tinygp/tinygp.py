@@ -17,13 +17,11 @@ from typing import Any
 
 import tinygp
 
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class GaussianProcess(ExactDistribution):
+class GaussianProcess(ExactDensity):
     kernel: Any
 
     def flatten(self):
@@ -43,7 +41,7 @@ class GaussianProcess(ExactDistribution):
         return ConditionedGaussianProcess(gp.condition(y))
 
 
-class ConditionedGaussianProcess(ExactDistribution):
+class ConditionedGaussianProcess(ExactDensity):
     logpdf_fn: Any
     conditioned: Any
 

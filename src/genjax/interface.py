@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-The generative function interface is a set of methods and associated types
-defined for an implementor which support the generic construction (via interface abstraction)
-of programmable inference algorithms and differentiable programming.
+"""The generative function interface is a set of methods and associated types
+defined for an implementor which support the generic construction (via
+interface abstraction) of programmable inference algorithms and differentiable
+programming.
 
 Combined with the trace and choice map associated datatypes, the generative function interface
 methods form the conceptual core of the computational behavior of generative functions.
@@ -40,26 +40,28 @@ methods form the conceptual core of the computational behavior of generative fun
     (there's no runtime cost when using the getter variants in jitted code, JAX eliminates it).
 """
 
+from typing import Callable
 
-def simulate(gen_fn, **kwargs):
+
+def simulate(gen_fn, **kwargs) -> Callable:
     return lambda *args: gen_fn.simulate(*args, **kwargs)
 
 
-def importance(gen_fn, **kwargs):
+def importance(gen_fn, **kwargs) -> Callable:
     return lambda *args: gen_fn.importance(*args, **kwargs)
 
 
-def update(gen_fn, **kwargs):
+def update(gen_fn, **kwargs) -> Callable:
     return lambda *args: gen_fn.update(*args, **kwargs)
 
 
-def assess(gen_fn, **kwargs):
+def assess(gen_fn, **kwargs) -> Callable:
     return lambda *args: gen_fn.assess(*args, **kwargs)
 
 
-def unzip(gen_fn, **kwargs):
+def unzip(gen_fn, **kwargs) -> Callable:
     return lambda *args: gen_fn.unzip(*args, **kwargs)
 
 
-def get_trace_type(gen_fn, **kwargs):
+def get_trace_type(gen_fn, **kwargs) -> Callable:
     return lambda *args: gen_fn.get_trace_type(*args, **kwargs)
