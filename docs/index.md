@@ -41,7 +41,7 @@ genjax/inference/inference
 ```{toctree}
 ---
 hidden:
-caption: Experimental
+caption: Advanced
 ---
 
 genjax/experimental/information
