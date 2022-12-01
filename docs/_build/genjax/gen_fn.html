@@ -1,0 +1,761 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Anatomy of a generative function &#8212; Gen ⊗ JAX</title>
+    
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+
+    
+  <link rel="stylesheet"
+    href="../_static/vendor/fontawesome/5.13.0/css/all.min.css">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" href="../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/css/custom.css" />
+    
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
+
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Generative function interface" href="interface.html" />
+    <link rel="prev" title="Overview" href="../index.html" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="docsearch:language" content="None">
+    
+
+    <!-- Google Analytics -->
+    
+  </head>
+  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="60">
+<!-- Checkboxes to toggle the left sidebar -->
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle navigation sidebar">
+<label class="overlay overlay-navbar" for="__navigation">
+    <div class="visually-hidden">Toggle navigation sidebar</div>
+</label>
+<!-- Checkboxes to toggle the in-page toc -->
+<input type="checkbox" class="sidebar-toggle" name="__page-toc" id="__page-toc" aria-label="Toggle in-page Table of Contents">
+<label class="overlay overlay-pagetoc" for="__page-toc">
+    <div class="visually-hidden">Toggle in-page Table of Contents</div>
+</label>
+<!-- Headers at the top -->
+<div class="announcement header-item noprint"></div>
+<div class="header header-item noprint"></div>
+
+    
+    <div class="container-fluid" id="banner"></div>
+
+    
+
+    <div class="container-xl">
+      <div class="row">
+          
+<!-- Sidebar -->
+<div class="bd-sidebar noprint" id="site-navigation">
+    <div class="bd-sidebar__content">
+        <div class="bd-sidebar__top"><div class="navbar-brand-box">
+    <a class="navbar-brand text-wrap" href="../index.html">
+      
+        <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
+        
+      
+      
+      <img src="../_static/logo.png" class="logo" alt="logo">
+      
+      
+    </a>
+</div><form class="bd-search d-flex align-items-center" action="../search.html" method="get">
+  <i class="icon fas fa-search"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
+</form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item active">
+        <p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Getting started
+ </span>
+</p>
+<ul class="current nav bd-sidenav">
+ <li class="toctree-l1 current active">
+  <a class="current reference internal" href="#">
+   Anatomy of a generative function
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="interface.html">
+   Generative function interface
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="diff_jl.html">
+   Diffing with Gen.jl
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Modeling and inference
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="combinators/combinators.html">
+   Generative function combinators
+  </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
+  <label for="toctree-checkbox-1">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2 has-children">
+    <a class="reference internal" href="combinators/classes/classes.html">
+     Combinators classes
+    </a>
+    <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
+    <label for="toctree-checkbox-2">
+     <i class="fas fa-chevron-down">
+     </i>
+    </label>
+    <ul>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/switch.html">
+       Switch combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/map.html">
+       Map combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/unfold.html">
+       Unfold combinator
+      </a>
+     </li>
+     <li class="toctree-l3">
+      <a class="reference internal" href="combinators/classes/train.html">
+       Trainable combinator
+      </a>
+     </li>
+    </ul>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="combinators/vector_combinators.html">
+     Vector combinators
+    </a>
+   </li>
+  </ul>
+ </li>
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="inference/inference.html">
+   Inference
+  </a>
+  <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
+  <label for="toctree-checkbox-3">
+   <i class="fas fa-chevron-down">
+   </i>
+  </label>
+  <ul>
+   <li class="toctree-l2 has-children">
+    <a class="reference internal" href="inference/library/library.html">
+     Inference library
+    </a>
+    <input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
+    <label for="toctree-checkbox-4">
+     <i class="fas fa-chevron-down">
+     </i>
+    </label>
+    <ul>
+     <li class="toctree-l3">
+      <a class="reference internal" href="inference/library/blackjax.html">
+       Hamiltonian Monte Carlo with BlackJAX
+      </a>
+     </li>
+    </ul>
+   </li>
+   <li class="toctree-l2">
+    <a class="reference internal" href="inference/best_practices.html">
+     Inference best practices
+    </a>
+   </li>
+  </ul>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  Experimental
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/information.html">
+   Density diagnostics and information theory
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/trace_types.html">
+   Gradual trace typing for inference soundness verification
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="experimental/prox.html">
+   Prox: compositional approximate densities
+  </a>
+ </li>
+</ul>
+<p aria-level="2" class="caption" role="heading">
+ <span class="caption-text">
+  For developers
+ </span>
+</p>
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="../contributing.html">
+   Contributor Guide
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../codeofconduct.html">
+   Code of Conduct
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="../license.html">
+   License
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference external" href="https://github.com/probcomp/genjax/releases">
+   Changelog
+  </a>
+ </li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="bd-sidebar__bottom">
+             <!-- To handle the deprecated key -->
+            
+            <div class="navbar_extra_footer">
+            Theme by the <a href="https://ebp.jupyterbook.org">Executable Book Project</a>
+            </div>
+            
+        </div>
+    </div>
+    <div id="rtd-footer-container"></div>
+</div>
+
+
+          
+
+
+          
+<!-- A tiny helper pixel to detect if we've scrolled -->
+<div class="sbt-scroll-pixel-helper"></div>
+<!-- Main content -->
+<div class="col py-0 content-container">
+    
+    <div class="header-article row sticky-top noprint">
+        
+
+
+
+<div class="col py-1 d-flex header-article-main">
+    <div class="header-article__left">
+        
+        <label for="__navigation"
+  class="headerbtn"
+  data-toggle="tooltip"
+data-placement="right"
+title="Toggle navigation"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-bars"></i>
+  </span>
+
+</label>
+
+        
+    </div>
+    <div class="header-article__right">
+<button onclick="toggleFullScreen()"
+  class="headerbtn"
+  data-toggle="tooltip"
+data-placement="bottom"
+title="Fullscreen mode"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+<div class="menu-dropdown menu-dropdown-repository-buttons">
+  <button class="headerbtn menu-dropdown__trigger"
+      aria-label="Source repositories">
+      <i class="fab fa-github"></i>
+  </button>
+  <div class="menu-dropdown__content">
+    <ul>
+      <li>
+        <a href="https://github.com/probcomp/genjax"
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Source repository"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="headerbtn__text-container">repository</span>
+</a>
+
+      </li>
+      
+      <li>
+        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/gen_fn.html&body=Your%20issue%20content%20here."
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Open an issue"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="headerbtn__text-container">open issue</span>
+</a>
+
+      </li>
+      
+      <li>
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/gen_fn.rst"
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Edit this page"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="headerbtn__text-container">suggest edit</span>
+</a>
+
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+<div class="menu-dropdown menu-dropdown-download-buttons">
+  <button class="headerbtn menu-dropdown__trigger"
+      aria-label="Download this page">
+      <i class="fas fa-download"></i>
+  </button>
+  <div class="menu-dropdown__content">
+    <ul>
+      <li>
+        <a href="../_sources/genjax/gen_fn.rst.txt"
+   class="headerbtn"
+   data-toggle="tooltip"
+data-placement="left"
+title="Download source file"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="headerbtn__text-container">.rst</span>
+</a>
+
+      </li>
+      
+      <li>
+        
+<button onclick="printPdf(this)"
+  class="headerbtn"
+  data-toggle="tooltip"
+data-placement="left"
+title="Print to PDF"
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="headerbtn__text-container">.pdf</span>
+</button>
+
+      </li>
+      
+    </ul>
+  </div>
+</div>
+<label for="__page-toc"
+  class="headerbtn headerbtn-page-toc"
+  
+>
+  
+
+<span class="headerbtn__icon-container">
+  <i class="fas fa-list"></i>
+  </span>
+
+</label>
+
+    </div>
+</div>
+
+<!-- Table of contents -->
+<div class="col-md-3 bd-toc show noprint">
+    <div class="tocsection onthispage pt-5 pb-3">
+        <i class="fas fa-list"></i> Contents
+    </div>
+    <nav id="bd-toc-nav" aria-label="Page">
+        <ul class="visible nav section-nav flex-column">
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#distributions-are-generative-functions">
+   Distributions are generative functions
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#function-like-generative-functions-in-genjax">
+   Function-like generative functions in GenJAX
+  </a>
+ </li>
+</ul>
+
+    </nav>
+</div>
+    </div>
+    <div class="article row">
+        <div class="col pl-md-3 pl-lg-5 content-container">
+            <!-- Table of contents that is only displayed when printing the page -->
+            <div id="jb-print-docs-body" class="onlyprint">
+                <h1>Anatomy of a generative function</h1>
+                <!-- Table of contents -->
+                <div id="print-main-content">
+                    <div id="jb-print-toc">
+                        
+                        <div>
+                            <h2> Contents </h2>
+                        </div>
+                        <nav aria-label="Page">
+                            <ul class="visible nav section-nav flex-column">
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#distributions-are-generative-functions">
+   Distributions are generative functions
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#function-like-generative-functions-in-genjax">
+   Function-like generative functions in GenJAX
+  </a>
+ </li>
+</ul>
+
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            <main id="main-content" role="main">
+                
+              <div>
+                
+  <section id="anatomy-of-a-generative-function">
+<h1>Anatomy of a generative function<a class="headerlink" href="#anatomy-of-a-generative-function" title="Permalink to this headline">#</a></h1>
+<p>A generative function is a computational object which supports a concise
+set of interfaces designed to support customizable Bayesian inference
+(<em>programmable inference</em>) and differentiable programming.</p>
+<p>Formally, generative functions are mathematical representation of probabilistic
+models that are expressive enough to permit models with random structure,
+including capturing notions of variable existence uncertainty.
+The framework is fully described in <a class="reference external" href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner’s thesis</a>.</p>
+<div class="admonition-a-bit-of-knowledge-gen-jl admonition">
+<p class="admonition-title">🧠 <strong>(A bit of knowledge) Gen.jl</strong> 🧠</p>
+<p>The canonical reference implementation of these objects lies in <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a>,
+an encoding of generative functions and inference in Julia.</p>
+<p>In GenJAX, our implementation of these objects is akin to the
+<code class="code docutils literal notranslate"><span class="pre">static</span> <span class="pre">modeling</span> <span class="pre">language</span></code> of <a class="reference external" href="https://github.com/probcomp/Gen.jl">Gen.jl</a> - we rely upon JAX to provide us
+with a useful intermediate representation for programs that we operate on
+using transformations.</p>
+</div>
+<p>If you’d like to jump right to reading about the generative function interface, visit <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>.</p>
+<section id="distributions-are-generative-functions">
+<h2>Distributions are generative functions<a class="headerlink" href="#distributions-are-generative-functions" title="Permalink to this headline">#</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In this section, we won’t cover the gradient interfaces. These are formally specified in
+<a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>, and discussed later in the <span class="xref std std-doc">learning</span> and inference sections.</p>
+</div>
+<p>Let’s start with simple examples of generative function – classical distributions (objects like <code class="code docutils literal notranslate"><span class="pre">Normal</span></code>, or <code class="code docutils literal notranslate"><span class="pre">Uniform</span></code>).</p>
+<p>Here’s an implementation of one of these objects (GenJAX exposes <code class="code docutils literal notranslate"><span class="pre">Normal</span></code> as an instantiated alias of <code class="code docutils literal notranslate"><span class="pre">_Normal</span></code>)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">_Normal</span><span class="p">(</span><span class="n">Distribution</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">std</span> <span class="o">*</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">logpdf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">/</span> <span class="n">std</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+            <span class="o">-</span><span class="mf">1.0</span>
+            <span class="o">*</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">))</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">pi</span><span class="p">))</span>
+            <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">std</span><span class="p">))</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__trace_type__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">std</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shape&quot;</span><span class="p">,</span> <span class="p">())</span>
+        <span class="k">return</span> <span class="n">Reals</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="n">Normal</span> <span class="o">=</span> <span class="n">_Normal</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This object should roughly match intuition of what a distribution should provide:</p>
+<ol class="arabic simple">
+<li><p>(<code class="code docutils literal notranslate"><span class="pre">sample</span></code>) The ability to sample a value in the target space given access
+to a bit of pseudo-randomness.</p></li>
+<li><p>(<code class="code docutils literal notranslate"><span class="pre">logpdf</span></code>) The ability to assess the log density of any sampled
+value from the target space, given access to parameters of
+the distribution (here: <code class="code docutils literal notranslate"><span class="pre">mu</span></code> and <code class="code docutils literal notranslate"><span class="pre">std</span></code>)</p></li>
+</ol>
+<p>Now, let’s examine <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> - one of the generative function interface methods
+whose semantics are described below:</p>
+<div class="admonition-simulate admonition">
+<p class="admonition-title">Simulate</p>
+<p>Given a generative function representing a normalized probability measure with choice map density <span class="math notranslate nohighlight">\(t \sim P(\cdot; x)\)</span>, and return value <span class="math notranslate nohighlight">\(r \sim P(\cdot; x, t)\)</span>:</p>
+<ul class="simple">
+<li><p>Sample <span class="math notranslate nohighlight">\(t\)</span> and <span class="math notranslate nohighlight">\(r\)</span> from their associated probability measures (defined above).</p></li>
+<li><p>Return a trace (holding <span class="math notranslate nohighlight">\(t\)</span>, <span class="math notranslate nohighlight">\(r\)</span>, the score of the sample <span class="math notranslate nohighlight">\(P(t; x)\)</span>, and the arguments to the call).</p></li>
+</ul>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>C.f. <a class="reference external" href="https://www.gen.dev/stable/ref/gfi/#Gen.simulate">simulate in the Gen.jl docs</a>.</p>
+</div>
+</div>
+<div class="admonition-working-with-log-probabilities admonition">
+<p class="admonition-title">Working with log probabilities</p>
+<p>The formal description of these interfaces does not utilize logspace representations of density evaluations - but computationally, it’s highly beneficial to work in logspace - especially for numerical stability.</p>
+<p>Throughout the documentation, we’ll be using logspace representations of density evaluations.</p>
+</div>
+<p>By studying the specification for <code class="code docutils literal notranslate"><span class="pre">simulate</span></code>, we observe that generative functions are characterized by two types: the type of <code class="code docutils literal notranslate"><span class="pre">t</span></code> (the choice map type) and the type of <code class="code docutils literal notranslate"><span class="pre">r</span></code> (the return type). Let’s refer to these types using uppercase to distinguish them from their value elements. Given this information, let’s denote generative function objects as <span class="math notranslate nohighlight">\(\mathbb{G}[T, R]\)</span></p>
+<p>To implement distributions as generative functions, we get to choose <span class="math notranslate nohighlight">\(T\)</span> and <span class="math notranslate nohighlight">\(R\)</span>. A natural choice would be to choose that these are the same type, and this type is the type of the target space (so, e.g., for <code class="code docutils literal notranslate"><span class="pre">Normal</span></code>, <span class="math notranslate nohighlight">\(T\)</span> and <span class="math notranslate nohighlight">\(R\)</span> would be <span class="math notranslate nohighlight">\(\mathbb{R}\)</span>).</p>
+<p>Now, <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> implores us to sample from <span class="math notranslate nohighlight">\(T\)</span>, compute <span class="math notranslate nohighlight">\(R\)</span>, score <span class="math notranslate nohighlight">\(T\)</span> - and then return a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> representation of this process.</p>
+<p>Here’s an implementation of <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> which utilizes the interfaces on distribution objects that we described above:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">sub_key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">sub_key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">logpdf</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">tr</span> <span class="o">=</span> <span class="n">DistributionTrace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">ValueChoiceMap</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">score</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">tr</span>
+</pre></div>
+</div>
+<p>A few things of note: we have a concrete <code class="code docutils literal notranslate"><span class="pre">DistributionTrace</span></code> object which allows us to record the information which <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> asks from us (specifically, the log score, the sampled value, and the return value - here the same as the sampled value).</p>
+<p>In addition (and not covered explicitly by the formal interface), we pass through a <code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code> - this is necessitated by JAX’s programming model, but does not imply any serious collisions with the formal description.</p>
+<p>Let’s study <code class="code docutils literal notranslate"><span class="pre">importance</span></code> next - this example will provide a simple model of this interface, but there are more complexities lurking under the surface. We’ll defer a longer discussion to the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> page.</p>
+<div class="admonition-importance admonition">
+<p class="admonition-title">Importance</p>
+<p>Given a generative function representing a normalized probability measure with choice map density <span class="math notranslate nohighlight">\(t \sim P(\cdot; x)\)</span>, and return value <span class="math notranslate nohighlight">\(r \sim P(\cdot; x, t)\)</span>, as well as a set of constraints for random choices <span class="math notranslate nohighlight">\(u\)</span>:</p>
+<ul class="simple">
+<li><p>Sample <span class="math notranslate nohighlight">\(t \sim Q(\cdot; u, x)\)</span> and <span class="math notranslate nohighlight">\(r \sim Q(\cdot; x, t)\)</span> from proposals which are absolutely continuous with respect to the unnormalized conditional density on unconstrained random choices from <span class="math notranslate nohighlight">\(P\)</span>.</p></li>
+<li><p>Compute an importance weight <span class="math notranslate nohighlight">\(\log \frac{P(t, r; x)}{Q(t; u, x)Q(r; x, t)}\)</span>.</p></li>
+<li><p>Return the trace (which is consistent with the constraints <span class="math notranslate nohighlight">\(u\)</span>) and the importance weight.</p></li>
+</ul>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>C.f. <a class="reference external" href="https://www.gen.dev/stable/ref/gfi/#Gen.generate">generate in the Gen.jl docs</a>.</p>
+</div>
+</div>
+<p>This may already seem confusing - how do we provide the proposals <span class="math notranslate nohighlight">\(Q\)</span>, where do those come from? What does it mean for a trace to be consistent with constraints <span class="math notranslate nohighlight">\(u\)</span>?</p>
+<p>Let’s go in reverse order - a trace is consistent with constraints <span class="math notranslate nohighlight">\(u\)</span> if, for all random choices which <span class="math notranslate nohighlight">\(u\)</span> provides values for, the trace takes those values at those choices. This is Gen’s version of conditioning - and just like in normal Bayesian mechanics, conditioning transforms a normalized probability measure into an unnormalized one. But importance sampling provides a mechanism to compute estimates of the normalization constant (that’s what the importance weight is). That’s what this interface is encapsulating.</p>
+<p>Fortunately for us, distributions only expose a single random choice! So when we condition on constraints, we get a normalized density (or log density, in our case) evaluation. Thus, in our implementation of <code class="code docutils literal notranslate"><span class="pre">importance</span></code> - we can ignore <span class="math notranslate nohighlight">\(Q\)</span>, at least for now.</p>
+</section>
+<section id="function-like-generative-functions-in-genjax">
+<h2>Function-like generative functions in GenJAX<a class="headerlink" href="#function-like-generative-functions-in-genjax" title="Permalink to this headline">#</a></h2>
+<p>GenJAX also exposes a modeling language which allows programmatic construction of generative functions based on pure Python functions (pure meaning: the subset of Python acceptable by JAX).</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<span class="kn">import</span> <span class="nn">genjax</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x1035bcf70&gt;)
+</pre></div>
+</div>
+</div>
+</div>
+<p>This decorator returns a <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code> - a generative function
+which implements the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> by utilizing JAX’s tracing and program
+transformation abilities.</p>
+<p>Note, however, that we’ll make recursive usage of the interface - here, we’re calling distributions-as-generative-functions in our code! This is just one of the compositional benefits of constructing composite generative function objects using pieces that implement the interface.</p>
+<p>Let’s study the JAX representation of the code for this object.</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="n">jaxpr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">make_jaxpr</span><span class="p">(</span><span class="n">model</span><span class="p">)(</span><span class="n">key</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jaxpr</span><span class="o">.</span><span class="n">pretty_print</span><span class="p">(</span><span class="n">use_color</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda ; a:u32[2]. let
+    b:u32[2] c:f32[] = trace[addr=x gen_fn=_Normal()] a 0.0 1.0
+  in (b, c) }
+</pre></div>
+</div>
+</div>
+</div>
+<p>In this lowered form, we can see that our JAX representation has a call to something called <code class="code docutils literal notranslate"><span class="pre">trace</span></code>, with a few constant keyword arguments (including an <code class="code docutils literal notranslate"><span class="pre">addr</span></code> and a <code class="code docutils literal notranslate"><span class="pre">gen_fn</span></code> as constant metadata associated with the operation).</p>
+<p>JAX doesn’t natively know how to handle <code class="code docutils literal notranslate"><span class="pre">trace</span></code> - it’s a primitive that we’ve defined to support the generative function interface semantics. We get to tell JAX how to interpret this operation in terms of operations that it understands.</p>
+<p>The interfaces are defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code> by implementing transformations which operate on this code representation to implement the semantics. Here’s one interface - <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> - whose semantics require that we return a representation of the execution (a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code>) along with an updated <code class="code docutils literal notranslate"><span class="pre">PRNGKey</span></code>.</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="n">jaxpr</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">make_jaxpr</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">model</span><span class="p">))(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">jaxpr</span><span class="o">.</span><span class="n">pretty_print</span><span class="p">(</span><span class="n">use_color</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda ; a:u32[2]. let
+    b:key&lt;fry&gt;[] = random_wrap[impl=fry] a
+    c:key&lt;fry&gt;[2] = random_split[count=2] b
+    d:u32[2,2] = random_unwrap c
+    e:u32[1,2] = slice[limit_indices=(1, 2) start_indices=(0, 0) strides=(1, 1)] d
+    f:u32[2] = squeeze[dimensions=(0,)] e
+    g:u32[1,2] = slice[limit_indices=(2, 2) start_indices=(1, 0) strides=(1, 1)] d
+    h:u32[2] = squeeze[dimensions=(0,)] g
+    i:key&lt;fry&gt;[] = random_wrap[impl=fry] h
+    j:u32[] = random_bits[bit_width=32 shape=()] i
+    k:u32[] = shift_right_logical j 9
+    l:u32[] = or k 1065353216
+    m:f32[] = bitcast_convert_type[new_dtype=float32] l
+    n:f32[] = sub m 1.0
+    o:f32[] = sub 1.0 -0.9999999403953552
+    p:f32[] = mul n o
+    q:f32[] = add p -0.9999999403953552
+    r:f32[] = reshape[dimensions=None new_sizes=()] q
+    s:f32[] = max -0.9999999403953552 r
+    t:f32[] = erf_inv s
+    u:f32[] = mul 1.4142135381698608 t
+    v:f32[] = mul 1.0 u
+    w:f32[] = add 0.0 v
+    x:f32[] = sub w 0.0
+    y:f32[] = div x 1.0
+    z:f32[] = abs y
+    ba:f32[] = integer_pow[y=2] z
+    bb:f32[] = log 6.283185307179586
+    bc:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bb
+    bd:f32[] = add ba bc
+    be:f32[] = mul -1.0 bd
+    bf:f32[] = log 1.0
+    bg:f32[] = sub 2.0 bf
+    bh:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bg
+    bi:f32[] = div be bh
+    bj:f32[] = reduce_sum[axes=()] bi
+    bk:f32[] = add 0.0 bj
+  in (f, w, 0.0, 1.0, w, bj, bk) }
+</pre></div>
+</div>
+</div>
+</div>
+<p>That’s quite a lot of new code! What <code class="code docutils literal notranslate"><span class="pre">genjax.simulate</span></code> is doing “under-the-hood” is expanding the <code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive to support:</p>
+<ul class="simple">
+<li><p>recursively calling <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> on <code class="code docutils literal notranslate"><span class="pre">gen_fn</span></code> (keyword argument to <code class="code docutils literal notranslate"><span class="pre">trace</span></code>).</p></li>
+<li><p>updating JAX’s PRNG key.</p></li>
+<li><p>recording the log probability density of the resultant sample.</p></li>
+<li><p>returning these pieces of data out (in a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> instance)</p></li>
+</ul>
+<p>All this is happening before runtime – JAX’s tracer stages out these transformations into the clean (<code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive free) <code class="code docutils literal notranslate"><span class="pre">Jaxpr</span></code> above.</p>
+<p>This essential pattern is repeated for each <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> method defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code>.</p>
+<p>Other generative function “languages” in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function <em>need not</em> introspect on the implementation of a callee’s interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. <a class="reference internal" href="combinators/combinators.html"><span class="doc">Generative function combinators</span></a>) other generative functions in composable patterns.</p>
+</section>
+</section>
+
+
+              </div>
+              
+            </main>
+            <footer class="footer-article noprint">
+                
+    <!-- Previous / next buttons -->
+<div class='prev-next-area'>
+    <a class='left-prev' id="prev-link" href="../index.html" title="previous page">
+        <i class="fas fa-angle-left"></i>
+        <div class="prev-next-info">
+            <p class="prev-next-subtitle">previous</p>
+            <p class="prev-next-title">Overview</p>
+        </div>
+    </a>
+    <a class='right-next' id="next-link" href="interface.html" title="next page">
+    <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Generative function interface</p>
+    </div>
+    <i class="fas fa-angle-right"></i>
+    </a>
+</div>
+            </footer>
+        </div>
+    </div>
+    <div class="footer-content row">
+        <footer class="col footer"><p>
+  
+      &copy; Copyright 2022 MIT Probabilistic Computing Project.<br/>
+</p>
+        </footer>
+    </div>
+    
+</div>
+
+
+      </div>
+    </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
+
+
+  </body>
+</html>
