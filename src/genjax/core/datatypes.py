@@ -32,6 +32,7 @@ from genjax.core.tree import Leaf
 from genjax.core.tree import Tree
 from genjax.core.typing import Bool
 from genjax.core.typing import Float
+from genjax.core.typing import PRNGKey
 
 
 #####
@@ -188,12 +189,12 @@ class GenerativeFunction(Pytree):
     """
 
     @abc.abstractmethod
-    def __call__(self, key: jax.random.PRNGKey, *args):
+    def __call__(self, key: PRNGKey, *args):
         pass
 
     def get_trace_type(
         self,
-        key: jax.random.PRNGKey,
+        key: PRNGKey,
         args: Tuple,
         **kwargs,
     ) -> TraceType:
@@ -203,45 +204,45 @@ class GenerativeFunction(Pytree):
     @abc.abstractmethod
     def simulate(
         self,
-        key: jax.random.PRNGKey,
+        key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Trace]:
+    ) -> Tuple[PRNGKey, Trace]:
         pass
 
     @abc.abstractmethod
     def importance(
         self,
-        key: jax.random.PRNGKey,
+        key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[Float, Trace]]:
+    ) -> Tuple[PRNGKey, Tuple[Float, Trace]]:
         pass
 
     @abc.abstractmethod
     def update(
         self,
-        key: jax.random.PRNGKey,
+        key: PRNGKey,
         original: Trace,
         new: ChoiceMap,
         diffs: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, Float, Trace, ChoiceMap]]:
+    ) -> Tuple[PRNGKey, Tuple[Any, Float, Trace, ChoiceMap]]:
         pass
 
     @abc.abstractmethod
     def assess(
         self,
-        key: jax.random.PRNGKey,
+        key: PRNGKey,
         evaluation_point: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, Float]]:
+    ) -> Tuple[PRNGKey, Tuple[Any, Float]]:
         pass
 
     def unzip(
         self,
-        key: jax.random.PRNGKey,
+        key: PRNGKey,
         fixed: ChoiceMap,
     ) -> Tuple[
-        jax.random.PRNGKey,
+        PRNGKey,
         Callable[[ChoiceMap, Tuple], Float],
         Callable[[ChoiceMap, Tuple], Any],
     ]:

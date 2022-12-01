@@ -1,4 +1,4 @@
-# Diffing with Gen.jl
+# Diffing against Gen.jl
 
 `GenJAX` is descended and inherits concepts and reference implementations from [`Gen.jl`][gen.jl] - but there are a few differences that mostly stem from JAX's underlying array programming model. In this section, we describe several of these differences and try to highlight workarounds or discuss the reason for the discrepancy.
 
