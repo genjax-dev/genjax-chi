@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module contains a utility class for defining new :code:`jax.Pytree`
+"""This module contains a utility class for defining new :code:`jax.Pytree`
 implementors.
 
 In addition to this functionality, there's a "sum type" :code:`Pytree`
@@ -57,9 +56,9 @@ class Pytree(metaclass=abc.ABCMeta):
     def unflatten(cls, data, xs):
         return cls(*data, *xs)
 
-    def build_rich_tree(self):
-        if hasattr(self, "tree_console_overload"):
-            return self.tree_console_overload()
+    def _build_rich_tree(self):
+        if hasattr(self, "_tree_console_overload"):
+            return self._tree_console_overload()
         else:
             tree = Tree(f"[b]{self.__class__.__name__}[/b]")
             if dataclasses.is_dataclass(self):
@@ -69,15 +68,15 @@ class Pytree(metaclass=abc.ABCMeta):
                 )
                 for (k, v) in d.items():
                     subk = tree.add(f"[blue]{k}")
-                    if isinstance(v, Pytree) or hasattr(v, "build_rich_tree"):
-                        subtree = v.build_rich_tree()
+                    if isinstance(v, Pytree) or hasattr(v, "_build_rich_tree"):
+                        subtree = v._build_rich_tree()
                         subk.add(subtree)
                     else:
                         subk.add(gpp.tree_pformat(v))
             return tree
 
     def __rich_console__(self, console, options):
-        tree = self.build_rich_tree()
+        tree = self._build_rich_tree()
         yield tree
 
 
@@ -214,8 +213,7 @@ class SumPytree(Pytree):
 
 
 def tree_stack(trees):
-    """
-    Takes a list of trees and stacks every corresponding leaf.
+    """Takes a list of trees and stacks every corresponding leaf.
 
     For example, given two trees ((a, b), c) and ((a', b'), c'), returns
     ((stack(a, a'), stack(b, b')), stack(c, c')).
@@ -242,8 +240,7 @@ def tree_stack(trees):
 
 
 def tree_unstack(tree):
-    """
-    Takes a tree and turns it into a list of trees. Inverse of tree_stack.
+    """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
 
     For example, given a tree ((a, b), c), where a, b, and c all have first
     dimension k, will make k trees

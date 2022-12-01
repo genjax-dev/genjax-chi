@@ -21,16 +21,14 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax.core.tracetypes import TraceType
 from genjax.generative_functions.builtin.builtin_tracetype import lift
-from genjax.generative_functions.distributions.distribution import (
-    ExactDistribution,
-)
+from genjax.generative_functions.distributions.distribution import ExactDensity
 
 
 tfd = tfp.distributions
 
 
 @dataclass
-class TFPDistribution(ExactDistribution):
+class TFPDistribution(ExactDensity):
     distribution: Any
 
     def flatten(self):

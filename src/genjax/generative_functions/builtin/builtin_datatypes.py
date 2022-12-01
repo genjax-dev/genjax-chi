@@ -79,12 +79,6 @@ class BuiltinChoiceMap(ChoiceMap):
                 addr = addr[0]
             self.inner[addr] = value
 
-    def is_leaf(self):
-        return False
-
-    def get_leaf_value(self):
-        raise Exception("BuiltinChoiceMap is not a leaf choice tree.")
-
     def has_subtree(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
@@ -187,16 +181,17 @@ class BuiltinTrace(Trace):
 class BuiltinSelection(Selection):
     inner: HashableDict
 
-    def __init__(self, selected):
-        self.inner = hashabledict()
-        if isinstance(selected, list):
-            for k in selected:
-                self.trie_insert(k, AllSelection())
-        if isinstance(selected, Dict):
-            self.inner = HashableDict(selected)
-
     def flatten(self):
         return (self.inner,), ()
+
+    @classmethod
+    def new(cls, selected):
+        assert isinstance(selected, list)
+        inner = hashabledict()
+        new = BuiltinSelection(inner)
+        for k in selected:
+            new.trie_insert(k, AllSelection())
+        return new
 
     def trie_insert(self, addr, value):
         if isinstance(addr, tuple) and len(addr) > 1:
@@ -236,12 +231,6 @@ class BuiltinSelection(Selection):
 
     def complement(self):
         return BuiltinComplementSelection(self.inner)
-
-    def is_leaf(self):
-        return False
-
-    def get_leaf_value(self):
-        raise Exception("BuiltinSelection is not a leaf type.")
 
     def has_subtree(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
@@ -322,12 +311,6 @@ class BuiltinComplementSelection(Selection):
         for (k, v) in self.inner.items():
             new_tree[k] = v.complement()
         return BuiltinSelection(new_tree)
-
-    def is_leaf(self):
-        return False
-
-    def get_leaf_value(self):
-        raise Exception("BuiltinComplementSelection is not a leaf type.")
 
     def has_subtree(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:

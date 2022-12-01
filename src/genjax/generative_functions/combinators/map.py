@@ -12,11 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module implements a generative function combinator which allows
-broadcasting for generative functions -- mapping over vectorial
-versions of their arguments.
-"""
+"""This module implements a generative function combinator which allows
+broadcasting for generative functions -- mapping over vectorial versions of
+their arguments."""
 
 from dataclasses import dataclass
 from typing import Sequence
@@ -30,7 +28,6 @@ import numpy as np
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
-from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
@@ -95,7 +92,7 @@ class MapCombinator(GenerativeFunction):
     gen_fn: :code:`GenerativeFunction`
         A single `GenerativeFunction` instance.
 
-    in_args: :code:`Tuple[Int]`
+    in_args: :code:`Tuple[Int, ...]`
         A tuple specifying which :code:`(key, *args)` to broadcast
         over.
 
@@ -185,7 +182,7 @@ class MapCombinator(GenerativeFunction):
 
         return key, map_tr
 
-    def bounds_checker(self, v, key_len):
+    def _bounds_checker(self, v, key_len):
         lengths = []
 
         def _inner(v):
@@ -203,7 +200,7 @@ class MapCombinator(GenerativeFunction):
     # This pads the leaves of a choice map up to
     # `key_len` -- so that we can vmap
     # over the leading axes of the leaves.
-    def padder(self, v, key_len):
+    def _padder(self, v, key_len):
         ndim = len(v.shape)
         pad_axes = list(
             (0, key_len - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
@@ -214,7 +211,6 @@ class MapCombinator(GenerativeFunction):
             else jnp.pad(v, pad_axes)
         )
 
-    @BooleanMask.collapse_boundary
     def importance(self, key, chm, args):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
@@ -240,9 +236,9 @@ class MapCombinator(GenerativeFunction):
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self.bounds_checker(chm, len(key))
+        chm, fixed_len = self._bounds_checker(chm, len(key))
         chm = jtu.tree_map(
-            lambda chm: self.padder(chm, len(key)),
+            lambda chm: self._padder(chm, len(key)),
             chm,
         )
         if not isinstance(chm, VectorChoiceMap):
@@ -272,8 +268,6 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
-    @BooleanMask.canonicalize
-    @BooleanMask.collapse_boundary
     def update(self, key, prev, chm, diffs):
         assert isinstance(prev, MapTrace)
         vchm = prev.get_choices()
@@ -307,9 +301,9 @@ class MapCombinator(GenerativeFunction):
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self.bounds_checker(chm, len(key))
+        chm, fixed_len = self._bounds_checker(chm, len(key))
         chm = jtu.tree_map(
-            lambda chm: self.padder(chm, len(key)),
+            lambda chm: self._padder(chm, len(key)),
             chm,
         )
         if not isinstance(chm, VectorChoiceMap):

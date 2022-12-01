@@ -16,22 +16,61 @@ import abc
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import Sequence
 from typing import Tuple
 from typing import Union
 
 import jax
-import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-from rich.tree import Tree
+import rich
 
 import genjax.core.pretty_printing as gpp
-from genjax.core.choice_tree import ChoiceTree
 from genjax.core.pytree import Pytree
-from genjax.core.pytree import squeeze
 from genjax.core.tracetypes import Bottom
 from genjax.core.tracetypes import TraceType
+from genjax.core.tree import Leaf
+from genjax.core.tree import Tree
+from genjax.core.typing import Bool
+from genjax.core.typing import Float
+
+
+#####
+# ChoiceMap
+#####
+
+
+@dataclass
+class ChoiceMap(Tree):
+    @abc.abstractmethod
+    def get_selection(self):
+        pass
+
+    def get_choices(self):
+        return self
+
+    def strip(self):
+        def _check(v):
+            return isinstance(v, Trace)
+
+        def _inner(v):
+            if isinstance(v, Trace):
+                return v.strip()
+            else:
+                return v
+
+        return jtu.tree_map(_inner, self, is_leaf=_check)
+
+    def __eq__(self, other):
+        return self.flatten() == other.flatten()
+
+    def __getitem__(self, addr):
+        if isinstance(addr, slice):
+            return jax.tree_util.tree_map(lambda v: v[addr], self)
+        choice = self.get_subtree(addr)
+        if isinstance(choice, Leaf):
+            return choice.get_leaf_value()
+        else:
+            return choice
 
 
 #####
@@ -40,48 +79,40 @@ from genjax.core.tracetypes import TraceType
 
 
 @dataclass
-class Trace(Pytree):
+class Trace(Tree):
     @abc.abstractmethod
-    def get_retval(self):
+    def get_retval(self) -> Any:
         pass
 
     @abc.abstractmethod
-    def get_score(self):
+    def get_score(self) -> Float:
         pass
 
     @abc.abstractmethod
-    def get_args(self):
+    def get_args(self) -> Tuple:
         pass
 
     @abc.abstractmethod
-    def get_choices(self):
+    def get_choices(self) -> ChoiceMap:
         pass
 
     @abc.abstractmethod
-    def get_gen_fn(self):
+    def get_gen_fn(self) -> "GenerativeFunction":
         pass
 
-    def has_subtree(self, addr):
+    def has_subtree(self, addr) -> Bool:
         choices = self.get_choices()
         return choices.has_subtree(addr)
 
-    def get_subtree(self, addr):
+    def get_subtree(self, addr) -> ChoiceMap:
         choices = self.get_choices()
         return choices.get_subtree(addr)
-
-    def is_leaf(self):
-        choices = self.get_choices()
-        return choices.is_leaf()
-
-    def get_leaf_value(self):
-        choices = self.get_choices()
-        return choices.get_leaf_value()
 
     def get_subtrees_shallow(self):
         choices = self.get_choices()
         return choices.get_subtrees_shallow()
 
-    def merge(self, other):
+    def merge(self, other) -> ChoiceMap:
         return self.get_choices().merge(other.get_choices())
 
     def get_selection(self):
@@ -104,53 +135,7 @@ class Trace(Pytree):
             return jax.tree_util.tree_map(lambda v: v[addr], self)
         choices = self.get_choices()
         choice = choices.get_subtree(addr)
-        if choice.is_leaf():
-            return choice.get_leaf_value()
-        else:
-            return choice
-
-
-#####
-# ChoiceMap
-#####
-
-
-@dataclass
-class ChoiceMap(ChoiceTree):
-    def get_choices(self):
-        return self
-
-    def slice(self, arr: Sequence):
-        def _inner(v):
-            return v[arr]
-
-        return squeeze(
-            jtu.tree_map(
-                _inner,
-                self,
-            )
-        )
-
-    def strip(self):
-        def _check(v):
-            return isinstance(v, Trace)
-
-        def _inner(v):
-            if isinstance(v, Trace):
-                return v.strip()
-            else:
-                return v
-
-        return jtu.tree_map(_inner, self, is_leaf=_check)
-
-    def __eq__(self, other):
-        return self.flatten() == other.flatten()
-
-    def __getitem__(self, addr):
-        if isinstance(addr, slice):
-            return jax.tree_util.tree_map(lambda v: v[addr], self)
-        choice = self.get_subtree(addr)
-        if choice.is_leaf():
+        if isinstance(choice, Leaf):
             return choice.get_leaf_value()
         else:
             return choice
@@ -162,7 +147,7 @@ class ChoiceMap(ChoiceTree):
 
 
 @dataclass
-class Selection(ChoiceTree):
+class Selection(Tree):
     @abc.abstractmethod
     def filter(self, chm):
         pass
@@ -215,6 +200,7 @@ class GenerativeFunction(Pytree):
         shape = kwargs.get("shape", ())
         return Bottom(shape)
 
+    @abc.abstractmethod
     def simulate(
         self,
         key: jax.random.PRNGKey,
@@ -222,65 +208,56 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[jax.random.PRNGKey, Trace]:
         pass
 
+    @abc.abstractmethod
     def importance(
         self,
         key: jax.random.PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[jax.random.PRNGKey, Tuple[float, Trace]]:
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Float, Trace]]:
         pass
 
-    def update(self, key, original, new, args):
+    @abc.abstractmethod
+    def update(
+        self,
+        key: jax.random.PRNGKey,
+        original: Trace,
+        new: ChoiceMap,
+        diffs: Tuple,
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, Float, Trace, ChoiceMap]]:
         pass
 
-    def choice_grad(self, key, tr, selection, retval_grad):
-        key, choice_vjp = self.choice_vjp(key, tr, selection)
-        trace_grads, arg_grads = choice_vjp(retval_grad)
-        trace_grads, _ = selection.filter(trace_grads)
-        trace_grads = trace_grads.strip()
-        return key, trace_grads, arg_grads
-
-    def choice_vjp(
+    @abc.abstractmethod
+    def assess(
         self,
         key: jax.random.PRNGKey,
-        tr: Trace,
-        selection: Selection,
-    ) -> Tuple[jax.random.PRNGKey, Callable]:
-        raise Exception("Not implemented.")
+        evaluation_point: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[jax.random.PRNGKey, Tuple[Any, Float]]:
+        pass
 
-    def retval_vjp(
+    def unzip(
         self,
         key: jax.random.PRNGKey,
-        tr: Trace,
-        selection: Selection,
-    ) -> Tuple[jax.random.PRNGKey, Callable]:
-        raise Exception("Not implemented.")
+        fixed: ChoiceMap,
+    ) -> Tuple[
+        jax.random.PRNGKey,
+        Callable[[ChoiceMap, Tuple], Float],
+        Callable[[ChoiceMap, Tuple], Any],
+    ]:
+        key, sub_key = jax.random.split(key)
 
-    def retval_jacrev(
-        self,
-        key: jax.random.PRNGKey,
-        tr: Trace,
-        selection: Selection,
-        **kwargs,
-    ) -> Tuple[jax.random.PRNGKey, Trace, Tuple]:
-        key, retval_vjp = self.retval_vjp(key, tr, selection)
-        retval = tr.get_retval()
-        retval_axis_trie = jtu.tree_map(
-            lambda v: 0
-            if isinstance(v, jnp.ndarray) and v.shape != ()
-            else None,
-            retval,
-        )
-        retval_eye = jtu.tree_map(
-            lambda v: jnp.eye(len(v))
-            if isinstance(v, jnp.ndarray) and v.shape != ()
-            else v,
-            retval,
-        )
-        trace_grads, arg_grads = jax.vmap(
-            retval_vjp, in_axes=(retval_axis_trie,)
-        )(retval_eye)
-        return key, trace_grads, arg_grads
+        def score(provided, args) -> Float:
+            merged = fixed.merge(provided)
+            _, (_, score) = self.assess(sub_key, merged, args)
+            return score
+
+        def retval(provided, args) -> Any:
+            merged = fixed.merge(provided)
+            _, (retval, _) = self.assess(sub_key, merged, args)
+            return retval
+
+        return key, score, retval
 
 
 #####
@@ -289,34 +266,19 @@ class GenerativeFunction(Pytree):
 
 
 @dataclass
-class EmptyChoiceMap(ChoiceMap):
+class EmptyChoiceMap(ChoiceMap, Leaf):
     def flatten(self):
         return (), ()
 
-    def is_leaf(self):
-        return False
-
     def get_leaf_value(self):
-        return self
-
-    def has_subtree(self, addr):
-        return False
-
-    def get_subtree(self, addr):
-        return self
-
-    def get_subtrees_shallow(self):
-        return ()
+        raise Exception("EmptyChoiceMap has no leaf value.")
 
     def get_selection(self):
         return NoneSelection()
 
-    def merge(self, other):
-        return other
-
 
 @dataclass
-class ValueChoiceMap(ChoiceMap):
+class ValueChoiceMap(ChoiceMap, Leaf):
     value: Any
 
     def flatten(self):
@@ -325,30 +287,15 @@ class ValueChoiceMap(ChoiceMap):
     @classmethod
     def new(cls, v):
         if isinstance(v, ValueChoiceMap):
-            return ValueChoiceMap.new(v.value)
+            return ValueChoiceMap.new(v.get_leaf_value())
         else:
             return ValueChoiceMap(v)
-
-    def is_leaf(self):
-        return True
 
     def get_leaf_value(self):
         return self.value
 
-    def has_subtree(self, addr):
-        return False
-
-    def get_subtree(self, addr):
-        raise Exception("ValueChoiceMap is a leaf choice tree.")
-
-    def get_subtrees_shallow(self):
-        return ()
-
     def get_selection(self):
         return AllSelection()
-
-    def merge(self, other):
-        return other
 
     def __hash__(self):
         if isinstance(self.value, np.ndarray):
@@ -356,10 +303,10 @@ class ValueChoiceMap(ChoiceMap):
         else:
             return hash(self.value)
 
-    def tree_console_overload(self):
-        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         if isinstance(self.value, Pytree):
-            subt = self.value.build_rich_tree()
+            subt = self.value._build_rich_tree()
             tree.add(subt)
         else:
             tree.add(gpp.tree_pformat(self.value))
@@ -372,7 +319,7 @@ class ValueChoiceMap(ChoiceMap):
 
 
 @dataclass
-class NoneSelection(Selection):
+class NoneSelection(Selection, Leaf):
     def flatten(self):
         return (), ()
 
@@ -382,27 +329,14 @@ class NoneSelection(Selection):
     def complement(self):
         return AllSelection()
 
-    def get_subtrees_shallow(self):
-        return ()
-
-    def is_leaf(self):
-        return True
-
     def get_leaf_value(self):
-        return self
-
-    def has_subtree(self, addr):
-        return False
-
-    def get_subtree(self, addr):
-        raise Exception("NoneSelection is a leaf choice tree.")
-
-    def merge(self, other):
-        return self
+        raise Exception(
+            "NoneSelection is a Selection: it does not provide a leaf choice value."
+        )
 
 
 @dataclass
-class AllSelection(Selection):
+class AllSelection(Selection, Leaf):
     def flatten(self):
         return (), ()
 
@@ -415,20 +349,7 @@ class AllSelection(Selection):
     def complement(self):
         return NoneSelection()
 
-    def is_leaf(self):
-        return True
-
     def get_leaf_value(self):
-        return self
-
-    def has_subtree(self, addr):
-        return False
-
-    def get_subtree(self, addr):
-        raise Exception("AllSelection is a leaf choice tree.")
-
-    def get_subtrees_shallow(self):
-        return ()
-
-    def merge(self, other):
-        return self
+        raise Exception(
+            "AllSelection is a Selection: it does not provide a leaf choice value."
+        )

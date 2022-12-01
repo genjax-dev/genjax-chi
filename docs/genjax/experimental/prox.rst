@@ -1,2 +1,0 @@
-Prox: compositional approximate densities
-=========================================

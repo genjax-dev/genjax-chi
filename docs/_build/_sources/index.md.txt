@@ -10,9 +10,6 @@ These objects also expose a concise interface
 for expressing differentiable programming and Monte Carlo inference algorithms. A precise mathematical formulation is given in [Marco Cusumano-Towner's PhD thesis][marco_thesis].
 
 ```{admonition} Novice
-If you're new to [Gen][gen] (or probabilistic programming in general),
-you'll likely want to start with [](genjax/tour).
-
 If you don't mind perusing carefully crafted documentation
 (albeit in another language), you might also enjoy the [Gen.jl][gen.jl]
 Julia documentation.
@@ -25,7 +22,6 @@ maxdepth: 1
 caption: Getting started
 ---
 
-genjax/tour
 genjax/gen_fn
 genjax/interface
 genjax/diff_jl
@@ -48,7 +44,7 @@ hidden:
 caption: Experimental
 ---
 
-genjax/experimental/diagnostics
+genjax/experimental/information
 genjax/experimental/trace_types
 genjax/experimental/prox
 ```
