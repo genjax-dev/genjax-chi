@@ -128,12 +128,19 @@ def mypy(session) -> None:
         )
 
 
-@session(name="lint", python=python_version)
+@session(python=python_version)
 def lint(session: Session) -> None:
     session.install(".")
-    session.install("isort", "black[jupyter]", "autoflake8", "flake8")
+    session.install(
+        "isort",
+        "black[jupyter]",
+        "autoflake8",
+        "flake8",
+        "docformatter[tomli]",
+    )
     session.run("isort", ".")
     session.run("black", ".")
+    session.run("docformatter", "--in-place", "--recursive", ".")
     session.run(
         "autoflake8",
         "--in-place",
@@ -161,7 +168,10 @@ def docs_build(session: Session) -> None:
 
     session.install(".")
     session.install(
-        "sphinx_book_theme", "sphinx", "jupyter-sphinx", "myst-parser"
+        "sphinx_book_theme",
+        "sphinx",
+        "jupyter-sphinx",
+        "myst-parser",
     )
 
     build_dir = Path("docs", "_build")
@@ -171,10 +181,14 @@ def docs_build(session: Session) -> None:
     session.run("sphinx-build", *args)
 
 
-@session(python=python_version)
-def docs(session: Session) -> None:
-    """Build and serve the documentation with live reloading on file changes."""
-    args = session.posargs or ["--open-browser", "docs", "docs/_build"]
+@session(name="docs-serve", python=python_version)
+def docs_serve(session: Session) -> None:
+    """Build and serve the documentation with live reloading on file
+    changes."""
+    args = session.posargs or ["docs", "docs/_build"]
+    if not session.posargs and "FORCE_COLOR" in os.environ:
+        args.insert(0, "--color")
+
     session.install(".")
     session.install(
         "sphinx_book_theme",

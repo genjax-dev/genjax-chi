@@ -12,11 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This module contains an extensible pretty printing infrastructure based
-on JAX's :code:`_src/pretty_printing` as well as extensions
-created by the Equinox package maintainers.
-"""
+"""This module contains an extensible pretty printing infrastructure based on
+JAX's :code:`_src/pretty_printing` as well as extensions created by the Equinox
+package maintainers."""
 
 import dataclasses
 import functools as ft

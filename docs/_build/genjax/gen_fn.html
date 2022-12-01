@@ -42,7 +42,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Generative function interface" href="interface.html" />
-    <link rel="prev" title="A tour of fundamentals" href="tour.html" />
+    <link rel="prev" title="Overview" href="../index.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="None">
     
@@ -98,11 +98,6 @@
  </span>
 </p>
 <ul class="current nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="tour.html">
-   A tour of fundamentals
-  </a>
- </li>
  <li class="toctree-l1 current active">
   <a class="current reference internal" href="#">
    Anatomy of a generative function
@@ -161,7 +156,7 @@
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="combinators/classes/trainable.html">
+      <a class="reference internal" href="combinators/classes/train.html">
        Trainable combinator
       </a>
      </li>
@@ -216,13 +211,13 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="experimental/diagnostics.html">
-   Density diagnostics
+  <a class="reference internal" href="experimental/information.html">
+   Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="experimental/trace_types.html">
-   Trace types
+   Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
@@ -625,7 +620,7 @@ whose semantics are described below:</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x103e2a7a0&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x1035bcf70&gt;)
 </pre></div>
 </div>
 </div>
@@ -645,11 +640,7 @@ transformation abilities.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda ; a:u32[2]. let
-    b:u32[2] c:f32[] = trace[
-      addr=x
-      args_form=PyTreeDef((*, *))
-      gen_fn=_Normal()
-    ] a 0.0 1.0
+    b:u32[2] c:f32[] = trace[addr=x gen_fn=_Normal()] a 0.0 1.0
   in (b, c) }
 </pre></div>
 </div>
@@ -730,11 +721,11 @@ transformation abilities.</p>
                 
     <!-- Previous / next buttons -->
 <div class='prev-next-area'>
-    <a class='left-prev' id="prev-link" href="tour.html" title="previous page">
+    <a class='left-prev' id="prev-link" href="../index.html" title="previous page">
         <i class="fas fa-angle-left"></i>
         <div class="prev-next-info">
             <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">A tour of fundamentals</p>
+            <p class="prev-next-title">Overview</p>
         </div>
     </a>
     <a class='right-next' id="next-link" href="interface.html" title="next page">

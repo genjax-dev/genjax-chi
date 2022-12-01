@@ -18,13 +18,14 @@ from typing import Any
 from typing import Tuple
 
 import numpy as np
-from rich.tree import Tree
+import rich
 
-from genjax.core.choice_tree import ChoiceTree
+from genjax.core.tree import Leaf
+from genjax.core.tree import Tree
 
 
 @dataclass
-class TraceType(ChoiceTree):
+class TraceType(Tree):
     def subseteq(self, other):
         assert isinstance(other, TraceType)
         check = self.__subseteq__(other)
@@ -43,29 +44,7 @@ class TraceType(ChoiceTree):
 
 
 @dataclass
-class LeafTraceType(TraceType):
-    def is_leaf(self):
-        return True
-
-    def get_leaf_value(self):
-        return self
-
-    def has_subtree(self, addr):
-        return False
-
-    @classmethod
-    def get_subtree(cls, addr):
-        raise Exception(f"{cls} is a leaf choice tree.")
-
-    def get_subtrees_shallow(self):
-        return ()
-
-    def merge(self, other):
-        return other
-
-
-@dataclass
-class Reals(LeafTraceType):
+class Reals(TraceType, Leaf):
     shape: Tuple
 
     def flatten(self):
@@ -77,19 +56,16 @@ class Reals(LeafTraceType):
         else:
             return False
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree(f"[magenta][b]ℝ[/b] {self.shape}")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[magenta][b]ℝ[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class PositiveReals(LeafTraceType):
+class PositiveReals(TraceType, Leaf):
     shape: Tuple
 
     def flatten(self):
@@ -101,19 +77,16 @@ class PositiveReals(LeafTraceType):
         else:
             return False
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree(f"[magenta][b]ℝ⁺[/b] {self.shape}")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[magenta][b]ℝ⁺[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class RealInterval(LeafTraceType):
+class RealInterval(TraceType, Leaf):
     shape: Tuple
     lower_bound: Any
     upper_bound: Any
@@ -131,21 +104,18 @@ class RealInterval(LeafTraceType):
         else:
             return False
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree(
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(
             f"[magenta][b]ℝ[/b] [{self.lower_bound}, {self.upper_bound}]{self.shape}"
         )
         return tree
 
 
 @dataclass
-class Integers(LeafTraceType):
+class Integers(TraceType, Leaf):
     shape: Tuple
 
     def flatten(self):
@@ -157,19 +127,16 @@ class Integers(LeafTraceType):
         else:
             return False
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree(f"[magenta][b]ℤ[/b] {self.shape}")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[magenta][b]ℤ[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class Naturals(LeafTraceType):
+class Naturals(TraceType, Leaf):
     shape: Tuple
 
     def flatten(self):
@@ -185,19 +152,16 @@ class Naturals(LeafTraceType):
         else:
             return False
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree(f"[magenta][b]ℕ[/b] {self.shape}")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[magenta][b]ℕ[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class Finite(LeafTraceType):
+class Finite(TraceType, Leaf):
     shape: Tuple
     limit: int
 
@@ -218,19 +182,16 @@ class Finite(LeafTraceType):
         else:
             return False
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree(f"[magenta][b]𝔽[/b] [{self.limit}] {self.shape}")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[magenta][b]𝔽[/b] [{self.limit}] {self.shape}")
         return tree
 
 
 @dataclass
-class Bottom(LeafTraceType):
+class Bottom(TraceType, Leaf):
     shape: Tuple
 
     def flatten(self):
@@ -239,12 +200,9 @@ class Bottom(LeafTraceType):
     def __subseteq__(self, other):
         return np.sum(self.shape) <= np.sum(other.shape)
 
-    def get_types_shallow(self):
-        return ()
-
     def get_rettype(self):
         return self
 
-    def tree_console_overload(self):
-        tree = Tree("[magenta][b]⊥[/b]")
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree("[magenta][b]⊥[/b]")
         return tree

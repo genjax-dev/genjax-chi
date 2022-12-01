@@ -38,7 +38,6 @@
     <script src="../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
-    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Diffing with Gen.jl" href="diff_jl.html" />
@@ -99,11 +98,6 @@
 </p>
 <ul class="current nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="tour.html">
-   A tour of fundamentals
-  </a>
- </li>
- <li class="toctree-l1">
   <a class="reference internal" href="gen_fn.html">
    Anatomy of a generative function
   </a>
@@ -161,7 +155,7 @@
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="combinators/classes/trainable.html">
+      <a class="reference internal" href="combinators/classes/train.html">
        Trainable combinator
       </a>
      </li>
@@ -216,13 +210,13 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="experimental/diagnostics.html">
-   Density diagnostics
+  <a class="reference internal" href="experimental/information.html">
+   Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
   <a class="reference internal" href="experimental/trace_types.html">
-   Trace types
+   Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
@@ -456,8 +450,9 @@ title="Print to PDF"
   <section id="module-genjax.interface">
 <span id="generative-function-interface"></span><h1>Generative function interface<a class="headerlink" href="#module-genjax.interface" title="Permalink to this headline">#</a></h1>
 <p>The generative function interface is a set of methods and associated types
-defined for an implementor which support the generic construction (via interface abstraction)
-of programmable inference algorithms and differentiable programming.</p>
+defined for an implementor which support the generic construction (via
+interface abstraction) of programmable inference algorithms and differentiable
+programming.</p>
 <p>Combined with the trace and choice map associated datatypes, the generative function interface
 methods form the conceptual core of the computational behavior of generative functions.</p>
 <div class="admonition note">
@@ -476,7 +471,7 @@ and <code class="code docutils literal notranslate"><span class="pre">**kwargs</
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x103962b90&gt;
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x1078cb130&gt;
 </pre></div>
 </div>
 </div>
@@ -487,113 +482,18 @@ methods directly - but sometimes it is useful to use the getter variants
 </div>
 <dl class="py function">
 <dt class="sig sig-object py" id="genjax.simulate">
-<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L44-L92"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.simulate" title="Permalink to this definition">#</a></dt>
-<dd><p>Given a <code class="code docutils literal notranslate"><span class="pre">key:</span> <span class="pre">jax.random.PRNGKey</span></code> and <code class="code docutils literal notranslate"><span class="pre">args:</span> <span class="pre">Tuple</span></code>, perform the
-following steps:</p>
-<ul class="simple">
-<li><p>Sample <span class="math notranslate nohighlight">\(t\sim p(\cdot;x)\)</span> and <span class="math notranslate nohighlight">\(r\sim p(\cdot;x, t)\)</span>.</p></li>
-<li><p>Compute the score of the sample <span class="math notranslate nohighlight">\(t\)</span> under <span class="math notranslate nohighlight">\(p(\cdot; x)\)</span>.</p></li>
-<li><p>Return the return value <span class="math notranslate nohighlight">\(r\)</span>, the choice samples <span class="math notranslate nohighlight">\(t\)</span>, and the score <span class="math notranslate nohighlight">\(s\)</span>
-in a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> instance (including the arguments <span class="math notranslate nohighlight">\(x\)</span>) <span class="math notranslate nohighlight">\((x, r, t, s)\)</span>,
-along with an evolved <code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code>.</p></li>
-</ul>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>key</strong> (<code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code>) – A JAX-compatible pseudo-random number generator key.</p></li>
-<li><p><strong>args</strong> (<code class="code docutils literal notranslate"><span class="pre">tuple</span></code>) – A tuple of argument values.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><strong>key</strong> (<code class="code docutils literal notranslate"><span class="pre">PRNGKey</span></code>) – An updated <code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code>.</p></li>
-<li><p><strong>tr</strong> (<code class="code docutils literal notranslate"><span class="pre">genjax.Trace</span></code>) – A representation of the recorded random choices, as well as
-inference metadata, accrued during the call.</p></li>
-</ul>
-</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="jupyter_cell jupyter_container docutils container">
-<div class="cell_input code_cell docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
-<span class="kn">import</span> <span class="nn">genjax</span>
-
-<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
-<span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
-
-<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
-
-<span class="c1"># Usage here.</span>
-<span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">model</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function model at 0x134025ea0&gt;), args=(), retval=DeviceArray(-0.10823099, dtype=float32), choices=BuiltinChoiceMap(inner={&#39;x&#39;: DistributionTrace(gen_fn=_Normal(), args=(0.0, 1.0), value=ValueChoiceMap(value=DeviceArray(-0.10823099, dtype=float32)), score=DeviceArray(-0.9247955, dtype=float32))}), score=DeviceArray(-0.9247955, dtype=float32))
-</pre></div>
-</div>
-</div>
-</div>
-</dd></dl>
+<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L46-L47"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.simulate" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
 
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>The trace type functionality is described in more detail in <a class="reference internal" href="experimental/trace_types.html"><span class="doc">Trace types</span></a>,
+<p>The trace type functionality is described in more detail in <a class="reference internal" href="experimental/trace_types.html"><span class="doc">Gradual trace typing for inference soundness verification</span></a>,
 as well as in the original research paper <a class="reference external" href="https://dl.acm.org/doi/10.1145/3371087">Lew et al (2019)</a>.</p>
 </div>
 <dl class="py function">
 <dt class="sig sig-object py" id="genjax.get_trace_type">
-<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">get_trace_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L111-L151"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.get_trace_type" title="Permalink to this definition">#</a></dt>
-<dd><p>Given <code class="code docutils literal notranslate"><span class="pre">key:</span> <span class="pre">jax.random.PRNGKey</span></code> and <code class="code docutils literal notranslate"><span class="pre">args:</span> <span class="pre">Tuple</span></code>, compute the
-trace type for a generative function - a static piece of data
-characterizing the internal choice map shape (and types) and return type.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>key</strong> (<code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code>) – A JAX-compatible pseudo-random number generator key.</p></li>
-<li><p><strong>args</strong> (<code class="code docutils literal notranslate"><span class="pre">tuple</span></code>) – A tuple of argument values.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p><strong>trace_type</strong> – A static type representation of the internal structure of random choices in
-a generative function, including the return type.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><code class="code docutils literal notranslate"><span class="pre">genjax.TraceType</span></code></p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="jupyter_cell jupyter_container docutils container">
-<div class="cell_input code_cell docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
-<span class="kn">import</span> <span class="nn">genjax</span>
-
-<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
-<span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
-
-<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
-
-<span class="c1"># Usage here.</span>
-<span class="n">trace_type</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">get_trace_type</span><span class="p">(</span><span class="n">model</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">())</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">trace_type</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinTraceType(inner={&#39;x&#39;: Reals(shape=())}, return_type=(Reals(shape=()),))
-</pre></div>
-</div>
-</div>
-</div>
-</dd></dl>
+<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">get_trace_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L66-L67"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.get_trace_type" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
 
 </section>
 

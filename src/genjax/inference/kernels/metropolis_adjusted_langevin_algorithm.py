@@ -19,7 +19,7 @@ import tree_math as tm
 
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
-from genjax.generative_functions.distributions.standard.normal import Normal
+from genjax.generative_functions.distributions.scipy.normal import Normal
 from genjax.inference.kernels.kernel import MCMCKernel
 
 
