@@ -13,12 +13,15 @@
 # limitations under the License.
 
 import jax
-import pytest
 
 import genjax
 
 
-key = jax.random.PRNGKey(314159)
+@genjax.gen
+def simple_normal(key):
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
+    return key, y1 + y2
 
 
 class TestBuiltinSelection:
@@ -27,6 +30,13 @@ class TestBuiltinSelection:
         assert new.has_subtree("z")
         assert new.has_subtree("x")
         v = new["x"]
-        assert isinstance(v, AllSelection)
+        assert isinstance(v, genjax.AllSelection)
         v = new["z", "y"]
-        assert isinstance(v, AllSelection)
+        assert isinstance(v, genjax.AllSelection)
+
+    def test_builtin_selection_filter(self):
+        key = jax.random.PRNGKey(314159)
+        key, tr = jax.jit(simple_normal.simulate)(key, ())
+        selection = genjax.BuiltinSelection.new(["y1"])
+        chm, _ = selection.filter(tr)
+        assert chm["y1"] == tr["y1"]

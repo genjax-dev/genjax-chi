@@ -25,6 +25,7 @@ It includes two main components: :code:`SMCPropagator` and :code:`SMCAlgorithm`.
 import abc
 from dataclasses import dataclass
 from typing import Any
+from typing import Callable
 from typing import Tuple
 from typing import Union
 
@@ -32,13 +33,14 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax.builtin.propagating import strip_diff
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.pytree import Pytree
+from genjax.core.typing import PRNGKey
 from genjax.inference.kernels.kernel import MCMCKernel
 from genjax.prox.prox_distribution import ProxDistribution
 from genjax.prox.target import Target
-from genjax.core.typing import PRNGKey
 
 
 #####
@@ -209,7 +211,7 @@ class Extend(SMCPropagator):
         previous_latents, _ = (
             discard.get_selection().complement().filter(retained)
         )
-        key, forward_weight_retained = algorithm.k.assess(
+        key, forward_weight_retained = self.k.assess(
             key, ValueChoiceMap(discard), (previous_trace, new_target)
         )
 

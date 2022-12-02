@@ -36,7 +36,7 @@ from genjax.generative_functions.builtin.builtin_tracetype import lift
 from genjax.generative_functions.builtin.propagating import Diff
 from genjax.generative_functions.builtin.propagating import NoChange
 from genjax.generative_functions.builtin.propagating import check_no_change
-from genjax.generative_functions.builtin.propagating import diff_strip
+from genjax.generative_functions.builtin.propagating import strip_diff
 
 
 #####
@@ -178,7 +178,7 @@ class Distribution(GenerativeFunction):
             return key, (retval_diff, 0.0, prev, EmptyChoiceMap())
 
         # Otherwise, we consider the cases.
-        args = tuple(map(diff_strip, diffs))
+        args = tuple(map(strip_diff, diffs))
 
         # First, we have to check if the trace provided
         # is masked or not. It's possible that a trace
