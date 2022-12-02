@@ -1,5 +1,12 @@
 [
   {
+    "objectID": "advanced/pseudomarginal_smc/pseudomarginal_smc.html",
+    "href": "advanced/pseudomarginal_smc/pseudomarginal_smc.html",
+    "title": "Coarse-to-fine structure inference with pseudomarginal SMC",
+    "section": "",
+    "text": "In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct an approximate density induced by a variant of sequential Monte Carlo (SMC) targeting successively richer approximations to latent structure.\nThe notebook assumes several pre-requisites:\n\nUnderstanding generative functions, their interfaces, and the math that the interface functions compute.\nUnderstanding generative function combinators, and how genjax.Recurse can allow us to express bounded tree-like computations.\nUnderstanding the approximate density interface exposed by GenProx, and how we can equip generative functions with inference strategies to define approximate densities."
+  },
+  {
     "objectID": "introduction/intro_to_genjax/intro_to_genjax.html",
     "href": "introduction/intro_to_genjax/intro_to_genjax.html",
     "title": "Introduction to Gen and GenJAX",
@@ -54,5 +61,12 @@
     "title": "Introduction to Gen and GenJAX",
     "section": "Your first inference program",
     "text": "Your first inference program"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Modeling and inference notebooks",
+    "section": "",
+    "text": "This is a notebook repository for pedagogical tutorials on the usage on Gen, with a focus on the GenJAX implementation."
   }
 ]

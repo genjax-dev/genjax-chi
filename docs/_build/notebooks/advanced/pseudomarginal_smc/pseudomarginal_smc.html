@@ -9,7 +9,7 @@
 <meta name="author" content="McCoy Reynolds Becker">
 <meta name="dcterms.date" content="2022-12-01">
 
-<title>Gen ⊗ JAX - Modeling and inference notebooks</title>
+<title>Gen ⊗ JAX - Coarse-to-fine structure inference with pseudomarginal SMC</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -1407,7 +1407,7 @@ function fuseSearch(query, fuse, fuseOptions) {
   });
 }
 </script>
-<meta name="quarto:offset" content="./">
+<meta name="quarto:offset" content="../../">
 <script>const sectionChanged = new CustomEvent("quarto-sectionChanged", {
   detail: {},
   bubbles: true,
@@ -4298,8 +4298,8 @@ vertical-align: -.125em;
 }</script>
 
 
-<meta property="og:title" content="Gen ⊗ JAX - Modeling and inference notebooks">
-<meta property="og:description" content="This is a notebook repository for pedagogical tutorials on the usage on Gen, with a focus on the GenJAX implementation.">
+<meta property="og:title" content="Gen ⊗ JAX - Coarse-to-fine structure inference with pseudomarginal SMC">
+<meta property="og:description" content="In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct an approximate density induced by a variant of sequential Monte Carlo (SMC) targeting successively…">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -4310,7 +4310,7 @@ vertical-align: -.125em;
     <nav class="navbar navbar-expand-lg navbar-dark ">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container">
-    <a class="navbar-brand" href="./index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">Gen ⊗ JAX</span>
     </a>
   </div>
@@ -4320,7 +4320,7 @@ vertical-align: -.125em;
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" rel aria-current="page">
+    <a class="nav-link" href="../../index.html" rel>
  <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item dropdown ">
@@ -4329,7 +4329,7 @@ vertical-align: -.125em;
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-basics">    
         <li>
-    <a class="dropdown-item" href="./introduction/intro_to_genjax/intro_to_genjax.html" rel>
+    <a class="dropdown-item" href="../../introduction/intro_to_genjax/intro_to_genjax.html" rel>
  <span class="dropdown-text">Introduction to Gen and GenJAX</span></a>
   </li>  
     </ul>
@@ -4340,7 +4340,7 @@ vertical-align: -.125em;
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-intermediate">    
         <li>
-    <a class="dropdown-item" href="./intermediate/intro_to_combinators/intro_to_combinators.html" rel>
+    <a class="dropdown-item" href="../../intermediate/intro_to_combinators/intro_to_combinators.html" rel>
  <span class="dropdown-text">Introduction to combinators</span></a>
   </li>  
     </ul>
@@ -4351,7 +4351,7 @@ vertical-align: -.125em;
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-advanced">    
         <li>
-    <a class="dropdown-item" href="./advanced/pseudomarginal_smc/pseudomarginal_smc.html" rel>
+    <a class="dropdown-item" href="../../advanced/pseudomarginal_smc/pseudomarginal_smc.html" rel>
  <span class="dropdown-text">Coarse-to-fine structure inference with pseudomarginal SMC</span></a>
   </li>  
     </ul>
@@ -4383,7 +4383,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Modeling and inference notebooks</h1>
+<h1 class="title">Coarse-to-fine structure inference with pseudomarginal SMC</h1>
 </div>
 
 
@@ -4410,7 +4410,13 @@ vertical-align: -.125em;
 
 </header>
 
-<p>This is a notebook repository for pedagogical tutorials on the usage on <a href="https://www.gen.dev/">Gen</a>, with a focus on the <a href="https://github.com/probcomp/genjax">GenJAX</a> implementation.</p>
+<p>In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct an approximate density induced by a variant of sequential Monte Carlo (SMC) targeting successively richer approximations to latent structure.</p>
+<p>The notebook assumes several pre-requisites:</p>
+<ul>
+<li><p>Understanding generative functions, their interfaces, and the math that the interface functions compute.</p></li>
+<li><p>Understanding generative function combinators, and how <code>genjax.Recurse</code> can allow us to express bounded tree-like computations.</p></li>
+<li><p>Understanding the approximate density interface exposed by <code>GenProx</code>, and how we can equip generative functions with inference strategies to define approximate densities.</p></li>
+</ul>
 
 
 
