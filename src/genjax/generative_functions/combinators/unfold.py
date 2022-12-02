@@ -141,14 +141,19 @@ class UnfoldCombinator(GenerativeFunction):
     kernel: GenerativeFunction
     max_length: int
 
+    def flatten(self):
+        return (), (self.kernel, self.max_length)
+
+    def __call__(self, key, *args):
+        key, tr = self.simulate(key, args)
+        retval = tr.get_retval()
+        return key, retval
+
     def get_trace_type(self, key, args, **kwargs):
         _ = args[0]
         args = args[1:]
         inner_type = self.kernel.get_trace_type(key, args, **kwargs)
         return VectorTraceType(inner_type, self.max_length)
-
-    def flatten(self):
-        return (), (self.kernel, self.max_length)
 
     def _throw_bounds_host_exception(self, count: int):
         def _inner(count, transforms):
@@ -162,32 +167,6 @@ class UnfoldCombinator(GenerativeFunction):
             result=None,
         )
         return None
-
-    def __call__(self, key, *args):
-        length = args[0]
-        state = args[1]
-        static_args = args[2:]
-
-        # This inserts a host callback check for bounds checking.
-        check = jnp.less(self.max_length, length + 1)
-        concrete_cond(
-            check,
-            lambda *args: self._throw_bounds_host_exception(length + 1),
-            lambda *args: None,
-        )
-
-        def _inner(carry, x):
-            key, state = carry
-            key, tr = self.kernel.simulate(key, (state, *static_args))
-            return (key, tr.get_retval()), ()
-
-        (key, retval), _ = jax.lax.scan(
-            _inner,
-            (key, state),
-            None,
-            length=self.max_length,
-        )
-        return key, retval
 
     def simulate(self, key, args):
         length = args[0]
@@ -206,7 +185,7 @@ class UnfoldCombinator(GenerativeFunction):
             count, key, state = carry
             key, tr = self.kernel.simulate(key, (state, *static_args))
             check = jnp.less(count, length + 1)
-            retval = concrete_cond(
+            state = concrete_cond(
                 check,
                 lambda *args: tr.get_retval(),
                 lambda *args: state,
@@ -221,9 +200,9 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count + 1,
                 lambda *args: count,
             )
-            return (count, key, retval), (tr, index)
+            return (count, key, state), (tr, index, state)
 
-        (count, key, retval), (tr, indices) = jax.lax.scan(
+        (count, key, state), (tr, indices, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             None,
@@ -310,14 +289,14 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count,
                 lambda *args: -1,
             )
-            count, retval, w = concrete_cond(
+            count, state, w = concrete_cond(
                 check,
                 lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, retval), (w, tr, index)
+            return (count, key, state), (w, tr, index, state)
 
-        (count, key, retval), (w, tr, indices) = jax.lax.scan(
+        (count, key, state), (w, tr, indices, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             None,
@@ -368,14 +347,14 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count,
                 lambda *args: -1,
             )
-            count, retval, w = concrete_cond(
+            count, state, w = concrete_cond(
                 check,
                 lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, retval), (w, tr, index)
+            return (count, key, state), (w, tr, index, state)
 
-        (count, key, retval), (w, tr, indices) = jax.lax.scan(
+        (count, key, state), (w, tr, indices, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             chm,
@@ -445,14 +424,14 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count,
                 lambda *args: -1,
             )
-            count, retval, weight = concrete_cond(
+            count, state, weight = concrete_cond(
                 check,
                 lambda *args: (count + 1, tr.get_retval(), w),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, retval), (w, tr, index)
+            return (count, key, state), (w, tr, index, state)
 
-        (count, key, retval), (w, tr, indices) = jax.lax.scan(
+        (count, key, state), (w, tr, indices, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             chm,
@@ -526,7 +505,7 @@ class UnfoldCombinator(GenerativeFunction):
 
             # Here, we check the index.
             check = count == target_index
-            key, (w, tr, d) = concrete_cond(
+            key, (retdiff, w, tr, discard) = concrete_cond(
                 check,
                 _update,
                 _fallthrough,
@@ -547,12 +526,12 @@ class UnfoldCombinator(GenerativeFunction):
             )
             count, state, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, tr.get_retval(), w),
+                lambda *args: (count + 1, retdiff, w),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, state), (w, tr, d, index)
+            return (count, key, state), (state, w, tr, d, index)
 
-        (count, key, retval), (w, tr, d, indices) = jax.lax.scan(
+        (count, key, state), (retdiff, w, tr, d, indices) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev,),
@@ -564,12 +543,12 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
             tr,
             args,
-            retval,
+            retdiff.get_val(),
             jnp.sum(tr.get_score()),
         )
 
         w = jnp.sum(w)
-        return key, (w, unfold_tr, d)
+        return key, (retdiff, w, unfold_tr, d)
 
     # The choice map is a vector choice map.
     def _update_vcm(self, key, prev, chm, diffs):
@@ -614,9 +593,9 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: (count + 1, retdiff, w),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, state), (w, tr, d, index)
+            return (count, key, state), (state, w, tr, d, index)
 
-        (count, key, retdiff), (w, tr, d, indices) = jax.lax.scan(
+        (count, key, state), (retdiff, w, tr, d, indices) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev, chm),
@@ -687,9 +666,9 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: (count + 1, retdiff, w),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, state), (w, tr, d, index)
+            return (count, key, state), (state, w, tr, d, index)
 
-        (_, key, retdiff), (w, tr, d, indices) = jax.lax.scan(
+        (_, key, _), (retdiff, w, tr, d, indices) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev, chm),
@@ -797,14 +776,14 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: count,
                 lambda *args: -1,
             )
-            count, retval, score = concrete_cond(
+            count, state, score = concrete_cond(
                 check,
                 lambda *args: (count + 1, retval, score),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, retval), (score, index)
+            return (count, key, state), (state, score, index)
 
-        (_, key, retval), (score, _) = jax.lax.scan(
+        (_, key, state), (retval, score, _) = jax.lax.scan(
             _inner,
             (0, key, state),
             chm,

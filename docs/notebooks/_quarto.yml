@@ -25,6 +25,9 @@ website:
       - text: "Basics"
         menu:
           - introduction/intro_to_genjax/intro_to_genjax.ipynb
+      - text: "Intermediate"
+        menu:
+          - intermediate/intro_to_combinators/intro_to_combinators.ipynb
       - text: "Advanced"
         menu:
           - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
@@ -45,7 +48,6 @@ format:
   html:
     code-fold: false
     self-contained: true
-    code-tools: true
     code-overflow: wrap
 
 reference-location: margin

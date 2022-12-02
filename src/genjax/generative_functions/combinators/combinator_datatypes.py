@@ -26,6 +26,7 @@ from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
 from genjax.core.masks import BooleanMask
+from genjax.core.specialization import is_concrete
 from genjax.core.typing import Integer
 from genjax.core.typing import IntegerTensor
 
@@ -134,7 +135,10 @@ class IndexedChoiceMap(ChoiceMap):
 
     def get_subtree(self, addr):
         submaps = list(map(lambda v: v.get_subtree(addr), self.submaps))
-        return IndexedChoiceMap.new(self.index, submaps)
+        if is_concrete(self.index):
+            return submaps[self.index]
+        else:
+            return IndexedChoiceMap.new(self.index, submaps)
 
     def get_subtrees_shallow(self):
         def _inner(index, submap):

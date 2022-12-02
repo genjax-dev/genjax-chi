@@ -123,7 +123,7 @@ class Distribution(GenerativeFunction):
         # If the choice map is empty, we just simulate
         # and return 0.0 for the log weight.
         if isinstance(chm, EmptyChoiceMap):
-            key, tr = self.simulate(key, *args, **kwargs)
+            key, tr = self.simulate(key, args, **kwargs)
             return key, (0.0, tr)
 
         # If it's not empty, we should check if it is a mask.
