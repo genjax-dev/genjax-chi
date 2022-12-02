@@ -1,6 +1,6 @@
 project:
   title: "GenJAX Jupyter notebooks"
-  output-dir: ../_build/genjax/notebooks
+  output-dir: ../_build/notebooks
   type: website
 website:
   title: "Gen ⊗ JAX"
