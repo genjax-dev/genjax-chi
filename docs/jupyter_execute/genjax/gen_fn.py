@@ -5,12 +5,15 @@
 
 
 import jax
+
 import genjax
+
 
 @genjax.gen
 def model(key):
     key, x = genjax.trace("x", genjax.Normal)(key, 0.0, 1.0)
     return key, x
+
 
 print(model)
 
@@ -35,6 +38,7 @@ print(jaxpr.pretty_print(use_color=False))
 
 
 import genjax
+
+
 fn = genjax.simulate(genjax.Normal)
 print(fn)
-
