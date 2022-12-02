@@ -100,13 +100,13 @@
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="genjax/interface.html">
-   Generative function interface
+  <a class="reference internal" href="genjax/diff_jl.html">
+   Diffing against Gen.jl
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="genjax/diff_jl.html">
-   Diffing with Gen.jl
+  <a class="reference internal" href="genjax/your_first_inf.html">
+   Writing your first inference algorithm
   </a>
  </li>
 </ul>
@@ -175,22 +175,10 @@
    </i>
   </label>
   <ul>
-   <li class="toctree-l2 has-children">
+   <li class="toctree-l2">
     <a class="reference internal" href="genjax/inference/library/library.html">
      Inference library
     </a>
-    <input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
-    <label for="toctree-checkbox-4">
-     <i class="fas fa-chevron-down">
-     </i>
-    </label>
-    <ul>
-     <li class="toctree-l3">
-      <a class="reference internal" href="genjax/inference/library/blackjax.html">
-       Hamiltonian Monte Carlo with BlackJAX
-      </a>
-     </li>
-    </ul>
    </li>
    <li class="toctree-l2">
     <a class="reference internal" href="genjax/inference/best_practices.html">
@@ -207,17 +195,17 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="genjax/experimental/information.html">
+  <a class="reference internal" href="genjax/advanced/information.html">
    Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="genjax/experimental/trace_types.html">
+  <a class="reference internal" href="genjax/advanced/trace_types.html">
    Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="genjax/experimental/prox.html">
+  <a class="reference internal" href="genjax/advanced/prox.html">
    Prox: compositional approximate densities
   </a>
  </li>
@@ -385,11 +373,33 @@ title="Open an issue"
 <h1 id="index">Index</h1>
 
 <div class="genindex-jumpbox">
- <a href="#G"><strong>G</strong></a>
+ <a href="#_"><strong>_</strong></a>
+ | <a href="#G"><strong>G</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#S"><strong>S</strong></a>
+ | <a href="#U"><strong>U</strong></a>
  
 </div>
+<h2 id="_">_</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="genjax/combinators/classes/map.html#genjax.combinators.MapCombinator.__init__">__init__() (genjax.combinators.MapCombinator method)</a>
+
+      <ul>
+        <li><a href="genjax/combinators/classes/unfold.html#genjax.combinators.UnfoldCombinator.__init__">(genjax.combinators.UnfoldCombinator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="genjax/combinators/classes/map.html#genjax.combinators.MapCombinator.__new__">__new__() (genjax.combinators.MapCombinator method)</a>
+
+      <ul>
+        <li><a href="genjax/combinators/classes/unfold.html#genjax.combinators.UnfoldCombinator.__new__">(genjax.combinators.UnfoldCombinator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -400,16 +410,44 @@ title="Open an issue"
         <li><a href="genjax/combinators/combinators.html#module-genjax.combinators">module</a>
 </li>
       </ul></li>
+      <li>
+    genjax.combinators.map
+
+      <ul>
+        <li><a href="genjax/combinators/classes/map.html#module-genjax.combinators.map">module</a>
+</li>
+      </ul></li>
+      <li>
+    genjax.combinators.switch
+
+      <ul>
+        <li><a href="genjax/combinators/classes/switch.html#module-genjax.combinators.switch">module</a>
+</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    genjax.combinators.train
+
+      <ul>
+        <li><a href="genjax/combinators/classes/train.html#module-genjax.combinators.train">module</a>
+</li>
+      </ul></li>
+      <li>
+    genjax.combinators.unfold
+
+      <ul>
+        <li><a href="genjax/combinators/classes/unfold.html#module-genjax.combinators.unfold">module</a>
+</li>
+      </ul></li>
       <li>
     genjax.interface
 
       <ul>
-        <li><a href="genjax/interface.html#module-genjax.interface">module</a>
+        <li><a href="genjax/gen_fn.html#module-genjax.interface">module</a>
 </li>
       </ul></li>
-      <li><a href="genjax/interface.html#genjax.get_trace_type">get_trace_type() (in module genjax)</a>
+      <li><a href="genjax/gen_fn.html#genjax.get_trace_type">get_trace_type() (in module genjax)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -417,13 +455,23 @@ title="Open an issue"
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="genjax/combinators/classes/map.html#genjax.combinators.MapCombinator">MapCombinator (class in genjax.combinators)</a>
+</li>
       <li>
     module
 
       <ul>
         <li><a href="genjax/combinators/combinators.html#module-genjax.combinators">genjax.combinators</a>
 </li>
-        <li><a href="genjax/interface.html#module-genjax.interface">genjax.interface</a>
+        <li><a href="genjax/combinators/classes/map.html#module-genjax.combinators.map">genjax.combinators.map</a>
+</li>
+        <li><a href="genjax/combinators/classes/switch.html#module-genjax.combinators.switch">genjax.combinators.switch</a>
+</li>
+        <li><a href="genjax/combinators/classes/train.html#module-genjax.combinators.train">genjax.combinators.train</a>
+</li>
+        <li><a href="genjax/combinators/classes/unfold.html#module-genjax.combinators.unfold">genjax.combinators.unfold</a>
+</li>
+        <li><a href="genjax/gen_fn.html#module-genjax.interface">genjax.interface</a>
 </li>
       </ul></li>
   </ul></td>
@@ -432,7 +480,15 @@ title="Open an issue"
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="genjax/interface.html#genjax.simulate">simulate() (in module genjax)</a>
+      <li><a href="genjax/gen_fn.html#genjax.simulate">simulate() (in module genjax)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="genjax/combinators/classes/unfold.html#genjax.combinators.UnfoldCombinator">UnfoldCombinator (class in genjax.combinators)</a>
 </li>
   </ul></td>
 </tr></table>

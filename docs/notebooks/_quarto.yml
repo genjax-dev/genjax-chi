@@ -1,0 +1,20 @@
+project:
+  title: "GenJAX Jupyter notebooks"
+  output-dir: build
+
+author: McCoy Reynolds Becker
+theme:
+  - cosmo
+  - custom.scss
+
+toc: true
+format:
+  html:
+    code-fold: false
+    self-contained: true
+    code-tools: true
+    code-overflow: wrap
+  pdf: default
+
+reference-location: margin
+citation-location: margin

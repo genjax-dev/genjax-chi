@@ -144,7 +144,7 @@ GenJAX also exposes a modeling language which allows programmatic construction o
 
     @genjax.gen
     def model(key):
-        key, x = genjax.trace("x", genjax.Normal)(key, (0.0, 1.0))
+        key, x = genjax.trace("x", genjax.Normal)(key, 0.0, 1.0)
         return key, x
 
     print(model)
@@ -188,5 +188,23 @@ This essential pattern is repeated for each :doc:`interface` method defined on :
 
 Other generative function "languages" in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function *need not* introspect on the implementation of a callee's interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. :doc:`combinators/combinators`) other generative functions in composable patterns.
 
+
+Generative function interface
+-----------------------------
+
+In this section, we present the full set of generative function interface functions.
+
+.. automodule:: genjax.interface
+
+.. autofunction:: genjax.simulate
+
+.. tip::
+
+   The trace type functionality is described in more detail in :doc:`experimental/trace_types`,
+   as well as in the original research paper `Lew et al (2019)`_.
+
+.. autofunction:: genjax.get_trace_type
+
 .. _Marco Cusumano-Towner's thesis: https://www.mct.dev/assets/mct-thesis.pdf
 .. _Gen.jl: https://github.com/probcomp/Gen.jl
+.. _Lew et al (2019): https://dl.acm.org/doi/10.1145/3371087

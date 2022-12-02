@@ -23,7 +23,6 @@
 # The author maintains the code attribution notice from the `oryx`
 # authors above, as a derivative work.
 
-import abc
 import collections
 import dataclasses
 import functools
@@ -54,6 +53,8 @@ from genjax.core.specialization import is_concrete
 from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
+from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrie
+from genjax.generative_functions.builtin.intrinsics import cache_p
 from genjax.generative_functions.builtin.intrinsics import gen_fn_p
 
 
@@ -254,7 +255,7 @@ class Environment:
     def __init__(self, cell_type, jaxpr):
         self.cell_type = cell_type
         self.env: Dict[jax_core.Var, Cell] = {}
-        self.states: Dict[Equation, Cell] = {}
+        self.choice_states: Dict[Equation, Cell] = {}
         self.jaxpr: jax_core.Jaxpr = jaxpr
 
     def read(self, var: VarOrLiteral) -> Cell:
@@ -287,10 +288,10 @@ class Environment:
         return var in self.env
 
     def read_state(self, eqn: Equation) -> State:
-        return self.states.get(eqn, None)
+        return self.choice_states.get(eqn, None)
 
     def write_state(self, eqn: Equation, state: State) -> None:
-        self.states[eqn] = state
+        self.choice_states[eqn] = state
 
 
 @dataclasses.dataclass
@@ -301,14 +302,10 @@ class Handler(Pytree):
     where :code:`*args` must match the :core:`jax.core.Primitive` declaration signature.
     """
 
-    handles: jax_core.Primitive
+    handles: List[jax_core.Primitive]
 
     def flatten(self):
         return (), (self.handles,)
-
-    @abc.abstractmethod
-    def handle(self, incells, outcells, **kwargs):
-        pass
 
 
 def construct_graph_representation(eqns):
@@ -460,8 +457,8 @@ def propagate(
             ############################################
 
             if hasattr(eqn.primitive, "must_handle"):
-                assert eqn.primitive == handler.handles
-                rule = handler.handle
+                assert eqn.primitive in handler.handles
+                rule = getattr(handler, repr(eqn.primitive))
 
             ############################################
             #    Static handler dispatch ends here.    #
@@ -681,7 +678,7 @@ class Diff(Cell):
         return self.val
 
 
-def diff_strip(diff):
+def strip_diff(diff):
     return diff.get_val()
 
 
@@ -716,11 +713,12 @@ def check_no_change(diff):
 
 class Simulate(Handler):
     def __init__(self):
-        self.handles = gen_fn_p
-        self.state = BuiltinChoiceMap(hashabledict())
+        self.handles = [gen_fn_p, cache_p]
+        self.choice_state = BuiltinChoiceMap(hashabledict())
+        self.cache_state = BuiltinTrie(hashabledict())
         self.score = 0.0
 
-    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
         key, *args = incells
         key = key.get_val()
 
@@ -736,10 +734,26 @@ class Simulate(Handler):
         key, tr = gen_fn.simulate(key, args, **kwargs)
         score = tr.get_score()
         v = tr.get_retval()
-        self.state[addr] = tr
+        self.choice_state[addr] = tr
         self.score += score
 
         new_outcells = [Bare.new(key), Bare.new(v)]
+        return incells, new_outcells, None
+
+    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+        args = tuple(map(lambda v: v.get_val(), incells))
+
+        # We haven't handled the predecessors of this call
+        # call yet, so we return back to the abstract interpreter
+        # to continue propagation.
+        if any(map(lambda v: v is None, args)):
+            return incells, outcells, None
+
+        # Otherwise, we codegen by calling into the function.
+        retval = fn(*args)
+        self.cache_state[addr] = retval
+
+        new_outcells = [Bare.new(retval)]
         return incells, new_outcells, None
 
 
@@ -763,8 +777,9 @@ def simulate_transform(f, **kwargs):
         if len(retvals) == 1:
             retvals = retvals[0]
         score = handler.score
-        chm = handler.state
-        return key, (f, args, retvals, chm, score)
+        chm = handler.choice_state
+        cache = handler.cache_state
+        return key, (f, args, retvals, chm, score), cache
 
     return _inner
 
@@ -776,13 +791,14 @@ def simulate_transform(f, **kwargs):
 
 class Importance(Handler):
     def __init__(self, constraints):
-        self.handles = gen_fn_p
-        self.state = BuiltinChoiceMap(hashabledict())
+        self.handles = [gen_fn_p, cache_p]
+        self.choice_state = BuiltinChoiceMap(hashabledict())
+        self.cache_state = BuiltinTrie(hashabledict())
         self.score = 0.0
         self.weight = 0.0
         self.constraints = constraints
 
-    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
         key, *args = incells
         key = key.get_val()
 
@@ -800,11 +816,27 @@ class Importance(Handler):
             sub_map = EmptyChoiceMap()
         key, (w, tr) = gen_fn.importance(key, sub_map, args)
         v = tr.get_retval()
-        self.state[addr] = tr
+        self.choice_state[addr] = tr
         self.score += tr.get_score()
         self.weight += w
 
         new_outcells = [Bare.new(key), Bare.new(v)]
+        return incells, new_outcells, None
+
+    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+        args = tuple(map(lambda v: v.get_val(), incells))
+
+        # We haven't handled the predecessors of this call
+        # call yet, so we return back to the abstract interpreter
+        # to continue propagation.
+        if any(map(lambda v: v is None, args)):
+            return incells, outcells, None
+
+        # Otherwise, we codegen by calling into the function.
+        retval = fn(*args)
+        self.cache_state[addr] = retval
+
+        new_outcells = [Bare.new(retval)]
         return incells, new_outcells, None
 
 
@@ -829,8 +861,9 @@ def importance_transform(f, **kwargs):
             retvals = retvals[0]
         w = handler.weight
         score = handler.score
-        chm = handler.state
-        return key, (w, (f, args, retvals, chm, score))
+        chm = handler.choice_state
+        cache = handler.cache_state
+        return key, (w, (f, args, retvals, chm, score)), cache
 
     return _inner
 
@@ -842,14 +875,15 @@ def importance_transform(f, **kwargs):
 
 class Update(Handler):
     def __init__(self, prev, new):
-        self.handles = gen_fn_p
-        self.state = BuiltinChoiceMap(hashabledict())
+        self.handles = [gen_fn_p, cache_p]
+        self.choice_state = BuiltinChoiceMap(hashabledict())
+        self.cache_state = BuiltinTrie(hashabledict())
         self.discard = BuiltinChoiceMap(hashabledict())
         self.weight = 0.0
         self.prev = prev
         self.choice_change = new
 
-    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
         key, *diffs = incells
         key = key.get_val()
 
@@ -871,7 +905,7 @@ class Update(Handler):
             and all(map(check_no_change, incells))
         ):
             prev = self.prev.get_subtree(addr)
-            self.state[addr] = prev
+            self.choice_state[addr] = prev
             return (
                 incells,
                 [
@@ -891,17 +925,51 @@ class Update(Handler):
         key, (retval, w, tr, discard) = gen_fn.update(key, prev_tr, chm, diffs)
 
         self.weight += w
-        self.state[addr] = tr
+        self.choice_state[addr] = tr
         self.discard[addr] = discard
 
         key = Diff.new(key)
         new_outcells = [key, retval]
         return incells, new_outcells, None
 
+    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+        args = tuple(map(lambda v: v.get_val(), incells))
+
+        # We haven't handled the predecessors of this call
+        # call yet, so we return back to the abstract interpreter
+        # to continue propagation.
+        if any(map(lambda v: v is None, args)):
+            return incells, outcells, None
+
+        has_value = self.prev.has_cached_value(addr)
+
+        # If no changes, we can just fetch from trace.
+        if (
+            is_concrete(has_value)
+            and has_value
+            and all(map(check_no_change, incells))
+        ):
+            cached_value = self.prev.get_cached_value(addr)
+            self.cache_state[addr] = cached_value
+            return (
+                incells,
+                [
+                    Diff.new(cached_value, change=NoChange),
+                ],
+                None,
+            )
+
+        # Otherwise, we codegen by calling into the function.
+        retval = fn(*args)
+        self.cache_state[addr] = retval
+
+        new_outcells = [Bare.new(retval)]
+        return incells, new_outcells, None
+
 
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
-        vals = tuple(map(diff_strip, diffs))
+        vals = tuple(map(strip_diff, diffs))
         jaxpr, _ = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
@@ -915,10 +983,11 @@ def update_transform(f, **kwargs):
         )
         key, retval_diff = safe_map(final_env.read, jaxpr.outvars)
         w = handler.weight
-        chm = handler.state
+        chm = handler.choice_state
+        cache = handler.cache_state
         discard = handler.discard
         key = key.get_val()
-        retval = diff_strip(retval_diff)
+        retval = strip_diff(retval_diff)
         return (
             key,
             (
@@ -927,6 +996,7 @@ def update_transform(f, **kwargs):
                 (f, vals, retval, chm, prev.get_score() + w),
                 discard,
             ),
+            cache,
         )
 
     return _inner
@@ -939,11 +1009,11 @@ def update_transform(f, **kwargs):
 
 class Assess(Handler):
     def __init__(self, provided):
-        self.handles = gen_fn_p
+        self.handles = [gen_fn_p, cache_p]
         self.provided = provided
         self.score = 0.0
 
-    def handle(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
         assert self.provided.has_subtree(addr)
 
         key, *args = incells
@@ -962,6 +1032,21 @@ class Assess(Handler):
         self.score += score
 
         new_outcells = [Bare.new(key), Bare.new(v)]
+        return incells, new_outcells, None
+
+    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+        args = tuple(map(lambda v: v.get_val(), incells))
+
+        # We haven't handled the predecessors of this call
+        # call yet, so we return back to the abstract interpreter
+        # to continue propagation.
+        if any(map(lambda v: v is None, args)):
+            return incells, outcells, None
+
+        # Otherwise, we codegen by calling into the function.
+        retval = fn(*args)
+
+        new_outcells = [Bare.new(retval)]
         return incells, new_outcells, None
 
 

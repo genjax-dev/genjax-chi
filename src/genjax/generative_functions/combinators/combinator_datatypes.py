@@ -18,20 +18,23 @@ from typing import Sequence
 from typing import Union
 
 import jax.numpy as jnp
-import jax.tree_util as jtu
-import numpy as np
 from rich.tree import Tree
 
 import genjax.core.pretty_printing as gpp
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
+from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
 from genjax.core.masks import BooleanMask
-from genjax.core.specialization import is_concrete
+from genjax.core.typing import Integer
+from genjax.core.typing import IntegerTensor
 
 
-Int32 = Union[jnp.int32, np.int32]
-IntTensor = Union[jnp.ndarray, np.ndarray]
+######################################
+# Vector-shaped combinator datatypes #
+######################################
+
+# This section applies to `Map` and `Unfold`, currently.
 
 #####
 # VectorChoiceMap
@@ -40,11 +43,15 @@ IntTensor = Union[jnp.ndarray, np.ndarray]
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
-    indices: IntTensor
+    indices: IntegerTensor
     inner: Union[ChoiceMap, Trace]
 
     def flatten(self):
         return (self.indices, self.inner), ()
+
+    def get_selection(self):
+        subselection = self.inner.get_selection()
+        return VectorSelection.new(self.indices, subselection)
 
     @classmethod
     def new(cls, indices, inner):
@@ -52,37 +59,26 @@ class VectorChoiceMap(ChoiceMap):
             return inner
         return VectorChoiceMap(indices, inner)
 
-    def is_leaf(self):
-        return self.inner.is_leaf()
-
-    def get_leaf_value(self):
-        return self.inner.get_leaf_value()
-
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
 
     def get_subtree(self, addr):
-        return VectorChoiceMap.new(self.indices, self.inner.get_subtree(addr))
+        return VectorChoiceMap.new(
+            self.indices,
+            self.inner.get_subtree(addr),
+        )
 
     def get_subtrees_shallow(self):
         def _inner(k, v):
             return k, VectorChoiceMap.new(self.indices, v)
 
         return map(
-            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
+            lambda args: _inner(*args),
+            self.inner.get_subtrees_shallow(),
         )
 
     def merge(self, other):
         return VectorChoiceMap.new(self.indices, self.inner.merge(other))
-
-    def get_score(self):
-        return self.inner.get_score()
-
-    def get_index(self):
-        return self.indices
-
-    def get_selection(self):
-        return self.inner.get_selection()
 
     def __hash__(self):
         return hash(self.inner)
@@ -96,6 +92,20 @@ class VectorChoiceMap(ChoiceMap):
         tree.add(subt)
         return tree
 
+
+#####
+# VectorSelection
+#####
+
+
+@dataclass
+class VectorSelection(Selection):
+    pass
+
+
+###############################
+# Switch combinator datatypes #
+###############################
 
 #####
 # IndexedChoiceMap
@@ -112,26 +122,11 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class IndexedChoiceMap(ChoiceMap):
-    index: Int32
+    index: Integer
     submaps: Sequence[Union[ChoiceMap, Trace]]
 
     def flatten(self):
         return (self.index, self.submaps), ()
-
-    def is_leaf(self):
-        checks = list(map(lambda v: v.is_leaf(), self.submaps))
-        return jnp.choose(self.index, checks, mode="wrap")
-
-    def get_leaf_value(self):
-        leafs = list(
-            map(
-                lambda v: jnp.array(False)
-                if (not v.is_leaf()) or isinstance(v, EmptyChoiceMap)
-                else v.get_leaf_value(),
-                self.submaps,
-            )
-        )
-        return jnp.choose(self.index, leafs, mode="wrap")
 
     def has_subtree(self, addr):
         checks = list(map(lambda v: v.has_subtree(addr), self.submaps))
@@ -139,7 +134,7 @@ class IndexedChoiceMap(ChoiceMap):
 
     def get_subtree(self, addr):
         submaps = list(map(lambda v: v.get_subtree(addr), self.submaps))
-        return IndexedChoiceMap(self.index, submaps)
+        return IndexedChoiceMap.new(self.index, submaps)
 
     def get_subtrees_shallow(self):
         def _inner(index, submap):
@@ -155,34 +150,13 @@ class IndexedChoiceMap(ChoiceMap):
         )
         return itertools.chain(*sub_iterators)
 
+    def get_selection(self):
+        subselections = list(map(lambda v: v.get_selection(), self.submaps))
+        return IndexedSelection.new(self.index, subselections)
+
     def merge(self, other):
         new_submaps = list(map(lambda v: v.merge(other), self.submaps))
-        return IndexedChoiceMap(self.index, new_submaps)
-
-    @classmethod
-    def collapse(cls, v):
-        def _inner(v):
-            if isinstance(v, IndexedChoiceMap) and is_concrete(v.index):
-                return IndexedChoiceMap.collapse(v.submaps[v.index])
-            else:
-                return v
-
-        def _check(v):
-            return isinstance(v, IndexedChoiceMap)
-
-        return jtu.tree_map(_inner, v, is_leaf=_check)
-
-    @classmethod
-    def collapse_boundary(cls, fn):
-        def _inner(self, key, *args, **kwargs):
-            args = IndexedChoiceMap.collapse(args)
-            return fn(self, key, *args, **kwargs)
-
-        return _inner
-
-    def __setitem__(self, k, v):
-        for sub in self.submaps:
-            sub[k] = v
+        return IndexedChoiceMap.new(self.index, new_submaps)
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
@@ -190,3 +164,14 @@ class IndexedChoiceMap(ChoiceMap):
         for subt in subts:
             tree.add(subt)
         return tree
+
+
+#####
+# IndexedSelection
+#####
+
+
+@dataclass
+class IndexedSelection(Selection):
+    index: IntegerTensor
+    subselections: Sequence[Selection]

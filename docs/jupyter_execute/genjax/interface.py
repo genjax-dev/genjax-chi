@@ -5,6 +5,7 @@
 
 
 import genjax
+
+
 fn = genjax.simulate(genjax.Normal)
 print(fn)
-
