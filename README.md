@@ -24,7 +24,7 @@ This project uses [poetry](https://python-poetry.org/) for dependency management
 Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
 
 <div align="center">
-<a href="/genjax/notebooks">Jump into the notebooks!</a>
+<a href="https://probcomp.github.io/genjax/notebooks/index.html">Jump into the notebooks!</a>
 <br>
 <br>
 </div>
