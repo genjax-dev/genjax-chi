@@ -2,36 +2,45 @@ project:
   title: "GenJAX Jupyter notebooks"
   output-dir: ../_build/notebooks
   type: website
-website:
-  title: "Gen ⊗ JAX"
-  body-footer: |
-    <center>© Copyright 2022 MIT Probabilistic Computing Project.</center>
-  open-graph: true
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home
-  search:
-    location: navbar
-    type: overlay
-
-  sidebar:
-    style: "docked"
-    search: true
-    contents:
-      - section: "Basics"
-        contents:
-          - introduction/intro_to_genjax/intro_to_genjax.ipynb
-      - section: "Advanced"
-        contents:
-          - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
 
 author: McCoy Reynolds Becker
 theme:
-  - cosmo
+  - simplex
   - custom.scss
 
+website:
+  title: "Gen ⊗ JAX"
+  open-graph: true
+  page-navigation: true
+  repo-url: https://github.com/probcomp/genjax
+  repo-actions: [edit, issue]
+  search:
+    location: navbar
+    type: overlay
+  navbar:
+    collapse: true
+    left:
+      - text: "Home"
+        file: index.qmd
+      - text: "Basics"
+        menu:
+          - introduction/intro_to_genjax/intro_to_genjax.ipynb
+      - text: "Advanced"
+        menu:
+          - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
+    right:
+      - icon: github
+        href: https://github.com/probcomp/genjax
+        aria-label: GitHub
+  page-footer:
+    background: dark
+    left: © Copyright 2022 MIT Probabilistic Computing Project.
+    right:
+      - icon: github
+        href: https://github.com/probcomp/genjax
+
 toc: true
+toc-location: left
 format:
   html:
     code-fold: false
