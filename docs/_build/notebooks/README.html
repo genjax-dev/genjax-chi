@@ -6,42 +6,40 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Density diagnostics and information theory &#8212; Gen ⊗ JAX</title>
+    <title>GenJAX Jupyter notebooks &#8212; Gen ⊗ JAX</title>
     
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+  <link href="../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
 
     
   <link rel="stylesheet"
-    href="../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
+    href="../_static/vendor/fontawesome/5.13.0/css/all.min.css">
   <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
+    href="../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+    href="../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
 
-    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" href="../../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/jupyter-sphinx.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/thebelab.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" href="../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/css/custom.css" />
     
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
+  <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
 
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/doctools.js"></script>
-    <script src="../../_static/thebelab-helper.js"></script>
-    <script src="../../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
-    <link rel="index" title="Index" href="../../genindex.html" />
-    <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Gradual trace typing for inference soundness verification" href="trace_types.html" />
-    <link rel="prev" title="Inference best practices" href="../inference/best_practices.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="None">
     
@@ -76,17 +74,17 @@
 <div class="bd-sidebar noprint" id="site-navigation">
     <div class="bd-sidebar__content">
         <div class="bd-sidebar__top"><div class="navbar-brand-box">
-    <a class="navbar-brand text-wrap" href="../../index.html">
+    <a class="navbar-brand text-wrap" href="../index.html">
       
         <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
         
       
       
-      <img src="../../_static/logo.png" class="logo" alt="logo">
+      <img src="../_static/logo.png" class="logo" alt="logo">
       
       
     </a>
-</div><form class="bd-search d-flex align-items-center" action="../../search.html" method="get">
+</div><form class="bd-search d-flex align-items-center" action="../search.html" method="get">
   <i class="icon fas fa-search"></i>
   <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
 </form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
@@ -98,18 +96,18 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../gen_fn.html">
+  <a class="reference internal" href="../genjax/gen_fn.html">
    Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../interface.html">
-   Generative function interface
+  <a class="reference internal" href="../genjax/diff_jl.html">
+   Diffing against Gen.jl
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../diff_jl.html">
-   Diffing with Gen.jl
+  <a class="reference internal" href="../genjax/your_first_inf.html">
+   Writing your first inference algorithm
   </a>
  </li>
 </ul>
@@ -120,7 +118,7 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1 has-children">
-  <a class="reference internal" href="../combinators/combinators.html">
+  <a class="reference internal" href="../genjax/combinators/combinators.html">
    Generative function combinators
   </a>
   <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
@@ -130,7 +128,7 @@
   </label>
   <ul>
    <li class="toctree-l2 has-children">
-    <a class="reference internal" href="../combinators/classes/classes.html">
+    <a class="reference internal" href="../genjax/combinators/classes/classes.html">
      Combinators classes
     </a>
     <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
@@ -140,36 +138,36 @@
     </label>
     <ul>
      <li class="toctree-l3">
-      <a class="reference internal" href="../combinators/classes/switch.html">
+      <a class="reference internal" href="../genjax/combinators/classes/switch.html">
        Switch combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="../combinators/classes/map.html">
+      <a class="reference internal" href="../genjax/combinators/classes/map.html">
        Map combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="../combinators/classes/unfold.html">
+      <a class="reference internal" href="../genjax/combinators/classes/unfold.html">
        Unfold combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="../combinators/classes/train.html">
+      <a class="reference internal" href="../genjax/combinators/classes/train.html">
        Trainable combinator
       </a>
      </li>
     </ul>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="../combinators/vector_combinators.html">
+    <a class="reference internal" href="../genjax/combinators/vector_combinators.html">
      Vector combinators
     </a>
    </li>
   </ul>
  </li>
  <li class="toctree-l1 has-children">
-  <a class="reference internal" href="../inference/inference.html">
+  <a class="reference internal" href="../genjax/inference/inference.html">
    Inference
   </a>
   <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
@@ -178,25 +176,13 @@
    </i>
   </label>
   <ul>
-   <li class="toctree-l2 has-children">
-    <a class="reference internal" href="../inference/library/library.html">
+   <li class="toctree-l2">
+    <a class="reference internal" href="../genjax/inference/library/library.html">
      Inference library
     </a>
-    <input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
-    <label for="toctree-checkbox-4">
-     <i class="fas fa-chevron-down">
-     </i>
-    </label>
-    <ul>
-     <li class="toctree-l3">
-      <a class="reference internal" href="../inference/library/blackjax.html">
-       Hamiltonian Monte Carlo with BlackJAX
-      </a>
-     </li>
-    </ul>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="../inference/best_practices.html">
+    <a class="reference internal" href="../genjax/inference/best_practices.html">
      Inference best practices
     </a>
    </li>
@@ -208,19 +194,19 @@
   Advanced
  </span>
 </p>
-<ul class="current nav bd-sidenav">
- <li class="toctree-l1 current active">
-  <a class="current reference internal" href="#">
+<ul class="nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="../genjax/advanced/information.html">
    Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="trace_types.html">
+  <a class="reference internal" href="../genjax/advanced/trace_types.html">
    Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="prox.html">
+  <a class="reference internal" href="../genjax/advanced/prox.html">
    Prox: compositional approximate densities
   </a>
  </li>
@@ -232,17 +218,17 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../contributing.html">
+  <a class="reference internal" href="../contributing.html">
    Contributor Guide
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../codeofconduct.html">
+  <a class="reference internal" href="../codeofconduct.html">
    Code of Conduct
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../license.html">
+  <a class="reference internal" href="../license.html">
    License
   </a>
  </li>
@@ -341,7 +327,7 @@ title="Source repository"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/experimental/information.html&body=Your%20issue%20content%20here."
+        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fnotebooks/README.html&body=Your%20issue%20content%20here."
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -358,7 +344,7 @@ title="Open an issue"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/experimental/information.md"
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/notebooks/README.md"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -386,7 +372,7 @@ title="Edit this page"
   <div class="menu-dropdown__content">
     <ul>
       <li>
-        <a href="../../_sources/genjax/experimental/information.md.txt"
+        <a href="../_sources/notebooks/README.md.txt"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -435,7 +421,7 @@ title="Print to PDF"
         <div class="col pl-md-3 pl-lg-5 content-container">
             <!-- Table of contents that is only displayed when printing the page -->
             <div id="jb-print-docs-body" class="onlyprint">
-                <h1>Density diagnostics and information theory</h1>
+                <h1>GenJAX Jupyter notebooks</h1>
                 <!-- Table of contents -->
                 <div id="print-main-content">
                     <div id="jb-print-toc">
@@ -447,8 +433,10 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="density-diagnostics-and-information-theory">
-<h1>Density diagnostics and information theory<a class="headerlink" href="#density-diagnostics-and-information-theory" title="Permalink to this headline">#</a></h1>
+  <section id="genjax-jupyter-notebooks">
+<h1>GenJAX Jupyter notebooks<a class="headerlink" href="#genjax-jupyter-notebooks" title="Permalink to this headline">#</a></h1>
+<p>This directory contains a series of tutorial notebooks designed to guide usage of GenJAX.</p>
+<p>These notebooks are also executed and rendered with <code class="docutils literal notranslate"><span class="pre">quarto</span></code>, and hosted statically with the documentation. You can find the rendered versions here.</p>
 </section>
 
 
@@ -459,20 +447,6 @@ title="Print to PDF"
                 
     <!-- Previous / next buttons -->
 <div class='prev-next-area'>
-    <a class='left-prev' id="prev-link" href="../inference/best_practices.html" title="previous page">
-        <i class="fas fa-angle-left"></i>
-        <div class="prev-next-info">
-            <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">Inference best practices</p>
-        </div>
-    </a>
-    <a class='right-next' id="next-link" href="trace_types.html" title="next page">
-    <div class="prev-next-info">
-        <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Gradual trace typing for inference soundness verification</p>
-    </div>
-    <i class="fas fa-angle-right"></i>
-    </a>
 </div>
             </footer>
         </div>
@@ -492,7 +466,7 @@ title="Print to PDF"
     </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
+  <script src="../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
 
 
   </body>

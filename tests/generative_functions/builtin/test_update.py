@@ -23,8 +23,8 @@ key = jax.random.PRNGKey(314159)
 
 @genjax.gen
 def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, (0.0, 1.0))
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, (0.0, 1.0))
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
     return key, y1 + y2
 
 
@@ -72,9 +72,9 @@ class TestUpdateSimpleNormal:
 
 @genjax.gen
 def simple_linked_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, (0.0, 1.0))
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, (y1, 1.0))
-    key, y3 = genjax.trace("y3", genjax.Normal)(key, (y1 + y2, 1.0))
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
+    key, y2 = genjax.trace("y2", genjax.Normal)(key, y1, 1.0)
+    key, y3 = genjax.trace("y3", genjax.Normal)(key, y1 + y2, 1.0)
     return key, y1 + y2 + y3
 
 
@@ -104,15 +104,15 @@ class TestUpdateSimpleLinkedNormal:
 
 @genjax.gen
 def _inner(key, x):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, (x, 1.0))
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, x, 1.0)
     return key, y1
 
 
 @genjax.gen
 def simple_hierarchical_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, (0.0, 1.0))
-    key, y2 = genjax.trace("y2", _inner)(key, (y1,))
-    key, y3 = genjax.trace("y3", _inner)(key, (y1 + y2,))
+    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
+    key, y2 = genjax.trace("y2", _inner)(key, y1)
+    key, y3 = genjax.trace("y3", _inner)(key, y1 + y2)
     return key, y1 + y2 + y3
 
 

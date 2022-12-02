@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""This module provides compatibility extension plugins for packages which
+provide functionality that is useful for modeling and inference.
+
+Submodules present compatibility layers for usage of these packages with
+GenJAX.
+"""
+
 import importlib
 import importlib.util
 import sys
@@ -27,9 +34,13 @@ def lazy_extras_import(name):
     return module
 
 
+# BlackJAX provides HMC samplers.
 def blackjax():
+    """Load the :code:`BlackJAX` compatibility layer."""
     return lazy_extras_import("blackjax")
 
 
+# tinygp provides Gaussian process model ingredients.
 def tinygp():
+    """Load the :code:`tinygp` compatibility layer."""
     return lazy_extras_import("tinygp")

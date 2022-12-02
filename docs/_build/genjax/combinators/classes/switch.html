@@ -103,13 +103,13 @@
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../interface.html">
-   Generative function interface
+  <a class="reference internal" href="../../diff_jl.html">
+   Diffing against Gen.jl
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../diff_jl.html">
-   Diffing with Gen.jl
+  <a class="reference internal" href="../../your_first_inf.html">
+   Writing your first inference algorithm
   </a>
  </li>
 </ul>
@@ -178,22 +178,10 @@
    </i>
   </label>
   <ul>
-   <li class="toctree-l2 has-children">
+   <li class="toctree-l2">
     <a class="reference internal" href="../../inference/library/library.html">
      Inference library
     </a>
-    <input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
-    <label for="toctree-checkbox-4">
-     <i class="fas fa-chevron-down">
-     </i>
-    </label>
-    <ul>
-     <li class="toctree-l3">
-      <a class="reference internal" href="../../inference/library/blackjax.html">
-       Hamiltonian Monte Carlo with BlackJAX
-      </a>
-     </li>
-    </ul>
    </li>
    <li class="toctree-l2">
     <a class="reference internal" href="../../inference/best_practices.html">
@@ -210,17 +198,17 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/information.html">
+  <a class="reference internal" href="../../advanced/information.html">
    Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/trace_types.html">
+  <a class="reference internal" href="../../advanced/trace_types.html">
    Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/prox.html">
+  <a class="reference internal" href="../../advanced/prox.html">
    Prox: compositional approximate densities
   </a>
  </li>
@@ -358,7 +346,7 @@ title="Open an issue"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/combinators/classes/switch.md"
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/combinators/classes/switch.rst"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -386,7 +374,7 @@ title="Edit this page"
   <div class="menu-dropdown__content">
     <ul>
       <li>
-        <a href="../../../_sources/genjax/combinators/classes/switch.md.txt"
+        <a href="../../../_sources/genjax/combinators/classes/switch.rst.txt"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -397,7 +385,7 @@ title="Download source file"
 <span class="headerbtn__icon-container">
   <i class="fas fa-file"></i>
   </span>
-<span class="headerbtn__text-container">.md</span>
+<span class="headerbtn__text-container">.rst</span>
 </a>
 
       </li>
@@ -447,12 +435,16 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="switch-combinator">
-<h1>Switch combinator<a class="headerlink" href="#switch-combinator" title="Permalink to this headline">#</a></h1>
-<p>.. automodule:: genjax.combinators.switch</p>
-<p>.. autoclass:: genjax.combinators.SwitchCombinator
-:members: <strong>init</strong>, simulate
-:undoc-members:</p>
+  <section id="module-genjax.combinators.switch">
+<span id="switch-combinator"></span><h1>Switch combinator<a class="headerlink" href="#module-genjax.combinators.switch" title="Permalink to this headline">#</a></h1>
+<p>This module implements a generative function combinator which allows
+branching control flow for combinations of generative functions which can
+return different shaped choice maps.</p>
+<p>It’s based on encoding a trace sum type using JAX - to bypass restrictions from <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html">jax.lax.switch</a>.</p>
+<p>Generative functions which are passed in as branches to <code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code>
+must accept the same argument types, and return the same type of return value.</p>
+<p>The internal choice maps for the branch generative functions
+can have different shape/dtype choices. The resulting <code class="code docutils literal notranslate"><span class="pre">SwitchTrace</span></code> will efficiently share <code class="code docutils literal notranslate"><span class="pre">(shape,</span> <span class="pre">dtype)</span></code> storage across branches.</p>
 </section>
 
 

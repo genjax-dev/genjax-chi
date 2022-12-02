@@ -6,42 +6,42 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Hamiltonian Monte Carlo with BlackJAX &#8212; Gen ⊗ JAX</title>
+    <title>Prox: compositional approximate densities &#8212; Gen ⊗ JAX</title>
     
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
-<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+  <link href="../../_static/styles/theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=1999514e3f237ded88cf" rel="stylesheet">
 
     
   <link rel="stylesheet"
-    href="../../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
+    href="../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
   <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="../../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
+    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="../../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
 
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" href="../../../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/css/custom.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" href="../../_static/styles/sphinx-book-theme.css?digest=5115cc725059bd94278eecd172e13a965bf8f5a9" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css" />
     
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
+  <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf">
 
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/doctools.js"></script>
-    <script src="../../../_static/thebelab-helper.js"></script>
-    <script src="../../../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/thebelab-helper.js"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?digest=9c920249402e914e316237a7dbc6769907cce411"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
-    <link rel="index" title="Index" href="../../../genindex.html" />
-    <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="Inference best practices" href="../best_practices.html" />
-    <link rel="prev" title="Inference library" href="library.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Contributor Guide" href="../../contributing.html" />
+    <link rel="prev" title="Gradual trace typing for inference soundness verification" href="trace_types.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="None">
     
@@ -76,17 +76,17 @@
 <div class="bd-sidebar noprint" id="site-navigation">
     <div class="bd-sidebar__content">
         <div class="bd-sidebar__top"><div class="navbar-brand-box">
-    <a class="navbar-brand text-wrap" href="../../../index.html">
+    <a class="navbar-brand text-wrap" href="../../index.html">
       
         <!-- `logo` is deprecated in Sphinx 4.0, so remove this when we stop supporting 3 -->
         
       
       
-      <img src="../../../_static/logo.png" class="logo" alt="logo">
+      <img src="../../_static/logo.png" class="logo" alt="logo">
       
       
     </a>
-</div><form class="bd-search d-flex align-items-center" action="../../../search.html" method="get">
+</div><form class="bd-search d-flex align-items-center" action="../../search.html" method="get">
   <i class="icon fas fa-search"></i>
   <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
 </form><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
@@ -98,18 +98,18 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../gen_fn.html">
+  <a class="reference internal" href="../gen_fn.html">
    Anatomy of a generative function
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../interface.html">
-   Generative function interface
+  <a class="reference internal" href="../diff_jl.html">
+   Diffing against Gen.jl
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../diff_jl.html">
-   Diffing with Gen.jl
+  <a class="reference internal" href="../your_first_inf.html">
+   Writing your first inference algorithm
   </a>
  </li>
 </ul>
@@ -118,9 +118,9 @@
   Modeling and inference
  </span>
 </p>
-<ul class="current nav bd-sidenav">
+<ul class="nav bd-sidenav">
  <li class="toctree-l1 has-children">
-  <a class="reference internal" href="../../combinators/combinators.html">
+  <a class="reference internal" href="../combinators/combinators.html">
    Generative function combinators
   </a>
   <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
@@ -130,7 +130,7 @@
   </label>
   <ul>
    <li class="toctree-l2 has-children">
-    <a class="reference internal" href="../../combinators/classes/classes.html">
+    <a class="reference internal" href="../combinators/classes/classes.html">
      Combinators classes
     </a>
     <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
@@ -140,63 +140,51 @@
     </label>
     <ul>
      <li class="toctree-l3">
-      <a class="reference internal" href="../../combinators/classes/switch.html">
+      <a class="reference internal" href="../combinators/classes/switch.html">
        Switch combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="../../combinators/classes/map.html">
+      <a class="reference internal" href="../combinators/classes/map.html">
        Map combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="../../combinators/classes/unfold.html">
+      <a class="reference internal" href="../combinators/classes/unfold.html">
        Unfold combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="../../combinators/classes/train.html">
+      <a class="reference internal" href="../combinators/classes/train.html">
        Trainable combinator
       </a>
      </li>
     </ul>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="../../combinators/vector_combinators.html">
+    <a class="reference internal" href="../combinators/vector_combinators.html">
      Vector combinators
     </a>
    </li>
   </ul>
  </li>
- <li class="toctree-l1 current active has-children">
-  <a class="reference internal" href="../inference.html">
+ <li class="toctree-l1 has-children">
+  <a class="reference internal" href="../inference/inference.html">
    Inference
   </a>
-  <input checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
+  <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
   <label for="toctree-checkbox-3">
    <i class="fas fa-chevron-down">
    </i>
   </label>
-  <ul class="current">
-   <li class="toctree-l2 current active has-children">
-    <a class="reference internal" href="library.html">
+  <ul>
+   <li class="toctree-l2">
+    <a class="reference internal" href="../inference/library/library.html">
      Inference library
     </a>
-    <input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
-    <label for="toctree-checkbox-4">
-     <i class="fas fa-chevron-down">
-     </i>
-    </label>
-    <ul class="current">
-     <li class="toctree-l3 current active">
-      <a class="current reference internal" href="#">
-       Hamiltonian Monte Carlo with BlackJAX
-      </a>
-     </li>
-    </ul>
    </li>
    <li class="toctree-l2">
-    <a class="reference internal" href="../best_practices.html">
+    <a class="reference internal" href="../inference/best_practices.html">
      Inference best practices
     </a>
    </li>
@@ -208,19 +196,19 @@
   Advanced
  </span>
 </p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/information.html">
+  <a class="reference internal" href="information.html">
    Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/trace_types.html">
+  <a class="reference internal" href="trace_types.html">
    Gradual trace typing for inference soundness verification
   </a>
  </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="../../experimental/prox.html">
+ <li class="toctree-l1 current active">
+  <a class="current reference internal" href="#">
    Prox: compositional approximate densities
   </a>
  </li>
@@ -232,17 +220,17 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="../../../contributing.html">
+  <a class="reference internal" href="../../contributing.html">
    Contributor Guide
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../../codeofconduct.html">
+  <a class="reference internal" href="../../codeofconduct.html">
    Code of Conduct
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="../../../license.html">
+  <a class="reference internal" href="../../license.html">
    License
   </a>
  </li>
@@ -341,7 +329,7 @@ title="Source repository"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/inference/library/blackjax.html&body=Your%20issue%20content%20here."
+        <a href="https://github.com/probcomp/genjax/issues/new?title=Issue%20on%20page%20%2Fgenjax/advanced/prox.html&body=Your%20issue%20content%20here."
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -358,7 +346,7 @@ title="Open an issue"
       </li>
       
       <li>
-        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/inference/library/blackjax.rst"
+        <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/advanced/prox.md"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -386,7 +374,7 @@ title="Edit this page"
   <div class="menu-dropdown__content">
     <ul>
       <li>
-        <a href="../../../_sources/genjax/inference/library/blackjax.rst.txt"
+        <a href="../../_sources/genjax/advanced/prox.md.txt"
    class="headerbtn"
    data-toggle="tooltip"
 data-placement="left"
@@ -397,7 +385,7 @@ title="Download source file"
 <span class="headerbtn__icon-container">
   <i class="fas fa-file"></i>
   </span>
-<span class="headerbtn__text-container">.rst</span>
+<span class="headerbtn__text-container">.md</span>
 </a>
 
       </li>
@@ -435,7 +423,7 @@ title="Print to PDF"
         <div class="col pl-md-3 pl-lg-5 content-container">
             <!-- Table of contents that is only displayed when printing the page -->
             <div id="jb-print-docs-body" class="onlyprint">
-                <h1>Hamiltonian Monte Carlo with BlackJAX</h1>
+                <h1>Prox: compositional approximate densities</h1>
                 <!-- Table of contents -->
                 <div id="print-main-content">
                     <div id="jb-print-toc">
@@ -447,8 +435,8 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="hamiltonian-monte-carlo-with-blackjax">
-<h1>Hamiltonian Monte Carlo with BlackJAX<a class="headerlink" href="#hamiltonian-monte-carlo-with-blackjax" title="Permalink to this headline">#</a></h1>
+  <section id="prox-compositional-approximate-densities">
+<h1>Prox: compositional approximate densities<a class="headerlink" href="#prox-compositional-approximate-densities" title="Permalink to this headline">#</a></h1>
 </section>
 
 
@@ -459,17 +447,17 @@ title="Print to PDF"
                 
     <!-- Previous / next buttons -->
 <div class='prev-next-area'>
-    <a class='left-prev' id="prev-link" href="library.html" title="previous page">
+    <a class='left-prev' id="prev-link" href="trace_types.html" title="previous page">
         <i class="fas fa-angle-left"></i>
         <div class="prev-next-info">
             <p class="prev-next-subtitle">previous</p>
-            <p class="prev-next-title">Inference library</p>
+            <p class="prev-next-title">Gradual trace typing for inference soundness verification</p>
         </div>
     </a>
-    <a class='right-next' id="next-link" href="../best_practices.html" title="next page">
+    <a class='right-next' id="next-link" href="../../contributing.html" title="next page">
     <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Inference best practices</p>
+        <p class="prev-next-title">Contributor Guide</p>
     </div>
     <i class="fas fa-angle-right"></i>
     </a>
@@ -492,7 +480,7 @@ title="Print to PDF"
     </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
+  <script src="../../_static/scripts/pydata-sphinx-theme.js?digest=1999514e3f237ded88cf"></script>
 
 
   </body>

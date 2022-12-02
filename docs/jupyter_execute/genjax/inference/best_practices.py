@@ -5,9 +5,13 @@
 
 
 import jax
+
 import genjax
 
-def bootstrap_importance_sampling(model: genjax.GenerativeFunction, n_particles: int):
+
+def bootstrap_importance_sampling(
+    model: genjax.GenerativeFunction, n_particles: int
+):
     def _inner(key, model_args: Tuple, observations: genjax.ChoiceMap):
         key, *subkeys = jax.random.split(key, n_particles + 1)
         subkeys = jnp.array(subkeys)
@@ -22,4 +26,3 @@ def bootstrap_importance_sampling(model: genjax.GenerativeFunction, n_particles:
         return key, (trs, log_normalized_weights, log_ml_estimate)
 
     return _inner
-

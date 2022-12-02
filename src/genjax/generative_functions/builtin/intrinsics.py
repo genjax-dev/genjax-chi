@@ -18,20 +18,22 @@ from jax import make_jaxpr
 from genjax.core.datatypes import GenerativeFunction
 
 
-#####
-# Primitives
-#####
+##############
+# Primitives #
+##############
 
 # Generative function trace intrinsic.
 gen_fn_p = core.Primitive("trace")
 
-#####
-# Gen's trace (denotes invocation of a generative function)
-#####
+# Cache intrinsic.
+cache_p = core.Primitive("cache")
+
+############################################################
+# Trace call (denotes invocation of a generative function) #
+############################################################
 
 
-def _trace(addr, call, key, args, **kwargs):
-    assert isinstance(args, tuple)
+def _trace(addr, call, key, *args, **kwargs):
     assert isinstance(call, GenerativeFunction)
     return gen_fn_p.bind(
         key,
@@ -43,17 +45,17 @@ def _trace(addr, call, key, args, **kwargs):
 
 
 def trace(addr, call, **kwargs):
-    return lambda key, args: _trace(
+    return lambda key, *args: _trace(
         addr,
         call,
         key,
-        args,
+        *args,
         **kwargs,
     )
 
 
 #####
-# Abstract evaluation for generative function calls
+# Abstract evaluation for trace
 #####
 
 
@@ -68,3 +70,34 @@ def gen_fn_abstract_eval(key, *args, addr, gen_fn, **kwargs):
 gen_fn_p.def_abstract_eval(gen_fn_abstract_eval)
 gen_fn_p.multiple_results = True
 gen_fn_p.must_handle = True
+
+
+##############################################################
+# Caching (denotes caching of deterministic subcomputations) #
+##############################################################
+
+
+def cache(addr, call, *args, **kwargs):
+    assert isinstance(args, tuple)
+    assert not isinstance(call, GenerativeFunction)
+    return cache_p.bind(
+        *args,
+        addr=addr,
+        fn=call,
+        **kwargs,
+    )
+
+
+#####
+# Abstract evaluation for cache
+#####
+
+
+def cache_abstract_eval(*args, addr, fn, **kwargs):
+    jaxpr = make_jaxpr(fn)(*args)
+    return jaxpr.out_avals
+
+
+cache_p.def_abstract_eval(cache_abstract_eval)
+cache_p.multiple_results = False
+cache_p.must_handle = True

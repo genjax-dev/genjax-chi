@@ -23,8 +23,8 @@ caption: Getting started
 ---
 
 genjax/gen_fn
-genjax/interface
 genjax/diff_jl
+genjax/your_first_inf
 ```
 
 ```{toctree}
@@ -44,9 +44,9 @@ hidden:
 caption: Advanced
 ---
 
-genjax/experimental/information
-genjax/experimental/trace_types
-genjax/experimental/prox
+genjax/advanced/information
+genjax/advanced/trace_types
+genjax/advanced/prox
 ```
 
 ```{toctree}

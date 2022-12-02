@@ -21,9 +21,6 @@ import jax
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
-from genjax.generative_functions.builtin.builtin_datatypes import (
-    BuiltinChoiceMap,
-)
 from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax.generative_functions.builtin.builtin_tracetype import (
     get_trace_type,
@@ -53,18 +50,18 @@ class BuiltinGenerativeFunction(GenerativeFunction):
 
     def simulate(self, key, args, **kwargs):
         assert isinstance(args, Tuple)
-        key, (f, args, r, chm, score) = simulate_transform(
+        key, (f, args, r, chm, score), cache = simulate_transform(
             self.source, **kwargs
         )(key, args)
-        return key, BuiltinTrace(self, args, r, chm, score)
+        return key, BuiltinTrace(self, args, r, chm, cache, score)
 
     def importance(self, key, chm, args, **kwargs):
         assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
         assert isinstance(args, Tuple)
-        key, (w, (f, args, r, chm, score)) = importance_transform(
+        key, (w, (f, args, r, chm, score)), cache = importance_transform(
             self.source, **kwargs
         )(key, chm, args)
-        return key, (w, BuiltinTrace(self, args, r, chm, score))
+        return key, (w, BuiltinTrace(self, args, r, chm, cache, score))
 
     def assess(self, key, chm, args, **kwargs):
         assert isinstance(chm, ChoiceMap)
@@ -84,10 +81,11 @@ class BuiltinGenerativeFunction(GenerativeFunction):
                 (f, args, r, chm, score),
                 discard,
             ),
+            cache,
         ) = update_transform(self.source, **kwargs)(key, prev, new, args)
         return key, (
             retval_diff,
             w,
-            BuiltinTrace(self, args, r, chm, score),
-            BuiltinChoiceMap(discard),
+            BuiltinTrace(self, args, r, chm, cache, score),
+            discard,
         )

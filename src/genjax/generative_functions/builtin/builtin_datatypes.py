@@ -29,9 +29,89 @@ from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.hashabledict import HashableDict
 from genjax.core.hashabledict import hashabledict
 from genjax.core.tracetypes import TraceType
+from genjax.core.tree import Tree
 from genjax.generative_functions.builtin.builtin_tracetype import (
     BuiltinTraceType,
 )
+
+
+#####
+# BuiltinTrie
+#####
+
+
+@dataclass
+class BuiltinTrie(Tree):
+    inner: HashableDict
+
+    def flatten(self):
+        return (self.inner,), ()
+
+    def trie_insert(self, addr, value):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if first not in self.inner:
+                subtree = BuiltinTrie(hashabledict())
+                self.inner[first] = subtree
+            subtree = self.inner[first]
+            subtree.trie_insert(rest, value)
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            self.inner[addr] = value
+
+    def has_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.has_subtree(rest)
+            else:
+                return False
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            return addr in self.inner
+
+    def get_subtree(self, addr):
+        if isinstance(addr, tuple) and len(addr) > 1:
+            first, *rest = addr
+            rest = tuple(rest)
+            if self.has_subtree(first):
+                subtree = self.get_subtree(first)
+                return subtree.get_subtree(rest)
+            else:
+                raise Exception(f"Tree has no subtree at {first}")
+        else:
+            if isinstance(addr, tuple):
+                addr = addr[0]
+            if addr not in self.inner:
+                return None
+            return self.inner[addr]
+
+    def get_subtrees_shallow(self):
+        return self.inner.items()
+
+    def merge(self, other):
+        new = hashabledict()
+        for (k, v) in self.get_subtrees_shallow():
+            if other.has_subtree(k):
+                sub = other.get_subtree(k)
+                new[k] = v.merge(sub)
+            else:
+                new[k] = v
+        for (k, v) in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
+                new[k] = v
+        return BuiltinTrie(new)
+
+    def __setitem__(self, k, v):
+        self.trie_insert(k, v)
+
+    def __hash__(self):
+        return hash(self.inner)
 
 
 #####
@@ -42,12 +122,6 @@ from genjax.generative_functions.builtin.builtin_tracetype import (
 @dataclass
 class BuiltinChoiceMap(ChoiceMap):
     inner: HashableDict
-
-    def __init__(self, constraints):
-        if isinstance(constraints, BuiltinChoiceMap):
-            self.inner = constraints.inner
-        else:
-            self.inner = constraints
 
     def flatten(self):
         return (self.inner,), ()
@@ -149,12 +223,17 @@ class BuiltinTrace(Trace):
     args: Tuple
     retval: Any
     choices: BuiltinChoiceMap
+    cache: BuiltinTrie
     score: jnp.float32
 
     def flatten(self):
-        return (self.args, self.retval, self.choices, self.score), (
-            self.gen_fn,
-        )
+        return (
+            self.args,
+            self.retval,
+            self.choices,
+            self.cache,
+            self.score,
+        ), (self.gen_fn,)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -170,6 +249,12 @@ class BuiltinTrace(Trace):
 
     def get_args(self):
         return self.args
+
+    def has_cached_value(self, addr):
+        return self.cache.has_subtree(addr)
+
+    def get_cached_value(self, addr):
+        return self.cache.get_subtree(addr)
 
 
 #####

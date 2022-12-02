@@ -120,12 +120,12 @@ class SwitchCombinator(GenerativeFunction):
 
         @genjax.gen
         def branch_1(key):
-            key, x = genjax.trace("x1", genjax.Normal)(key, (0.0, 1.0))
+            key, x = genjax.trace("x1", genjax.Normal)(key, 0.0, 1.0)
             return (key, )
 
         @genjax.gen
         def branch_2(key):
-            key, x = genjax.trace("x2", genjax.Bernoulli)(key, (0.3, ))
+            key, x = genjax.trace("x2", genjax.Bernoulli)(key, 0.3)
             return (key, )
 
         switch = genjax.SwitchCombinator([branch_1, branch_2])
@@ -323,4 +323,33 @@ class SwitchCombinator(GenerativeFunction):
             prev,
             new,
             *diffs,
+        )
+
+    def _assess(self, branch_gen_fn, key, chm, args):
+        return branch_gen_fn.assess(key, chm, args[1:])
+
+    def assess(self, key, chm, args):
+        switch = args[0]
+
+        def _inner(br):
+            return lambda key, chm, *args: self._assess(
+                br,
+                key,
+                chm,
+                args,
+            )
+
+        branch_functions = list(
+            map(
+                _inner,
+                self.branches.values(),
+            )
+        )
+
+        return jax.lax.switch(
+            switch,
+            branch_functions,
+            key,
+            chm,
+            *args,
         )

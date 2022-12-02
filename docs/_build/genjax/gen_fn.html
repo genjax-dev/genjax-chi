@@ -41,7 +41,7 @@
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Generative function interface" href="interface.html" />
+    <link rel="next" title="Diffing against Gen.jl" href="diff_jl.html" />
     <link rel="prev" title="Overview" href="../index.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="docsearch:language" content="None">
@@ -104,13 +104,13 @@
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="interface.html">
-   Generative function interface
+  <a class="reference internal" href="diff_jl.html">
+   Diffing against Gen.jl
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="diff_jl.html">
-   Diffing with Gen.jl
+  <a class="reference internal" href="your_first_inf.html">
+   Writing your first inference algorithm
   </a>
  </li>
 </ul>
@@ -179,22 +179,10 @@
    </i>
   </label>
   <ul>
-   <li class="toctree-l2 has-children">
+   <li class="toctree-l2">
     <a class="reference internal" href="inference/library/library.html">
      Inference library
     </a>
-    <input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/>
-    <label for="toctree-checkbox-4">
-     <i class="fas fa-chevron-down">
-     </i>
-    </label>
-    <ul>
-     <li class="toctree-l3">
-      <a class="reference internal" href="inference/library/blackjax.html">
-       Hamiltonian Monte Carlo with BlackJAX
-      </a>
-     </li>
-    </ul>
    </li>
    <li class="toctree-l2">
     <a class="reference internal" href="inference/best_practices.html">
@@ -211,17 +199,17 @@
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1">
-  <a class="reference internal" href="experimental/information.html">
+  <a class="reference internal" href="advanced/information.html">
    Density diagnostics and information theory
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="experimental/trace_types.html">
+  <a class="reference internal" href="advanced/trace_types.html">
    Gradual trace typing for inference soundness verification
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="experimental/prox.html">
+  <a class="reference internal" href="advanced/prox.html">
    Prox: compositional approximate densities
   </a>
  </li>
@@ -456,6 +444,11 @@ title="Print to PDF"
    Function-like generative functions in GenJAX
   </a>
  </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#generative-function-interface">
+   Generative function interface
+  </a>
+ </li>
 </ul>
 
     </nav>
@@ -483,6 +476,11 @@ title="Print to PDF"
  <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#function-like-generative-functions-in-genjax">
    Function-like generative functions in GenJAX
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#generative-function-interface">
+   Generative function interface
   </a>
  </li>
 </ul>
@@ -513,13 +511,13 @@ an encoding of generative functions and inference in Julia.</p>
 with a useful intermediate representation for programs that we operate on
 using transformations.</p>
 </div>
-<p>If you’d like to jump right to reading about the generative function interface, visit <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>.</p>
+<p>If you’d like to jump right to reading about the generative function interface, visit <span class="xref std std-doc">interface</span>.</p>
 <section id="distributions-are-generative-functions">
 <h2>Distributions are generative functions<a class="headerlink" href="#distributions-are-generative-functions" title="Permalink to this headline">#</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>In this section, we won’t cover the gradient interfaces. These are formally specified in
-<a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a>, and discussed later in the <span class="xref std std-doc">learning</span> and inference sections.</p>
+<span class="xref std std-doc">interface</span>, and discussed later in the <span class="xref std std-doc">learning</span> and inference sections.</p>
 </div>
 <p>Let’s start with simple examples of generative function – classical distributions (objects like <code class="code docutils literal notranslate"><span class="pre">Normal</span></code>, or <code class="code docutils literal notranslate"><span class="pre">Uniform</span></code>).</p>
 <p>Here’s an implementation of one of these objects (GenJAX exposes <code class="code docutils literal notranslate"><span class="pre">Normal</span></code> as an instantiated alias of <code class="code docutils literal notranslate"><span class="pre">_Normal</span></code>)</p>
@@ -584,7 +582,7 @@ whose semantics are described below:</p>
 </div>
 <p>A few things of note: we have a concrete <code class="code docutils literal notranslate"><span class="pre">DistributionTrace</span></code> object which allows us to record the information which <code class="code docutils literal notranslate"><span class="pre">simulate</span></code> asks from us (specifically, the log score, the sampled value, and the return value - here the same as the sampled value).</p>
 <p>In addition (and not covered explicitly by the formal interface), we pass through a <code class="code docutils literal notranslate"><span class="pre">jax.random.PRNGKey</span></code> - this is necessitated by JAX’s programming model, but does not imply any serious collisions with the formal description.</p>
-<p>Let’s study <code class="code docutils literal notranslate"><span class="pre">importance</span></code> next - this example will provide a simple model of this interface, but there are more complexities lurking under the surface. We’ll defer a longer discussion to the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> page.</p>
+<p>Let’s study <code class="code docutils literal notranslate"><span class="pre">importance</span></code> next - this example will provide a simple model of this interface, but there are more complexities lurking under the surface. We’ll defer a longer discussion to the <span class="xref std std-doc">interface</span> page.</p>
 <div class="admonition-importance admonition">
 <p class="admonition-title">Importance</p>
 <p>Given a generative function representing a normalized probability measure with choice map density <span class="math notranslate nohighlight">\(t \sim P(\cdot; x)\)</span>, and return value <span class="math notranslate nohighlight">\(r \sim P(\cdot; x, t)\)</span>, as well as a set of constraints for random choices <span class="math notranslate nohighlight">\(u\)</span>:</p>
@@ -612,7 +610,7 @@ whose semantics are described below:</p>
 
 <span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
 <span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">x</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
@@ -620,13 +618,13 @@ whose semantics are described below:</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x107d4ce50&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x107574e50&gt;)
 </pre></div>
 </div>
 </div>
 </div>
 <p>This decorator returns a <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code> - a generative function
-which implements the <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> by utilizing JAX’s tracing and program
+which implements the <span class="xref std std-doc">interface</span> by utilizing JAX’s tracing and program
 transformation abilities.</p>
 <p>Note, however, that we’ll make recursive usage of the interface - here, we’re calling distributions-as-generative-functions in our code! This is just one of the compositional benefits of constructing composite generative function objects using pieces that implement the interface.</p>
 <p>Let’s study the JAX representation of the code for this object.</p>
@@ -708,8 +706,58 @@ transformation abilities.</p>
 <li><p>returning these pieces of data out (in a <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> instance)</p></li>
 </ul>
 <p>All this is happening before runtime – JAX’s tracer stages out these transformations into the clean (<code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive free) <code class="code docutils literal notranslate"><span class="pre">Jaxpr</span></code> above.</p>
-<p>This essential pattern is repeated for each <a class="reference internal" href="interface.html"><span class="doc">Generative function interface</span></a> method defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code>.</p>
+<p>This essential pattern is repeated for each <span class="xref std std-doc">interface</span> method defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code>.</p>
 <p>Other generative function “languages” in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function <em>need not</em> introspect on the implementation of a callee’s interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. <a class="reference internal" href="combinators/combinators.html"><span class="doc">Generative function combinators</span></a>) other generative functions in composable patterns.</p>
+</section>
+<section id="generative-function-interface">
+<h2>Generative function interface<a class="headerlink" href="#generative-function-interface" title="Permalink to this headline">#</a></h2>
+<p>In this section, we present the full set of generative function interface functions.</p>
+<span class="target" id="module-genjax.interface"></span><p>The generative function interface is a set of methods and associated types
+defined for an implementor which support the generic construction (via
+interface abstraction) of programmable inference algorithms and differentiable
+programming.</p>
+<p>Combined with the trace and choice map associated datatypes, the generative function interface
+methods form the conceptual core of the computational behavior of generative functions.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This module exposes the generative function interface as a set of
+Python functions. When called with <code class="code docutils literal notranslate"><span class="pre">f:</span> <span class="pre">GenerativeFunction</span></code>
+and <code class="code docutils literal notranslate"><span class="pre">**kwargs</span></code>, they return the corresponding
+<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> method.</p>
+<p>Here’s an example:</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">genjax</span>
+<span class="n">fn</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x130c552d0&gt;
+</pre></div>
+</div>
+</div>
+</div>
+<p>If you know you have a <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>, you can just refer to the
+methods directly - but sometimes it is useful to use the getter variants
+(there’s no runtime cost when using the getter variants in jitted code, JAX eliminates it).</p>
+</div>
+<dl class="py function">
+<dt class="sig sig-object py" id="genjax.simulate">
+<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L46-L47"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.simulate" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The trace type functionality is described in more detail in <span class="xref std std-doc">experimental/trace_types</span>,
+as well as in the original research paper <a class="reference external" href="https://dl.acm.org/doi/10.1145/3371087">Lew et al (2019)</a>.</p>
+</div>
+<dl class="py function">
+<dt class="sig sig-object py" id="genjax.get_trace_type">
+<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">get_trace_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L66-L67"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.get_trace_type" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
 </section>
 </section>
 
@@ -728,10 +776,10 @@ transformation abilities.</p>
             <p class="prev-next-title">Overview</p>
         </div>
     </a>
-    <a class='right-next' id="next-link" href="interface.html" title="next page">
+    <a class='right-next' id="next-link" href="diff_jl.html" title="next page">
     <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Generative function interface</p>
+        <p class="prev-next-title">Diffing against Gen.jl</p>
     </div>
     <i class="fas fa-angle-right"></i>
     </a>
