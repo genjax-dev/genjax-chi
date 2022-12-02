@@ -4445,6 +4445,7 @@ vertical-align: -.125em;
    
   <ul>
   <li><a href="#what-is-genjax" id="toc-what-is-genjax" class="nav-link active" data-scroll-target="#what-is-genjax">What is GenJAX?</a></li>
+  <li><a href="#what-is-probabilistic-programming" id="toc-what-is-probabilistic-programming" class="nav-link" data-scroll-target="#what-is-probabilistic-programming">What is probabilistic programming?</a></li>
   <li><a href="#what-is-a-generative-function" id="toc-what-is-a-generative-function" class="nav-link" data-scroll-target="#what-is-a-generative-function">What is a generative function?</a>
   <ul class="collapse">
   <li><a href="#how-is-simulate-implemented-for-this-language" id="toc-how-is-simulate-implemented-for-this-language" class="nav-link" data-scroll-target="#how-is-simulate-implemented-for-this-language">How is <code>simulate</code> implemented for this language?</a></li>
@@ -4512,14 +4513,31 @@ vertical-align: -.125em;
 </div>
 <section id="what-is-genjax" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-genjax">What is GenJAX?</h2>
-<p>GenJAX is:</p>
+<p>Here are a few high-level ways to think about GenJAX:</p>
 <ul>
 <li><p>A probabilistic programming system based on the concepts of <a href="https://www.gen.dev/">Gen</a>.</p></li>
-<li><p>A model and inference compiler with support for device acceleration (courtesy of JAX).</p></li>
+<li><p>A Bayesian model and inference compiler with support for device acceleration (courtesy of JAX).</p></li>
 <li><p>A base layer for experiments in model and inference DSL design.</p></li>
 </ul>
-<p>By virtue of a few key design decisions, and JAX’s excellent foundation - it natively supports several common accelerator idioms - like automatic struct-of-array representations, and the ability to automatically batch model/inference programs onto accelerators. It does this - while supporting the convenience of Gen’s interfaces - allowing modular construction of generative programs from smaller pieces.</p>
-<p><u>By construction, all GenJAX modeling + inference code is JAX jittable</u> - and thus, <code>vmap</code>able, etc.</p>
+<p>There’s already a well-supported implementation of <a href="https://github.com/probcomp/Gen.jl">Gen in Julia</a>. Why is a JAX port interesting?</p>
+<p>There are a number of compelling reasons to explore Gen’s probabilistic programming paradigm on top of JAX, here are a few:</p>
+<ul>
+<li><p>JAX’s excellent accelerator support - our implementation natively supports several common accelerator idioms - like automatic struct-of-array representations, and the ability to automatically batch model/inference programs onto accelerators.</p></li>
+<li><p>JAX’s excellent support for compositional higher-order AD allows us to explore higher-order AD in inference design, previously a difficult implementation challenge.</p></li>
+<li><p>JAX exposes compositional code transformations to library authors, and, as library authors, we can utilize code transformations to implement state-of-the-art optimizations for models and inference expressed in our system.</p></li>
+</ul>
+<p>Let’s truncate the list there for now.</p>
+<p>For the JAX literati, one final (hopefully tantalizing) takeaway: <u>by construction, all GenJAX modeling + inference code is JAX traceable</u> - and thus, <code>vmap</code>able, <code>jit</code>able, etc.</p>
+</section>
+<section id="what-is-probabilistic-programming" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-probabilistic-programming">What is probabilistic programming?</h2>
+<p>Perhaps you may be coming to this notebook without any prior knowledge in probabilistic programming…</p>
+<p>That’s okay! Ideally, the ideas in this notebook should be self-contained. You may miss <em>why generative functions (see below) are designed the way they are</em> on a first read - but you’ll still get the punchline.</p>
+<p>Here’s one viewpoint on probabilistic programming: programming language design for expressing and solving Bayesian inference problems.</p>
+<p>In the <a href="http://probcomp.csail.mit.edu/">Probabilistic Computing lab at MIT</a>, we hold a wide viewpoint - we also consider differentiable programming to be contained within the set of concerns of probabilistic programming.</p>
+<p>As you’ll see if you continue to read below, the objects which we program with expose a mixture of generative and differentiable interfaces - the interfaces are designed to support common (and quite advanced) classes of Bayesian inference algorithms.</p>
+<p>We separate the design of inference (whose implementation uses the interfaces), from the implementation of the interfaces on computational objects. This allows us to build languages of objects which satisfy the interfaces - and allows their interoperability and usage.</p>
+<p>In Gen, we call objects which implement the interfaces <em>generative functions</em>.</p>
 </section>
 <section id="what-is-a-generative-function" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-a-generative-function">What is a generative function?</h2>
@@ -4747,6 +4765,13 @@ vertical-align: -.125em;
 <section id="generative-function-interface" class="level2">
 <h2 class="anchored" data-anchor-id="generative-function-interface">Generative function interface</h2>
 <p>GenJAX’s generative functions define an interface which support compositional usage of generative functions within other generative functions. The interface functions here closely mirror <a href="https://www.gen.dev/docs/stable/ref/gfi/#Generative-function-interface-1">the interfaces defined in Gen</a>, deviating only when interfaces are redundant (or implemented in Gen.jl for performance optimized code paths - which may not be relevant to our implementation).</p>
+<p>In the following, we use the following abbreviations:</p>
+<ul>
+<li><strong>IS</strong> - importance sampling</li>
+<li><strong>SMC</strong> - sequential Monte Carlo</li>
+<li><strong>MCMC</strong> - Markov chain Monte Carlo</li>
+<li><strong>VI</strong> - variational inference</li>
+</ul>
 <table class="table">
 <colgroup>
 <col style="width: 33%">
@@ -4764,12 +4789,12 @@ vertical-align: -.125em;
 <tr class="odd">
 <td><code>simulate</code></td>
 <td>Generative</td>
-<td>Importance sampling, SMC</td>
+<td>IS, SMC</td>
 </tr>
 <tr class="even">
 <td><code>importance</code></td>
 <td>Generative</td>
-<td>Importance sampling, SMC</td>
+<td>IS, SMC, VI</td>
 </tr>
 <tr class="odd">
 <td><code>update</code></td>
@@ -4779,12 +4804,12 @@ vertical-align: -.125em;
 <tr class="even">
 <td><code>assess</code></td>
 <td>Generative and differentiable</td>
-<td>MCMC, importance sampling, SMC</td>
+<td>MCMC, IS, SMC</td>
 </tr>
 <tr class="odd">
 <td><code>unzip</code></td>
 <td>Differentiable</td>
-<td>Differentiable and involutive MCMC and SMC</td>
+<td>Differentiable and involutive MCMC and SMC, VI</td>
 </tr>
 </tbody>
 </table>
