@@ -4377,7 +4377,7 @@ vertical-align: -.125em;
 
 
 <meta property="og:title" content="Gen ⊗ JAX - Introduction to Gen and GenJAX">
-<meta property="og:description" content="The purpose of this notebook to give the listener/reader an accelerated introduction to several concepts native to Gen and GenJAX (an implementation of Gen on top of JAX).">
+<meta property="og:description" content="This notebook is designed to give the listener/reader an accelerated introduction to several concepts native to Gen and GenJAX (an implementation of Gen on top of JAX).">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -4445,7 +4445,11 @@ vertical-align: -.125em;
    
   <ul>
   <li><a href="#what-is-genjax" id="toc-what-is-genjax" class="nav-link active" data-scroll-target="#what-is-genjax">What is GenJAX?</a></li>
-  <li><a href="#what-is-probabilistic-programming" id="toc-what-is-probabilistic-programming" class="nav-link" data-scroll-target="#what-is-probabilistic-programming">What is probabilistic programming?</a></li>
+  <li><a href="#what-is-probabilistic-programming" id="toc-what-is-probabilistic-programming" class="nav-link" data-scroll-target="#what-is-probabilistic-programming">What is probabilistic programming?</a>
+  <ul class="collapse">
+  <li><a href="#a-bayesian-viewpoint" id="toc-a-bayesian-viewpoint" class="nav-link" data-scroll-target="#a-bayesian-viewpoint">A Bayesian viewpoint</a></li>
+  <li><a href="#wait-what-are-we-actually-computing-with" id="toc-wait-what-are-we-actually-computing-with" class="nav-link" data-scroll-target="#wait-what-are-we-actually-computing-with">Wait, what are we actually computing with?</a></li>
+  </ul></li>
   <li><a href="#what-is-a-generative-function" id="toc-what-is-a-generative-function" class="nav-link" data-scroll-target="#what-is-a-generative-function">What is a generative function?</a>
   <ul class="collapse">
   <li><a href="#how-is-simulate-implemented-for-this-language" id="toc-how-is-simulate-implemented-for-this-language" class="nav-link" data-scroll-target="#how-is-simulate-implemented-for-this-language">How is <code>simulate</code> implemented for this language?</a></li>
@@ -4493,10 +4497,15 @@ vertical-align: -.125em;
     
   </div>
   
+<div>
+  <div class="abstract">
+    <div class="abstract-title">Abstract</div>
+    This notebook is designed to give the listener/reader an accelerated introduction to several concepts native to Gen and GenJAX (an implementation of Gen on top of JAX). As for pre-requisites, it assumes passing familiarity with trace-based probabilistic programming systems, and Monte Carlo inference - especially importance sampling and MCMC methods.
+  </div>
+</div>
 
 </header>
 
-<p>The purpose of this notebook to give the listener/reader an accelerated introduction to several concepts native to Gen and GenJAX (an implementation of Gen on top of JAX). As for pre-requisites, it assumes familiarity with trace-based probabilistic programming systems, and Monte Carlo inference - especially importance sampling and MCMC methods.</p>
 <div class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
@@ -4529,37 +4538,51 @@ vertical-align: -.125em;
 <p>Let’s truncate the list there for now.</p>
 <p>For the JAX literati, one final (hopefully tantalizing) takeaway: <u>by construction, all GenJAX modeling + inference code is JAX traceable</u> - and thus, <code>vmap</code>able, <code>jit</code>able, etc.</p>
 </section>
-<section id="what-is-probabilistic-programming" class="level2">
+<section id="what-is-probabilistic-programming" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="what-is-probabilistic-programming">What is probabilistic programming?</h2>
 <p>Perhaps you may be coming to this notebook without any prior knowledge in probabilistic programming…</p>
-<p>That’s okay! Ideally, the ideas in this notebook should be self-contained. You may miss <em>why generative functions (see below) are designed the way they are</em> on a first read - but you’ll still get the punchline.</p>
-<p>Here’s one viewpoint on probabilistic programming: programming language design for expressing and solving Bayesian inference problems.</p>
-<p>In the <a href="http://probcomp.csail.mit.edu/">Probabilistic Computing lab at MIT</a>, we hold a wide viewpoint - we also consider differentiable programming to be contained within the set of concerns of probabilistic programming.</p>
-<p>As you’ll see if you continue to read below, the objects which we program with expose a mixture of generative and differentiable interfaces - the interfaces are designed to support common (and quite advanced) classes of Bayesian inference algorithms.</p>
+<div class="page-columns page-full"><p>That’s okay! Ideally, the ideas in this notebook should be self-contained<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> You may miss <em>why generative functions (see below) are designed the way they are</em> on a first read - but you’ll still get the punchline if you follow the notebook to the end.</p></li></div></div>
+<section id="a-bayesian-viewpoint" class="level3">
+<h3 class="anchored" data-anchor-id="a-bayesian-viewpoint">A Bayesian viewpoint</h3>
+<p>Here’s one take on what probabilistic programming is all about: programming language design for expressing and solving Bayesian inference problems.</p>
+<p>In the <a href="http://probcomp.csail.mit.edu/">Probabilistic Computing lab at MIT</a>, we also consider differentiable programming to be contained within the set of concerns of probabilistic programming.</p>
+<p>Probabilistic programming is a broad field, and there are corners which may not be covered by this viewpoint. Mostly, people are interested in Bayes, and how to represent Bayes on computers in nice ways.</p>
+</section>
+<section id="wait-what-are-we-actually-computing-with" class="level3">
+<h3 class="anchored" data-anchor-id="wait-what-are-we-actually-computing-with">Wait, what are we actually computing with?</h3>
+<p>As you’ll see if you continue to read below, the objects which we program with expose a mixture of generative and differentiable interfaces - the interfaces are designed to support common (as well as quite advanced) classes of Bayesian inference algorithms. Gen provides automation for the tricky math which these algorithms sometimes require.</p>
 <p>We separate the design of inference (whose implementation uses the interfaces), from the implementation of the interfaces on computational objects. This allows us to build languages of objects which satisfy the interfaces - and allows their interoperability and usage.</p>
-<p>In Gen, we call objects which implement the interfaces <em>generative functions</em>.</p>
+<p>In Gen, we call objects which implement the interfaces <strong>generative functions</strong>.</p>
+</section>
 </section>
 <section id="what-is-a-generative-function" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="what-is-a-generative-function">What is a generative function?</h2>
-<p><em>Generative functions</em> are the key concept of Gen’s probabilistic programming paradigm. Generative functions are computational objects defined by a set of associated data types and methods. These types and methods describe compositional interfaces useful for inference computations.</p>
+<p>Generative functions are the key concept of Gen’s probabilistic programming paradigm. Generative functions are computational objects defined by a set of associated data types and methods. These types and methods describe compositional interfaces useful for inference computations.</p>
 <p>Gen’s formal description of generative functions consist of two objects:</p>
 <ul>
-<li><p><span class="math inline">\(P(\tau, r; x)\)</span> - a measure over dictionary-like data (<em>choice maps</em>) and untraced randomness <span class="math inline">\(r\)</span>, parametrized by arguments <span class="math inline">\(x\)</span>.</p></li>
-<li><p><span class="math inline">\(f(\tau; x)\)</span> - a deterministic function from the above measure’s target space to a space of data types.</p></li>
+<li><p><span class="math inline">\(P(\tau, r; x)\)</span> - a normalized measure over tree-like data (<em>choice maps</em>) and untraced randomness<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> <span class="math inline">\(r\)</span>, parametrized by arguments <span class="math inline">\(x\)</span>.</p></li>
+<li><p><span class="math inline">\(f(\tau; x)\)</span> - a deterministic function from the above measure’s sample space to a space of data types.</p></li>
 </ul>
-<p>We often think about sampling choice maps from <span class="math inline">\(P\)</span>, computing the return value from the generative function call using <span class="math inline">\(f\)</span> - we record both in <code>Trace</code> objects - data structures which contain the recordings of these values, along with probabilistic metadata like the score of random choices selected along the way.</p>
-<p>Here’s an example of a GenJAX generative function. This generative function is part of a function-like language - pay close attention to the hierarchical compositionality of generative functions in this language under an abstraction (<code>genjax.trace</code>) similar to a function call.</p>
+<div class="no-row-height column-margin column-container"><li id="fn2"><p><sup>2</sup> More on this later. It’s safe to say “I have no idea what that is” for now, and expect us to explain later.</p></li></div><p>We can informally think of the sampling semantics of these objects as consisting of two steps:</p>
+<ol type="1">
+<li>First, sample a choice map from <span class="math inline">\(P\)</span>.</li>
+<li>Then, compute the return value using <span class="math inline">\(f\)</span>.</li>
+</ol>
+<p>In many of the generative function interfaces, we won’t just be interested in the final sampled return value. We’ll also be interested in what happened along the way: we’ll record the intermediate and final results of these steps in <code>Trace</code> objects - data structures which contain the recordings of values, along with probabilistic metadata like the score of random choices selected along the way.</p>
+<div class="page-columns page-full"><p>Here’s an example of a GenJAX generative function<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn3"><p><sup>3</sup> There’s not just one generative function class - users can and are encouraged to design new types of generative functions which capture repeated modeling patterns. An excellent example of this modularity in Gen’s design is <a href="../../introduction/intro_to_combinators/intro_to_combinators">generative function combinators</a>.</p></li></div></div>
+<p>This generative function is part of a function-like language - pay close attention to the hierarchical compositionality of generative functions in this language under an abstraction (<code>genjax.trace</code>) similar to a function call.</p>
+<p>We’ll discuss the addresses (<code>&quot;sub&quot;</code> and <code>&quot;m0&quot;</code>) a bit later.</p>
 <div class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> g(key, x):</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    key, m1 <span class="op">=</span> genjax.trace(<span class="st">&quot;m0&quot;</span>, genjax.Bernoulli)(key, x)</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (key, m1)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    key, m0 <span class="op">=</span> genjax.trace(<span class="st">&quot;m0&quot;</span>, genjax.Bernoulli)(key, x)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (key, m0)</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> h(key, x):</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    key, m1 <span class="op">=</span> genjax.trace(<span class="st">&quot;m0&quot;</span>, g)(key, x)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (key, m1)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    key, m0 <span class="op">=</span> genjax.trace(<span class="st">&quot;sub&quot;</span>, g)(key, x)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (key, m0)</span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>h</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -4573,8 +4596,8 @@ vertical-align: -.125em;
 </pre>
 </div>
 </div>
-<p>This is a <code>Callable</code> object - operations (see the list under <strong>Generative function interface</strong> below) which are useful for modeling and inference are given semantics via program transformations.</p>
-<p>Let’s examine these operations now.</p>
+<p>This generative function holds a Python <code>Callable</code> object. For this generative function language, the interface methods (see the list under <strong>Generative function interface</strong> below) which are useful for modeling and inference are given semantics via JAX’s tracing and program transformation infrastructure.</p>
+<p>Let’s examine some of these operations now.</p>
 <div class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>console.inspect(genjax.BuiltinGenerativeFunction, methods<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -4602,11 +4625,24 @@ vertical-align: -.125em;
 </div>
 </div>
 <p>This is our first glimpse of the <strong>generative function interface</strong> (GFI), the secret sauce which Gen is based around.</p>
-<p>There’s a few methods here which are not part of the GFI:</p>
+<div class="callout-note callout callout-style-simple callout-captioned">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-caption-container flex-fill">
+JAX interfaces
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>There’s a few methods here which are not part of the GFI, but are worth mentioning because they deal with data interfaces to JAX:</p>
 <ul>
 <li><code>flatten</code> - which allows us to treat generative functions as <a href="https://jax.readthedocs.io/en/latest/pytrees.html">Pytree</a> implementors.</li>
 <li><code>unflatten</code> - same as above.</li>
 </ul>
+<p>These are used to register the implementor type as a <code>Pytree</code>, which is roughly a tree-like Python structure which JAX can zip/unzip at runtime API boundaries.</p>
+</div>
+</div>
 <p>Let’s study the <code>simulate</code> method first: we’ll explore its semantics, and see the types of data it produces.</p>
 <div class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> genjax.simulate(h)(key, (<span class="fl">0.3</span>,))</span>
@@ -4662,8 +4698,9 @@ vertical-align: -.125em;
 </div>
 </div>
 <p>If you’re familiar with other “trace-based” probabilistic systems - this should look familiar.</p>
-<p>This object instance is a piece of data which has captured information about the execution of the function. Specifically, the subtraces of <em>other generative function calls</em> in <code>genjax.trace</code>.</p>
-<p>It also captures the <code>score</code> - the log probability of the normalized measure which the model program represents, evaluated at the random choices which the generative call execution produced. If you were paying attention above, the score is <span class="math inline">\(\log P(\tau, r; x)\)</span>.</p>
+<p>This object instance is a piece of data which has captured information about the execution of the function. Specifically, the subtraces of <em>other generative function calls</em> which occur in <code>genjax.trace</code> statements.</p>
+<p>It also captures the <code>score</code> - the log probability of the normalized measure which the model program represents, evaluated at the random choices which the generative call execution produced.</p>
+<p>If you were paying attention above, the score is <span class="math inline">\(\log P(\tau, r; x)\)</span>.</p>
 <section id="how-is-simulate-implemented-for-this-language" class="level3 page-columns page-full">
 <h3 class="anchored" data-anchor-id="how-is-simulate-implemented-for-this-language">How is <code>simulate</code> implemented for this language?</h3>
 <p>For this generative function language, we implement <code>simulate</code> using a code transformation! Here’s the transformed code.</p>
@@ -4859,7 +4896,7 @@ vertical-align: -.125em;
 </pre>
 </div>
 </div>
-<div class="page-columns page-full"><p>This is how we’ve implemented <code>simulate</code> for this particular generative function language.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> In general, Gen doesn’t require that we follow the same “code transformation” implementation for other generative function languages. GenJAX, however, is a bit special - because we restrict the user to remain within the JAX traceable subset of Python - any generative function interface implementation must also be JAX traceable. <strong>This is a JAX requirement, not a Gen one</strong>.</p></li></div></div>
+<div class="page-columns page-full"><p>This is how we’ve implemented <code>simulate</code> for this particular generative function language.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn4"><p><sup>4</sup> In general, Gen doesn’t require that we follow the same “code transformation” implementation for other generative function languages. GenJAX, however, is a bit special - because we restrict the user to remain within the JAX traceable subset of Python - any generative function interface implementation must also be JAX traceable. <strong>This is a JAX requirement, not a Gen one</strong>.</p></li></div></div>
 </section>
 </section>
 <section id="generative-function-interface" class="level2">
