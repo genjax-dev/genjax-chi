@@ -2,9 +2,10 @@ project:
   title: "GenJAX Jupyter notebooks"
   output-dir: ../_build/notebooks
   type: website
-
 website:
   title: "Gen ⊗ JAX"
+  body-footer: |
+    <center>© Copyright 2022 MIT Probabilistic Computing Project.</center>
   open-graph: true
   navbar:
     left:
