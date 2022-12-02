@@ -39,9 +39,9 @@ nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
     "safety",
     "mypy",
-    "test",
+    "tests",
     # "benchmark",
-    "xdoctest",
+    "xdoctests",
     "docs-build",
     "lint",
     "build",
@@ -49,7 +49,7 @@ nox.options.sessions = (
 
 
 @session(python=python_version)
-def test(session):
+def tests(session):
     session.install("poetry")
     session.run("poetry", "install")
     session.run(
@@ -93,7 +93,7 @@ def benchmark(session):
 
 
 @session(python=python_version)
-def xdoctest(session) -> None:
+def xdoctests(session) -> None:
     """Run examples with xdoctest."""
     if session.posargs:
         args = [package, *session.posargs]

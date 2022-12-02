@@ -17,10 +17,10 @@ broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
 
 from dataclasses import dataclass
-from typing import Sequence
 from typing import Tuple
 
 import jax
+import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
@@ -29,6 +29,8 @@ from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
 from genjax.core.specialization import concrete_cond
+from genjax.core.typing import FloatTensor
+from genjax.core.typing import IntegerTensor
 from genjax.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -45,9 +47,9 @@ from genjax.generative_functions.combinators.combinator_tracetypes import (
 @dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
-    indices: Sequence
+    indices: IntegerTensor
     inner: Trace
-    score: jnp.float32
+    score: FloatTensor
 
     def flatten(self):
         return (
@@ -116,10 +118,10 @@ class MapCombinator(GenerativeFunction):
         @genjax.gen
         def add_normal_noise(key, x):
             key, noise1 = genjax.trace("noise1", genjax.Normal)(
-                    key, (0.0, 1.0)
+                    key, 0.0, 1.0
             )
             key, noise2 = genjax.trace("noise2", genjax.Normal)(
-                    key, (0.0, 1.0)
+                    key, 0.0, 1.0
             )
             return (key, x + noise1 + noise2)
 
@@ -211,7 +213,11 @@ class MapCombinator(GenerativeFunction):
             else jnp.pad(v, pad_axes)
         )
 
-    def importance(self, key, chm, args):
+    def _importance_vcm(self, key, chm, args):
+        # Get static axes.
+        key_axis = self.in_axes[0]
+        arg_axes = self.in_axes[1:]
+
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -228,26 +234,6 @@ class MapCombinator(GenerativeFunction):
                 key,
                 chm,
                 args,
-            )
-
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-
-        # Check incoming choice map, and coerce to `VectorChoiceMap`
-        # before passing into scan calls.
-        chm, fixed_len = self._bounds_checker(chm, len(key))
-        chm = jtu.tree_map(
-            lambda chm: self._padder(chm, len(key)),
-            chm,
-        )
-        if not isinstance(chm, VectorChoiceMap):
-            indices = np.array(
-                [ind if ind < fixed_len else -1 for ind in range(0, len(key))]
-            )
-            chm = VectorChoiceMap.new(
-                indices,
-                chm,
             )
 
         indices = np.array([i for i in range(0, len(key))])
@@ -268,23 +254,135 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
-    def update(self, key, prev, chm, diffs):
-        assert isinstance(prev, MapTrace)
-        vchm = prev.get_choices()
+    def _importance_fallback(self, key, chm, args):
+        # Get static axes.
+        key_axis = self.in_axes[0]
+        arg_axes = self.in_axes[1:]
 
+        # Check incoming choice map, and coerce to `VectorChoiceMap`
+        # before passing into scan calls.
+        chm, fixed_len = self._bounds_checker(chm, len(key))
+        chm = jtu.tree_map(
+            lambda chm: self._padder(chm, len(key)),
+            chm,
+        )
+        if not isinstance(chm, VectorChoiceMap):
+            indices = np.array(
+                [ind if ind < fixed_len else -1 for ind in range(0, len(key))]
+            )
+            chm = VectorChoiceMap.new(
+                indices,
+                chm,
+            )
+
+        def _importance(key, chm, args):
+            return self.kernel.importance(key, chm, args)
+
+        def _simulate(key, chm, args):
+            key, tr = self.kernel.simulate(key, args)
+            return key, (0.0, tr)
+
+        def _inner(key, index, chm, args):
+            check = index == chm.get_index()
+            return concrete_cond(
+                check,
+                _importance,
+                _simulate,
+                key,
+                chm,
+                args,
+            )
+
+        indices = np.array([i for i in range(0, len(key))])
+        key, (w, tr) = jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
+            key,
+            indices,
+            chm,
+            args,
+        )
+
+        w = jnp.sum(w)
+        map_tr = MapTrace(
+            self,
+            indices,
+            tr,
+            jnp.sum(tr.get_score()),
+        )
+
+        return key, (w, map_tr)
+
+    def importance(self, key, chm, args):
+        if isinstance(chm, VectorChoiceMap):
+            return self._importance_vcm(key, chm, args)
+        else:
+            return self._importance_fallback(key, chm, args)
+
+    # The choice map passed in here is a vector choice map.
+    def _update_vcm(self, key, prev, chm, diffs):
         def _update(key, prev, chm, diffs):
-            key, (w, tr, d) = self.kernel.update(key, prev, chm, diffs)
-            return key, (w, tr, d)
+            key, (retdiff, w, tr, d) = self.kernel.update(
+                key, prev, chm, diffs
+            )
+            return key, (retdiff, w, tr, d)
 
         def _fallback(key, prev, chm, diffs):
-            key, (w, tr, d) = self.kernel.update(
+            key, (retdiff, w, tr, d) = self.kernel.update(
                 key, prev, EmptyChoiceMap(), diffs
             )
-            return key, (w, tr, d)
+            return key, (retdiff, w, tr, d)
 
-        def _inner(key, index, vchm, chm, diffs):
+        def _inner(key, index, prev, chm, diffs):
             check = index == chm.get_index()
-            prev = vchm.inner
+            return concrete_cond(
+                check,
+                _update,
+                _fallback,
+                key,
+                prev,
+                chm,
+                diffs,
+            )
+
+        # Get static axes.
+        key_axis = self.in_axes[0]
+        arg_axes = self.in_axes[1:]
+
+        indices = np.array([i for i in range(0, len(key))])
+        prev_inaxes_tree = jtu.tree_map(
+            lambda v: None if v.shape == () else 0,
+            prev.inner,
+        )
+        key, (retdiff, w, tr, discard) = jax.vmap(
+            _inner,
+            in_axes=(key_axis, 0, prev_inaxes_tree, 0, arg_axes),
+        )(key, indices, prev.inner, chm, diffs)
+
+        w = jnp.sum(w)
+        map_tr = MapTrace(
+            self,
+            indices,
+            tr,
+            jnp.sum(tr.get_score()),
+        )
+
+        return key, (retdiff, w, map_tr, discard)
+
+    # The choice map doesn't carry optimization info.
+    def _update_fallback(self, key, prev, chm, diffs):
+        def _update(key, prev, chm, diffs):
+            key, (retdiff, w, tr, d) = self.kernel.update(
+                key, prev, chm, diffs
+            )
+            return key, (retdiff, w, tr, d)
+
+        def _fallback(key, prev, chm, diffs):
+            key, (retdiff, w, tr, d) = self.kernel.update(
+                key, prev, EmptyChoiceMap(), diffs
+            )
+            return key, (retdiff, w, tr, d)
+
+        def _inner(key, index, prev, chm, diffs):
+            check = index == chm.get_index()
             return concrete_cond(
                 check,
                 _update,
@@ -315,14 +413,16 @@ class MapCombinator(GenerativeFunction):
                 chm,
             )
 
+        # Now, we proceed.
         indices = np.array([i for i in range(0, len(key))])
-        prev_outaxes_tree, vchm_inaxes_tree = jtu.tree_map(
-            lambda v: None if v.shape == () else 0, (prev.inner, vchm)
+        prev_inaxes_tree = jtu.tree_map(
+            lambda v: None if v.shape == () else 0,
+            prev.inner,
         )
-        key, (w, tr, discard) = jax.vmap(
+        key, (retdiff, w, tr, discard) = jax.vmap(
             _inner,
-            in_axes=(key_axis, 0, vchm_inaxes_tree, 0, arg_axes),
-        )(key, indices, vchm, chm, diffs)
+            in_axes=(key_axis, 0, prev_inaxes_tree, 0, arg_axes),
+        )(key, indices, prev.inner, chm, diffs)
 
         w = jnp.sum(w)
         map_tr = MapTrace(
@@ -332,4 +432,62 @@ class MapCombinator(GenerativeFunction):
             jnp.sum(tr.get_score()),
         )
 
-        return key, (w, map_tr, discard)
+        return key, (retdiff, w, map_tr, discard)
+
+    def update(self, key, prev, chm, diffs):
+        assert isinstance(prev, MapTrace)
+
+        # Branches here implement certain optimizations when more
+        # information about the passed in choice map is available.
+        #
+        # The fallback just inflates a choice map to the right shape
+        # and runs a generic update.
+        if isinstance(chm, VectorChoiceMap):
+            return self._update_vcm(key, prev, chm, diffs)
+        else:
+            return self._update_fallback(key, prev, chm, diffs)
+
+    def _throw_index_check_host_exception(self, index: int):
+        def _inner(count, transforms):
+            raise Exception(
+                f"\nMapCombinator {self} received a choice map with mismatched indices (at index {index}) in assess."
+            )
+
+        hcb.id_tap(
+            lambda *args: _inner(*args),
+            index,
+            result=None,
+        )
+        return None
+
+    def assess(self, key, chm, args):
+        assert isinstance(chm, VectorChoiceMap)
+
+        def _inner(key, index, chm, args):
+            check = index == chm.get_index()
+
+            # This inserts a host callback check for bounds checking.
+            # If there is an index failure, `assess` must fail
+            # because we must provide a constraint for every generative
+            # function call.
+            concrete_cond(
+                check,
+                lambda *args: self._throw_index_check_host_exception(
+                    index,
+                ),
+                lambda *args: None,
+            )
+
+            return self.kernel.assess(key, chm, args)
+
+        # Get static axes.
+        key_axis = self.in_axes[0]
+        arg_axes = self.in_axes[1:]
+
+        indices = np.array([i for i in range(0, len(key))])
+        return jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
+            key,
+            indices,
+            chm,
+            args,
+        )

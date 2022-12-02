@@ -12,8 +12,8 @@ import genjax
 
 @genjax.gen
 def add_normal_noise(key, x):
-    key, noise1 = genjax.trace("noise1", genjax.Normal)(key, (0.0, 1.0))
-    key, noise2 = genjax.trace("noise2", genjax.Normal)(key, (0.0, 1.0))
+    key, noise1 = genjax.trace("noise1", genjax.Normal)(key, 0.0, 1.0)
+    key, noise2 = genjax.trace("noise2", genjax.Normal)(key, 0.0, 1.0)
     return (key, x + noise1 + noise2)
 
 

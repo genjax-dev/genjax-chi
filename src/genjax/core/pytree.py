@@ -31,7 +31,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-from rich.tree import Tree
+import rich
 
 import genjax.core.pretty_printing as gpp
 from genjax.core.hashabledict import HashableDict
@@ -60,7 +60,7 @@ class Pytree(metaclass=abc.ABCMeta):
         if hasattr(self, "_tree_console_overload"):
             return self._tree_console_overload()
         else:
-            tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+            tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
             if dataclasses.is_dataclass(self):
                 d = dict(
                     (field.name, getattr(self, field.name))
