@@ -137,40 +137,24 @@ class SwitchCombinator(GenerativeFunction):
         print(tr)
     """
 
-    branches: dict[int, GenerativeFunction]
-
-    def __init__(self, branches: List[GenerativeFunction]):
-        """
-        Parameters
-        ----------
-
-        branches: :code:`List[GenerativeFunction]`
-            A :code:`List` of :code:`GenerativeFunction` instances which shares the same argument signature, and return type.
-        """
-        self.branches = {}
-        for (ind, gen_fn) in enumerate(branches):
-            self.branches[ind] = gen_fn
+    branches: List[GenerativeFunction]
 
     def flatten(self):
         return (), (self.branches,)
 
     def __call__(self, key, *args):
-        return jax.lax.switch(
-            args[0],
-            self.branches,
-            key,
-            *args[1:],
-        )
+        key, tr = self.simulate(key, args)
+        return key, tr.get_retval()
 
     def get_trace_type(self, key, args):
         subtypes = []
-        for (_, gen_fn) in self.branches.items():
+        for gen_fn in self.branches:
             subtypes.append(gen_fn.get_trace_type(key, args[1:]))
         return SumTraceType(subtypes)
 
     def create_sum_pytree(self, key, choices, args):
         covers = []
-        for (_, gen_fn) in self.branches.items():
+        for gen_fn in self.branches:
             _, (key, abstr) = jax.make_jaxpr(
                 gen_fn.simulate, return_shape=True
             )(key, args)
@@ -205,12 +189,7 @@ class SwitchCombinator(GenerativeFunction):
                 args,
             )
 
-        branch_functions = list(
-            map(
-                _inner,
-                self.branches.values(),
-            )
-        )
+        branch_functions = list(map(_inner, self.branches))
 
         return jax.lax.switch(
             switch,
@@ -248,12 +227,7 @@ class SwitchCombinator(GenerativeFunction):
                 args,
             )
 
-        branch_functions = list(
-            map(
-                _inner,
-                self.branches.values(),
-            )
-        )
+        branch_functions = list(map(_inner, self.branches))
 
         return jax.lax.switch(
             switch,
