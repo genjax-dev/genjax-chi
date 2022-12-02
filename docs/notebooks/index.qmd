@@ -1,0 +1,7 @@
+---
+title: "Modeling and inference notebooks"
+date: "December 1, 2022"
+---
+
+This is a notebook repository for pedagogical tutorials on the usage
+of [GenJAX](https://github.com/probcomp/genjax).

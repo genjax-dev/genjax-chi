@@ -24,29 +24,17 @@ caption: Getting started
 
 genjax/gen_fn
 genjax/diff_jl
-genjax/your_first_inf
+genjax/notebooks
 ```
 
 ```{toctree}
 ---
 hidden:
 maxdepth: 1
-caption: Modeling and inference
+caption: Library module reference
 ---
 
-genjax/combinators/combinators
-genjax/inference/inference
-```
-
-```{toctree}
----
-hidden:
-caption: Advanced
----
-
-genjax/advanced/information
-genjax/advanced/trace_types
-genjax/advanced/prox
+genjax/library/generative_functions/generative_functions
 ```
 
 ```{toctree}

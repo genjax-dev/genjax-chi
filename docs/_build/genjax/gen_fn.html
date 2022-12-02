@@ -109,20 +109,20 @@
   </a>
  </li>
  <li class="toctree-l1">
-  <a class="reference internal" href="your_first_inf.html">
-   Writing your first inference algorithm
+  <a class="reference internal" href="notebooks.html">
+   Modeling &amp; inference notebooks
   </a>
  </li>
 </ul>
 <p aria-level="2" class="caption" role="heading">
  <span class="caption-text">
-  Modeling and inference
+  Library module reference
  </span>
 </p>
 <ul class="nav bd-sidenav">
  <li class="toctree-l1 has-children">
-  <a class="reference internal" href="combinators/combinators.html">
-   Generative function combinators
+  <a class="reference internal" href="library/generative_functions/generative_functions.html">
+   Generative functions
   </a>
   <input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/>
   <label for="toctree-checkbox-1">
@@ -131,8 +131,8 @@
   </label>
   <ul>
    <li class="toctree-l2 has-children">
-    <a class="reference internal" href="combinators/classes/classes.html">
-     Combinators classes
+    <a class="reference internal" href="library/generative_functions/combinators/combinators.html">
+     Generative function combinators
     </a>
     <input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/>
     <label for="toctree-checkbox-2">
@@ -141,77 +141,28 @@
     </label>
     <ul>
      <li class="toctree-l3">
-      <a class="reference internal" href="combinators/classes/switch.html">
+      <a class="reference internal" href="library/generative_functions/combinators/switch.html">
        Switch combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="combinators/classes/map.html">
+      <a class="reference internal" href="library/generative_functions/combinators/map.html">
        Map combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="combinators/classes/unfold.html">
+      <a class="reference internal" href="library/generative_functions/combinators/unfold.html">
        Unfold combinator
       </a>
      </li>
      <li class="toctree-l3">
-      <a class="reference internal" href="combinators/classes/train.html">
+      <a class="reference internal" href="library/generative_functions/combinators/train.html">
        Trainable combinator
       </a>
      </li>
     </ul>
    </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="combinators/vector_combinators.html">
-     Vector combinators
-    </a>
-   </li>
   </ul>
- </li>
- <li class="toctree-l1 has-children">
-  <a class="reference internal" href="inference/inference.html">
-   Inference
-  </a>
-  <input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/>
-  <label for="toctree-checkbox-3">
-   <i class="fas fa-chevron-down">
-   </i>
-  </label>
-  <ul>
-   <li class="toctree-l2">
-    <a class="reference internal" href="inference/library/library.html">
-     Inference library
-    </a>
-   </li>
-   <li class="toctree-l2">
-    <a class="reference internal" href="inference/best_practices.html">
-     Inference best practices
-    </a>
-   </li>
-  </ul>
- </li>
-</ul>
-<p aria-level="2" class="caption" role="heading">
- <span class="caption-text">
-  Advanced
- </span>
-</p>
-<ul class="nav bd-sidenav">
- <li class="toctree-l1">
-  <a class="reference internal" href="advanced/information.html">
-   Density diagnostics and information theory
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="advanced/trace_types.html">
-   Gradual trace typing for inference soundness verification
-  </a>
- </li>
- <li class="toctree-l1">
-  <a class="reference internal" href="advanced/prox.html">
-   Prox: compositional approximate densities
-  </a>
  </li>
 </ul>
 <p aria-level="2" class="caption" role="heading">
@@ -618,7 +569,7 @@ whose semantics are described below:</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x107574e50&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x10335f370&gt;)
 </pre></div>
 </div>
 </div>
@@ -707,7 +658,7 @@ transformation abilities.</p>
 </ul>
 <p>All this is happening before runtime – JAX’s tracer stages out these transformations into the clean (<code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive free) <code class="code docutils literal notranslate"><span class="pre">Jaxpr</span></code> above.</p>
 <p>This essential pattern is repeated for each <span class="xref std std-doc">interface</span> method defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code>.</p>
-<p>Other generative function “languages” in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function <em>need not</em> introspect on the implementation of a callee’s interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. <a class="reference internal" href="combinators/combinators.html"><span class="doc">Generative function combinators</span></a>) other generative functions in composable patterns.</p>
+<p>Other generative function “languages” in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function <em>need not</em> introspect on the implementation of a callee’s interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. <span class="xref std std-doc">combinators/combinators</span>) other generative functions in composable patterns.</p>
 </section>
 <section id="generative-function-interface">
 <h2>Generative function interface<a class="headerlink" href="#generative-function-interface" title="Permalink to this headline">#</a></h2>
@@ -734,7 +685,7 @@ and <code class="code docutils literal notranslate"><span class="pre">**kwargs</
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x130c552d0&gt;
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x12d32a170&gt;
 </pre></div>
 </div>
 </div>
@@ -750,7 +701,7 @@ methods directly - but sometimes it is useful to use the getter variants
 
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>The trace type functionality is described in more detail in <span class="xref std std-doc">experimental/trace_types</span>,
+<p>The trace type functionality is described in more detail in <span class="xref std std-doc">advanced/trace_types</span>,
 as well as in the original research paper <a class="reference external" href="https://dl.acm.org/doi/10.1145/3371087">Lew et al (2019)</a>.</p>
 </div>
 <dl class="py function">
