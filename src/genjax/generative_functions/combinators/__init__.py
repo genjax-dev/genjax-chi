@@ -19,22 +19,20 @@ These combinators accept generative functions as arguments, and return
 generative functions with modified choice map shapes and behavior.
 
 They are used to express common patterns of computation, including
-if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator`), and dependent for-loop (`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (`TrainableCombinator`).
+if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`TrainCombinator`).
 
-```{attention}
-The implementations of these combinators are similar to those in `Gen.jl`, but JAX imposes extra restrictions on their construction and usage.
+.. attention::
 
-In contrast to `Gen.jl`, `UnfoldCombinator` must have the number of
-unfold steps specified ahead of time as a static constant. The length of the unfold chain cannot depend on a variable whose value is known
-only at runtime.
+    The implementations of these combinators are similar to those in :code:`Gen.jl`, but JAX imposes extra restrictions on their construction and usage.
 
-Similarly, for `MapCombinator` - the shape of the vectorial arguments
-which will be mapped over must be known at JAX tracing time.
+    In contrast to :code:`Gen.jl`, :code:`UnfoldCombinator` must have the number of
+    unfold steps specified ahead of time as a static constant. The length of the unfold chain cannot depend on a variable whose value is known
+    only at runtime.
 
-These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
-```
+    Similarly, for :code:`MapCombinator` - the shape of the vectorial arguments
+    which will be mapped over must be known at JAX tracing time.
 
-[Gen.jl]: https://github.com/probcomp/Gen.jl
+    These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
 """
 
 from .combinator_datatypes import *

@@ -1,11 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@200;500&family=Varela+Round&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Solway:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 
 /*-- scss:rules --*/
 
 html {
   font-size: 16px;
+}
+
+span.navbar-title {
+  font-family: "Solway", sans-serif;
 }
 
 body {

@@ -200,7 +200,7 @@ In this section, we present the full set of generative function interface functi
 
 .. tip::
 
-   The trace type functionality is described in more detail in :doc:`experimental/trace_types`,
+   The trace type functionality is described in more detail in :doc:`advanced/trace_types`,
    as well as in the original research paper `Lew et al (2019)`_.
 
 .. autofunction:: genjax.get_trace_type
