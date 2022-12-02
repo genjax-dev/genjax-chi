@@ -69,7 +69,7 @@ class GenJAXConsole:
             objexplore.explore(module)
 
 
-def pretty(show_locals=False, max_frames=20, suppress=[jax]):
+def pretty(show_locals=False, max_frames=20, suppress=[jax], **kwargs):
     rich.pretty.install()
     traceback.install(
         show_locals=show_locals,
@@ -77,4 +77,4 @@ def pretty(show_locals=False, max_frames=20, suppress=[jax]):
         suppress=[jax],
     )
 
-    return GenJAXConsole(Console(soft_wrap=True))
+    return GenJAXConsole(Console(soft_wrap=True, **kwargs))
