@@ -18,6 +18,8 @@ from typing import Sequence
 from typing import Union
 
 import jax.numpy as jnp
+import jax.tree_util as jtu
+import numpy as np
 from rich.tree import Tree
 
 import genjax.core.pretty_printing as gpp
@@ -26,7 +28,6 @@ from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
 from genjax.core.masks import BooleanMask
-from genjax.core.specialization import is_concrete
 from genjax.core.typing import Integer
 from genjax.core.typing import IntegerTensor
 
@@ -64,22 +65,16 @@ class VectorChoiceMap(ChoiceMap):
         return self.inner.has_subtree(addr)
 
     def get_subtree(self, addr):
-        return VectorChoiceMap.new(
-            self.indices,
-            self.inner.get_subtree(addr),
-        )
+        return self.inner.get_subtree(addr)
 
     def get_subtrees_shallow(self):
-        def _inner(k, v):
-            return k, VectorChoiceMap.new(self.indices, v)
-
-        return map(
-            lambda args: _inner(*args),
-            self.inner.get_subtrees_shallow(),
-        )
+        return self.inner.get_subtrees_shallow()
 
     def merge(self, other):
-        return VectorChoiceMap.new(self.indices, self.inner.merge(other))
+        return VectorChoiceMap.new(
+            self.indices,
+            self.inner.merge(other),
+        )
 
     def __hash__(self):
         return hash(self.inner)
@@ -133,12 +128,40 @@ class IndexedChoiceMap(ChoiceMap):
         checks = list(map(lambda v: v.has_subtree(addr), self.submaps))
         return jnp.choose(self.index, checks, mode="wrap")
 
+    # The way this works is slightly complicated, and relies on specific
+    # assumptions about how SwitchCombinator works (and the
+    # allowed shapes) of choice maps produced by SwitchCombinator.
+    #
+    # The key observation is that, if a branch choice map has an addr,
+    # and it shares that address with another branch, the shape of the
+    # choice map for each shared address has to be the same, all the
+    # way down to the arguments.
     def get_subtree(self, addr):
         submaps = list(map(lambda v: v.get_subtree(addr), self.submaps))
-        if is_concrete(self.index):
-            return submaps[self.index]
-        else:
-            return IndexedChoiceMap.new(self.index, submaps)
+
+        # Here, we create an index map before we filter out
+        # EmptyChoiceMap instances.
+        counter = 0
+        index_map = []
+        for (ind, v) in enumerate(submaps):
+            if isinstance(v, EmptyChoiceMap):
+                index_map.append(-1)
+            else:
+                index_map.append(counter)
+                counter += 1
+        index_map = np.array(index_map)
+
+        non_empty_submaps = list(
+            filter(lambda v: not isinstance(v, EmptyChoiceMap), submaps)
+        )
+        return jtu.tree_map(
+            lambda *v: jnp.choose(
+                index_map[self.index],
+                v,
+                mode="wrap",
+            ),
+            *non_empty_submaps,
+        )
 
     def get_subtrees_shallow(self):
         def _inner(index, submap):
@@ -165,6 +188,9 @@ class IndexedChoiceMap(ChoiceMap):
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
         subts = list(map(lambda v: v._build_rich_tree(), self.submaps))
+        subk = Tree("[blue]index")
+        subk.add(gpp.tree_pformat(self.index))
+        tree.add(subk)
         for subt in subts:
             tree.add(subt)
         return tree

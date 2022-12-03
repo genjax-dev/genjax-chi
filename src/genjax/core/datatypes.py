@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-import dataclasses
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
@@ -141,22 +140,6 @@ class Trace(ChoiceMap, Tree):
             return choice.get_leaf_value()
         else:
             return choice
-
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-        if dataclasses.is_dataclass(self):
-            d = dict(
-                (field.name, getattr(self, field.name))
-                for field in dataclasses.fields(self)
-            )
-            for (k, v) in d.items():
-                subk = tree.add(f"[blue]{k}")
-                if isinstance(v, Pytree) or hasattr(v, "_build_rich_tree"):
-                    subtree = v._build_rich_tree()
-                    subk.add(subtree)
-                else:
-                    subk.add(gpp.tree_pformat(v))
-        return tree
 
 
 #####
