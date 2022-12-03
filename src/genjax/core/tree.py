@@ -16,12 +16,8 @@
 "tree-like" classes (like :code:`ChoiceMap` and :code:`Selection`)."""
 
 import abc
-import dataclasses
 from dataclasses import dataclass
 
-import rich
-
-import genjax.core.pretty_printing as gpp
 from genjax.core.pytree import Pytree
 
 
@@ -47,18 +43,6 @@ class Tree(Pytree):
     def merge(self, other):
         pass
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-        for (k, v) in self.get_subtrees_shallow():
-            subk = tree.add(f"[bold][green]{k}")
-            if hasattr(v, "_build_rich_tree"):
-                subt = v._build_rich_tree()
-                subk.add(subt)
-            else:
-                subk.add(gpp.tree_pformat(v))
-
-        return tree
-
 
 @dataclass
 class Leaf(Tree):
@@ -79,19 +63,3 @@ class Leaf(Tree):
 
     def merge(self, other):
         return other
-
-    def _build_rich_tree(self):
-        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-        if dataclasses.is_dataclass(self):
-            d = dict(
-                (field.name, getattr(self, field.name))
-                for field in dataclasses.fields(self)
-            )
-            for (k, v) in d.items():
-                subk = tree.add(f"[blue]{k}")
-                if isinstance(v, Pytree) or hasattr(v, "_build_rich_tree"):
-                    subtree = v._build_rich_tree()
-                    subk.add(subtree)
-                else:
-                    subk.add(gpp.tree_pformat(v))
-        return tree

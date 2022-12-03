@@ -5,7 +5,7 @@ project:
 
 author: McCoy Reynolds Becker
 theme:
-  - simplex
+  - journal
   - custom.scss
 
 website:
@@ -20,8 +20,6 @@ website:
   navbar:
     collapse: true
     left:
-      - text: "Home"
-        file: index.qmd
       - text: "Basics"
         menu:
           - introduction/intro_to_genjax/intro_to_genjax.ipynb
@@ -46,6 +44,7 @@ toc: true
 toc-location: left
 format:
   html:
+    highlight-style: breeze
     code-fold: false
     self-contained: true
     code-overflow: wrap

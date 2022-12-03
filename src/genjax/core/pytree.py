@@ -73,6 +73,7 @@ class Pytree(metaclass=abc.ABCMeta):
                         subk.add(subtree)
                     else:
                         subk.add(gpp.tree_pformat(v))
+
             return tree
 
     def __rich_console__(self, console, options):

@@ -26,7 +26,7 @@ def simple_normal(key):
 
 @genjax.gen
 def simple_bernoulli(key):
-    key, y1 = genjax.trace("y1", genjax.Bernoulli)(key, 0.3)
+    key, y3 = genjax.trace("y3", genjax.Bernoulli)(key, 0.3)
     return (key,)
 
 
@@ -44,7 +44,7 @@ class TestSimulate:
             v1, 0.0, 1.0
         ) + genjax.Normal.logpdf(v2, 0.0, 1.0)
         key, tr = jax.jit(switch.simulate)(key, (1,))
-        flip = tr["y1"]
+        flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
 
@@ -60,13 +60,13 @@ class TestSimulate:
         ) + genjax.Normal.logpdf(v2, 0.0, 1.0)
         assert w == 0.0
         key, (w, tr) = jax.jit(switch.importance)(key, chm, (1,))
-        flip = tr["y1"]
+        flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
         assert w == 0.0
-        chm = genjax.BuiltinChoiceMap.new({"y1": True})
+        chm = genjax.BuiltinChoiceMap.new({"y3": True})
         key, (w, tr) = jax.jit(switch.importance)(key, chm, (1,))
-        flip = tr["y1"]
+        flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
         assert w == score
