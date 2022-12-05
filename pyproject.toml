@@ -48,6 +48,7 @@ furo = "^2022.9.29"
 jupyterlab = "^3.5.0"
 docformatter = {version = "^1.5.0", extras = ["tomli"]}
 matplotlib = "^3.6.2"
+seaborn = "^0.12.1"
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]

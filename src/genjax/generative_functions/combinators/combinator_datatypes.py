@@ -51,15 +51,21 @@ class VectorChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.indices, self.inner), ()
 
+    @classmethod
+    def new(cls, inner):
+        assert isinstance(inner, ChoiceMap)
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
+        broadcast_dim_tree = jtu.tree_map(lambda v: len(v), inner)
+        leaves = jtu.tree_leaves(broadcast_dim_tree)
+        leaf_lengths = set(leaves)
+        assert len(leaf_lengths) == 1
+        max_index = list(leaf_lengths).pop()
+        return VectorChoiceMap(np.arange(0, max_index), inner)
+
     def get_selection(self):
         subselection = self.inner.get_selection()
         return VectorSelection.new(self.indices, subselection)
-
-    @classmethod
-    def new(cls, indices, inner):
-        if isinstance(inner, EmptyChoiceMap):
-            return inner
-        return VectorChoiceMap(indices, inner)
 
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
@@ -71,13 +77,16 @@ class VectorChoiceMap(ChoiceMap):
         return self.inner.get_subtrees_shallow()
 
     def merge(self, other):
-        return VectorChoiceMap.new(
+        return VectorChoiceMap(
             self.indices,
             self.inner.merge(other),
         )
 
     def __hash__(self):
         return hash(self.inner)
+
+    def get_index(self):
+        return self.indices
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
