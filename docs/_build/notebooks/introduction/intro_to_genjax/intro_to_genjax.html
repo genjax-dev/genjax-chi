@@ -4548,11 +4548,12 @@ vertical-align: -.125em;
 <li><p>A base layer for experiments in model and inference DSL design.</p></li>
 </ul>
 <p>There’s already a well-supported implementation of <a href="https://github.com/probcomp/Gen.jl">Gen in Julia</a>. Why is a JAX port interesting?</p>
-<p>There are a number of compelling reasons to explore Gen’s probabilistic programming paradigm on top of JAX, here are a few:</p>
+<p>There are a number of compelling technical and social reasons to explore Gen’s probabilistic programming paradigm on top of JAX, here are a few:</p>
 <ul>
 <li><p>JAX’s excellent accelerator support - our implementation natively supports several common accelerator idioms - like automatic struct-of-array representations, and the ability to automatically batch model/inference programs onto accelerators.</p></li>
-<li><p>JAX’s excellent support for compositional higher-order AD allows us to explore higher-order AD in inference design, previously a difficult implementation challenge.</p></li>
+<li><p>JAX’s excellent support for compositional AD removes implementation and maintenance complexity for Gen’s gradient interfaces - previously a difficult challenge in other implementations. In addition, JAX’s support for convenient, higher-order AD opens up new opportunities to explore during inference design with gradient interfaces.</p></li>
 <li><p>JAX exposes compositional code transformations to library authors, and, as library authors, we can utilize code transformations to implement state-of-the-art optimizations for models and inference expressed in our system.</p></li>
+<li><p>A lot of domain experts and modelers are working in Python! Some of them even use JAX (hopefully more each year). Presenting an interface to Gen which is familiar, and takes advantage of JAX’s native ecosystem is a compelling social reason.</p></li>
 </ul>
 <p>Let’s truncate the list there for now.</p>
 <p>For the JAX literati, one final (hopefully tantalizing) takeaway: <u>by construction, all GenJAX modeling + inference code is JAX traceable</u> - and thus, <code>vmap</code>able, <code>jit</code>able, etc.</p>
@@ -5538,7 +5539,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>timeit</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>_, samples <span class="op">=</span> jitted(sub_keys, observations, model_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>53.3 ms ± 1.74 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
+<pre><code>57 ms ± 3.25 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="35">
