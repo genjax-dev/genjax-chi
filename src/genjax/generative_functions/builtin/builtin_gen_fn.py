@@ -16,11 +16,10 @@ from dataclasses import dataclass
 from typing import Callable
 from typing import Tuple
 
-import jax
-
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
+from genjax.core.staging import stage
 from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax.generative_functions.builtin.builtin_tracetype import (
     get_trace_type,
@@ -40,13 +39,10 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def flatten(self):
         return (), (self.source,)
 
-    def __call__(self, key, *args):
-        return self.source(key, *args)
-
     def get_trace_type(self, key, args, **kwargs):
         assert isinstance(args, Tuple)
-        jaxpr = jax.make_jaxpr(self.__call__)(key, *args)
-        return get_trace_type(jaxpr)
+        closed_jaxpr, _ = stage(self.__call__)(key, *args)
+        return get_trace_type(closed_jaxpr)
 
     def simulate(self, key, args, **kwargs):
         assert isinstance(args, Tuple)
@@ -76,15 +72,15 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         (
             key,
             (
+                retval_diffs,
                 w,
-                retval_diff,
                 (f, args, r, chm, score),
                 discard,
             ),
             cache,
         ) = update_transform(self.source, **kwargs)(key, prev, new, args)
         return key, (
-            retval_diff,
+            retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
             discard,

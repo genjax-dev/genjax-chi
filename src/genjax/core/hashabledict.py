@@ -19,7 +19,10 @@ usage of :code:`dict`-like instances as JAX JIT cache keys
 """
 
 import jax.tree_util as jtu
+import rich
 from jax.util import safe_zip
+
+import genjax.core.pretty_printing as gpp
 
 
 class HashableDict(dict):
@@ -31,6 +34,17 @@ class HashableDict(dict):
 
     def __eq__(self, other):
         return self.__key() == other.__key()
+
+    def _build_rich_tree(self):
+        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
+        for (k, v) in self.items():
+            subk = tree.add(f"[bold blue]{k}")
+            if hasattr(v, "_build_rich_tree"):
+                subtree = v._build_rich_tree()
+                subk.add(subtree)
+            else:
+                subk.add(gpp.tree_pformat(v))
+        return tree
 
 
 jtu.register_pytree_node(

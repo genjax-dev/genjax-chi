@@ -18,7 +18,9 @@ from typing import Dict
 from typing import Tuple
 
 import jax.numpy as jnp
+import rich
 
+import genjax.core.pretty_printing as gpp
 from genjax.core.datatypes import AllSelection
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
@@ -112,6 +114,17 @@ class BuiltinTrie(Tree):
 
     def __hash__(self):
         return hash(self.inner)
+
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
+        for (k, v) in self.inner.items():
+            subk = tree.add(f"[bold green]{k}")
+            if hasattr(v, "_build_rich_tree"):
+                subtree = v._build_rich_tree()
+                subk.add(subtree)
+            else:
+                subk.add(gpp.tree_pformat(v))
+        return tree
 
 
 #####

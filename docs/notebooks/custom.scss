@@ -1,7 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@200;500&family=Varela+Round&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Solway:wght@700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+@import 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap';
 
 /*-- scss:rules --*/
 
@@ -14,13 +13,11 @@ span.navbar-title {
 }
 
 body {
-  font-family: "Noto Sans JP", sans-serif;
-  font-weight: 300;
+  font-family: "Atkinson Hyperlegible", sans-serif;
 }
 
 code {
   font-family: "Fira Code", sans-serif;
-  font-weight: 400;
   font-variant-ligatures: common-ligatures;
 }
 
@@ -32,5 +29,4 @@ h5,
 h6 {
   font-family: "Solway", sans-serif;
   line-height: 2.2rem;
-  font-weight: 400;
 }

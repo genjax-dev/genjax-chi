@@ -288,7 +288,7 @@ name = "contourpy"
 version = "1.0.6"
 description = "Python library for calculating contours of 2D quadrilateral grids"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -317,7 +317,7 @@ name = "cycler"
 version = "0.11.0"
 description = "Composable style cycles"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.6"
 
 [[package]]
@@ -453,7 +453,7 @@ name = "fonttools"
 version = "4.38.0"
 description = "Tools to manipulate font files"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.7"
 
 [package.extras]
@@ -899,7 +899,7 @@ name = "kiwisolver"
 version = "1.4.4"
 description = "A fast implementation of the Cassowary constraint solver"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.7"
 
 [[package]]
@@ -927,7 +927,7 @@ name = "matplotlib"
 version = "3.6.2"
 description = "Python plotting package"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.8"
 
 [package.dependencies]
@@ -1241,7 +1241,7 @@ name = "pillow"
 version = "9.3.0"
 description = "Python Imaging Library (Fork)"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.7"
 
 [package.extras]
@@ -1601,7 +1601,7 @@ name = "setuptools-scm"
 version = "7.0.5"
 description = "the blessed package to manage your versions by scm tags"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -2038,7 +2038,7 @@ tinygp = ["tinygp"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <4.0"
-content-hash = "857cba226a98d0ed582ce6fd342cf01609b1c1b2a21fad5cc07a06b6ea583438"
+content-hash = "0d389d9b3591d4172eb0cea2fa33e6c384fcc2b2f13d26bc264390fa6c70e111"
 
 [metadata.files]
 absl-py = [

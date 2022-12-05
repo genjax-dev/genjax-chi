@@ -5,8 +5,7 @@ project:
 
 author: McCoy Reynolds Becker
 theme:
-  - journal
-  - custom.scss
+  light: [simplex, custom.scss]
 
 website:
   title: "Gen ⊗ JAX"
@@ -15,7 +14,6 @@ website:
   repo-url: https://github.com/probcomp/genjax
   repo-actions: [edit, issue]
   search:
-    location: navbar
     type: overlay
   navbar:
     collapse: true
@@ -42,12 +40,17 @@ website:
 
 toc: true
 toc-location: left
-format:
-  html:
-    highlight-style: breeze
-    code-fold: false
-    self-contained: true
-    code-overflow: wrap
-
 reference-location: margin
 citation-location: margin
+
+format:
+  html:
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    self-contained: true
+    highlight-style: breeze
+    grid:
+      sidebar-width: 250px
+      body-width: 800px
+      margin-width: 300px

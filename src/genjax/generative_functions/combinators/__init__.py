@@ -44,6 +44,7 @@ from .train import *
 from .unfold import *
 
 
+vector_choice_map = VectorChoiceMap.new
 Map = MapCombinator
 Unfold = UnfoldCombinator
 Switch = SwitchCombinator
@@ -51,6 +52,7 @@ Recurse = RecurseCombinator
 Train = TrainCombinator
 
 __all__ = [
+    "vector_choice_map",
     "Map",
     "MapCombinator",
     "Unfold",

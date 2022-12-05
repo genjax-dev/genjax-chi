@@ -22,9 +22,7 @@ from typing import Union
 import jax
 import jax.tree_util as jtu
 import numpy as np
-import rich
 
-import genjax.core.pretty_printing as gpp
 from genjax.core.pytree import Pytree
 from genjax.core.tracetypes import Bottom
 from genjax.core.tracetypes import TraceType
@@ -192,9 +190,10 @@ class GenerativeFunction(Pytree):
     provide a differentiable `importance` implementation.
     """
 
-    @abc.abstractmethod
     def __call__(self, key: PRNGKey, *args):
-        pass
+        key, tr = self.simulate(key, args)
+        retval = tr.get_retval()
+        return key, retval
 
     def get_trace_type(
         self,
@@ -264,6 +263,10 @@ class GenerativeFunction(Pytree):
 
         return key, score, retval
 
+    def _get_trace_data_shape(self, key, args):
+        _, output = jax.make_jaxpr(self.simulate, return_shape=True)(key, args)
+        return output
+
 
 #####
 # Concrete choice maps
@@ -307,15 +310,6 @@ class ValueChoiceMap(ChoiceMap, Leaf):
             return hash(self.value.tobytes())
         else:
             return hash(self.value)
-
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-        if isinstance(self.value, Pytree):
-            subt = self.value._build_rich_tree()
-            tree.add(subt)
-        else:
-            tree.add(gpp.tree_pformat(self.value))
-        return tree
 
 
 #####
