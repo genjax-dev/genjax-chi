@@ -1,8 +1,6 @@
 @charset "utf-8";
-@import url("https://use.typekit.net/ulw0ccy.css");
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Kreon:wght@500&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@200;500&family=Varela+Round&display=swap");
+@import "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap";
 
 div.attr {
   font-family: "Fira Code", monospace;
@@ -55,7 +53,7 @@ pre {
 }
 
 body {
-  font-family: "Noto Sans JP", sans-serif;
+  font-family: "Atkinson Hyperlegible", sans-serif;
   font-weight: 300;
 }
 
@@ -74,4 +72,14 @@ div.jupyter_cell.jupyter_container.docutils.container {
 
 .jupyter_container div.code_cell {
   border: 0px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Atkinson Hyperlegible", sans-serif;
+  line-height: 2.2rem;
 }
