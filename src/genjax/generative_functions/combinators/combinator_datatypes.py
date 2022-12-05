@@ -143,7 +143,7 @@ class IndexedChoiceMap(ChoiceMap):
         # EmptyChoiceMap instances.
         counter = 0
         index_map = []
-        for (ind, v) in enumerate(submaps):
+        for v in submaps:
             if isinstance(v, EmptyChoiceMap):
                 index_map.append(-1)
             else:
