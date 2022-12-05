@@ -4473,7 +4473,7 @@ vertical-align: -.125em;
   <li><a href="#great-what-can-i-do-with-them" id="toc-great-what-can-i-do-with-them" class="nav-link" data-scroll-target="#great-what-can-i-do-with-them">Great … what can I do with them?</a></li>
   <li><a href="#your-first-inference-program" id="toc-your-first-inference-program" class="nav-link" data-scroll-target="#your-first-inference-program">Your first inference program</a>
   <ul class="collapse">
-  <li><a href="#importance-sampling-informally" id="toc-importance-sampling-informally" class="nav-link" data-scroll-target="#importance-sampling-informally">Importance sampling … informally</a></li>
+  <li><a href="#importance-sampling-informally" id="toc-importance-sampling-informally" class="nav-link" data-scroll-target="#importance-sampling-informally">Importance sampling, informally</a></li>
   <li><a href="#back-to-our-generative-function" id="toc-back-to-our-generative-function" class="nav-link" data-scroll-target="#back-to-our-generative-function">Back to our generative function</a></li>
   </ul></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
@@ -5232,7 +5232,7 @@ JAX interfaces
 </div>
 <p>In Bayesian inference, if we wish to consider the conditional distribution <span class="math inline">\(P(\tau, r; x | \text{data})\)</span> induced from a model <span class="math inline">\(P(\tau, \text{data}, r; x)\)</span> - Bayes’ rule gives us a way to compute it.</p>
 <p><span class="math display">\[
-P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \text{data}, r; x) \ d\tau \ dr}
+P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \text{data}, r; x) \ d\tau}
 \]</span></p>
 <p>The problem is that we often cannot compute the denominator (<em>the evidence integral</em>) easily. Instead, we turn to <em>approximate</em> Bayesian inference.</p>
 <p>Depending on how we wish to use the LHS conditional (which is called <em>the posterior</em> in Bayesian inference) - we have different options available to us.</p>
@@ -5276,7 +5276,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <p>Remember: the score is the normalized log density of the choice map measure evaluated at the complete set of trace constraints. We’ll refer to complete traces by <span class="math inline">\(\tau\)</span>.</p>
 <p>The log importance weight <code>w</code> is slightly different.</p>
 <section id="importance-sampling-informally" class="level3 page-columns page-full">
-<h3 class="anchored" data-anchor-id="importance-sampling-informally">Importance sampling … informally</h3>
+<h3 class="anchored" data-anchor-id="importance-sampling-informally">Importance sampling, informally</h3>
 <div class="page-columns page-full"><p>Let’s discuss how importance sampling works first<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn6"><p><sup>6</sup> In this notebook, I’ll defer discussing formal proofs concerning the asymptotic consistence of posterior estimators derived from importance sampling.</p></li></div></div>
 <p>This will provide us with an understanding as to why <code>w</code> is different from the <code>score</code>.</p>
 <p>More importantly, we’ll understand how we can use <code>importance</code> to solve the inference task of approximately sampling from the posterior over coefficients (and ultimately, over curves) from our generative function.</p>
