@@ -4569,9 +4569,9 @@ vertical-align: -.125em;
 </section>
 <section id="what-are-we-actually-computing-with" class="level3">
 <h3 class="anchored" data-anchor-id="what-are-we-actually-computing-with">What are we actually computing with?</h3>
-<p>The objects which we program with expose a mixture of generative and differentiable interfaces - the interfaces are designed to support common (as well as quite advanced) classes of Bayesian inference algorithms. Gen provides automation for the tricky math which these algorithms sometimes require.</p>
-<p>We separate the design of inference (whose implementation uses the interfaces), from the implementation of the interfaces on computational objects. This allows us to build languages of objects which satisfy the interfaces - and allows their interoperability and usage.</p>
-<p>In Gen, we call objects which implement the interfaces <strong>generative functions</strong>.</p>
+<p>The objects which we program with expose a mixture of generative and differentiable interfaces - the interfaces are designed to support common (as well as quite advanced) classes of Bayesian inference algorithms. Gen provides automation for the tricky math which these algorithms require.</p>
+<p>We separate the design of inference (whose implementation uses the interfaces), from the implementation of the interfaces on computational objects. This allows us to build languages of objects which satisfy the interfaces - and allows their compositional usage and interoperability.</p>
+<p>In Gen, the objects which implement the interfaces are called <strong>generative functions</strong>.</p>
 </section>
 </section>
 <section id="what-is-a-generative-function" class="level2 page-columns page-full">
@@ -4680,38 +4680,34 @@ JAX interfaces
 │   └── bool[]
 ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
 │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-│       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
-│           └── <span style="font-weight: bold">HashableDict</span>
-│               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">sub</span>
-│                   └── <span style="font-weight: bold">BuiltinTrace</span>
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-│                       │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│                       │       └── <span style="color: #000080; text-decoration-color: #000080">source</span>
-│                       │           └── &lt;function g&gt;
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-│                       │   └── (0.3,)
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">retval</span>
-│                       │   └── bool[]
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
-│                       │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-│                       │       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
-│                       │           └── <span style="font-weight: bold">HashableDict</span>
-│                       │               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">m0</span>
-│                       │                   └── <span style="font-weight: bold">DistributionTrace</span>
-│                       │                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-│                       │                       │   └── <span style="font-weight: bold">_Bernoulli</span>
-│                       │                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-│                       │                       │   └── (0.3,)
-│                       │                       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│                       │                       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│                       │                       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│                       │                       │           └── bool[]
-│                       │                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-│                       │                           └── f32[]
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
-│                       │   └── <span style="font-weight: bold">BuiltinTrie</span>
-│                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-│                           └── f32[]
+│       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">sub</span>
+│           └── <span style="font-weight: bold">BuiltinTrace</span>
+│               ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│               │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│               │       └── <span style="color: #000080; text-decoration-color: #000080">source</span>
+│               │           └── &lt;function g&gt;
+│               ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│               │   └── (0.3,)
+│               ├── <span style="color: #000080; text-decoration-color: #000080">retval</span>
+│               │   └── bool[]
+│               ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
+│               │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
+│               │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m0</span>
+│               │           └── <span style="font-weight: bold">DistributionTrace</span>
+│               │               ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│               │               │   └── <span style="font-weight: bold">_Bernoulli</span>
+│               │               ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│               │               │   └── (0.3,)
+│               │               ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│               │               │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│               │               │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│               │               │           └── bool[]
+│               │               └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│               │                   └── f32[]
+│               ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
+│               │   └── <span style="font-weight: bold">BuiltinTrie</span>
+│               └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│                   └── f32[]
 ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
 │   └── <span style="font-weight: bold">BuiltinTrie</span>
 └── <span style="color: #000080; text-decoration-color: #000080">score</span>
@@ -4969,32 +4965,30 @@ JAX interfaces
 │   └── bool[]
 ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
 │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-│       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
-│           └── <span style="font-weight: bold">HashableDict</span>
-│               ├── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">m0</span>
-│               │   └── <span style="font-weight: bold">DistributionTrace</span>
-│               │       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-│               │       │   └── <span style="font-weight: bold">_Bernoulli</span>
-│               │       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-│               │       │   └── (0.3,)
-│               │       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│               │       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│               │       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│               │       │           └── bool[]
-│               │       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-│               │           └── f32[]
-│               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">m1</span>
-│                   └── <span style="font-weight: bold">DistributionTrace</span>
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-│                       │   └── <span style="font-weight: bold">_Bernoulli</span>
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-│                       │   └── (0.3,)
-│                       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│                       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│                       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│                       │           └── bool[]
-│                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-│                           └── f32[]
+│       ├── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m0</span>
+│       │   └── <span style="font-weight: bold">DistributionTrace</span>
+│       │       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│       │       │   └── <span style="font-weight: bold">_Bernoulli</span>
+│       │       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│       │       │   └── (0.3,)
+│       │       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│       │       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│       │       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│       │       │           └── bool[]
+│       │       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│       │           └── f32[]
+│       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m1</span>
+│           └── <span style="font-weight: bold">DistributionTrace</span>
+│               ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│               │   └── <span style="font-weight: bold">_Bernoulli</span>
+│               ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│               │   └── (0.3,)
+│               ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│               │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│               │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│               │           └── bool[]
+│               └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│                   └── f32[]
 ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
 │   └── <span style="font-weight: bold">BuiltinTrie</span>
 └── <span style="color: #000080; text-decoration-color: #000080">score</span>
@@ -5011,20 +5005,18 @@ JAX interfaces
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">BuiltinChoiceMap</span>
-└── <span style="color: #000080; text-decoration-color: #000080">inner</span>
-    └── <span style="font-weight: bold">HashableDict</span>
-        └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">m1</span>
-            └── <span style="font-weight: bold">DistributionTrace</span>
-                ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-                │   └── <span style="font-weight: bold">_Bernoulli</span>
-                ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-                │   └── (0.3,)
-                ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
-                │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-                │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
-                │           └── bool[]
-                └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-                    └── f32[]
+└── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m1</span>
+    └── <span style="font-weight: bold">DistributionTrace</span>
+        ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+        │   └── <span style="font-weight: bold">_Bernoulli</span>
+        ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+        │   └── (0.3,)
+        ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+        │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+        │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+        │           └── bool[]
+        └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+            └── f32[]
 </pre>
 </div>
 </div>
@@ -5116,20 +5108,18 @@ JAX interfaces
 │       │   │   └── f32[20]
 │       │   ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
 │       │   │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-│       │   │       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
-│       │   │           └── <span style="font-weight: bold">HashableDict</span>
-│       │   │               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">value</span>
-│       │   │                   └── <span style="font-weight: bold">DistributionTrace</span>
-│       │   │                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-│       │   │                       │   └── <span style="font-weight: bold">_Normal</span>
-│       │   │                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-│       │   │                       │   └── (f32[20], f32[20])
-│       │   │                       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│       │   │                       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│       │   │                       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│       │   │                       │           └── f32[20]
-│       │   │                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-│       │   │                           └── f32[20]
+│       │   │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">value</span>
+│       │   │           └── <span style="font-weight: bold">DistributionTrace</span>
+│       │   │               ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│       │   │               │   └── <span style="font-weight: bold">_Normal</span>
+│       │   │               ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│       │   │               │   └── (f32[20], f32[20])
+│       │   │               ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│       │   │               │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│       │   │               │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│       │   │               │           └── f32[20]
+│       │   │               └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│       │   │                   └── f32[20]
 │       │   ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
 │       │   │   └── <span style="font-weight: bold">BuiltinTrie</span>
 │       │   └── <span style="color: #000080; text-decoration-color: #000080">score</span>
@@ -5145,20 +5135,18 @@ JAX interfaces
 │           │   └── f32[20]
 │           ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
 │           │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-│           │       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
-│           │           └── <span style="font-weight: bold">HashableDict</span>
-│           │               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">value</span>
-│           │                   └── <span style="font-weight: bold">DistributionTrace</span>
-│           │                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
-│           │                       │   └── <span style="font-weight: bold">_Normal</span>
-│           │                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
-│           │                       │   └── (f32[20], f32[20])
-│           │                       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│           │                       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│           │                       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
-│           │                       │           └── f32[20]
-│           │                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
-│           │                           └── f32[20]
+│           │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">value</span>
+│           │           └── <span style="font-weight: bold">DistributionTrace</span>
+│           │               ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│           │               │   └── <span style="font-weight: bold">_Normal</span>
+│           │               ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│           │               │   └── (f32[20], f32[20])
+│           │               ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│           │               │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│           │               │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│           │               │           └── f32[20]
+│           │               └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│           │                   └── f32[20]
 │           ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
 │           │   └── <span style="font-weight: bold">BuiltinTrie</span>
 │           └── <span style="color: #000080; text-decoration-color: #000080">score</span>
@@ -5538,7 +5526,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>timeit</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>_, samples <span class="op">=</span> jitted(sub_keys, observations, model_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>57 ms ± 3.25 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
+<pre><code>52.3 ms ± 2.75 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="35">
