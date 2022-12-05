@@ -387,7 +387,7 @@ class UnfoldCombinator(GenerativeFunction):
                     for ind in range(0, self.max_length)
                 ]
             )
-            chm = VectorChoiceMap.new(
+            chm = VectorChoiceMap(
                 indices,
                 chm,
             )
@@ -623,7 +623,7 @@ class UnfoldCombinator(GenerativeFunction):
             self.padder,
             chm,
         )
-        chm = VectorChoiceMap.new(
+        chm = VectorChoiceMap(
             np.array([ind for ind in range(0, self.max_length)]),
             chm,
         )

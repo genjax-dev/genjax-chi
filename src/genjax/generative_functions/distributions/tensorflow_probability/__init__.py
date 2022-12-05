@@ -14,6 +14,7 @@
 
 from dataclasses import dataclass
 from typing import Any
+from typing import Sequence
 
 import jax
 import jax.numpy as jnp
@@ -34,12 +35,15 @@ class TFPDistribution(ExactDensity):
     def flatten(self):
         return (), (self.distribution,)
 
+    def make_tfp_distribution(self, *args, **kwargs):
+        return self.distribution(*args, **kwargs)
+
     def sample(self, key, *args, **kwargs):
-        dist = self.distribution(*args, **kwargs)
+        dist = self.make_tfp_distribution(*args, **kwargs)
         return dist.sample(seed=key)
 
     def logpdf(self, v, *args, **kwargs):
-        dist = self.distribution(*args, **kwargs)
+        dist = self.make_tfp_distribution(*args, **kwargs)
         return jnp.sum(dist.log_prob(v))
 
 
@@ -61,7 +65,8 @@ PlackettLuce = TFPDistribution(tfd.PlackettLuce)
 PowerSpherical = TFPDistribution(tfd.PowerSpherical)
 Skellam = TFPDistribution(tfd.Skellam)
 StudentT = TFPDistribution(tfd.StudentT)
-TFNormal = TFPDistribution(tfd.Normal)
+TFPNormal = TFPDistribution(tfd.Normal)
+TFPCategorical = TFPDistribution(tfd.Categorical)
 TruncatedCauchy = TFPDistribution(tfd.TruncatedCauchy)
 TruncatedNormal = TFPDistribution(tfd.TruncatedNormal)
 Uniform = TFPDistribution(tfd.Uniform)
@@ -69,3 +74,30 @@ VonMises = TFPDistribution(tfd.VonMises)
 VonMisesFisher = TFPDistribution(tfd.VonMisesFisher)
 Weibull = TFPDistribution(tfd.Weibull)
 Zipf = TFPDistribution(tfd.Zipf)
+
+
+@dataclass
+class TFPMixture(ExactDensity):
+    cat: TFPDistribution
+    components: Sequence[TFPDistribution]
+
+    def flatten(self):
+        return (), (self.cat, self.components)
+
+    def make_tfp_distribution(self, cat_args, component_args):
+        cat = self.cat.make_tfp_distribution(cat_args)
+        components = list(
+            map(
+                lambda v: v[0].make_tfp_distribution(*v[1]),
+                zip(self.components, component_args),
+            )
+        )
+        return tfd.Mixture(cat=cat, components=components)
+
+    def sample(self, key, cat_args, component_args, **kwargs):
+        mix = self.make_tfp_distribution(cat_args, component_args)
+        return mix.sample(seed=key)
+
+    def logpdf(self, v, cat_args, component_args, **kwargs):
+        mix = self.make_tfp_distribution(cat_args, component_args)
+        return jnp.sum(mix.log_prob(v))
