@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import jax.core as core
-from jax import make_jaxpr
 
 from genjax.core.datatypes import GenerativeFunction
+from genjax.core.staging import stage
 
 
 ##############
@@ -63,8 +63,8 @@ def gen_fn_abstract_eval(key, *args, addr, gen_fn, **kwargs):
     def _inner(key, *args):
         return gen_fn.__call__(key, *args, **kwargs)
 
-    jaxpr = make_jaxpr(_inner)(key, *args)
-    return jaxpr.out_avals
+    closed_jaxpr, _ = stage(_inner)(key, *args)
+    return closed_jaxpr.out_avals
 
 
 gen_fn_p.def_abstract_eval(gen_fn_abstract_eval)
@@ -94,8 +94,8 @@ def cache(addr, call, *args, **kwargs):
 
 
 def cache_abstract_eval(*args, addr, fn, **kwargs):
-    jaxpr = make_jaxpr(fn)(*args)
-    return jaxpr.out_avals
+    closed_jaxpr, _ = stage(fn)(*args)
+    return closed_jaxpr.out_avals
 
 
 cache_p.def_abstract_eval(cache_abstract_eval)

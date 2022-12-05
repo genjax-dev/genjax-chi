@@ -37,18 +37,6 @@ class TrainCombinator(GenerativeFunction):
     def flatten(self):
         return (self.params), (self.inner,)
 
-    @classmethod
-    def unflatten(self, xs, data):
-        return TrainCombinator(*xs, *data)
-
-    def __call__(self, key, *args, **kwargs):
-        return self.inner.__call__(
-            key,
-            *args,
-            self.params,
-            **kwargs,
-        )
-
     def simulate(self, key, args):
         return self.inner.simulate(key, (*args, self.params))
 

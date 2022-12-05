@@ -37,20 +37,19 @@ from typing import Type
 from typing import Union
 
 import plum
-from jax import abstract_arrays
-from jax import api_util
 from jax import core as jax_core
 from jax import linear_util as lu
 from jax import tree_util as jtu
-from jax._src import dtypes
 from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
-from jax.random import KeyArray
 
 from genjax.core import Pytree
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
 from genjax.core.specialization import is_concrete
+from genjax.core.staging import extract_call_jaxpr
+from genjax.core.staging import get_shaped_aval
+from genjax.core.staging import stage
 from genjax.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
@@ -64,10 +63,6 @@ __all__ = [
     "Equation",
     "Environment",
     "propagate",
-    "get_shaped_aval",
-    "pv_like",
-    "stage",
-    "trees",
     "Diff",
     "UnknownChange",
     "NoChange",
@@ -78,73 +73,6 @@ VarOrLiteral = Union[jax_core.Var, jax_core.Literal]
 
 safe_map = jax_core.safe_map
 safe_zip = jax_core.safe_zip
-
-#############
-# Utilities #
-#############
-
-
-def get_shaped_aval(x):
-    """Converts a JAX value type into a shaped abstract value."""
-
-    # TODO: This is a kludge. Abstract evaluation currently breaks
-    # on `random_wrap` without this branch.
-    if isinstance(x, KeyArray):
-        return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
-
-    if hasattr(x, "dtype") and hasattr(x, "shape"):
-        return abstract_arrays.ShapedArray(
-            x.shape, dtypes.canonicalize_dtype(x.dtype)
-        )
-    return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
-
-
-def pv_like(x, abstract=True):
-    """Converts a JAX value type into a JAX `PartialVal`."""
-    if abstract:
-        return pe.PartialVal.unknown(get_shaped_aval(x))
-    else:
-        return pe.PartialVal((None, x))  # pytype: disable=wrong-arg-types
-
-
-def stage(f, dynamic=True):
-    """Returns a function that stages a function to a ClosedJaxpr."""
-
-    def wrapped(*args, **kwargs):
-        fun = lu.wrap_init(f, kwargs)
-        flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
-        flat_avals = safe_map(get_shaped_aval, flat_args)
-        if dynamic:
-            jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, flat_avals)
-        else:
-            pvals = [pe.PartialVal.unknown(aval) for aval in flat_avals]
-            jaxpr, _, consts = pe.trace_to_jaxpr(
-                flat_fun, pvals, instantiate=True
-            )
-        typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
-        return typed_jaxpr, (in_tree, out_tree())
-
-    return wrapped
-
-
-def trees(f):
-    """Returns a function that determines input and output pytrees from
-    inputs."""
-
-    def wrapped(*args, **kwargs):
-        return stage(f)(*args, **kwargs)[1]
-
-    return wrapped
-
-
-def extract_call_jaxpr(primitive, params):
-    if not (primitive.call_primitive or primitive.map_primitive):
-        return None, params
-    else:
-        params = dict(params)
-        return params.pop("call_jaxpr"), params
-
 
 ###########################
 # Propagation interpreter #
@@ -209,6 +137,13 @@ class Cell(Pytree):
     def unknown(cls, aval):
         """Creates an unknown Cell from an abstract value."""
         raise NotImplementedError
+
+
+def map_outcells(cell_type, v, **kwargs):
+    if isinstance(v, tuple) or isinstance(v, list):
+        return list(map(lambda v: cell_type.new(v, **kwargs), v))
+    else:
+        return list([cell_type.new(v, **kwargs)])
 
 
 @dataclasses.dataclass(frozen=True)
@@ -347,14 +282,24 @@ def update_queue_state(
     new_cells = new_incells + new_outcells
 
     for var, old_cell, new_cell in zip(all_vars, old_cells, new_cells):
-        # If old_cell is less than new_cell, we know the propagation has made
-        # progress.
+        # If old_cell is less than new_cell, we know the propagation
+        # has made progress.
         if old_cell < new_cell:
-            # Extend left as a heuristic because in graphs corresponding to
-            # chains of unary functions, we immediately want to pop off these
-            # neighbors in the next iteration
+            # Extend left as a heuristic because in graphs
+            # corresponding to chains of unary functions,
+            # we immediately want to pop off these neighbors in the
+            # next iteration
             neighbors = get_neighbor_eqns(var) - set(queue) - {cur_eqn}
             queue.extendleft(neighbors)
+
+    # If the propagation failed to make progress because one of the
+    # incells was bottom, and the propagation did not update that
+    # incell, we want to make sure to re-visit it later on in the
+    # propagation.
+    for var, new_cell in zip(cur_eqn.invars, new_incells):
+        if new_cell.bottom():
+            neighbors = get_neighbor_eqns(var) - set(queue) - {cur_eqn}
+            queue.extend(neighbors)
 
 
 def identity_reducer(env, eqn, state, new_state):
@@ -422,8 +367,6 @@ def propagate(
     eqns = safe_map(Equation.from_jaxpr_eqn, jaxpr.eqns)
     get_neighbor_eqns = construct_graph_representation(eqns)
 
-    # Initialize propagation queue with equations neighboring
-    # constvars, invars, and outvars.
     out_eqns = set()
     for eqn in jaxpr.eqns:
         for var in it.chain(eqn.invars, eqn.outvars):
@@ -431,12 +374,21 @@ def propagate(
 
     for var in it.chain(jaxpr.outvars, jaxpr.invars, jaxpr.constvars):
         out_eqns.update(get_neighbor_eqns(var))
+
     queue = collections.deque(out_eqns)
 
     while queue:
         eqn = queue.popleft()
         incells = safe_map(env.read, eqn.invars)
         outcells = safe_map(env.read, eqn.outvars)
+
+        # If we have top information about all incells and outcells
+        # for this equation, skip to the next in the queue.
+        if all(map(lambda cell: cell.top(), incells)) and all(
+            map(lambda cell: cell.top(), outcells)
+        ):
+            continue
+
         call_jaxpr, params = extract_call_jaxpr(eqn.primitive, eqn.params)
         if call_jaxpr:
             subfuns = [
@@ -481,6 +433,7 @@ def propagate(
             outcells,
             **params,
         )
+
         env.write_state(eqn, eqn_state)
         new_incells = safe_map(env.write, eqn.invars, new_incells)
         new_outcells = safe_map(env.write, eqn.outvars, new_outcells)
@@ -532,6 +485,13 @@ default_call_rules[xla.xla_call_p] = functools.partial(
 default_call_rules[jax_core.call_p] = functools.partial(
     call_rule, jax_core.call_p
 )
+
+
+def static_check_not_none(key, retvals):
+    assert key is not None
+    for r in retvals:
+        assert r is not None
+
 
 ######
 # Propagation rules
@@ -590,10 +550,6 @@ class Bare(Cell):
     @classmethod
     def unknown(cls, aval):
         return Bare(aval, None)
-
-    @classmethod
-    def no_change(cls, v):
-        return Bare.new(v)
 
     def get_val(self):
         return self.val
@@ -667,6 +623,8 @@ class Diff(Cell):
 
     @classmethod
     def new(cls, val, change: Change = UnknownChange):
+        if isinstance(val, Diff):
+            return Diff.new(val.get_val(), change=val.get_change())
         aval = get_shaped_aval(val)
         return Diff(aval, val, change)
 
@@ -726,41 +684,49 @@ class Simulate(Handler):
         self.score = 0.0
 
     def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
-        key, *args = incells
-        key = key.get_val()
-
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if key is None:
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
+
+        key, *args = incells
+        key = key.get_val()
+        args = tuple(map(lambda v: v.get_val(), args))
 
         # Otherwise, we send simulate down to the generative function
         # callee.
-        args = tuple(map(lambda v: v.get_val(), args))
         key, tr = gen_fn.simulate(key, args, **kwargs)
         score = tr.get_score()
-        v = tr.get_retval()
         self.choice_state[addr] = tr
         self.score += score
 
-        new_outcells = [Bare.new(key), Bare.new(v)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        v = tr.get_retval()
+        new_v_outcells = map_outcells(Bare, v)
+        new_outcells = [Bare.new(key), *new_v_outcells]
+
         return incells, new_outcells, None
 
     def cache(self, _, incells, outcells, addr, fn, **kwargs):
-        args = tuple(map(lambda v: v.get_val(), incells))
-
-        # We haven't handled the predecessors of this call
+        # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v is None, args)):
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
         # Otherwise, we codegen by calling into the function.
+        args = tuple(map(lambda v: v.get_val(), incells))
         retval = fn(*args)
         self.cache_state[addr] = retval
 
-        new_outcells = [Bare.new(retval)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        new_outcells = map_outcells(Bare, retval)
+
         return incells, new_outcells, None
 
 
@@ -781,11 +747,16 @@ def simulate_transform(f, **kwargs):
         key, *retvals = key_and_returns
         key = key.get_val()
         retvals = tuple(map(lambda v: v.get_val(), retvals))
-        if len(retvals) == 1:
-            retvals = retvals[0]
         score = handler.score
         chm = handler.choice_state
         cache = handler.cache_state
+
+        # If propagation succeeded, no value should be
+        # None at this point.
+        static_check_not_none(key, retvals)
+        if len(retvals) == 1:
+            retvals = retvals[0]
+
         return key, (f, args, retvals, chm, score), cache
 
     return _inner
@@ -806,44 +777,52 @@ class Importance(Handler):
         self.constraints = constraints
 
     def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
-        key, *args = incells
-        key = key.get_val()
-
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if key is None:
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
         # Otherwise, we proceed with code generation.
+        key, *args = incells
+        key = key.get_val()
         args = tuple(map(lambda v: v.get_val(), args))
+
         if self.constraints.has_subtree(addr):
             sub_map = self.constraints.get_subtree(addr)
         else:
             sub_map = EmptyChoiceMap()
         key, (w, tr) = gen_fn.importance(key, sub_map, args)
-        v = tr.get_retval()
         self.choice_state[addr] = tr
         self.score += tr.get_score()
         self.weight += w
 
-        new_outcells = [Bare.new(key), Bare.new(v)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        v = tr.get_retval()
+        new_v_outcells = map_outcells(Bare, v)
+        new_outcells = [Bare.new(key), *new_v_outcells]
+
         return incells, new_outcells, None
 
     def cache(self, _, incells, outcells, addr, fn, **kwargs):
-        args = tuple(map(lambda v: v.get_val(), incells))
-
-        # We haven't handled the predecessors of this call
+        # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v is None, args)):
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
-        # Otherwise, we codegen by calling into the function.
+        # Otherwise, we proceed with code generation.
+        args = tuple(map(lambda v: v.get_val(), incells))
         retval = fn(*args)
         self.cache_state[addr] = retval
 
-        new_outcells = [Bare.new(retval)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        new_outcells = map_outcells(Bare, retval)
+
         return incells, new_outcells, None
 
 
@@ -864,12 +843,17 @@ def importance_transform(f, **kwargs):
         key, *retvals = key_and_returns
         key = key.get_val()
         retvals = tuple(map(lambda v: v.get_val(), retvals))
-        if len(retvals) == 1:
-            retvals = retvals[0]
         w = handler.weight
         score = handler.score
         chm = handler.choice_state
         cache = handler.cache_state
+
+        # If propagation succeeded, no value should be
+        # None at this point.
+        static_check_not_none(key, retvals)
+        if len(retvals) == 1:
+            retvals = retvals[0]
+
         return key, (w, (f, args, retvals, chm, score)), cache
 
     return _inner
@@ -891,15 +875,14 @@ class Update(Handler):
         self.choice_change = new
 
     def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
-        key, *diffs = incells
-        key = key.get_val()
-
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if key is None:
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
+        key, *diffs = incells
+        key = key.get_val()
         has_previous = self.prev.has_subtree(addr)
         constrained = self.choice_change.has_subtree(addr)
 
@@ -913,12 +896,18 @@ class Update(Handler):
         ):
             prev = self.prev.get_subtree(addr)
             self.choice_state[addr] = prev
+
+            # Here, we keep the outcells dimension (e.g. the same as
+            # the number of outgoing variables in the equation) invariant
+            # under our expansion.
+            v = prev.get_retval()
+            new_outcells = [
+                Diff.new(key, change=NoChange),
+                *map_outcells(Bare, v, change=NoChange),
+            ]
             return (
                 incells,
-                [
-                    Diff.new(key, change=NoChange),
-                    Diff.new(prev.get_retval(), change=NoChange),
-                ],
+                new_outcells,
                 None,
             )
 
@@ -929,25 +918,32 @@ class Update(Handler):
             chm = self.choice_change.get_subtree(addr)
         else:
             chm = EmptyChoiceMap()
-        key, (retval, w, tr, discard) = gen_fn.update(key, prev_tr, chm, diffs)
+        key, (retval_diff, w, tr, discard) = gen_fn.update(
+            key, prev_tr, chm, diffs
+        )
 
         self.weight += w
         self.choice_state[addr] = tr
         self.discard[addr] = discard
 
-        key = Diff.new(key)
-        new_outcells = [key, retval]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        new_outcells = [
+            Diff.new(key),
+            *map_outcells(Diff, retval_diff),
+        ]
+
         return incells, new_outcells, None
 
     def cache(self, _, incells, outcells, addr, fn, **kwargs):
-        args = tuple(map(lambda v: v.get_val(), incells))
-
-        # We haven't handled the predecessors of this call
+        # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v is None, args)):
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
+        args = tuple(map(lambda v: v.get_val(), incells))
         has_value = self.prev.has_cached_value(addr)
 
         # If no changes, we can just fetch from trace.
@@ -958,19 +954,27 @@ class Update(Handler):
         ):
             cached_value = self.prev.get_cached_value(addr)
             self.cache_state[addr] = cached_value
-            return (
-                incells,
-                [
-                    Diff.new(cached_value, change=NoChange),
-                ],
-                None,
+
+            # Here, we keep the outcells dimension (e.g. the same as
+            # the number of outgoing variables in the equation) invariant
+            # under our expansion.
+            new_outcells = map_outcells(
+                Diff,
+                cached_value,
+                change=NoChange,
             )
+
+            return incells, new_outcells, None
 
         # Otherwise, we codegen by calling into the function.
         retval = fn(*args)
         self.cache_state[addr] = retval
 
-        new_outcells = [Bare.new(retval)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        new_outcells = map_outcells(Bare, retval)
+
         return incells, new_outcells, None
 
 
@@ -980,7 +984,7 @@ def update_transform(f, **kwargs):
         jaxpr, _ = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
-        final_env, ret_state = propagate(
+        final_env, _ = propagate(
             Diff,
             jaxpr,
             [Diff.new(v, change=NoChange) for v in consts],
@@ -988,19 +992,27 @@ def update_transform(f, **kwargs):
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key, retval_diff = safe_map(final_env.read, jaxpr.outvars)
+        key, *retval_diffs = safe_map(final_env.read, jaxpr.outvars)
         w = handler.weight
         chm = handler.choice_state
         cache = handler.cache_state
         discard = handler.discard
         key = key.get_val()
-        retval = strip_diff(retval_diff)
+        retvals = tuple(map(strip_diff, retval_diffs))
+        retval_diffs = tuple(retval_diffs)
+
+        # If propagation succeeded, no value should be
+        # None at this point.
+        static_check_not_none(key, retvals)
+        if len(retvals) == 1:
+            retvals = retvals[0]
+
         return (
             key,
             (
+                retval_diffs,
                 w,
-                retval_diff,
-                (f, vals, retval, chm, prev.get_score() + w),
+                (f, vals, retvals, chm, prev.get_score() + w),
                 discard,
             ),
             cache,
@@ -1023,37 +1035,44 @@ class Assess(Handler):
     def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
         assert self.provided.has_subtree(addr)
 
-        key, *args = incells
-        key = key.get_val()
-
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if key is None:
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
         # Otherwise, we continue with code generation.
+        key, *args = incells
+        key = key.get_val()
         args = tuple(map(lambda v: v.get_val(), args))
         submap = self.provided.get_subtree(addr)
         key, (v, score) = gen_fn.assess(key, submap, args)
         self.score += score
 
-        new_outcells = [Bare.new(key), Bare.new(v)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        new_v_outcells = map_outcells(Bare, v)
+        new_outcells = [Bare.new(key), *new_v_outcells]
+
         return incells, new_outcells, None
 
     def cache(self, _, incells, outcells, addr, fn, **kwargs):
-        args = tuple(map(lambda v: v.get_val(), incells))
-
-        # We haven't handled the predecessors of this call
+        # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v is None, args)):
+        if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
         # Otherwise, we codegen by calling into the function.
+        args = tuple(map(lambda v: v.get_val(), incells))
         retval = fn(*args)
 
-        new_outcells = [Bare.new(retval)]
+        # Here, we keep the outcells dimension (e.g. the same as
+        # the number of outgoing variables in the equation) invariant
+        # under our expansion.
+        new_outcells = map_outcells(Bare, retval)
+
         return incells, new_outcells, None
 
 
@@ -1074,9 +1093,14 @@ def assess_transform(f, **kwargs):
         key, *retvals = key_and_returns
         key = key.get_val()
         retvals = tuple(map(lambda v: v.get_val(), retvals))
+        score = handler.score
+
+        # If propagation succeeded, no value should be
+        # None at this point.
+        static_check_not_none(key, retvals)
         if len(retvals) == 1:
             retvals = retvals[0]
-        score = handler.score
+
         return key, (retvals, score)
 
     return _inner

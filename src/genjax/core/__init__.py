@@ -28,5 +28,19 @@ from .hashabledict import *
 from .masks import *
 from .pytree import *
 from .specialization import *
+from .staging import *
 from .tracetypes import *
 from .tree import *
+
+
+value_choice_map = ValueChoiceMap.new
+select_all = AllSelection.new
+select_none = NoneSelection.new
+mask = BooleanMask.new
+
+__all__ = [
+    "value_choice_map",
+    "select_all",
+    "select_none",
+    "mask",
+]

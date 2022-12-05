@@ -142,10 +142,6 @@ class SwitchCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.branches,)
 
-    def __call__(self, key, *args):
-        key, tr = self.simulate(key, args)
-        return key, tr.get_retval()
-
     def get_trace_type(self, key, args):
         subtypes = []
         for gen_fn in self.branches:
@@ -155,9 +151,7 @@ class SwitchCombinator(GenerativeFunction):
     def create_sum_pytree(self, key, choices, args):
         covers = []
         for gen_fn in self.branches:
-            _, (key, abstr) = jax.make_jaxpr(
-                gen_fn.simulate, return_shape=True
-            )(key, args)
+            abstr = gen_fn._get_trace_data_shape(key, args)
             covers.append(abstr)
         return SumPytree.new(choices, covers)
 

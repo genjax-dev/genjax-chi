@@ -144,11 +144,6 @@ class UnfoldCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.kernel, self.max_length)
 
-    def __call__(self, key, *args):
-        key, tr = self.simulate(key, args)
-        retval = tr.get_retval()
-        return key, retval
-
     def get_trace_type(self, key, args, **kwargs):
         _ = args[0]
         args = args[1:]

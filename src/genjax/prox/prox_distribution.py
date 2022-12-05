@@ -23,10 +23,6 @@ from genjax.generative_functions.distributions.distribution import (
 
 @dataclass
 class ProxDistribution(Distribution):
-    def __call__(self, key, target):
-        key, (w, v) = self.random_weighted(key, target)
-        return (key, v)
-
     def simulate(self, key, args):
         key, (weight, val) = self.random_weighted(key, *args)
         val = val.strip()

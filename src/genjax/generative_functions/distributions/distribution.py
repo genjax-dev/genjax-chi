@@ -92,10 +92,6 @@ class Distribution(GenerativeFunction):
     def flatten(self):
         return (), ()
 
-    def __call__(self, key, *args, **kwargs):
-        key, (w, v) = self.random_weighted(key, *args, **kwargs)
-        return key, v
-
     def get_trace_type(self, key, args, **kwargs):
         _, (_, (_, ttype)) = jax.make_jaxpr(
             self.random_weighted, return_shape=True

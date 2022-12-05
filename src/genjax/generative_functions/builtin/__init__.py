@@ -26,3 +26,7 @@ from .builtin_gen_fn import *
 from .builtin_tracetype import *
 from .intrinsics import trace
 from .propagating import *
+
+
+choice_map = BuiltinChoiceMap.new
+select = BuiltinSelection.new

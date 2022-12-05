@@ -142,17 +142,6 @@ class MapCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.kernel, self.in_axes)
 
-    def __call__(self, key, *args, **kwargs):
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-        vmapped = jax.vmap(
-            self.kernel.simulate,
-            in_axes=(key_axis, arg_axes),
-        )
-        key, tr = vmapped(key, args)
-        retval = tr.get_retval()
-        return key, retval
-
     # This is a terrible and needs to be re-written.
     # Why do I need to `vmap` to get the correct trace type
     # from the inner kernel? Fix.
