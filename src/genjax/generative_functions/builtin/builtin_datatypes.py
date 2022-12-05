@@ -224,6 +224,17 @@ class BuiltinChoiceMap(ChoiceMap):
     def __hash__(self):
         return hash(self.inner)
 
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
+        for (k, v) in self.inner.items():
+            subk = tree.add(f"[bold green]{k}")
+            if hasattr(v, "_build_rich_tree"):
+                subtree = v._build_rich_tree()
+                subk.add(subtree)
+            else:
+                subk.add(gpp.tree_pformat(v))
+        return tree
+
 
 #####
 # Trace
@@ -374,6 +385,17 @@ class BuiltinSelection(Selection):
                 new[k] = v
         return BuiltinSelection(new)
 
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
+        for (k, v) in self.inner.items():
+            subk = tree.add(f"[bold green]{k}")
+            if hasattr(v, "_build_rich_tree"):
+                subtree = v._build_rich_tree()
+                subk.add(subtree)
+            else:
+                subk.add(gpp.tree_pformat(v))
+        return tree
+
 
 @dataclass
 class BuiltinComplementSelection(Selection):
@@ -453,3 +475,14 @@ class BuiltinComplementSelection(Selection):
             if not self.has_subtree(k):
                 new[k] = v
         return BuiltinComplementSelection(new)
+
+    def _tree_console_overload(self):
+        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
+        for (k, v) in self.inner.items():
+            subk = tree.add(f"[bold green]{k}")
+            if hasattr(v, "_build_rich_tree"):
+                subtree = v._build_rich_tree()
+                subk.add(subtree)
+            else:
+                subk.add(gpp.tree_pformat(v))
+        return tree
