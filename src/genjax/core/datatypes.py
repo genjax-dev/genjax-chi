@@ -264,7 +264,9 @@ class GenerativeFunction(Pytree):
         return key, score, retval
 
     def _get_trace_data_shape(self, key, args):
-        _, output = jax.make_jaxpr(self.simulate, return_shape=True)(key, args)
+        _, (_, output) = jax.make_jaxpr(self.simulate, return_shape=True)(
+            key, args
+        )
         return output
 
 

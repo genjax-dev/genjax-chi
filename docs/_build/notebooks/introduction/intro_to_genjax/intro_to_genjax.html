@@ -4377,7 +4377,7 @@ vertical-align: -.125em;
 
 
 <meta property="og:title" content="Gen ⊗ JAX - Introduction to Gen and GenJAX">
-<meta property="og:description" content="This notebook is designed to give the reader an accelerated introduction to several concepts native to Gen and GenJAX (an implementation of Gen on top of JAX).">
+<meta property="og:description" content="This notebook is designed to give the reader an accelerated introduction to concepts native to trace-based probabilistic programming, Gen, and GenJAX (an implementation of Gen on top of JAX).">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -4470,7 +4470,7 @@ vertical-align: -.125em;
   <li><a href="#distributions-are-generative-functions" id="toc-distributions-are-generative-functions" class="nav-link" data-scroll-target="#distributions-are-generative-functions">Distributions are generative functions</a></li>
   <li><a href="#associated-data-types" id="toc-associated-data-types" class="nav-link" data-scroll-target="#associated-data-types">Associated data types</a></li>
   </ul></li>
-  <li><a href="#great-now-what-can-i-do-with-them" id="toc-great-now-what-can-i-do-with-them" class="nav-link" data-scroll-target="#great-now-what-can-i-do-with-them">Great … now what can I do with them?</a></li>
+  <li><a href="#great-what-can-i-do-with-them" id="toc-great-what-can-i-do-with-them" class="nav-link" data-scroll-target="#great-what-can-i-do-with-them">Great … what can I do with them?</a></li>
   <li><a href="#your-first-inference-program" id="toc-your-first-inference-program" class="nav-link" data-scroll-target="#your-first-inference-program">Your first inference program</a></li>
   </ul>
 <div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/introduction/intro_to_genjax/intro_to_genjax.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
@@ -4510,7 +4510,7 @@ vertical-align: -.125em;
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This notebook is designed to give the reader an accelerated introduction to several concepts native to Gen and GenJAX (an implementation of Gen on top of JAX). As for pre-requisites, it assumes passing familiarity with trace-based probabilistic programming systems, and Monte Carlo inference - especially importance sampling and MCMC methods.
+    This notebook is designed to give the reader an accelerated introduction to concepts native to trace-based probabilistic programming, Gen, and GenJAX (an implementation of Gen on top of JAX). As for pre-requisites, it assumes passing familiarity with trace-based probabilistic programming systems, and Monte Carlo inference - especially importance sampling and MCMC methods.
   </div>
 </div>
 
@@ -4921,8 +4921,8 @@ JAX interfaces
 </pre>
 </div>
 </div>
-<p>This should bring a sigh of relief! Ah, distributions are generative functions - <em>they can’t be too exotic</em>.</p>
-<p>Next to deterministic computations which trivially implement the interface, distributions are quite simple. They don’t have internal compositional choice structure (like the function-like <code>BuiltinGenerativeFunction</code> language above).</p>
+<p>This should bring a sigh of relief! Ah, distributions are generative functions - <em>the concepts can’t be too exotic</em>.</p>
+<p>Distributions implement the interface in a conceptually simple way. They don’t have internal compositional choice structure (like the function-like <code>BuiltinGenerativeFunction</code> language above).</p>
 <p>Distributions themselves expose two interfaces:</p>
 <ul>
 <li><code>logpdf</code> - exact density evaluation.</li>
@@ -4946,9 +4946,6 @@ JAX interfaces
 <span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> genjax.simulate(h)(key, (<span class="fl">0.3</span>,))</span>
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>tr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[Bare(val=DeviceArray(True, dtype=bool)), Bare(val=DeviceArray(True, dtype=bool))] [Bare(val=DeviceArray(True, dtype=bool))]</code></pre>
-</div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"></pre>
 </div>
@@ -4998,9 +4995,9 @@ JAX interfaces
 </div>
 </div>
 <div class="cell" data-execution_count="8">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>selection <span class="op">=</span> genjax.select([<span class="st">&quot;m1&quot;</span>])</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>selected, _ <span class="op">=</span> selection.<span class="bu">filter</span>(tr.get_choices())</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>selected</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>selection <span class="op">=</span> genjax.select([<span class="st">&quot;m1&quot;</span>])</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>selected, _ <span class="op">=</span> selection.<span class="bu">filter</span>(tr.get_choices())</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>selected</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"></pre>
 </div>
@@ -5025,49 +5022,49 @@ JAX interfaces
 </div>
 </section>
 </section>
-<section id="great-now-what-can-i-do-with-them" class="level2">
-<h2 class="anchored" data-anchor-id="great-now-what-can-i-do-with-them">Great … now what can I do with them?</h2>
+<section id="great-what-can-i-do-with-them" class="level2">
+<h2 class="anchored" data-anchor-id="great-what-can-i-do-with-them">Great … what can I do with them?</h2>
 <p>Now, we’ve informally seen the interfaces and datatypes associated with generative functions.</p>
 <p>While studying the interfaces and the computational objects which satisfy them <em>in the abstract</em> can be an entire PhD’s worth of effort, we can do machine learning with them.</p>
 <p>Let’s consider a modeling problem where we wish to perform generalized regression with outliers between two variates, taking a family of polynomials as potential curves.</p>
 <p>One such model for this data generating process is shown below.</p>
 <div class="cell" data-execution_count="9">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Two branches for a branching submodel.</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model_y(key, x, coefficients):</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    basis_value <span class="op">=</span> jnp.array([<span class="fl">1.0</span>, x, x<span class="op">**</span><span class="dv">2</span>])</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    polynomial_value <span class="op">=</span> jnp.<span class="bu">sum</span>(basis_value <span class="op">*</span> coefficients)</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    key, y <span class="op">=</span> trace(<span class="st">&quot;value&quot;</span>, genjax.Normal)(key, polynomial_value, <span class="fl">1.0</span>)</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, y</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> outlier_model(key, x, coefficients):</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    key, y <span class="op">=</span> trace(<span class="st">&quot;value&quot;</span>, genjax.Normal)(key, x, <span class="fl">10.0</span>)</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, y</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co"># The branching submodel.</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>switch <span class="op">=</span> genjax.SwitchCombinator([model_y, outlier_model])</span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co"># A mapped kernel function which calls the branching submodel.</span></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span>(genjax.MapCombinator, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="va">None</span>))</span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kernel(key, x, coefficients):</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    key, is_outlier <span class="op">=</span> trace(<span class="st">&quot;outlier&quot;</span>, genjax.Bernoulli)(key, <span class="fl">0.05</span>)</span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    is_outlier <span class="op">=</span> jnp.asarray(is_outlier, dtype<span class="op">=</span><span class="bu">int</span>)</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    key, y <span class="op">=</span> trace(<span class="st">&quot;y&quot;</span>, switch)(key, is_outlier, x, coefficients)</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, y</span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model(key, xs):</span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    key, coefficients <span class="op">=</span> trace(<span class="st">&quot;alpha&quot;</span>, genjax.MvNormal)(</span>
-<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>        key, np.zeros(<span class="dv">3</span>), <span class="fl">2.0</span> <span class="op">*</span> np.identity(<span class="dv">3</span>)</span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>    key, <span class="op">*</span>sub_keys <span class="op">=</span> jax.random.split(key, <span class="bu">len</span>(xs) <span class="op">+</span> <span class="dv">1</span>)</span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>    sub_keys <span class="op">=</span> jnp.array(sub_keys)</span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>    _, ys <span class="op">=</span> trace(<span class="st">&quot;ys&quot;</span>, kernel)(sub_keys, xs, coefficients)</span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, ys</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Two branches for a branching submodel.</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model_y(key, x, coefficients):</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    basis_value <span class="op">=</span> jnp.array([<span class="fl">1.0</span>, x, x<span class="op">**</span><span class="dv">2</span>])</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    polynomial_value <span class="op">=</span> jnp.<span class="bu">sum</span>(basis_value <span class="op">*</span> coefficients)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    key, y <span class="op">=</span> trace(<span class="st">&quot;value&quot;</span>, genjax.Normal)(key, polynomial_value, <span class="fl">1.0</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, y</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> outlier_model(key, x, coefficients):</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    key, y <span class="op">=</span> trace(<span class="st">&quot;value&quot;</span>, genjax.Normal)(key, x, <span class="fl">10.0</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, y</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co"># The branching submodel.</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>switch <span class="op">=</span> genjax.SwitchCombinator([model_y, outlier_model])</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co"># A mapped kernel function which calls the branching submodel.</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span>(genjax.MapCombinator, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="va">None</span>))</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kernel(key, x, coefficients):</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    key, is_outlier <span class="op">=</span> trace(<span class="st">&quot;outlier&quot;</span>, genjax.Bernoulli)(key, <span class="fl">0.05</span>)</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    is_outlier <span class="op">=</span> jnp.asarray(is_outlier, dtype<span class="op">=</span><span class="bu">int</span>)</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    key, y <span class="op">=</span> trace(<span class="st">&quot;y&quot;</span>, switch)(key, is_outlier, x, coefficients)</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, y</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model(key, xs):</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    key, coefficients <span class="op">=</span> trace(<span class="st">&quot;alpha&quot;</span>, genjax.MvNormal)(</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>        key, np.zeros(<span class="dv">3</span>), <span class="fl">2.0</span> <span class="op">*</span> np.identity(<span class="dv">3</span>)</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>    key, <span class="op">*</span>sub_keys <span class="op">=</span> jax.random.split(key, <span class="bu">len</span>(xs) <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>    sub_keys <span class="op">=</span> jnp.array(sub_keys)</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>    _, ys <span class="op">=</span> trace(<span class="st">&quot;ys&quot;</span>, kernel)(sub_keys, xs, coefficients)</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, ys</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>There’s a number of implementation patterns which you might pick up on by studying this model.</p>
 <ol type="1">
@@ -5078,122 +5075,120 @@ JAX interfaces
 <p>Courtesy of the interface, we get to design our <code>model</code> generative function in pieces.</p>
 <p>Now, let’s examine the sampled observation address <code>(&quot;ys&quot;, &quot;y&quot;)</code> from a sample trace from our model.</p>
 <div class="cell" data-execution_count="10">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> jnp.array([<span class="fl">0.3</span>, <span class="fl">1.0</span>, <span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">2.5</span>, <span class="fl">3.0</span>, <span class="fl">4.1</span>, <span class="fl">5.0</span>])</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> jax.jit(model.simulate)(key, (data,))</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">&quot;ys&quot;</span>, <span class="st">&quot;y&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[Bare(val=Traced&lt;ShapedArray(float32[])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)] [Bare(val=Traced&lt;ShapedArray(float32[1])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)]
-[Bare(val=None), Bare(val=Traced&lt;ShapedArray(float32[1])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;), Bare(val=None)] [Bare(val=None)]
-[Bare(val=Traced&lt;ShapedArray(float32[])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)] [Bare(val=Traced&lt;ShapedArray(float32[])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)]
-[Bare(val=Traced&lt;ShapedArray(float32[])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)] [Bare(val=Traced&lt;ShapedArray(float32[1])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)]
-[Bare(val=None), Bare(val=Traced&lt;ShapedArray(float32[1])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;), Bare(val=Traced&lt;ShapedArray(float32[1])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)] [Bare(val=None)]
-[Bare(val=None), Bare(val=Traced&lt;ShapedArray(float32[3])&gt;with&lt;DynamicJaxprTrace(level=6/1)&gt;)] [Bare(val=None)]</code></pre>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> jnp.array([<span class="fl">0.3</span>, <span class="fl">1.0</span>, <span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">2.5</span>, <span class="fl">3.0</span>, <span class="fl">4.1</span>, <span class="fl">5.0</span>])</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> jax.jit(model.simulate)(key, (data,))</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">&quot;ys&quot;</span>, <span class="st">&quot;y&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"></pre>
 </div>
 <div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="color: #800000; text-decoration-color: #800000">╭─────────────────────────────── </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">Traceback </span><span style="color: #bf7f7f; text-decoration-color: #bf7f7f; font-weight: bold">(most recent call last)</span><span style="color: #800000; text-decoration-color: #800000"> ────────────────────────────────╮</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_49062/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">705011223.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">2</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">&lt;module&gt;</span>      <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">[Errno 2] No such file or directory: </span>                                                            <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">&#39;/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_49062/705011223.py&#39;</span>                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">traceback_util.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">162</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">reraise_with_filtered_traceback</span>                     <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">api.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">622</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">cache_miss</span>                                                     <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">dispatch.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">236</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">_xla_call_impl_lazy</span>                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">linear_util.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">303</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">memoized_fun</span>                                                <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">dispatch.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">359</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">_xla_callable_uncached</span>                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">profiler.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">314</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">wrapper</span>                                                   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">dispatch.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">445</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">lower_xla_callable</span>                                        <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">profiler.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">314</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">wrapper</span>                                                   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/interpreters/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">partial_eval.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">2077</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">trace_to_jaxpr_final2</span>                        <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">                                                                                                </span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">                                    ... 82 frames hidden ...                                    </span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_49062/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">31977288.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">6</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">model_y</span>        <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">[Errno 2] No such file or directory: </span>                                                            <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">&#39;/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_49062/31977288.py&#39;</span>                   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/generative_functions/builtin/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">intrinsics.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">48</span> in   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">&lt;lambda&gt;</span>                                                                                         <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 45 </span>                                                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 46 </span>                                                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 47 </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">trace</span>(addr, call, **kwargs):                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span> 48 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> <span style="color: #0000ff; text-decoration-color: #0000ff">lambda</span> key, *args: _trace(                                                      <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 49 │   │   </span>addr,                                                                              <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 50 │   │   </span>call,                                                                              <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 51 │   │   </span>key,                                                                               <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/generative_functions/builtin/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">intrinsics.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">38</span> in   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">_trace</span>                                                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 35 </span>                                                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 36 </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">_trace</span>(addr, call, key, *args, **kwargs):                                              <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 37 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">assert</span> <span style="color: #00ffff; text-decoration-color: #00ffff">isinstance</span>(call, GenerativeFunction)                                            <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span> 38 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> gen_fn_p.bind(                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 39 │   │   </span>key,                                                                               <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 40 │   │   </span>*args,                                                                             <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 41 │   │   </span>addr=addr,                                                                         <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">329</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">bind</span>                                                               <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">332</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">bind_with_trace</span>                                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">util.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">78</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">safe_map</span>                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">420</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">full_raise</span>                                                         <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/interpreters/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">partial_eval.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1657</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">new_const</span>                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1256</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">get_aval</span>                                                          <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/Library/Caches/pypoetry/virtualenvs/genjax-BuuDBHOj-py3.10/lib/python3.10/sit</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">e-packages/jax/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1248</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">concrete_aval</span>                                                     <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</span>
-<span style="color: #ff0000; text-decoration-color: #ff0000; font-weight: bold">TypeError: </span>Value <span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span> with type <span style="font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">class</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008000; text-decoration-color: #008000">&#39;NoneType&#39;</span><span style="font-weight: bold">&gt;</span> is not a valid JAX type
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">SwitchTrace</span>
+├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│   └── <span style="font-weight: bold">SwitchCombinator</span>
+│       └── <span style="color: #000080; text-decoration-color: #000080">branches</span>
+│           └── [
+│                 BuiltinGenerativeFunction(source = &lt;function model_y&gt;),
+│                 BuiltinGenerativeFunction(source = &lt;function outlier_model&gt;)
+│               ]
+├── <span style="color: #000080; text-decoration-color: #000080">chm</span>
+│   └── <span style="font-weight: bold">IndexedChoiceMap</span>
+│       ├── <span style="color: #000080; text-decoration-color: #000080">index</span>
+│       │   └── i32[8]
+│       ├── <span style="font-weight: bold">BuiltinTrace</span>
+│       │   ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│       │   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│       │   │       └── <span style="color: #000080; text-decoration-color: #000080">source</span>
+│       │   │           └── &lt;function model_y&gt;
+│       │   ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│       │   │   └── (f32[8], f32[8,3])
+│       │   ├── <span style="color: #000080; text-decoration-color: #000080">retval</span>
+│       │   │   └── f32[8]
+│       │   ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
+│       │   │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
+│       │   │       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
+│       │   │           └── <span style="font-weight: bold">HashableDict</span>
+│       │   │               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">value</span>
+│       │   │                   └── <span style="font-weight: bold">DistributionTrace</span>
+│       │   │                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│       │   │                       │   └── <span style="font-weight: bold">_Normal</span>
+│       │   │                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│       │   │                       │   └── (f32[8], f32[8])
+│       │   │                       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│       │   │                       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│       │   │                       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│       │   │                       │           └── f32[8]
+│       │   │                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│       │   │                           └── f32[8]
+│       │   ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
+│       │   │   └── <span style="font-weight: bold">BuiltinTrie</span>
+│       │   └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│       │       └── f32[8]
+│       └── <span style="font-weight: bold">BuiltinTrace</span>
+│           ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│           │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│           │       └── <span style="color: #000080; text-decoration-color: #000080">source</span>
+│           │           └── &lt;function outlier_model&gt;
+│           ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│           │   └── (f32[8], f32[8,3])
+│           ├── <span style="color: #000080; text-decoration-color: #000080">retval</span>
+│           │   └── f32[8]
+│           ├── <span style="color: #000080; text-decoration-color: #000080">choices</span>
+│           │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
+│           │       └── <span style="color: #000080; text-decoration-color: #000080">inner</span>
+│           │           └── <span style="font-weight: bold">HashableDict</span>
+│           │               └── <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">value</span>
+│           │                   └── <span style="font-weight: bold">DistributionTrace</span>
+│           │                       ├── <span style="color: #000080; text-decoration-color: #000080">gen_fn</span>
+│           │                       │   └── <span style="font-weight: bold">_Normal</span>
+│           │                       ├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│           │                       │   └── (f32[8], f32[8])
+│           │                       ├── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│           │                       │   └── <span style="font-weight: bold">ValueChoiceMap</span>
+│           │                       │       └── <span style="color: #000080; text-decoration-color: #000080">value</span>
+│           │                       │           └── f32[8]
+│           │                       └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│           │                           └── f32[8]
+│           ├── <span style="color: #000080; text-decoration-color: #000080">cache</span>
+│           │   └── <span style="font-weight: bold">BuiltinTrie</span>
+│           └── <span style="color: #000080; text-decoration-color: #000080">score</span>
+│               └── f32[8]
+├── <span style="color: #000080; text-decoration-color: #000080">args</span>
+│   └── (f32[8], f32[8,3])
+├── <span style="color: #000080; text-decoration-color: #000080">retval</span>
+│   └── f32[8]
+└── <span style="color: #000080; text-decoration-color: #000080">score</span>
+    └── f32[8]
 </pre>
 </div>
 </div>
-<p>It’s quite large and unwieldy. Besides, it also doesn’t tell us much about the values we truly care about here - the sampled values.</p>
+<p>Here, I’m just showing the subtrace from the switching model invocation - but it is already quite large and unwieldy!</p>
+<p>Besides, it also doesn’t tell us much about the values we truly care about here - the sampled values.</p>
 <p>From this model, we can get these in two ways.</p>
 <p>The first way: we can just look at the trace return value.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>tr.get_retval()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>tr.get_retval()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">DeviceArray</span><span style="font-weight: bold">([</span> <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.39755416</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.8722594</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6300926</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-9.314949</span>  ,
+             <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-15.615543</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.10277323</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-41.790806</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-62.435127</span>  <span style="font-weight: bold">]</span>,            <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
+</pre>
+</div>
 </div>
 <p>The second way: we can get them out of the choice map of the trace directly.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> tr.get_choices()</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>chm[<span class="st">&quot;ys&quot;</span>, <span class="st">&quot;y&quot;</span>, <span class="st">&quot;value&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> tr.get_choices()</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>chm[<span class="st">&quot;ys&quot;</span>, <span class="st">&quot;y&quot;</span>, <span class="st">&quot;value&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">DeviceArray</span><span style="font-weight: bold">([</span> <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.39755416</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.8722594</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6300926</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-9.314949</span>  ,
+             <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-15.615543</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.10277323</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-41.790806</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-62.435127</span>  <span style="font-weight: bold">]</span>,            <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
+</pre>
+</div>
 </div>
 <p>Now, we can construct a small visualization function to show us the samples.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> viz(tr):</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    (data,) <span class="op">=</span> tr.get_args()</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    chm <span class="op">=</span> tr.get_choices()</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    ys <span class="op">=</span> np.array(chm[<span class="st">&quot;ys&quot;</span>, <span class="st">&quot;y&quot;</span>, <span class="st">&quot;value&quot;</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> viz(tr):</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    (data,) <span class="op">=</span> tr.get_args()</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    chm <span class="op">=</span> tr.get_choices()</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    ys <span class="op">=</span> np.array(chm[<span class="st">&quot;ys&quot;</span>, <span class="st">&quot;y&quot;</span>, <span class="st">&quot;value&quot;</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="your-first-inference-program" class="level2">
