@@ -834,7 +834,7 @@ Sphinx = ">=2"
 
 [[package]]
 name = "jupyterlab"
-version = "3.5.0"
+version = "3.5.1"
 description = "JupyterLab computational environment"
 category = "dev"
 optional = false
@@ -2075,7 +2075,7 @@ tinygp = ["tinygp"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10, <4.0"
-content-hash = "514e434bb9b372756c73217f7f12cda2b74eb70d51a1b5f0c51512c0ce8576ac"
+content-hash = "d0001bf66c668d39a6d1ba1acb3299fe2d6aafbb590ffa93e6c517cc2fa33fff"
 
 [metadata.files]
 absl-py = [
@@ -2597,8 +2597,8 @@ jupyter-sphinx = [
     {file = "jupyter_sphinx-0.4.0.tar.gz", hash = "sha256:0c11a38f1343138f2c5051c0d34c4c545f4480174c1bd41c0256fe826e0baa55"},
 ]
 jupyterlab = [
-    {file = "jupyterlab-3.5.0-py3-none-any.whl", hash = "sha256:f433059fe0e12d75ea90a81a0b6721113bb132857e3ec2197780b6fe84cbcbde"},
-    {file = "jupyterlab-3.5.0.tar.gz", hash = "sha256:e02556c8ea1b386963c4b464e4618aee153c5416b07ab481425c817a033323a2"},
+    {file = "jupyterlab-3.5.1-py3-none-any.whl", hash = "sha256:c6748b4f21850c0095ed2187ce86d7e06edd9d1180cc4e6a572c4013163c0c74"},
+    {file = "jupyterlab-3.5.1.tar.gz", hash = "sha256:59a1b2d79d4b3ebee4d997c8bed8cf450f460c7c35f46b613a93f0b7712b47fc"},
 ]
 jupyterlab-pygments = [
     {file = "jupyterlab_pygments-0.2.2-py2.py3-none-any.whl", hash = "sha256:2405800db07c9f770863bcf8049a529c3dd4d3e28536638bd7c1c01d2748309f"},
