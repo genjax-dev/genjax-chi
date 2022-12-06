@@ -45,7 +45,7 @@ xdoctest = "^1.1.0"
 safety = "^2.3.3"
 darglint = "^1.8.1"
 furo = "^2022.9.29"
-jupyterlab = "^3.5.0"
+jupyterlab = "^3.5.1"
 docformatter = {version = "^1.5.0", extras = ["tomli"]}
 matplotlib = "^3.6.2"
 seaborn = "^0.12.1"
