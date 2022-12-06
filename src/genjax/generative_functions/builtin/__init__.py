@@ -24,8 +24,8 @@ hiearchical patterns of Bayesian computation.
 from .builtin_datatypes import *
 from .builtin_gen_fn import *
 from .builtin_tracetype import *
+from .intrinsics import cache
 from .intrinsics import trace
-from .propagating import *
 
 
 choice_map = BuiltinChoiceMap.new

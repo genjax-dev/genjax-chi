@@ -33,10 +33,10 @@ from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.core.tree import Leaf
 from genjax.generative_functions.builtin.builtin_tracetype import lift
-from genjax.generative_functions.builtin.propagating import Diff
-from genjax.generative_functions.builtin.propagating import NoChange
-from genjax.generative_functions.builtin.propagating import check_no_change
-from genjax.generative_functions.builtin.propagating import strip_diff
+from genjax.generative_functions.diff_rules import Diff
+from genjax.generative_functions.diff_rules import NoChange
+from genjax.generative_functions.diff_rules import check_no_change
+from genjax.generative_functions.diff_rules import strip_diff
 
 
 #####
