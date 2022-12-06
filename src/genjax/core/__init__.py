@@ -26,6 +26,7 @@ from .callback import *
 from .datatypes import *
 from .hashabledict import *
 from .masks import *
+from .propagate import *
 from .pytree import *
 from .specialization import *
 from .staging import *

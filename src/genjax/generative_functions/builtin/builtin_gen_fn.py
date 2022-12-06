@@ -24,12 +24,10 @@ from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax.generative_functions.builtin.builtin_tracetype import (
     get_trace_type,
 )
-from genjax.generative_functions.builtin.propagating import assess_transform
-from genjax.generative_functions.builtin.propagating import (
-    importance_transform,
-)
-from genjax.generative_functions.builtin.propagating import simulate_transform
-from genjax.generative_functions.builtin.propagating import update_transform
+from genjax.generative_functions.builtin.transforms import assess_transform
+from genjax.generative_functions.builtin.transforms import importance_transform
+from genjax.generative_functions.builtin.transforms import simulate_transform
+from genjax.generative_functions.builtin.transforms import update_transform
 
 
 @dataclass
