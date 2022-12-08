@@ -16,8 +16,8 @@ import dataclasses
 from typing import Any
 from typing import Sequence
 
-from jax import core as jax_core
 import jax.tree_util as jtu
+from jax import core as jax_core
 
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
@@ -186,15 +186,15 @@ def simulate_transform(f, **kwargs):
             Bare,
             jaxpr,
             [Bare.new(v) for v in consts],
-            jtu.tree_unflatten(in_tree, map(Bare.new, flat_args)),
+            list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = map(lambda v: v.get_val(), flat_out)
         key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
+        retvals = tuple(retvals)
         score = handler.score
         chm = handler.choice_state
         cache = handler.cache_state
@@ -285,15 +285,15 @@ def importance_transform(f, **kwargs):
             Bare,
             jaxpr,
             [Bare.new(v) for v in consts],
-            jtu.tree_unflatten(in_tree, map(Bare.new, flat_args)),
+            list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = map(lambda v: v.get_val(), flat_out)
         key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
+        retvals = tuple(retvals)
         w = handler.weight
         score = handler.score
         chm = handler.choice_state
@@ -529,21 +529,24 @@ class Assess(Handler):
 
 def assess_transform(f, **kwargs):
     def _inner(key, chm, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
+            key, *args, **kwargs
+        )
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Assess(chm)
         final_env, ret_state = propagate(
             Bare,
             jaxpr,
             [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
+            list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
+        retvals = tuple(retvals)
         score = handler.score
 
         # If propagation succeeded, no value should be
