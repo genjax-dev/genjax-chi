@@ -47,7 +47,6 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 
-import plum
 from jax import core as jax_core
 from jax import linear_util as lu
 from jax import tree_util as jtu
@@ -61,6 +60,7 @@ from genjax.core.staging import extract_call_jaxpr
 __all__ = [
     "Cell",
     "Equation",
+    "PropagationRules",
     "Environment",
     "propagate",
 ]
@@ -264,6 +264,31 @@ def construct_graph_representation(eqns):
     return get_neighbors
 
 
+@dataclasses.dataclass
+class PropagationRules(Pytree):
+    fallback_rule: Union[None, Callable]
+    rule_set: Dict[jax_core.Primitive, Callable]
+
+    def flatten(self):
+        return (), (self.fallback_rule, self.rule_set)
+
+    def rule_set_merge(self, other):
+        return PropagationRules(
+            self.fallback_rule, {**self.rule_set, **other.rule_set}
+        )
+
+    def get(self, primitive):
+        if primitive in self.rule_set:
+            return self.rule_set.get(primitive)
+        assert self.fallback_rule is not None
+        return lambda incells, outcells, **params: self.fallback_rule(
+            primitive, incells, outcells, **params
+        )
+
+    def get_rule_set(self):
+        return self.rule_set
+
+
 def update_queue_state(
     queue,
     cur_eqn,
@@ -316,6 +341,7 @@ def propagate(
     constcells: List[Cell],
     incells: List[Cell],
     outcells: List[Cell],
+    propagation_rules: PropagationRules,
     reducer: Callable[
         [Environment, Equation, State, State], State
     ] = identity_reducer,
@@ -401,22 +427,7 @@ def propagate(
                     )
                 )
             ]
-            if eqn.primitive in default_call_rules:
-                default_rule = default_call_rules.get(eqn.primitive)
-
-                # Just ignore the primitive - it's handled by our
-                # default_call_rules dictionary.
-                def ignore_first_rule(
-                    prim,
-                    incells,
-                    outcells,
-                    **params,
-                ):
-                    return default_rule(incells, outcells, **params)
-
-                rule = ignore_first_rule
-            else:
-                rule = propagation_rule
+            rule = propagation_rules.get(eqn.primitive)
         else:
             subfuns = []
 
@@ -433,11 +444,10 @@ def propagate(
             ############################################
 
             else:
-                rule = propagation_rule
+                rule = propagation_rules.get(eqn.primitive)
 
         # Apply a propagation rule.
         new_incells, new_outcells, eqn_state = rule(
-            eqn.primitive,
             subfuns + incells,
             outcells,
             **params,
@@ -474,7 +484,7 @@ def flat_propagate(tree, *flat_invals):
     yield flat_out, out_tree
 
 
-def call_rule(prim, incells, outcells, **params):
+def call_rule(prim, cell_type, incells, outcells, **params):
     """Propagation rule for JAX/XLA call primitives."""
     f, incells = incells[0], incells[1:]
     flat_vals, in_tree = jtu.tree_flatten((incells, outcells))
@@ -495,19 +505,4 @@ default_call_rules[jax_core.call_p] = functools.partial(
     call_rule, jax_core.call_p
 )
 
-######
-# Propagation rules
-######
-
-# We use multiple dispatch to support overloading propagation rules.
-# At tracing time, the dispatch arguments will contain abstract
-# tracer values.
-abstract = plum.dispatch
-
-# Fallback: we should error -- we're encountering a primitive with
-# types that we don't have a rule for.
-@abstract
-def propagation_rule(prim: Any, incells: Any, outcells: Any, **params):
-    raise Exception(
-        f"({prim}, {(*incells,)}) Propagation rule not implemented."
-    )
+default_propagation_rules = PropagationRules(None, default_call_rules)

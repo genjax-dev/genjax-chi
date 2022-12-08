@@ -23,7 +23,8 @@ from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
 from genjax.core.propagate import Cell
 from genjax.core.propagate import Handler
-from genjax.core.propagate import abstract
+from genjax.core.propagate import PropagationRules
+from genjax.core.propagate import default_propagation_rules
 from genjax.core.propagate import map_outcells
 from genjax.core.propagate import propagate
 from genjax.core.specialization import is_concrete
@@ -38,6 +39,7 @@ from genjax.generative_functions.builtin.intrinsics import gen_fn_p
 from genjax.generative_functions.diff_rules import Diff
 from genjax.generative_functions.diff_rules import NoChange
 from genjax.generative_functions.diff_rules import check_no_change
+from genjax.generative_functions.diff_rules import diff_propagation_rules
 from genjax.generative_functions.diff_rules import strip_diff
 
 
@@ -99,8 +101,9 @@ class Bare(Cell):
         return self.val
 
 
-@abstract
-def propagation_rule(prim: Any, incells: List[Bare], outcells: Any, **params):
+def bare_fallback_rule(
+    prim: Any, incells: List[Bare], outcells: Any, **params
+):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         flat_out = prim.bind(*in_vals, **params)
@@ -109,6 +112,10 @@ def propagation_rule(prim: Any, incells: List[Bare], outcells: Any, **params):
         new_out = outcells
     return incells, new_out, None
 
+
+bare_propagation_rules = PropagationRules(
+    bare_fallback_rule, default_propagation_rules.get_rule_set()
+)
 
 ######################################
 #  Generative function interpreters  #
@@ -126,7 +133,7 @@ class Simulate(Handler):
         self.cache_state = BuiltinTrie(hashabledict())
         self.score = 0.0
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -153,7 +160,7 @@ class Simulate(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -186,6 +193,7 @@ def simulate_transform(f, **kwargs):
             [Bare.new(v) for v in consts],
             list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
+            bare_propagation_rules,
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
@@ -222,7 +230,7 @@ class Importance(Handler):
         self.weight = 0.0
         self.constraints = constraints
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -252,7 +260,7 @@ class Importance(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -285,6 +293,7 @@ def importance_transform(f, **kwargs):
             [Bare.new(v) for v in consts],
             list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
+            bare_propagation_rules,
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
@@ -323,7 +332,7 @@ class Update(Handler):
         self.prev = prev
         self.choice_change = new
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -385,7 +394,7 @@ class Update(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -439,6 +448,7 @@ def update_transform(f, **kwargs):
             [Diff.new(v, change=NoChange) for v in consts],
             [Diff.new(key), *diffs],
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
+            diff_propagation_rules,
             handler=handler,
         )
         key, *retval_diffs = safe_map(final_env.read, jaxpr.outvars)
@@ -481,7 +491,7 @@ class Assess(Handler):
         self.provided = provided
         self.score = 0.0
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
         assert self.provided.has_subtree(addr)
 
         # We haven't handled the predecessors of this trace
@@ -506,7 +516,7 @@ class Assess(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -538,6 +548,7 @@ def assess_transform(f, **kwargs):
             [Bare.new(v) for v in consts],
             list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
+            bare_propagation_rules,
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
