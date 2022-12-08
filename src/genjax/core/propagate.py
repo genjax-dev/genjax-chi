@@ -402,10 +402,10 @@ def propagate(
                 )
             ]
             if eqn.primitive in default_call_rules:
-                rule = default_call_rules.get(eqn.primitive)
+                default_rule = default_call_rules.get(eqn.primitive)
                 # Just ignore the primitive - it's handled by our
                 # default_call_rules dictionary.
-                rule = lambda _, incells, outcells, **params: rule(
+                rule = lambda prim, incells, outcells, **params: default_rule(
                     incells, outcells, **params
                 )
             else:
