@@ -14,7 +14,7 @@
 
 import dataclasses
 from typing import Any
-from typing import Sequence
+from typing import List
 
 from genjax.core.propagate import Cell
 from genjax.core.propagate import abstract
@@ -135,9 +135,7 @@ def strip_diff(diff):
 
 
 @abstract
-def propagation_rule(
-    prim: Any, incells: Sequence[Diff], outcells: Any, **params
-):
+def propagation_rule(prim: Any, incells: List[Diff], outcells: Any, **params):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         flat_out = prim.bind(*in_vals, **params)

@@ -14,7 +14,7 @@
 
 import dataclasses
 from typing import Any
-from typing import Sequence
+from typing import List
 
 import jax.tree_util as jtu
 from jax import core as jax_core
@@ -100,9 +100,7 @@ class Bare(Cell):
 
 
 @abstract
-def propagation_rule(
-    prim: Any, incells: Sequence[Bare], outcells: Any, **params
-):
+def propagation_rule(prim: Any, incells: List[Bare], outcells: Any, **params):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         flat_out = prim.bind(*in_vals, **params)
