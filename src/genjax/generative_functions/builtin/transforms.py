@@ -13,10 +13,13 @@
 # limitations under the License.
 
 import dataclasses
+import functools
 from typing import Any
 from typing import List
 
 import jax.tree_util as jtu
+from jax import core as jax_core
+from jax.interpreters import xla
 from jax import core as jax_core
 
 from genjax.core.datatypes import EmptyChoiceMap
@@ -24,6 +27,7 @@ from genjax.core.hashabledict import hashabledict
 from genjax.core.propagate import Cell
 from genjax.core.propagate import Handler
 from genjax.core.propagate import PropagationRules
+from genjax.core.propagate import flat_propagate
 from genjax.core.propagate import default_propagation_rules
 from genjax.core.propagate import map_outcells
 from genjax.core.propagate import propagate
@@ -113,9 +117,31 @@ def bare_fallback_rule(
     return incells, new_out, None
 
 
-bare_propagation_rules = PropagationRules(
-    bare_fallback_rule, default_propagation_rules.get_rule_set()
+def bare_call_p_rule(prim, incells, outcells, **params):
+    """Propagation rule for JAX/XLA call primitives."""
+    if all(map(lambda v: v.top(), incells)):
+        f, incells = incells[0], incells[1:]
+        flat_vals, in_tree = jtu.tree_flatten((incells, outcells))
+        new_params = dict(params)
+        if "donated_invars" in params:
+            new_params["donated_invars"] = (False,) * len(flat_vals)
+        f, aux = flat_propagate(f, in_tree)
+        flat_out = prim.bind(f, *flat_vals, **new_params)
+        out_tree = aux()
+        return jtu.tree_unflatten(out_tree, flat_out)
+    else:
+        return incells, outcells, None
+
+
+bare_call_rules = {}
+bare_call_rules[xla.xla_call_p] = functools.partial(
+    bare_call_p_rule, xla.xla_call_p
 )
+bare_call_rules[jax_core.call_p] = functools.partial(
+    bare_call_p_rule, jax_core.call_p
+)
+
+bare_propagation_rules = PropagationRules(bare_fallback_rule, bare_call_rules)
 
 ######################################
 #  Generative function interpreters  #
