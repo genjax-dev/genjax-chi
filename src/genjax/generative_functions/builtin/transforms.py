@@ -20,7 +20,6 @@ from typing import List
 import jax.tree_util as jtu
 from jax import core as jax_core
 from jax.interpreters import xla
-from jax import core as jax_core
 
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
@@ -28,7 +27,6 @@ from genjax.core.propagate import Cell
 from genjax.core.propagate import Handler
 from genjax.core.propagate import PropagationRules
 from genjax.core.propagate import flat_propagate
-from genjax.core.propagate import default_propagation_rules
 from genjax.core.propagate import map_outcells
 from genjax.core.propagate import propagate
 from genjax.core.specialization import is_concrete
