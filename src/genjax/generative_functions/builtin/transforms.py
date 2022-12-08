@@ -157,16 +157,16 @@ class Simulate(Handler):
         self.cache_state = BuiltinTrie(hashabledict())
         self.score = 0.0
 
-    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
-        key, *args = incells
-        key = key.get_val()
-        args = tuple(map(lambda v: v.get_val(), args))
+        values = map(lambda v: v.get_val(), incells)
+        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = tuple(args)
 
         # Otherwise, we send simulate down to the generative function
         # callee.
@@ -184,15 +184,17 @@ class Simulate(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
+        values = map(lambda v: v.get_val(), incells)
+        args = jtu.tree_unflatten(tree_in, values)
+
         # Otherwise, we codegen by calling into the function.
-        args = tuple(map(lambda v: v.get_val(), incells))
         retval = fn(*args)
         self.cache_state[addr] = retval
 
@@ -254,7 +256,7 @@ class Importance(Handler):
         self.weight = 0.0
         self.constraints = constraints
 
-    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -262,10 +264,9 @@ class Importance(Handler):
             return incells, outcells, None
 
         # Otherwise, we proceed with code generation.
-        key, *args = incells
-        key = key.get_val()
-        args = tuple(map(lambda v: v.get_val(), args))
-
+        values = map(lambda v: v.get_val(), incells)
+        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = tuple(args)
         if self.constraints.has_subtree(addr):
             sub_map = self.constraints.get_subtree(addr)
         else:
@@ -356,15 +357,16 @@ class Update(Handler):
         self.prev = prev
         self.choice_change = new
 
-    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
-        key, *diffs = incells
+        key, *diffs = jtu.tree_unflatten(tree_in, incells)
         key = key.get_val()
+        diffs = tuple(diffs)
         has_previous = self.prev.has_subtree(addr)
         constrained = self.choice_change.has_subtree(addr)
 
@@ -515,7 +517,7 @@ class Assess(Handler):
         self.provided = provided
         self.score = 0.0
 
-    def trace(self, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         assert self.provided.has_subtree(addr)
 
         # We haven't handled the predecessors of this trace
@@ -525,9 +527,9 @@ class Assess(Handler):
             return incells, outcells, None
 
         # Otherwise, we continue with code generation.
-        key, *args = incells
-        key = key.get_val()
-        args = tuple(map(lambda v: v.get_val(), args))
+        values = map(lambda v: v.get_val(), incells)
+        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = tuple(args)
         submap = self.provided.get_subtree(addr)
         key, (v, score) = gen_fn.assess(key, submap, args)
         self.score += score
