@@ -484,7 +484,7 @@ def flat_propagate(tree, *flat_invals):
     yield flat_out, out_tree
 
 
-def call_rule(prim, cell_type, incells, outcells, **params):
+def call_rule(prim, incells, outcells, **params):
     """Propagation rule for JAX/XLA call primitives."""
     f, incells = incells[0], incells[1:]
     flat_vals, in_tree = jtu.tree_flatten((incells, outcells))
