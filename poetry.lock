@@ -670,14 +670,13 @@ scipy = ">=1.0.0"
 
 [[package]]
 name = "jaxtyping"
-version = "0.2.8"
+version = "0.2.9"
 description = "Type annotations and runtime checking for shape and dtype of JAX arrays, and PyTrees."
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-jax = ">=0.3.4"
 numpy = ">=1.20.0"
 typeguard = ">=2.13.3"
 typing-extensions = ">=3.7.4.1"
@@ -2557,8 +2556,8 @@ jaxopt = [
     {file = "jaxopt-0.5.5.tar.gz", hash = "sha256:1131fdb8da6d4ee45e7224bc1e3bc84ad60db02cddfce40eda1be9aa9f6ab937"},
 ]
 jaxtyping = [
-    {file = "jaxtyping-0.2.8-py3-none-any.whl", hash = "sha256:86886508dcf8085abce6cc534be314a39b212e2030781a57ac0b474239eba14b"},
-    {file = "jaxtyping-0.2.8.tar.gz", hash = "sha256:55e9784228fdb4749392f00990bfeb103c8e6399db5c3945f31898aa3fca56aa"},
+    {file = "jaxtyping-0.2.9-py3-none-any.whl", hash = "sha256:979a43ef1d6b1e5b985e447a7cab79200f6f8febec565a39bc3277ad9a38eb23"},
+    {file = "jaxtyping-0.2.9.tar.gz", hash = "sha256:bad60b20881a45b62ecfba61203c992a9af274060553edbabe2696b81ebf449a"},
 ]
 jedi = [
     {file = "jedi-0.18.2-py2.py3-none-any.whl", hash = "sha256:203c1fd9d969ab8f2119ec0a3342e0b49910045abe6af0a3ae83a5764d54639e"},
@@ -3225,6 +3224,7 @@ ruamel-yaml-clib = [
     {file = "ruamel.yaml.clib-0.2.7-cp310-cp310-win_amd64.whl", hash = "sha256:d000f258cf42fec2b1bbf2863c61d7b8918d31ffee905da62dede869254d3b8a"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:045e0626baf1c52e5527bd5db361bc83180faaba2ff586e763d3d5982a876a9e"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_12_6_arm64.whl", hash = "sha256:721bc4ba4525f53f6a611ec0967bdcee61b31df5a56801281027a3a6d1c2daf5"},
+    {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:41d0f1fa4c6830176eef5b276af04c89320ea616655d01327d5ce65e50575c94"},
     {file = "ruamel.yaml.clib-0.2.7-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:4b3a93bb9bc662fc1f99c5c3ea8e623d8b23ad22f861eb6fce9377ac07ad6072"},
     {file = "ruamel.yaml.clib-0.2.7-cp36-cp36m-macosx_12_0_arm64.whl", hash = "sha256:a234a20ae07e8469da311e182e70ef6b199d0fbeb6c6cc2901204dd87fb867e8"},
     {file = "ruamel.yaml.clib-0.2.7-cp36-cp36m-manylinux2014_aarch64.whl", hash = "sha256:15910ef4f3e537eea7fe45f8a5d19997479940d9196f357152a09031c5be59f3"},
