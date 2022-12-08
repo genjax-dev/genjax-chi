@@ -38,12 +38,15 @@ def simple_normal(key, custom_tree):
 
 
 @dataclasses.dataclass
-class CustomNormal(genjax.ExactDensity):
+class _CustomNormal(genjax.ExactDensity):
     def logpdf(self, v, custom_tree):
         return genjax.Normal.logpdf(v, custom_tree.x, custom_tree.y)
 
     def sample(self, key, custom_tree):
         return genjax.Normal.sample(key, custom_tree.x, custom_tree.y)
+
+
+CustomNormal = _CustomNormal()
 
 
 @genjax.gen
@@ -75,7 +78,7 @@ class TestCustomPytree:
         new_key, tr = fn(key, (init_tree,))
         chm = tr.get_choices()
         _, (score, _) = genjax.Normal.importance(
-            key, chm.get_subtree("y").get_choices(), (init_tree.x, 1.0)
+            key, chm.get_subtree("y").get_choices(), (init_tree.x, init_tree.y)
         )
         test_score = score
         assert tr.get_score() == pytest.approx(test_score, 0.01)
