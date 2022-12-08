@@ -2056,7 +2056,7 @@ test = ["websockets"]
 
 [[package]]
 name = "widgetsnbextension"
-version = "4.0.3"
+version = "4.0.4"
 description = "Jupyter interactive widgets for Jupyter Notebook"
 category = "dev"
 optional = false
@@ -3448,8 +3448,8 @@ websocket-client = [
     {file = "websocket_client-1.4.2-py3-none-any.whl", hash = "sha256:d6b06432f184438d99ac1f456eaf22fe1ade524c3dd16e661142dc54e9cba574"},
 ]
 widgetsnbextension = [
-    {file = "widgetsnbextension-4.0.3-py3-none-any.whl", hash = "sha256:7f3b0de8fda692d31ef03743b598620e31c2668b835edbd3962d080ccecf31eb"},
-    {file = "widgetsnbextension-4.0.3.tar.gz", hash = "sha256:34824864c062b0b3030ad78210db5ae6a3960dfb61d5b27562d6631774de0286"},
+    {file = "widgetsnbextension-4.0.4-py3-none-any.whl", hash = "sha256:fa0e840719ec95dd2ec85c3a48913f1a0c29d323eacbcdb0b29bfed0cc6da678"},
+    {file = "widgetsnbextension-4.0.4.tar.gz", hash = "sha256:44c69f18237af0f610557d6c1c7ef76853f5856a0e604c0a517f2320566bb775"},
 ]
 xdoctest = [
     {file = "xdoctest-1.1.0-py3-none-any.whl", hash = "sha256:da330c4dacee51f3c785820bc743188fb6f7c64c5fa1c54bff8836b3cf23d69b"},
