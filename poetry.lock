@@ -670,14 +670,13 @@ scipy = ">=1.0.0"
 
 [[package]]
 name = "jaxtyping"
-version = "0.2.8"
+version = "0.2.9"
 description = "Type annotations and runtime checking for shape and dtype of JAX arrays, and PyTrees."
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-jax = ">=0.3.4"
 numpy = ">=1.20.0"
 typeguard = ">=2.13.3"
 typing-extensions = ">=3.7.4.1"
@@ -2557,8 +2556,8 @@ jaxopt = [
     {file = "jaxopt-0.5.5.tar.gz", hash = "sha256:1131fdb8da6d4ee45e7224bc1e3bc84ad60db02cddfce40eda1be9aa9f6ab937"},
 ]
 jaxtyping = [
-    {file = "jaxtyping-0.2.8-py3-none-any.whl", hash = "sha256:86886508dcf8085abce6cc534be314a39b212e2030781a57ac0b474239eba14b"},
-    {file = "jaxtyping-0.2.8.tar.gz", hash = "sha256:55e9784228fdb4749392f00990bfeb103c8e6399db5c3945f31898aa3fca56aa"},
+    {file = "jaxtyping-0.2.9-py3-none-any.whl", hash = "sha256:979a43ef1d6b1e5b985e447a7cab79200f6f8febec565a39bc3277ad9a38eb23"},
+    {file = "jaxtyping-0.2.9.tar.gz", hash = "sha256:bad60b20881a45b62ecfba61203c992a9af274060553edbabe2696b81ebf449a"},
 ]
 jedi = [
     {file = "jedi-0.18.2-py2.py3-none-any.whl", hash = "sha256:203c1fd9d969ab8f2119ec0a3342e0b49910045abe6af0a3ae83a5764d54639e"},
