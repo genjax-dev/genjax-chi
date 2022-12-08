@@ -189,11 +189,11 @@ def simulate_transform(f, **kwargs):
         handler = Simulate()
         final_env, ret_state = propagate(
             Bare,
+            bare_propagation_rules,
             jaxpr,
             [Bare.new(v) for v in consts],
             list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
-            bare_propagation_rules,
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
@@ -289,11 +289,11 @@ def importance_transform(f, **kwargs):
         handler = Importance(chm)
         final_env, ret_state = propagate(
             Bare,
+            bare_propagation_rules,
             jaxpr,
             [Bare.new(v) for v in consts],
             list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
-            bare_propagation_rules,
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)
@@ -444,11 +444,11 @@ def update_transform(f, **kwargs):
         handler = Update(prev, new)
         final_env, _ = propagate(
             Diff,
+            diff_propagation_rules,
             jaxpr,
             [Diff.new(v, change=NoChange) for v in consts],
             [Diff.new(key), *diffs],
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
-            diff_propagation_rules,
             handler=handler,
         )
         key, *retval_diffs = safe_map(final_env.read, jaxpr.outvars)
@@ -544,11 +544,11 @@ def assess_transform(f, **kwargs):
         handler = Assess(chm)
         final_env, ret_state = propagate(
             Bare,
+            bare_propagation_rules,
             jaxpr,
             [Bare.new(v) for v in consts],
             list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
-            bare_propagation_rules,
             handler=handler,
         )
         flat_out = safe_map(final_env.read, jaxpr.outvars)

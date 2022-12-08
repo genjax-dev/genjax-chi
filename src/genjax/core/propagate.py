@@ -337,11 +337,11 @@ PropagationRule = Callable[
 
 def propagate(
     cell_type: Type[Cell],
+    propagation_rules: PropagationRules,
     jaxpr: pe.Jaxpr,
     constcells: List[Cell],
     incells: List[Cell],
     outcells: List[Cell],
-    propagation_rules: PropagationRules,
     reducer: Callable[
         [Environment, Equation, State, State], State
     ] = identity_reducer,
@@ -419,6 +419,7 @@ def propagate(
                     functools.partial(
                         propagate,
                         cell_type,
+                        propagation_rules,
                         call_jaxpr,
                         (),
                         initial_state=initial_state,
