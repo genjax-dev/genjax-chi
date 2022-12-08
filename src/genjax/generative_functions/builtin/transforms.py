@@ -17,6 +17,7 @@ from typing import Any
 from typing import Sequence
 
 from jax import core as jax_core
+import jax.tree_util as jtu
 
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
@@ -176,18 +177,21 @@ class Simulate(Handler):
 
 def simulate_transform(f, **kwargs):
     def _inner(key, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
+            key, *args, **kwargs
+        )
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Simulate()
         final_env, ret_state = propagate(
             Bare,
             jaxpr,
             [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
+            jtu.tree_unflatten(in_tree, map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = safe_map(final_env.read, jaxpr.outvars)
+        key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
         key = key.get_val()
         retvals = tuple(map(lambda v: v.get_val(), retvals))
@@ -272,18 +276,21 @@ class Importance(Handler):
 
 def importance_transform(f, **kwargs):
     def _inner(key, chm, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
+            key, *args, **kwargs
+        )
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Importance(chm)
         final_env, ret_state = propagate(
             Bare,
             jaxpr,
             [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
+            jtu.tree_unflatten(in_tree, map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = safe_map(final_env.read, jaxpr.outvars)
+        key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
         key = key.get_val()
         retvals = tuple(map(lambda v: v.get_val(), retvals))
@@ -425,7 +432,7 @@ class Update(Handler):
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
         vals = tuple(map(strip_diff, diffs))
-        jaxpr, _ = stage(f)(key, *vals, **kwargs)
+        jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
         final_env, _ = propagate(
