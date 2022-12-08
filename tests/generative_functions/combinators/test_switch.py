@@ -36,14 +36,15 @@ switch = genjax.SwitchCombinator([simple_normal, simple_bernoulli])
 class TestSimulate:
     def test_switch_simulate(self):
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(switch.simulate)(key, (0,))
+        jitted = jax.jit(switch.simulate)
+        key, tr = jitted(key, (0,))
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
         assert score == genjax.Normal.logpdf(
             v1, 0.0, 1.0
         ) + genjax.Normal.logpdf(v2, 0.0, 1.0)
-        key, tr = jax.jit(switch.simulate)(key, (1,))
+        key, tr = jitted(key, (1,))
         flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
@@ -51,7 +52,8 @@ class TestSimulate:
     def test_switch_importance(self):
         key = jax.random.PRNGKey(314159)
         chm = genjax.EmptyChoiceMap()
-        key, (w, tr) = jax.jit(switch.importance)(key, chm, (0,))
+        jitted = jax.jit(switch.importance)
+        key, (w, tr) = jitted(key, chm, (0,))
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
@@ -59,13 +61,13 @@ class TestSimulate:
             v1, 0.0, 1.0
         ) + genjax.Normal.logpdf(v2, 0.0, 1.0)
         assert w == 0.0
-        key, (w, tr) = jax.jit(switch.importance)(key, chm, (1,))
+        key, (w, tr) = jitted(key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
         assert w == 0.0
         chm = genjax.BuiltinChoiceMap.new({"y3": True})
-        key, (w, tr) = jax.jit(switch.importance)(key, chm, (1,))
+        key, (w, tr) = jitted(key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
