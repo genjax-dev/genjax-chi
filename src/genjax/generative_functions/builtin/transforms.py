@@ -119,8 +119,8 @@ def bare_fallback_rule(
 
 def bare_call_p_rule(prim, incells, outcells, **params):
     """Propagation rule for JAX/XLA call primitives."""
+    f, incells = incells[0], incells[1:]
     if all(map(lambda v: v.top(), incells)):
-        f, incells = incells[0], incells[1:]
         flat_vals, in_tree = jtu.tree_flatten((incells, outcells))
         new_params = dict(params)
         if "donated_invars" in params:
