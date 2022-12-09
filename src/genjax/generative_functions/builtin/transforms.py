@@ -466,12 +466,14 @@ def check_diff_leaf(v):
     return isinstance(v, Diff) or isinstance(v, Cell)
 
 
+# TODO: fix all the diff tree bullshit that's happening in here.
+# Like, what is happening with the flattening unflattening.
+# A total nightmare.
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
         vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_diff_leaf)
         _, diff_tree = jtu.tree_flatten(diffs)
         jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
-        flat_diffs = jtu.tree_flatten(diffs, is_leaf=check_diff_leaf)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
         flat_diffs = jtu.tree_flatten(diffs, is_leaf=check_diff_leaf)
