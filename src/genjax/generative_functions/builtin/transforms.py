@@ -43,6 +43,7 @@ from genjax.generative_functions.diff_rules import NoChange
 from genjax.generative_functions.diff_rules import check_no_change
 from genjax.generative_functions.diff_rules import diff_propagation_rules
 from genjax.generative_functions.diff_rules import strip_diff
+from genjax.generative_functions.diff_rules import check_is_diff
 
 
 safe_map = jax_core.safe_map
@@ -462,17 +463,13 @@ class Update(Handler):
         return incells, new_outcells, None
 
 
-def check_diff_leaf(v):
-    return isinstance(v, Diff) or isinstance(v, Cell)
-
-
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
-        vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_diff_leaf)
+        vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_is_diff)
         jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
-        flat_diffs, _ = jtu.tree_flatten(diffs, is_leaf=check_diff_leaf)
+        flat_diffs, _ = jtu.tree_flatten(diffs, is_leaf=check_is_diff)
         final_env, _ = propagate(
             Diff,
             diff_propagation_rules,

@@ -22,6 +22,7 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax.core.datatypes import AllSelection
 from genjax.core.datatypes import ChoiceMap
@@ -37,6 +38,7 @@ from genjax.generative_functions.diff_rules import Diff
 from genjax.generative_functions.diff_rules import NoChange
 from genjax.generative_functions.diff_rules import check_no_change
 from genjax.generative_functions.diff_rules import strip_diff
+from genjax.generative_functions.diff_rules import check_is_diff
 
 
 #####
@@ -174,7 +176,7 @@ class Distribution(GenerativeFunction):
             return key, (retval_diff, 0.0, prev, EmptyChoiceMap())
 
         # Otherwise, we consider the cases.
-        args = tuple(map(strip_diff, diffs))
+        args = jtu.tree_map(strip_diff, diffs, is_leaf=check_is_diff)
 
         # First, we have to check if the trace provided
         # is masked or not. It's possible that a trace

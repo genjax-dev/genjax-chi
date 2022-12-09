@@ -131,6 +131,10 @@ class Diff(Cell):
         return self.val
 
 
+def check_is_diff(v):
+    return isinstance(v, Diff) or isinstance(v, Cell)
+
+
 def strip_diff(diff):
     return diff.get_val()
 
