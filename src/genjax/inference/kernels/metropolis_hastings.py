@@ -21,8 +21,8 @@ import jax.tree_util as jtu
 
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
-from genjax.inference.kernels.kernel import MCMCKernel
 from genjax.generative_functions.diff_rules import Diff
+from genjax.inference.kernels.kernel import MCMCKernel
 
 
 def _metropolis_hastings(proposal: GenerativeFunction):
