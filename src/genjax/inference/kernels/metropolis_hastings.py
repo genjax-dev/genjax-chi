@@ -31,7 +31,7 @@ def _metropolis_hastings(proposal: GenerativeFunction):
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
         key, proposal_tr = proposal.simulate(key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
-        diffs = map(Diff.no_change, model_args)
+        diffs = tuple(map(Diff.no_change, model_args))
         key, (_, weight, new, discard) = model.update(
             key, trace, proposal_tr.get_choices(), diffs
         )
