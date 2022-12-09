@@ -463,21 +463,27 @@ class Update(Handler):
 
 
 def check_diff_leaf(v):
-    return isinstance(v, Diff)
+    return isinstance(v, Diff) or isinstance(v, Cell)
 
 
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
         vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_diff_leaf)
+        _, diff_tree = jtu.tree_flatten(diffs)
         jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
+        flat_diffs = jtu.tree_flatten(diffs, is_leaf=check_diff_leaf)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
+        flat_diffs = jtu.tree_flatten(diffs, is_leaf=check_diff_leaf)
         final_env, _ = propagate(
             Diff,
             diff_propagation_rules,
             jaxpr,
             [Diff.new(v, change=NoChange) for v in consts],
-            [Diff.new(key), *diffs],
+            [
+                Diff.new(key),
+                *jtu.tree_unflatten(diff_tree, flat_args[1:]),
+            ],
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
