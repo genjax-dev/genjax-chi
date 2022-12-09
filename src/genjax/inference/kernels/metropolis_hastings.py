@@ -21,6 +21,7 @@ import jax.random as random
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
 from genjax.inference.kernels.kernel import MCMCKernel
+from genjax.generative_functions.diff_rules import Diff
 
 
 def _metropolis_hastings(proposal: GenerativeFunction):
@@ -30,8 +31,9 @@ def _metropolis_hastings(proposal: GenerativeFunction):
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
         key, proposal_tr = proposal.simulate(key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
-        key, (weight, new, discard) = model.update(
-            key, trace, proposal_tr.get_choices(), model_args
+        diffs = map(Diff.no_change, model_args)
+        key, (_, weight, new, discard) = model.update(
+            key, trace, proposal_tr.get_choices(), diffs
         )
         proposal_args_bwd = (new, *proposal_args)
         key, (bwd_weight, _) = proposal.importance(
