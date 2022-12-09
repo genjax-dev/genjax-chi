@@ -462,9 +462,13 @@ class Update(Handler):
         return incells, new_outcells, None
 
 
+def check_diff_leaf(v):
+    return isinstance(v, Diff)
+
+
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
-        vals = tuple(map(strip_diff, diffs))
+        vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_diff_leaf)
         jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
@@ -477,6 +481,7 @@ def update_transform(f, **kwargs):
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
+
         key, *retval_diffs = safe_map(final_env.read, jaxpr.outvars)
         w = handler.weight
         chm = handler.choice_state
