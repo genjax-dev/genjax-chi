@@ -74,7 +74,7 @@ def pretty(show_locals=False, max_frames=20, suppress=[jax], **kwargs):
     traceback.install(
         show_locals=show_locals,
         max_frames=max_frames,
-        suppress=[jax],
+        suppress=suppress,
     )
 
     return GenJAXConsole(Console(soft_wrap=True, **kwargs))
