@@ -15,6 +15,7 @@
 import dataclasses
 from typing import Any
 from typing import List
+import jax.tree_util as jtu
 
 from genjax.core.propagate import Cell
 from genjax.core.propagate import PropagationRules
