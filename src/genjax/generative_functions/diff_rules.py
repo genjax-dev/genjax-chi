@@ -145,10 +145,20 @@ def fallback_diff_rule(
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         flat_out = prim.bind(*in_vals, **params)
-        if all(map(lambda v: v.get_change() == NoChange, incells)):
-            new_out = [Diff.new(flat_out, change=NoChange)]
+
+        # Gotta be a better way to do this.
+        if isinstance(flat_out, list):
+            if all(map(lambda v: v.get_change() == NoChange, incells)):
+                new_out = jtu.tree_map(
+                    lambda v: Diff.new(v, change=NoChange), flat_out
+                )
+            else:
+                new_out = jtu.tree_map(lambda v: Diff.new(v), flat_out)
         else:
-            new_out = [Diff.new(flat_out)]
+            if all(map(lambda v: v.get_change() == NoChange, incells)):
+                new_out = [Diff.new(flat_out, change=NoChange)]
+            else:
+                new_out = [Diff.new(flat_out)]
     else:
         new_out = outcells
     return incells, new_out, None
