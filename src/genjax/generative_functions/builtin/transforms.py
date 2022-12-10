@@ -110,7 +110,11 @@ def bare_fallback_rule(
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         flat_out = prim.bind(*in_vals, **params)
-        new_out = [Bare.new(flat_out)]
+        # Primitives can return multiple results.
+        if isinstance(flat_out, list):
+            new_out = jtu.tree_map(Bare.new, flat_out)
+        else:
+            new_out = [Bare.new(flat_out)]
     else:
         new_out = outcells
     return incells, new_out, None
