@@ -15,6 +15,7 @@
 import dataclasses
 from typing import Any
 from typing import List
+
 import jax.tree_util as jtu
 
 from genjax.core.propagate import Cell
@@ -145,21 +146,13 @@ def fallback_diff_rule(
 ):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
-        flat_out = prim.bind(*in_vals, **params)
-
-        # Gotta be a better way to do this.
-        if isinstance(flat_out, list):
-            if all(map(lambda v: v.get_change() == NoChange, incells)):
-                new_out = jtu.tree_map(
-                    lambda v: Diff.new(v, change=NoChange), flat_out
-                )
-            else:
-                new_out = jtu.tree_map(lambda v: Diff.new(v), flat_out)
+        out = prim.bind(*in_vals, **params)
+        if all(map(lambda v: v.get_change() == NoChange, incells)):
+            new_out = jtu.tree_map(lambda v: Diff.new(v, change=NoChange), out)
         else:
-            if all(map(lambda v: v.get_change() == NoChange, incells)):
-                new_out = [Diff.new(flat_out, change=NoChange)]
-            else:
-                new_out = [Diff.new(flat_out)]
+            new_out = jtu.tree_map(lambda v: Diff.new(v), out)
+        if not prim.multiple_results:
+            new_out = [new_out]
     else:
         new_out = outcells
     return incells, new_out, None
