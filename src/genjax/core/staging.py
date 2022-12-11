@@ -65,14 +65,14 @@ def stage(f, dynamic=True):
                 flat_fun, pvals, instantiate=True
             )
         typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
-        return typed_jaxpr, (in_tree, out_tree())
+        return typed_jaxpr, (flat_args, in_tree, out_tree())
 
     return wrapped
 
 
 def trees(f):
-    """Returns a function that determines input and output pytrees from
-    inputs."""
+    """Returns a function that determines input and output pytrees from inputs,
+    and also returns the flattened input arguments."""
 
     def wrapped(*args, **kwargs):
         return stage(f)(*args, **kwargs)[1]
