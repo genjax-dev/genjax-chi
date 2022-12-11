@@ -13,16 +13,20 @@
 # limitations under the License.
 
 import dataclasses
+import functools
 from typing import Any
-from typing import Sequence
+from typing import List
 
+import jax.tree_util as jtu
 from jax import core as jax_core
+from jax.interpreters import xla
 
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.hashabledict import hashabledict
 from genjax.core.propagate import Cell
 from genjax.core.propagate import Handler
-from genjax.core.propagate import abstract
+from genjax.core.propagate import PropagationRules
+from genjax.core.propagate import flat_propagate
 from genjax.core.propagate import map_outcells
 from genjax.core.propagate import propagate
 from genjax.core.specialization import is_concrete
@@ -36,7 +40,9 @@ from genjax.generative_functions.builtin.intrinsics import cache_p
 from genjax.generative_functions.builtin.intrinsics import gen_fn_p
 from genjax.generative_functions.diff_rules import Diff
 from genjax.generative_functions.diff_rules import NoChange
+from genjax.generative_functions.diff_rules import check_is_diff
 from genjax.generative_functions.diff_rules import check_no_change
+from genjax.generative_functions.diff_rules import diff_propagation_rules
 from genjax.generative_functions.diff_rules import strip_diff
 
 
@@ -98,18 +104,45 @@ class Bare(Cell):
         return self.val
 
 
-@abstract
-def propagation_rule(
-    prim: Any, incells: Sequence[Bare], outcells: Any, **params
+def bare_fallback_rule(
+    prim: Any, incells: List[Bare], outcells: Any, **params
 ):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
-        flat_out = prim.bind(*in_vals, **params)
-        new_out = [Bare.new(flat_out)]
+        out = prim.bind(*in_vals, **params)
+        new_out = jtu.tree_map(Bare.new, out)
+        if not prim.multiple_results:
+            new_out = [new_out]
     else:
         new_out = outcells
     return incells, new_out, None
 
+
+def bare_call_p_rule(prim, incells, outcells, **params):
+    """Propagation rule for JAX/XLA call primitives."""
+    f, incells = incells[0], incells[1:]
+    if all(map(lambda v: v.top(), incells)):
+        flat_vals, in_tree = jtu.tree_flatten((incells, outcells))
+        new_params = dict(params)
+        if "donated_invars" in params:
+            new_params["donated_invars"] = (False,) * len(flat_vals)
+        f, aux = flat_propagate(f, in_tree)
+        flat_out = prim.bind(f, *flat_vals, **new_params)
+        out_tree = aux()
+        return jtu.tree_unflatten(out_tree, flat_out)
+    else:
+        return incells, outcells, None
+
+
+bare_call_rules = {}
+bare_call_rules[xla.xla_call_p] = functools.partial(
+    bare_call_p_rule, xla.xla_call_p
+)
+bare_call_rules[jax_core.call_p] = functools.partial(
+    bare_call_p_rule, jax_core.call_p
+)
+
+bare_propagation_rules = PropagationRules(bare_fallback_rule, bare_call_rules)
 
 ######################################
 #  Generative function interpreters  #
@@ -127,16 +160,16 @@ class Simulate(Handler):
         self.cache_state = BuiltinTrie(hashabledict())
         self.score = 0.0
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
-        key, *args = incells
-        key = key.get_val()
-        args = tuple(map(lambda v: v.get_val(), args))
+        values = map(lambda v: v.get_val(), incells)
+        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = tuple(args)
 
         # Otherwise, we send simulate down to the generative function
         # callee.
@@ -154,15 +187,17 @@ class Simulate(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
+        values = map(lambda v: v.get_val(), incells)
+        args = jtu.tree_unflatten(tree_in, values)
+
         # Otherwise, we codegen by calling into the function.
-        args = tuple(map(lambda v: v.get_val(), incells))
         retval = fn(*args)
         self.cache_state[addr] = retval
 
@@ -176,21 +211,25 @@ class Simulate(Handler):
 
 def simulate_transform(f, **kwargs):
     def _inner(key, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
+            key, *args, **kwargs
+        )
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Simulate()
         final_env, ret_state = propagate(
             Bare,
+            bare_propagation_rules,
             jaxpr,
             [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
+            list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
+        retvals = tuple(retvals)
         score = handler.score
         chm = handler.choice_state
         cache = handler.cache_state
@@ -220,7 +259,7 @@ class Importance(Handler):
         self.weight = 0.0
         self.constraints = constraints
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -228,10 +267,9 @@ class Importance(Handler):
             return incells, outcells, None
 
         # Otherwise, we proceed with code generation.
-        key, *args = incells
-        key = key.get_val()
-        args = tuple(map(lambda v: v.get_val(), args))
-
+        values = map(lambda v: v.get_val(), incells)
+        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = tuple(args)
         if self.constraints.has_subtree(addr):
             sub_map = self.constraints.get_subtree(addr)
         else:
@@ -250,7 +288,7 @@ class Importance(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -272,21 +310,25 @@ class Importance(Handler):
 
 def importance_transform(f, **kwargs):
     def _inner(key, chm, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
+            key, *args, **kwargs
+        )
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Importance(chm)
         final_env, ret_state = propagate(
             Bare,
+            bare_propagation_rules,
             jaxpr,
             [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
+            list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
+        retvals = tuple(retvals)
         w = handler.weight
         score = handler.score
         chm = handler.choice_state
@@ -318,15 +360,16 @@ class Update(Handler):
         self.prev = prev
         self.choice_change = new
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
-        key, *diffs = incells
+        key, *diffs = jtu.tree_unflatten(tree_in, incells)
         key = key.get_val()
+        diffs = tuple(diffs)
         has_previous = self.prev.has_subtree(addr)
         constrained = self.choice_change.has_subtree(addr)
 
@@ -380,7 +423,7 @@ class Update(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -424,18 +467,21 @@ class Update(Handler):
 
 def update_transform(f, **kwargs):
     def _inner(key, prev, new, diffs):
-        vals = tuple(map(strip_diff, diffs))
-        jaxpr, _ = stage(f)(key, *vals, **kwargs)
+        vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_is_diff)
+        jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update(prev, new)
+        flat_diffs, _ = jtu.tree_flatten(diffs, is_leaf=check_is_diff)
         final_env, _ = propagate(
             Diff,
+            diff_propagation_rules,
             jaxpr,
             [Diff.new(v, change=NoChange) for v in consts],
-            [Diff.new(key), *diffs],
+            [Diff.new(key), *flat_diffs],
             [Diff.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
+
         key, *retval_diffs = safe_map(final_env.read, jaxpr.outvars)
         w = handler.weight
         chm = handler.choice_state
@@ -476,7 +522,7 @@ class Assess(Handler):
         self.provided = provided
         self.score = 0.0
 
-    def trace(self, _, incells, outcells, addr, gen_fn, **kwargs):
+    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         assert self.provided.has_subtree(addr)
 
         # We haven't handled the predecessors of this trace
@@ -486,9 +532,9 @@ class Assess(Handler):
             return incells, outcells, None
 
         # Otherwise, we continue with code generation.
-        key, *args = incells
-        key = key.get_val()
-        args = tuple(map(lambda v: v.get_val(), args))
+        values = map(lambda v: v.get_val(), incells)
+        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = tuple(args)
         submap = self.provided.get_subtree(addr)
         key, (v, score) = gen_fn.assess(key, submap, args)
         self.score += score
@@ -501,7 +547,7 @@ class Assess(Handler):
 
         return incells, new_outcells, None
 
-    def cache(self, _, incells, outcells, addr, fn, **kwargs):
+    def cache(self, incells, outcells, addr, fn, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
@@ -522,21 +568,25 @@ class Assess(Handler):
 
 def assess_transform(f, **kwargs):
     def _inner(key, chm, args):
-        jaxpr, _ = stage(f)(key, *args, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
+        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
+            key, *args, **kwargs
+        )
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Assess(chm)
         final_env, ret_state = propagate(
             Bare,
+            bare_propagation_rules,
             jaxpr,
             [Bare.new(v) for v in consts],
-            [Bare.new(key), *map(Bare.new, args)],
+            list(map(Bare.new, flat_args)),
             [Bare.unknown(var.aval) for var in jaxpr.outvars],
             handler=handler,
         )
-        key_and_returns = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = safe_map(final_env.read, jaxpr.outvars)
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
         key, *retvals = key_and_returns
-        key = key.get_val()
-        retvals = tuple(map(lambda v: v.get_val(), retvals))
+        retvals = tuple(retvals)
         score = handler.score
 
         # If propagation succeeded, no value should be

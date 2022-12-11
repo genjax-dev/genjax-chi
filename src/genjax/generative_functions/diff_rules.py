@@ -14,10 +14,13 @@
 
 import dataclasses
 from typing import Any
-from typing import Sequence
+from typing import List
+
+import jax.tree_util as jtu
 
 from genjax.core.propagate import Cell
-from genjax.core.propagate import abstract
+from genjax.core.propagate import PropagationRules
+from genjax.core.propagate import default_propagation_rules
 from genjax.core.pytree import Pytree
 from genjax.core.staging import get_shaped_aval
 from genjax.core.typing import IntegerTensor
@@ -130,21 +133,26 @@ class Diff(Cell):
         return self.val
 
 
+def check_is_diff(v):
+    return isinstance(v, Diff) or isinstance(v, Cell)
+
+
 def strip_diff(diff):
     return diff.get_val()
 
 
-@abstract
-def propagation_rule(
-    prim: Any, incells: Sequence[Diff], outcells: Any, **params
+def fallback_diff_rule(
+    prim: Any, incells: List[Diff], outcells: Any, **params
 ):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
-        flat_out = prim.bind(*in_vals, **params)
+        out = prim.bind(*in_vals, **params)
         if all(map(lambda v: v.get_change() == NoChange, incells)):
-            new_out = [Diff.new(flat_out, change=NoChange)]
+            new_out = jtu.tree_map(lambda v: Diff.new(v, change=NoChange), out)
         else:
-            new_out = [Diff.new(flat_out)]
+            new_out = jtu.tree_map(lambda v: Diff.new(v), out)
+        if not prim.multiple_results:
+            new_out = [new_out]
     else:
         new_out = outcells
     return incells, new_out, None
@@ -152,3 +160,8 @@ def propagation_rule(
 
 def check_no_change(diff):
     return diff.get_change() == NoChange
+
+
+diff_propagation_rules = PropagationRules(
+    fallback_diff_rule, default_propagation_rules.get_rule_set()
+)

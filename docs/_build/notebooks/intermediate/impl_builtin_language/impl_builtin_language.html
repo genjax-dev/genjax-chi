@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="McCoy Reynolds Becker">
-<meta name="dcterms.date" content="2022-12-01">
+<meta name="dcterms.date" content="2022-12-07">
 
-<title>Gen ⊗ JAX - Introduction to combinators</title>
+<title>Gen ⊗ JAX - Implementing the builtin modeling language</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -4298,8 +4298,8 @@ vertical-align: -.125em;
 }</script>
 
 
-<meta property="og:title" content="Gen ⊗ JAX - Introduction to combinators">
-<meta property="og:description" content="This notebook is designed to give the reader an introduction to generative function combinators - higher-order functions which accept generative functions and return new generative functions…">
+<meta property="og:title" content="Gen ⊗ JAX - Implementing the builtin modeling language">
+<meta property="og:description" content="This notebook covers the design decisions, implementation ingredients, and interface implementations for the builtin modeling language in GenJAX.">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -4383,7 +4383,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Introduction to combinators</h1>
+<h1 class="title">Implementing the builtin modeling language</h1>
 </div>
 
 
@@ -4400,7 +4400,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">December 1, 2022</p>
+      <p class="date">December 7, 2022</p>
     </div>
   </div>
   
@@ -4410,7 +4410,7 @@ vertical-align: -.125em;
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This notebook is designed to give the reader an introduction to generative function combinators - higher-order functions which accept generative functions and return new generative functions, typically transforming the generative structure to encode a pattern of repeated computation. In this notebook, we focus on vector-shaped combinators - combinators which transform input generative structure into (mapped or scanned) vectorial structure.
+    This notebook covers the design decisions, implementation ingredients, and interface implementations for the builtin modeling language in GenJAX. It assumes familiarity with the generative function interface, as well as JAX’s general support for composable interpreters and staging.
   </div>
 </div>
 

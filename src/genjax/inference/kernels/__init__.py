@@ -13,5 +13,4 @@
 # limitations under the License.
 
 from .kernel import *
-from .metropolis_adjusted_langevin_algorithm import *
 from .metropolis_hastings import *

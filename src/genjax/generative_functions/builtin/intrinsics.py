@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import jax.core as core
+import jax.tree_util as jtu
 
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.staging import stage
@@ -33,22 +34,22 @@ cache_p = core.Primitive("cache")
 ############################################################
 
 
-def _trace(addr, call, key, *args, **kwargs):
+def _trace(addr, call, *args, **kwargs):
     assert isinstance(call, GenerativeFunction)
+    flat_args, tree_in = jtu.tree_flatten(args)
     return gen_fn_p.bind(
-        key,
-        *args,
+        *flat_args,
         addr=addr,
         gen_fn=call,
+        tree_in=tree_in,
         **kwargs,
     )
 
 
 def trace(addr, call, **kwargs):
-    return lambda key, *args: _trace(
+    return lambda *args: _trace(
         addr,
         call,
-        key,
         *args,
         **kwargs,
     )
@@ -59,11 +60,13 @@ def trace(addr, call, **kwargs):
 #####
 
 
-def gen_fn_abstract_eval(key, *args, addr, gen_fn, **kwargs):
-    def _inner(key, *args):
-        return gen_fn.__call__(key, *args, **kwargs)
+def gen_fn_abstract_eval(*args, addr, gen_fn, tree_in, **kwargs):
+    args = jtu.tree_unflatten(tree_in, args)
 
-    closed_jaxpr, _ = stage(_inner)(key, *args)
+    def _inner(*args):
+        return gen_fn.__call__(*args, **kwargs)
+
+    closed_jaxpr, _ = stage(gen_fn)(*args)
     return closed_jaxpr.out_avals
 
 

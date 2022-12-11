@@ -24,6 +24,7 @@ website:
       - text: "Intermediate"
         menu:
           - intermediate/intro_to_combinators/intro_to_combinators.ipynb
+          - intermediate/impl_builtin_language/impl_builtin_language.ipynb
       - text: "Advanced"
         menu:
           - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
