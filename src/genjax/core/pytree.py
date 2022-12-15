@@ -23,7 +23,6 @@ This allows, among other things, an efficient implementation of :code:`SwitchCom
 """
 
 import abc
-import dataclasses
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -31,7 +30,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-import rich
 
 import genjax.core.pretty_printing as gpp
 from genjax.core.hashabledict import HashableDict
@@ -56,28 +54,8 @@ class Pytree(metaclass=abc.ABCMeta):
     def unflatten(cls, data, xs):
         return cls(*data, *xs)
 
-    def _build_rich_tree(self):
-        if hasattr(self, "_tree_console_overload"):
-            return self._tree_console_overload()
-        else:
-            tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-            if dataclasses.is_dataclass(self):
-                d = dict(
-                    (field.name, getattr(self, field.name))
-                    for field in dataclasses.fields(self)
-                )
-                for (k, v) in d.items():
-                    subk = tree.add(f"[blue]{k}")
-                    if isinstance(v, Pytree) or hasattr(v, "_build_rich_tree"):
-                        subtree = v._build_rich_tree()
-                        subk.add(subtree)
-                    else:
-                        subk.add(gpp.tree_pformat(v))
-
-            return tree
-
     def __rich_console__(self, console, options):
-        tree = self._build_rich_tree()
+        tree = gpp.tree_pformat(self)
         yield tree
 
 
