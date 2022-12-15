@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module contains an extensible pretty printing infrastructure based on
-JAX's :code:`_src/pretty_printing` as well as extensions created by the Equinox
-package maintainers."""
-
 import dataclasses
 import functools as ft
 import types
@@ -30,124 +26,77 @@ import jax
 import jax._src.pretty_printer as pp
 import jax.numpy as jnp
 import numpy as np
+from rich.tree import Tree
 
 
 Dataclass = Any
 PrettyPrintable = Any
 
 
-_comma_sep = pp.concat([pp.text(","), pp.brk()])
-_newline_sep = pp.concat([pp.text(","), pp.brk(), pp.brk()])
+def _pformat_list(obj: List, **kwargs) -> Tree:
+    tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
+    for v in obj:
+        sub_tree = _pformat(v, **kwargs)
+        tree.add(sub_tree)
+    return tree
 
 
-def _nest(n: int, doc: pp.Doc) -> pp.Doc:
-    return pp.nest(n, pp.concat([pp.brk(""), doc]))
-
-
-def _pformat_list(obj: List, **kwargs) -> pp.Doc:
-    indent = kwargs["indent"]
-    return pp.group(
-        pp.concat(
-            [
-                pp.text("["),
-                _nest(
-                    indent,
-                    pp.join(_comma_sep, [_pformat(x, **kwargs) for x in obj]),
-                ),
-                pp.brk(""),
-                pp.text("]"),
-            ]
-        )
-    )
-
-
-def _pformat_tuple(obj: Tuple, **kwargs) -> pp.Doc:
-    indent = kwargs["indent"]
-    if len(obj) == 1:
-        entries = pp.concat([_pformat(obj[0], **kwargs), pp.text(",")])
-    else:
-        entries = pp.join(_comma_sep, [_pformat(x, **kwargs) for x in obj])
-    return pp.group(
-        pp.concat(
-            [pp.text("("), _nest(indent, entries), pp.brk(""), pp.text(")")]
-        )
-    )
+def _pformat_tuple(obj: Tuple, **kwargs) -> Tree:
+    tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
+    for v in obj:
+        sub_tree = _pformat(v, **kwargs)
+        tree.add(sub_tree)
+    return tree
 
 
 def _dict_entry(
     key: PrettyPrintable, value: PrettyPrintable, **kwargs
-) -> pp.Doc:
-    return pp.concat(
-        [
-            _pformat(key, **kwargs),
-            pp.text(":"),
-            pp.brk(),
-            _pformat(value, **kwargs),
-        ]
-    )
+) -> Tree:
+    tree = Tree(f"[b]{key}[/b]")
+    sub_tree = _pformat(value, **kwargs)
+    tree.add(sub_tree)
+    return tree
 
 
-def _pformat_dict(obj: Dict, **kwargs) -> pp.Doc:
-    indent = kwargs["indent"]
-    entries = [_dict_entry(key, value, **kwargs) for key, value in obj.items()]
-    return pp.group(
-        pp.concat(
-            [
-                pp.text("{"),
-                _nest(indent, pp.join(_comma_sep, entries)),
-                pp.brk(""),
-                pp.text("}"),
-            ]
-        )
-    )
+def _pformat_dict(obj: Dict, **kwargs) -> Tree:
+    tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
+    for (k, v) in obj.items():
+        sub_tree = _dict_entry(k, v, **kwargs)
+        tree.add(sub_tree)
+    return tree
 
 
-def _named_entry(name: str, value: Any, **kwargs) -> pp.Doc:
-    return pp.concat(
-        [pp.text(name), pp.text(" = "), _pformat(value, **kwargs)]
-    )
+def _named_entry(name: str, value: Any, **kwargs) -> Tree:
+    tree = Tree(f"[bold dark_blue]{name}")
+    sub_tree = _pformat(value, **kwargs)
+    tree.add(sub_tree)
+    return tree
 
 
-def _pformat_namedtuple(obj: NamedTuple, **kwargs) -> pp.Doc:
-    indent = kwargs["indent"]
+def _pformat_namedtuple(obj: NamedTuple, **kwargs) -> Tree:
+    tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
     entries = [
         _named_entry(name, getattr(obj, name), **kwargs)
         for name in obj._fields
     ]
-    return pp.group(
-        pp.concat(
-            [
-                pp.text(obj.__class__.__name__),
-                pp.text("("),
-                _nest(indent, pp.join(_comma_sep, entries)),
-                pp.brk(""),
-                pp.text(")"),
-            ]
-        )
-    )
+    for entry in entries:
+        tree.add(entry)
+    return tree
 
 
-def _pformat_dataclass(obj: Dataclass, **kwargs) -> pp.Doc:
-    indent = kwargs["indent"]
+def _pformat_dataclass(obj: Dataclass, **kwargs) -> Tree:
+    tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
     entries = [
         _named_entry(f.name, getattr(obj, f.name), **kwargs)
         for f in dataclasses.fields(obj)
         if f.repr
     ]
-    return pp.group(
-        pp.concat(
-            [
-                pp.text(obj.__class__.__name__),
-                pp.text("("),
-                _nest(indent, pp.join(_comma_sep, entries)),
-                pp.brk(""),
-                pp.text(")"),
-            ]
-        )
-    )
+    for entry in entries:
+        tree.add(entry)
+    return tree
 
 
-def _pformat_array(obj, **kwargs) -> pp.Doc:
+def _pformat_array(obj, **kwargs) -> Tree:
     short = kwargs["short_arrays"]
     try:
         if short:
@@ -177,7 +126,7 @@ def _pformat_array(obj, **kwargs) -> pp.Doc:
             return pp.text(repr(obj))
 
 
-def _pformat_function(obj: types.FunctionType, **kwargs) -> pp.Doc:
+def _pformat_function(obj: types.FunctionType, **kwargs) -> Tree:
     if kwargs.get("wrapped", False):
         fn = "wrapped function"
     else:
@@ -185,13 +134,14 @@ def _pformat_function(obj: types.FunctionType, **kwargs) -> pp.Doc:
     return pp.text(f"<{fn} {obj.__name__}>")
 
 
-# TODO: offer user-customisable override mechanism if they wish.
-# Ideally this would be something tied to being a Pytree.
-def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
+def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
     follow_wrapped = kwargs["follow_wrapped"]
     truncate_leaf = kwargs["truncate_leaf"]
     if truncate_leaf(obj):
-        return pp.text(f"{type(obj).__name__}(...)")
+        tree = Tree(f"[b]{type(obj).__name__}(...)[/b]")
+        return tree
+    elif hasattr(obj, "_pformat_custom"):
+        return obj._pformat_custom(**kwargs)
     elif dataclasses.is_dataclass(obj):
         return _pformat_dataclass(obj, **kwargs)
     elif isinstance(obj, list):
@@ -204,7 +154,8 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
         else:
             return _pformat_tuple(obj, **kwargs)
     elif isinstance(obj, np.ndarray) or isinstance(obj, jnp.ndarray):
-        return _pformat_array(obj, **kwargs)
+        doc = _pformat_array(obj, **kwargs)
+        return Tree(f"[turquoise4]{doc.format()}")
     elif isinstance(obj, (jax.custom_jvp, jax.custom_vjp)):
         return _pformat(obj.__wrapped__, **kwargs)
     elif hasattr(obj, "__wrapped__") and follow_wrapped:
@@ -214,9 +165,11 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> pp.Doc:
         kwargs["wrapped"] = True
         return _pformat(obj.func, **kwargs)
     elif isinstance(obj, types.FunctionType):
-        return _pformat_function(obj, **kwargs)
+        doc = _pformat_function(obj, **kwargs)
+        return Tree(doc.format())
     else:  # int, str, float, complex, bool, etc.
-        return pp.text(repr(obj))
+        tree = Tree(f"{repr(obj)}")
+        return tree
 
 
 def _false(_):
@@ -225,8 +178,6 @@ def _false(_):
 
 def tree_pformat(
     pytree: PrettyPrintable,
-    width: int = 80,
-    indent: int = 2,
     short_arrays: bool = True,
     follow_wrapped: bool = True,
     truncate_leaf: Callable[[PrettyPrintable], bool] = _false,
@@ -245,10 +196,6 @@ def tree_pformat(
     **Arguments:**
 
     - `pytree`: The Pytree to pretty-format.
-    - `width`: The desired maximum number of characters per line of output. If a
-        structure cannot be formatted within this constraint then a best effort will
-        be made.
-    - `indent`: The amount of indentation each nesting level.
     - `short_arrays`: Toggles the abbreviation of JAX arrays.
     - `follow_wrapped`: Whether to unwrap `functools.partial` and `functools.wraps`.
     - `truncate_leaf`: A function `Any -> bool`. Applied to all nodes in the Pytree;
@@ -261,8 +208,7 @@ def tree_pformat(
 
     return _pformat(
         pytree,
-        indent=indent,
         short_arrays=short_arrays,
         follow_wrapped=follow_wrapped,
         truncate_leaf=truncate_leaf,
-    ).format(width=width)
+    )

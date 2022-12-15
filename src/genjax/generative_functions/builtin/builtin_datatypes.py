@@ -115,15 +115,12 @@ class BuiltinTrie(Tree):
     def __hash__(self):
         return hash(self.inner)
 
-    def _tree_console_overload(self):
+    def _pformat_custom(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         for (k, v) in self.inner.items():
             subk = tree.add(f"[bold green]{k}")
-            if hasattr(v, "_build_rich_tree"):
-                subtree = v._build_rich_tree()
-                subk.add(subtree)
-            else:
-                subk.add(gpp.tree_pformat(v))
+            subtree = gpp._pformat(v, **kwargs)
+            subk.add(subtree)
         return tree
 
 
@@ -224,15 +221,12 @@ class BuiltinChoiceMap(ChoiceMap):
     def __hash__(self):
         return hash(self.inner)
 
-    def _tree_console_overload(self):
+    def _pformat_custom(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         for (k, v) in self.inner.items():
-            subk = tree.add(f"[bold green]{k}")
-            if hasattr(v, "_build_rich_tree"):
-                subtree = v._build_rich_tree()
-                subk.add(subtree)
-            else:
-                subk.add(gpp.tree_pformat(v))
+            subk = tree.add(f"[bold dark_green]{k}")
+            subtree = gpp._pformat(v, **kwargs)
+            subk.add(subtree)
         return tree
 
 
