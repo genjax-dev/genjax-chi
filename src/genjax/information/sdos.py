@@ -35,7 +35,6 @@ def estimate_log_ratio(
     mq: int,
 ):
     def _inner(key, p_args: Tuple):
-
         # Inner functions -- to be mapped over.
         # Keys are folded in, for working memory.
         def _inner_p(key, index, chm, args):
