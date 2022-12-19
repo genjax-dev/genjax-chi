@@ -168,7 +168,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
         doc = _pformat_function(obj, **kwargs)
         return Tree(doc.format())
     else:  # int, str, float, complex, bool, etc.
-        tree = Tree(f"{repr(obj)}")
+        tree = Tree(f"[purple](lit) {repr(obj)}")
         return tree
 
 

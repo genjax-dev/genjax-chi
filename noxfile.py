@@ -38,7 +38,6 @@ python_version = "3.10"
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
     "safety",
-    "mypy",
     "tests",
     # "benchmark",
     "xdoctests",

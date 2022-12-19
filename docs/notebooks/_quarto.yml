@@ -24,9 +24,10 @@ website:
       - text: "Intermediate"
         menu:
           - intermediate/intro_to_combinators/intro_to_combinators.ipynb
-          - intermediate/impl_builtin_language/impl_builtin_language.ipynb
+          - intermediate/gradient_interfaces/gradient_interfaces.ipynb
       - text: "Advanced"
         menu:
+          - advanced/impl_builtin_language/impl_builtin_language.ipynb
           - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
     right:
       - icon: github
