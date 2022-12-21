@@ -87,3 +87,6 @@ class TrainCombinator(GenerativeFunction):
             self.params,
             is_leaf=_is_none,
         )
+
+    def get_params(self):
+        return self.params

@@ -37,7 +37,7 @@ Request features on the [Issue Tracker].
 
 ## How to set up your development environment
 
-You need Python 3.7+ and the following tools:
+You need Python 3.7+ (we recommend 3.11+) and the following tools:
 
 - [Poetry]
 - [Nox]
@@ -98,12 +98,6 @@ Your pull request needs to meet the following guidelines for acceptance:
 - If your changes add functionality, update the documentation accordingly.
 
 Feel free to submit early, though—we can always iterate on this.
-
-To run linting and code formatting checks before committing your change, you can install pre-commit as a Git hook by running the following command:
-
-```console
-$ nox --session=pre-commit -- install
-```
 
 It is recommended to open an issue before starting work on anything.
 This will allow a chance to talk it over with the owners and validate your approach.

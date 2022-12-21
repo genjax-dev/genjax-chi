@@ -3,4 +3,13 @@ title: "Modeling and inference notebooks"
 date: "December 1, 2022"
 ---
 
-This is a notebook repository for pedagogical tutorials on the usage on [Gen](https://www.gen.dev/), with a focus on the [GenJAX](https://github.com/probcomp/genjax) implementation.
+This is a notebook repository for pedagogical tutorials on usage of [Gen](https://www.gen.dev/), with a focus on the [GenJAX](https://github.com/probcomp/genjax) implementation.
+
+Here, you'll find notebooks which span knowledge levels from beginner to advanced (in probabilistic programming). These notebooks are built and executed with the current version of `genjax`, so they are kept up to date with the repo.
+
+::: {.callout-note}
+
+## TODO (MyBinder link)
+
+You can open a Binder executable environment by following this tag: 
+:::

@@ -91,12 +91,6 @@ class SMCState(Pytree):
 
 @dataclass
 class SMCPropagator(Pytree):
-    def __call__(self, key, state, *args):
-        if state.retained is None:
-            return self.propagate(key, state, *args)
-        else:
-            return self.conditional_propagate(key, state, *args)
-
     @abc.abstractmethod
     def propagate_target(self, target: Target, *args):
         pass
@@ -111,7 +105,7 @@ class SMCPropagator(Pytree):
         pass
 
     @abc.abstractmethod
-    def conditional_pullback(
+    def conditional_propagate(
         self,
         key: PRNGKey,
         old_target: Target,
@@ -190,7 +184,7 @@ class Extend(SMCPropagator):
             state.n_particles,
         )
 
-    def conditional_pullback(
+    def conditional_propagate(
         self,
         key: PRNGKey,
         old_target: Target,
@@ -548,9 +542,9 @@ class Compose(SMCAlgorithm):
 
     def run_csmc(self, key, choices):
         old_target = self.prev.get_final_target()
-        key, retained, pushforward = self.propagator.conditional_pullback(
+        key, retained, propagator = self.propagator.conditional_propagate(
             key, old_target, choices, *self.propagator_args
         )
         key, state = self.prev.run_csmc(key, retained)
-        key, state = pushforward(key, state, *self.propagator_args)
+        key, state = propagator(key, state, *self.propagator_args)
         return key, state

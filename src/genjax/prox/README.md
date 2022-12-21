@@ -1,6 +1,6 @@
 # GenProx
 
-This is a Python implementation (on top of JAX + GenJAX's Gen interfaces) of `GenProx` - a set of concepts and types for compositional programming with approximate densities and pseudo-marginalization.
+This is a Python implementation (on top of JAX + GenJAX's Gen interfaces) of `GenProx` - a set of concepts and types for compositional programming with approximate densities. 
 
 The original source code was developed by Alex Lew in Julia here: https://github.com/probcomp/GenProx.jl.
 
