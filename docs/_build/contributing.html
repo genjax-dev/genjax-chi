@@ -495,7 +495,7 @@ and/or steps to reproduce the issue.</p>
 </section>
 <section id="how-to-set-up-your-development-environment">
 <h2>How to set up your development environment<a class="headerlink" href="#how-to-set-up-your-development-environment" title="Permalink to this headline">#</a></h2>
-<p>You need Python 3.7+ and the following tools:</p>
+<p>You need Python 3.7+ (we recommend 3.11+) and the following tools:</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://python-poetry.org/">Poetry</a></p></li>
 <li><p><a class="reference external" href="https://nox.thea.codes/">Nox</a></p></li>
@@ -540,10 +540,6 @@ and are written using the <a class="reference external" href="https://pytest.rea
 <li><p>If your changes add functionality, update the documentation accordingly.</p></li>
 </ul>
 <p>Feel free to submit early, though—we can always iterate on this.</p>
-<p>To run linting and code formatting checks before committing your change, you can install pre-commit as a Git hook by running the following command:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nox --session<span class="o">=</span>pre-commit -- install
-</pre></div>
-</div>
 <p>It is recommended to open an issue before starting work on anything.
 This will allow a chance to talk it over with the owners and validate your approach.</p>
 </section>

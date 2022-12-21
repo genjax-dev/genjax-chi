@@ -20,6 +20,7 @@ from typing import Tuple
 from typing import Union
 
 import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
@@ -268,6 +269,13 @@ class GenerativeFunction(Pytree):
             key, args
         )
         return output
+
+    def _make_zero_trace(self, key, args):
+        out_tree = self._get_trace_data_shape(key, args)
+        return jtu.tree_map(
+            lambda v: jnp.zeros(v.shape, v.dtype),
+            out_tree,
+        )
 
 
 #####

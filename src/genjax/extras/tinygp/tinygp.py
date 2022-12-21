@@ -42,7 +42,6 @@ class GaussianProcess(ExactDensity):
 
 
 class ConditionedGaussianProcess(ExactDensity):
-    logpdf_fn: Any
     conditioned: Any
 
     def flatten(self):

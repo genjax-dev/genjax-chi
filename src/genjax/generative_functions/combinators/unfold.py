@@ -176,28 +176,40 @@ class UnfoldCombinator(GenerativeFunction):
             lambda *args: None,
         )
 
+        zero_trace = self.kernel._make_zero_trace(key, (state, *static_args))
+
+        def _inner_simulate(key, state, static_args, count):
+            key, tr = self.kernel.simulate(key, (state, *static_args))
+            state = tr.get_retval()
+            return (
+                key,
+                tr,
+                state,
+                count,
+                count + 1,
+            )
+
+        def _inner_zero_fallback(key, state, static_args, count):
+            key, tr = key, zero_trace
+            state = state
+            return key, tr, state, -1, count
+
         def _inner(carry, x):
             count, key, state = carry
-            key, tr = self.kernel.simulate(key, (state, *static_args))
             check = jnp.less(count, length + 1)
-            state = concrete_cond(
+            key, tr, state, index, count = concrete_cond(
                 check,
-                lambda *args: tr.get_retval(),
-                lambda *args: state,
+                _inner_simulate,
+                _inner_zero_fallback,
+                key,
+                state,
+                static_args,
+                count,
             )
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
-            count = concrete_cond(
-                check,
-                lambda *args: count + 1,
-                lambda *args: count,
-            )
+
             return (count, key, state), (tr, index, state)
 
-        (count, key, state), (tr, indices, retval) = jax.lax.scan(
+        (_, key, state), (tr, indices, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             None,
@@ -218,7 +230,7 @@ class UnfoldCombinator(GenerativeFunction):
     # This checks the leaves of a choice map,
     # to determine if it is "out of bounds" for
     # the max static length of this combinator.
-    def bounds_checker(self, v):
+    def _bounds_checker(self, v):
         lengths = []
 
         def _inner(v):
@@ -236,7 +248,7 @@ class UnfoldCombinator(GenerativeFunction):
     # This pads the leaves of a choice map up to
     # `self.max_length` -- so that we can scan
     # over the leading axes of the leaves.
-    def padder(self, v):
+    def _padder(self, v):
         ndim = len(v.shape)
         pad_axes = list(
             (0, self.max_length - len(v)) if k == 0 else (0, 0)
@@ -375,9 +387,9 @@ class UnfoldCombinator(GenerativeFunction):
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self.bounds_checker(chm)
+        chm, fixed_len = self._bounds_checker(chm)
         chm = jtu.tree_map(
-            self.padder,
+            self._padder,
             chm,
         )
         if not isinstance(chm, VectorChoiceMap):
@@ -618,9 +630,9 @@ class UnfoldCombinator(GenerativeFunction):
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        self.bounds_checker(chm)
+        self._bounds_checker(chm)
         chm = jtu.tree_map(
-            self.padder,
+            self._padder,
             chm,
         )
         chm = VectorChoiceMap(

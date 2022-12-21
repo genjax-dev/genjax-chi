@@ -16,7 +16,7 @@ website:
   search:
     type: overlay
   navbar:
-    collapse: true
+    collapse-below: "sm"
     left:
       - text: "Basics"
         menu:
@@ -28,6 +28,8 @@ website:
       - text: "Advanced"
         menu:
           - advanced/impl_builtin_language/impl_builtin_language.ipynb
+          - advanced/recurse_combinator/recurse_combinator.ipynb
+          - advanced/smc_language/smc_language.ipynb
           - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
     right:
       - icon: github

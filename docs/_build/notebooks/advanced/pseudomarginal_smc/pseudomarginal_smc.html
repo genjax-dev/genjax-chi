@@ -22,6 +22,69 @@ width: 0.8em;
 margin: 0 0.8em 0.2em -1.6em;
 vertical-align: middle;
 }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
 </style>
 
 
@@ -3925,7 +3988,7 @@ vertical-align: -.125em;
 
 
 <meta property="og:title" content="Gen ⊗ JAX - Coarse-to-fine structure inference with pseudomarginal SMC">
-<meta property="og:description" content="In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct an approximate density induced by a variant of sequential Monte Carlo (SMC) targeting successively…">
+<meta property="og:description" content="This notebook showcases an advanced modeling application of several Gen-specific ingredients.">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -3933,7 +3996,7 @@ vertical-align: -.125em;
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+    <nav class="navbar navbar-expand-sm navbar-dark ">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container">
     <a class="navbar-brand" href="../../index.html">
@@ -3979,6 +4042,14 @@ vertical-align: -.125em;
         <li>
     <a class="dropdown-item" href="../../advanced/impl_builtin_language/impl_builtin_language.html">
  <span class="dropdown-text">Implementing the builtin modeling language</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../advanced/recurse_combinator/recurse_combinator.html">
+ <span class="dropdown-text">Tree-like generative models with the <code>Recurse</code> combinator</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../advanced/smc_language/smc_language.html">
+ <span class="dropdown-text">The sequential Monte Carlo mini-language</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../../advanced/pseudomarginal_smc/pseudomarginal_smc.html">
@@ -4037,10 +4108,33 @@ vertical-align: -.125em;
     
   </div>
   
+<div>
+  <div class="abstract">
+    <div class="abstract-title">Abstract</div>
+    This notebook showcases an advanced modeling application of several Gen-specific ingredients. It combines combinator patterns for structured generative computation, with <a href="https://github.com/probcomp/GenProx.jl">the approximate density interface</a> using variants of sequential Monte Carlo (SMC) <a href="#smc-minilanguage">constructed using a composable mini-language for SMC algorithms</a>. These ingredients come together to replicate <a href="https://dl.acm.org/doi/10.1145/3290350">Feras Saad’s 2019 experiments on Bayesian program synthesis for Gaussian process models</a> on the GPU.
+  </div>
+</div>
 
 </header>
 
-<p>In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct an approximate density induced by a variant of sequential Monte Carlo (SMC) targeting successively richer approximations to latent structure.</p>
+<div class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.tree_util <span class="im">as</span> jtu</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">&quot;white&quot;</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Pretty printing.</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty(width<span class="op">=</span><span class="dv">70</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct approximate densities induced by customized sequential Monte Carlo (SMC) targeting successively richer approximations to latent structure.</p>
 <p>The notebook assumes several pre-requisites:</p>
 <ul>
 <li><p>Understanding generative functions, their interfaces, and the math that the interface functions compute.</p></li>

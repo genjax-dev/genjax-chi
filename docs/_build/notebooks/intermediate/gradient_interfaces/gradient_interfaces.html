@@ -3996,7 +3996,7 @@ vertical-align: -.125em;
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+    <nav class="navbar navbar-expand-sm navbar-dark ">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container">
     <a class="navbar-brand" href="../../index.html">
@@ -4044,6 +4044,14 @@ vertical-align: -.125em;
  <span class="dropdown-text">Implementing the builtin modeling language</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../../advanced/recurse_combinator/recurse_combinator.html">
+ <span class="dropdown-text">Tree-like generative models with the <code>Recurse</code> combinator</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../advanced/smc_language/smc_language.html">
+ <span class="dropdown-text">The sequential Monte Carlo mini-language</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../../advanced/pseudomarginal_smc/pseudomarginal_smc.html">
  <span class="dropdown-text">Coarse-to-fine structure inference with pseudomarginal SMC</span></a>
   </li>  
@@ -4070,7 +4078,13 @@ vertical-align: -.125em;
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#assess-for-exact-density-evaluation" id="toc-assess-for-exact-density-evaluation" class="nav-link active" data-scroll-target="#assess-for-exact-density-evaluation"><code>assess</code> for exact density evaluation</a></li>
+  <li><a href="#gradient-interfaces" id="toc-gradient-interfaces" class="nav-link active" data-scroll-target="#gradient-interfaces">Gradient interfaces</a>
+  <ul class="collapse">
+  <li><a href="#assess-for-exact-density-evaluation" id="toc-assess-for-exact-density-evaluation" class="nav-link" data-scroll-target="#assess-for-exact-density-evaluation"><code>assess</code> for exact density evaluation</a></li>
+  </ul></li>
+  <li><a href="#map-estimation" id="toc-map-estimation" class="nav-link" data-scroll-target="#map-estimation">MAP estimation</a></li>
+  <li><a href="#exposing-learnable-modules-with-traincombinator" id="toc-exposing-learnable-modules-with-traincombinator" class="nav-link" data-scroll-target="#exposing-learnable-modules-with-traincombinator">Exposing learnable modules with <code>TrainCombinator</code></a></li>
+  <li><a href="#automatic-differentiation-variational-inference" id="toc-automatic-differentiation-variational-inference" class="nav-link" data-scroll-target="#automatic-differentiation-variational-inference">Automatic differentiation variational inference</a></li>
   </ul>
 <div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/intermediate/gradient_interfaces/gradient_interfaces.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
 </nav>
@@ -4123,31 +4137,54 @@ vertical-align: -.125em;
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax <span class="im">import</span> GenerativeFunction, ChoiceMap, Selection, trace</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">&quot;white&quot;</span>)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Pretty printing.</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty(width<span class="op">=</span><span class="dv">70</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">&quot;white&quot;</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Pretty printing.</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty(width<span class="op">=</span><span class="dv">80</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The generative function interface exposes functionality which allows usage of generative functions for differentiable programming. These interfaces are designed to work seamlessly with <code>jax.grad</code> - allowing (even higher-order) gradient computations which are useful for inference algorithms which require gradients and gradient estimators. In this notebook, we’ll describe some of these interfaces - as well as their (current, but not forever) limitations. We’ll walk through an implementation of MAP estimation, as well as the Metropolis-adjusted Langevin algorithm (MALA) using these interfaces.</p>
-<section id="assess-for-exact-density-evaluation" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="assess-for-exact-density-evaluation"><code>assess</code> for exact density evaluation</h2>
-<div class="page-columns page-full"><p><code>assess</code> is a generative function interface method which computes log joint density estimates from generative functions. <code>assess</code> requires that a user provide a choice map <em>which completely fills all choices encountered during execution</em>. Otherwise, it errors.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> And these errors are thrown at JAX trace time, so you’ll get an exception before runtime.</p></li></div></div>
+<section id="gradient-interfaces" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="gradient-interfaces">Gradient interfaces</h2>
+<p>Because JAX features best-in-class support for higher-order AD, GenJAX exposes interfaces that compose natively with JAX’s interfaces for gradients. The primary interface method which provides <code>jax.grad</code>-compatible functions from generative functions is an interface called <code>unzip</code>.</p>
+<p><code>unzip</code> allows a user to provide a key, and a fixed choice map - and it returns a new key and two closures:</p>
+<ul>
+<li>The first closure is a “score” closure which accepts a choice map as the first argument, and arguments which match the non-<code>PRNGKey</code> signature types of the generative function. The score closure returns the exact joint score of the generative function. It computes the exact joint score using an interface called <code>assess</code>.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></li>
+<li>The second closure is a “retval” closure which accepts a choice map as the first argument, and arguments which match the non-<code>PRNGKey</code> signature types of the generative function. The retval closure executes the generative function constrained using the union of the fixed choice map, and the user provided choice map, and returns the return value of the execution. Here, the return value is also provided by invoking the <code>assess</code> interface.</li>
+</ul>
+<div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> Caveat: <code>assess</code> is not required to return the <em>exact</em> joint score, only an estimate. However, if <code>jax.grad</code> is used on estimates - the resulting thing is not a correct gradient estimator. See the important callout below!</p></li></div><p>So really, <code>unzip</code> is syntactic sugar over another interface called <code>assess</code>.</p>
+<section id="assess-for-exact-density-evaluation" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="assess-for-exact-density-evaluation"><code>assess</code> for exact density evaluation</h3>
+<div class="page-columns page-full"><p><code>assess</code> is a generative function interface method which computes log joint density estimates from generative functions. <code>assess</code> requires that a user provide a choice map <em>which completely fills all choices encountered during execution</em>. Otherwise, it errors.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn2"><p><sup>2</sup> And these errors are thrown at JAX trace time, so you’ll get an exception before runtime.</p></li></div></div>
 <p>If a generative function also draws from untraced randomness - <code>assess</code> computes an estimate whose expectation over the distribution of untraced randomness gives the correct log joint density.</p>
-<div class="callout-important callout callout-style-simple">
-<div class="callout-body d-flex">
+<div class="callout-important callout callout-style-simple callout-captioned">
+<div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
-<div class="callout-body-container">
-<p>The gradient interfaces described in this notebook <strong>do not compute</strong> correct or useful estimates when used on generative programs which include untraced randomness.</p>
+<div class="callout-caption-container flex-fill">
+Correctness of gradient estimators
 </div>
 </div>
+<div class="callout-body-container callout-body">
+<p>When used on generative functions which include untraced randomness, naively applying <code>jax.grad</code> to the closures returned by interfaces described in this notebook <strong>do not compute</strong> gradient estimators which are unbiased with respect to the true gradients.</p>
+<p>Short: don’t use these with untraced randomness. We’re working on alternatives.</p>
 </div>
+</div>
+</section>
+</section>
+<section id="map-estimation" class="level2">
+<h2 class="anchored" data-anchor-id="map-estimation">MAP estimation</h2>
+</section>
+<section id="exposing-learnable-modules-with-traincombinator" class="level2">
+<h2 class="anchored" data-anchor-id="exposing-learnable-modules-with-traincombinator">Exposing learnable modules with <code>TrainCombinator</code></h2>
+</section>
+<section id="automatic-differentiation-variational-inference" class="level2">
+<h2 class="anchored" data-anchor-id="automatic-differentiation-variational-inference">Automatic differentiation variational inference</h2>
+<p>In this section, we’ll show how we can use the gradient interfaces to implement <a href="https://arxiv.org/abs/1603.00788">Automatic differentiation variational inference</a>.</p>
 
 
 </section>
