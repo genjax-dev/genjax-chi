@@ -1,11 +1,8 @@
 ---
-title: "Modeling and inference notebooks"
+title: "Probabilistic programming with GenJAX"
 date: "December 1, 2022"
+abstract: "This is a notebook repository for tutorials on usage of [Gen](https://www.gen.dev/) for probabilistic programming, with a focus on the [GenJAX](https://github.com/probcomp/genjax) implementation. For [Gen.jl](https://github.com/probcomp/Gen.jl) notebook tutorials, [see the tutorial page on the Gen website](https://www.gen.dev/tutorials/). The notebooks provide pedagogical examples of the usage of Gen for modeling and inference, as well as describe Gen's specific design philosophy for probabilistic programming. The notebooks are built and executed with the current version of `genjax`, so they are kept up to date with the repo."
 ---
-
-This is a notebook repository for pedagogical tutorials on usage of [Gen](https://www.gen.dev/), with a focus on the [GenJAX](https://github.com/probcomp/genjax) implementation.
-
-Here, you'll find notebooks which span knowledge levels from beginner to advanced (in probabilistic programming). These notebooks are built and executed with the current version of `genjax`, so they are kept up to date with the repo.
 
 ::: {.callout-note}
 

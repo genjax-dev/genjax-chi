@@ -49,12 +49,10 @@ Install the package with development requirements:
 $ poetry install
 ```
 
-You can now run an interactive Python session,
-or the command-line interface:
+You can now run an interactive Python session:
 
 ```console
 $ poetry run python
-$ poetry run genjax
 ```
 
 [poetry]: https://python-poetry.org/

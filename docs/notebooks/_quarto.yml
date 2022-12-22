@@ -23,6 +23,7 @@ website:
           - introduction/intro_to_genjax/intro_to_genjax.ipynb
       - text: "Intermediate"
         menu:
+          - intermediate/incremental_computation/incremental.ipynb
           - intermediate/intro_to_combinators/intro_to_combinators.ipynb
           - intermediate/gradient_interfaces/gradient_interfaces.ipynb
       - text: "Advanced"
@@ -37,7 +38,7 @@ website:
         aria-label: GitHub
   page-footer:
     background: dark
-    left: © Copyright 2022 MIT Probabilistic Computing Project.
+    left: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
     right:
       - icon: github
         href: https://github.com/probcomp/genjax
