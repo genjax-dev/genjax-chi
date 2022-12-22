@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
+import dataclasses
 from typing import Any
 from typing import Callable
 from typing import Tuple
@@ -39,7 +39,7 @@ from genjax.core.typing import PRNGKey
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class ChoiceMap(Tree):
     @abc.abstractmethod
     def get_selection(self):
@@ -78,7 +78,7 @@ class ChoiceMap(Tree):
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class Trace(ChoiceMap, Tree):
     @abc.abstractmethod
     def get_retval(self) -> Any:
@@ -99,6 +99,10 @@ class Trace(ChoiceMap, Tree):
     @abc.abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
         pass
+
+    def update(self, key, choices, argdiffs):
+        gen_fn = self.get_gen_fn()
+        return gen_fn.update(key, self, choices, argdiffs)
 
     def has_subtree(self, addr) -> Bool:
         choices = self.get_choices()
@@ -146,7 +150,7 @@ class Trace(ChoiceMap, Tree):
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class Selection(Tree):
     @abc.abstractmethod
     def filter(self, chm):
@@ -169,7 +173,7 @@ class Selection(Tree):
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class GenerativeFunction(Pytree):
     """
     :code:`GenerativeFunction` abstract class which allows user-defined
@@ -191,7 +195,7 @@ class GenerativeFunction(Pytree):
     provide a differentiable `importance` implementation.
     """
 
-    def __call__(self, key: PRNGKey, *args):
+    def __call__(self, key: PRNGKey, *args) -> Tuple[PRNGKey, Any]:
         key, tr = self.simulate(key, args)
         retval = tr.get_retval()
         return key, retval
@@ -283,7 +287,7 @@ class GenerativeFunction(Pytree):
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class EmptyChoiceMap(ChoiceMap, Leaf):
     def flatten(self):
         return (), ()
@@ -295,7 +299,7 @@ class EmptyChoiceMap(ChoiceMap, Leaf):
         return NoneSelection()
 
 
-@dataclass
+@dataclasses.dataclass
 class ValueChoiceMap(ChoiceMap, Leaf):
     value: Any
 
@@ -327,7 +331,7 @@ class ValueChoiceMap(ChoiceMap, Leaf):
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class NoneSelection(Selection, Leaf):
     def flatten(self):
         return (), ()
@@ -344,7 +348,7 @@ class NoneSelection(Selection, Leaf):
         )
 
 
-@dataclass
+@dataclasses.dataclass
 class AllSelection(Selection, Leaf):
     def flatten(self):
         return (), ()

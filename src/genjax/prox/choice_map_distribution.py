@@ -23,6 +23,17 @@ from genjax.prox.prox_distribution import ProxDistribution
 from genjax.prox.target import Target
 
 
+def _static_check_subseteq_trace_type(key, target, proposal):
+    proposal_trace_type = proposal.get_trace_type(key, (target,))
+    target_trace_type = target.get_trace_type(key)
+    check, mismatch = target_trace_type.subseteq(proposal_trace_type)
+    if not check:
+        raise Exception(
+            f"Trace type mismatch.\n{target} with proposal {proposal}"
+            f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
+        )
+
+
 @dataclass
 class ChoiceMapDistribution(ProxDistribution):
     p: GenerativeFunction
@@ -51,14 +62,7 @@ class ChoiceMapDistribution(ProxDistribution):
             return correct_if_check
         else:
             target = Target(self.p, None, args, self.selection)
-            proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
-            target_trace_type = target.get_trace_type(key)
-            check, mismatch = target_trace_type.subseteq(proposal_trace_type)
-            if not check:
-                raise Exception(
-                    f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
-                    f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
-                )
+            _static_check_subseteq_trace_type(key, target, self.custom_q)
             return correct_if_check
 
     def random_weighted(self, key, *args):
@@ -71,17 +75,6 @@ class ChoiceMapDistribution(ProxDistribution):
             unselected, _ = self.selection.complement().filter(choices)
             target = Target(self.p, None, args, selected_choices)
 
-            # Check trace type.
-            proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
-            target_trace_type = target.get_trace_type(key)
-            check, mismatch = target_trace_type.subseteq(proposal_trace_type)
-            if not check:
-                raise Exception(
-                    f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
-                    f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
-                )
-
-            # Proceed.
             key, (w, _) = self.custom_q.importance(
                 key, ValueChoiceMap.new(unselected), (target,)
             )
@@ -93,18 +86,8 @@ class ChoiceMapDistribution(ProxDistribution):
             key, (weight, new) = self.p.importance(key, choices, args)
         else:
             target = Target(self.p, None, args, choices)
+            _static_check_subseteq_trace_type(key, target, self.custom_q)
 
-            # Check trace type.
-            proposal_trace_type = self.custom_q.get_trace_type(key, (target,))
-            target_trace_type = target.get_trace_type(key)
-            check, mismatch = target_trace_type.subseteq(proposal_trace_type)
-            if not check:
-                raise Exception(
-                    f"Trace type mismatch.\n{target} with proposal {self.custom_q}"
-                    f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
-                )
-
-            # Proceed.
             key, tr = self.custom_q.simulate(key, (target,))
             key, (w, new) = target.importance(key, tr.get_retval(), ())
             weight = w - tr.get_score()

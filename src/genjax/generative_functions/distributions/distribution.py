@@ -24,7 +24,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax.core.datatypes import AllSelection
 from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
@@ -50,26 +49,17 @@ from genjax.generative_functions.diff_rules import strip_diff
 class DistributionTrace(Trace, Leaf):
     gen_fn: Callable
     args: Tuple
-    value: ValueChoiceMap
+    value: Any
     score: Any
 
     def flatten(self):
         return (self.args, self.value, self.score), (self.gen_fn,)
 
-    def project(self, selection):
-        if isinstance(selection, AllSelection):
-            return self.get_choices(), self.score
-        else:
-            return EmptyChoiceMap(), 0.0
-
-    def get_leaf_value(self):
-        return self.value.get_leaf_value()
-
     def get_gen_fn(self):
         return self.gen_fn
 
     def get_retval(self):
-        return self.value.get_leaf_value()
+        return self.value
 
     def get_args(self):
         return self.args
@@ -78,10 +68,10 @@ class DistributionTrace(Trace, Leaf):
         return self.score
 
     def get_choices(self):
-        return self.value
+        return ValueChoiceMap(self.value)
 
-    def merge(self, other):
-        return other
+    def get_leaf_value(self):
+        return self.value
 
 
 #####
@@ -111,7 +101,7 @@ class Distribution(GenerativeFunction):
 
     def simulate(self, key, args, **kwargs):
         key, (w, v) = self.random_weighted(key, *args, **kwargs)
-        tr = DistributionTrace(self, args, ValueChoiceMap(v), w)
+        tr = DistributionTrace(self, args, v, w)
         return key, tr
 
     def importance(self, key, chm, args, **kwargs):
@@ -159,7 +149,7 @@ class Distribution(GenerativeFunction):
 
         return key, (
             w,
-            DistributionTrace(self, args, ValueChoiceMap(v), score),
+            DistributionTrace(self, args, v, score),
         )
 
     def update(self, key, prev, new, diffs, **kwargs):
@@ -243,7 +233,7 @@ class Distribution(GenerativeFunction):
         return key, (
             retval_diff,
             w,
-            DistributionTrace(self, args, ValueChoiceMap(v), w),
+            DistributionTrace(self, args, v, w),
             discard,
         )
 

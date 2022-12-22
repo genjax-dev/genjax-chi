@@ -36,5 +36,5 @@ IntTensor = Int[Array, "..."]
 Int = int
 
 
-def check_is_array(v):
+def static_check_is_array(v):
     isinstance(v, jnp.ndarray) or isinstance(v, np.ndarray)

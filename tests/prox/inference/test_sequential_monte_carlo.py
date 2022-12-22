@@ -11,18 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import jax
-import jax.numpy as jnp
-import numpy as np
-
-
-def logsumexp_with_extra(arr, x):
-    max_arr = jnp.maximum(jnp.maximum(arr), x)
-    return max_arr + jnp.log(
-        jnp.sum(jnp.exp(arr - max_arr)) + jnp.exp(x - max - arr)
-    )
-
-
-def logmeanexp(arr):
-    return jax.scipy.special.logsumexp(arr) - np.log(len(arr))
