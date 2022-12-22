@@ -4040,8 +4040,12 @@ vertical-align: -.125em;
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-intermediate">    
         <li>
+    <a class="dropdown-item" href="../../intermediate/incremental_computation/incremental.html">
+ <span class="dropdown-text">Incremental computation for generative functions</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../../intermediate/intro_to_combinators/intro_to_combinators.html">
- <span class="dropdown-text">Introduction to combinators</span></a>
+ <span class="dropdown-text">Introduction to generative function combinators</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../../intermediate/gradient_interfaces/gradient_interfaces.html">
@@ -4157,7 +4161,7 @@ vertical-align: -.125em;
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This notebook is designed to give the reader an accelerated introduction to concepts native to trace-based probabilistic programming, Gen, and GenJAX (an implementation of Gen on top of JAX). As for pre-requisites, it assumes passing familiarity with trace-based probabilistic programming systems, and Monte Carlo inference - especially importance sampling and MCMC methods.
+    This notebook is designed to give the reader an accelerated introduction to concepts native to trace-based probabilistic programming, Gen, and GenJAX (an implementation of Gen on top of JAX). For pre-requisites, the notebook assumes some familiarity with trace-based probabilistic programming systems, and Monte Carlo inference - especially importance sampling (although we describe concepts when we need them).
   </div>
 </div>
 
@@ -4181,15 +4185,15 @@ vertical-align: -.125em;
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<section id="what-is-genjax" class="level2">
+<section id="what-is-genjax" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="what-is-genjax">What is GenJAX?</h2>
 <p>Here are a few high-level ways to think about GenJAX:</p>
 <ul>
-<li><p>A probabilistic programming system based on the concepts of <a href="https://www.gen.dev/">Gen</a>.</p></li>
-<li><p>A Bayesian model and inference compiler with support for device acceleration (courtesy of JAX).</p></li>
+<li><p>A probabilistic programming<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> system based on the concepts of <a href="https://www.gen.dev/">Gen</a>.</p></li>
+<li><p>A Bayesian modelling and inference compiler with support for device acceleration (courtesy of JAX).</p></li>
 <li><p>A base layer for experiments in model and inference DSL design.</p></li>
 </ul>
-<p>There’s already a well-supported implementation of <a href="https://github.com/probcomp/Gen.jl">Gen in Julia</a>. Why is a JAX port interesting?</p>
+<div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> New to probabilistic programming? <a href="#what-is-probabilistic-programming">Don’t fret, read on!</a></p></li></div><p>There’s already a well-supported implementation of <a href="https://github.com/probcomp/Gen.jl">Gen in Julia</a>. Why is a JAX port interesting?</p>
 <p>There are a number of compelling technical and social reasons to explore Gen’s probabilistic programming paradigm on top of JAX, here are a few:</p>
 <ul>
 <li><p>JAX’s excellent accelerator support - our implementation natively supports several common accelerator idioms - like automatic struct-of-array representations, and the ability to automatically batch model/inference programs onto accelerators.</p></li>
@@ -4203,11 +4207,11 @@ vertical-align: -.125em;
 <section id="what-is-probabilistic-programming" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="what-is-probabilistic-programming">What is probabilistic programming?</h2>
 <p>Perhaps you may be coming to this notebook without any prior knowledge in probabilistic programming…</p>
-<div class="page-columns page-full"><p>That’s okay! Ideally, the ideas in this notebook should be self-contained<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> You may miss <em>why generative functions (see below) are designed the way they are</em> on a first read - but you’ll still get the punchline if you follow the notebook to the end.</p></li></div></div>
+<div class="page-columns page-full"><p>That’s okay! Ideally, the ideas in this notebook should be self-contained<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn2"><p><sup>2</sup> You may miss <em>why generative functions (see below) are designed the way they are</em> on a first read - but you’ll still get the punchline if you follow the notebook to the end.</p></li></div></div>
 <section id="a-bayesian-viewpoint" class="level3 page-columns page-full">
 <h3 class="anchored" data-anchor-id="a-bayesian-viewpoint">A Bayesian viewpoint</h3>
-<div class="page-columns page-full"><p>Here’s one practical take on what probabilistic programming is all about: programming language design for expressing and solving Bayesian inference problems<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn2"><p><sup>2</sup> In the <a href="http://probcomp.csail.mit.edu/">Probabilistic Computing lab at MIT</a>, we also consider differentiable programming to be contained within the set of concerns of probabilistic programming. We won’t cover differentiable programming interfaces in this notebook.</p></li></div></div>
-<p>There are other, more general, ways to say similar things (e.g. computational representations of operations on measures). Probabilistic programming is a broad field, and there are corners which may not be covered by our practical take. We’ll just assume that people are interested in Bayes, and how to represent Bayes on computers in nice ways. For our purposes in this notebook, we’ll stick as much as we can to the basics.</p>
+<div class="page-columns page-full"><p>Here’s one practical take on what probabilistic programming is all about: programming language design for expressing and solving Bayesian inference problems<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn3"><p><sup>3</sup> In the <a href="http://probcomp.csail.mit.edu/">Probabilistic Computing lab at MIT</a>, we also consider differentiable programming to be contained within the set of concerns of probabilistic programming. We won’t cover differentiable programming interfaces in this notebook.</p></li></div></div>
+<p>Probabilistic programming is a broad field, and there are corners which may not be covered by this practical take. We’ll just assume that people are interested in Bayes, and how to represent Bayes on computers in nice ways. For our purposes in this notebook, we’ll stick as much as we can to the basics.</p>
 </section>
 <section id="what-are-we-actually-computing-with" class="level3">
 <h3 class="anchored" data-anchor-id="what-are-we-actually-computing-with">What are we actually computing with?</h3>
@@ -4221,16 +4225,16 @@ vertical-align: -.125em;
 <p>Generative functions are the key concept of Gen’s probabilistic programming paradigm. Generative functions are computational objects defined by a set of associated data types and methods. These types and methods describe compositional interfaces that are useful for Bayesian inference computations.</p>
 <p>Gen’s formal description of generative functions consist of two objects:</p>
 <ul>
-<li><p><span class="math inline">\(P(\tau, r; x)\)</span> - a normalized measure over tree-like data (<em>choice maps</em>) and untraced randomness<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> <span class="math inline">\(r\)</span>, parametrized by arguments <span class="math inline">\(x\)</span>.</p></li>
+<li><p><span class="math inline">\(P(\tau, r; x)\)</span> - a normalized measure over tree-like data (<em>choice maps</em>) and untraced randomness<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> <span class="math inline">\(r\)</span>, parametrized by arguments <span class="math inline">\(x\)</span>.</p></li>
 <li><p><span class="math inline">\(f(\tau; x)\)</span> - a deterministic function from the above measure’s sample space to a space of data types.</p></li>
 </ul>
-<div class="no-row-height column-margin column-container"><li id="fn3"><p><sup>3</sup> More on this later. It’s safe to say “I have no idea what that is” for now, and expect us to explain later or in another notebook.</p></li></div><p>We can informally think of the sampling semantics of these objects as consisting of two steps:</p>
+<div class="no-row-height column-margin column-container"><li id="fn4"><p><sup>4</sup> More on this later. It’s safe to say “I have no idea what that is” for now, and expect us to explain later or in another notebook.</p></li></div><p>We can informally think of the sampling semantics of these objects as consisting of two steps:</p>
 <ol type="1">
 <li>First, sample a choice map from <span class="math inline">\(P\)</span>.</li>
 <li>Then, compute the return value using <span class="math inline">\(f\)</span>.</li>
 </ol>
 <p>In many of the generative function interfaces, we won’t just be interested in the final sampled return value. We’ll also be interested in what happened along the way: we’ll record the intermediate and final results of these steps in <code>Trace</code> objects - data structures which contain the recordings of values, along with probabilistic metadata like the score of random choices selected along the way.</p>
-<div class="page-columns page-full"><p>Below, we provide an example of an (admittedly, not too interesting) GenJAX generative function<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn4"><p><sup>4</sup> There’s not just one generative function class - users can and are encouraged to design new types of generative functions which capture repeated modeling patterns. An excellent example of this modularity in Gen’s design is <a href="../../introduction/intro_to_combinators/intro_to_combinators">generative function combinators</a>.</p></li></div></div>
+<div class="page-columns page-full"><p>Below, we provide an example of an (admittedly, not too interesting) GenJAX generative function<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn5"><p><sup>5</sup> There’s not just one generative function class - users can and are encouraged to design new types of generative functions which capture repeated modeling patterns. An excellent example of this modularity in Gen’s design is <a href="../../introduction/intro_to_combinators/intro_to_combinators">generative function combinators</a>.</p></li></div></div>
 <p>This generative function is part of a function-like language (the <code>BuiltinGenerativeFunction</code> language) - pay close attention to the hierarchical compositionality of generative functions in this language under an abstraction (<code>genjax.trace</code>) similar to a function call. We’ll discuss the addresses (<code>&quot;sub&quot;</code> and <code>&quot;m0&quot;</code>) a bit later.</p>
 <div class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
@@ -4465,7 +4469,7 @@ JAX interfaces
 </div>
 </div>
 <p>That’s a lot of code! This code is pure, numerical, and ready for acceleration. By utilizing JAX and a staging transformation, we’ve stripped out all Python overhead.</p>
-<div class="page-columns page-full"><p>This is how we’ve implemented <code>simulate</code> for this particular generative function language.<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn5"><p><sup>5</sup> In general, Gen doesn’t require that we follow the same “code transformation” implementation for other generative function languages. GenJAX, however, is a bit special - because we restrict the user to remain within the JAX traceable subset of Python - any generative function interface implementation must also be JAX traceable. <strong>This is a JAX requirement, not a Gen one</strong>.</p></li></div></div>
+<div class="page-columns page-full"><p>This is how we’ve implemented <code>simulate</code> for this particular generative function language.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn6"><p><sup>6</sup> In general, Gen doesn’t require that we follow the same “code transformation” implementation for other generative function languages. GenJAX, however, is a bit special - because we restrict the user to remain within the JAX traceable subset of Python - any generative function interface implementation must also be JAX traceable. <strong>This is a JAX requirement, not a Gen one</strong>.</p></li></div></div>
 </section>
 </section>
 <section id="generative-function-interface" class="level2">
@@ -4943,7 +4947,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <p>The log importance weight <code>w</code> is slightly different.</p>
 <section id="importance-sampling-informally" class="level3 page-columns page-full">
 <h3 class="anchored" data-anchor-id="importance-sampling-informally">Importance sampling, informally</h3>
-<div class="page-columns page-full"><p>Let’s discuss how importance sampling works first<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn6"><p><sup>6</sup> In this notebook, I’ll defer discussing formal proofs concerning the asymptotic consistence of posterior estimators derived from importance sampling.</p></li></div></div>
+<div class="page-columns page-full"><p>Let’s discuss how importance sampling works first<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn7"><p><sup>7</sup> In this notebook, I’ll defer discussing formal proofs concerning the asymptotic consistence of posterior estimators derived from importance sampling.</p></li></div></div>
 <p>This will provide us with an understanding as to why <code>w</code> is different from the <code>score</code>.</p>
 <p>More importantly, we’ll understand how we can use <code>importance</code> to solve the inference task of approximately sampling from the posterior over coefficients (and ultimately, over curves) from our generative function.</p>
 <div class="callout-note callout callout-style-simple">
@@ -4960,7 +4964,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 </div>
 </div>
 <p>Let’s start by considering two distributions which we can sample from, and evaluate densities.</p>
-<div class="page-columns page-full"><p>Below, I’m plotting the densities of two distributions - a 1D Gaussian mixture and a 1D Gaussian<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn7"><p><sup>7</sup> GenJAX allows usage of TensorFlow Distributions as generative functions. Here, we’re just using the <code>logpdf</code> interface from distributions which expose exact <code>logpdf</code> evaluation - but <code>genjax</code> exports a wrapper which implements the complete generative function interface.</p></li></div></div>
+<div class="page-columns page-full"><p>Below, I’m plotting the densities of two distributions - a 1D Gaussian mixture and a 1D Gaussian<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn8"><p><sup>8</sup> GenJAX allows usage of TensorFlow Distributions as generative functions. Here, we’re just using the <code>logpdf</code> interface from distributions which expose exact <code>logpdf</code> evaluation - but <code>genjax</code> exports a wrapper which implements the complete generative function interface.</p></li></div></div>
 <div class="cell" data-execution_count="20">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>mix <span class="op">=</span> genjax.TFPMixture(</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    genjax.TFPCategorical, [genjax.TFPNormal, genjax.TFPNormal]</span>
@@ -5132,7 +5136,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 </div>
 <p>Notice what happens with the SIR samples (in gold)?</p>
 <p>They accumulate around the places you’d expect to see if you were sampling from the <code>hard</code> distribution!</p>
-<div class="page-columns page-full"><p>That’s what importance sampling and sampling importance sampling give us - we provide a “hard” distribution with a <code>logpdf</code> interface, and another “easy” distribution with <code>sample</code> and <code>logpdf</code> interface<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a>, and SIR returns an exact sampler for a distribution which approximates the hard distribution.</p><div class="no-row-height column-margin column-container"><li id="fn8"><p><sup>8</sup> There are more constraints. The second distribution must be <em>absolutely continuous</em> in measure with respect to the first. Let’s defer this discussion to a formal treatment of importance sampling.</p></li></div></div>
+<div class="page-columns page-full"><p>That’s what importance sampling and sampling importance sampling give us - we provide a “hard” distribution with a <code>logpdf</code> interface, and another “easy” distribution with <code>sample</code> and <code>logpdf</code> interface<a href="#fn9" class="footnote-ref" id="fnref9" role="doc-noteref"><sup>9</sup></a>, and SIR returns an exact sampler for a distribution which approximates the hard distribution.</p><div class="no-row-height column-margin column-container"><li id="fn9"><p><sup>9</sup> There are more constraints. The second distribution must be <em>absolutely continuous</em> in measure with respect to the first. Let’s defer this discussion to a formal treatment of importance sampling.</p></li></div></div>
 </section>
 <section id="back-to-our-generative-function" class="level3 page-columns page-full">
 <h3 class="anchored" data-anchor-id="back-to-our-generative-function">Back to our generative function</h3>
@@ -5147,7 +5151,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <section id="builtin-proposals" class="level4 page-columns page-full">
 <h4 class="anchored" data-anchor-id="builtin-proposals">Builtin proposals</h4>
 <p>Generative functions defined using the <code>BuiltinGenerativeFunction</code> language come with builtin proposals - it’s a distribution (which we’ll refer to as <span class="math inline">\(Q\)</span>) induced from the prior, with sampling and <code>score</code> defined ancestrally.</p>
-<div class="page-columns page-full"><p>Give observation constraints <span class="math inline">\(u\)</span>, the importance weight which <code>model.importance</code> computes is<a href="#fn9" class="footnote-ref" id="fnref9" role="doc-noteref"><sup>9</sup></a>:</p><div class="no-row-height column-margin column-container"><li id="fn9"><p><sup>9</sup> This definition again considers “untraced randomness” <span class="math inline">\(r\)</span>. If you wish to ignore this in the math, just remove the <span class="math inline">\(Q(r; x, \tau)\)</span> term. Even in the presence of untraced randomness, the weights which Gen computes are asymptotically consistent in expectation over <span class="math inline">\(Q(r; x, \tau)\)</span></p></li></div></div>
+<div class="page-columns page-full"><p>Give observation constraints <span class="math inline">\(u\)</span>, the importance weight which <code>model.importance</code> computes is<a href="#fn10" class="footnote-ref" id="fnref10" role="doc-noteref"><sup>10</sup></a>:</p><div class="no-row-height column-margin column-container"><li id="fn10"><p><sup>10</sup> This definition again considers “untraced randomness” <span class="math inline">\(r\)</span>. If you wish to ignore this in the math, just remove the <span class="math inline">\(Q(r; x, \tau)\)</span> term. Even in the presence of untraced randomness, the weights which Gen computes are asymptotically consistent in expectation over <span class="math inline">\(Q(r; x, \tau)\)</span></p></li></div></div>
 <p><span class="math display">\[
 \begin{align}
 \log w &amp;= \log P(\tau, r; x) - \log Q(\tau; u, x)Q(r; x, \tau) \\
@@ -5158,7 +5162,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 </section>
 <section id="sequential-importance-resampling-in-genjax" class="level4 page-columns page-full">
 <h4 class="anchored" data-anchor-id="sequential-importance-resampling-in-genjax">Sequential importance resampling in GenJAX</h4>
-<div class="page-columns page-full"><p>Here’s SIR using builtin proposals (just a single call to <code>model.importance</code>) in GenJAX<a href="#fn10" class="footnote-ref" id="fnref10" role="doc-noteref"><sup>10</sup></a>:</p><div class="no-row-height column-margin column-container"><li id="fn10"><p><sup>10</sup> To implement a variant with custom proposals, all we need to do is first <code>proposal.simulate</code>, merge the proposal choice map with the constraints, then <code>model.importance</code> followed by a final weight adjustment <code>w = w - proposal_tr.get_score()</code> - easy peasy.</p></li></div></div>
+<div class="page-columns page-full"><p>Here’s SIR using builtin proposals (just a single call to <code>model.importance</code>) in GenJAX<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a>:</p><div class="no-row-height column-margin column-container"><li id="fn11"><p><sup>11</sup> To implement a variant with custom proposals, all we need to do is first <code>proposal.simulate</code>, merge the proposal choice map with the constraints, then <code>model.importance</code> followed by a final weight adjustment <code>w = w - proposal_tr.get_score()</code> - easy peasy.</p></li></div></div>
 <div class="cell" data-execution_count="32">
 <div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sampling_importance_resampling(model, n_samples):</span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _inner(key, observations, model_args):</span>
@@ -5187,7 +5191,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>coefficients <span class="op">=</span> samples[<span class="st">&quot;alpha&quot;</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>So now we have an approximate sampler for the posterior and we can use it to look at properties of the posterior - like what sort of curves are likely given our data and our model prior.</p>
-<div class="page-columns page-full"><p>… and by the way, to get a representative set of samples from the posterior for this model, on an Apple M2 device - only takes about 0.05 seconds<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn11"><p><sup>11</sup> Just remember: we’re running this notebook on CPU - but the resulting specialized inference code can easily be moved to accelerators, courtesy of the fact that all our code is JAX traceable.</p></li></div></div>
+<div class="page-columns page-full"><p>… and by the way, to get a representative set of samples from the posterior for this model, on an Apple M2 device - only takes about 0.05 seconds<a href="#fn12" class="footnote-ref" id="fnref12" role="doc-noteref"><sup>12</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn12"><p><sup>12</sup> Just remember: we’re running this notebook on CPU - but the resulting specialized inference code can easily be moved to accelerators, courtesy of the fact that all our code is JAX traceable.</p></li></div></div>
 <div class="cell" data-execution_count="34">
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>timeit</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>_, samples <span class="op">=</span> jitted(sub_keys, observations, model_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -5412,7 +5416,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">
-    <div class="nav-footer-left">© Copyright 2022 MIT Probabilistic Computing Project.</div>   
+    <div class="nav-footer-left">© Copyright 2022 <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a></div>   
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

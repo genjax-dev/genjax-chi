@@ -17,7 +17,7 @@
 <b>(Early stage)</b> 🔪 expect sharp edges 🔪
 </div>
 
-## Building + tour
+## Building + notebooks
 
 This project uses [poetry](https://python-poetry.org/) for dependency management, and [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
 
@@ -28,12 +28,6 @@ Make sure these are installed and on path with a Python environment `^3.10.0`. R
 <br>
 <br>
 </div>
-
-```
-# Install dependencies, and run the tour example!
-poetry install
-poetry run python examples/tour.py
-```
 
 ## References
 

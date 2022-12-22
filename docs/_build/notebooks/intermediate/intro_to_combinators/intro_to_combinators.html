@@ -9,7 +9,7 @@
 <meta name="author" content="McCoy Reynolds Becker">
 <meta name="dcterms.date" content="2022-12-01">
 
-<title>Gen ⊗ JAX - Introduction to combinators</title>
+<title>Gen ⊗ JAX - Introduction to generative function combinators</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -3992,7 +3992,7 @@ vertical-align: -.125em;
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
 
-<meta property="og:title" content="Gen ⊗ JAX - Introduction to combinators">
+<meta property="og:title" content="Gen ⊗ JAX - Introduction to generative function combinators">
 <meta property="og:description" content="This notebook is designed to give the reader an introduction to generative function combinators - higher-order functions which accept generative functions and return new generative functions…">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
@@ -4030,8 +4030,12 @@ vertical-align: -.125em;
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-intermediate">    
         <li>
+    <a class="dropdown-item" href="../../intermediate/incremental_computation/incremental.html">
+ <span class="dropdown-text">Incremental computation for generative functions</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../../intermediate/intro_to_combinators/intro_to_combinators.html">
- <span class="dropdown-text">Introduction to combinators</span></a>
+ <span class="dropdown-text">Introduction to generative function combinators</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../../intermediate/gradient_interfaces/gradient_interfaces.html">
@@ -4099,7 +4103,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Introduction to combinators</h1>
+<h1 class="title">Introduction to generative function combinators</h1>
 </div>
 
 
@@ -4156,7 +4160,7 @@ vertical-align: -.125em;
 <p>In this notebook, we’ll be discussing <code>Unfold</code> - a combinator for expressing generative computations which are reminiscent of state-space (or Markov) models. To keep things simple, we’ll explore a hidden Markov model example - but combinator usage generalizes to models with much richer structure.</p>
 <section id="introducing-unfold" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="introducing-unfold">Introducing <code>Unfold</code></h2>
-<div class="page-columns page-full"><p>Let’s discuss <code>Unfold</code>.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> Below, I’m showing <code>console.help(genjax.UnfoldCombinator)</code>.</p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> A quick reminder: when in doubt, you can use the console from <code>console = genjax.pretty()</code> to inspect the classes which we discuss in the notebooks.</p></li></div></div>
+<div class="page-columns page-full"><p>Let’s discuss <code>Unfold</code>.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> A quick reminder: when in doubt, you can use the console from <code>console = genjax.pretty()</code> to inspect the classes which we discuss in the notebooks.</p></li></div></div>
 <div class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>console.<span class="bu">help</span>(genjax.UnfoldCombinator)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
@@ -4730,7 +4734,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">
-    <div class="nav-footer-left">© Copyright 2022 MIT Probabilistic Computing Project.</div>   
+    <div class="nav-footer-left">© Copyright 2022 <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a></div>   
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

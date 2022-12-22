@@ -9,7 +9,7 @@
 <meta name="author" content="McCoy Reynolds Becker">
 <meta name="dcterms.date" content="2022-12-01">
 
-<title>Gen ⊗ JAX - Modeling and inference notebooks</title>
+<title>Gen ⊗ JAX - Probabilistic programming with GenJAX</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -3924,8 +3924,8 @@ vertical-align: -.125em;
 }</script>
 
 
-<meta property="og:title" content="Gen ⊗ JAX - Modeling and inference notebooks">
-<meta property="og:description" content="This is a notebook repository for pedagogical tutorials on usage of Gen, with a focus on the GenJAX implementation.">
+<meta property="og:title" content="Gen ⊗ JAX - Probabilistic programming with GenJAX">
+<meta property="og:description" content="This is a notebook repository for tutorials on usage of [Gen](https://www.gen.dev/) for probabilistic programming, with a focus on the [GenJAX](https://github.com/probcomp/genjax) implementation.">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -3962,8 +3962,12 @@ vertical-align: -.125em;
     </a>
     <ul class="dropdown-menu" aria-labelledby="nav-menu-intermediate">    
         <li>
+    <a class="dropdown-item" href="./intermediate/incremental_computation/incremental.html">
+ <span class="dropdown-text">Incremental computation for generative functions</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="./intermediate/intro_to_combinators/intro_to_combinators.html">
- <span class="dropdown-text">Introduction to combinators</span></a>
+ <span class="dropdown-text">Introduction to generative function combinators</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./intermediate/gradient_interfaces/gradient_interfaces.html">
@@ -4021,7 +4025,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Modeling and inference notebooks</h1>
+<h1 class="title">Probabilistic programming with GenJAX</h1>
 </div>
 
 
@@ -4045,11 +4049,15 @@ vertical-align: -.125em;
     
   </div>
   
+<div>
+  <div class="abstract">
+    <div class="abstract-title">Abstract</div>
+    This is a notebook repository for tutorials on usage of <a href="https://www.gen.dev/">Gen</a> for probabilistic programming, with a focus on the <a href="https://github.com/probcomp/genjax">GenJAX</a> implementation. For <a href="https://github.com/probcomp/Gen.jl">Gen.jl</a> notebook tutorials, <a href="https://www.gen.dev/tutorials/">see the tutorial page on the Gen website</a>. The notebooks provide pedagogical examples of the usage of Gen for modeling and inference, as well as describe Gen’s specific design philosophy for probabilistic programming. The notebooks are built and executed with the current version of <code>genjax</code>, so they are kept up to date with the repo.
+  </div>
+</div>
 
 </header>
 
-<p>This is a notebook repository for pedagogical tutorials on usage of <a href="https://www.gen.dev/">Gen</a>, with a focus on the <a href="https://github.com/probcomp/genjax">GenJAX</a> implementation.</p>
-<p>Here, you’ll find notebooks which span knowledge levels from beginner to advanced (in probabilistic programming). These notebooks are built and executed with the current version of <code>genjax</code>, so they are kept up to date with the repo.</p>
 <div class="callout-note callout callout-style-default callout-captioned">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -4203,7 +4211,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">
-    <div class="nav-footer-left">© Copyright 2022 MIT Probabilistic Computing Project.</div>   
+    <div class="nav-footer-left">© Copyright 2022 <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a></div>   
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
