@@ -30,7 +30,7 @@ from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
 from genjax.core.specialization import concrete_cond
 from genjax.core.typing import FloatTensor
-from genjax.core.typing import IntegerTensor
+from genjax.core.typing import IntTensor
 from genjax.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -47,7 +47,7 @@ from genjax.generative_functions.combinators.combinator_tracetypes import (
 @dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
-    indices: IntegerTensor
+    indices: IntTensor
     inner: Trace
     score: FloatTensor
 

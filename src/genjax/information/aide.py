@@ -22,13 +22,11 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
 from genjax.core.datatypes import GenerativeFunction
+from genjax.core.typing import Int
 
 
 def estimate_log_ratio(
-    p: GenerativeFunction,
-    q: GenerativeFunction,
-    mp: int,
-    mq: int,
+    p: GenerativeFunction, q: GenerativeFunction, mp: Int, mq: Int
 ):
     def _inner(key, p_args: Tuple, q_args: Tuple):
         # Inner functions -- to be mapped over.
@@ -64,10 +62,7 @@ def estimate_log_ratio(
 
 
 def auxiliary_inference_divergence_estimator(
-    p: GenerativeFunction,
-    q: GenerativeFunction,
-    mp: int,
-    mq: int,
+    p: GenerativeFunction, q: GenerativeFunction, mp: Int, mq: Int
 ):
     def _inner(key, p_args, q_args):
         key, logpq = estimate_log_ratio(p, q, mp, mq)(key, p_args, q_args)

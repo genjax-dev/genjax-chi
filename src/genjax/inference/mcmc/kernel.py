@@ -12,36 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 from dataclasses import dataclass
-from typing import Callable
 
-from rich.tree import Tree
-
+from genjax.core.datatypes import Trace
 from genjax.core.pytree import Pytree
+from genjax.core.typing import PRNGKey
 
 
 @dataclass
 class MCMCKernel(Pytree):
-    kernel: Callable
-    reversal: None = None
+    @abc.abstractmethod
+    def reversal(self):
+        pass
 
-    def __call__(self, *args, **kwargs):
-        return self.kernel(*args, **kwargs)
-
-    def flatten(self):
-        return (), (self.kernel, self.reversal)
-
-    def get_reversal(self):
-        return self.reversal
-
-    def set_reversal(self, reversal):
-        self.reversal = reversal
-
-    def tree_console_overload(self):
-        tree = Tree("[blue][b]MCMCKernel[/b]")
-        tree.add(str(self.kernel))
-        return tree
-
-
-def pkern(**kwargs):
-    return lambda fn: MCMCKernel(fn, **kwargs)
+    @abc.abstractmethod
+    def apply(self, key: PRNGKey, trace: Trace):
+        pass

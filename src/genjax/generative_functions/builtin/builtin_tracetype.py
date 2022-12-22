@@ -17,7 +17,6 @@ from dataclasses import dataclass
 import jax
 import jax.core as jc
 import jax.numpy as jnp
-import numpy as np
 from jax.util import safe_map
 
 from genjax.core.hashabledict import HashableDict
@@ -26,6 +25,7 @@ from genjax.core.tracetypes import Finite
 from genjax.core.tracetypes import Integers
 from genjax.core.tracetypes import Reals
 from genjax.core.tracetypes import TraceType
+from genjax.core.typing import check_is_array
 from genjax.generative_functions.builtin.intrinsics import gen_fn_p
 
 
@@ -157,7 +157,7 @@ def lift(v, shape=()):
         return Reals(shape)
     if v == bool:
         return Finite(shape, 2)
-    if isinstance(v, jnp.ndarray) or isinstance(v, np.ndarray):
+    if check_is_array(v):
         return lift(v.dtype, shape=v.shape)
     if isinstance(v, jax.ShapeDtypeStruct):
         return lift(v.dtype, shape=v.shape)
