@@ -23,7 +23,13 @@ import numpy as np
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.prox.prox_distribution import ProxDistribution
 from genjax.prox.target import Target
-from genjax.prox.utilities import logsumexp_with_extra
+
+
+def _logsumexp_with_extra(arr, x):
+    max_arr = jnp.maximum(jnp.maximum(arr), x)
+    return max_arr + jnp.log(
+        jnp.sum(jnp.exp(arr - max_arr)) + jnp.exp(x - max - arr)
+    )
 
 
 @dataclass
@@ -87,7 +93,7 @@ class ImportanceSampling(ProxDistribution):
         key, retained_tr = target.p.importance(key, merged, target.args)
         constrained = target.constraints.get_selection()
         _, retained_w = constrained.filter(retained_tr)
-        lse = logsumexp_with_extra(lws, retained_w)
+        lse = _logsumexp_with_extra(lws, retained_w)
         return key, retained_tr.get_score() - lse + np.log(self.num_particles)
 
     def custom_estimate_logpdf(self, key, chm, target):
@@ -108,7 +114,7 @@ class ImportanceSampling(ProxDistribution):
         key, (retained_fwd, _) = target.p.importance(key, merged, target.args)
         unchosen_lws = unchosen_fwd_lws - unchosen.get_score()
         chosen_lw = retained_fwd - retained_bwd
-        lse = logsumexp_with_extra(unchosen_lws, chosen_lw)
+        lse = _logsumexp_with_extra(unchosen_lws, chosen_lw)
         return (
             key,
             retained_tr.get_score() - lse + np.log(self.num_particles),

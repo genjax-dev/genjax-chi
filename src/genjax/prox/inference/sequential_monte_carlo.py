@@ -23,22 +23,26 @@ It includes two main components: :code:`SMCPropagator` and :code:`SMCAlgorithm`.
 """
 
 import abc
-from dataclasses import dataclass
+import dataclasses
 from typing import Any
 from typing import Callable
+from typing import Sequence
 from typing import Tuple
-from typing import Union
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax.scipy.special import logsumexp
 
-from genjax.builtin.propagating import strip_diff
 from genjax.core.datatypes import ChoiceMap
+from genjax.core.datatypes import EmptyChoiceMap
+from genjax.core.datatypes import Trace
 from genjax.core.datatypes import ValueChoiceMap
 from genjax.core.pytree import Pytree
+from genjax.core.typing import Float
+from genjax.core.typing import Int
 from genjax.core.typing import PRNGKey
-from genjax.inference.kernels.kernel import MCMCKernel
+from genjax.generative_functions.diff_rules import strip_diff
 from genjax.prox.prox_distribution import ProxDistribution
 from genjax.prox.target import Target
 
@@ -48,7 +52,7 @@ from genjax.prox.target import Target
 #####
 
 
-@dataclass
+@dataclasses.dataclass
 class ParticleCollection(Pytree):
     particles: Any
     weights: Any
@@ -57,6 +61,12 @@ class ParticleCollection(Pytree):
     def flatten(self):
         return (self.particles, self.weights, self.lml_est), ()
 
+    def get_particles(self):
+        return self.particles
+
+    def get_weights(self):
+        return self.weights
+
     def log_marginal_likelihood(self):
         return (
             self.lml_est
@@ -64,24 +74,53 @@ class ParticleCollection(Pytree):
             - jnp.log(len(self.particles))
         )
 
+    def effective_sample_size(self):
+        total_weight = logsumexp(self.weights)
+        log_normalized_weights = self.weights - total_weight
+        log_ess = -logsumexp(2.0 * log_normalized_weights)
+        return jnp.exp(log_ess)
 
-def effective_sample_size():
-    raise AssertionError()
+    def __getitem__(self, indices):
+        new_particles, new_weights = jtu.tree_map(
+            lambda v: v[indices], (self.particles, self.weights)
+        )
+        return ParticleCollection(new_particles, new_weights, self.lml_est)
+
+    def concat(self, new_particle, new_weight):
+        new_particles, new_weights = jtu.tree_map(
+            lambda v1, v2: jnp.concatenate((v1, v2), axis=-1),
+            (self.particles, self.weights),
+            (new_particle, new_weight),
+        )
+        return ParticleCollection(new_particles, new_weights, self.lml_est)
 
 
-@dataclass
+@dataclasses.dataclass
 class SMCState(Pytree):
-    retained: Union[None, ChoiceMap]
     collection: ParticleCollection
     target: Target
-    n_particles: int
+    num_particles: Int
 
     def flatten(self):
         return (
-            self.retained,
             self.collection,
             self.target,
-        ), (self.n_particles,)
+        ), (self.num_particles,)
+
+    def get_collection(self):
+        return self.collection
+
+    def get_target(self):
+        return self.target
+
+    def get_num_particles(self):
+        return self.num_particles
+
+    def get_particles(self):
+        return self.collection.get_particles()
+
+    def get_weights(self):
+        return self.collection.get_weights()
 
 
 #################
@@ -89,14 +128,14 @@ class SMCState(Pytree):
 #################
 
 
-@dataclass
+@dataclasses.dataclass
 class SMCPropagator(Pytree):
     @abc.abstractmethod
     def propagate_target(self, target: Target, *args):
         pass
 
     @abc.abstractmethod
-    def propagate(
+    def apply(
         self,
         key: PRNGKey,
         state: SMCState,
@@ -105,14 +144,18 @@ class SMCPropagator(Pytree):
         pass
 
     @abc.abstractmethod
-    def conditional_propagate(
+    def pullback(
         self,
         key: PRNGKey,
-        old_target: Target,
         retained: ChoiceMap,
         *args,
     ) -> Tuple[PRNGKey, ChoiceMap, Callable]:
         pass
+
+    # Essentially monadic bind. Take a propagator,
+    # and compose it with the existing algorithm.
+    def and_then(self, propagator: "SMCPropagator"):
+        return SMCSequencePropagator.new(self, propagator)
 
 
 #####
@@ -125,20 +168,22 @@ class SMCPropagator(Pytree):
 # They are different from `SMCAlgorithm` below -- because they
 # require a `state: SMCState` to run their methods on.
 #
-# You can pair propagators with `Init` (importance sampling to get an
-# initial state) below. `Init` is like a monadic lift. The propagators
+# You can pair propagators with `SMCInit` (importance sampling to get an
+# initial state) below. `SMCInit` is like a monadic lift. The propagators
 # define functionality (and compositional functions) which are
 # compatible in a monad-like DSL.
 
 
-@dataclass
-class Extend(SMCPropagator):
+@dataclasses.dataclass
+class SMCExtendPropagator(SMCPropagator):
     k: ProxDistribution
 
     def flatten(self):
         return (), (self.k,)
 
-    def propagate_target(self, target, new_args, new_choices):
+    def propagate_target(
+        self, target: Target, new_args: Tuple, new_choices: ChoiceMap
+    ):
         old_constraints = target.constraints
         new_constraints = old_constraints.merge(new_choices)
         return Target(
@@ -148,236 +193,235 @@ class Extend(SMCPropagator):
             new_constraints,
         )
 
-    def propagate(
+    def apply(
         self,
         key: PRNGKey,
         state: SMCState,
-        new_args: Tuple,
+        argdiffs: Tuple,
         new_choices: ChoiceMap,
     ) -> Tuple[PRNGKey, SMCState]:
+        new_args = map(strip_diff, argdiffs)
         new_target = self.propagate_target(
-            state.target,
+            state.get_target(),
             new_args,
             new_choices,
         )
-        key, *sub_keys = jax.random.split(key, state.n_particles + 1)
+        key, *sub_keys = jax.random.split(key, state.get_num_particles() + 1)
         sub_keys = jnp.array(sub_keys)
         _, extension = jax.vmap(self.k.simulate, in_axes=(0, (0, None)))(
-            sub_keys, (state.collection.particles, new_target)
+            sub_keys, (state.get_particles(), new_target)
         )
-        (particle_chm,) = extension.get_retval()
+        particle_chm = extension.get_retval()
         k_score = extension.get_score()
-        key, *sub_keys = jax.random.split(key, state.n_particles + 1)
+        key, *sub_keys = jax.random.split(key, state.get_num_particles() + 1)
         sub_keys = jnp.array(sub_keys)
         _, (model_score_change, new_target_trace, _) = jax.vmap(
             new_target.p.update, in_axes=(0, 0, None, None)
         )(sub_keys, state.collection.particles, particle_chm, new_target.args)
         weight_change = -k_score + model_score_change
         return key, SMCState(
-            None,
             ParticleCollection(
                 new_target_trace,
                 state.collection.weights + weight_change,
                 state.collection.lml_est,
             ),
             new_target,
-            state.n_particles,
+            state.get_num_particles(),
         )
 
-    def conditional_propagate(
+    def _apply_conditional(
         self,
         key: PRNGKey,
-        old_target: Target,
+        state: SMCState,
+        argdiffs: Tuple,
+        new_choices: ChoiceMap,
+        new_retained_trace: Trace,
+        forward_weight_retained: Float,
+    ):
+        new_args = map(strip_diff, argdiffs)
+        new_target = self.propagate_target(
+            state.get_target(),
+            new_args,
+            new_choices,
+        )
+        num_particles = state.get_num_particles()
+        key, *sub_keys = jax.random.split(key, num_particles)
+        sub_keys = jnp.array(sub_keys)
+        sliced_collection = state.collection[0 : num_particles - 1]
+        _, extension = jax.vmap(self.k.simulate, in_axes=(0, (0, None)))(
+            sub_keys, (sliced_collection.particles, new_target)
+        )
+        particle_chm = extension.get_retval()
+        k_score = extension.get_score()
+        key, *sub_keys = jax.random.split(key, num_particles)
+        sub_keys = jnp.array(sub_keys)
+        _, (_, model_score_change, new_particles, _) = jax.vmap(
+            new_target.p.update, in_axes=(0, 0, None, None)
+        )(
+            sub_keys,
+            sliced_collection.particles,
+            particle_chm,
+            new_target.args,
+        )
+        new_weights = (
+            sliced_collection.get_weights() - k_score + model_score_change
+        )
+        new_collection = ParticleCollection(
+            new_particles, new_weights, state.collection.lml_est
+        )
+
+        final_collection = new_collection.concat(
+            new_retained_trace, forward_weight_retained
+        )
+
+        return key, SMCState(
+            final_collection,
+            new_target,
+            state.get_num_particles(),
+        )
+
+    def pullback(
+        self,
+        key: PRNGKey,
+        previous_target: Target,
         retained: ChoiceMap,
         argdiffs: Tuple,
         new_constraints: ChoiceMap,
     ) -> Tuple[PRNGKey, SMCState]:
         new_args = map(strip_diff, argdiffs)
         new_target = self.propagate_target(
-            old_target, new_args, new_constraints
+            previous_target,
+            new_args,
+            new_constraints,
         )
-        key, new_retained_trace = new_target.p.importance(
-            key, new_target.constraints.merge(retained), new_target.args
+        merged = new_target.constraints.merge(retained)
+        key, (_, new_retained_trace) = new_target.p.importance(
+            key, merged, new_target.args
         )
-        key, (retdiff, w, previous_trace, discard) = new_target.p.update(
-            key, new_retained_trace, old_target.args, argdiffs
+        key, (_, _, previous_trace, discard) = new_retained_trace.update(
+            key, EmptyChoiceMap(), argdiffs
         )
         previous_latents, _ = (
             discard.get_selection().complement().filter(retained)
         )
-        key, forward_weight_retained = self.k.assess(
-            key, ValueChoiceMap(discard), (previous_trace, new_target)
+        key, (_, forward_weight_retained) = self.k.assess(
+            key,
+            ValueChoiceMap(discard),
+            (previous_trace, new_target),
         )
 
-        def _pushforward(key, state: SMCState):
-            pass
+        def _pullback(key, state, argdiffs, new_choices):
+            return self._apply_conditional(
+                key,
+                state,
+                argdiffs,
+                new_choices,
+                new_retained_trace,
+                forward_weight_retained,
+            )
 
-        return key, previous_latents, _pushforward
+        return key, previous_latents, _pullback
 
 
-@dataclass
-class ChangeTarget(SMCPropagator):
+@dataclasses.dataclass
+class SMCChangeTargetPropagator(SMCPropagator):
     new_target: Target
 
     def flatten(self):
-        return (), (self.new_target)
+        return (self.new_target,), ()
 
-    def propagate(
+    def propagate_target(self, _: Target):
+        return self.new_target
+
+    def apply(
         self,
         key: PRNGKey,
         state: SMCState,
     ) -> Tuple[PRNGKey, SMCState]:
-        old_target_latents = state.target.latent_selection()
-        n_particles = state.n_particles
-        particles = state.collection.particles
+        old_target_latents_selection = state.get_target().latent_selection()
+        key, *sub_keys = jax.random.split(key, state.get_num_particles() + 1)
+        old_target_latents, _ = old_target_latents_selection.filter(
+            state.get_particles()
+        )
 
-        def _inner(key, particle, weight):
-            latents, _ = old_target_latents.filter(particle.get_choices())
-            latents = latents.strip()
-            key, (_, new_trace) = self.new_target.importance(
-                key,
-                latents,
-                (),
+        def _importance(key, latents):
+            merged = self.new_target.constraints.merge(latents)
+            key, (_, new_particle) = self.new_target.p.importance(
+                key, merged, self.new_target.args
             )
-            weight = new_trace.get_score() - particle.get_score() + weight
-            return particle, weight
+            return key, new_particle
 
-        key, *sub_keys = jax.random.split(key, n_particles + 1)
-        sub_keys = jnp.array(sub_keys)
-        particles, weights = jax.vmap(_inner, in_axes=(0, 0, 0))(
-            sub_keys,
-            particles,
-            state.collection.weights,
+        _, new_particles = jax.vmap(_importance, in_axes=(0, 0))(
+            sub_keys, old_target_latents
+        )
+        weights = (
+            new_particles.get_score()
+            - state.get_particles().get_score()
+            + state.get_weights()
+        )
+        final_collection = ParticleCollection(
+            new_particles, weights, state.collection.lml_est
         )
         return key, SMCState(
-            None,
-            ParticleCollection(
-                particles,
-                weights,
-                state.collection.lml_est,
-            ),
+            final_collection,
             self.new_target,
-            n_particles,
+            state.get_num_particles(),
         )
 
-    def conditional_propagate(
+    def pullback(
         self,
         key: PRNGKey,
-        state: SMCState,
-    ) -> Tuple[PRNGKey, SMCState]:
-        assert state.retained is not None
-        return self.propagate(key, state)
+        retained: ChoiceMap,
+    ) -> Tuple[PRNGKey, ChoiceMap, Callable]:
+        return key, retained, self.apply
 
 
-@dataclass
-class Resample(SMCPropagator):
-    ess_threshold: float
-    how_many: int
+@dataclasses.dataclass
+class SMCSequencePropagator(SMCPropagator):
+    sequence: Sequence[SMCPropagator]
 
     def flatten(self):
-        return (), (self.ess_threshold, self.how_many)
+        return (self.sequence,)
 
-    def propagate(
+    @classmethod
+    def new(fst: SMCPropagator, snd: SMCPropagator):
+        if isinstance(fst, SMCSequencePropagator) and isinstance(
+            snd, SMCSequencePropagator
+        ):
+            return SMCSequencePropagator(
+                [*fst.sequence, *snd.sequence],
+            )
+        elif isinstance(fst, SMCSequencePropagator):
+            return SMCSequencePropagator(
+                [*fst.sequence, snd],
+            )
+        elif isinstance(snd, SMCSequencePropagator):
+            return SMCSequencePropagator(
+                [fst, *snd.sequence],
+            )
+        else:
+            return SMCSequencePropagator([fst, snd])
+
+    def propagate_target(self, target: Target, args_sequence: Sequence[Tuple]):
+        for (propagator, args) in zip(self.sequence, args_sequence):
+            target = propagator.propagate_target(target, *args)
+        return target
+
+    def apply(
         self,
         key: PRNGKey,
         state: SMCState,
+        args_sequence: Sequence[Tuple],
     ) -> Tuple[PRNGKey, SMCState]:
-        n_particles = state.n_particles
-        total_weight = jax.scipy.special.logsumexp(state.collection.weights)
-        log_normalized_weights = state.collection.weights - total_weight
-        key, sub_key = jax.random.split(key)
-        selected_particle_indices = jax.random.categorical(
-            sub_key, log_normalized_weights, shape=(self.how_many,)
-        )
-        particles = jtu.tree_map(
-            lambda v: v[selected_particle_indices], state.collection.particles
-        )
-        weights = jnp.zeros(self.how_many)
-        avg_weight = total_weight - jnp.log(n_particles)
-        return key, SMCState(
-            None,
-            ParticleCollection(
-                particles,
-                weights,
-                avg_weight + state.collection.lml_est,
-            ),
-            state.target,
-            n_particles,
-        )
+        for (propagator, args) in zip(self.sequence, args_sequence):
+            key, state = propagator.apply(key, state, *args)
+        return key, state
 
-    def conditional_propagate(
+    def pullback(
         self,
         key: PRNGKey,
-        state: SMCState,
-    ) -> Tuple[PRNGKey, SMCState]:
-        n_particles = state.n_particles
-        total_weight = jax.scipy.special.logsumexp(state.collection.weights)
-        log_normalized_weights = state.collection.weights - total_weight
-        key, sub_key = jax.random.split(key)
-        selected_particle_indices = jax.random.categorical(
-            sub_key, log_normalized_weights, shape=(self.how_many,)
-        )
-
-        ################################################
-        # In JIT, should be optimized to in-place.
-
-        # Set retained.
-        selected_particle_indices = selected_particle_indices.at[-1].set(
-            n_particles
-        )
-        ################################################
-
-        particles = jtu.tree_map(
-            lambda v: v[selected_particle_indices], state.collection.particles
-        )
-        weights = jnp.zeros(self.how_many)
-        avg_weight = total_weight - jnp.log(n_particles)
-        return key, SMCState(
-            None,
-            ParticleCollection(
-                particles,
-                weights,
-                avg_weight + state.collection.lml_est,
-            ),
-            state.target,
-            n_particles,
-        )
-
-
-@dataclass
-class Rejuvenate(SMCPropagator):
-    kernel: MCMCKernel
-    kernel_args: Tuple
-
-    def flatten(self):
-        return (self.kernel_args,), (self.kernel,)
-
-    def propagate(
-        self,
-        key: PRNGKey,
-        state: SMCState,
-    ) -> Tuple[PRNGKey, SMCState]:
-        key, *sub_keys = jax.random.split(key, state.n_particles + 1)
-        sub_keys = jnp.array(sub_keys)
-        key, (new_particles, _) = jax.vmap(self.kernel, in_axes=(0, 0, None))(
-            sub_keys, state.collection.particles, self.kernel_args
-        )
-        return key, SMCState(
-            None,
-            ParticleCollection(
-                new_particles,
-                state.collection.weights,
-                state.collection.lml_est,
-            ),
-            state.target,
-            state.n_particles,
-        )
-
-    def conditional_propagate(
-        self,
-        key: PRNGKey,
-        state: SMCState,
-    ) -> Tuple[PRNGKey, SMCState]:
+        retained: ChoiceMap,
+    ) -> Tuple[PRNGKey, ChoiceMap, Callable]:
         pass
 
 
@@ -386,7 +430,7 @@ class Rejuvenate(SMCPropagator):
 ################
 
 
-@dataclass
+@dataclasses.dataclass
 class SMCAlgorithm(ProxDistribution):
     @abc.abstractmethod
     def get_final_target(self) -> Target:
@@ -410,10 +454,10 @@ class SMCAlgorithm(ProxDistribution):
     # Essentially monadic bind. Take a propagator,
     # and compose it with the existing algorithm.
     def and_then(self, propagator: SMCPropagator, *args):
-        return Compose(self, propagator, args)
+        return SMCCompose(self, propagator, args)
 
     def random_weighted(self, key, target):
-        algorithm = ChangeTarget(target)
+        algorithm = SMCChangeTargetPropagator(target)
         key, state = self.run_smc(key, target)
         key, state = algorithm.propagate(key, state)
         particle_collection = state.collection
@@ -431,28 +475,27 @@ class SMCAlgorithm(ProxDistribution):
         score = (
             particle_collection.lml_est
             + total_weight
-            - jnp.log(state.n_particles)
+            - jnp.log(state.num_particles)
         )
         return key, (score, chm)
 
     def estimate_logpdf(self, key, choices, target):
-        algorithm = ChangeTarget(target)
-        key, state = self.run_csmc(key, target, choices)
-        key, state = algorithm.conditional_propagate(key, state)
-        collection = state.collection
+        algorithm = SMCChangeTargetPropagator(target)
+        key, state = algorithm.run_csmc(key, target, choices)
+        collection = state.get_collection()
         retained = jtu.tree_map(lambda v: v[-1], collection.particles)
         score = retained.get_score() - collection.log_marginal_likelihood()
         return key, (score, retained.get_choices())
 
 
-@dataclass
-class Init(SMCAlgorithm):
+@dataclasses.dataclass
+class SMCInit(SMCAlgorithm):
     q: Any
-    n_particles: int
+    num_particles: Int
     target: Target
 
     def flatten(self):
-        return (), (self.q, self.n_particles)
+        return (), (self.q, self.num_particles)
 
     def get_final_target(self):
         return self.target
@@ -460,27 +503,26 @@ class Init(SMCAlgorithm):
     def run_smc(
         self, key: PRNGKey, target: Target
     ) -> Tuple[PRNGKey, SMCState]:
-        key, *sub_keys = jax.random.split(key, self.n_particles + 1)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, proposals = jax.vmap(self.q.simulate, in_axes=(0, None))(
             sub_keys, (target,)
         )
-        (chm,) = proposals.get_retval()
-        key, *sub_keys = jax.random.split(key, self.n_particles + 1)
+        chm = proposals.get_retval()
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, (_, traces) = jax.vmap(target.importance, in_axes=(0, 0, None))(
             sub_keys, chm, target.args
         )
         weights = traces.get_score() - proposals.get_score()
         return key, SMCState(
-            None,
             ParticleCollection(traces, weights, 0.0),
             target,
-            self.n_particles,
+            self.num_particles,
         )
 
     def run_csmc(self, key, choices, target):
-        key, *sub_keys = jax.random.split(key, self.n_particles)
+        key, *sub_keys = jax.random.split(key, self.num_particles)
         sub_keys = jnp.array(sub_keys)
         _, proposals = jax.vmap(self.q.simulate, in_axes=(0, None))(
             sub_keys, target
@@ -497,18 +539,17 @@ class Init(SMCAlgorithm):
             lambda v1, v2: jnp.hstack((v1, v2)), proposals, kept
         )
 
-        (chm,) = proposals.get_retval()
-        key, *sub_keys = jax.random.split(key, self.n_particles + 1)
+        chm = proposals.get_retval()
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, (_, traces) = jax.vmap(target.importance, in_axes=(0, None, None))(
             sub_keys, chm, target.args
         )
         weights = traces.get_score() - proposals.get_score()
         return key, SMCState(
-            kept.strip(),
             ParticleCollection(traces, weights, 0.0),
             target,
-            self.n_particles,
+            self.num_particles,
         )
 
 
@@ -517,8 +558,8 @@ class Init(SMCAlgorithm):
 #####
 
 
-@dataclass
-class Compose(SMCAlgorithm):
+@dataclasses.dataclass
+class SMCCompose(SMCAlgorithm):
     prev: SMCAlgorithm
     propagator: SMCPropagator
     propagator_args: Tuple
@@ -535,16 +576,14 @@ class Compose(SMCAlgorithm):
 
     def run_smc(self, key):
         key, state = self.prev.run_smc(key)
-        key, state = self.propagator.propagate(
-            key, state, *self.propagator_args
-        )
+        key, state = self.propagator.apply(key, state, *self.propagator_args)
         return key, state
 
     def run_csmc(self, key, choices):
         old_target = self.prev.get_final_target()
-        key, retained, propagator = self.propagator.conditional_propagate(
+        key, retained, forward = self.propagator.pullback(
             key, old_target, choices, *self.propagator_args
         )
         key, state = self.prev.run_csmc(key, retained)
-        key, state = propagator(key, state, *self.propagator_args)
+        key, state = forward(key, state, *self.propagator_args)
         return key, state
