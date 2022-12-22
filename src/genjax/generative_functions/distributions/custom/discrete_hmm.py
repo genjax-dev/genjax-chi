@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -22,14 +21,14 @@ from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax.core.pytree import Pytree
+from genjax.core.typing import Float
+from genjax.core.typing import FloatTensor
+from genjax.core.typing import Int
+from genjax.core.typing import PRNGKey
 from genjax.generative_functions.distributions.distribution import Distribution
 
 
 tfd = tfp.distributions
-
-Int = int
-Float32 = Union[np.float32, jnp.float32]
-FloatTensor = Union[jnp.ndarray, np.ndarray]
 
 #####
 # Discrete HMM configuration
@@ -51,10 +50,10 @@ def scaled_circulant(N, k, epsilon, delta):
 @dataclass
 class DiscreteHMMConfiguration(Pytree):
     linear_grid_dim: Int
-    adjacency_distance_trans: Float32
+    adjacency_distance_trans: Float
     adjacency_distance_obs: Int
-    sigma_trans: Float32
-    sigma_obs: Float32
+    sigma_trans: Float
+    sigma_obs: Float
     transition_tensor: FloatTensor
     observation_tensor: FloatTensor
 
@@ -71,10 +70,10 @@ class DiscreteHMMConfiguration(Pytree):
     def new(
         cls,
         linear_grid_dim: Int,
-        adjacency_distance_trans: Float32,
-        adjacency_distance_obs: Float32,
-        sigma_trans: Float32,
-        sigma_obs: Float32,
+        adjacency_distance_trans: Float,
+        adjacency_distance_obs: Float,
+        sigma_trans: Float,
+        sigma_obs: Float,
     ):
         transition_tensor = scaled_circulant(
             linear_grid_dim,
@@ -110,7 +109,7 @@ class DiscreteHMMConfiguration(Pytree):
 
 
 def forward_filtering_backward_sampling(
-    key, config: DiscreteHMMConfiguration, observation_sequence
+    key: PRNGKey, config: DiscreteHMMConfiguration, observation_sequence
 ):
     init = int(config.linear_grid_dim / 2)
     prior = jnp.log(jax.nn.softmax(config.transition_tensor[init, :]))

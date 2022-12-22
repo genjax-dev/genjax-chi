@@ -13,5 +13,5 @@
 # limitations under the License.
 
 from .importance_sampling import *
-from .kernels import *
 from .map_optimize import *
+from .mcmc import *

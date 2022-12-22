@@ -79,7 +79,7 @@ def entropy_upper_bound(
     return _inner
 
 
-def interval_entropy_estimator(
+def entropy_estimators_via_inference(
     model: GenerativeFunction,
     proposal: prox.ProxDistribution,
     targets: Selection,
@@ -106,4 +106,4 @@ def interval_entropy_estimator(
     return _inner
 
 
-iee = interval_entropy_estimator
+eevi = entropy_estimators_via_inference

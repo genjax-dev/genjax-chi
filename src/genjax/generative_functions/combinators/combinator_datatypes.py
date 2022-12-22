@@ -28,8 +28,8 @@ from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
 from genjax.core.masks import BooleanMask
-from genjax.core.typing import Integer
-from genjax.core.typing import IntegerTensor
+from genjax.core.typing import Int
+from genjax.core.typing import IntTensor
 
 
 ######################################
@@ -45,7 +45,7 @@ from genjax.core.typing import IntegerTensor
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
-    indices: IntegerTensor
+    indices: IntTensor
     inner: Union[ChoiceMap, Trace]
 
     def flatten(self):
@@ -127,7 +127,7 @@ class VectorSelection(Selection):
 
 @dataclass
 class IndexedChoiceMap(ChoiceMap):
-    index: Integer
+    index: Int
     submaps: Sequence[Union[ChoiceMap, Trace]]
 
     def flatten(self):
@@ -212,5 +212,5 @@ class IndexedChoiceMap(ChoiceMap):
 
 @dataclass
 class IndexedSelection(Selection):
-    index: IntegerTensor
+    index: IntTensor
     subselections: Sequence[Selection]

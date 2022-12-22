@@ -17,18 +17,24 @@ throughout the codebase."""
 
 from typing import Any
 
+import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array
 from jaxtyping import Bool
 from jaxtyping import Float
-from jaxtyping import Integer
+from jaxtyping import Int
 
 
-PRNGKey = Integer[Array, "..."]
+PRNGKey = Int[Array, "..."]
 PrettyPrintable = Any
 Dataclass = Any
 FloatTensor = Float[Array, "..."]
 Float = float
 BoolTensor = Bool[Array, "..."]
 Bool = bool
-IntegerTensor = Integer[Array, "..."]
-Integer = int
+IntTensor = Int[Array, "..."]
+Int = int
+
+
+def check_is_array(v):
+    isinstance(v, jnp.ndarray) or isinstance(v, np.ndarray)
