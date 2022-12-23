@@ -6,7 +6,7 @@ abstract: "This is a notebook repository for tutorials on usage of [Gen](https:/
 
 ::: {.callout-note}
 
-## TODO (MyBinder link)
+## TODO (MyBinder link - when repo is public)
 
 You can open a Binder executable environment by following this tag: 
 :::
