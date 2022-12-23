@@ -69,11 +69,19 @@ class HamiltonianMonteCarlo(MCMCKernel):
             state, _ = kernel(key, state)
             return state, state
 
-        # TODO: assess the validity of using `update` to compute
-        # new logpdf values.
-        key, incremental_logpdf = trace.get_incremental_logpdf(key)
+        # We grab the logpdf (`assess`) interface method,
+        # specialize it on the arguments - because the inference target
+        # is not changing. The only update which can occur is to
+        # the choice map.
+        gen_fn = trace.get_gen_fn()
+        fixed = self.selection.complement().filter(trace.strip())
+        key, scorer, _ = gen_fn.unzip(key, fixed)
+        args = trace.get_args()
 
-        hmc = blackjax.hmc(incremental_logpdf)
+        def _logpdf(chm: ChoiceMap):
+            return scorer(args, chm)
+
+        hmc = blackjax.hmc(_logpdf)
         initial_position, _ = self.selection.filter(trace.strip())
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
@@ -111,11 +119,19 @@ class NoUTurnSampler(MCMCKernel):
             state, _ = kernel(key, state)
             return state, state
 
-        # TODO: assess the validity of using `update` to compute
-        # new logpdf values.
-        key, incremental_logpdf = trace.get_incremental_logpdf(key)
+        # We grab the logpdf (`assess`) interface method,
+        # specialize it on the arguments - because the inference target
+        # is not changing. The only update which can occur is to
+        # the choice map.
+        gen_fn = trace.get_gen_fn()
+        fixed = self.selection.complement().filter(trace.strip())
+        key, scorer, _ = gen_fn.unzip(key, fixed)
+        args = trace.get_args()
 
-        hmc = blackjax.nuts(incremental_logpdf)
+        def _logpdf(chm: ChoiceMap):
+            return scorer(args, chm)
+
+        hmc = blackjax.nuts(_logpdf)
         initial_position, _ = self.selection.filter(trace.strip())
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
