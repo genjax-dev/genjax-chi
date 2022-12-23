@@ -395,11 +395,6 @@ title="Print to PDF"
    Function-like generative functions in GenJAX
   </a>
  </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#generative-function-interface">
-   Generative function interface
-  </a>
- </li>
 </ul>
 
     </nav>
@@ -427,11 +422,6 @@ title="Print to PDF"
  <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#function-like-generative-functions-in-genjax">
    Function-like generative functions in GenJAX
-  </a>
- </li>
- <li class="toc-h2 nav-item toc-entry">
-  <a class="reference internal nav-link" href="#generative-function-interface">
-   Generative function interface
   </a>
  </li>
 </ul>
@@ -569,7 +559,7 @@ whose semantics are described below:</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x10320e050&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x1079f9cf0&gt;)
 </pre></div>
 </div>
 </div>
@@ -694,56 +684,6 @@ transformation abilities.</p>
 <p>All this is happening before runtime – JAX’s tracer stages out these transformations into the clean (<code class="code docutils literal notranslate"><span class="pre">trace</span></code> primitive free) <code class="code docutils literal notranslate"><span class="pre">Jaxpr</span></code> above.</p>
 <p>This essential pattern is repeated for each <span class="xref std std-doc">interface</span> method defined on <code class="code docutils literal notranslate"><span class="pre">BuiltinGenerativeFunction</span></code>.</p>
 <p>Other generative function “languages” in GenJAX support their own implementations of each of the interface methods. Importantly, a generative function <em>need not</em> introspect on the implementation of a callee’s interface methods. As long as the implementation is JAX compatible (and the semantics are implemented correctly), generative functions can call or utilize (c.f. <span class="xref std std-doc">combinators/combinators</span>) other generative functions in composable patterns.</p>
-</section>
-<section id="generative-function-interface">
-<h2>Generative function interface<a class="headerlink" href="#generative-function-interface" title="Permalink to this headline">#</a></h2>
-<p>In this section, we present the full set of generative function interface functions.</p>
-<span class="target" id="module-genjax.interface"></span><p>The generative function interface is a set of methods and associated types
-defined for an implementor which support the generic construction (via
-interface abstraction) of programmable inference algorithms and differentiable
-programming.</p>
-<p>Combined with the trace and choice map associated datatypes, the generative function interface
-methods form the conceptual core of the computational behavior of generative functions.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This module exposes the generative function interface as a set of
-Python functions. When called with <code class="code docutils literal notranslate"><span class="pre">f:</span> <span class="pre">GenerativeFunction</span></code>
-and <code class="code docutils literal notranslate"><span class="pre">**kwargs</span></code>, they return the corresponding
-<code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> method.</p>
-<p>Here’s an example:</p>
-<div class="jupyter_cell jupyter_container docutils container">
-<div class="cell_input code_cell docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">genjax</span>
-<span class="n">fn</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;function simulate.&lt;locals&gt;.&lt;lambda&gt; at 0x117ef5630&gt;
-</pre></div>
-</div>
-</div>
-</div>
-<p>If you know you have a <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code>, you can just refer to the
-methods directly - but sometimes it is useful to use the getter variants
-(there’s no runtime cost when using the getter variants in jitted code, JAX eliminates it).</p>
-</div>
-<dl class="py function">
-<dt class="sig sig-object py" id="genjax.simulate">
-<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L46-L47"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.simulate" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>The trace type functionality is described in more detail in <span class="xref std std-doc">advanced/trace_types</span>,
-as well as in the original research paper <a class="reference external" href="https://dl.acm.org/doi/10.1145/3371087">Lew et al (2019)</a>.</p>
-</div>
-<dl class="py function">
-<dt class="sig sig-object py" id="genjax.get_trace_type">
-<span class="sig-prename descclassname"><span class="pre">genjax.</span></span><span class="sig-name descname"><span class="pre">get_trace_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gen_fn</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/interface.py#L66-L67"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.get_trace_type" title="Permalink to this definition">#</a></dt>
-<dd></dd></dl>
-
 </section>
 </section>
 

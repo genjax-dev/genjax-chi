@@ -12,25 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
-from typing import Callable
-
-from genjax.core import GenerativeFunction
-from genjax.generative_functions.builtin import BuiltinGenerativeFunction
+from genjax._src.language_decorator import gen
 
 
 __all__ = ["gen"]
-
-#####
-# Language decorator
-#####
-
-
-def gen(callable: Callable, **kwargs) -> GenerativeFunction:
-    if inspect.isclass(callable):
-        return lambda source: callable(
-            BuiltinGenerativeFunction(source),
-            **kwargs,
-        )
-    else:
-        return BuiltinGenerativeFunction(callable)

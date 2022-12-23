@@ -35,32 +35,25 @@ if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`M
     These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
 """
 
-from .combinator_datatypes import *
-from .combinator_tracetypes import *
-from .map import *
-from .recurse import *
-from .switch import *
-from .train import *
-from .unfold import *
+from genjax._src.generative_functions.combinators import Map
+from genjax._src.generative_functions.combinators import MapCombinator
+from genjax._src.generative_functions.combinators import Switch
+from genjax._src.generative_functions.combinators import SwitchCombinator
+from genjax._src.generative_functions.combinators import Train
+from genjax._src.generative_functions.combinators import TrainCombinator
+from genjax._src.generative_functions.combinators import Unfold
+from genjax._src.generative_functions.combinators import UnfoldCombinator
+from genjax._src.generative_functions.combinators import vector_choice_map
 
-
-vector_choice_map = VectorChoiceMap.new
-Map = MapCombinator
-Unfold = UnfoldCombinator
-Switch = SwitchCombinator
-Recurse = RecurseCombinator
-Train = TrainCombinator
 
 __all__ = [
-    "vector_choice_map",
-    "Map",
     "MapCombinator",
-    "Unfold",
+    "Map",
     "UnfoldCombinator",
-    "Switch",
+    "Unfold",
     "SwitchCombinator",
-    "Recurse",
-    "RecurseCombinator",
-    "Train",
+    "Switch",
     "TrainCombinator",
+    "Train",
+    "vector_choice_map",
 ]

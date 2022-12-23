@@ -26,6 +26,7 @@ objexplore = "^1.6.3"
 blackjax = {version = "^0.9.6", optional = true}
 tinygp = {version = "^0.2.3", optional = true}
 jaxtyping = "^0.2.9"
+graphviz = "^0.20.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.12.0"
