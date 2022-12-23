@@ -24,7 +24,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax.core.diff_rules import Diff
 from genjax.core.pytree import Pytree
 from genjax.core.tracetypes import Bottom
 from genjax.core.tracetypes import TraceType
@@ -104,21 +103,6 @@ class Trace(ChoiceMap, Tree):
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
-
-    def get_incremental_logpdf(self, key):
-        key, sub_key = jax.random.split(key)
-
-        def scorer(choices):
-            args = self.get_args()
-            argdiffs = tuple(map(Diff.no_change, args))
-            _, (_, _, new_trace, _) = self.update(
-                sub_key,
-                choices,
-                argdiffs,
-            )
-            return new_trace.get_score()
-
-        return key, scorer
 
     def has_subtree(self, addr) -> Bool:
         choices = self.get_choices()

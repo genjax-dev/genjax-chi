@@ -14,8 +14,9 @@
 
 """This module is a GenJAX implementation of Alexander K.
 
-Lew's framework for inference-as-generative-functions (RAVI)
-https://arxiv.org/abs/2203.02836 and his Gen implementation GenProx.
+Lew's framework for programming with composable approximate densities
+(RAVI/Prox) https://arxiv.org/abs/2203.02836 and his Gen implementation
+GenProx.
 """
 
 from .choice_map_distribution import *
