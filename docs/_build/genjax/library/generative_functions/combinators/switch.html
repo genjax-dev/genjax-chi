@@ -386,16 +386,66 @@ title="Print to PDF"
                 
               <div>
                 
-  <section id="module-genjax.combinators.switch">
-<span id="switch-combinator"></span><h1>Switch combinator<a class="headerlink" href="#module-genjax.combinators.switch" title="Permalink to this headline">#</a></h1>
-<p>This module implements a generative function combinator which allows
-branching control flow for combinations of generative functions which can
-return different shaped choice maps.</p>
-<p>It’s based on encoding a trace sum type using JAX - to bypass restrictions from <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html">jax.lax.switch</a>.</p>
-<p>Generative functions which are passed in as branches to <code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code>
-must accept the same argument types, and return the same type of return value.</p>
-<p>The internal choice maps for the branch generative functions
-can have different shape/dtype choices. The resulting <code class="code docutils literal notranslate"><span class="pre">SwitchTrace</span></code> will efficiently share <code class="code docutils literal notranslate"><span class="pre">(shape,</span> <span class="pre">dtype)</span></code> storage across branches.</p>
+  <section id="switch-combinator">
+<h1>Switch combinator<a class="headerlink" href="#switch-combinator" title="Permalink to this headline">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L101-L323"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
+<dd><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> accepts a set of generative functions as input
+configuration and implements <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> interface semantics that support branching control flow patterns, including control flow patterns which branch on other stochastic choices.</p>
+<p>This combinator provides a “sum” <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> type which allows the internal generative functions to have different choice maps.</p>
+<p>This pattern allows <code class="code docutils literal notranslate"><span class="pre">GenJAX</span></code> to express existence
+uncertainty over random choices – as different generative
+function branches need not share addresses.</p>
+<p class="rubric">Example</p>
+<div class="jupyter_cell jupyter_container docutils container">
+<div class="cell_input code_cell docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<span class="kn">import</span> <span class="nn">genjax</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">branch_1</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x1&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">)</span>
+
+<span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">branch_2</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x2&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Bernoulli</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">)</span>
+
+<span class="n">switch</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">SwitchCombinator</span><span class="p">([</span><span class="n">branch_1</span><span class="p">,</span> <span class="n">branch_2</span><span class="p">])</span>
+
+<span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">314159</span><span class="p">)</span>
+<span class="n">jitted</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">switch</span><span class="p">))</span>
+<span class="n">key</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">jitted</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">))</span>
+<span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jitted</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>SwitchTrace(gen_fn=SwitchCombinator(branches=[BuiltinGenerativeFunction(source=&lt;function branch_1 at 0x103e9dc60&gt;), BuiltinGenerativeFunction(source=&lt;function branch_2 at 0x103e9d750&gt;)]), chm=IndexedChoiceMap(index=Array(1, dtype=int32, weak_type=True), submaps=[BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function branch_1 at 0x103e9dc60&gt;), args=(), retval=(), choices=BuiltinChoiceMap(inner={&#39;x1&#39;: DistributionTrace(gen_fn=_Normal(), args=(Array(0.3, dtype=float32, weak_type=True), Array(-0.35667497, dtype=float32, weak_type=True)), value=Array(-0.35667497, dtype=float32), score=Array(0., dtype=float32))}), cache=BuiltinTrie(inner={}), score=Array(0., dtype=float32)), BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function branch_2 at 0x103e9d750&gt;), args=(), retval=(), choices=BuiltinChoiceMap(inner={&#39;x2&#39;: DistributionTrace(gen_fn=_Bernoulli(), args=(Array(0.3, dtype=float32, weak_type=True),), value=Array(False, dtype=bool), score=Array(-0.35667497, dtype=float32, weak_type=True))}), cache=BuiltinTrie(inner={}), score=Array(-0.35667497, dtype=float32))]), args=(), retval=(), score=Array(-0.35667497, dtype=float32))
+</pre></div>
+</div>
+</div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">branches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">genjax._src.core.datatypes.GenerativeFunction</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.__init__" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator.__new__">
+<span class="sig-name descname"><span class="pre">__new__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.__new__" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator.simulate">
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L176-L193"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.simulate" title="Permalink to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </section>
 
 

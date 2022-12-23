@@ -2,7 +2,7 @@
 max-line-length = 79
 max-complexity = 15
 select = C,E,F,W,B,B950
-ignore = E203,E501,W503,W601,E302,W605,B950,B023,F811
+ignore = E203,E501,W503,W601,E302,W605,B950,B023,F811,C901
 exclude =
     .git,
     __init__.py,

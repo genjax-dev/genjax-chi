@@ -1,8 +1,6 @@
 Map combinator
 ==============
 
-.. automodule:: genjax.combinators.map
-
-.. autoclass:: genjax.combinators.MapCombinator
+.. autoclass:: genjax.generative_functions.combinators.MapCombinator
    :members: __init__, simulate
    :undoc-members:

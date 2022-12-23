@@ -32,13 +32,3 @@ print(jaxpr.pretty_print(use_color=False))
 key = jax.random.PRNGKey(314159)
 jaxpr = jax.make_jaxpr(genjax.simulate(model))(key, ())
 print(jaxpr.pretty_print(use_color=False))
-
-
-# In[4]:
-
-
-import genjax
-
-
-fn = genjax.simulate(genjax.Normal)
-print(fn)

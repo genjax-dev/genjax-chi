@@ -1,6 +1,6 @@
 Unfold combinator
 =================
 
-.. automodule:: genjax.combinators.unfold
-
-.. autoclass:: genjax.combinators.UnfoldCombinator
+.. autoclass:: genjax.generative_functions.combinators.UnfoldCombinator
+   :members: __init__, simulate
+   :undoc-members:

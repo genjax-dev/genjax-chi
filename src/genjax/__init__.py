@@ -12,12 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"GenJAX is a probabilistic programming system constructed by combining the concepts of Gen with the program transformation and hardware accelerator compilation capabilities of JAX."
+
+# Closed modules.
+from genjax import prox
+
 from .console import *
 from .core import *
 from .extras import *
+
+# Open exports.
 from .generative_functions import *
 from .inference import *
 from .information import *
 from .interface import *
 from .language_decorator import *
-from .prox import *
+
+
+__version__ = "0.0.1"
+
+####################################################
+#
+#   The exports defined above are the public API.
+#
+#                        /\_/\____,
+#              ,___/\_/\ \  ~     /
+#              \     ~  \ )   XXX
+#                XXX     /    /\_/\___,
+#                   \o-o/-o-o/   ~    /
+#                    ) /     \    XXX
+#                   _|    / \ \_/
+#                ,-/   _  \_/   \
+#               / (   /____,__|  )
+#              (  |_ (    )  \) _|
+#             _/ _)   \   \__/   (_
+#            (,-(,(,(,/      \,),),)
+#
+#
+#       "Abandon all hope, ye who enter _src."
+#
+####################################################
+
+try:
+    del genjax._src
+except NameError:
+    pass

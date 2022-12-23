@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module provides a function-like modeling language built on top of JAX
-interpreters.
-
-It exposes a set of JAX primitives which allow compositional
-construction of generative programs. These programs can utilize other
-generative functions inside of a new JAX primitive (`trace`) to create
-hiearchical patterns of Bayesian computation.
-"""
-
-from .builtin_datatypes import *
-from .builtin_gen_fn import *
-from .builtin_tracetype import *
-from .intrinsics import cache
-from .intrinsics import trace
+from genjax._src.generative_functions.builtin import BuiltinChoiceMap
+from genjax._src.generative_functions.builtin import BuiltinGenerativeFunction
+from genjax._src.generative_functions.builtin import BuiltinSelection
+from genjax._src.generative_functions.builtin import cache
+from genjax._src.generative_functions.builtin import choice_map
+from genjax._src.generative_functions.builtin import select
+from genjax._src.generative_functions.builtin import trace
 
 
-choice_map = BuiltinChoiceMap.new
-select = BuiltinSelection.new
+__all__ = [
+    "BuiltinGenerativeFunction",
+    "BuiltinChoiceMap",
+    "BuiltinSelection",
+    "choice_map",
+    "select",
+    "trace",
+    "cache",
+]
