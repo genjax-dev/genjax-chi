@@ -24,6 +24,7 @@ of Python functions.
 
 from .callback import *
 from .datatypes import *
+from .diff_rules import *
 from .hashabledict import *
 from .masks import *
 from .propagate import *

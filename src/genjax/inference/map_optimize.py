@@ -19,9 +19,7 @@ def map_update(selection, tau):
     def _inner(key, trace):
         args = trace.get_args()
         gen_fn = trace.get_gen_fn()
-        key, forward_gradient_trie, _ = gen_fn.choice_grad(
-            key, trace, selection, (0.0,)
-        )
+        key, forward_gradient_trie = gen_fn.choice_grad(key, trace, selection)
         forward_values, _ = selection.filter(trace)
         forward_values = forward_values.strip()
         forward_values = jtu.tree_map(

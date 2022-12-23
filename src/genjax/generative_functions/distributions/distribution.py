@@ -29,15 +29,15 @@ from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Trace
 from genjax.core.datatypes import ValueChoiceMap
+from genjax.core.diff_rules import Diff
+from genjax.core.diff_rules import NoChange
+from genjax.core.diff_rules import check_is_diff
+from genjax.core.diff_rules import check_no_change
+from genjax.core.diff_rules import strip_diff
 from genjax.core.masks import BooleanMask
 from genjax.core.specialization import concrete_cond
 from genjax.core.tree import Leaf
 from genjax.generative_functions.builtin.builtin_tracetype import lift
-from genjax.generative_functions.diff_rules import Diff
-from genjax.generative_functions.diff_rules import NoChange
-from genjax.generative_functions.diff_rules import check_is_diff
-from genjax.generative_functions.diff_rules import check_no_change
-from genjax.generative_functions.diff_rules import strip_diff
 
 
 #####

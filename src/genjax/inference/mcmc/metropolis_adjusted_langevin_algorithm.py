@@ -62,8 +62,8 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         std = jnp.sqrt(2 * self.tau)
 
         # Forward proposal.
-        key, forward_gradient_trie, _ = gen_fn.choice_grad(
-            key, trace, self.selection, (0.0,)
+        key, forward_gradient_trie = gen_fn.choice_grad(
+            key, trace, self.selection
         )
         forward_values, _ = self.selection.filter(trace)
         forward_values = forward_values.strip()
@@ -87,8 +87,8 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         )
 
         # Backward proposal.
-        key, backward_gradient_trie, _ = gen_fn.choice_grad(
-            key, new_trace, self.selection, (0.0,)
+        key, backward_gradient_trie = gen_fn.choice_grad(
+            key, new_trace, self.selection
         )
         backward_mu = jtu.tree_map(
             lambda v1, v2: v1 + self.tau * v2,
@@ -111,5 +111,9 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
     def reversal(self):
         return self
 
+
+##############
+# Shorthands #
+##############
 
 mala = MetropolisAdjustedLangevinAlgorithm
