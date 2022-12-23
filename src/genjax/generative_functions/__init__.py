@@ -14,5 +14,4 @@
 
 from .builtin import *
 from .combinators import *
-from .diff_rules import *
 from .distributions import *

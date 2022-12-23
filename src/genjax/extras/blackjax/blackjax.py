@@ -22,43 +22,59 @@ Hamiltonian Monte Carlo exported by the :code:`blackjax` sampling library.
     .. [Blackjax] BlackJAX is a sampling library designed for ease of use, speed and modularity. (https://github.com/blackjax-devs/blackjax)
 """
 
-from typing import Union
+import dataclasses
 
 import blackjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
 
 from genjax.core import ChoiceMap
 from genjax.core import Selection
 from genjax.core import Trace
+from genjax.core.diff_rules import Diff
+from genjax.core.typing import Int
+from genjax.core.typing import PRNGKey
+from genjax.inference.mcmc.kernel import MCMCKernel
 
 
-Int = Union[jnp.ndarray, np.ndarray]
-
-
-def _estimate(trace: Trace, key, chm: ChoiceMap):
-    gen_fn = trace.get_gen_fn()
+# Uses incremental computing to prune non-contributing sites in update.
+def _estimate(key: PRNGKey, trace: Trace, chm: ChoiceMap):
     args = trace.get_args()
-    key, (w, _, _) = gen_fn.update(key, trace, chm, args)
-    return w
+
+    # Here, the arguments (and hence, the target) don't change
+    # if they do change, you shouldn't be using MCMC...because
+    # then the target is changing.
+    argdiffs = tuple(map(Diff.no_change, args))
+
+    key, (_, _, updated_trace, _) = trace.update(
+        key,
+        trace,
+        chm,
+        argdiffs,
+    )
+    return updated_trace.get_score()
 
 
-def hamiltonian_monte_carlo(
-    trace: Trace, selection: Selection, num_steps: Int, *args
-):
-    def _one_step(kernel, state, key):
-        state, _ = kernel(key, state)
-        return state, state
+@dataclasses.dataclass
+class HamiltonianMonteCarlo(MCMCKernel):
+    selection: Selection
+    num_steps: Int
 
-    def _inner(key, **kwargs):
-        def logprob(chm):
-            return _estimate(trace, key, chm)
+    def flatten(self):
+        return (), (self.selection, self.num_steps)
 
-        hmc = blackjax.hmc(logprob, *args, **kwargs)
-        initial_position, _ = selection.filter(trace)
-        initial_position = initial_position.strip()
+    def apply(self, key: PRNGKey, trace: Trace):
+        def _one_step(kernel, state, key):
+            state, _ = kernel(key, state)
+            return state, state
+
+        # TODO: assess the validity of using `update` to compute
+        # new logpdf values.
+        key, incremental_logpdf = trace.get_incremental_logpdf(key)
+
+        hmc = blackjax.hmc(incremental_logpdf)
+        initial_position, _ = self.selection.filter(trace.strip())
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
             initial_position,
@@ -68,7 +84,7 @@ def hamiltonian_monte_carlo(
         def step(state, key):
             return _one_step(hmc.step, state, key)
 
-        key, *sub_keys = jax.random.split(key, num_steps + 1)
+        key, *sub_keys = jax.random.split(key, self.num_steps + 1)
         sub_keys = jnp.array(sub_keys)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions = jtu.tree_map(
@@ -78,23 +94,29 @@ def hamiltonian_monte_carlo(
         )
         return key, final_positions
 
-    return _inner
+    def reversal(self):
+        return self
 
 
-def no_u_turn_sampler(
-    trace: Trace, selection: Selection, num_steps: Int, *args
-):
-    def _one_step(kernel, state, key):
-        state, _ = kernel(key, state)
-        return state, state
+@dataclasses.dataclass
+class NoUTurnSampler(MCMCKernel):
+    selection: Selection
+    num_steps: Int
 
-    def _inner(key, **kwargs):
-        def logprob(chm):
-            return _estimate(trace, key, chm)
+    def flatten(self):
+        return (), (self.selection, self.num_steps)
 
-        hmc = blackjax.nuts(logprob, *args, **kwargs)
-        initial_position, _ = selection.filter(trace)
-        initial_position = initial_position.strip()
+    def apply(self, key: PRNGKey, trace: Trace):
+        def _one_step(kernel, state, key):
+            state, _ = kernel(key, state)
+            return state, state
+
+        # TODO: assess the validity of using `update` to compute
+        # new logpdf values.
+        key, incremental_logpdf = trace.get_incremental_logpdf(key)
+
+        hmc = blackjax.nuts(incremental_logpdf)
+        initial_position, _ = self.selection.filter(trace.strip())
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
             initial_position,
@@ -104,7 +126,7 @@ def no_u_turn_sampler(
         def step(state, key):
             return _one_step(hmc.step, state, key)
 
-        key, *sub_keys = jax.random.split(key, num_steps + 1)
+        key, *sub_keys = jax.random.split(key, self.num_steps + 1)
         sub_keys = jnp.array(sub_keys)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions = jtu.tree_map(
@@ -114,8 +136,13 @@ def no_u_turn_sampler(
         )
         return key, final_positions
 
-    return _inner
+    def reversal(self):
+        return self
 
 
-hmc = hamiltonian_monte_carlo
-nuts = no_u_turn_sampler
+##############
+# Shorthands #
+##############
+
+hmc = HamiltonianMonteCarlo
+nuts = NoUTurnSampler

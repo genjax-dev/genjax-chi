@@ -24,6 +24,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
+from genjax.core.diff_rules import Diff
 from genjax.core.pytree import Pytree
 from genjax.core.tracetypes import Bottom
 from genjax.core.tracetypes import TraceType
@@ -103,6 +104,21 @@ class Trace(ChoiceMap, Tree):
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
+
+    def get_incremental_logpdf(self, key):
+        key, sub_key = jax.random.split(key)
+
+        def scorer(choices):
+            args = self.get_args()
+            argdiffs = tuple(map(Diff.no_change, args))
+            _, (_, _, new_trace, _) = self.update(
+                sub_key,
+                choices,
+                argdiffs,
+            )
+            return new_trace.get_score()
+
+        return key, scorer
 
     def has_subtree(self, addr) -> Bool:
         choices = self.get_choices()
@@ -256,17 +272,28 @@ class GenerativeFunction(Pytree):
     ]:
         key, sub_key = jax.random.split(key)
 
-        def score(provided, args) -> Float:
+        def score(provided: ChoiceMap, args: Tuple) -> Float:
             merged = fixed.merge(provided)
             _, (_, score) = self.assess(sub_key, merged, args)
             return score
 
-        def retval(provided, args) -> Any:
+        def retval(provided: ChoiceMap, args: Tuple) -> Any:
             merged = fixed.merge(provided)
             _, (retval, _) = self.assess(sub_key, merged, args)
             return retval
 
         return key, score, retval
+
+    # A higher-level gradient API - it relies upon `unzip`,
+    # but provides convenient access to first-order gradients.
+    def choice_grad(self, key, trace, selection):
+        fixed, _ = selection.complement().filter(trace.strip())
+        evaluation_point, _ = selection.filter(trace.strip())
+        key, scorer, _ = self.unzip(key, fixed)
+        choice_gradient_tree = jax.grad(scorer)(
+            evaluation_point, trace.get_args()
+        )
+        return key, choice_gradient_tree
 
     def _get_trace_data_shape(self, key, args):
         _, (_, output) = jax.make_jaxpr(self.simulate, return_shape=True)(

@@ -38,11 +38,11 @@ from genjax.core.datatypes import ChoiceMap
 from genjax.core.datatypes import EmptyChoiceMap
 from genjax.core.datatypes import Trace
 from genjax.core.datatypes import ValueChoiceMap
+from genjax.core.diff_rules import strip_diff
 from genjax.core.pytree import Pytree
 from genjax.core.typing import Float
 from genjax.core.typing import Int
 from genjax.core.typing import PRNGKey
-from genjax.generative_functions.diff_rules import strip_diff
 from genjax.prox.prox_distribution import ProxDistribution
 from genjax.prox.target import Target
 
@@ -587,3 +587,17 @@ class SMCCompose(SMCAlgorithm):
         key, state = self.prev.run_csmc(key, retained)
         key, state = forward(key, state, *self.propagator_args)
         return key, state
+
+
+##############
+# Shorthands #
+##############
+
+# Primitive algorithms + propagators.
+Init = SMCInit
+Extend = SMCExtendPropagator
+ChangeTarget = SMCChangeTargetPropagator
+
+# Higher-level combinators.
+Compose = SMCCompose
+Sequence = SMCSequencePropagator

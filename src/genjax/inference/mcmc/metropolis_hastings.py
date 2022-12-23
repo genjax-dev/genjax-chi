@@ -24,8 +24,8 @@ import jax.tree_util as jtu
 from genjax.core.datatypes import GenerativeFunction
 from genjax.core.datatypes import Selection
 from genjax.core.datatypes import Trace
+from genjax.core.diff_rules import Diff
 from genjax.core.typing import PRNGKey
-from genjax.generative_functions.diff_rules import Diff
 from genjax.inference.mcmc.kernel import MCMCKernel
 
 

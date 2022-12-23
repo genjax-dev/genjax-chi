@@ -22,6 +22,12 @@ from jax import core as jax_core
 from jax.interpreters import xla
 
 from genjax.core.datatypes import EmptyChoiceMap
+from genjax.core.diff_rules import Diff
+from genjax.core.diff_rules import NoChange
+from genjax.core.diff_rules import check_is_diff
+from genjax.core.diff_rules import check_no_change
+from genjax.core.diff_rules import diff_propagation_rules
+from genjax.core.diff_rules import strip_diff
 from genjax.core.hashabledict import hashabledict
 from genjax.core.propagate import Cell
 from genjax.core.propagate import Handler
@@ -38,12 +44,6 @@ from genjax.generative_functions.builtin.builtin_datatypes import (
 from genjax.generative_functions.builtin.builtin_datatypes import BuiltinTrie
 from genjax.generative_functions.builtin.intrinsics import cache_p
 from genjax.generative_functions.builtin.intrinsics import gen_fn_p
-from genjax.generative_functions.diff_rules import Diff
-from genjax.generative_functions.diff_rules import NoChange
-from genjax.generative_functions.diff_rules import check_is_diff
-from genjax.generative_functions.diff_rules import check_no_change
-from genjax.generative_functions.diff_rules import diff_propagation_rules
-from genjax.generative_functions.diff_rules import strip_diff
 
 
 safe_map = jax_core.safe_map
