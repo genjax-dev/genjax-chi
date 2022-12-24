@@ -117,6 +117,7 @@ class SwitchCombinator(GenerativeFunction):
 
         import jax
         import genjax
+        console = genjax.pretty()
 
         @genjax.gen
         def branch_1(key):
@@ -134,7 +135,7 @@ class SwitchCombinator(GenerativeFunction):
         jitted = jax.jit(genjax.simulate(switch))
         key, _ = jitted(key, (0, ))
         key, tr = jitted(key, (1, ))
-        print(tr)
+        console.print(tr)
     """
 
     branches: List[GenerativeFunction]

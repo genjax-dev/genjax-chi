@@ -115,7 +115,7 @@
 </ul>
 <p aria-level="2" class="caption" role="heading">
  <span class="caption-text">
-  Library module reference
+  Public API reference
  </span>
 </p>
 <ul class="current nav bd-sidenav">
@@ -390,7 +390,7 @@ title="Print to PDF"
 <h1>Switch combinator<a class="headerlink" href="#switch-combinator" title="Permalink to this headline">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L101-L323"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L101-L324"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> accepts a set of generative functions as input
 configuration and implements <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> interface semantics that support branching control flow patterns, including control flow patterns which branch on other stochastic choices.</p>
 <p>This combinator provides a “sum” <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> type which allows the internal generative functions to have different choice maps.</p>
@@ -402,6 +402,7 @@ function branches need not share addresses.</p>
 <div class="cell_input code_cell docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">import</span> <span class="nn">genjax</span>
+<span class="n">console</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">pretty</span><span class="p">()</span>
 
 <span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
 <span class="k">def</span> <span class="nf">branch_1</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
@@ -419,15 +420,89 @@ function branches need not share addresses.</p>
 <span class="n">jitted</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">genjax</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">switch</span><span class="p">))</span>
 <span class="n">key</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">jitted</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">))</span>
 <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">jitted</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+<span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>SwitchTrace(gen_fn=SwitchCombinator(branches=[BuiltinGenerativeFunction(source=&lt;function branch_1 at 0x10378a170&gt;), BuiltinGenerativeFunction(source=&lt;function branch_2 at 0x103789e10&gt;)]), chm=IndexedChoiceMap(index=Array(1, dtype=int32, weak_type=True), submaps=[BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function branch_1 at 0x10378a170&gt;), args=(), retval=(), choices=BuiltinChoiceMap(inner={&#39;x1&#39;: DistributionTrace(gen_fn=_Normal(), args=(Array(0.3, dtype=float32, weak_type=True), Array(-0.35667497, dtype=float32, weak_type=True)), value=Array(-0.35667497, dtype=float32), score=Array(0., dtype=float32))}), cache=BuiltinTrie(inner={}), score=Array(0., dtype=float32)), BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function branch_2 at 0x103789e10&gt;), args=(), retval=(), choices=BuiltinChoiceMap(inner={&#39;x2&#39;: DistributionTrace(gen_fn=_Bernoulli(), args=(Array(0.3, dtype=float32, weak_type=True),), value=Array(False, dtype=bool), score=Array(-0.35667497, dtype=float32, weak_type=True))}), cache=BuiltinTrie(inner={}), score=Array(-0.35667497, dtype=float32))]), args=(), retval=(), score=Array(-0.35667497, dtype=float32))
-</pre></div>
-</div>
-</div>
+<div class="output text_html"><pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">SwitchTrace</span>
+├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│   └── <span style="font-weight: bold">SwitchCombinator</span>
+│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">branches</span>
+│           └── <span style="font-weight: bold">list</span>
+│               ├── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│               │   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │       └── &lt;function branch_1&gt;
+│               └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│                   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│                       └── &lt;function branch_2&gt;
+├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">chm</span>
+│   └── <span style="font-weight: bold">IndexedChoiceMap</span>
+│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">index</span>
+│       │   └── <span style="color: #008787; text-decoration-color: #008787">i32[]</span>
+│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">submaps</span>
+│           └── <span style="font-weight: bold">list</span>
+│               ├── <span style="font-weight: bold">BuiltinTrace</span>
+│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│               │   │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │   │           └── &lt;function branch_1&gt;
+│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │   │   └── <span style="font-weight: bold">tuple</span>
+│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
+│               │   │   └── <span style="font-weight: bold">tuple</span>
+│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│               │   │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
+│               │   │       └── <span style="color: #005f00; text-decoration-color: #005f00; font-weight: bold">x1</span>
+│               │   │           └── <span style="font-weight: bold">DistributionTrace</span>
+│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │   │               │   └── <span style="font-weight: bold">_Normal</span>
+│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │   │               │   └── <span style="font-weight: bold">tuple</span>
+│               │   │               │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│               │   │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
+│               │   │               │   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│               │   │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
+│               │   │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│               │   │   └── <span style="font-weight: bold">BuiltinTrie</span>
+│               │   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
+│               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│               └── <span style="font-weight: bold">BuiltinTrace</span>
+│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│                   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│                   │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│                   │           └── &lt;function branch_2&gt;
+│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   │   └── <span style="font-weight: bold">tuple</span>
+│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
+│                   │   └── <span style="font-weight: bold">tuple</span>
+│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│                   │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
+│                   │       └── <span style="color: #005f00; text-decoration-color: #005f00; font-weight: bold">x2</span>
+│                   │           └── <span style="font-weight: bold">DistributionTrace</span>
+│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│                   │               │   └── <span style="font-weight: bold">_Bernoulli</span>
+│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   │               │   └── <span style="font-weight: bold">tuple</span>
+│                   │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
+│                   │               │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
+│                   │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
+│                   │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│                   │   └── <span style="font-weight: bold">BuiltinTrie</span>
+│                   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
+│                       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│   └── <span style="font-weight: bold">tuple</span>
+├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
+│   └── <span style="font-weight: bold">tuple</span>
+└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
+    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+</pre>
+</div></div>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator.__init__">
@@ -441,7 +516,7 @@ function branches need not share addresses.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator.simulate">
-<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L176-L193"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.simulate" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L177-L194"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.simulate" title="Permalink to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>

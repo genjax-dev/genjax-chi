@@ -1,5 +1,6 @@
 @charset "utf-8";
 @import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Solway:wght@700&display=swap');
 @import "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap";
 
 div.attr {
@@ -80,6 +81,6 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Atkinson Hyperlegible", sans-serif;
+  font-family: "Solway", sans-serif;
   line-height: 2.2rem;
 }
