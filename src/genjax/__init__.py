@@ -20,13 +20,12 @@ from genjax import prox
 from .console import *
 from .core import *
 from .extras import *
-
-# Open exports.
 from .generative_functions import *
 from .inference import *
 from .information import *
 from .interface import *
 from .language_decorator import *
+from .utilities import *
 
 
 __version__ = "0.0.1"

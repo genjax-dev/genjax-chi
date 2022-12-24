@@ -25,7 +25,7 @@ from genjax._src.generative_functions.builtin import BuiltinGenerativeFunction
 
 
 def gen(callable: Callable, **kwargs) -> GenerativeFunction:
-    if inspect.isclass(callable):
+    if inspect.isclass(callable) or inspect.ismethod(callable):
         return lambda source: callable(
             BuiltinGenerativeFunction(source),
             **kwargs,
