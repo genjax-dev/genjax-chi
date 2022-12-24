@@ -22,8 +22,8 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
-from genjax._src.core.typing import FloatTensor
-from genjax._src.core.typing import Int
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.distributions.distribution import (
     Distribution,
@@ -51,13 +51,13 @@ def scaled_circulant(N, k, epsilon, delta):
 
 @dataclass
 class DiscreteHMMConfiguration(Pytree):
-    linear_grid_dim: Int
+    linear_grid_dim: IntArray
     adjacency_distance_trans: Float
-    adjacency_distance_obs: Int
+    adjacency_distance_obs: IntArray
     sigma_trans: Float
     sigma_obs: Float
-    transition_tensor: FloatTensor
-    observation_tensor: FloatTensor
+    transition_tensor: FloatArray
+    observation_tensor: FloatArray
 
     def flatten(self):
         return (self.transition_tensor, self.observation_tensor,), (
@@ -71,7 +71,7 @@ class DiscreteHMMConfiguration(Pytree):
     @classmethod
     def new(
         cls,
-        linear_grid_dim: Int,
+        linear_grid_dim: IntArray,
         adjacency_distance_trans: Float,
         adjacency_distance_obs: Float,
         sigma_trans: Float,

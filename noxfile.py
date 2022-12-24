@@ -37,11 +37,8 @@ package = "genjax"
 python_version = "3.10"
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
-    "safety",
     "tests",
-    # "benchmark",
     "xdoctests",
-    "docs-build",
     "lint",
     "build",
 )
@@ -178,6 +175,7 @@ def docs_build(session: Session) -> None:
         shutil.rmtree(build_dir)
 
     session.run("sphinx-build", *args)
+    session.run("quarto", "render", "docs/notebooks", external=True)
 
 
 @session(name="docs-serve", python=python_version)

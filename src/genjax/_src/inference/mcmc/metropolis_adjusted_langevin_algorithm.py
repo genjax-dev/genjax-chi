@@ -20,7 +20,7 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
-from genjax._src.core.typing import FloatTensor
+from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.distributions.scipy.normal import Normal
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
@@ -28,7 +28,7 @@ from genjax._src.inference.mcmc.kernel import MCMCKernel
 @dataclasses.dataclass
 class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
     selection: Selection
-    tau: FloatTensor
+    tau: FloatArray
 
     def flatten(self):
         return (), (self.selection, self.tau)

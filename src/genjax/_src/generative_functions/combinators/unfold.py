@@ -32,6 +32,7 @@ from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
+from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -52,7 +53,7 @@ class UnfoldTrace(Trace):
     inner: Trace
     args: Tuple
     retval: Any
-    score: jnp.float32
+    score: FloatArray
 
     def flatten(self):
         return (

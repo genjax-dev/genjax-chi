@@ -23,7 +23,7 @@ from genjax._src.core.propagate import PropagationRules
 from genjax._src.core.propagate import default_propagation_rules
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.staging import get_shaped_aval
-from genjax._src.core.typing import IntTensor
+from genjax._src.core.typing import IntArray
 
 
 #######################################
@@ -68,7 +68,7 @@ NoChange = _NoChange()
 
 
 class IntChange(Change):
-    dv: IntTensor
+    dv: IntArray
 
     def flatten(self):
         return (self.dv,), ()

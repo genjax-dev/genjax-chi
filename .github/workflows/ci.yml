@@ -28,7 +28,7 @@ jobs:
         run: pip install poetry nox-poetry
 
       - name: Run Nox
-        run: nox -s tests xdoctests lint build
+        run: nox
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v3.1.1
