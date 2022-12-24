@@ -436,10 +436,10 @@ class MapCombinator(GenerativeFunction):
         else:
             return self._update_fallback(key, prev, chm, diffs)
 
-    def _throw_index_check_host_exception(self, index: int):
+    def _throw_index_check_host_exception(self, truth: int, index: int):
         def _inner(count, transforms):
             raise Exception(
-                f"\nMapCombinator {self} received a choice map with mismatched indices (at index {index}) in assess."
+                f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference: {truth}\nPassed in: {index}"
             )
 
         hcb.id_tap(
@@ -453,7 +453,7 @@ class MapCombinator(GenerativeFunction):
         assert isinstance(chm, VectorChoiceMap)
 
         def _inner(key, index, chm, args):
-            check = index == chm.get_index()
+            check = jnp.all(jnp.equal(index, chm.get_index()))
 
             # This inserts a host callback check for bounds checking.
             # If there is an index failure, `assess` must fail
@@ -461,19 +461,21 @@ class MapCombinator(GenerativeFunction):
             # function call.
             concrete_cond(
                 check,
+                lambda *args: None,
                 lambda *args: self._throw_index_check_host_exception(
                     index,
+                    chm.get_index(),
                 ),
-                lambda *args: None,
             )
+            inner = chm.inner
 
-            return self.kernel.assess(key, chm, args)
+            return self.kernel.assess(key, inner, args)
 
         # Get static axes.
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
 
-        indices = np.array([i for i in range(0, len(key))])
+        indices = jnp.array([i for i in range(0, len(key))])
         return jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
             key,
             indices,

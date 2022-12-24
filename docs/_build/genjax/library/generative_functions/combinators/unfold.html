@@ -390,7 +390,7 @@ title="Print to PDF"
 <h1>Unfold combinator<a class="headerlink" href="#unfold-combinator" title="Permalink to this headline">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.UnfoldCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/unfold.py#L88-L802"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.UnfoldCombinator" title="Permalink to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">UnfoldCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/unfold.py#L88-L835"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.UnfoldCombinator" title="Permalink to this definition">#</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">UnfoldCombinator</span></code> accepts a single kernel generative function
 as input and a static unroll length which specifies how many iterations
 to run the chain for.</p>
@@ -439,7 +439,7 @@ iterations off.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>UnfoldTrace(gen_fn=UnfoldCombinator(kernel=BuiltinGenerativeFunction(source=&lt;function random_walk at 0x103c19ea0&gt;), max_length=1000), indices=Array([  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>UnfoldTrace(gen_fn=UnfoldCombinator(kernel=BuiltinGenerativeFunction(source=&lt;function random_walk at 0x10354d900&gt;), max_length=1000), indices=Array([  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,
         13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,
         26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,  38,
         39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  51,
@@ -515,7 +515,7 @@ iterations off.</p>
        949, 950, 951, 952, 953, 954, 955, 956, 957, 958, 959, 960, 961,
        962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974,
        975, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987,
-       988, 989, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999],      dtype=int32, weak_type=True), inner=BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function random_walk at 0x103c19ea0&gt;), args=(Array([ 5.00000000e-01,  3.91769022e-01,  6.66197956e-01, -6.81014597e-01,
+       988, 989, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999],      dtype=int32, weak_type=True), inner=BuiltinTrace(gen_fn=BuiltinGenerativeFunction(source=&lt;function random_walk at 0x10354d900&gt;), args=(Array([ 5.00000000e-01,  3.91769022e-01,  6.66197956e-01, -6.81014597e-01,
        -1.40978324e+00, -7.97927603e-02, -9.35212001e-02, -9.41611111e-01,
        -1.49014425e+00, -1.70472090e-03, -2.59251982e-01, -1.49507415e+00,
        -2.81819177e+00, -2.03869843e+00, -1.88497078e+00, -1.35565388e+00,
@@ -2233,7 +2233,7 @@ iterations off.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.UnfoldCombinator.simulate">
-<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/unfold.py#L167-L229"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.UnfoldCombinator.simulate" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/unfold.py#L167-L224"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.UnfoldCombinator.simulate" title="Permalink to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
