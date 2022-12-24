@@ -31,7 +31,7 @@ genjax/notebooks
 ---
 hidden:
 maxdepth: 1
-caption: Library module reference
+caption: Public API reference
 ---
 
 genjax/library/generative_functions/generative_functions

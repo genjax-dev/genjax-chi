@@ -1,6 +1,6 @@
 Modeling & inference notebooks
 ==============================
 
-This section contains a series of tutorial notebooks designed to guide usage of GenJAX. These notebooks are executed and rendered with `quarto`, and hosted statically with the documentation. 
+This section contains a link to a (statically hosted) series of tutorial notebooks designed to guide usage of GenJAX. These notebooks are executed and rendered with `quarto`, and are kept up to date with the repository along with the documentation. 
 
-You can find links to the rendered versions here: `GenJAX modeling & inference notebooks </genjax/notebooks/index.html>`_
+The notebook repository is here: `GenJAX modeling & inference notebooks </genjax/notebooks/index.html>`_

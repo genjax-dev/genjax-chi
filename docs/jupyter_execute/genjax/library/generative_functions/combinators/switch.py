@@ -9,6 +9,9 @@ import jax
 import genjax
 
 
+console = genjax.pretty()
+
+
 @genjax.gen
 def branch_1(key):
     key, x = genjax.trace("x1", genjax.Normal)(key, 0.0, 1.0)
@@ -27,4 +30,4 @@ key = jax.random.PRNGKey(314159)
 jitted = jax.jit(genjax.simulate(switch))
 key, _ = jitted(key, (0,))
 key, tr = jitted(key, (1,))
-print(tr)
+console.print(tr)
