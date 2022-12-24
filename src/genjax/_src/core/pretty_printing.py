@@ -42,6 +42,7 @@ def simple_dtype(dtype) -> str:
     dtype = dtype.replace("float", "f")
     dtype = dtype.replace("uint", "u")
     dtype = dtype.replace("int", "s")
+    dtype = dtype.replace("key<fry>", "fry")
     return dtype
 
 

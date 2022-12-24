@@ -21,7 +21,7 @@ import rich
 import rich.traceback as traceback
 from rich.console import Console
 
-from genjax._src.generative_functions.builtin.graphviz import to_dot
+from genjax._src.generative_functions.builtin.graphviz import make_dot
 
 
 #####
@@ -69,8 +69,9 @@ class GenJAXConsole:
         else:
             objexplore.explore(module)
 
+    # EXPERIMENTAL.
     def graph(self, fn, *args):
-        g = to_dot(fn)(*args)
+        g = make_dot(fn)(*args)
         g = graphviz.Source(g)
         if is_notebook():
             return g
