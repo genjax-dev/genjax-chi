@@ -356,6 +356,39 @@ class MapCombinator(GenerativeFunction):
 
         return key, (retdiff, w, map_tr, discard)
 
+    # The choice map passed in here is empty, but perhaps
+    # the arguments have changed.
+    def _update_empty_chm(self, key, prev, chm, diffs):
+        def _fallback(key, prev, chm, diffs):
+            key, (retdiff, w, tr, d) = self.kernel.update(
+                key, prev, EmptyChoiceMap(), diffs
+            )
+            return key, (retdiff, w, tr, d)
+
+        # Get static axes.
+        key_axis = self.in_axes[0]
+        arg_axes = self.in_axes[1:]
+
+        prev_inaxes_tree = jtu.tree_map(
+            lambda v: None if v.shape == () else 0,
+            prev.inner,
+        )
+        key, (retdiff, w, tr, discard) = jax.vmap(
+            _fallback,
+            in_axes=(key_axis, prev_inaxes_tree, 0, arg_axes),
+        )(key, prev.inner, chm, diffs)
+
+        w = jnp.sum(w)
+        indices = jnp.array([i for i in range(0, len(key))])
+        map_tr = MapTrace(
+            self,
+            indices,
+            tr,
+            jnp.sum(tr.get_score()),
+        )
+
+        return key, (retdiff, w, map_tr, discard)
+
     # The choice map doesn't carry optimization info.
     def _update_fallback(self, key, prev, chm, diffs):
         def _update(key, prev, chm, diffs):
@@ -433,6 +466,8 @@ class MapCombinator(GenerativeFunction):
         # and runs a generic update.
         if isinstance(chm, VectorChoiceMap):
             return self._update_vcm(key, prev, chm, diffs)
+        elif isinstance(chm, EmptyChoiceMap):
+            return self._update_empty_chm(key, prev, chm, diffs)
         else:
             return self._update_fallback(key, prev, chm, diffs)
 
@@ -452,33 +487,32 @@ class MapCombinator(GenerativeFunction):
     def assess(self, key, chm, args):
         assert isinstance(chm, VectorChoiceMap)
 
-        def _inner(key, index, chm, args):
-            check = jnp.all(jnp.equal(index, chm.get_index()))
+        indices = jnp.array([i for i in range(0, len(key))])
+        check = jnp.all(jnp.equal(indices, chm.get_index()))
 
-            # This inserts a host callback check for bounds checking.
-            # If there is an index failure, `assess` must fail
-            # because we must provide a constraint for every generative
-            # function call.
-            concrete_cond(
-                check,
-                lambda *args: None,
-                lambda *args: self._throw_index_check_host_exception(
-                    index,
-                    chm.get_index(),
-                ),
-            )
-            inner = chm.inner
-
-            return self.kernel.assess(key, inner, args)
+        # This inserts a host callback check for bounds checking.
+        # If there is an index failure, `assess` must fail
+        # because we must provide a constraint for every generative
+        # function call.
+        concrete_cond(
+            check,
+            lambda *args: None,
+            lambda *args: self._throw_index_check_host_exception(
+                indices,
+                chm.get_index(),
+            ),
+        )
 
         # Get static axes.
         key_axis = self.in_axes[0]
         arg_axes = self.in_axes[1:]
+        inner = chm.inner
 
-        indices = jnp.array([i for i in range(0, len(key))])
-        return jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
+        key, (retval, score) = jax.vmap(
+            self.kernel.assess, in_axes=(key_axis, 0, arg_axes)
+        )(
             key,
-            indices,
-            chm,
+            inner,
             args,
         )
+        return key, (retval, jnp.sum(score))
