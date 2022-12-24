@@ -32,11 +32,11 @@ from genjax._src.core.diff_rules import UnknownChange
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Bool
-from genjax._src.core.typing import BoolTensor
+from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Float
-from genjax._src.core.typing import FloatTensor
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntTensor
+from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 
 
@@ -67,9 +67,9 @@ __all__ = [
     # Common GenJAX types.
     "PRNGKey",
     "Int",
-    "IntTensor",
+    "IntArray",
     "Float",
-    "FloatTensor",
+    "FloatArray",
     "Bool",
-    "BoolTensor",
+    "BoolArray",
 ]

@@ -16,6 +16,7 @@
 throughout the codebase."""
 
 from typing import Any
+from typing import Union
 
 import jax.numpy as jnp
 import numpy as np
@@ -28,12 +29,9 @@ from jaxtyping import Int
 PRNGKey = Int[Array, "..."]
 PrettyPrintable = Any
 Dataclass = Any
-FloatTensor = Float[Array, "..."]
-Float = float
-BoolTensor = Bool[Array, "..."]
-Bool = bool
-IntTensor = Int[Array, "..."]
-Int = int
+FloatArray = Union[float, Float[Array, "..."]]
+BoolArray = Union[bool, Bool[Array, "..."]]
+IntArray = Union[int, Int[Array, "..."]]
 
 
 def static_check_is_array(v):

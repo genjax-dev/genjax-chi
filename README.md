@@ -19,7 +19,7 @@
 
 ## Building + notebooks
 
-This project uses [poetry](https://python-poetry.org/) for dependency management, and [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
+This project uses [poetry](https://python-poetry.org/) for dependency management, [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building, and [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial documentation.
 
 Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
 

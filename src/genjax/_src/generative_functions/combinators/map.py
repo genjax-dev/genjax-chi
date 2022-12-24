@@ -29,8 +29,8 @@ from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
-from genjax._src.core.typing import FloatTensor
-from genjax._src.core.typing import IntTensor
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import IntArray
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -47,9 +47,9 @@ from genjax._src.generative_functions.combinators.combinator_tracetypes import (
 @dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
-    indices: IntTensor
+    indices: IntArray
     inner: Trace
-    score: FloatTensor
+    score: FloatArray
 
     def flatten(self):
         return (

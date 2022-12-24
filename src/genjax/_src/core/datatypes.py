@@ -29,8 +29,8 @@ from genjax._src.core.tracetypes import Bottom
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf
 from genjax._src.core.tree import Tree
-from genjax._src.core.typing import Bool
-from genjax._src.core.typing import Float
+from genjax._src.core.typing import BoolArray
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 
 
@@ -85,7 +85,7 @@ class Trace(ChoiceMap, Tree):
         pass
 
     @abc.abstractmethod
-    def get_score(self) -> Float:
+    def get_score(self) -> FloatArray:
         pass
 
     @abc.abstractmethod
@@ -104,7 +104,7 @@ class Trace(ChoiceMap, Tree):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
 
-    def has_subtree(self, addr) -> Bool:
+    def has_subtree(self, addr) -> BoolArray:
         choices = self.get_choices()
         return choices.has_subtree(addr)
 
@@ -223,7 +223,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[Float, Trace]]:
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, Trace]]:
         pass
 
     @abc.abstractmethod
@@ -233,7 +233,7 @@ class GenerativeFunction(Pytree):
         original: Trace,
         new: ChoiceMap,
         diffs: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[Any, Float, Trace, ChoiceMap]]:
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
         pass
 
     @abc.abstractmethod
@@ -242,7 +242,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         evaluation_point: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[Any, Float]]:
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         pass
 
     def unzip(
@@ -251,12 +251,12 @@ class GenerativeFunction(Pytree):
         fixed: ChoiceMap,
     ) -> Tuple[
         PRNGKey,
-        Callable[[ChoiceMap, Tuple], Float],
+        Callable[[ChoiceMap, Tuple], FloatArray],
         Callable[[ChoiceMap, Tuple], Any],
     ]:
         key, sub_key = jax.random.split(key)
 
-        def score(provided: ChoiceMap, args: Tuple) -> Float:
+        def score(provided: ChoiceMap, args: Tuple) -> FloatArray:
             merged = fixed.merge(provided)
             _, (_, score) = self.assess(sub_key, merged, args)
             return score
