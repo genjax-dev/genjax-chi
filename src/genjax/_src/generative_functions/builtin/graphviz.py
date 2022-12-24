@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module supports an adapted version of the :code:`to_dot` functionality
+"""EXPERIMENTAL: This module supports an adapted version of the :code:`to_dot` functionality
 from DeepMind's :code:`dm-haiku` library. For GenJAX, we've removed all
 references.
 
@@ -25,109 +25,35 @@ Conversion is implemented using an interpreter (defining its own :code:`jax.Trac
 """
 
 import collections
-import contextlib
 import functools
 import html
-import threading
-from typing import Any
-from typing import Callable
-from typing import ContextManager
-from typing import Generic
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-from typing import TypeVar
 
 import jax
+import jax.core as core
+import jax.tree_util as jtu
 import tree
 
-from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.pretty_printing import simple_dtype
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    BuiltinGenerativeFunction,
-)
+from genjax._src.core.staging import stage
+from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
 
 
-K = TypeVar("K")
-V = TypeVar("V")
-T = TypeVar("T")
-U = TypeVar("U")
-PyTreeDef = type(jax.tree_util.tree_structure(None))
+safe_map = core.safe_map
+safe_zip = core.safe_zip
 
-#########
-# Stack #
-#########
+########################
+# Graph representation #
+########################
 
-
-class Stack(Generic[T]):
-    """Stack supporting push/pop/peek."""
-
-    def __init__(self):
-        self._storage = collections.deque()
-
-    def __len__(self):
-        return len(self._storage)
-
-    def __iter__(self):
-        return iter(reversed(self._storage))
-
-    def clone(self):
-        return self.map(lambda v: v)
-
-    def map(self, fn: Callable[[T], U]) -> "Stack[U]":
-        s = type(self)()
-        for item in self._storage:
-            s.push(fn(item))
-        return s
-
-    def pushleft(self, elem: T):
-        self._storage.appendleft(elem)
-
-    def push(self, elem: T):
-        self._storage.append(elem)
-
-    def popleft(self) -> T:
-        return self._storage.popleft()
-
-    def pop(self) -> T:
-        return self._storage.pop()
-
-    def peek(self, depth=-1) -> T:
-        return self._storage[depth]
-
-    @contextlib.contextmanager
-    def __call__(self, elem):
-        self.push(elem)
-        try:
-            yield
-        finally:
-            assert self.pop() is elem
-
-
-class ThreadLocalStack(Stack[T], threading.local):
-    """Thread-local stack."""
-
-
-##############
-# Conversion #
-##############
-
-MethodHook = Callable[[GenerativeFunction], ContextManager[None]]
-method_hook_stack: ThreadLocalStack[MethodHook] = ThreadLocalStack()
-
-
-def hook_methods(method_hook: MethodHook) -> ContextManager[None]:
-    """Context manager that registers a given module method_hook."""
-    return method_hook_stack(method_hook)
-
-
-graph_stack = ThreadLocalStack()
 Node = collections.namedtuple("Node", "id,title,outputs")
 Edge = collections.namedtuple("Edge", "a,b")
 
 
 class Graph(NamedTuple):
-    """Represents a Graphviz digraph/subgraph.."""
+    """Represents a Graphviz digraph/subgraph."""
 
     title: str
     nodes: List[Node]
@@ -142,151 +68,100 @@ class Graph(NamedTuple):
         return Graph(**{**self._asdict(), **kwargs})
 
 
-def to_dot(fun: Callable[..., Any]) -> Callable[..., str]:
-    graph_fun = to_graph(fun)
-
-    @functools.wraps(fun)
-    def wrapped_fun(*args) -> str:
-        return _graph_to_dot(*graph_fun(*args))
-
-    return wrapped_fun
-
-
-def abstract_to_dot(fun: Callable[..., Any]) -> Callable[..., str]:
-    @functools.wraps(fun)
-    def wrapped_fun(*args) -> str:
-        dot_out = ""
-
-        # eval_shape cannot evaluate functions which return str, as str is not a
-        # valid JAX types.
-        # The following function extracts the created dot string during the
-        # abstract evaluation.
-        def dot_extractor_fn(*inner_args):
-            nonlocal dot_out
-            dot_out = to_dot(fun)(*inner_args)
-
-        jax.eval_shape(dot_extractor_fn, *args)
-        assert dot_out, "Failed to extract dot graph from abstract evaluation"
-        return dot_out
-
-    return wrapped_fun
+###############
+# Interpreter #
+###############
 
 
 def name_or_str(o):
     return getattr(o, "__name__", str(o))
 
 
-def to_graph(fun):
+# This is a custom interpreter, with minimal complexity.
+#
+# For Graphviz conversion, we just need a traversal pattern,
+# which doesn't need to stage out state, etc.
+
+
+def _handle_trace(*args, addr, gen_fn, tree_in):
+    key, *args = jtu.tree_unflatten(tree_in, args)
+    g, outvals = make_graph(gen_fn.__call__)(key, *args)
+    return g, outvals
+
+
+def eval_jaxpr_graph(jaxpr, consts, *args):
+    env = {}
+    node_env = {}
+    graph = Graph.create()
+
+    def read(var):
+        if type(var) is core.Literal:
+            return var.val
+        return env[var]
+
+    def write(var, val):
+        env[var] = val
+
+    def node_write(var, val):
+        node_env[var] = val
+
+    def node_read(var):
+        if type(var) is core.Literal:
+            return var.val
+        return node_env[var]
+
+    safe_map(write, jaxpr.invars, args)
+    safe_map(write, jaxpr.constvars, consts)
+    safe_map(node_write, jaxpr.invars, args)
+    safe_map(node_write, jaxpr.constvars, consts)
+
+    for v in consts:
+        node = Node(id=v, title=str(v), outputs=[v])
+        graph.nodes.append(node)
+
+    for eqn in jaxpr.eqns:
+        if eqn.primitive == gen_fn_p:
+            invals = safe_map(read, eqn.invars)
+            params = eqn.params
+            subgraph, outvals = _handle_trace(*invals, **params)
+            graph.subgraphs.append(subgraph)
+            id_name = outvals[0]
+            safe_map(write, eqn.outvars, outvals)
+            safe_map(node_write, eqn.outvars, [id_name for _ in eqn.outvars])
+        else:
+            outvals = [v.aval for v in eqn.outvars]
+            id_name = outvals[0]
+            primitive = eqn.primitive
+            node = Node(
+                id=id_name,
+                title=str(primitive),
+                outputs=outvals,
+            )
+            graph.nodes.append(node)
+            inodes = safe_map(node_read, eqn.invars)
+            graph.edges.extend([(i, id_name) for i in inodes])
+            safe_map(node_write, eqn.outvars, [id_name for _ in eqn.outvars])
+            safe_map(write, eqn.outvars, outvals)
+
+    outvals = safe_map(read, jaxpr.outvars)
+    return graph, outvals
+
+
+def make_graph(fun):
     @functools.wraps(fun)
     def wrapped_fun(*args):
-        """See `fun`."""
-        f = jax.linear_util.wrap_init(fun)
-        args_flat, in_tree = jax.tree_util.tree_flatten((args, {}))
-        flat_fun, out_tree = jax.api_util.flatten_fun(f, in_tree)
-        graph = Graph.create(title=name_or_str(fun))
-
-        @contextlib.contextmanager
-        def gen_fn_hook(gen_fn: BuiltinGenerativeFunction):
-            subg = Graph.create()
-            with graph_stack(subg):
-                yield
-            title = gen_fn.source.__name__
-            graph_stack.peek().subgraphs.append(
-                subg.evolve(title=title),
-            )
-
-        with graph_stack(graph), hook_methods(gen_fn_hook), jax.core.new_main(
-            DotTrace
-        ) as main:
-            out_flat = _interpret_subtrace(flat_fun, main).call_wrapped(
-                *args_flat
-            )
-        out = jax.tree_util.tree_unflatten(out_tree(), out_flat)
-
-        return graph, args, out
+        closed_jaxpr, (flat_args, _, _) = stage(fun)(*args)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        graph, outvals = eval_jaxpr_graph(jaxpr, consts, *flat_args)
+        graph = graph.evolve(title=name_or_str(fun))
+        return graph, outvals
 
     return wrapped_fun
 
 
-@jax.linear_util.transformation
-def _interpret_subtrace(main, *in_vals):
-    trace = DotTrace(main, jax.core.cur_sublevel())
-    in_tracers = [DotTracer(trace, val) for val in in_vals]
-    outs = yield in_tracers, {}
-    out_tracers = map(trace.full_raise, outs)
-    out_vals = [t.val for t in out_tracers]
-    yield out_vals
-
-
-class DotTracer(jax.core.Tracer):
-    """JAX tracer used in DotTrace."""
-
-    def __init__(self, trace, val):
-        super().__init__(trace)
-        self.val = val
-
-    @property
-    def aval(self):
-        return jax.core.get_aval(self.val)
-
-    def full_lower(self):
-        return self
-
-
-class DotTrace(jax.core.Trace):
-    """Traces a JAX function to dot."""
-
-    def pure(self, val):
-        return DotTracer(self, val)
-
-    def lift(self, val):
-        return DotTracer(self, val)
-
-    def sublift(self, val):
-        return DotTracer(self, val.val)
-
-    def process_primitive(self, primitive, tracers, params):
-        val_out = primitive.bind(*[t.val for t in tracers], **params)
-
-        inputs = [t.val for t in tracers]
-        outputs = list(jax.tree_util.tree_leaves(val_out))
-
-        graph = graph_stack.peek()
-        node = Node(id=outputs[0], title=str(primitive), outputs=outputs)
-        graph.nodes.append(node)
-        graph.edges.extend([(i, outputs[0]) for i in inputs])
-
-        return jax.tree_util.tree_map(lambda v: DotTracer(self, v), val_out)
-
-    def process_call(self, call_primitive, f, tracers, params):
-        assert call_primitive.multiple_results
-        if call_primitive is jax.interpreters.xla.xla_call_p and params.get(
-            "inline", False
-        ):
-            f = _interpret_subtrace(f, self.main)
-            vals_out = f.call_wrapped(*[t.val for t in tracers])
-            return [DotTracer(self, v) for v in vals_out]
-
-        graph = Graph.create(title=f"{call_primitive} ({name_or_str(f.f)})")
-        graph_stack.peek().subgraphs.append(graph)
-        with graph_stack(graph):
-            f = _interpret_subtrace(f, self.main)
-            vals_out = f.call_wrapped(*[t.val for t in tracers])
-            return [DotTracer(self, v) for v in vals_out]
-
-    process_map = process_call
-
-    def process_custom_jvp_call(self, primitive, fun, jvp, tracers):
-        # Drop the custom differentiation rule.
-        del primitive, jvp  # Unused.
-        return fun.call_wrapped(*tracers)
-
-    def process_custom_vjp_call(
-        self, primitive, fun, fwd, bwd, tracers, out_trees
-    ):
-        # Drop the custom differentiation rule.
-        del primitive, fwd, bwd, out_trees  # Unused.
-        return fun.call_wrapped(*tracers)
+##############
+# Transpiler #
+##############
 
 
 def _format_val(val):
@@ -313,7 +188,7 @@ def _scaled_font_size(depth: int) -> int:
     return int(1.4**depth * 14)
 
 
-def _graph_to_dot(graph: Graph, args, outputs) -> str:
+def graph_to_dot(graph: Graph, args, outputs) -> str:
     """Converts from an internal graph IR to 'dot' format."""
 
     def format_path(path):
@@ -496,3 +371,13 @@ def _graph_to_dot(graph: Graph, args, outputs) -> str:
 
     lines.append("} // digraph G")
     return "\n".join(head + lines) + "\n"
+
+
+def make_dot(fun):
+    @functools.wraps(fun)
+    def wrapped_fun(*args):
+        graph, outvals = make_graph(fun)(*args)
+        dot = graph_to_dot(graph, args, outvals)
+        return dot
+
+    return wrapped_fun
