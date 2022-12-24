@@ -19,6 +19,7 @@ from typing import Tuple
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
+from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.staging import stage
 from genjax._src.generative_functions.builtin.builtin_datatypes import (
     BuiltinTrace,
@@ -77,6 +78,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def update(self, key, prev, new, args, **kwargs):
         assert isinstance(new, ChoiceMap)
         assert isinstance(args, Tuple)
+        assert all(map(check_is_diff, args))
         (
             key,
             (
