@@ -37,7 +37,7 @@ This project uses [poetry](https://python-poetry.org/) for dependency management
 
 Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
 
-### Environment script
+### Environment setup script
 
 Here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute the notebooks, etc.
 
