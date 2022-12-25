@@ -38,7 +38,6 @@ website:
           - advanced/smc_language/smc_language.ipynb
           - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
   page-footer:
-    background: dark
     left: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
     right:
       - icon: github
