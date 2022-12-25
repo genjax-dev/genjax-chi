@@ -1,6 +1,6 @@
 # Diffing against Gen.jl
 
-`GenJAX` is descended and inherits concepts and reference implementations from [`Gen.jl`][gen.jl] - but there are a few differences that mostly stem from JAX's underlying array programming model. In this section, we describe several of these differences and try to highlight workarounds or discuss the reason for the discrepancy.
+`GenJAX` is inherits concepts from Gen and algorithm reference implementations from [`Gen.jl`][gen.jl] - there are a few necessary design deviations between `GenJAX` and `Gen.jl` that stem from JAX's underlying array programming model. In this section, we describe several of these differences and try to highlight workarounds or discuss the reason for the discrepancy.
 
 ## Turing universality
 
@@ -24,9 +24,9 @@ Just like JAX, GenJAX disallows mutation - expressing a mutation to an array mus
 
 ## To JIT or not to JIT
 
-[`Gen.jl`][gen.jl] is written in Julia, which automatically JITs everything. `GenJAX`, by virtue of being constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed. Thus, the idioms that are used to express inference code has a small diff compared to [`Gen.jl`][gen.jl] - inference algorithms normally accept some set of static arguments (like generative function instances) and return functions which close over these arguments, and can be jitted by the user. You can read a bit more about this in :doc:`inference/best_practices`.
+[`Gen.jl`][gen.jl] is written in Julia, which automatically JITs everything. `GenJAX`, by virtue of being constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed. Thus, the idioms that are used to express and optimize inference code are necessarily different compared to [`Gen.jl`][gen.jl]. In the inference standard library, you'll typically find algorithms implemented as dataclasses which inherit (and implement) the `jax.Pytree` interfaces. Implementing these interfaces allow usage of inference dataclasses and methods in jittable code - and, as a bonus, allow us to be specific about trace vs. runtime known values.
 
-In general, it's productive to enclose as much of a computation as possible in a :code:`jax.jit` block. This can sometimes lead to long trace times. If trace times are ballooning, a common source is explicit for-loops (with known bounds, else JAX will complain). In these cases, you might look at [Advice on speeding up compilation time][jax speeding up compilation].
+In general, it's productive to enclose as much of a computation as possible in a `jax.jit` block. This can sometimes lead to long trace times. If trace times are ballooning, a common source is explicit for-loops (with known bounds, else JAX will complain). In these cases, you might look at [Advice on speeding up compilation time][jax speeding up compilation]. We've taken care to optimize (by e.g. using XLA primitives) the code which we expose from GenJAX - but if you find something out of the ordinary, file an issue!
 
 [gen.jl]: https://github.com/probcomp/Gen.jl
 [jax speeding up compilation]: https://github.com/google/jax/discussions/3732
