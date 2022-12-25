@@ -120,14 +120,12 @@ class SwitchCombinator(GenerativeFunction):
         console = genjax.pretty()
 
         @genjax.gen
-        def branch_1(key):
-            key, x = genjax.trace("x1", genjax.Normal)(key, 0.0, 1.0)
-            return (key, )
+        def branch_1():
+            x = genjax.trace("x1", genjax.Normal)(0.0, 1.0)
 
         @genjax.gen
-        def branch_2(key):
-            key, x = genjax.trace("x2", genjax.Bernoulli)(key, 0.3)
-            return (key, )
+        def branch_2():
+            x = genjax.trace("x2", genjax.Bernoulli)(0.3)
 
         switch = genjax.SwitchCombinator([branch_1, branch_2])
 

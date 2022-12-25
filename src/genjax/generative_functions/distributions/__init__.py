@@ -12,13 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.distributions import Bates
 from genjax._src.generative_functions.distributions import Bernoulli
-from genjax._src.generative_functions.distributions import Beta
-from genjax._src.generative_functions.distributions import Categorical
 from genjax._src.generative_functions.distributions import Cauchy
-from genjax._src.generative_functions.distributions import Chi
-from genjax._src.generative_functions.distributions import Chi2
 from genjax._src.generative_functions.distributions import Dirichlet
 from genjax._src.generative_functions.distributions import DiscreteHMM
 from genjax._src.generative_functions.distributions import (
@@ -28,81 +23,84 @@ from genjax._src.generative_functions.distributions import Distribution
 from genjax._src.generative_functions.distributions import ExactDensity
 from genjax._src.generative_functions.distributions import Exponential
 from genjax._src.generative_functions.distributions import Gamma
-from genjax._src.generative_functions.distributions import Geometric
-from genjax._src.generative_functions.distributions import Gumbel
-from genjax._src.generative_functions.distributions import HalfCauchy
-from genjax._src.generative_functions.distributions import HalfNormal
-from genjax._src.generative_functions.distributions import HalfStudentT
-from genjax._src.generative_functions.distributions import InverseGamma
-from genjax._src.generative_functions.distributions import Kumaraswamy
 from genjax._src.generative_functions.distributions import Laplace
 from genjax._src.generative_functions.distributions import Logistic
-from genjax._src.generative_functions.distributions import LogitNormal
-from genjax._src.generative_functions.distributions import Moyal
-from genjax._src.generative_functions.distributions import Multinomial
 from genjax._src.generative_functions.distributions import MvNormal
-from genjax._src.generative_functions.distributions import NegativeBinomial
 from genjax._src.generative_functions.distributions import Normal
 from genjax._src.generative_functions.distributions import Pareto
-from genjax._src.generative_functions.distributions import PlackettLuce
 from genjax._src.generative_functions.distributions import Poisson
-from genjax._src.generative_functions.distributions import PowerSpherical
-from genjax._src.generative_functions.distributions import Skellam
-from genjax._src.generative_functions.distributions import StudentT
+from genjax._src.generative_functions.distributions import TFPBates
 from genjax._src.generative_functions.distributions import TFPCategorical
+from genjax._src.generative_functions.distributions import TFPChi
+from genjax._src.generative_functions.distributions import TFPChi2
+from genjax._src.generative_functions.distributions import TFPGeometric
+from genjax._src.generative_functions.distributions import TFPGumbel
+from genjax._src.generative_functions.distributions import TFPHalfCauchy
+from genjax._src.generative_functions.distributions import TFPHalfNormal
+from genjax._src.generative_functions.distributions import TFPHalfStudentT
+from genjax._src.generative_functions.distributions import TFPInverseGamma
+from genjax._src.generative_functions.distributions import TFPKumaraswamy
+from genjax._src.generative_functions.distributions import TFPLogitNormal
+from genjax._src.generative_functions.distributions import TFPMixture
+from genjax._src.generative_functions.distributions import TFPMoyal
+from genjax._src.generative_functions.distributions import TFPMultinomial
+from genjax._src.generative_functions.distributions import TFPNegativeBinomial
 from genjax._src.generative_functions.distributions import TFPNormal
-from genjax._src.generative_functions.distributions import TruncatedCauchy
-from genjax._src.generative_functions.distributions import TruncatedNormal
-from genjax._src.generative_functions.distributions import Uniform
-from genjax._src.generative_functions.distributions import VonMises
-from genjax._src.generative_functions.distributions import VonMisesFisher
-from genjax._src.generative_functions.distributions import Weibull
-from genjax._src.generative_functions.distributions import Zipf
+from genjax._src.generative_functions.distributions import TFPPlackettLuce
+from genjax._src.generative_functions.distributions import TFPPowerSpherical
+from genjax._src.generative_functions.distributions import TFPSkellam
+from genjax._src.generative_functions.distributions import TFPStudentT
+from genjax._src.generative_functions.distributions import TFPTruncatedCauchy
+from genjax._src.generative_functions.distributions import TFPTruncatedNormal
+from genjax._src.generative_functions.distributions import TFPUniform
+from genjax._src.generative_functions.distributions import TFPVonMises
+from genjax._src.generative_functions.distributions import TFPVonMisesFisher
+from genjax._src.generative_functions.distributions import TFPWeibull
+from genjax._src.generative_functions.distributions import TFPZipf
 
 
 __all__ = [
+    "TFPBates",
+    "TFPChi",
+    "TFPChi2",
+    "TFPGeometric",
+    "TFPGumbel",
+    "TFPHalfCauchy",
+    "TFPHalfNormal",
+    "TFPHalfStudentT",
+    "TFPInverseGamma",
+    "TFPKumaraswamy",
+    "TFPLogitNormal",
+    "TFPMoyal",
+    "TFPMultinomial",
+    "TFPNegativeBinomial",
+    "TFPPlackettLuce",
+    "TFPPowerSpherical",
+    "TFPSkellam",
+    "TFPStudentT",
+    "TFPNormal",
+    "TFPCategorical",
+    "TFPTruncatedCauchy",
+    "TFPTruncatedNormal",
+    "TFPUniform",
+    "TFPVonMises",
+    "TFPVonMisesFisher",
+    "TFPWeibull",
+    "TFPZipf",
+    "TFPMixture",
     "Distribution",
+    "ExactDensity",
     "Bernoulli",
-    "Beta",
-    "Categorical",
-    "Normal",
     "Cauchy",
     "Dirichlet",
+    "DiscreteHMM",
+    "DiscreteHMMConfiguration",
     "Exponential",
     "Gamma",
     "Laplace",
     "Logistic",
     "MvNormal",
+    "Normal",
     "Pareto",
     "Poisson",
-    "ExactDensity",
-    "Bates",
-    "Chi",
-    "Chi2",
-    "Geometric",
-    "Gumbel",
-    "HalfCauchy",
-    "HalfNormal",
-    "HalfStudentT",
-    "InverseGamma",
-    "Kumaraswamy",
-    "LogitNormal",
-    "Moyal",
-    "Multinomial",
-    "NegativeBinomial",
-    "PlackettLuce",
-    "PowerSpherical",
-    "Skellam",
-    "StudentT",
-    "TFPNormal",
-    "TFPCategorical",
-    "TruncatedCauchy",
-    "TruncatedNormal",
-    "Uniform",
-    "VonMises",
-    "VonMisesFisher",
-    "Weibull",
-    "Zipf",
-    "DiscreteHMMConfiguration",
-    "DiscreteHMM",
 ]

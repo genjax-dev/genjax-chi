@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
 import jax.core as core
 import jax.tree_util as jtu
 
@@ -37,13 +38,18 @@ cache_p = core.Primitive("cache")
 def _trace(addr, call, *args, **kwargs):
     assert isinstance(call, GenerativeFunction)
     flat_args, tree_in = jtu.tree_flatten(args)
-    return gen_fn_p.bind(
+    retvals = gen_fn_p.bind(
         *flat_args,
         addr=addr,
         gen_fn=call,
         tree_in=tree_in,
         **kwargs,
     )
+    # Collapse single arity returns.
+    retvals = tuple(retvals)
+    if len(retvals) == 1:
+        retvals = retvals[0]
+    return retvals
 
 
 def trace(addr, call, **kwargs):
@@ -56,30 +62,17 @@ def trace(addr, call, **kwargs):
 
 
 #####
-# Concrete evaluation for trace
-#####
-
-
-def gen_fn_eval(*args, addr, gen_fn, tree_in, **kwargs):
-    args = jtu.tree_unflatten(tree_in, args)
-    return gen_fn.__call__(*args, **kwargs)
-
-
-gen_fn_p.def_impl(gen_fn_eval)
-
-#####
 # Abstract evaluation for trace
 #####
 
-
+# Here, we create a stub key for abstract evaluation.
+# Only the shape matters.
 def gen_fn_abstract_eval(*args, addr, gen_fn, tree_in, **kwargs):
+    stub_key = jax.random.PRNGKey(0)
     args = jtu.tree_unflatten(tree_in, args)
-
-    def _inner(*args):
-        return gen_fn.__call__(*args, **kwargs)
-
-    closed_jaxpr, _ = stage(gen_fn)(*args)
-    return closed_jaxpr.out_avals
+    closed_jaxpr, _ = stage(gen_fn)(stub_key, *args)
+    retvals = closed_jaxpr.out_avals[1:]
+    return retvals
 
 
 gen_fn_p.def_abstract_eval(gen_fn_abstract_eval)

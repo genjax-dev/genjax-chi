@@ -17,11 +17,13 @@ import functools
 from typing import Any
 from typing import List
 
+import jax.core as core
 import jax.tree_util as jtu
-from jax import core as jax_core
 from jax.interpreters import xla
 
+from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
+from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import Diff
 from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import check_is_diff
@@ -34,10 +36,12 @@ from genjax._src.core.propagate import Handler
 from genjax._src.core.propagate import PropagationInterpreter
 from genjax._src.core.propagate import PropagationRules
 from genjax._src.core.propagate import flat_propagate
-from genjax._src.core.propagate import map_outcells
+from genjax._src.core.propagate import flatmap_outcells
 from genjax._src.core.specialization import is_concrete
 from genjax._src.core.staging import get_shaped_aval
 from genjax._src.core.staging import stage
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
@@ -48,19 +52,8 @@ from genjax._src.generative_functions.builtin.intrinsics import cache_p
 from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
 
 
-safe_map = jax_core.safe_map
-safe_zip = jax_core.safe_zip
-
-#####
-# Utilities
-#####
-
-
-def static_check_not_none(key, retvals):
-    assert key is not None
-    for r in retvals:
-        assert r is not None
-
+safe_map = core.safe_map
+safe_zip = core.safe_zip
 
 ##################################################
 # Bare values (for interfaces sans change types) #
@@ -140,9 +133,7 @@ bare_call_rules = {}
 bare_call_rules[xla.xla_call_p] = functools.partial(
     bare_call_p_rule, xla.xla_call_p
 )
-bare_call_rules[jax_core.call_p] = functools.partial(
-    bare_call_p_rule, jax_core.call_p
-)
+bare_call_rules[core.call_p] = functools.partial(bare_call_p_rule, core.call_p)
 
 bare_propagation_rules = PropagationRules(bare_fallback_rule, bare_call_rules)
 
@@ -155,12 +146,29 @@ bare_propagation_rules = PropagationRules(bare_fallback_rule, bare_call_rules)
 #####
 
 
+@dataclasses.dataclass
 class Simulate(Handler):
-    def __init__(self):
-        self.handles = [gen_fn_p, cache_p]
-        self.choice_state = BuiltinChoiceMap(hashabledict())
-        self.cache_state = BuiltinTrie(hashabledict())
-        self.score = 0.0
+    handles: List[core.Primitive]
+    key: PRNGKey
+    score: FloatArray
+    choice_state: ChoiceMap
+    cache_state: BuiltinTrie
+
+    def flatten(self):
+        return (
+            self.key,
+            self.score,
+            self.choice_state,
+            self.cache_state,
+        ), (self.handles,)
+
+    @classmethod
+    def new(cls, key: PRNGKey):
+        score = 0.0
+        choice_state = BuiltinChoiceMap(hashabledict())
+        cache_state = BuiltinTrie(hashabledict())
+        handles = [gen_fn_p, cache_p]
+        return Simulate(handles, key, score, choice_state, cache_state)
 
     def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
@@ -170,12 +178,12 @@ class Simulate(Handler):
             return incells, outcells, None
 
         values = map(lambda v: v.get_val(), incells)
-        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = jtu.tree_unflatten(tree_in, values)
         args = tuple(args)
 
         # Otherwise, we send simulate down to the generative function
         # callee.
-        key, tr = gen_fn.simulate(key, args, **kwargs)
+        self.key, tr = gen_fn.simulate(self.key, args, **kwargs)
         score = tr.get_score()
         self.choice_state[addr] = tr
         self.score += score
@@ -184,8 +192,7 @@ class Simulate(Handler):
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
         v = tr.get_retval()
-        new_v_outcells = map_outcells(Bare, v)
-        new_outcells = [Bare.new(key), *new_v_outcells]
+        new_outcells = flatmap_outcells(Bare, v)
 
         return incells, new_outcells, None
 
@@ -206,16 +213,19 @@ class Simulate(Handler):
         # Here, we keep the outcells dimension (e.g. the same as
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
-        new_outcells = map_outcells(Bare, retval)
+        new_outcells = flatmap_outcells(Bare, retval)
 
         return incells, new_outcells, None
 
 
-def simulate_transform(f, **kwargs):
+def simulate_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
     def _inner(key, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(f)(key, *args, **kwargs)
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(
+            *args, **kwargs
+        )
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Simulate()
+        handler = Simulate.new(key)
         with PropagationInterpreter.new(
             Bare, bare_propagation_rules, handler
         ) as interpreter:
@@ -227,20 +237,13 @@ def simulate_transform(f, **kwargs):
             )
             flat_out = safe_map(final_env.read, jaxpr.outvars)
             flat_out = map(lambda v: v.get_val(), flat_out)
-            key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
-            key, *retvals = key_and_returns
-            retvals = tuple(retvals)
+            retvals = jtu.tree_unflatten(out_tree, flat_out)
             score = handler.score
-            chm = handler.choice_state
+            constraints = handler.choice_state
             cache = handler.cache_state
+            key = handler.key
 
-        # If propagation succeeded, no value should be
-        # None at this point.
-        static_check_not_none(key, retvals)
-        if len(retvals) == 1:
-            retvals = retvals[0]
-
-        return key, (f, args, retvals, chm, score), cache
+        return key, (source_fn, args, retvals, constraints, score), cache
 
     return _inner
 
@@ -250,14 +253,36 @@ def simulate_transform(f, **kwargs):
 #####
 
 
+@dataclasses.dataclass
 class Importance(Handler):
-    def __init__(self, constraints):
-        self.handles = [gen_fn_p, cache_p]
-        self.choice_state = BuiltinChoiceMap(hashabledict())
-        self.cache_state = BuiltinTrie(hashabledict())
-        self.score = 0.0
-        self.weight = 0.0
-        self.constraints = constraints
+    handles: List[core.Primitive]
+    key: PRNGKey
+    score: FloatArray
+    weight: FloatArray
+    constraints: ChoiceMap
+    choice_state: ChoiceMap
+    cache_state: BuiltinTrie
+
+    def flatten(self):
+        return (
+            self.key,
+            self.score,
+            self.weight,
+            self.constraints,
+            self.choice_state,
+            self.cache_state,
+        ), (self.handles,)
+
+    @classmethod
+    def new(cls, key, constraints):
+        handles = [gen_fn_p, cache_p]
+        score = 0.0
+        weight = 0.0
+        choice_state = BuiltinChoiceMap(hashabledict())
+        cache_state = BuiltinTrie(hashabledict())
+        return Importance(
+            handles, key, score, weight, constraints, choice_state, cache_state
+        )
 
     def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
@@ -267,14 +292,14 @@ class Importance(Handler):
             return incells, outcells, None
 
         # Otherwise, we proceed with code generation.
-        values = map(lambda v: v.get_val(), incells)
-        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = map(lambda v: v.get_val(), incells)
+        args = jtu.tree_unflatten(tree_in, args)
         args = tuple(args)
         if self.constraints.has_subtree(addr):
             sub_map = self.constraints.get_subtree(addr)
         else:
             sub_map = EmptyChoiceMap()
-        key, (w, tr) = gen_fn.importance(key, sub_map, args)
+        self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
         self.choice_state[addr] = tr
         self.score += tr.get_score()
         self.weight += w
@@ -283,8 +308,7 @@ class Importance(Handler):
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
         v = tr.get_retval()
-        new_v_outcells = map_outcells(Bare, v)
-        new_outcells = [Bare.new(key), *new_v_outcells]
+        new_outcells = flatmap_outcells(Bare, v)
 
         return incells, new_outcells, None
 
@@ -303,18 +327,19 @@ class Importance(Handler):
         # Here, we keep the outcells dimension (e.g. the same as
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
-        new_outcells = map_outcells(Bare, retval)
+        new_outcells = flatmap_outcells(Bare, retval)
 
         return incells, new_outcells, None
 
 
-def importance_transform(f, **kwargs):
-    def _inner(key, chm, args):
-        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
-            key, *args, **kwargs
+def importance_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
+    def _inner(key, constraints, args):
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(
+            *args, **kwargs
         )
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Importance(chm)
+        handler = Importance.new(key, constraints)
         with PropagationInterpreter.new(
             Bare, bare_propagation_rules, handler
         ) as interpreter:
@@ -326,21 +351,14 @@ def importance_transform(f, **kwargs):
             )
             flat_out = safe_map(final_env.read, jaxpr.outvars)
             flat_out = map(lambda v: v.get_val(), flat_out)
-            key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
-            key, *retvals = key_and_returns
-            retvals = tuple(retvals)
+            retvals = jtu.tree_unflatten(out_tree, flat_out)
             w = handler.weight
             score = handler.score
-            chm = handler.choice_state
+            constraints = handler.choice_state
             cache = handler.cache_state
+            key = handler.key
 
-        # If propagation succeeded, no value should be
-        # None at this point.
-        static_check_not_none(key, retvals)
-        if len(retvals) == 1:
-            retvals = retvals[0]
-
-        return key, (w, (f, args, retvals, chm, score)), cache
+        return key, (w, (source_fn, args, retvals, constraints, score)), cache
 
     return _inner
 
@@ -350,15 +368,49 @@ def importance_transform(f, **kwargs):
 #####
 
 
+@dataclasses.dataclass
 class Update(Handler):
-    def __init__(self, prev, new):
-        self.handles = [gen_fn_p, cache_p]
-        self.choice_state = BuiltinChoiceMap(hashabledict())
-        self.cache_state = BuiltinTrie(hashabledict())
-        self.discard = BuiltinChoiceMap(hashabledict())
-        self.weight = 0.0
-        self.prev = prev
-        self.choice_change = new
+    handles: List[core.Primitive]
+    key: PRNGKey
+    score: FloatArray
+    weight: FloatArray
+    previous_trace: Trace
+    constraints: ChoiceMap
+    discard: ChoiceMap
+    choice_state: ChoiceMap
+    cache_state: BuiltinTrie
+
+    def flatten(self):
+        return (
+            self.key,
+            self.score,
+            self.weight,
+            self.previous_trace,
+            self.constraints,
+            self.discard,
+            self.choice_state,
+            self.cache_state,
+        ), (self.handles,)
+
+    @classmethod
+    def new(cls, key, previous_trace, constraints):
+        handles = [gen_fn_p, cache_p]
+        score = 0.0
+        weight = 0.0
+        choice_state = BuiltinChoiceMap(hashabledict())
+        cache_state = BuiltinTrie(hashabledict())
+        discard = BuiltinChoiceMap(hashabledict())
+        return Update(
+            handles,
+            key,
+            score,
+            weight,
+            previous_trace,
+            constraints,
+            discard,
+            choice_state,
+            cache_state,
+        )
 
     def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
@@ -367,11 +419,10 @@ class Update(Handler):
         if any(map(lambda v: v.bottom(), incells)):
             return incells, outcells, None
 
-        key, *diffs = jtu.tree_unflatten(tree_in, incells)
-        key = key.get_val()
-        diffs = tuple(diffs)
-        has_previous = self.prev.has_subtree(addr)
-        constrained = self.choice_change.has_subtree(addr)
+        argdiffs = jtu.tree_unflatten(tree_in, incells)
+        argdiffs = tuple(argdiffs)
+        has_previous = self.previous_trace.has_subtree(addr)
+        constrained = self.constraints.has_subtree(addr)
 
         # If no changes, we can just short-circuit.
         if (
@@ -381,17 +432,14 @@ class Update(Handler):
             and not constrained
             and all(map(check_no_change, incells))
         ):
-            prev = self.prev.get_subtree(addr)
-            self.choice_state[addr] = prev
+            subtrace = self.previous_trace.get_subtree(addr)
+            self.choice_state[addr] = subtrace
 
             # Here, we keep the outcells dimension (e.g. the same as
             # the number of outgoing variables in the equation) invariant
             # under our expansion.
-            v = prev.get_retval()
-            new_outcells = [
-                Diff.new(key, change=NoChange),
-                *map_outcells(Bare, v, change=NoChange),
-            ]
+            v = subtrace.get_retval()
+            new_outcells = flatmap_outcells(Bare, v, change=NoChange)
             return (
                 incells,
                 new_outcells,
@@ -399,14 +447,13 @@ class Update(Handler):
             )
 
         # Otherwise, we proceed with code generation.
-        prev_tr = self.prev.get_subtree(addr)
-        diffs = tuple(diffs)
+        subtrace = self.previous_trace.get_subtree(addr)
         if constrained:
-            chm = self.choice_change.get_subtree(addr)
+            subconstraints = self.constraints.get_subtree(addr)
         else:
-            chm = EmptyChoiceMap()
-        key, (retval_diff, w, tr, discard) = gen_fn.update(
-            key, prev_tr, chm, diffs
+            subconstraints = EmptyChoiceMap()
+        self.key, (retval_diff, w, tr, discard) = gen_fn.update(
+            self.key, subtrace, subconstraints, argdiffs
         )
 
         self.weight += w
@@ -416,10 +463,7 @@ class Update(Handler):
         # Here, we keep the outcells dimension (e.g. the same as
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
-        new_outcells = [
-            Diff.new(key),
-            *map_outcells(Diff, retval_diff),
-        ]
+        new_outcells = flatmap_outcells(Diff, retval_diff)
 
         return incells, new_outcells, None
 
@@ -431,7 +475,7 @@ class Update(Handler):
             return incells, outcells, None
 
         args = tuple(map(lambda v: v.get_val(), incells))
-        has_value = self.prev.has_cached_value(addr)
+        has_value = self.previous_trace.has_cached_value(addr)
 
         # If no changes, we can just fetch from trace.
         if (
@@ -439,13 +483,13 @@ class Update(Handler):
             and has_value
             and all(map(check_no_change, incells))
         ):
-            cached_value = self.prev.get_cached_value(addr)
+            cached_value = self.previous_trace.get_cached_value(addr)
             self.cache_state[addr] = cached_value
 
             # Here, we keep the outcells dimension (e.g. the same as
             # the number of outgoing variables in the equation) invariant
             # under our expansion.
-            new_outcells = map_outcells(
+            new_outcells = flatmap_outcells(
                 Diff,
                 cached_value,
                 change=NoChange,
@@ -460,49 +504,56 @@ class Update(Handler):
         # Here, we keep the outcells dimension (e.g. the same as
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
-        new_outcells = map_outcells(Bare, retval)
+        new_outcells = flatmap_outcells(Bare, retval)
 
         return incells, new_outcells, None
 
 
-def update_transform(f, **kwargs):
-    def _inner(key, prev, new, diffs):
-        vals = jtu.tree_map(strip_diff, diffs, is_leaf=check_is_diff)
-        jaxpr, (flat_args, in_tree, out_tree) = stage(f)(key, *vals, **kwargs)
+def update_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
+    def _inner(key, previous_trace, constraints, argdiffs):
+        vals = jtu.tree_map(strip_diff, argdiffs, is_leaf=check_is_diff)
+        jaxpr, (_, _, out_tree) = stage(source_fn)(*vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
-        handler = Update(prev, new)
+        handler = Update.new(key, previous_trace, constraints)
         with PropagationInterpreter.new(
             Diff, diff_propagation_rules, handler
         ) as interpreter:
-            flat_diffs, _ = jtu.tree_flatten(diffs, is_leaf=check_is_diff)
+            flat_argdiffs, _ = jtu.tree_flatten(
+                argdiffs, is_leaf=check_is_diff
+            )
             final_env, _ = interpreter(
                 jaxpr,
                 [Diff.new(v, change=NoChange) for v in consts],
-                [Diff.new(key), *flat_diffs],
+                flat_argdiffs,
                 [Diff.unknown(var.aval) for var in jaxpr.outvars],
             )
 
-            key, *retval_diffs = safe_map(final_env.read, jaxpr.outvars)
+            flat_retval_diffs = safe_map(final_env.read, jaxpr.outvars)
+            retval_diffs = jtu.tree_unflatten(
+                out_tree,
+                flat_retval_diffs,
+            )
+            retvals = tuple(map(strip_diff, flat_retval_diffs))
+            retvals = jtu.tree_unflatten(out_tree, retvals)
             w = handler.weight
-            chm = handler.choice_state
+            constraints = handler.choice_state
             cache = handler.cache_state
             discard = handler.discard
-            key = key.get_val()
-            retvals = tuple(map(strip_diff, retval_diffs))
-            retval_diffs = tuple(retval_diffs)
-
-        # If propagation succeeded, no value should be
-        # None at this point.
-        static_check_not_none(key, retvals)
-        if len(retvals) == 1:
-            retvals = retvals[0]
+            key = handler.key
 
         return (
             key,
             (
                 retval_diffs,
                 w,
-                (f, vals, retvals, chm, prev.get_score() + w),
+                (
+                    source_fn,
+                    vals,
+                    retvals,
+                    constraints,
+                    previous_trace.get_score() + w,
+                ),
                 discard,
             ),
             cache,
@@ -516,14 +567,28 @@ def update_transform(f, **kwargs):
 #####
 
 
+@dataclasses.dataclass
 class Assess(Handler):
-    def __init__(self, provided):
-        self.handles = [gen_fn_p, cache_p]
-        self.provided = provided
-        self.score = 0.0
+    handles: List[core.Primitive]
+    key: PRNGKey
+    score: FloatArray
+    constraints: ChoiceMap
+
+    def flatten(self):
+        return (
+            self.key,
+            self.score,
+            self.constraints,
+        ), (self.handles,)
+
+    @classmethod
+    def new(cls, key, constraints):
+        handles = [gen_fn_p, cache_p]
+        score = 0.0
+        return Assess(handles, key, score, constraints)
 
     def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
-        assert self.provided.has_subtree(addr)
+        assert self.constraints.has_subtree(addr)
 
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
@@ -533,17 +598,16 @@ class Assess(Handler):
 
         # Otherwise, we continue with code generation.
         values = map(lambda v: v.get_val(), incells)
-        key, *args = jtu.tree_unflatten(tree_in, values)
+        args = jtu.tree_unflatten(tree_in, values)
         args = tuple(args)
-        submap = self.provided.get_subtree(addr)
-        key, (v, score) = gen_fn.assess(key, submap, args)
+        submap = self.constraints.get_subtree(addr)
+        self.key, (v, score) = gen_fn.assess(self.key, submap, args)
         self.score += score
 
         # Here, we keep the outcells dimension (e.g. the same as
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
-        new_v_outcells = map_outcells(Bare, v)
-        new_outcells = [Bare.new(key), *new_v_outcells]
+        new_outcells = flatmap_outcells(Bare, v)
 
         return incells, new_outcells, None
 
@@ -561,18 +625,19 @@ class Assess(Handler):
         # Here, we keep the outcells dimension (e.g. the same as
         # the number of outgoing variables in the equation) invariant
         # under our expansion.
-        new_outcells = map_outcells(Bare, retval)
+        new_outcells = flatmap_outcells(Bare, retval)
 
         return incells, new_outcells, None
 
 
-def assess_transform(f, **kwargs):
-    def _inner(key, chm, args):
-        closed_jaxpr, (flat_args, in_tree, out_tree) = stage(f)(
-            key, *args, **kwargs
+def assess_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
+    def _inner(key, constraints, args):
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(
+            *args, **kwargs
         )
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Assess(chm)
+        handler = Assess.new(key, constraints)
         with PropagationInterpreter.new(
             Bare, bare_propagation_rules, handler
         ) as interpreter:
@@ -584,16 +649,9 @@ def assess_transform(f, **kwargs):
             )
             flat_out = safe_map(final_env.read, jaxpr.outvars)
             flat_out = map(lambda v: v.get_val(), flat_out)
-            key_and_returns = jtu.tree_unflatten(out_tree, flat_out)
-            key, *retvals = key_and_returns
-            retvals = tuple(retvals)
+            retvals = jtu.tree_unflatten(out_tree, flat_out)
             score = handler.score
-
-        # If propagation succeeded, no value should be
-        # None at this point.
-        static_check_not_none(key, retvals)
-        if len(retvals) == 1:
-            retvals = retvals[0]
+            key = handler.key
 
         return key, (retvals, score)
 

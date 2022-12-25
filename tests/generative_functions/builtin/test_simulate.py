@@ -19,37 +19,37 @@ import genjax
 
 
 @genjax.gen
-def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
-    return key, y1 + y2
+def simple_normal():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    return y1 + y2
 
 
 @genjax.gen
-def simple_normal_multiple_returns(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
-    return key, y1, y2
+def simple_normal_multiple_returns():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    return y1, y2
 
 
 @genjax.gen
-def _submodel(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
-    return key, y1, y2
+def _submodel():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    return y1, y2
 
 
 @genjax.gen
-def hierarchical_simple_normal_multiple_returns(key):
-    key, y1, y2 = genjax.trace("y1", _submodel)(key)
-    return key, y1, y2
+def hierarchical_simple_normal_multiple_returns():
+    y1, y2 = genjax.trace("y1", _submodel)()
+    return y1, y2
 
 
 class TestSimulate:
     def test_simple_normal_simulate(self):
         key = jax.random.PRNGKey(314159)
         fn = jax.jit(genjax.simulate(simple_normal))
-        new_key, tr = fn(key, ())
+        key, tr = fn(key, ())
         chm = tr.get_choices()
         _, (score1, _) = genjax.Normal.importance(
             key, chm.get_subtree("y1").get_choices(), (0.0, 1.0)
@@ -63,7 +63,7 @@ class TestSimulate:
     def test_simple_normal_multiple_returns(self):
         key = jax.random.PRNGKey(314159)
         fn = jax.jit(genjax.simulate(simple_normal_multiple_returns))
-        new_key, tr = fn(key, ())
+        key, tr = fn(key, ())
         chm = tr.get_choices()
         y1_ = tr["y1"]
         y2_ = tr["y2"]
@@ -84,7 +84,7 @@ class TestSimulate:
         fn = jax.jit(
             genjax.simulate(hierarchical_simple_normal_multiple_returns)
         )
-        new_key, tr = fn(key, ())
+        key, tr = fn(key, ())
         chm = tr.get_choices()
         y1_ = tr["y1", "y1"]
         y2_ = tr["y1", "y2"]

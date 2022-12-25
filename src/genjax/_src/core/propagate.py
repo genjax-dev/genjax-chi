@@ -129,11 +129,10 @@ class Cell(Pytree):
         raise NotImplementedError
 
 
-def map_outcells(cell_type, v, **kwargs):
-    if isinstance(v, tuple) or isinstance(v, list):
-        return list(map(lambda v: cell_type.new(v, **kwargs), v))
-    else:
-        return list([cell_type.new(v, **kwargs)])
+def flatmap_outcells(cell_type, v, **kwargs):
+    return jtu.tree_map(
+        lambda v: cell_type.new(v, **kwargs), jtu.tree_leaves(v)
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -235,9 +234,6 @@ class Handler(Pytree):
     """
 
     handles: List[jax_core.Primitive]
-
-    def flatten(self):
-        return (), (self.handles,)
 
 
 def construct_graph_representation(eqns):
@@ -427,13 +423,16 @@ class PropagationInterpreter(Pytree):
         eqns = safe_map(Equation.from_jaxpr_eqn, jaxpr.eqns)
         get_neighbor_eqns = construct_graph_representation(eqns)
 
-        out_eqns = set()
         for eqn in jaxpr.eqns:
             for var in it.chain(eqn.invars, eqn.outvars):
                 env.write(var, self.cell_type.unknown(var.aval))
 
-        for var in it.chain(jaxpr.outvars, jaxpr.invars, jaxpr.constvars):
-            out_eqns.update(get_neighbor_eqns(var))
+        # TODO: needs robust testing.
+        # The loop below adds only the edge variables first.
+        out_eqns = set()
+        out_eqns.update(eqns)
+        # for var in it.chain(jaxpr.outvars, jaxpr.invars, jaxpr.constvars):
+        #    out_eqns.update(get_neighbor_eqns(var))
 
         queue = collections.deque(out_eqns)
 

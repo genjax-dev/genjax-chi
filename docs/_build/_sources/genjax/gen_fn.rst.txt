@@ -143,9 +143,9 @@ GenJAX also exposes a modeling language which allows programmatic construction o
     import genjax
 
     @genjax.gen
-    def model(key):
-        key, x = genjax.trace("x", genjax.Normal)(key, 0.0, 1.0)
-        return key, x
+    def model():
+        x = genjax.trace("x", genjax.Normal)(0.0, 1.0)
+        return x
 
     print(model)
 

@@ -19,9 +19,9 @@ import genjax
 
 
 @genjax.gen
-def kernel(key, x):
-    key, z = genjax.trace("z", genjax.Normal)(key, x, 1.0)
-    return key, z
+def kernel(x):
+    z = genjax.trace("z", genjax.Normal)(x, 1.0)
+    return z
 
 
 model = genjax.UnfoldCombinator(kernel, max_length=10)

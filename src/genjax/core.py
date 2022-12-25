@@ -31,6 +31,7 @@ from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import UnknownChange
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.staging import stage
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Float
@@ -72,4 +73,6 @@ __all__ = [
     "FloatArray",
     "Bool",
     "BoolArray",
+    # Utilities.
+    "stage",
 ]
