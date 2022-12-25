@@ -9,33 +9,34 @@ theme:
 
 website:
   title: "Gen ⊗ JAX"
+  search: 
+    location: sidebar
+    type: textbox
   open-graph: true
   page-navigation: true
   repo-url: https://github.com/probcomp/genjax
   repo-actions: [edit, issue]
-  search:
-    type: overlay
-  navbar:
-    collapse-below: "sm"
-    left:
-      - text: "Basics"
-        menu:
+  
+  sidebar:    
+    logo: logo.png
+    style: "floating"
+    contents:
+      - section: "Basics"
+        contents:
           - introduction/intro_to_genjax/intro_to_genjax.ipynb
-      - text: "Intermediate"
-        menu:
+      - text: "---"
+      - section: "Intermediate"
+        contents:
           - intermediate/incremental_computation/incremental.ipynb
           - intermediate/intro_to_combinators/intro_to_combinators.ipynb
           - intermediate/gradient_interfaces/gradient_interfaces.ipynb
-      - text: "Advanced"
-        menu:
+      - text: "---"
+      - section: "Advanced"
+        contents:
           - advanced/impl_builtin_language/impl_builtin_language.ipynb
           - advanced/recurse_combinator/recurse_combinator.ipynb
           - advanced/smc_language/smc_language.ipynb
           - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
-    right:
-      - icon: github
-        href: https://github.com/probcomp/genjax
-        aria-label: GitHub
   page-footer:
     background: dark
     left: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
@@ -44,7 +45,7 @@ website:
         href: https://github.com/probcomp/genjax
 
 toc: true
-toc-location: left
+toc-location: right
 reference-location: margin
 citation-location: margin
 
