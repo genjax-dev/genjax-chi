@@ -19,17 +19,17 @@
 
 ## 🔎 What is it?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming focused on [_generative functions_: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/introduction/intro_to_genjax/intro_to_genjax.html#what-is-a-generative-function). 
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/introduction/intro_to_genjax/intro_to_genjax.html#what-is-a-generative-function). 
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
-
-> GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 <div align="center">
 <a href="https://probcomp.github.io/genjax/notebooks/index.html">Jump into the notebooks!</a>
 <br>
 <br>
 </div>
+
+> GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 ## Development environment
 
