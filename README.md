@@ -13,6 +13,8 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+Gen is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. GenJAX is an implementation of Gen on top of JAX - it exposes the ability to programmatically construct and manipulate generative functions: [computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/introduction/intro_to_genjax/intro_to_genjax.html#what-is-a-generative-function). By construction, these objects expose a concise interface for expressing approximate and differentiable inference algorithms. The interface supports extension - allowing gradual performance optimization of critical modeling/inference code paths.
+
 <div align="center">
 <b>(Early stage)</b> 🔪 expect sharp edges 🔪
 </div>
