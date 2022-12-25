@@ -18,16 +18,14 @@ import genjax
 
 
 @genjax.gen
-def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
-    return (key,)
+def simple_normal():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
 
 
 @genjax.gen
-def simple_bernoulli(key):
-    key, y3 = genjax.trace("y3", genjax.Bernoulli)(key, 0.3)
-    return (key,)
+def simple_bernoulli():
+    y3 = genjax.trace("y3", genjax.Bernoulli)(0.3)
 
 
 switch = genjax.SwitchCombinator([simple_normal, simple_bernoulli])

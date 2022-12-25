@@ -79,7 +79,7 @@ class GenJAXConsole:
             g.view()
 
 
-def pretty(show_locals=False, max_frames=20, suppress=[jax], **kwargs):
+def pretty(show_locals=False, max_frames=30, suppress=[jax], **kwargs):
     rich.pretty.install()
     traceback.install(
         show_locals=show_locals,

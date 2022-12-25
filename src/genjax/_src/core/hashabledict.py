@@ -33,9 +33,17 @@ class HashableDict(dict):
         return self.__key() == other.__key()
 
 
+# This ensures that static keys are always sorted
+# in a pre-determined order - which is important
+# for `Pytree` structure comparison.
+def _flatten(x: HashableDict):
+    s = {k: v for (k, v) in sorted(x.items())}
+    return (list(s.values()), list(s.keys()))
+
+
 jtu.register_pytree_node(
     HashableDict,
-    lambda x: (list(x.values()), list(x.keys())),
+    _flatten,
     lambda keys, values: HashableDict(safe_zip(keys, values)),
 )
 

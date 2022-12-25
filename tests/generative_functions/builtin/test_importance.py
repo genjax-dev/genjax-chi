@@ -18,21 +18,19 @@ import pytest
 import genjax
 
 
-key = jax.random.PRNGKey(314159)
-
-
 @genjax.gen
-def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
-    return key, y1 + y2
+def simple_normal():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    return y1 + y2
 
 
 class TestImportance:
     def test_simple_normal_importance(self):
+        key = jax.random.PRNGKey(314159)
         fn = genjax.importance(simple_normal)
         chm = genjax.BuiltinChoiceMap.new({("y1",): 0.5, ("y2",): 0.5})
-        new_key, (w, tr) = fn(key, chm, ())
+        key, (_, tr) = fn(key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]

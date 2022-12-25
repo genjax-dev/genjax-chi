@@ -18,6 +18,7 @@ their arguments."""
 
 from dataclasses import dataclass
 from typing import Tuple
+from typing import Union
 
 import jax
 import jax.experimental.host_callback as hcb
@@ -37,6 +38,7 @@ from genjax._src.generative_functions.combinators.combinator_datatypes import (
 from genjax._src.generative_functions.combinators.combinator_tracetypes import (
     VectorTraceType,
 )
+from genjax._src.utilities import slash
 
 
 #####
@@ -114,62 +116,74 @@ class MapCombinator(GenerativeFunction):
         import jax
         import jax.numpy as jnp
         import genjax
+        console = genjax.pretty()
 
         @genjax.gen
-        def add_normal_noise(key, x):
-            key, noise1 = genjax.trace("noise1", genjax.Normal)(
-                    key, 0.0, 1.0
+        def add_normal_noise(x):
+            noise1 = genjax.trace("noise1", genjax.Normal)(
+                    0.0, 1.0
             )
-            key, noise2 = genjax.trace("noise2", genjax.Normal)(
-                    key, 0.0, 1.0
+            noise2 = genjax.trace("noise2", genjax.Normal)(
+                    0.0, 1.0
             )
             return (key, x + noise1 + noise2)
 
 
-        mapped = genjax.MapCombinator(add_normal_noise, in_axes=(0, 0))
+        mapped = genjax.MapCombinator.new(add_normal_noise, in_axes=(0,))
 
         arr = jnp.ones(100)
         key = jax.random.PRNGKey(314159)
-        key, *subkeys = jax.random.split(key, 101)
-        subkeys = jnp.array(subkeys)
-        _, tr = jax.jit(genjax.simulate(mapped))(subkeys, (arr, ))
-        print(tr)
+        key, tr = jax.jit(genjax.simulate(mapped))(key, (arr, ))
+        console.print(tr)
     """
 
     kernel: GenerativeFunction
     in_axes: Tuple
+    repeats: Union[None, IntArray] = None
 
     def flatten(self):
-        return (), (self.kernel, self.in_axes)
+        return (), (self.kernel, self.in_axes, self.repeats)
+
+    @classmethod
+    def new(
+        cls,
+        kernel: GenerativeFunction,
+        in_axes: Union[None, Tuple] = None,
+        repeats=None,
+    ) -> "MapCombinator":
+        assert isinstance(kernel, GenerativeFunction)
+        if in_axes is None or all(map(lambda v: v is None, in_axes)):
+            assert repeats is not None
+        return MapCombinator(kernel, in_axes, repeats)
+
+    def _static_broadcast_dim_len(self, args):
+        if self.repeats is not None:
+            return self.repeats
+        else:
+            for (in_axis_flag, arg) in zip(self.in_axes, args):
+                if in_axis_flag == 0:
+                    return len(arg)
 
     # This is a terrible and needs to be re-written.
     # Why do I need to `vmap` to get the correct trace type
     # from the inner kernel? Fix.
-    def get_trace_type(self, keys, args, **kwargs):
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-        keys = jtu.tree_map(lambda v: jnp.zeros(v.shape, v.dtype), keys)
-        args = jtu.tree_map(lambda v: jnp.zeros(v.shape, v.dtype), args)
+    def get_trace_type(self, key, args, **kwargs):
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
+        key, sub_keys = slash(key, broadcast_dim_length)
         kernel_tt = jax.vmap(
-            self.kernel.get_trace_type, in_axes=(key_axis, arg_axes)
-        )(keys, args)
+            self.kernel.get_trace_type, in_axes=(0, self.in_axes)
+        )(sub_keys, args)
         kernel_tt = jtu.tree_map(lambda v: v[0], kernel_tt)
-        return VectorTraceType(kernel_tt, len(keys))
+        return VectorTraceType(kernel_tt, broadcast_dim_length)
 
     def simulate(self, key, args, **kwargs):
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-        indices = np.array([i for i in range(0, len(key))])
-        key, tr = jax.vmap(
-            self.kernel.simulate,
-            in_axes=(key_axis, arg_axes),
-        )(key, args)
-        map_tr = MapTrace(
-            self,
-            indices,
-            tr,
-            jnp.sum(tr.get_score()),
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
+        indices = np.array([i for i in range(0, broadcast_dim_length)])
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(
+            sub_keys, args
         )
+        map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
 
         return key, map_tr
 
@@ -203,10 +217,6 @@ class MapCombinator(GenerativeFunction):
         )
 
     def _importance_vcm(self, key, chm, args):
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -216,53 +226,39 @@ class MapCombinator(GenerativeFunction):
 
         def _inner(key, index, chm, args):
             check = index == chm.get_index()
-            return concrete_cond(
-                check,
-                _importance,
-                _simulate,
-                key,
-                chm,
-                args,
-            )
+            return concrete_cond(check, _importance, _simulate, key, chm, args)
 
-        indices = np.array([i for i in range(0, len(key))])
-        key, (w, tr) = jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
-            key,
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
+        indices = np.array([i for i in range(0, broadcast_dim_length)])
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, (w, tr) = jax.vmap(_inner, in_axes=(0, 0, 0, self.in_axes))(
+            sub_keys,
             indices,
             chm,
             args,
         )
 
         w = jnp.sum(w)
-        map_tr = MapTrace(
-            self,
-            indices,
-            tr,
-            jnp.sum(tr.get_score()),
-        )
+        map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
 
         return key, (w, map_tr)
 
     def _importance_fallback(self, key, chm, args):
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self._bounds_checker(chm, len(key))
+        chm, fixed_len = self._bounds_checker(chm, broadcast_dim_length)
         chm = jtu.tree_map(
-            lambda chm: self._padder(chm, len(key)),
-            chm,
+            lambda chm: self._padder(chm, broadcast_dim_length), chm
         )
         if not isinstance(chm, VectorChoiceMap):
             indices = np.array(
-                [ind if ind < fixed_len else -1 for ind in range(0, len(key))]
+                [
+                    ind if ind < fixed_len else -1
+                    for ind in range(0, broadcast_dim_length)
+                ]
             )
-            chm = VectorChoiceMap(
-                indices,
-                chm,
-            )
+            chm = VectorChoiceMap(indices, chm)
 
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
@@ -273,30 +269,16 @@ class MapCombinator(GenerativeFunction):
 
         def _inner(key, index, chm, args):
             check = index == chm.get_index()
-            return concrete_cond(
-                check,
-                _importance,
-                _simulate,
-                key,
-                chm,
-                args,
-            )
+            return concrete_cond(check, _importance, _simulate, key, chm, args)
 
-        indices = np.array([i for i in range(0, len(key))])
-        key, (w, tr) = jax.vmap(_inner, in_axes=(key_axis, 0, 0, arg_axes))(
-            key,
-            indices,
-            chm,
-            args,
+        indices = np.array([i for i in range(0, broadcast_dim_length)])
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, (w, tr) = jax.vmap(_inner, in_axes=(0, 0, 0, self.in_axes))(
+            sub_keys, indices, chm, args
         )
 
         w = jnp.sum(w)
-        map_tr = MapTrace(
-            self,
-            indices,
-            tr,
-            jnp.sum(tr.get_score()),
-        )
+        map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
 
         return key, (w, map_tr)
 
@@ -323,37 +305,22 @@ class MapCombinator(GenerativeFunction):
         def _inner(key, index, prev, chm, diffs):
             check = index == chm.get_index()
             return concrete_cond(
-                check,
-                _update,
-                _fallback,
-                key,
-                prev,
-                chm,
-                diffs,
+                check, _update, _fallback, key, prev, chm, diffs
             )
 
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-
-        indices = np.array([i for i in range(0, len(key))])
+        # Just to determine the broadcast length.
+        args = jtu.tree_leaves(diffs)
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
+        indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
-            lambda v: None if v.shape == () else 0,
-            prev.inner,
+            lambda v: None if v.shape == () else 0, prev.inner
         )
-        key, (retdiff, w, tr, discard) = jax.vmap(
-            _inner,
-            in_axes=(key_axis, 0, prev_inaxes_tree, 0, arg_axes),
-        )(key, indices, prev.inner, chm, diffs)
-
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, (retdiff, w, tr, discard) = jax.vmap(
+            _inner, in_axes=(0, 0, prev_inaxes_tree, 0, self.in_axes)
+        )(sub_keys, indices, prev.inner, chm, diffs)
         w = jnp.sum(w)
-        map_tr = MapTrace(
-            self,
-            indices,
-            tr,
-            jnp.sum(tr.get_score()),
-        )
-
+        map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
@@ -365,28 +332,19 @@ class MapCombinator(GenerativeFunction):
             )
             return key, (retdiff, w, tr, d)
 
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
-
         prev_inaxes_tree = jtu.tree_map(
-            lambda v: None if v.shape == () else 0,
-            prev.inner,
+            lambda v: None if v.shape == () else 0, prev.inner
         )
-        key, (retdiff, w, tr, discard) = jax.vmap(
-            _fallback,
-            in_axes=(key_axis, prev_inaxes_tree, 0, arg_axes),
-        )(key, prev.inner, chm, diffs)
-
+        # Just to determine the broadcast length.
+        args = jtu.tree_leaves(diffs)
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, (retdiff, w, tr, discard) = jax.vmap(
+            _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
+        )(sub_keys, prev.inner, chm, diffs)
         w = jnp.sum(w)
-        indices = jnp.array([i for i in range(0, len(key))])
-        map_tr = MapTrace(
-            self,
-            indices,
-            tr,
-            jnp.sum(tr.get_score()),
-        )
-
+        indices = jnp.array([i for i in range(0, broadcast_dim_length)])
+        map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map doesn't carry optimization info.
@@ -406,54 +364,40 @@ class MapCombinator(GenerativeFunction):
         def _inner(key, index, prev, chm, diffs):
             check = index == chm.get_index()
             return concrete_cond(
-                check,
-                _update,
-                _fallback,
-                key,
-                prev,
-                chm,
-                diffs,
+                check, _update, _fallback, key, prev, chm, diffs
             )
 
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
+        # Just to determine the broadcast length.
+        args = jtu.tree_leaves(diffs)
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
-        chm, fixed_len = self._bounds_checker(chm, len(key))
+        chm, fixed_len = self._bounds_checker(chm, broadcast_dim_length)
         chm = jtu.tree_map(
-            lambda chm: self._padder(chm, len(key)),
-            chm,
+            lambda chm: self._padder(chm, broadcast_dim_length), chm
         )
         if not isinstance(chm, VectorChoiceMap):
             indices = np.array(
-                [ind if ind < fixed_len else -1 for ind in range(0, len(key))]
+                [
+                    ind if ind < fixed_len else -1
+                    for ind in range(0, broadcast_dim_length)
+                ]
             )
-            chm = VectorChoiceMap(
-                indices,
-                chm,
-            )
+            chm = VectorChoiceMap(indices, chm)
 
         # Now, we proceed.
-        indices = np.array([i for i in range(0, len(key))])
+        indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0,
             prev.inner,
         )
-        key, (retdiff, w, tr, discard) = jax.vmap(
-            _inner,
-            in_axes=(key_axis, 0, prev_inaxes_tree, 0, arg_axes),
-        )(key, indices, prev.inner, chm, diffs)
-
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, (retdiff, w, tr, discard) = jax.vmap(
+            _inner, in_axes=(0, 0, prev_inaxes_tree, 0, self.in_axes)
+        )(sub_keys, indices, prev.inner, chm, diffs)
         w = jnp.sum(w)
-        map_tr = MapTrace(
-            self,
-            indices,
-            tr,
-            jnp.sum(tr.get_score()),
-        )
-
+        map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     def update(self, key, prev, chm, diffs):
@@ -487,7 +431,8 @@ class MapCombinator(GenerativeFunction):
     def assess(self, key, chm, args):
         assert isinstance(chm, VectorChoiceMap)
 
-        indices = jnp.array([i for i in range(0, len(key))])
+        broadcast_dim_length = self._static_broadcast_dim_len(args)
+        indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.all(jnp.equal(indices, chm.get_index()))
 
         # This inserts a host callback check for bounds checking.
@@ -503,16 +448,9 @@ class MapCombinator(GenerativeFunction):
             ),
         )
 
-        # Get static axes.
-        key_axis = self.in_axes[0]
-        arg_axes = self.in_axes[1:]
         inner = chm.inner
-
-        key, (retval, score) = jax.vmap(
-            self.kernel.assess, in_axes=(key_axis, 0, arg_axes)
-        )(
-            key,
-            inner,
-            args,
-        )
+        key, sub_keys = slash(key, broadcast_dim_length)
+        _, (retval, score) = jax.vmap(
+            self.kernel.assess, in_axes=(0, 0, self.in_axes)
+        )(sub_keys, inner, args)
         return key, (retval, jnp.sum(score))

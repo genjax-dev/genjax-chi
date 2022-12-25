@@ -18,27 +18,23 @@ import pytest
 import genjax
 
 
-key = jax.random.PRNGKey(314159)
-
-
 @genjax.gen
-def simple_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, 0.0, 1.0)
-    return key, y1 + y2
+def simple_normal():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    return y1 + y2
 
 
 class TestUpdateSimpleNormal:
     def test_simple_normal_update(self, benchmark):
-        new_key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        key = jax.random.PRNGKey(314159)
+        key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_normal))
 
         new = genjax.BuiltinChoiceMap.new({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        new_key, (_, w, updated, discard) = benchmark(
-            jitted, new_key, tr, new, ()
-        )
+        key, (_, w, updated, discard) = benchmark(jitted, key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -55,7 +51,7 @@ class TestUpdateSimpleNormal:
 
         new = genjax.BuiltinChoiceMap.new({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
-        new_key, (_, w, updated, discard) = jitted(new_key, tr, new, ())
+        key, (_, w, updated, discard) = jitted(key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -71,24 +67,23 @@ class TestUpdateSimpleNormal:
 
 
 @genjax.gen
-def simple_linked_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", genjax.Normal)(key, y1, 1.0)
-    key, y3 = genjax.trace("y3", genjax.Normal)(key, y1 + y2, 1.0)
-    return key, y1 + y2 + y3
+def simple_linked_normal():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.Normal)(y1, 1.0)
+    y3 = genjax.trace("y3", genjax.Normal)(y1 + y2, 1.0)
+    return y1 + y2 + y3
 
 
 class TestUpdateSimpleLinkedNormal:
     def test_simple_linked_normal_update(self, benchmark):
-        new_key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
+        key = jax.random.PRNGKey(314159)
+        key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_linked_normal))
 
         new = genjax.BuiltinChoiceMap.new({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        new_key, (_, w, updated, discard) = benchmark(
-            jitted, new_key, tr, new, ()
-        )
+        key, (_, w, updated, discard) = benchmark(jitted, key, tr, new, ())
         updated_chm = updated.get_choices().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2"]
@@ -103,32 +98,29 @@ class TestUpdateSimpleLinkedNormal:
 
 
 @genjax.gen
-def _inner(key, x):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, x, 1.0)
-    return key, y1
+def _inner(x):
+    y1 = genjax.trace("y1", genjax.Normal)(x, 1.0)
+    return y1
 
 
 @genjax.gen
-def simple_hierarchical_normal(key):
-    key, y1 = genjax.trace("y1", genjax.Normal)(key, 0.0, 1.0)
-    key, y2 = genjax.trace("y2", _inner)(key, y1)
-    key, y3 = genjax.trace("y3", _inner)(key, y1 + y2)
-    return key, y1 + y2 + y3
+def simple_hierarchical_normal():
+    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", _inner)(y1)
+    y3 = genjax.trace("y3", _inner)(y1 + y2)
+    return y1 + y2 + y3
 
 
 class TestUpdateSimpleHierarchicalNormal:
     def test_simple_hierarchical_normal(self, benchmark):
-        new_key, tr = jax.jit(genjax.simulate(simple_hierarchical_normal))(
-            key, ()
-        )
+        key = jax.random.PRNGKey(314159)
+        key, tr = jax.jit(genjax.simulate(simple_hierarchical_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_hierarchical_normal))
 
         new = genjax.BuiltinChoiceMap.new({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        new_key, (_, w, updated, discard) = benchmark(
-            jitted, new_key, tr, new, ()
-        )
+        key, (_, w, updated, discard) = benchmark(jitted, key, tr, new, ())
         updated_chm = updated.get_choices().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2", "y1"]

@@ -390,7 +390,7 @@ title="Print to PDF"
 <h1>Switch combinator<a class="headerlink" href="#switch-combinator" title="Permalink to this headline">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L101-L324"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">genjax.generative_functions.combinators.</span></span><span class="sig-name descname"><span class="pre">SwitchCombinator</span></span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L101-L322"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator" title="Permalink to this definition">#</a></dt>
 <dd><p><code class="code docutils literal notranslate"><span class="pre">SwitchCombinator</span></code> accepts a set of generative functions as input
 configuration and implements <code class="code docutils literal notranslate"><span class="pre">GenerativeFunction</span></code> interface semantics that support branching control flow patterns, including control flow patterns which branch on other stochastic choices.</p>
 <p>This combinator provides a “sum” <code class="code docutils literal notranslate"><span class="pre">Trace</span></code> type which allows the internal generative functions to have different choice maps.</p>
@@ -405,14 +405,12 @@ function branches need not share addresses.</p>
 <span class="n">console</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">pretty</span><span class="p">()</span>
 
 <span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
-<span class="k">def</span> <span class="nf">branch_1</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x1&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">)</span>
+<span class="k">def</span> <span class="nf">branch_1</span><span class="p">():</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x1&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Normal</span><span class="p">)(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
 
 <span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
-<span class="k">def</span> <span class="nf">branch_2</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
-    <span class="n">key</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x2&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Bernoulli</span><span class="p">)(</span><span class="n">key</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">)</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">)</span>
+<span class="k">def</span> <span class="nf">branch_2</span><span class="p">():</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">trace</span><span class="p">(</span><span class="s2">&quot;x2&quot;</span><span class="p">,</span> <span class="n">genjax</span><span class="o">.</span><span class="n">Bernoulli</span><span class="p">)(</span><span class="mf">0.3</span><span class="p">)</span>
 
 <span class="n">switch</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">SwitchCombinator</span><span class="p">([</span><span class="n">branch_1</span><span class="p">,</span> <span class="n">branch_2</span><span class="p">])</span>
 
@@ -450,7 +448,7 @@ function branches need not share addresses.</p>
 │               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
 │               │   │   └── <span style="font-weight: bold">tuple</span>
 │               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│               │   │   └── <span style="font-weight: bold">tuple</span>
+│               │   │   └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
 │               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
 │               │   │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
 │               │   │       └── <span style="color: #005f00; text-decoration-color: #005f00; font-weight: bold">x1</span>
@@ -477,7 +475,7 @@ function branches need not share addresses.</p>
 │                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
 │                   │   └── <span style="font-weight: bold">tuple</span>
 │                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│                   │   └── <span style="font-weight: bold">tuple</span>
+│                   │   └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
 │                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
 │                   │   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
 │                   │       └── <span style="color: #005f00; text-decoration-color: #005f00; font-weight: bold">x2</span>
@@ -498,7 +496,7 @@ function branches need not share addresses.</p>
 ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
 │   └── <span style="font-weight: bold">tuple</span>
 ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│   └── <span style="font-weight: bold">tuple</span>
+│   └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
 └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
     └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
 </pre>
@@ -516,7 +514,7 @@ function branches need not share addresses.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="genjax.generative_functions.combinators.SwitchCombinator.simulate">
-<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L177-L194"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.simulate" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/probcomp/genjax/blob/main/genjax/_src/generative_functions/combinators/switch.py#L175-L192"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#genjax.generative_functions.combinators.SwitchCombinator.simulate" title="Permalink to this definition">#</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
