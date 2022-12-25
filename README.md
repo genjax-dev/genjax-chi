@@ -46,11 +46,12 @@ conda create --name genjax-py311 python=3.11 --channel=conda-forge
 conda activate genjax-py311
 pip install poetry
 pip install nox
+pip install nox-poetry
 git clone https://github.com/probcomp/genjax
 cd genjax
 poetry lock
 poetry install
-nox -r
+poetry run jupyter-lab
 ```
 
 ## References

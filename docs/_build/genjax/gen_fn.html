@@ -559,7 +559,7 @@ whose semantics are described below:</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x105302200&gt;)
+<div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>BuiltinGenerativeFunction(source=&lt;function model at 0x1030e5ea0&gt;)
 </pre></div>
 </div>
 </div>
@@ -579,45 +579,45 @@ transformation abilities.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-none notranslate"><div class="highlight"><pre><span></span>{ lambda ; a:u32[2]. let
-    b:key&lt;fry&gt;[] = random_seed[impl=fry] 0
-    _:u32[2] = random_unwrap b
-    c:key&lt;fry&gt;[] = random_wrap[impl=fry] a
-    d:key&lt;fry&gt;[2] = random_split[count=2] c
-    e:u32[2,2] = random_unwrap d
-    f:u32[1,2] = slice[limit_indices=(1, 2) start_indices=(0, 0) strides=(1, 1)] e
-    g:u32[2] = squeeze[dimensions=(0,)] f
-    h:u32[1,2] = slice[limit_indices=(2, 2) start_indices=(1, 0) strides=(1, 1)] e
-    i:u32[2] = squeeze[dimensions=(0,)] h
-    j:key&lt;fry&gt;[] = random_wrap[impl=fry] i
-    k:u32[] = random_bits[bit_width=32 shape=()] j
-    l:u32[] = shift_right_logical k 9
-    m:u32[] = or l 1065353216
-    n:f32[] = bitcast_convert_type[new_dtype=float32] m
-    o:f32[] = sub n 1.0
-    p:f32[] = sub 1.0 -0.9999999403953552
-    q:f32[] = mul o p
-    r:f32[] = add q -0.9999999403953552
-    s:f32[] = reshape[dimensions=None new_sizes=()] r
-    t:f32[] = max -0.9999999403953552 s
-    u:f32[] = erf_inv t
-    v:f32[] = mul 1.4142135381698608 u
-    w:f32[] = mul 1.0 v
-    x:f32[] = add 0.0 w
-    y:f32[] = sub x 0.0
-    z:f32[] = div y 1.0
-    ba:f32[] = abs z
-    bb:f32[] = integer_pow[y=2] ba
-    bc:f32[] = log 6.283185307179586
-    bd:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bc
-    be:f32[] = add bb bd
-    bf:f32[] = mul -1.0 be
-    bg:f32[] = log 1.0
-    bh:f32[] = sub 2.0 bg
-    bi:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bh
-    bj:f32[] = div bf bi
-    bk:f32[] = reduce_sum[axes=()] bj
-    _:f32[] = add 0.0 bk
-  in (g, x) }
+    b:key&lt;fry&gt;[] = random_wrap[impl=fry] a
+    c:key&lt;fry&gt;[2] = random_split[count=2] b
+    d:u32[2,2] = random_unwrap c
+    e:u32[1,2] = slice[limit_indices=(1, 2) start_indices=(0, 0) strides=(1, 1)] d
+    f:u32[2] = squeeze[dimensions=(0,)] e
+    g:u32[1,2] = slice[limit_indices=(2, 2) start_indices=(1, 0) strides=(1, 1)] d
+    h:u32[2] = squeeze[dimensions=(0,)] g
+    i:key&lt;fry&gt;[] = random_wrap[impl=fry] h
+    j:u32[] = random_bits[bit_width=32 shape=()] i
+    k:u32[] = shift_right_logical j 9
+    l:u32[] = or k 1065353216
+    m:f32[] = bitcast_convert_type[new_dtype=float32] l
+    n:f32[] = sub m 1.0
+    o:f32[] = sub 1.0 -0.9999999403953552
+    p:f32[] = mul n o
+    q:f32[] = add p -0.9999999403953552
+    r:f32[] = reshape[dimensions=None new_sizes=()] q
+    s:f32[] = max -0.9999999403953552 r
+    t:f32[] = erf_inv s
+    u:f32[] = mul 1.4142135381698608 t
+    v:f32[] = mul 1.0 u
+    w:f32[] = add 0.0 v
+    x:f32[] = sub w 0.0
+    y:f32[] = div x 1.0
+    z:f32[] = abs y
+    ba:f32[] = integer_pow[y=2] z
+    bb:f32[] = log 6.283185307179586
+    bc:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bb
+    bd:f32[] = add ba bc
+    be:f32[] = mul -1.0 bd
+    bf:f32[] = log 1.0
+    bg:f32[] = sub 2.0 bf
+    bh:f32[] = convert_element_type[new_dtype=float32 weak_type=False] bg
+    bi:f32[] = div be bh
+    bj:f32[] = reduce_sum[axes=()] bi
+    _:f32[] = add 0.0 bj
+    bk:key&lt;fry&gt;[] = random_seed[impl=fry] 0
+    _:u32[2] = random_unwrap bk
+  in (f, w) }
 </pre></div>
 </div>
 </div>
