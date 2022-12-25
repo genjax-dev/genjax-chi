@@ -25,17 +25,33 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
-## Building + notebooks
-
-This project uses [poetry](https://python-poetry.org/) for dependency management, [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building, and [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial documentation.
-
-Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
-
 <div align="center">
 <a href="https://probcomp.github.io/genjax/notebooks/index.html">Jump into the notebooks!</a>
 <br>
 <br>
 </div>
+
+## Development environment
+
+This project uses [poetry](https://python-poetry.org/) for dependency management, [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building, and [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial documentation.
+
+Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
+
+### Environment script
+
+Here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute the notebooks, etc.
+
+```bash
+conda create --name genjax-py311 python=3.11 --channel=conda-forge
+conda activate genjax-py311
+pip install poetry
+pip install nox
+git clone https://github.com/probcomp/genjax
+cd genjax
+poetry lock
+poetry install
+nox -r
+```
 
 ## References
 
