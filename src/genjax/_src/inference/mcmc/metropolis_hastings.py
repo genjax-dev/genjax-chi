@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import dataclasses
-from typing import Tuple
-from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -26,17 +24,20 @@ from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import Diff
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
 @dataclasses.dataclass
 class MetropolisHastings(MCMCKernel):
     selection: Selection
-    proposal: Union[None, GenerativeFunction] = None
+    proposal: GenerativeFunction
 
     def flatten(self):
         return (), (self.selection, self.proposal)
 
+    @typecheck
     def apply(self, key: PRNGKey, trace: Trace, proposal_args: Tuple):
         model = trace.get_gen_fn()
         model_args = trace.get_args()
