@@ -116,7 +116,7 @@ class Trie(ChoiceMap):
     def _pformat_custom(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         for (k, v) in self.inner.items():
-            subk = tree.add(f"[bold green]{k}")
+            subk = tree.add(f"[bold]:{k}")
             subtree = gpp._pformat(v, **kwargs)
             subk.add(subtree)
         return tree

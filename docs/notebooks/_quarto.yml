@@ -27,8 +27,8 @@ website:
       - text: "---"
       - section: "Intermediate"
         contents:
-          - intermediate/incremental_computation/incremental.ipynb
           - intermediate/intro_to_combinators/intro_to_combinators.ipynb
+          - intermediate/incremental_computation/incremental.ipynb
           - intermediate/gradient_interfaces/gradient_interfaces.ipynb
       - text: "---"
       - section: "Advanced"

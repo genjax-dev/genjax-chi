@@ -223,22 +223,26 @@ files = [
 
 [[package]]
 name = "beartype"
-version = "0.11.0"
+version = "0.12.0"
 description = "Unbearably fast runtime type checking in pure Python."
 category = "main"
 optional = false
 python-versions = ">=3.7.0"
-files = [
-    {file = "beartype-0.11.0-py3-none-any.whl", hash = "sha256:d1ed5f97edebe909385190fac95ef9af3daf233eb1a5cd08b88b0d8260708ad7"},
-    {file = "beartype-0.11.0.tar.gz", hash = "sha256:3854b50eaaa98bb89490be57e73c69c777a0f304574e7043ac7da98ac6a735a6"},
-]
+files = []
+develop = false
 
 [package.extras]
-all = ["typing-extensions (>=3.10.0.0)"]
-dev = ["coverage (>=5.5)", "mypy (>=0.800)", "numpy", "pytest (>=4.0.0)", "sphinx", "sphinx (>=4.1.0)", "tox (>=3.20.1)", "typing-extensions"]
-doc-rtd = ["sphinx (==4.1.0)", "sphinx-rtd-theme (==0.5.1)"]
-test-tox = ["mypy (>=0.800)", "numpy", "pytest (>=4.0.0)", "sphinx", "typing-extensions"]
+all = ["typing_extensions (>=3.10.0.0)"]
+dev = ["autoapi (>=0.9.0)", "coverage (>=5.5)", "mypy (>=0.800)", "numpy", "pytest (>=4.0.0)", "sphinx", "sphinx (>=4.1.0)", "tox (>=3.20.1)", "typing_extensions"]
+doc-rtd = ["furo (==2022.6.21)", "sphinx (==4.1.0)"]
+test-tox = ["mypy (>=0.800)", "numpy", "pytest (>=4.0.0)", "sphinx", "typing_extensions"]
 test-tox-coverage = ["coverage (>=5.5)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/beartype/beartype"
+reference = "main"
+resolved_reference = "1d658bbc2e9b0eb937d76d17f185eb12c0889149"
 
 [[package]]
 name = "beautifulsoup4"
@@ -3636,4 +3640,4 @@ tinygp = ["tinygp"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <4.0"
-content-hash = "25c1fcf01f9eba2da7add5f56ce9c020cda682577b4ec2b2a064781d3ad5cfc0"
+content-hash = "4ef5dfc64220efcc68b3f9423e5cb23cbfff9061599ee812c659c6b5590370d5"

@@ -80,7 +80,7 @@ def _pformat_dict(obj: Dict, **kwargs) -> Tree:
 
 
 def _named_entry(name: str, value: Any, **kwargs) -> Tree:
-    tree = Tree(f"[bold dark_blue]{name}")
+    tree = Tree(f"{name}")
     sub_tree = _pformat(value, **kwargs)
     tree.add(sub_tree)
     return tree
@@ -163,7 +163,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
             return _pformat_tuple(obj, **kwargs)
     elif isinstance(obj, np.ndarray) or isinstance(obj, jnp.ndarray):
         doc = _pformat_array(obj, **kwargs)
-        return Tree(f"[turquoise4]{doc.format()}")
+        return Tree(f"{doc.format()}")
     elif isinstance(obj, (jax.custom_jvp, jax.custom_vjp)):
         return _pformat(obj.__wrapped__, **kwargs)
     elif hasattr(obj, "__wrapped__") and follow_wrapped:
@@ -176,7 +176,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
         doc = _pformat_function(obj, **kwargs)
         return Tree(doc.format())
     else:  # int, str, float, complex, bool, etc.
-        tree = Tree(f"[purple](lit) {repr(obj)}")
+        tree = Tree(f"(lit) {repr(obj)}")
         return tree
 
 
