@@ -4360,9 +4360,9 @@ JAX interfaces
 │           └── &lt;function h&gt;
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       └── (lit) 0.3
+│       └── (const) 0.3
 ├── retval
-│   └── bool[]
+│   └──  bool[]
 ├── choices
 │   └── <span style="font-weight: bold">Trie</span>
 │       └── <span style="font-weight: bold">:sub</span>
@@ -4373,9 +4373,9 @@ JAX interfaces
 │               │           └── &lt;function g&gt;
 │               ├── args
 │               │   └── <span style="font-weight: bold">tuple</span>
-│               │       └── (lit) 0.3
+│               │       └── (const) 0.3
 │               ├── retval
-│               │   └── bool[]
+│               │   └──  bool[]
 │               ├── choices
 │               │   └── <span style="font-weight: bold">Trie</span>
 │               │       └── <span style="font-weight: bold">:m0</span>
@@ -4384,19 +4384,19 @@ JAX interfaces
 │               │               │   └── <span style="font-weight: bold">_Bernoulli</span>
 │               │               ├── args
 │               │               │   └── <span style="font-weight: bold">tuple</span>
-│               │               │       └── (lit) 0.3
+│               │               │       └── (const) 0.3
 │               │               ├── value
-│               │               │   └── bool[]
+│               │               │   └──  bool[]
 │               │               └── score
-│               │                   └── f32[]
+│               │                   └──  f32[]
 │               ├── cache
 │               │   └── <span style="font-weight: bold">Trie</span>
 │               └── score
-│                   └── f32[]
+│                   └──  f32[]
 ├── cache
 │   └── <span style="font-weight: bold">Trie</span>
 └── score
-    └── f32[]
+    └──  f32[]
 </pre>
 </div>
 </div>
@@ -4413,7 +4413,6 @@ JAX interfaces
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">{</span> <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">lambda </span><span style="color: #000000; text-decoration-color: #000000">; a</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">b:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000">. </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">let</span>
 <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">    </span><span style="color: #000000; text-decoration-color: #000000">c</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
-<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap c</span>
 <span style="color: #000000; text-decoration-color: #000000">    d</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_wrap</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> a</span>
 <span style="color: #000000; text-decoration-color: #000000">    e</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_split</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">count</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> d</span>
 <span style="color: #000000; text-decoration-color: #000000">    f</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap e</span>
@@ -4501,6 +4500,7 @@ JAX interfaces
 <span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">dc:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> cx</span>
 <span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">dd:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = reduce_sum</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">axes</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> dc</span>
 <span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">de:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.0</span><span style="color: #000000; text-decoration-color: #000000"> dd</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap c</span>
 <span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">df:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.0</span><span style="color: #000000; text-decoration-color: #000000"> de</span>
 <span style="color: #000000; text-decoration-color: #000000">    dg</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
 <span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap dg</span>
@@ -4605,12 +4605,12 @@ JAX interfaces
 │   └── <span style="font-weight: bold">_Normal</span>
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       ├── (lit) 0.0
-│       └── (lit) 1.0
+│       ├── (const) 0.0
+│       └── (const) 1.0
 ├── value
-│   └── f32[]
+│   └──  f32[]
 └── score
-    └── f32[]
+    └──  f32[]
 </pre>
 </div>
 </div>
@@ -4650,9 +4650,9 @@ JAX interfaces
 │           └── &lt;function h&gt;
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       └── (lit) 0.3
+│       └── (const) 0.3
 ├── retval
-│   └── bool[]
+│   └──  bool[]
 ├── choices
 │   └── <span style="font-weight: bold">Trie</span>
 │       ├── <span style="font-weight: bold">:m1</span>
@@ -4661,26 +4661,26 @@ JAX interfaces
 │       │       │   └── <span style="font-weight: bold">_Bernoulli</span>
 │       │       ├── args
 │       │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       │       └── (lit) 0.3
+│       │       │       └── (const) 0.3
 │       │       ├── value
-│       │       │   └── bool[]
+│       │       │   └──  bool[]
 │       │       └── score
-│       │           └── f32[]
+│       │           └──  f32[]
 │       └── <span style="font-weight: bold">:m0</span>
 │           └── <span style="font-weight: bold">DistributionTrace</span>
 │               ├── gen_fn
 │               │   └── <span style="font-weight: bold">_Bernoulli</span>
 │               ├── args
 │               │   └── <span style="font-weight: bold">tuple</span>
-│               │       └── (lit) 0.3
+│               │       └── (const) 0.3
 │               ├── value
-│               │   └── bool[]
+│               │   └──  bool[]
 │               └── score
-│                   └── f32[]
+│                   └──  f32[]
 ├── cache
 │   └── <span style="font-weight: bold">Trie</span>
 └── score
-    └── f32[]
+    └──  f32[]
 </pre>
 </div>
 </div>
@@ -4701,11 +4701,11 @@ JAX interfaces
                 │   └── <span style="font-weight: bold">_Bernoulli</span>
                 ├── args
                 │   └── <span style="font-weight: bold">tuple</span>
-                │       └── (lit) 0.3
+                │       └── (const) 0.3
                 ├── value
-                │   └── bool[]
+                │   └──  bool[]
                 └── score
-                    └── f32[]
+                    └──  f32[]
 </pre>
 </div>
 </div>
@@ -4786,7 +4786,7 @@ JAX interfaces
 ├── chm
 │   └── <span style="font-weight: bold">IndexedChoiceMap</span>
 │       ├── index
-│       │   └── i32[20]
+│       │   └──  i32[20]
 │       └── submaps
 │           └── <span style="font-weight: bold">list</span>
 │               ├── <span style="font-weight: bold">BuiltinTrace</span>
@@ -4796,10 +4796,10 @@ JAX interfaces
 │               │   │           └── &lt;function model_y&gt;
 │               │   ├── args
 │               │   │   └── <span style="font-weight: bold">tuple</span>
-│               │   │       ├── f32[20]
-│               │   │       └── f32[20,3]
+│               │   │       ├──  f32[20]
+│               │   │       └──  f32[20,3]
 │               │   ├── retval
-│               │   │   └── f32[20]
+│               │   │   └──  f32[20]
 │               │   ├── choices
 │               │   │   └── <span style="font-weight: bold">Trie</span>
 │               │   │       └── <span style="font-weight: bold">:value</span>
@@ -4808,16 +4808,16 @@ JAX interfaces
 │               │   │               │   └── <span style="font-weight: bold">_Normal</span>
 │               │   │               ├── args
 │               │   │               │   └── <span style="font-weight: bold">tuple</span>
-│               │   │               │       ├── f32[20]
-│               │   │               │       └── f32[20]
+│               │   │               │       ├──  f32[20]
+│               │   │               │       └──  f32[20]
 │               │   │               ├── value
-│               │   │               │   └── f32[20]
+│               │   │               │   └──  f32[20]
 │               │   │               └── score
-│               │   │                   └── f32[20]
+│               │   │                   └──  f32[20]
 │               │   ├── cache
 │               │   │   └── <span style="font-weight: bold">Trie</span>
 │               │   └── score
-│               │       └── f32[20]
+│               │       └──  f32[20]
 │               └── <span style="font-weight: bold">BuiltinTrace</span>
 │                   ├── gen_fn
 │                   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
@@ -4825,10 +4825,10 @@ JAX interfaces
 │                   │           └── &lt;function outlier_model&gt;
 │                   ├── args
 │                   │   └── <span style="font-weight: bold">tuple</span>
-│                   │       ├── f32[20]
-│                   │       └── f32[20,3]
+│                   │       ├──  f32[20]
+│                   │       └──  f32[20,3]
 │                   ├── retval
-│                   │   └── f32[20]
+│                   │   └──  f32[20]
 │                   ├── choices
 │                   │   └── <span style="font-weight: bold">Trie</span>
 │                   │       └── <span style="font-weight: bold">:value</span>
@@ -4837,24 +4837,24 @@ JAX interfaces
 │                   │               │   └── <span style="font-weight: bold">_Normal</span>
 │                   │               ├── args
 │                   │               │   └── <span style="font-weight: bold">tuple</span>
-│                   │               │       ├── f32[20]
-│                   │               │       └── f32[20]
+│                   │               │       ├──  f32[20]
+│                   │               │       └──  f32[20]
 │                   │               ├── value
-│                   │               │   └── f32[20]
+│                   │               │   └──  f32[20]
 │                   │               └── score
-│                   │                   └── f32[20]
+│                   │                   └──  f32[20]
 │                   ├── cache
 │                   │   └── <span style="font-weight: bold">Trie</span>
 │                   └── score
-│                       └── f32[20]
+│                       └──  f32[20]
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       ├── f32[20]
-│       └── f32[20,3]
+│       ├──  f32[20]
+│       └──  f32[20,3]
 ├── retval
-│   └── f32[20]
+│   └──  f32[20]
 └── score
-    └── f32[20]
+    └──  f32[20]
 </pre>
 </div>
 </div>
@@ -5214,7 +5214,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>timeit</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>_, samples <span class="op">=</span> jitted(sub_keys, observations, model_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>52.8 ms ± 2.64 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
+<pre><code>52.5 ms ± 9.41 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="35">

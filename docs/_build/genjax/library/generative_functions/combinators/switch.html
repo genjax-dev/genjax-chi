@@ -424,81 +424,81 @@ function branches need not share addresses.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output text_html"><pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">SwitchTrace</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+├── gen_fn
 │   └── <span style="font-weight: bold">SwitchCombinator</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">branches</span>
+│       └── branches
 │           └── <span style="font-weight: bold">list</span>
 │               ├── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│               │   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │   └── source
 │               │       └── &lt;function branch_1&gt;
 │               └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│                   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│                   └── source
 │                       └── &lt;function branch_2&gt;
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">chm</span>
+├── chm
 │   └── <span style="font-weight: bold">IndexedChoiceMap</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">index</span>
-│       │   └── <span style="color: #008787; text-decoration-color: #008787">i32[]</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">submaps</span>
+│       ├── index
+│       │   └──  i32[]
+│       └── submaps
 │           └── <span style="font-weight: bold">list</span>
 │               ├── <span style="font-weight: bold">BuiltinTrace</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │   ├── gen_fn
 │               │   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│               │   │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │   │       └── source
 │               │   │           └── &lt;function branch_1&gt;
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │   ├── args
 │               │   │   └── <span style="font-weight: bold">tuple</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│               │   │   └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│               │   ├── retval
+│               │   │   └── (const) None
+│               │   ├── choices
 │               │   │   └── <span style="font-weight: bold">Trie</span>
-│               │   │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">x1</span>
+│               │   │       └── <span style="font-weight: bold">:x1</span>
 │               │   │           └── <span style="font-weight: bold">DistributionTrace</span>
-│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │   │               ├── gen_fn
 │               │   │               │   └── <span style="font-weight: bold">_Normal</span>
-│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │   │               ├── args
 │               │   │               │   └── <span style="font-weight: bold">tuple</span>
-│               │   │               │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│               │   │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│               │   │               │   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│               │   │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│               │   │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│               │   │               │       ├──  f32[]
+│               │   │               │       └──  f32[]
+│               │   │               ├── value
+│               │   │               │   └──  f32[]
+│               │   │               └── score
+│               │   │                   └──  f32[]
+│               │   ├── cache
 │               │   │   └── <span style="font-weight: bold">Trie</span>
-│               │   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│               │   └── score
+│               │       └──  f32[]
 │               └── <span style="font-weight: bold">BuiltinTrace</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│                   ├── gen_fn
 │                   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│                   │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│                   │       └── source
 │                   │           └── &lt;function branch_2&gt;
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   ├── args
 │                   │   └── <span style="font-weight: bold">tuple</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│                   │   └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│                   ├── retval
+│                   │   └── (const) None
+│                   ├── choices
 │                   │   └── <span style="font-weight: bold">Trie</span>
-│                   │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">x2</span>
+│                   │       └── <span style="font-weight: bold">:x2</span>
 │                   │           └── <span style="font-weight: bold">DistributionTrace</span>
-│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│                   │               ├── gen_fn
 │                   │               │   └── <span style="font-weight: bold">_Bernoulli</span>
-│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   │               ├── args
 │                   │               │   └── <span style="font-weight: bold">tuple</span>
-│                   │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│                   │               │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-│                   │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│                   │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│                   │               │       └──  f32[]
+│                   │               ├── value
+│                   │               │   └──  bool[]
+│                   │               └── score
+│                   │                   └──  f32[]
+│                   ├── cache
 │                   │   └── <span style="font-weight: bold">Trie</span>
-│                   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│                       └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   └── score
+│                       └──  f32[]
+├── args
 │   └── <span style="font-weight: bold">tuple</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│   └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+├── retval
+│   └── (const) None
+└── score
+    └──  f32[]
 </pre>
 </div></div>
 </div>

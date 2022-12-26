@@ -442,64 +442,64 @@ interface method.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output text_html"><pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">MapTrace</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+├── gen_fn
 │   └── <span style="font-weight: bold">MapCombinator</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">kernel</span>
+│       ├── kernel
 │       │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│       │       └── source
 │       │           └── &lt;function add_normal_noise&gt;
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">in_axes</span>
+│       ├── in_axes
 │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">repeats</span>
-│           └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) None</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">indices</span>
-│   └── <span style="color: #008787; text-decoration-color: #008787">i32[100]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">inner</span>
+│       │       └── (const) 0
+│       └── repeats
+│           └── (const) None
+├── indices
+│   └──  i32[100]
+├── inner
 │   └── <span style="font-weight: bold">BuiltinTrace</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│       ├── gen_fn
 │       │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│       │       └── source
 │       │           └── &lt;function add_normal_noise&gt;
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│       ├── args
 │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
+│       │       └──  f32[100]
+│       ├── retval
 │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       ├── <span style="color: #008787; text-decoration-color: #008787">u32[100,2]</span>
-│       │       └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│       │       ├──  u32[100,2]
+│       │       └──  f32[100]
+│       ├── choices
 │       │   └── <span style="font-weight: bold">Trie</span>
-│       │       ├── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">noise1</span>
+│       │       ├── <span style="font-weight: bold">:noise1</span>
 │       │       │   └── <span style="font-weight: bold">DistributionTrace</span>
-│       │       │       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│       │       │       ├── gen_fn
 │       │       │       │   └── <span style="font-weight: bold">_Normal</span>
-│       │       │       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│       │       │       ├── args
 │       │       │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       │       │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │       │       │       └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │       │       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│       │       │       │   └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │       │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│       │       │           └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">noise2</span>
+│       │       │       │       ├──  f32[100]
+│       │       │       │       └──  f32[100]
+│       │       │       ├── value
+│       │       │       │   └──  f32[100]
+│       │       │       └── score
+│       │       │           └──  f32[100]
+│       │       └── <span style="font-weight: bold">:noise2</span>
 │       │           └── <span style="font-weight: bold">DistributionTrace</span>
-│       │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│       │               ├── gen_fn
 │       │               │   └── <span style="font-weight: bold">_Normal</span>
-│       │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│       │               ├── args
 │       │               │   └── <span style="font-weight: bold">tuple</span>
-│       │               │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│       │               │   └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│       │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│       │               │       ├──  f32[100]
+│       │               │       └──  f32[100]
+│       │               ├── value
+│       │               │   └──  f32[100]
+│       │               └── score
+│       │                   └──  f32[100]
+│       ├── cache
 │       │   └── <span style="font-weight: bold">Trie</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│           └── <span style="color: #008787; text-decoration-color: #008787">f32[100]</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│       └── score
+│           └──  f32[100]
+└── score
+    └──  f32[]
 </pre>
 </div></div>
 </div>
