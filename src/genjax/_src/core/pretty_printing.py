@@ -116,7 +116,7 @@ def _pformat_array(obj, **kwargs) -> Tree:
             dtype_str = simple_dtype(obj.dtype)
             shape_str = ",".join(map(str, obj.shape))
             backend = "(numpy)" if isinstance(obj, np.ndarray) else ""
-            return pp.text(f"{dtype_str}[{shape_str}]{backend}")
+            return pp.text(f"{backend} {dtype_str}[{shape_str}]")
         else:
             return pp.text(repr(obj))
     except Exception:
@@ -176,7 +176,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
         doc = _pformat_function(obj, **kwargs)
         return Tree(doc.format())
     else:  # int, str, float, complex, bool, etc.
-        tree = Tree(f"(lit) {repr(obj)}")
+        tree = Tree(f"(const) {repr(obj)}")
         return tree
 
 

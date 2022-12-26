@@ -4301,9 +4301,9 @@ vertical-align: -.125em;
 │           └── &lt;function kernel&gt;
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       └── f32[]
+│       └──  f32[]
 ├── retval
-│   └── f32[]
+│   └──  f32[]
 ├── choices
 │   └── <span style="font-weight: bold">Trie</span>
 │       ├── <span style="font-weight: bold">:x</span>
@@ -4312,28 +4312,28 @@ vertical-align: -.125em;
 │       │       │   └── <span style="font-weight: bold">_Normal</span>
 │       │       ├── args
 │       │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       │       ├── f32[]
-│       │       │       └── f32[]
+│       │       │       ├──  f32[]
+│       │       │       └──  f32[]
 │       │       ├── value
-│       │       │   └── f32[]
+│       │       │   └──  f32[]
 │       │       └── score
-│       │           └── f32[]
+│       │           └──  f32[]
 │       └── <span style="font-weight: bold">:z</span>
 │           └── <span style="font-weight: bold">DistributionTrace</span>
 │               ├── gen_fn
 │               │   └── <span style="font-weight: bold">_Normal</span>
 │               ├── args
 │               │   └── <span style="font-weight: bold">tuple</span>
-│               │       ├── f32[]
-│               │       └── f32[]
+│               │       ├──  f32[]
+│               │       └──  f32[]
 │               ├── value
-│               │   └── f32[]
+│               │   └──  f32[]
 │               └── score
-│                   └── f32[]
+│                   └──  f32[]
 ├── cache
 │   └── <span style="font-weight: bold">Trie</span>
 └── score
-    └── f32[]
+    └──  f32[]
 </pre>
 </div>
 </div>
@@ -4355,7 +4355,7 @@ vertical-align: -.125em;
 │       └── source
 │           └── &lt;function kernel&gt;
 └── max_length
-    └── (lit) 10
+    └── (const) 10
 </pre>
 </div>
 </div>
@@ -4389,9 +4389,9 @@ Usage of index argument vs. a length argument
 │       │       └── source
 │       │           └── &lt;function kernel&gt;
 │       └── max_length
-│           └── (lit) 10
+│           └── (const) 10
 ├── indices
-│   └── i32[10]
+│   └──  i32[10]
 ├── inner
 │   └── <span style="font-weight: bold">BuiltinTrace</span>
 │       ├── gen_fn
@@ -4400,9 +4400,9 @@ Usage of index argument vs. a length argument
 │       │           └── &lt;function kernel&gt;
 │       ├── args
 │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       └── f32[10]
+│       │       └──  f32[10]
 │       ├── retval
-│       │   └── f32[10]
+│       │   └──  f32[10]
 │       ├── choices
 │       │   └── <span style="font-weight: bold">Trie</span>
 │       │       ├── <span style="font-weight: bold">:x</span>
@@ -4411,36 +4411,36 @@ Usage of index argument vs. a length argument
 │       │       │       │   └── <span style="font-weight: bold">_Normal</span>
 │       │       │       ├── args
 │       │       │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       │       │       ├── f32[10]
-│       │       │       │       └── f32[10]
+│       │       │       │       ├──  f32[10]
+│       │       │       │       └──  f32[10]
 │       │       │       ├── value
-│       │       │       │   └── f32[10]
+│       │       │       │   └──  f32[10]
 │       │       │       └── score
-│       │       │           └── f32[10]
+│       │       │           └──  f32[10]
 │       │       └── <span style="font-weight: bold">:z</span>
 │       │           └── <span style="font-weight: bold">DistributionTrace</span>
 │       │               ├── gen_fn
 │       │               │   └── <span style="font-weight: bold">_Normal</span>
 │       │               ├── args
 │       │               │   └── <span style="font-weight: bold">tuple</span>
-│       │               │       ├── f32[10]
-│       │               │       └── f32[10]
+│       │               │       ├──  f32[10]
+│       │               │       └──  f32[10]
 │       │               ├── value
-│       │               │   └── f32[10]
+│       │               │   └──  f32[10]
 │       │               └── score
-│       │                   └── f32[10]
+│       │                   └──  f32[10]
 │       ├── cache
 │       │   └── <span style="font-weight: bold">Trie</span>
 │       └── score
-│           └── f32[10]
+│           └──  f32[10]
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       ├── i32[]
-│       └── f32[]
+│       ├──  i32[]
+│       └──  f32[]
 ├── retval
-│   └── f32[10]
+│   └──  f32[10]
 └── score
-    └── f32[]
+    └──  f32[]
 </pre>
 </div>
 </div>
@@ -4475,7 +4475,7 @@ Usage of index argument vs. a length argument
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">VectorChoiceMap</span>
 ├── indices
-│   └── i32[10]
+│   └──  i32[10]
 └── inner
     └── <span style="font-weight: bold">BuiltinTrace</span>
         ├── gen_fn
@@ -4484,9 +4484,9 @@ Usage of index argument vs. a length argument
         │           └── &lt;function kernel&gt;
         ├── args
         │   └── <span style="font-weight: bold">tuple</span>
-        │       └── f32[10]
+        │       └──  f32[10]
         ├── retval
-        │   └── f32[10]
+        │   └──  f32[10]
         ├── choices
         │   └── <span style="font-weight: bold">Trie</span>
         │       ├── <span style="font-weight: bold">:x</span>
@@ -4495,28 +4495,28 @@ Usage of index argument vs. a length argument
         │       │       │   └── <span style="font-weight: bold">_Normal</span>
         │       │       ├── args
         │       │       │   └── <span style="font-weight: bold">tuple</span>
-        │       │       │       ├── f32[10]
-        │       │       │       └── f32[10]
+        │       │       │       ├──  f32[10]
+        │       │       │       └──  f32[10]
         │       │       ├── value
-        │       │       │   └── f32[10]
+        │       │       │   └──  f32[10]
         │       │       └── score
-        │       │           └── f32[10]
+        │       │           └──  f32[10]
         │       └── <span style="font-weight: bold">:z</span>
         │           └── <span style="font-weight: bold">DistributionTrace</span>
         │               ├── gen_fn
         │               │   └── <span style="font-weight: bold">_Normal</span>
         │               ├── args
         │               │   └── <span style="font-weight: bold">tuple</span>
-        │               │       ├── f32[10]
-        │               │       └── f32[10]
+        │               │       ├──  f32[10]
+        │               │       └──  f32[10]
         │               ├── value
-        │               │   └── f32[10]
+        │               │   └──  f32[10]
         │               └── score
-        │                   └── f32[10]
+        │                   └──  f32[10]
         ├── cache
         │   └── <span style="font-weight: bold">Trie</span>
         └── score
-            └── f32[10]
+            └──  f32[10]
 </pre>
 </div>
 </div>
