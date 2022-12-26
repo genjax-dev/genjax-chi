@@ -13,9 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Any
-from typing import Dict
-from typing import Tuple
 
 from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
@@ -27,7 +24,12 @@ from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
     BuiltinTraceType,
 )
@@ -46,6 +48,7 @@ class BuiltinChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.trie,), ()
 
+    @typecheck
     @classmethod
     def new(cls, constraints: Dict):
         assert isinstance(constraints, Dict)
@@ -117,9 +120,9 @@ class BuiltinSelection(Selection):
     def flatten(self):
         return (self.trie,), ()
 
+    @typecheck
     @classmethod
-    def new(cls, selected):
-        assert isinstance(selected, list)
+    def new(cls, selected: List):
         trie = Trie.new()
         for k in selected:
             trie[k] = AllSelection()
