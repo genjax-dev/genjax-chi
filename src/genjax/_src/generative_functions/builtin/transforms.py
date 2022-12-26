@@ -30,7 +30,6 @@ from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.diff_rules import check_no_change
 from genjax._src.core.diff_rules import diff_propagation_rules
 from genjax._src.core.diff_rules import strip_diff
-from genjax._src.core.hashabledict import hashabledict
 from genjax._src.core.propagate import Cell
 from genjax._src.core.propagate import Handler
 from genjax._src.core.propagate import PropagationInterpreter
@@ -42,12 +41,7 @@ from genjax._src.core.staging import get_shaped_aval
 from genjax._src.core.staging import stage
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
-    BuiltinChoiceMap,
-)
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
-    BuiltinTrie,
-)
+from genjax._src.generative_functions.builtin.builtin_datatypes import Trie
 from genjax._src.generative_functions.builtin.intrinsics import cache_p
 from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
 
@@ -151,8 +145,8 @@ class Simulate(Handler):
     handles: List[core.Primitive]
     key: PRNGKey
     score: FloatArray
-    choice_state: ChoiceMap
-    cache_state: BuiltinTrie
+    choice_state: Trie
+    cache_state: Trie
 
     def flatten(self):
         return (
@@ -165,8 +159,8 @@ class Simulate(Handler):
     @classmethod
     def new(cls, key: PRNGKey):
         score = 0.0
-        choice_state = BuiltinChoiceMap(hashabledict())
-        cache_state = BuiltinTrie(hashabledict())
+        choice_state = Trie.new()
+        cache_state = Trie.new()
         handles = [gen_fn_p, cache_p]
         return Simulate(handles, key, score, choice_state, cache_state)
 
@@ -260,8 +254,8 @@ class Importance(Handler):
     score: FloatArray
     weight: FloatArray
     constraints: ChoiceMap
-    choice_state: ChoiceMap
-    cache_state: BuiltinTrie
+    choice_state: Trie
+    cache_state: Trie
 
     def flatten(self):
         return (
@@ -278,8 +272,8 @@ class Importance(Handler):
         handles = [gen_fn_p, cache_p]
         score = 0.0
         weight = 0.0
-        choice_state = BuiltinChoiceMap(hashabledict())
-        cache_state = BuiltinTrie(hashabledict())
+        choice_state = Trie.new()
+        cache_state = Trie.new()
         return Importance(
             handles, key, score, weight, constraints, choice_state, cache_state
         )
@@ -376,9 +370,9 @@ class Update(Handler):
     weight: FloatArray
     previous_trace: Trace
     constraints: ChoiceMap
-    discard: ChoiceMap
-    choice_state: ChoiceMap
-    cache_state: BuiltinTrie
+    discard: Trie
+    choice_state: Trie
+    cache_state: Trie
 
     def flatten(self):
         return (
@@ -397,9 +391,9 @@ class Update(Handler):
         handles = [gen_fn_p, cache_p]
         score = 0.0
         weight = 0.0
-        choice_state = BuiltinChoiceMap(hashabledict())
-        cache_state = BuiltinTrie(hashabledict())
-        discard = BuiltinChoiceMap(hashabledict())
+        choice_state = Trie.new()
+        cache_state = Trie.new()
+        discard = Trie.new()
         return Update(
             handles,
             key,
