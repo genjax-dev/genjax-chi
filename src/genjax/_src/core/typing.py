@@ -13,25 +13,38 @@
 # limitations under the License.
 
 """This module contains a set of types and type aliases which are used
-throughout the codebase."""
+throughout the codebase.
 
-from typing import Any
-from typing import Union
+Type annotations in the codebase are exported out of this module for
+consistency.
+"""
 
+import typing
+
+import beartype.typing as btyping
 import jax.numpy as jnp
 import numpy as np
+from beartype import beartype
 from jaxtyping import Array
 from jaxtyping import Bool
 from jaxtyping import Float
 from jaxtyping import Int
+from jaxtyping import UInt
 
 
-PRNGKey = Int[Array, "..."]
-PrettyPrintable = Any
-Dataclass = Any
-FloatArray = Union[float, Float[Array, "..."]]
-BoolArray = Union[bool, Bool[Array, "..."]]
-IntArray = Union[int, Int[Array, "..."]]
+typecheck = beartype
+
+PRNGKey = UInt[Array, "..."]
+PrettyPrintable = typing.Any
+Dataclass = typing.Any
+FloatArray = typing.Union[float, Float[Array, "..."]]
+BoolArray = typing.Union[bool, Bool[Array, "..."]]
+IntArray = typing.Union[int, Int[Array, "..."]]
+Tuple = btyping.Tuple
+Any = typing.Any
+Union = typing.Union
+Callable = typing.Callable
+Sequence = typing.Sequence
 
 
 def static_check_is_array(v):
