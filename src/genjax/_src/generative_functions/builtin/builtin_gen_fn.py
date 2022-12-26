@@ -22,6 +22,9 @@ from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.staging import stage
 from genjax._src.generative_functions.builtin.builtin_datatypes import (
+    BuiltinChoiceMap,
+)
+from genjax._src.generative_functions.builtin.builtin_datatypes import (
     BuiltinTrace,
 )
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
@@ -93,5 +96,5 @@ class BuiltinGenerativeFunction(GenerativeFunction):
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
-            discard,
+            BuiltinChoiceMap(discard),
         )

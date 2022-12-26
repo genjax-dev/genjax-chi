@@ -25,10 +25,10 @@ def simple_normal():
 
 
 class TestAssessSimpleNormal:
-    def test_simple_normal_assess(self, benchmark):
+    def test_simple_normal_assess(self):
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.assess(simple_normal))
         chm = tr.get_choices().strip()
-        key, (_, score) = benchmark(jitted, key, chm, ())
+        key, (_, score) = jitted(key, chm, ())
         assert score == tr.get_score()
