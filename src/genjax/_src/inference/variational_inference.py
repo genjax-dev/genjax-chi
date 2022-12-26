@@ -152,3 +152,10 @@ class VariationalInference(Pytree):
         var_model_args: Tuple,
     ):
         return self._vimco_apply(key, observations, model_args, var_model_args)
+
+
+##############
+# Shorthands #
+##############
+
+variational = VariationalInference.new
