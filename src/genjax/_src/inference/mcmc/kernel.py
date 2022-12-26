@@ -27,8 +27,8 @@ class MCMCKernel(Pytree):
         pass
 
     @abc.abstractmethod
-    def apply(self, key: PRNGKey, trace: Trace):
+    def apply(self, key: PRNGKey, trace: Trace, *args):
         pass
 
-    def __call__(self, key, trace):
-        return self.apply(key, trace)
+    def __call__(self, key, trace, *args):
+        return self.apply(key, trace, *args)
