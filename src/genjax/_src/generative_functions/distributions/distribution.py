@@ -16,9 +16,6 @@
 
 import abc
 from dataclasses import dataclass
-from typing import Any
-from typing import Callable
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
@@ -36,7 +33,13 @@ from genjax._src.core.diff_rules import check_no_change
 from genjax._src.core.diff_rules import strip_diff
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.specialization import concrete_cond
+from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_tracetype import lift
 
 
@@ -47,10 +50,10 @@ from genjax._src.generative_functions.builtin.builtin_tracetype import lift
 
 @dataclass
 class DistributionTrace(Trace, Leaf):
-    gen_fn: Callable
+    gen_fn: GenerativeFunction
     args: Tuple
     value: Any
-    score: Any
+    score: FloatArray
 
     def flatten(self):
         return (self.args, self.value, self.score), (self.gen_fn,)
@@ -84,7 +87,8 @@ class Distribution(GenerativeFunction):
     def flatten(self):
         return (), ()
 
-    def get_trace_type(self, key, args, **kwargs):
+    @typecheck
+    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
         _, (_, (_, ttype)) = jax.make_jaxpr(
             self.random_weighted, return_shape=True
         )(key, *args)
@@ -99,13 +103,18 @@ class Distribution(GenerativeFunction):
     def estimate_logpdf(cls, key, v, *args, **kwargs):
         pass
 
-    def simulate(self, key, args, **kwargs):
+    @typecheck
+    def simulate(
+        self, key: PRNGKey, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, DistributionTrace]:
         key, (w, v) = self.random_weighted(key, *args, **kwargs)
         tr = DistributionTrace(self, args, v, w)
         return key, tr
 
-    def importance(self, key, chm, args, **kwargs):
-        assert isinstance(chm, ChoiceMap)
+    @typecheck
+    def importance(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, DistributionTrace]]:
         assert isinstance(chm, Leaf)
 
         # If the choice map is empty, we just simulate
@@ -127,7 +136,7 @@ class Distribution(GenerativeFunction):
                 key, (w, v) = self.estimate_logpdf(key, v, *args)
                 return key, v, w
 
-            def _inactive(key, v, args):
+            def _inactive(key, v, _):
                 w = 0.0
                 return key, v, w
 
@@ -152,21 +161,28 @@ class Distribution(GenerativeFunction):
             DistributionTrace(self, args, v, score),
         )
 
-    def update(self, key, prev, new, diffs, **kwargs):
-        assert isinstance(prev, DistributionTrace)
-        assert isinstance(new, ChoiceMap)
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        prev: DistributionTrace,
+        constraints: ChoiceMap,
+        argdiffs: Tuple,
+        **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, ChoiceMap]]:
+        assert isinstance(constraints, Leaf)
 
         # Incremental optimization - if nothing has changed,
         # just return the previous trace.
-        if isinstance(new, EmptyChoiceMap) and all(
-            map(check_no_change, diffs)
+        if isinstance(constraints, EmptyChoiceMap) and all(
+            map(check_no_change, argdiffs)
         ):
             v = prev.get_retval()
             retval_diff = Diff.new(v, change=NoChange)
             return key, (retval_diff, 0.0, prev, EmptyChoiceMap())
 
         # Otherwise, we consider the cases.
-        args = jtu.tree_map(strip_diff, diffs, is_leaf=check_is_diff)
+        args = jtu.tree_map(strip_diff, argdiffs, is_leaf=check_is_diff)
 
         # First, we have to check if the trace provided
         # is masked or not. It's possible that a trace
@@ -178,7 +194,7 @@ class Distribution(GenerativeFunction):
             active = prev_v.mask
 
         # Case 1: the new choice map is empty here.
-        if isinstance(new, EmptyChoiceMap):
+        if isinstance(constraints, EmptyChoiceMap):
             prev_score = prev.get_score()
             v = prev_v
 
@@ -199,7 +215,7 @@ class Distribution(GenerativeFunction):
         # Case 2: the new choice map is not empty here.
         else:
             prev_score = prev.get_score()
-            v = new.get_leaf_value()
+            v = constraints.get_leaf_value()
 
             # Now, we must check if the choice map has a masked
             # leaf value, and dispatch accordingly.
@@ -213,15 +229,20 @@ class Distribution(GenerativeFunction):
             # values.
             active = jnp.all(jnp.logical_and(active_chm, active))
 
-            def _new_active(key, v, *args):
+            def _constraints_active(key, v, *args):
                 key, (fwd, _) = self.estimate_logpdf(key, v, *args)
                 return key, v, fwd - prev_score
 
-            def _new_inactive(key, v, *args):
+            def _constraints_inactive(key, v, *args):
                 return key, prev_v, 0.0
 
             key, v, w = concrete_cond(
-                active_chm, _new_active, _new_inactive, key, v, *args
+                active_chm,
+                _constraints_active,
+                _constraints_inactive,
+                key,
+                v,
+                *args
             )
 
             # Now, we also must check if the trace has a masked
@@ -237,7 +258,10 @@ class Distribution(GenerativeFunction):
             discard,
         )
 
-    def assess(self, key, evaluation_point, args):
+    @typecheck
+    def assess(
+        self, key: PRNGKey, evaluation_point: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         assert isinstance(evaluation_point, ValueChoiceMap)
         v = evaluation_point.get_leaf_value()
         key, (score, _) = self.estimate_logpdf(key, v, *args)

@@ -25,7 +25,6 @@ from genjax._src.core.datatypes import NoneSelection
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.core.hashabledict import hashabledict
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf
 from genjax._src.core.typing import FloatArray
@@ -149,7 +148,7 @@ class BuiltinSelection(Selection):
             return BuiltinChoiceMap(trie), score
 
     def complement(self):
-        return BuiltinComplementSelection(self)
+        return BuiltinComplementSelection(self.trie)
 
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
@@ -180,7 +179,7 @@ class BuiltinSelection(Selection):
 
 @dataclass
 class BuiltinComplementSelection(Selection):
-    selection: BuiltinSelection
+    trie: Trie
 
     def flatten(self):
         return (self.selection,), ()
@@ -194,21 +193,21 @@ class BuiltinComplementSelection(Selection):
             else:
                 return k, v, 0.0
 
-        new_tree = hashabledict()
+        trie = Trie.new()
         score = 0.0
         iter = chm.get_subtrees_shallow()
         for (k, v, s) in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoiceMap):
-                new_tree[k] = v
+                trie[k] = v
                 score += s
 
         if isinstance(chm, TraceType):
-            return type(chm)(new_tree, chm.get_rettype()), score
+            return type(chm)(trie, chm.get_rettype()), score
         else:
-            return BuiltinChoiceMap(new_tree), score
+            return BuiltinChoiceMap(trie), score
 
     def complement(self):
-        return self.selection
+        return BuiltinSelection(self.trie)
 
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)

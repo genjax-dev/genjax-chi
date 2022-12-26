@@ -18,9 +18,6 @@ kernels (a kernel generative function can accept their previous output as
 input)."""
 
 from dataclasses import dataclass
-from typing import Any
-from typing import Sequence
-from typing import Tuple
 
 import jax
 import jax.experimental.host_callback as hcb
@@ -28,11 +25,18 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
+from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Sequence
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -141,12 +145,15 @@ class UnfoldCombinator(GenerativeFunction):
     """
 
     kernel: GenerativeFunction
-    max_length: int
+    max_length: IntArray
 
     def flatten(self):
         return (), (self.kernel, self.max_length)
 
-    def get_trace_type(self, key, args, **kwargs):
+    @typecheck
+    def get_trace_type(
+        self, key: PRNGKey, args: Tuple, **kwargs
+    ) -> VectorTraceType:
         _ = args[0]
         args = args[1:]
         inner_type = self.kernel.get_trace_type(key, args, **kwargs)
@@ -165,7 +172,10 @@ class UnfoldCombinator(GenerativeFunction):
         )
         return None
 
-    def simulate(self, key, args):
+    @typecheck
+    def simulate(
+        self, key: PRNGKey, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, UnfoldTrace]:
         length = args[0]
         state = args[1]
         static_args = args[2:]
@@ -470,7 +480,10 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    def importance(self, key, chm, args):
+    @typecheck
+    def importance(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, UnfoldTrace]]:
         length = args[0]
 
         # This inserts a host callback check for bounds checking.
@@ -586,11 +599,11 @@ class UnfoldCombinator(GenerativeFunction):
         return key, (retdiff, w, unfold_tr, discard)
 
     # The choice map is a vector choice map.
-    def _update_vcm(self, key, prev, chm, diffs):
-        length = diffs[0]
-        state = diffs[1]
-        static_args = diffs[2:]
-        args = tuple(map(lambda v: v.get_val(), diffs))
+    def _update_vcm(self, key, prev, chm, argdiffs):
+        length = argdiffs[0]
+        state = argdiffs[1]
+        static_args = argdiffs[2:]
+        args = tuple(map(lambda v: v.get_val(), argdiffs))
 
         # Here, we skip any choice map pre-setup -
         # assuming the user is encoding information directly
@@ -657,11 +670,11 @@ class UnfoldCombinator(GenerativeFunction):
         return key, (retdiff, w, unfold_tr, discard)
 
     # The choice map doesn't carry optimization info.
-    def _update_fallback(self, key, prev, chm, diffs):
-        length = diffs[0]
-        state = diffs[1]
-        static_args = diffs[2:]
-        args = tuple(map(lambda v: v.get_val(), diffs))
+    def _update_fallback(self, key, prev, chm, argdiffs):
+        length = argdiffs[0]
+        state = argdiffs[1]
+        static_args = argdiffs[2:]
+        args = tuple(map(lambda v: v.get_val(), argdiffs))
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
         # before passing into scan calls.
@@ -729,8 +742,16 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (retdiff, w, unfold_tr, discard)
 
-    def update(self, key, prev, chm, diffs):
-        length = diffs[0].get_val()
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        chm: ChoiceMap,
+        argdiffs: Tuple,
+        **kwargs,
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, UnfoldTrace, ChoiceMap]]:
+        length = argdiffs[0].get_val()
 
         # Unwrap the previous trace at this address
         # we should get a `VectorChoiceMap`.
@@ -755,11 +776,11 @@ class UnfoldCombinator(GenerativeFunction):
         # The fallback just inflates a choice map to the right shape
         # and runs a generic update.
         if isinstance(chm, VectorChoiceMap):
-            return self._update_vcm(key, prev, chm, diffs)
+            return self._update_vcm(key, prev, chm, argdiffs)
         else:
-            return self._update_fallback(key, prev, chm, diffs)
+            return self._update_fallback(key, prev, chm, argdiffs)
 
-    def _throw_index_check_host_exception(self, index: int):
+    def _throw_index_check_host_exception(self, index: IntArray):
         def _inner(count, transforms):
             raise Exception(
                 f"\nUnfoldCombinator {self} received a choice map with mismatched indices (at index {index}) in assess."
@@ -772,7 +793,10 @@ class UnfoldCombinator(GenerativeFunction):
         )
         return None
 
-    def assess(self, key, chm, args):
+    @typecheck
+    def assess(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         assert isinstance(chm, VectorChoiceMap)
         length = args[0]
 

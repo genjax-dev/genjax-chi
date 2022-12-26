@@ -29,6 +29,7 @@ from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import typecheck
 
 
 ######################################
@@ -50,9 +51,9 @@ class VectorChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.indices, self.inner), ()
 
+    @typecheck
     @classmethod
-    def new(cls, inner):
-        assert isinstance(inner, ChoiceMap)
+    def new(cls, inner: ChoiceMap):
         if isinstance(inner, EmptyChoiceMap):
             return inner
         broadcast_dim_tree = jtu.tree_map(lambda v: len(v), inner)

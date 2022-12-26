@@ -17,9 +17,9 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.hashabledict import HashableDict
 from genjax._src.core.hashabledict import hashabledict
-from genjax._src.core.tree import Tree
 
 
 #####
@@ -28,7 +28,7 @@ from genjax._src.core.tree import Tree
 
 
 @dataclass
-class Trie(Tree):
+class Trie(ChoiceMap):
     inner: HashableDict
 
     def flatten(self):
@@ -37,6 +37,9 @@ class Trie(Tree):
     @classmethod
     def new(cls):
         return Trie(hashabledict())
+
+    def get_selection(self):
+        raise Exception("Trie doesn't provide conversion to Selection.")
 
     def trie_insert(self, addr, value):
         if isinstance(addr, tuple) and len(addr) > 1:

@@ -13,14 +13,19 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Callable
-from typing import Tuple
 
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.staging import stage
+from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import (
     BuiltinChoiceMap,
 )
@@ -51,37 +56,39 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def flatten(self):
         return (), (self.source,)
 
-    def get_trace_type(self, key, args, **kwargs):
-        assert isinstance(args, Tuple)
+    @typecheck
+    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
         closed_jaxpr, _ = stage(self.__call__)(key, *args)
         return get_trace_type(closed_jaxpr)
 
-    def simulate(self, key, args, **kwargs):
-        assert isinstance(args, Tuple)
+    @typecheck
+    def simulate(
+        self, key: PRNGKey, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, BuiltinTrace]:
         key, (f, args, r, chm, score), cache = simulate_transform(
             self.source, **kwargs
         )(key, args)
         return key, BuiltinTrace(self, args, r, chm, cache, score)
 
-    def importance(self, key, chm, args, **kwargs):
-        assert isinstance(chm, ChoiceMap) or isinstance(chm, Trace)
-        assert isinstance(args, Tuple)
+    @typecheck
+    def importance(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, BuiltinTrace]]:
         key, (w, (f, args, r, chm, score)), cache = importance_transform(
             self.source, **kwargs
         )(key, chm, args)
         return key, (w, BuiltinTrace(self, args, r, chm, cache, score))
 
-    def assess(self, key, chm, args, **kwargs):
-        assert isinstance(chm, ChoiceMap)
-        key, (retval, score) = assess_transform(self.source, **kwargs)(
-            key, chm, args
-        )
-        return key, (retval, score)
-
-    def update(self, key, prev, new, args, **kwargs):
-        assert isinstance(new, ChoiceMap)
-        assert isinstance(args, Tuple)
-        assert all(map(check_is_diff, args))
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        constraints: ChoiceMap,
+        argdiffs: Tuple,
+        **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
+        assert all(map(check_is_diff, argdiffs))
         (
             key,
             (
@@ -91,10 +98,21 @@ class BuiltinGenerativeFunction(GenerativeFunction):
                 discard,
             ),
             cache,
-        ) = update_transform(self.source, **kwargs)(key, prev, new, args)
+        ) = update_transform(self.source, **kwargs)(
+            key, prev, constraints, argdiffs
+        )
         return key, (
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
             BuiltinChoiceMap(discard),
         )
+
+    @typecheck
+    def assess(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
+        key, (retval, score) = assess_transform(self.source, **kwargs)(
+            key, chm, args
+        )
+        return key, (retval, score)

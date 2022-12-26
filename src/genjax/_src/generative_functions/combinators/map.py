@@ -17,7 +17,7 @@ broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Any
 from typing import Union
 
 import jax
@@ -25,13 +25,18 @@ import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
+from beartype import beartype
+from beartype.typing import Tuple
 
+from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
+from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -144,12 +149,13 @@ class MapCombinator(GenerativeFunction):
     def flatten(self):
         return (), (self.kernel, self.in_axes, self.repeats)
 
+    @beartype
     @classmethod
     def new(
         cls,
         kernel: GenerativeFunction,
         in_axes: Union[None, Tuple] = None,
-        repeats=None,
+        repeats: Union[None, IntArray] = None,
     ) -> "MapCombinator":
         assert isinstance(kernel, GenerativeFunction)
         if in_axes is None or all(map(lambda v: v is None, in_axes)):
@@ -167,7 +173,8 @@ class MapCombinator(GenerativeFunction):
     # This is a terrible and needs to be re-written.
     # Why do I need to `vmap` to get the correct trace type
     # from the inner kernel? Fix.
-    def get_trace_type(self, key, args, **kwargs):
+    @beartype
+    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         kernel_tt = jax.vmap(
@@ -176,7 +183,10 @@ class MapCombinator(GenerativeFunction):
         kernel_tt = jtu.tree_map(lambda v: v[0], kernel_tt)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
-    def simulate(self, key, args, **kwargs):
+    @beartype
+    def simulate(
+        self, key: PRNGKey, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, MapTrace]:
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -282,7 +292,10 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
-    def importance(self, key, chm, args):
+    @beartype
+    def importance(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
         else:
@@ -428,7 +441,10 @@ class MapCombinator(GenerativeFunction):
         )
         return None
 
-    def assess(self, key, chm, args):
+    @beartype
+    def assess(
+        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         assert isinstance(chm, VectorChoiceMap)
 
         broadcast_dim_length = self._static_broadcast_dim_len(args)
