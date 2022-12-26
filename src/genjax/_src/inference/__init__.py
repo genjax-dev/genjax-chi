@@ -15,3 +15,4 @@
 from .importance_sampling import *
 from .map_update import *
 from .mcmc import *
+from .variational import *
