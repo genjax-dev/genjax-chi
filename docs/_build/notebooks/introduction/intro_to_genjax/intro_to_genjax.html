@@ -4062,12 +4062,12 @@ vertical-align: -.125em;
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../intermediate/incremental_computation/incremental.html" class="sidebar-item-text sidebar-link">Incremental computation for generative functions</a>
+  <a href="../../intermediate/intro_to_combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">Introduction to generative function combinators</a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../intermediate/intro_to_combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">Introduction to generative function combinators</a>
+  <a href="../../intermediate/incremental_computation/incremental.html" class="sidebar-item-text sidebar-link">Incremental computation for generative functions</a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -4197,7 +4197,7 @@ vertical-align: -.125em;
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">&quot;white&quot;</span>)</span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Pretty printing.</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty()</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty(width<span class="op">=</span><span class="dv">80</span>)</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -4272,7 +4272,7 @@ vertical-align: -.125em;
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">BuiltinGenerativeFunction</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+└── source
     └── &lt;function h&gt;
 </pre>
 </div>
@@ -4282,37 +4282,47 @@ vertical-align: -.125em;
 <div class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>console.inspect(genjax.BuiltinGenerativeFunction, methods<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="color: #000080; text-decoration-color: #000080">╭────────── </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">class</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008000; text-decoration-color: #008000">&#39;genjax._src.generative_functions.builtin.builtin_gen_fn.BuiltinGenerativeFunction&#39;</span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">&gt;</span><span style="color: #000080; text-decoration-color: #000080"> ──────────╮</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">class </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">BuiltinGenerativeFunction</span><span style="font-weight: bold">(</span>source: Callable<span style="font-weight: bold">)</span> -&gt; <span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span>:                                                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                                                                                                                 <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFunction</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080">source: Callable</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">)</span>                                                                     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                                                                                                                 <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>         <span style="color: #808000; text-decoration-color: #808000; font-style: italic">assess</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">assess</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, chm: genjax._src.core.datatypes.ChoiceMap, <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  args: tuple, **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, tuple<span style="font-weight: bold">[</span>typing.Any,                <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  typing.Union<span style="font-weight: bold">[</span>float, jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]]]</span>:                                          <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>    <span style="color: #808000; text-decoration-color: #808000; font-style: italic">choice_grad</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">choice_grad</span><span style="font-weight: bold">(</span>self, key, trace, selection<span style="font-weight: bold">)</span>:                                                  <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>        <span style="color: #808000; text-decoration-color: #808000; font-style: italic">flatten</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">flatten</span><span style="font-weight: bold">(</span>self<span style="font-weight: bold">)</span>:                                                                             <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #808000; text-decoration-color: #808000; font-style: italic">get_trace_type</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">get_trace_type</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, args: tuple, **kwargs<span style="font-weight: bold">)</span> -&gt;          <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.tracetypes.TraceType:                                                         <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>     <span style="color: #808000; text-decoration-color: #808000; font-style: italic">importance</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">importance</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, chm:                                   <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap, args: tuple, **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array,    <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, tuple<span style="font-weight: bold">[</span>typing.Union<span style="font-weight: bold">[</span>float, jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]</span>,                              <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.generative_functions.builtin.builtin_datatypes.BuiltinTrace<span style="font-weight: bold">]]</span>:                     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>            <span style="color: #808000; text-decoration-color: #808000; font-style: italic">new</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">new</span><span style="font-weight: bold">(</span>*args, **kwargs<span style="font-weight: bold">)</span>:                                                                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>       <span style="color: #808000; text-decoration-color: #808000; font-style: italic">simulate</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">simulate</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, args: tuple, **kwargs<span style="font-weight: bold">)</span> -&gt;                <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,                                                            <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.generative_functions.builtin.builtin_datatypes.BuiltinTrace<span style="font-weight: bold">]</span>:                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>      <span style="color: #808000; text-decoration-color: #808000; font-style: italic">unflatten</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">unflatten</span><span style="font-weight: bold">(</span>data, xs<span style="font-weight: bold">)</span>:                                                                       <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>          <span style="color: #808000; text-decoration-color: #808000; font-style: italic">unzip</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">unzip</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, fixed:                                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap<span style="font-weight: bold">)</span> -&gt; Tuple<span style="font-weight: bold">[</span>jaxUInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,                          <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Callable<span style="font-weight: bold">[[</span>genjax._src.core.datatypes.ChoiceMap, Tuple<span style="font-weight: bold">]</span>, Union<span style="font-weight: bold">[</span>float, jaxFloat<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]]</span>, <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Callable<span style="font-weight: bold">[[</span>genjax._src.core.datatypes.ChoiceMap, Tuple<span style="font-weight: bold">]</span>, Any<span style="font-weight: bold">]]</span>:                                 <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>         <span style="color: #808000; text-decoration-color: #808000; font-style: italic">update</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">update</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, prev: genjax._src.core.datatypes.Trace,    <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  constraints: genjax._src.core.datatypes.ChoiceMap, argdiffs: tuple, **kwargs<span style="font-weight: bold">)</span> -&gt;               <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, tuple<span style="font-weight: bold">[</span>typing.Any, typing.Union<span style="font-weight: bold">[</span>float,                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]</span>, genjax._src.core.datatypes.Trace,                              <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap<span style="font-weight: bold">]]</span>:                                                        <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span>
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="color: #000080; text-decoration-color: #000080">╭─ </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">class</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008000; text-decoration-color: #008000">&#39;genjax._src.generative_functions.builtin.builtin_gen_fn.BuiltinGene</span><span style="color: #000080; text-decoration-color: #000080">─╮</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">class </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">BuiltinGenerativeFunction</span><span style="font-weight: bold">(</span>source: Callable<span style="font-weight: bold">)</span> -&gt; <span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span>:                   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                                                                              <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFunction</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080">source: Callable</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">)</span>                                  <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                                                                              <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>         <span style="color: #808000; text-decoration-color: #808000; font-style: italic">assess</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">assess</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, chm:    <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap, args: tuple,          <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,            <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>typing.Any, typing.Union<span style="font-weight: bold">[</span>float,                       <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]]]</span>:                           <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>    <span style="color: #808000; text-decoration-color: #808000; font-style: italic">choice_grad</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">choice_grad</span><span style="font-weight: bold">(</span>self, key, trace, selection<span style="font-weight: bold">)</span>:               <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>        <span style="color: #808000; text-decoration-color: #808000; font-style: italic">flatten</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">flatten</span><span style="font-weight: bold">(</span>self<span style="font-weight: bold">)</span>:                                          <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #808000; text-decoration-color: #808000; font-style: italic">get_trace_type</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">get_trace_type</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  args: tuple, **kwargs<span style="font-weight: bold">)</span> -&gt;                                   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.tracetypes.TraceType:                      <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>     <span style="color: #808000; text-decoration-color: #808000; font-style: italic">importance</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">importance</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  chm: genjax._src.core.datatypes.ChoiceMap, args: tuple,     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,            <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>typing.Union<span style="font-weight: bold">[</span>float, jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]</span>,   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.generative_functions.builtin.builtin_datatypes… <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>            <span style="color: #808000; text-decoration-color: #808000; font-style: italic">new</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">new</span><span style="font-weight: bold">(</span>*args, **kwargs<span style="font-weight: bold">)</span>:                                   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>       <span style="color: #808000; text-decoration-color: #808000; font-style: italic">simulate</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">simulate</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, args: <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple, **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.generative_functions.builtin.builtin_datatypes… <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>      <span style="color: #808000; text-decoration-color: #808000; font-style: italic">unflatten</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">unflatten</span><span style="font-weight: bold">(</span>data, xs<span style="font-weight: bold">)</span>:                                    <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>          <span style="color: #808000; text-decoration-color: #808000; font-style: italic">unzip</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">unzip</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, fixed:   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap<span style="font-weight: bold">)</span> -&gt;                    <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  Tuple<span style="font-weight: bold">[</span>jaxUInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,                                <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  Callable<span style="font-weight: bold">[[</span>genjax._src.core.datatypes.ChoiceMap, Tuple<span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  Union<span style="font-weight: bold">[</span>float, jaxFloat<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]]</span>,                      <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  Callable<span style="font-weight: bold">[[</span>genjax._src.core.datatypes.ChoiceMap, Tuple<span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  Any<span style="font-weight: bold">]]</span>:                                                      <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>         <span style="color: #808000; text-decoration-color: #808000; font-style: italic">update</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">update</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>, prev:   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.Trace, constraints:              <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap, argdiffs: tuple,      <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]</span>,            <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>typing.Any, typing.Union<span style="font-weight: bold">[</span>float,                       <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">&#39;...&#39;</span><span style="font-weight: bold">]]</span>,                             <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.Trace,                           <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap<span style="font-weight: bold">]]</span>:                     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">╰──────────────────────────────────────────────────────────────────────────────╯</span>
 </pre>
 </div>
 </div>
@@ -4344,49 +4354,49 @@ JAX interfaces
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">BuiltinTrace</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+├── gen_fn
 │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│       └── source
 │           └── &lt;function h&gt;
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│       └── (lit) 0.3
+├── retval
+│   └── bool[]
+├── choices
 │   └── <span style="font-weight: bold">Trie</span>
-│       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">sub</span>
+│       └── <span style="font-weight: bold">:sub</span>
 │           └── <span style="font-weight: bold">BuiltinTrace</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               ├── gen_fn
 │               │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│               │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │       └── source
 │               │           └── &lt;function g&gt;
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               ├── args
 │               │   └── <span style="font-weight: bold">tuple</span>
-│               │       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│               │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│               │       └── (lit) 0.3
+│               ├── retval
+│               │   └── bool[]
+│               ├── choices
 │               │   └── <span style="font-weight: bold">Trie</span>
-│               │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m0</span>
+│               │       └── <span style="font-weight: bold">:m0</span>
 │               │           └── <span style="font-weight: bold">DistributionTrace</span>
-│               │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │               ├── gen_fn
 │               │               │   └── <span style="font-weight: bold">_Bernoulli</span>
-│               │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │               ├── args
 │               │               │   └── <span style="font-weight: bold">tuple</span>
-│               │               │       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-│               │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│               │               │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-│               │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│               │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│               │               │       └── (lit) 0.3
+│               │               ├── value
+│               │               │   └── bool[]
+│               │               └── score
+│               │                   └── f32[]
+│               ├── cache
 │               │   └── <span style="font-weight: bold">Trie</span>
-│               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│               └── score
+│                   └── f32[]
+├── cache
 │   └── <span style="font-weight: bold">Trie</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+└── score
+    └── f32[]
 </pre>
 </div>
 </div>
@@ -4591,16 +4601,16 @@ JAX interfaces
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">DistributionTrace</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+├── gen_fn
 │   └── <span style="font-weight: bold">_Normal</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       ├── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.0</span>
-│       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 1.0</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+│       ├── (lit) 0.0
+│       └── (lit) 1.0
+├── value
+│   └── f32[]
+└── score
+    └── f32[]
 </pre>
 </div>
 </div>
@@ -4634,43 +4644,43 @@ JAX interfaces
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">BuiltinTrace</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+├── gen_fn
 │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│       └── source
 │           └── &lt;function h&gt;
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│       └── (lit) 0.3
+├── retval
+│   └── bool[]
+├── choices
 │   └── <span style="font-weight: bold">Trie</span>
-│       ├── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m0</span>
+│       ├── <span style="font-weight: bold">:m1</span>
 │       │   └── <span style="font-weight: bold">DistributionTrace</span>
-│       │       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│       │       ├── gen_fn
 │       │       │   └── <span style="font-weight: bold">_Bernoulli</span>
-│       │       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│       │       ├── args
 │       │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       │       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-│       │       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│       │       │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-│       │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│       │           └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-│       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m1</span>
+│       │       │       └── (lit) 0.3
+│       │       ├── value
+│       │       │   └── bool[]
+│       │       └── score
+│       │           └── f32[]
+│       └── <span style="font-weight: bold">:m0</span>
 │           └── <span style="font-weight: bold">DistributionTrace</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               ├── gen_fn
 │               │   └── <span style="font-weight: bold">_Bernoulli</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               ├── args
 │               │   └── <span style="font-weight: bold">tuple</span>
-│               │       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-│               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│               │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-│               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│                   └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│               │       └── (lit) 0.3
+│               ├── value
+│               │   └── bool[]
+│               └── score
+│                   └── f32[]
+├── cache
 │   └── <span style="font-weight: bold">Trie</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+└── score
+    └── f32[]
 </pre>
 </div>
 </div>
@@ -4683,19 +4693,19 @@ JAX interfaces
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">BuiltinChoiceMap</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">trie</span>
+└── trie
     └── <span style="font-weight: bold">Trie</span>
-        └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">m1</span>
+        └── <span style="font-weight: bold">:m1</span>
             └── <span style="font-weight: bold">DistributionTrace</span>
-                ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+                ├── gen_fn
                 │   └── <span style="font-weight: bold">_Bernoulli</span>
-                ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+                ├── args
                 │   └── <span style="font-weight: bold">tuple</span>
-                │       └── <span style="color: #af00ff; text-decoration-color: #af00ff">(lit) 0.3</span>
-                ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-                │   └── <span style="color: #008787; text-decoration-color: #008787">bool[]</span>
-                └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-                    └── <span style="color: #008787; text-decoration-color: #008787">f32[]</span>
+                │       └── (lit) 0.3
+                ├── value
+                │   └── bool[]
+                └── score
+                    └── f32[]
 </pre>
 </div>
 </div>
@@ -4763,88 +4773,88 @@ JAX interfaces
 </div>
 <div class="cell-output cell-output-display">
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,&#39;DejaVu Sans Mono&#39;,consolas,&#39;Courier New&#39;,monospace"><span style="font-weight: bold">SwitchTrace</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+├── gen_fn
 │   └── <span style="font-weight: bold">SwitchCombinator</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">branches</span>
+│       └── branches
 │           └── <span style="font-weight: bold">list</span>
 │               ├── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│               │   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │   └── source
 │               │       └── &lt;function model_y&gt;
 │               └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│                   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│                   └── source
 │                       └── &lt;function outlier_model&gt;
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">chm</span>
+├── chm
 │   └── <span style="font-weight: bold">IndexedChoiceMap</span>
-│       ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">index</span>
-│       │   └── <span style="color: #008787; text-decoration-color: #008787">i32[20]</span>
-│       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">submaps</span>
+│       ├── index
+│       │   └── i32[20]
+│       └── submaps
 │           └── <span style="font-weight: bold">list</span>
 │               ├── <span style="font-weight: bold">BuiltinTrace</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │   ├── gen_fn
 │               │   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│               │   │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│               │   │       └── source
 │               │   │           └── &lt;function model_y&gt;
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │   ├── args
 │               │   │   └── <span style="font-weight: bold">tuple</span>
-│               │   │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│               │   │       └── <span style="color: #008787; text-decoration-color: #008787">f32[20,3]</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│               │   │   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│               │   │       ├── f32[20]
+│               │   │       └── f32[20,3]
+│               │   ├── retval
+│               │   │   └── f32[20]
+│               │   ├── choices
 │               │   │   └── <span style="font-weight: bold">Trie</span>
-│               │   │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">value</span>
+│               │   │       └── <span style="font-weight: bold">:value</span>
 │               │   │           └── <span style="font-weight: bold">DistributionTrace</span>
-│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│               │   │               ├── gen_fn
 │               │   │               │   └── <span style="font-weight: bold">_Normal</span>
-│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│               │   │               ├── args
 │               │   │               │   └── <span style="font-weight: bold">tuple</span>
-│               │   │               │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│               │   │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│               │   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│               │   │               │   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│               │   │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│               │   │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│               │   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│               │   │               │       ├── f32[20]
+│               │   │               │       └── f32[20]
+│               │   │               ├── value
+│               │   │               │   └── f32[20]
+│               │   │               └── score
+│               │   │                   └── f32[20]
+│               │   ├── cache
 │               │   │   └── <span style="font-weight: bold">Trie</span>
-│               │   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
+│               │   └── score
+│               │       └── f32[20]
 │               └── <span style="font-weight: bold">BuiltinTrace</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│                   ├── gen_fn
 │                   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│                   │       └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">source</span>
+│                   │       └── source
 │                   │           └── &lt;function outlier_model&gt;
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   ├── args
 │                   │   └── <span style="font-weight: bold">tuple</span>
-│                   │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│                   │       └── <span style="color: #008787; text-decoration-color: #008787">f32[20,3]</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│                   │   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">choices</span>
+│                   │       ├── f32[20]
+│                   │       └── f32[20,3]
+│                   ├── retval
+│                   │   └── f32[20]
+│                   ├── choices
 │                   │   └── <span style="font-weight: bold">Trie</span>
-│                   │       └── <span style="color: #008000; text-decoration-color: #008000; font-weight: bold">value</span>
+│                   │       └── <span style="font-weight: bold">:value</span>
 │                   │           └── <span style="font-weight: bold">DistributionTrace</span>
-│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">gen_fn</span>
+│                   │               ├── gen_fn
 │                   │               │   └── <span style="font-weight: bold">_Normal</span>
-│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   │               ├── args
 │                   │               │   └── <span style="font-weight: bold">tuple</span>
-│                   │               │       ├── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│                   │               │       └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│                   │               ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">value</span>
-│                   │               │   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│                   │               └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│                   │                   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│                   ├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">cache</span>
+│                   │               │       ├── f32[20]
+│                   │               │       └── f32[20]
+│                   │               ├── value
+│                   │               │   └── f32[20]
+│                   │               └── score
+│                   │                   └── f32[20]
+│                   ├── cache
 │                   │   └── <span style="font-weight: bold">Trie</span>
-│                   └── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-│                       └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">args</span>
+│                   └── score
+│                       └── f32[20]
+├── args
 │   └── <span style="font-weight: bold">tuple</span>
-│       ├── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-│       └── <span style="color: #008787; text-decoration-color: #008787">f32[20,3]</span>
-├── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">retval</span>
-│   └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
-└── <span style="color: #000087; text-decoration-color: #000087; font-weight: bold">score</span>
-    └── <span style="color: #008787; text-decoration-color: #008787">f32[20]</span>
+│       ├── f32[20]
+│       └── f32[20,3]
+├── retval
+│   └── f32[20]
+└── score
+    └── f32[20]
 </pre>
 </div>
 </div>
@@ -5204,7 +5214,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">%%</span>timeit</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>_, samples <span class="op">=</span> jitted(sub_keys, observations, model_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>59.3 ms ± 7.67 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
+<pre><code>52.8 ms ± 2.64 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)</code></pre>
 </div>
 </div>
 <div class="cell" data-execution_count="35">

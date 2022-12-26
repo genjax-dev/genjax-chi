@@ -24,15 +24,15 @@ import typing
 import beartype.typing as btyping
 import jax.numpy as jnp
 import numpy as np
-from beartype import beartype
+from beartype import beartype, BeartypeConf
 from jaxtyping import Array
 from jaxtyping import Bool
 from jaxtyping import Float
 from jaxtyping import Int
 from jaxtyping import UInt
 
-
-typecheck = beartype
+conf = BeartypeConf(is_color=False)
+typecheck = beartype(conf=conf)
 
 PRNGKey = UInt[Array, "..."]
 PrettyPrintable = typing.Any
