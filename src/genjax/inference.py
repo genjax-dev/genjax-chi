@@ -21,6 +21,8 @@ from genjax._src.inference.mcmc import MetropolisAdjustedLangevinAlgorithm
 from genjax._src.inference.mcmc import MetropolisHastings
 from genjax._src.inference.mcmc import mala
 from genjax._src.inference.mcmc import mh
+from genjax._src.inference.variational_inference import VariationalInference
+from genjax._src.inference.variational_inference import variational
 
 
 __all__ = [
@@ -33,4 +35,6 @@ __all__ = [
     "mala",
     "MetropolisHastings",
     "mh",
+    "VariationalInference",
+    "variational",
 ]
