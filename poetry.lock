@@ -907,7 +907,7 @@ test = ["click", "coverage", "pre-commit", "pytest (>=6.1.0)", "pytest-asyncio (
 
 [[package]]
 name = "jupyter-server"
-version = "2.0.5"
+version = "2.0.6"
 description = "The backend—i.e. core services, APIs, and REST endpoints—to Jupyter web applications."
 category = "dev"
 optional = false
@@ -934,7 +934,7 @@ traitlets = ">=5.6.0"
 websocket-client = "*"
 
 [package.extras]
-docs = ["docutils (<0.20)", "ipykernel", "jinja2", "jupyter-client", "jupyter-server", "mistune (<1.0.0)", "myst-parser", "nbformat", "prometheus-client", "pydata-sphinx-theme", "send2trash", "sphinxcontrib-github-alt", "sphinxcontrib-openapi", "sphinxemoji", "tornado"]
+docs = ["docutils (<0.20)", "ipykernel", "jinja2", "jupyter-client", "jupyter-server", "mistune (<1.0.0)", "myst-parser", "nbformat", "prometheus-client", "pydata-sphinx-theme", "send2trash", "sphinxcontrib-github-alt", "sphinxcontrib-openapi", "sphinxcontrib-spelling", "sphinxemoji", "tornado"]
 test = ["ipykernel", "pre-commit", "pytest (>=7.0)", "pytest-console-scripts", "pytest-jupyter[server] (>=0.4)", "pytest-timeout", "requests"]
 
 [[package]]
@@ -2787,8 +2787,8 @@ jupyter-events = [
     {file = "jupyter_events-0.5.0.tar.gz", hash = "sha256:e27ffdd6138699d47d42cb65ae6d79334ff7c0d923694381c991ce56a140f2cd"},
 ]
 jupyter-server = [
-    {file = "jupyter_server-2.0.5-py3-none-any.whl", hash = "sha256:18a952c0b75c18f801e91221798fd3e91aef09562896f03877db39db332f7cd2"},
-    {file = "jupyter_server-2.0.5.tar.gz", hash = "sha256:0d9e63d40412334dfa348cef8bfe8415b973752d12ca3afd64f0ea478e52aa4a"},
+    {file = "jupyter_server-2.0.6-py3-none-any.whl", hash = "sha256:6a4c9a3f9fa8679015954586944a568b911a98d7480ae1d56ff55a6a4f055254"},
+    {file = "jupyter_server-2.0.6.tar.gz", hash = "sha256:8dd75992e90b7ca556794a1ed5cca51263c697abc6d0df561af574aa1c0a033f"},
 ]
 jupyter-server-terminals = [
     {file = "jupyter_server_terminals-0.4.3-py3-none-any.whl", hash = "sha256:ec67d3f1895d25cfb586a87a50b8eee13b709898a4afd721058e551e0a0f480d"},
