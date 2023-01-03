@@ -168,7 +168,7 @@ test-tox-coverage = ["coverage (>=5.5)"]
 type = "git"
 url = "https://github.com/beartype/beartype"
 reference = "main"
-resolved_reference = "308925d9e1b9e1e69886e0ed6904648612b01e7d"
+resolved_reference = "66183656dc2e2911e04a4ac76441b72758c96ec7"
 
 [[package]]
 name = "beautifulsoup4"
@@ -808,7 +808,7 @@ ansicon = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "json5"
-version = "0.9.10"
+version = "0.9.11"
 description = "A Python implementation of the JSON5 data format."
 category = "dev"
 optional = false
@@ -2763,8 +2763,8 @@ jinxed = [
     {file = "jinxed-1.2.0.tar.gz", hash = "sha256:032acda92d5c57cd216033cbbd53de731e6ed50deb63eb4781336ca55f72cda5"},
 ]
 json5 = [
-    {file = "json5-0.9.10-py2.py3-none-any.whl", hash = "sha256:993189671e7412e9cdd8be8dc61cf402e8e579b35f1d1bb20ae6b09baa78bbce"},
-    {file = "json5-0.9.10.tar.gz", hash = "sha256:ad9f048c5b5a4c3802524474ce40a622fae789860a86f10cc4f7e5f9cf9b46ab"},
+    {file = "json5-0.9.11-py2.py3-none-any.whl", hash = "sha256:1aa54b80b5e507dfe31d12b7743a642e2ffa6f70bf73b8e3d7d1d5fba83d99bd"},
+    {file = "json5-0.9.11.tar.gz", hash = "sha256:4f1e196acc55b83985a51318489f345963c7ba84aa37607e49073066c562e99b"},
 ]
 jsonpointer = [
     {file = "jsonpointer-2.3-py2.py3-none-any.whl", hash = "sha256:51801e558539b4e9cd268638c078c6c5746c9ac96bc38152d443400e4f3793e9"},
