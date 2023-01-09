@@ -27,7 +27,7 @@ class GaussianProcess(ExactDensity):
     kernel: Any
 
     def flatten(self):
-        return (self.kernels,), ()
+        return (self.kernel,), ()
 
     def sample(self, key, X, **kwargs):
         gp = tinygp.GaussianProcess(self.kernel, X)

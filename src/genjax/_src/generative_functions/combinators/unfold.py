@@ -30,6 +30,7 @@ from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
+from genjax._src.core.staging import make_zero_trace
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -61,12 +62,13 @@ class UnfoldTrace(Trace):
 
     def flatten(self):
         return (
+            self.gen_fn,
             self.indices,
             self.inner,
             self.args,
             self.retval,
             self.score,
-        ), (self.gen_fn,)
+        ), ()
 
     def get_args(self):
         return self.args
@@ -144,11 +146,15 @@ class UnfoldCombinator(GenerativeFunction):
         console.print(tr)
     """
 
-    kernel: GenerativeFunction
     max_length: IntArray
+    kernel: GenerativeFunction
 
     def flatten(self):
-        return (), (self.kernel, self.max_length)
+        return (self.kernel,), (self.max_length,)
+
+    @classmethod
+    def new(cls, kernel, max_length):
+        return UnfoldCombinator(max_length, kernel)
 
     @typecheck
     def get_trace_type(
@@ -188,7 +194,11 @@ class UnfoldCombinator(GenerativeFunction):
             lambda *args: None,
         )
 
-        zero_trace = self.kernel._make_zero_trace(key, (state, *static_args))
+        zero_trace = make_zero_trace(
+            self.kernel,
+            key,
+            (state, *static_args),
+        )
 
         def _inner_simulate(key, state, static_args, count):
             key, tr = self.kernel.simulate(key, (state, *static_args))

@@ -20,7 +20,6 @@ from typing import Tuple
 from typing import Union
 
 import jax
-import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
@@ -278,19 +277,6 @@ class GenerativeFunction(Pytree):
             evaluation_point, trace.get_args()
         )
         return key, choice_gradient_tree
-
-    def _get_trace_data_shape(self, key, args):
-        _, (_, output) = jax.make_jaxpr(self.simulate, return_shape=True)(
-            key, args
-        )
-        return output
-
-    def _make_zero_trace(self, key, args):
-        out_tree = self._get_trace_data_shape(key, args)
-        return jtu.tree_map(
-            lambda v: jnp.zeros(v.shape, v.dtype),
-            out_tree,
-        )
 
     # Supports Graphviz visualization.
     def _push_dot_repr(self, subgraph, key, args):

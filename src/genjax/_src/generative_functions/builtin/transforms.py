@@ -135,6 +135,27 @@ bare_propagation_rules = PropagationRules(bare_fallback_rule, bare_call_rules)
 #  Generative function interpreters  #
 ######################################
 
+
+def static_map_check_bottom(incells):
+    def _inner(v):
+        if isinstance(v, Cell):
+            return v.bottom()
+        else:
+            return False
+
+    return any(map(_inner, incells))
+
+
+def static_map_unwrap(incells):
+    def _inner(v):
+        if isinstance(v, Cell):
+            return v.get_val()
+        else:
+            return v
+
+    return [_inner(v) for v in incells]
+
+
 #####
 # Simulate
 #####
@@ -164,15 +185,15 @@ class Simulate(Handler):
         handles = [gen_fn_p, cache_p]
         return Simulate(handles, key, score, choice_state, cache_state)
 
-    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
+    def trace(self, incells, outcells, addr, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
-        values = map(lambda v: v.get_val(), incells)
-        args = jtu.tree_unflatten(tree_in, values)
+        values = static_map_unwrap(incells)
+        gen_fn, args = jtu.tree_unflatten(tree_in, values)
         args = tuple(args)
 
         # Otherwise, we send simulate down to the generative function
@@ -194,10 +215,10 @@ class Simulate(Handler):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
-        values = map(lambda v: v.get_val(), incells)
+        values = static_map_unwrap(incells)
         args = jtu.tree_unflatten(tree_in, values)
 
         # Otherwise, we codegen by calling into the function.
@@ -278,16 +299,16 @@ class Importance(Handler):
             handles, key, score, weight, constraints, choice_state, cache_state
         )
 
-    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
+    def trace(self, incells, outcells, addr, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
         # Otherwise, we proceed with code generation.
-        args = map(lambda v: v.get_val(), incells)
-        args = jtu.tree_unflatten(tree_in, args)
+        values = static_map_unwrap(incells)
+        gen_fn, args = jtu.tree_unflatten(tree_in, values)
         args = tuple(args)
         if self.constraints.has_subtree(addr):
             sub_map = self.constraints.get_subtree(addr)
@@ -310,11 +331,12 @@ class Importance(Handler):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
         # Otherwise, we proceed with code generation.
-        args = tuple(map(lambda v: v.get_val(), incells))
+        values = static_map_unwrap(incells)
+        args = tuple(values)
         retval = fn(*args)
         self.cache_state[addr] = retval
 
@@ -406,14 +428,14 @@ class Update(Handler):
             cache_state,
         )
 
-    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
+    def trace(self, incells, outcells, addr, tree_in, **kwargs):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
-        argdiffs = jtu.tree_unflatten(tree_in, incells)
+        gen_fn, argdiffs = jtu.tree_unflatten(tree_in, incells)
         argdiffs = tuple(argdiffs)
         has_previous = self.previous_trace.has_subtree(addr)
         constrained = self.constraints.has_subtree(addr)
@@ -465,10 +487,10 @@ class Update(Handler):
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
-        args = tuple(map(lambda v: v.get_val(), incells))
+        values = static_map_unwrap(incells)
         has_value = self.previous_trace.has_cached_value(addr)
 
         # If no changes, we can just fetch from trace.
@@ -492,7 +514,7 @@ class Update(Handler):
             return incells, new_outcells, None
 
         # Otherwise, we codegen by calling into the function.
-        retval = fn(*args)
+        retval = fn(*values)
         self.cache_state[addr] = retval
 
         # Here, we keep the outcells dimension (e.g. the same as
@@ -581,18 +603,18 @@ class Assess(Handler):
         score = 0.0
         return Assess(handles, key, score, constraints)
 
-    def trace(self, incells, outcells, addr, gen_fn, tree_in, **kwargs):
+    def trace(self, incells, outcells, addr, tree_in, **kwargs):
         assert self.constraints.has_subtree(addr)
 
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter
         # to continue propagation.
-        if any(map(lambda v: v.bottom(), incells)):
+        if static_map_check_bottom(incells):
             return incells, outcells, None
 
         # Otherwise, we continue with code generation.
-        values = map(lambda v: v.get_val(), incells)
-        args = jtu.tree_unflatten(tree_in, values)
+        values = static_map_unwrap(incells)
+        gen_fn, args = jtu.tree_unflatten(tree_in, values)
         args = tuple(args)
         submap = self.constraints.get_subtree(addr)
         self.key, (v, score) = gen_fn.assess(self.key, submap, args)

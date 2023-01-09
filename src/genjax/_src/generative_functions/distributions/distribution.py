@@ -56,7 +56,7 @@ class DistributionTrace(Trace, Leaf):
     score: FloatArray
 
     def flatten(self):
-        return (self.args, self.value, self.score), (self.gen_fn,)
+        return (self.gen_fn, self.args, self.value, self.score), ()
 
     def get_gen_fn(self):
         return self.gen_fn

@@ -3929,7 +3929,7 @@ vertical-align: -.125em;
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
-<body class="nav-sidebar floating">
+<body class="nav-sidebar floating slimcontent">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -4035,10 +4035,17 @@ vertical-align: -.125em;
 </nav>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#what-is-genjax" id="toc-what-is-genjax" class="nav-link active" data-scroll-target="#what-is-genjax">What is GenJAX?</a></li>
+  <li><a href="#gens-approach-to-probabilistic-programming" id="toc-gens-approach-to-probabilistic-programming" class="nav-link" data-scroll-target="#gens-approach-to-probabilistic-programming">Gen’s approach to probabilistic programming</a></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/index.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content page-columns page-full" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
@@ -4069,7 +4076,7 @@ vertical-align: -.125em;
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This is a notebook repository for tutorials on usage of <a href="https://www.gen.dev/">Gen</a> for probabilistic programming, with a focus on the <a href="https://github.com/probcomp/genjax">GenJAX</a> implementation. For <a href="https://github.com/probcomp/Gen.jl">Gen.jl</a> notebook tutorials, <a href="https://www.gen.dev/tutorials/">see the tutorial page on the Gen website</a>. The notebooks provide pedagogical examples of the usage of Gen for modeling and inference, as well as describe Gen’s multi-paradigmatic design philosophy for probabilistic programming. The notebooks are built and executed with the current version of <code>genjax</code>, so they are kept up to date with the repo.
+    This is a notebook repository for tutorials on usage of <a href="https://www.gen.dev/">Gen</a> for probabilistic programming, with a focus on the <a href="https://github.com/probcomp/genjax">GenJAX</a> implementation. For <a href="https://github.com/probcomp/Gen.jl">Gen.jl</a> notebook tutorials, <a href="https://www.gen.dev/tutorials/">see the tutorial page on the Gen website</a>. The notebooks provide pedagogical examples of the usage of Gen for modeling and inference, as well as describe Gen’s multi-paradigmatic design philosophy for probabilistic programming. The notebooks are built and executed with the current version of <code>genjax</code>, and are kept up to date with the repo.
   </div>
 </div>
 
@@ -4088,7 +4095,22 @@ TODO (MyBinder link - when repo is public)
 <p>You can open a Binder executable environment by following this tag:</p>
 </div>
 </div>
+<section id="what-is-genjax" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="what-is-genjax">What is GenJAX?</h2>
+<ul>
+<li><p>(<strong>One sentence</strong>) It’s a GPU accelerated probabilistic programming library designed to support model composition and inference customization.</p></li>
+<li><p>(<strong>Longer</strong>) It’s an implementation of Gen<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> on top of <a href="https://github.com/google/jax">JAX</a> - exposing the ability to programmatically construct and manipulate generative functions, as well as <a href="https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html">JIT compile + auto-batch inference computations using generative functions onto GPU devices</a>.</p></li>
+</ul>
+<div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup> Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on <a href="https://probcomp.github.io/genjax/notebooks/introduction/intro_to_genjax/intro_to_genjax.html#what-is-a-generative-function"><strong>generative functions</strong>: computational objects which represent probability measures over structured sample spaces</a>.</p></li></div></section>
+<section id="gens-approach-to-probabilistic-programming" class="level2">
+<h2 class="anchored" data-anchor-id="gens-approach-to-probabilistic-programming">Gen’s approach to probabilistic programming</h2>
+<p>The philosophy of Gen is different from other probabilistic programming systems. Gen’s main conceptual contribution is a formal interface (the <em>generative function interface</em>) of methods and associated data types which supports the implementation of several families of inference algorithms. The interface forms an abstraction layer between <em>generative function languages</em> (those objects which implement the interface) and inference algorithms.</p>
+<p>The interface is compositional - allowing usage of generative functions inside of other generative functions. It is also extensible: users can and <em>are encouraged</em> to write their own generative function languages, with custom optimizations or internal inference facilities.</p>
+<p>Of course, GenJAX provide a number of essential implementations, including a language of distributions (from both JAX and TensorFlow Probability) a program-like modeling language based on pure, numerical Python programs, and a set of higher-order combinators which express structured patterns of generative computation.</p>
+<p>GenJAX also provides a standard library of inference algorithms which works with generative functions - including importance sampling, MCMC, ADVI, SMC, and more.</p>
 
+
+</section>
 
 
 </main> <!-- /main -->

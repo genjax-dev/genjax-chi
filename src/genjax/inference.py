@@ -13,7 +13,14 @@
 # limitations under the License.
 
 from genjax._src.inference.importance_sampling import ImportanceSampling
+from genjax._src.inference.importance_sampling import (
+    SamplingImportanceResampling,
+)
 from genjax._src.inference.importance_sampling import importance_sampling
+from genjax._src.inference.importance_sampling import (
+    sampling_importance_resampling,
+)
+from genjax._src.inference.importance_sampling import sir
 from genjax._src.inference.map_update import MapUpdate
 from genjax._src.inference.map_update import map_update
 from genjax._src.inference.mcmc import MCMCKernel
@@ -28,6 +35,9 @@ from genjax._src.inference.variational_inference import variational
 __all__ = [
     "ImportanceSampling",
     "importance_sampling",
+    "SamplingImportanceResampling",
+    "sampling_importance_resampling",
+    "sir",
     "MapUpdate",
     "map_update",
     "MCMCKernel",

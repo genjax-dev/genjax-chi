@@ -25,11 +25,11 @@ import sys
 
 
 def lazy_extras_import(name):
-    spec = importlib.util.find_spec(f"genjax.extras.{name}")
+    spec = importlib.util.find_spec(f"genjax._src.extras.{name}")
     loader = importlib.util.LazyLoader(spec.loader)
     spec.loader = loader
     module = importlib.util.module_from_spec(spec)
-    sys.modules[f"genjax.extras.{name}"] = module
+    sys.modules[f"genjax._src.extras.{name}"] = module
     loader.exec_module(module)
     return module
 

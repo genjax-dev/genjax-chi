@@ -441,13 +441,6 @@ class PropagationInterpreter(Pytree):
             incells = safe_map(env.read, eqn.invars)
             outcells = safe_map(env.read, eqn.outvars)
 
-            # If we have top information about all incells and outcells
-            # for this equation, skip to the next in the queue.
-            if all(map(lambda cell: cell.top(), incells)) and all(
-                map(lambda cell: cell.top(), outcells)
-            ):
-                continue
-
             call_jaxpr, params = extract_call_jaxpr(eqn.primitive, eqn.params)
             if call_jaxpr:
                 subfuns = [
