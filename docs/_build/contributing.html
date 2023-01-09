@@ -502,11 +502,11 @@ and/or steps to reproduce the issue.</p>
 <li><p><a class="reference external" href="https://nox-poetry.readthedocs.io/">nox-poetry</a></p></li>
 </ul>
 <p>Install the package with development requirements:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>poetry install
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>poetry<span class="w"> </span>install
 </pre></div>
 </div>
 <p>You can now run an interactive Python session:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>poetry run python
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>poetry<span class="w"> </span>run<span class="w"> </span>python
 </pre></div>
 </div>
 </section>
@@ -517,12 +517,12 @@ and/or steps to reproduce the issue.</p>
 </pre></div>
 </div>
 <p>List the available Nox sessions:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nox --list-sessions
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nox<span class="w"> </span>--list-sessions
 </pre></div>
 </div>
 <p>You can also run a specific Nox session.
 For example, invoke the unit test suite like this:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nox --session<span class="o">=</span>tests
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nox<span class="w"> </span>--session<span class="o">=</span>tests
 </pre></div>
 </div>
 <p>Unit tests are located in the <em>tests</em> directory,
