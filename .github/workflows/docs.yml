@@ -1,4 +1,4 @@
-name: Deploy genjax documentation to Pages
+name: Push genjax documentation to gh-pages branch
 
 on:
   # Runs on pushes targeting the default branch
@@ -8,7 +8,6 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
@@ -27,14 +26,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Setup Pages
-        uses: actions/configure-pages@v2
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+      - uses: actions/checkout@v3
+      - name: Setup Python.
+        uses: actions/setup-python@v4
         with:
-          path: "./docs/_build"
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@main
+          python-version: 3.11.0
+      - name: Setup Nox.
+        uses: daisylb/setup-nox@v2.1.0
+      - name: Install poetry/nox-poetry.
+        run: pip install poetry nox-poetry
+      - name: Run Nox to build docs.
+        run: nox -s docs-build
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/_build
