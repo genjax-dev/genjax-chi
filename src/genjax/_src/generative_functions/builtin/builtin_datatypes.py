@@ -255,12 +255,13 @@ class BuiltinTrace(Trace):
 
     def flatten(self):
         return (
+            self.gen_fn,
             self.args,
             self.retval,
             self.choices,
             self.cache,
             self.score,
-        ), (self.gen_fn,)
+        ), ()
 
     def get_gen_fn(self):
         return self.gen_fn

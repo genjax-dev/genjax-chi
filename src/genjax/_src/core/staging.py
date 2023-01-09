@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
+import jax.numpy as jnp
 from jax import abstract_arrays
 from jax import api_util
 from jax import core as jax_core
@@ -68,6 +70,25 @@ def stage(f, dynamic=True):
         return typed_jaxpr, (flat_args, in_tree, out_tree())
 
     return wrapped
+
+
+def get_trace_data_shape(gen_fn, *args):
+    def _apply(gen_fn, *args):
+        key, tr = gen_fn.simulate(*args)
+        return key, tr
+
+    _, (_, trace_shape) = jax.make_jaxpr(_apply, return_shape=True)(
+        gen_fn, *args
+    )
+    return trace_shape
+
+
+def make_zero_trace(gen_fn, *args):
+    out_tree = get_trace_data_shape(gen_fn, *args)
+    return jtu.tree_map(
+        lambda v: jnp.zeros(v.shape, v.dtype),
+        out_tree,
+    )
 
 
 def trees(f):

@@ -30,6 +30,7 @@ website:
           - intermediate/intro_to_combinators/intro_to_combinators.ipynb
           - intermediate/incremental_computation/incremental.ipynb
           - intermediate/gradient_interfaces/gradient_interfaces.ipynb
+          - intermediate/gaussian_processes/gaussian_processes.ipynb
       - text: "---"
       - section: "Advanced"
         contents:

@@ -60,10 +60,11 @@ class MapTrace(Trace):
 
     def flatten(self):
         return (
+            self.gen_fn,
             self.indices,
             self.inner,
             self.score,
-        ), (self.gen_fn,)
+        ), ()
 
     def get_args(self):
         return self.inner.get_args()
@@ -142,12 +143,12 @@ class MapCombinator(GenerativeFunction):
         console.print(tr)
     """
 
-    kernel: GenerativeFunction
     in_axes: Tuple
-    repeats: Union[None, IntArray] = None
+    repeats: Union[None, IntArray]
+    kernel: GenerativeFunction
 
     def flatten(self):
-        return (), (self.kernel, self.in_axes, self.repeats)
+        return (self.kernel,), (self.in_axes, self.repeats)
 
     @beartype
     @classmethod

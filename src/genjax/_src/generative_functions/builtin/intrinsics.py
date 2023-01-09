@@ -35,13 +35,12 @@ cache_p = core.Primitive("cache")
 ############################################################
 
 
-def _trace(addr, call, *args, **kwargs):
-    assert isinstance(call, GenerativeFunction)
-    flat_args, tree_in = jtu.tree_flatten(args)
+def _trace(gen_fn, addr, *args, **kwargs):
+    assert isinstance(gen_fn, GenerativeFunction)
+    flat_args, tree_in = jtu.tree_flatten((gen_fn, args))
     retvals = gen_fn_p.bind(
         *flat_args,
         addr=addr,
-        gen_fn=call,
         tree_in=tree_in,
         **kwargs,
     )
@@ -54,8 +53,8 @@ def _trace(addr, call, *args, **kwargs):
 
 def trace(addr, call, **kwargs):
     return lambda *args: _trace(
-        addr,
         call,
+        addr,
         *args,
         **kwargs,
     )
@@ -65,12 +64,22 @@ def trace(addr, call, **kwargs):
 # Abstract evaluation for trace
 #####
 
+# We defer the call here so that, when we
+# stage, any traced values stored in `gen_fn`
+# get lifted to by `get_shaped_aval`.
+def _apply(gen_fn, *args):
+    return gen_fn(*args)
+
+
 # Here, we create a stub key for abstract evaluation.
 # Only the shape matters.
-def gen_fn_abstract_eval(*args, addr, gen_fn, tree_in, **kwargs):
+def gen_fn_abstract_eval(*args, addr, tree_in, **kwargs):
     stub_key = jax.random.PRNGKey(0)
-    args = jtu.tree_unflatten(tree_in, args)
-    closed_jaxpr, _ = stage(gen_fn)(stub_key, *args)
+    gen_fn, args = jtu.tree_unflatten(tree_in, args)
+
+    # See note above on `_apply`.
+    closed_jaxpr, _ = stage(_apply)(gen_fn, stub_key, *args)
+
     retvals = closed_jaxpr.out_avals[1:]
     return retvals
 

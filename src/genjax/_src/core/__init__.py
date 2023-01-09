@@ -31,6 +31,7 @@ from .propagate import *
 from .pytree import *
 from .specialization import *
 from .staging import *
+from .sumtree import *
 from .tracetypes import *
 from .tree import *
 

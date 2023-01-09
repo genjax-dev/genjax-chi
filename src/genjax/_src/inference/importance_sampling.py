@@ -24,6 +24,7 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
+from genjax._src.utilities import slash
 
 
 @dataclasses.dataclass
@@ -54,12 +55,12 @@ class ImportanceSampling(Pytree):
         observations: ChoiceMap,
         model_args: Tuple,
     ):
-        key, *subkeys = jax.random.split(key, self.num_particles + 1)
-        subkeys = jnp.array(subkeys)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
         _, (lws, trs) = jax.vmap(
             self.model.importance, in_axes=(0, None, None)
         )(
-            subkeys,
+            sub_keys,
             observations,
             model_args,
         )
@@ -75,10 +76,10 @@ class ImportanceSampling(Pytree):
         model_args: Tuple,
         proposal_args: Tuple,
     ):
-        key, *subkeys = jax.random.split(key, self.num_particles + 1)
-        subkeys = jnp.array(subkeys)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
         _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
-            subkeys,
+            sub_keys,
             observations,
             proposal_args,
         )
@@ -86,12 +87,12 @@ class ImportanceSampling(Pytree):
             lambda v: jnp.repeats(v, self.num_particles), observations
         )
         chm = p_trs.get_choices().merge(observations)
-        key, *subkeys = jax.random.split(key, self.num_particles + 1)
-        subkeys = jnp.array(subkeys)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
         _, (lws, m_trs) = jax.vmap(
             self.model.importance, in_axes=(0, 0, None)
         )(
-            subkeys,
+            sub_keys,
             chm,
             model_args,
         )
@@ -126,7 +127,7 @@ class ImportanceSampling(Pytree):
 
 
 @dataclasses.dataclass
-class ImportanceResampling(Pytree):
+class SamplingImportanceResampling(Pytree):
     num_particles: Int
     model: GenerativeFunction
     proposal: Union[None, GenerativeFunction] = None
@@ -141,7 +142,7 @@ class ImportanceResampling(Pytree):
         model: GenerativeFunction,
         proposal: Union[None, GenerativeFunction] = None,
     ):
-        return ImportanceResampling(
+        return SamplingImportanceResampling(
             num_particles,
             model,
             proposal=proposal,
@@ -153,15 +154,15 @@ class ImportanceResampling(Pytree):
         obs: ChoiceMap,
         model_args: Tuple,
     ):
-        key, *subkeys = jax.random.split(key, self.num_particles + 1)
-        subkeys = jnp.array(subkeys)
+        key, sub_keys = slash(key, self.num_particles)
         _, (lws, trs) = jax.vmap(
             self.model.importance, in_axes=(0, None, None)
-        )(subkeys, obs, model_args)
+        )(sub_keys, obs, model_args)
         log_total_weight = jax.scipy.special.logsumexp(lws)
         log_normalized_weights = lws - log_total_weight
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
-        ind = jax.random.categorical(key, log_normalized_weights)
+        key, sub_key = jax.random.split(key)
+        ind = jax.random.categorical(sub_key, log_normalized_weights)
         tr = jax.tree_util.tree_map(lambda v: v[ind], trs)
         lnw = log_normalized_weights[ind]
         return key, (tr, lnw, log_ml_estimate)
@@ -195,4 +196,5 @@ class ImportanceResampling(Pytree):
 ##############
 
 importance_sampling = ImportanceSampling.new
-importance_resampling = ImportanceResampling.new
+sampling_importance_resampling = SamplingImportanceResampling.new
+sir = sampling_importance_resampling

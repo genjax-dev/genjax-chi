@@ -33,12 +33,13 @@ from typing import List
 from typing import Tuple
 
 import jax
-import jax.numpy as jnp
 
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.masks import BooleanMask
-from genjax._src.core.pytree import SumPytree
+from genjax._src.core.staging import get_trace_data_shape
+from genjax._src.core.sumtree import Sumtree
+from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     IndexedChoiceMap,
 )
@@ -58,15 +59,16 @@ class SwitchTrace(Trace):
     chm: IndexedChoiceMap
     args: Tuple
     retval: Any
-    score: jnp.float32
+    score: FloatArray
 
     def flatten(self):
         return (
+            self.gen_fn,
             self.chm,
             self.args,
             self.retval,
             self.score,
-        ), (self.gen_fn,)
+        ), ()
 
     def get_args(self):
         return self.args
@@ -139,7 +141,7 @@ class SwitchCombinator(GenerativeFunction):
     branches: List[GenerativeFunction]
 
     def flatten(self):
-        return (), (self.branches,)
+        return (self.branches,), ()
 
     def get_trace_type(self, key, args):
         subtypes = []
@@ -147,16 +149,16 @@ class SwitchCombinator(GenerativeFunction):
             subtypes.append(gen_fn.get_trace_type(key, args[1:]))
         return SumTraceType(subtypes)
 
-    def create_sum_pytree(self, key, choices, args):
+    def _create_sum_pytree(self, key, choices, args):
         covers = []
         for gen_fn in self.branches:
-            abstr = gen_fn._get_trace_data_shape(key, args)
-            covers.append(abstr)
-        return SumPytree.new(choices, covers)
+            trace_shape = get_trace_data_shape(gen_fn, key, args)
+            covers.append(trace_shape)
+        return Sumtree.new(choices, covers)
 
     def _simulate(self, branch_gen_fn, key, args):
         key, tr = branch_gen_fn.simulate(key, args[1:])
-        sum_pytree = self.create_sum_pytree(key, tr, args[1:])
+        sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
         choice_map = IndexedChoiceMap(branch_index, choices)
@@ -193,7 +195,7 @@ class SwitchCombinator(GenerativeFunction):
 
     def _importance(self, branch_gen_fn, key, chm, args):
         key, (w, tr) = branch_gen_fn.importance(key, chm, args[1:])
-        sum_pytree = self.create_sum_pytree(key, tr, args[1:])
+        sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
         choice_map = IndexedChoiceMap(branch_index, choices)
@@ -247,7 +249,7 @@ class SwitchCombinator(GenerativeFunction):
             new,
             diffs[1:],
         )
-        sum_pytree = self.create_sum_pytree(key, tr, diffs[1:])
+        sum_pytree = self._create_sum_pytree(key, tr, diffs[1:])
         choices = list(sum_pytree.materialize_iterator())
         choice_map = IndexedChoiceMap(concrete_branch_index, choices)
         discard_branch = discard_branch.merge(discard)

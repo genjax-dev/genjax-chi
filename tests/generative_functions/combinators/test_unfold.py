@@ -24,7 +24,7 @@ def kernel(x):
     return z
 
 
-model = genjax.UnfoldCombinator(kernel, max_length=10)
+model = genjax.Unfold(kernel, max_length=10)
 
 
 class TestUnfoldSimpleNormal:

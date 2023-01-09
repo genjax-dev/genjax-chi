@@ -35,7 +35,7 @@ class TrainCombinator(GenerativeFunction):
     params: Any
 
     def flatten(self):
-        return (self.params), (self.inner,)
+        return (self.inner, self.params), ()
 
     def simulate(self, key, args):
         return self.inner.simulate(key, (*args[0:-1], self.params))
