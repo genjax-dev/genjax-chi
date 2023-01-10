@@ -159,7 +159,7 @@ def fallback_diff_rule(
 
 
 def check_no_change(diff):
-    return diff.get_change() == NoChange
+    return isinstance(diff.get_change(), _NoChange)
 
 
 diff_propagation_rules = PropagationRules(
