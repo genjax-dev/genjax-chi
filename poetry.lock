@@ -1420,20 +1420,22 @@ test = ["ipykernel", "pre-commit", "pytest", "pytest-cov", "pytest-timeout"]
 
 [[package]]
 name = "jupyter-events"
-version = "0.6.0"
+version = "0.6.2"
 description = "Jupyter Event System library"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyter_events-0.6.0-py3-none-any.whl", hash = "sha256:587f3055fe965f023b23b9929b22d2070e8b5c79ef0a42e37bdb12199862f63c"},
-    {file = "jupyter_events-0.6.0.tar.gz", hash = "sha256:bee793d06e124c5a80da3346f96f17aec5e0f28b632a514682b2a18ff548c69a"},
+    {file = "jupyter_events-0.6.2-py3-none-any.whl", hash = "sha256:6030f7e997160f5cb6c27f9a1f14df7b520f4a1a6dcd17b894a8f3e69c2b2ffd"},
+    {file = "jupyter_events-0.6.2.tar.gz", hash = "sha256:e363f8314df2ff00122936780c75019a368b41b25fdacedeacf20347ee30d8d5"},
 ]
 
 [package.dependencies]
-jsonschema = {version = ">=4.3.0", extras = ["format-nongpl"]}
+jsonschema = {version = ">=3.2.0", extras = ["format-nongpl"]}
 python-json-logger = ">=2.0.4"
-pyyaml = ">=6.0"
+pyyaml = ">=5.3"
+rfc3339-validator = "*"
+rfc3986-validator = ">=0.1.1"
 traitlets = ">=5.3"
 
 [package.extras]
