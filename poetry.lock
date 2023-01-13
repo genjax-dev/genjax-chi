@@ -1420,14 +1420,14 @@ test = ["ipykernel", "pre-commit", "pytest", "pytest-cov", "pytest-timeout"]
 
 [[package]]
 name = "jupyter-events"
-version = "0.6.2"
+version = "0.6.3"
 description = "Jupyter Event System library"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyter_events-0.6.2-py3-none-any.whl", hash = "sha256:6030f7e997160f5cb6c27f9a1f14df7b520f4a1a6dcd17b894a8f3e69c2b2ffd"},
-    {file = "jupyter_events-0.6.2.tar.gz", hash = "sha256:e363f8314df2ff00122936780c75019a368b41b25fdacedeacf20347ee30d8d5"},
+    {file = "jupyter_events-0.6.3-py3-none-any.whl", hash = "sha256:57a2749f87ba387cd1bfd9b22a0875b889237dbf2edc2121ebb22bde47036c17"},
+    {file = "jupyter_events-0.6.3.tar.gz", hash = "sha256:9a6e9995f75d1b7146b436ea24d696ce3a35bfa8bfe45e0c33c334c79464d0b3"},
 ]
 
 [package.dependencies]
