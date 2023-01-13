@@ -1990,14 +1990,14 @@ webpdf = ["pyppeteer (>=1,<1.1)"]
 
 [[package]]
 name = "nbformat"
-version = "5.7.2"
+version = "5.7.3"
 description = "The Jupyter Notebook format"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "nbformat-5.7.2-py3-none-any.whl", hash = "sha256:36340fa5c0bbcbf3fec3473414e6ca7eb872df83a80bc108d2875afd6af99586"},
-    {file = "nbformat-5.7.2.tar.gz", hash = "sha256:796469290e50e1bf9c19a55ca4fbe66319d99349e47ab94780247edde4bd7618"},
+    {file = "nbformat-5.7.3-py3-none-any.whl", hash = "sha256:22a98a6516ca216002b0a34591af5bcb8072ca6c63910baffc901cfa07fefbf0"},
+    {file = "nbformat-5.7.3.tar.gz", hash = "sha256:4b021fca24d3a747bf4e626694033d792d594705829e5e35b14ee3369f9f6477"},
 ]
 
 [package.dependencies]
