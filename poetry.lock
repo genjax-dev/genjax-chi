@@ -1445,14 +1445,14 @@ test = ["click", "coverage", "pre-commit", "pytest (>=7.0)", "pytest-asyncio (>=
 
 [[package]]
 name = "jupyter-server"
-version = "2.0.6"
+version = "2.1.0"
 description = "The backend—i.e. core services, APIs, and REST endpoints—to Jupyter web applications."
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jupyter_server-2.0.6-py3-none-any.whl", hash = "sha256:6a4c9a3f9fa8679015954586944a568b911a98d7480ae1d56ff55a6a4f055254"},
-    {file = "jupyter_server-2.0.6.tar.gz", hash = "sha256:8dd75992e90b7ca556794a1ed5cca51263c697abc6d0df561af574aa1c0a033f"},
+    {file = "jupyter_server-2.1.0-py3-none-any.whl", hash = "sha256:90cd6f2bd0581ddd9b2dbe82026a0f4c228a1d95c86e22460efbfdfc931fcf56"},
+    {file = "jupyter_server-2.1.0.tar.gz", hash = "sha256:efaae5e4f0d5f22c7f2f2dc848635036ee74a2df02abed52d30d9d95121ad382"},
 ]
 
 [package.dependencies]
@@ -1476,7 +1476,7 @@ traitlets = ">=5.6.0"
 websocket-client = "*"
 
 [package.extras]
-docs = ["docutils (<0.20)", "ipykernel", "jinja2", "jupyter-client", "jupyter-server", "mistune (<1.0.0)", "myst-parser", "nbformat", "prometheus-client", "pydata-sphinx-theme", "send2trash", "sphinxcontrib-github-alt", "sphinxcontrib-openapi", "sphinxcontrib-spelling", "sphinxemoji", "tornado"]
+docs = ["docutils (<0.20)", "ipykernel", "jinja2", "jupyter-client", "jupyter-server", "mistune (<1.0.0)", "myst-parser", "nbformat", "prometheus-client", "pydata-sphinx-theme", "send2trash", "sphinx-autodoc-typehints", "sphinxcontrib-github-alt", "sphinxcontrib-openapi", "sphinxcontrib-spelling", "sphinxemoji", "tornado"]
 test = ["ipykernel", "pre-commit", "pytest (>=7.0)", "pytest-console-scripts", "pytest-jupyter[server] (>=0.4)", "pytest-timeout", "requests"]
 
 [[package]]
