@@ -69,8 +69,8 @@ class SymmetricDivergenceOverDatasets(Pytree):
         # (x, z) ~ p, log p(z, x) / q(z | x)
         key, tr = self.p.simulate(key, p_args)
         chm = tr.get_choices().strip()
-        latent_chm, _ = self.inf_selection.filter(chm)
-        obs_chm, _ = obs_target.filter(chm)
+        latent_chm = self.inf_selection.filter(chm)
+        obs_chm = obs_target.filter(chm)
         (latent_chm, obs_chm) = (
             latent_chm.strip(),
             obs_chm.strip(),

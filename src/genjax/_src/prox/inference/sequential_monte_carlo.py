@@ -301,7 +301,7 @@ class SMCExtendPropagator(SMCPropagator):
         key, (_, _, previous_trace, discard) = new_retained_trace.update(
             key, EmptyChoiceMap(), argdiffs
         )
-        previous_latents, _ = (
+        previous_latents = (
             discard.get_selection().complement().filter(retained)
         )
         key, (_, forward_weight_retained) = self.k.assess(
@@ -340,7 +340,7 @@ class SMCChangeTargetPropagator(SMCPropagator):
     ) -> Tuple[PRNGKey, SMCState]:
         old_target_latents_selection = state.get_target().latent_selection()
         key, *sub_keys = jax.random.split(key, state.get_num_particles() + 1)
-        old_target_latents, _ = old_target_latents_selection.filter(
+        old_target_latents = old_target_latents_selection.filter(
             state.get_particles()
         )
 

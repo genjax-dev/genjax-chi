@@ -38,5 +38,5 @@ class TestBuiltinSelection:
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(simple_normal.simulate)(key, ())
         selection = genjax.BuiltinSelection.new(["y1"])
-        chm, _ = selection.filter(tr)
+        chm = selection.filter(tr)
         assert chm["y1"] == tr["y1"]

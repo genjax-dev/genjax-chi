@@ -99,6 +99,10 @@ class Trace(ChoiceMap, Tree):
     def get_gen_fn(self) -> "GenerativeFunction":
         pass
 
+    @abc.abstractmethod
+    def project(self, selection: "Selection") -> FloatArray:
+        pass
+
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
@@ -152,11 +156,11 @@ class Trace(ChoiceMap, Tree):
 @dataclasses.dataclass
 class Selection(Tree):
     @abc.abstractmethod
-    def filter(self, chm):
+    def filter(self, chm: ChoiceMap) -> ChoiceMap:
         pass
 
     @abc.abstractmethod
-    def complement(self):
+    def complement(self) -> "Selection":
         pass
 
     def get_selection(self):
@@ -270,8 +274,8 @@ class GenerativeFunction(Pytree):
     # A higher-level gradient API - it relies upon `unzip`,
     # but provides convenient access to first-order gradients.
     def choice_grad(self, key, trace, selection):
-        fixed, _ = selection.complement().filter(trace.strip())
-        evaluation_point, _ = selection.filter(trace.strip())
+        fixed = selection.complement().filter(trace.strip())
+        evaluation_point = selection.filter(trace.strip())
         key, scorer, _ = self.unzip(key, fixed)
         choice_gradient_tree = jax.grad(scorer)(
             evaluation_point, trace.get_args()
@@ -337,8 +341,8 @@ class NoneSelection(Selection, Leaf):
     def flatten(self):
         return (), ()
 
-    def filter(self, chm):
-        return EmptyChoiceMap(), 0.0
+    def filter(self, v: Union[Trace, ChoiceMap]) -> ChoiceMap:
+        return EmptyChoiceMap()
 
     def complement(self):
         return AllSelection()
@@ -355,10 +359,7 @@ class AllSelection(Selection, Leaf):
         return (), ()
 
     def filter(self, v: Union[Trace, ChoiceMap]):
-        if isinstance(v, Trace):
-            return v, v.get_score()
-        else:
-            return v, 0.0
+        return v.get_choices()
 
     def complement(self):
         return NoneSelection()

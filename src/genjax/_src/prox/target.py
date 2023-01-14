@@ -32,14 +32,14 @@ class Target(Pytree):
     def get_trace_type(self, key, *args):
         inner_type = self.p.get_trace_type(key, self.args)
         latent_selection = self.latent_selection()
-        trace_type, _ = latent_selection.filter(inner_type)
+        trace_type = latent_selection.filter(inner_type)
         return trace_type
 
     def latent_selection(self):
         return self.constraints.get_selection().complement()
 
     def get_latents(self, v):
-        latents, _ = self.latent_selection.filter(v.strip())
+        latents = self.latent_selection.filter(v.strip())
         return latents
 
     def importance(self, key, chm: ChoiceMap, _: Tuple):

@@ -92,7 +92,7 @@ class ImportanceSampling(ProxDistribution):
         merged = chm.merge(target.constraints)
         key, retained_tr = target.p.importance(key, merged, target.args)
         constrained = target.constraints.get_selection()
-        _, retained_w = constrained.filter(retained_tr)
+        retained_w = retained_tr.project(constrained)
         lse = _logsumexp_with_extra(lws, retained_w)
         return key, retained_tr.get_score() - lse + np.log(self.num_particles)
 

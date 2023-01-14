@@ -56,7 +56,7 @@ class ChoiceMapDistribution(ProxDistribution):
 
     def get_trace_type(self, key, args, **kwargs):
         inner_type = self.p.get_trace_type(key, args)
-        trace_type, _ = self.selection.filter(inner_type)
+        trace_type = self.selection.filter(inner_type)
         correct_if_check = trace_type
         if self.custom_q is None:
             return correct_if_check
@@ -68,11 +68,11 @@ class ChoiceMapDistribution(ProxDistribution):
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)
         choices = tr.get_choices()
-        selected_choices, _ = self.selection.filter(choices)
+        selected_choices = self.selection.filter(choices)
         if self.custom_q is None:
-            _, weight = self.selection.filter(tr)
+            weight = tr.project(self.selection)
         else:
-            unselected, _ = self.selection.complement().filter(choices)
+            unselected = self.selection.complement().filter(choices)
             target = Target(self.p, None, args, selected_choices)
 
             key, (w, _) = self.custom_q.importance(

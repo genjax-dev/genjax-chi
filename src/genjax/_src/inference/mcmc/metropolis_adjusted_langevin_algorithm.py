@@ -65,8 +65,7 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         key, forward_gradient_trie = gen_fn.choice_grad(
             key, trace, self.selection
         )
-        forward_values, _ = self.selection.filter(trace)
-        forward_values = forward_values.strip()
+        forward_values = self.selection.filter(trace.strip())
         forward_mu = jtu.tree_map(
             lambda v1, v2: v1 + self.tau * v2,
             forward_values,

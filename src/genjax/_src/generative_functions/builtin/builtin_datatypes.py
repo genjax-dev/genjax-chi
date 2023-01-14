@@ -70,10 +70,13 @@ class BuiltinChoiceMap(ChoiceMap):
         if value is None:
             return EmptyChoiceMap()
         else:
-            return value
+            return value.get_choices()
 
     def get_subtrees_shallow(self):
-        return self.trie.get_subtrees_shallow()
+        return map(
+            lambda v: (v[0], v[1].get_choices()),
+            self.trie.get_subtrees_shallow(),
+        )
 
     def get_selection(self):
         trie = Trie.new()
@@ -90,7 +93,7 @@ class BuiltinChoiceMap(ChoiceMap):
             else:
                 trie[k] = v
         for (k, v) in other.get_subtrees_shallow():
-            if not self.has_subtree(k):
+            if not trie.has_subtree(k):
                 trie[k] = v
         return BuiltinChoiceMap(trie)
 
@@ -98,11 +101,11 @@ class BuiltinChoiceMap(ChoiceMap):
         self.trie[k] = v
 
     def __getitem__(self, k):
-        value = self.get_subtree(k)
-        if isinstance(value, Leaf):
-            return value.get_leaf_value()
+        chm = self.get_subtree(k)
+        if isinstance(chm, Leaf):
+            return chm.get_leaf_value()
         else:
-            return value
+            return chm
 
     def __hash__(self):
         return hash(self.trie)
@@ -128,27 +131,24 @@ class BuiltinSelection(Selection):
             trie[k] = AllSelection()
         return BuiltinSelection(trie)
 
-    def filter(self, chm):
+    def filter(self, tree):
         def _inner(k, v):
-            if k in self.trie:
-                sub = self.trie[k]
-                under, s = sub.filter(v)
-                return k, under, s
-            else:
-                return k, EmptyChoiceMap(), 0.0
+            sub = self.trie[k]
+            if sub is None:
+                sub = NoneSelection()
+            under = sub.filter(v)
+            return k, under
 
         trie = Trie.new()
-        score = 0.0
-        iter = chm.get_subtrees_shallow()
-        for (k, v, s) in map(lambda args: _inner(*args), iter):
+        iter = tree.get_subtrees_shallow()
+        for (k, v) in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoiceMap):
                 trie[k] = v
-                score += s
 
-        if isinstance(chm, TraceType):
-            return BuiltinTraceType(trie, chm.get_rettype()), score
+        if isinstance(tree, TraceType):
+            return BuiltinTraceType(trie, tree.get_rettype())
         else:
-            return BuiltinChoiceMap(trie), score
+            return BuiltinChoiceMap(trie)
 
     def complement(self):
         return BuiltinComplementSelection(self.trie)
@@ -189,25 +189,22 @@ class BuiltinComplementSelection(Selection):
 
     def filter(self, chm):
         def _inner(k, v):
-            if k in self.trie:
-                sub = self.trie[k]
-                v, s = sub.complement().filter(v)
-                return k, v, s
-            else:
-                return k, v, 0.0
+            sub = self.trie[k]
+            if sub is None:
+                sub = AllSelection()
+            under = sub.filter(v)
+            return k, under
 
         trie = Trie.new()
-        score = 0.0
         iter = chm.get_subtrees_shallow()
-        for (k, v, s) in map(lambda args: _inner(*args), iter):
+        for (k, v) in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoiceMap):
                 trie[k] = v
-                score += s
 
         if isinstance(chm, TraceType):
-            return type(chm)(trie, chm.get_rettype()), score
+            return type(chm)(trie, chm.get_rettype())
         else:
-            return BuiltinChoiceMap(trie), score
+            return BuiltinChoiceMap(trie)
 
     def complement(self):
         return BuiltinSelection(self.trie)
@@ -277,6 +274,13 @@ class BuiltinTrace(Trace):
 
     def get_args(self):
         return self.args
+
+    def project(self, selection: Selection):
+        weight = 0.0
+        for (k, v) in self.choices.get_subtrees_shallow():
+            if selection.has_subtree(k):
+                weight += v.project(selection[k])
+        return weight
 
     def has_cached_value(self, addr):
         return self.cache.has_subtree(addr)

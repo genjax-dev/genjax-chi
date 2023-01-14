@@ -25,9 +25,11 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
+from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.staging import make_zero_trace
@@ -38,6 +40,9 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_datatypes import (
+    BuiltinSelection,
+)
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -84,6 +89,14 @@ class UnfoldTrace(Trace):
 
     def get_score(self):
         return self.score
+
+    def project(self, selection: Selection) -> FloatArray:
+        if isinstance(selection, BuiltinSelection):
+            return self.inner.project(selection)
+        elif isinstance(selection, AllSelection):
+            return self.score
+        else:
+            return 0.0
 
 
 #####
