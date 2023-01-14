@@ -29,6 +29,7 @@ from genjax._src.core.diff_rules import Diff
 from genjax._src.core.diff_rules import IntChange
 from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import UnknownChange
+from genjax._src.core.diff_rules import diff_propagation_rules
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.staging import stage
@@ -63,6 +64,7 @@ __all__ = [
     "NoChange",
     "IntChange",
     "Diff",
+    "diff_propagation_rules",
     # Pytree meta.
     "Pytree",
     # Common GenJAX types.

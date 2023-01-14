@@ -32,4 +32,4 @@ class TestUnfoldSimpleNormal:
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(model))(key, (5, 0.1))
         unfold_score = tr.get_score()
-        assert jnp.sum(tr.get_subtree("z").get_score()[0:6]) == unfold_score
+        assert jnp.sum(tr.project(genjax.select(["z"]))[0:6]) == unfold_score

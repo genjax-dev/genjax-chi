@@ -82,7 +82,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
             return scorer(args, chm)
 
         hmc = blackjax.hmc(_logpdf)
-        initial_position, _ = self.selection.filter(trace.strip())
+        initial_position = self.selection.filter(trace.strip())
         stripped = jtu.tree_map(
             lambda v: v if v.dtype == jnp.float32 else None,
             initial_position,

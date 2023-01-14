@@ -21,9 +21,11 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.diff_rules import Diff
@@ -72,6 +74,12 @@ class DistributionTrace(Trace, Leaf):
 
     def get_choices(self):
         return ValueChoiceMap(self.value)
+
+    def project(self, selection: Selection) -> FloatArray:
+        if isinstance(selection, AllSelection):
+            return self.get_score()
+        else:
+            return 0.0
 
     def get_leaf_value(self):
         return self.value

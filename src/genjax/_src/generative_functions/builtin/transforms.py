@@ -437,7 +437,7 @@ class Update(Handler):
 
         gen_fn, argdiffs = jtu.tree_unflatten(tree_in, incells)
         argdiffs = tuple(argdiffs)
-        has_previous = self.previous_trace.has_subtree(addr)
+        has_previous = self.previous_trace.choices.has_subtree(addr)
         constrained = self.constraints.has_subtree(addr)
 
         # If no changes, we can just short-circuit.
@@ -448,7 +448,7 @@ class Update(Handler):
             and not constrained
             and all(map(check_no_change, incells))
         ):
-            subtrace = self.previous_trace.get_subtree(addr)
+            subtrace = self.previous_trace.choices.get_subtree(addr)
             self.choice_state[addr] = subtrace
 
             # Here, we keep the outcells dimension (e.g. the same as
@@ -463,7 +463,7 @@ class Update(Handler):
             )
 
         # Otherwise, we proceed with code generation.
-        subtrace = self.previous_trace.get_subtree(addr)
+        subtrace = self.previous_trace.choices.get_subtree(addr)
         if constrained:
             subconstraints = self.constraints.get_subtree(addr)
         else:

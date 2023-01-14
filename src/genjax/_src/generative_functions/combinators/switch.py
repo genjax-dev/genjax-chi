@@ -33,8 +33,10 @@ from typing import List
 from typing import Tuple
 
 import jax
+import jax.numpy as jnp
 
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.staging import get_trace_data_shape
@@ -84,6 +86,10 @@ class SwitchTrace(Trace):
 
     def get_score(self):
         return self.score
+
+    def project(self, selection: Selection) -> FloatArray:
+        weights = list(map(lambda v: v.project(selection), self.chm.submaps))
+        return jnp.choose(self.chm.index, weights, mode="wrap")
 
     def convert_to_boolean_mask(self, passed_in_index, argument_index):
         indexed_chm = self.get_choices()
