@@ -34,7 +34,7 @@ except ImportError:
     raise SystemExit(dedent(message)) from None
 
 package = "genjax"
-python_version = "3.10"
+python_version = "3.11"
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = (
     "tests",
