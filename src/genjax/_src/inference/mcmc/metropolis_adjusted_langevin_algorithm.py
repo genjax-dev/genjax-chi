@@ -20,6 +20,7 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
+from genjax._src.core.diff_rules import Diff
 from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.distributions.scipy.normal import Normal
 from genjax._src.inference.mcmc.kernel import MCMCKernel
@@ -32,6 +33,12 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
 
     def flatten(self):
         return (), (self.selection, self.tau)
+
+    def _grad_step_no_none(self, v1, v2):
+        if v2 is None:
+            return v1
+        else:
+            return v1 + self.tau * v2
 
     def _random_split_like_tree(self, rng_key, target=None, treedef=None):
         if treedef is None:
@@ -53,13 +60,14 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
             values,
             mu,
         )
-        leaves = jtu.tree_leaves(logpdf_tree)
+        leaves = jnp.array(jtu.tree_leaves(logpdf_tree))
         return leaves.sum()
 
     def apply(self, key, trace: Trace):
         args = trace.get_args()
         gen_fn = trace.get_gen_fn()
         std = jnp.sqrt(2 * self.tau)
+        argdiffs = jtu.tree_map(Diff.no_change, args)
 
         # Forward proposal.
         key, forward_gradient_trie = gen_fn.choice_grad(
@@ -67,7 +75,7 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         )
         forward_values = self.selection.filter(trace.strip())
         forward_mu = jtu.tree_map(
-            lambda v1, v2: v1 + self.tau * v2,
+            self._grad_step_no_none,
             forward_values,
             forward_gradient_trie,
         )
@@ -81,8 +89,8 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         )
 
         # Get model weight.
-        key, (weight, new_trace, _) = gen_fn.update(
-            key, trace, proposed_values, args
+        key, (_, weight, new_trace, _) = gen_fn.update(
+            key, trace, proposed_values, argdiffs
         )
 
         # Backward proposal.
@@ -90,7 +98,7 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
             key, new_trace, self.selection
         )
         backward_mu = jtu.tree_map(
-            lambda v1, v2: v1 + self.tau * v2,
+            self._grad_step_no_none,
             proposed_values,
             backward_gradient_trie,
         )

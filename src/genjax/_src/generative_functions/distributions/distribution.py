@@ -21,6 +21,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core import mask
 from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
@@ -83,6 +84,9 @@ class DistributionTrace(Trace, Leaf):
 
     def get_leaf_value(self):
         return self.value
+
+    def set_leaf_value(self, v):
+        return DistributionTrace(self.gen_fn, self.args, v, self.score)
 
 
 #####
@@ -169,6 +173,18 @@ class Distribution(GenerativeFunction):
             DistributionTrace(self, args, v, score),
         )
 
+    # NOTE: Here's an interesting note about `update`...
+    # (really, any of the GFI methods for any generative function)
+    # - they should return homogeneous types for any return
+    # branch leading out of the call.
+    # Because these methods may be invoked in `jax.lax.switch` calls
+    # it's important that callers have some knowledge about the
+    # consistency of invoking a callee -- most generative function
+    # languages ensure this is true by default e.g. if they defer
+    # some of their behavior to callees.
+    # For `Distribution` this is not true by default - we have to be
+    # careful when defining the methods, and this is most true of update
+    # below.
     @typecheck
     def update(
         self,
@@ -177,8 +193,9 @@ class Distribution(GenerativeFunction):
         constraints: ChoiceMap,
         argdiffs: Tuple,
         **kwargs
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, ChoiceMap]]:
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
         assert isinstance(constraints, Leaf)
+        maybe_discard = mask(False, prev.get_choices())
 
         # Incremental optimization - if nothing has changed,
         # just return the previous trace.
@@ -187,7 +204,7 @@ class Distribution(GenerativeFunction):
         ):
             v = prev.get_retval()
             retval_diff = Diff.new(v, change=NoChange)
-            return key, (retval_diff, 0.0, prev, EmptyChoiceMap())
+            return key, (retval_diff, 0.0, prev, maybe_discard)
 
         # Otherwise, we consider the cases.
         args = jtu.tree_map(strip_diff, argdiffs, is_leaf=check_is_diff)
@@ -198,8 +215,8 @@ class Distribution(GenerativeFunction):
         prev_v = prev.get_retval()
         active = True
         if isinstance(prev_v, BooleanMask):
-            prev_v = prev_v.unmask()
             active = prev_v.mask
+            prev_v = prev_v.unmask()
 
         # Case 1: the new choice map is empty here.
         if isinstance(constraints, EmptyChoiceMap):
@@ -217,8 +234,10 @@ class Distribution(GenerativeFunction):
                 return key, prev_score
 
             key, w = concrete_cond(active, _active, _inactive, key, v, *args)
-            discard = EmptyChoiceMap()
-            retval_diff = Diff.new(prev.get_retval(), change=NoChange)
+            discard = maybe_discard
+            retval_diff = jtu.tree_map(
+                lambda v: Diff.new(v, change=NoChange), prev_v
+            )
 
         # Case 2: the new choice map is not empty here.
         else:
@@ -229,8 +248,8 @@ class Distribution(GenerativeFunction):
             # leaf value, and dispatch accordingly.
             active_chm = True
             if isinstance(v, BooleanMask):
-                v = v.unmask()
                 active_chm = v.mask
+                v = v.unmask()
 
             # The only time this flag is on is when both leaf values
             # are concrete, or they are both masked with true mask
@@ -253,10 +272,7 @@ class Distribution(GenerativeFunction):
                 *args
             )
 
-            # Now, we also must check if the trace has a masked
-            # leaf value. If it does, we decide what to do.
-
-            discard = ValueChoiceMap(prev.get_leaf_value())
+            discard = mask(active_chm, ValueChoiceMap(prev.get_leaf_value()))
             retval_diff = Diff.new(v)
 
         return key, (
@@ -268,9 +284,12 @@ class Distribution(GenerativeFunction):
 
     @typecheck
     def assess(
-        self, key: PRNGKey, evaluation_point: ChoiceMap, args: Tuple, **kwargs
+        self,
+        key: PRNGKey,
+        evaluation_point: ValueChoiceMap,
+        args: Tuple,
+        **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
-        assert isinstance(evaluation_point, ValueChoiceMap)
         v = evaluation_point.get_leaf_value()
         key, (score, _) = self.estimate_logpdf(key, v, *args)
         return key, (v, score)

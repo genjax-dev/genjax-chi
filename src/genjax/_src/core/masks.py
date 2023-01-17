@@ -21,7 +21,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.tree import Leaf
 
@@ -35,8 +34,6 @@ class Mask(Pytree):
     def new(cls, mask, inner):
         if isinstance(inner, cls):
             return cls.new(mask, inner.unmask())
-        elif isinstance(inner, EmptyChoiceMap):
-            return inner
         else:
             return cls(mask, inner).leaf_push()
 
@@ -64,12 +61,19 @@ class BooleanMask(Mask):
         def _inner(v):
             if isinstance(v, BooleanMask):
                 return BooleanMask.new(self.mask, v.unmask())
+
+            # `Leaf` inheritors have a method `set_leaf_value`
+            # to participate in masking.
+            # They can choose how to construct themselves after
+            # being provided with a masked value.
             elif isinstance(v, Leaf):
                 leaf_value = v.get_leaf_value()
                 if isinstance(leaf_value, BooleanMask):
-                    return v.new(BooleanMask(self.mask, leaf_value.unmask()))
+                    return v.set_leaf_value(
+                        BooleanMask(self.mask, leaf_value.unmask())
+                    )
                 else:
-                    return v.new(BooleanMask(self.mask, leaf_value))
+                    return v.set_leaf_value(BooleanMask(self.mask, leaf_value))
             else:
                 return v
 

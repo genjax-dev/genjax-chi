@@ -22,6 +22,7 @@ consistency.
 import typing
 
 import beartype.typing as btyping
+import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import BeartypeConf
@@ -52,7 +53,17 @@ List = btyping.List
 
 
 def static_check_is_array(v):
-    isinstance(v, jnp.ndarray) or isinstance(v, np.ndarray)
+    return (
+        isinstance(v, jnp.ndarray)
+        or isinstance(v, np.ndarray)
+        or isinstance(v, jax.core.Tracer)
+    )
+
+
+# TODO: the dtype comparison needs to be replaced with something
+# more robust.
+def static_check_grad(v):
+    return static_check_is_array(v) and v.dtype == np.float32
 
 
 __all__ = [

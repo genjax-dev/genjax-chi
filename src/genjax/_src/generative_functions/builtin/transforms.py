@@ -604,7 +604,7 @@ class Assess(Handler):
         return Assess(handles, key, score, constraints)
 
     def trace(self, incells, outcells, addr, tree_in, **kwargs):
-        assert self.constraints.has_subtree(addr)
+        # assert self.constraints.has_subtree(addr)
 
         # We haven't handled the predecessors of this trace
         # call yet, so we return back to the abstract interpreter

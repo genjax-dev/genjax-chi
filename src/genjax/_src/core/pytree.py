@@ -30,6 +30,7 @@ import numpy as np
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.specialization import is_concrete
+from genjax._src.core.typing import static_check_grad
 
 
 class Pytree(metaclass=abc.ABCMeta):
@@ -119,3 +120,35 @@ def squeeze(tree):
             return v
 
     return jtu.tree_map(_inner, tree)
+
+
+def tree_grad_split(tree):
+    def _grad_filter(v):
+        if static_check_grad(v):
+            return v
+        else:
+            return None
+
+    def _nograd_filter(v):
+        if not static_check_grad(v):
+            return v
+        else:
+            return None
+
+    grad = jtu.tree_map(_grad_filter, tree)
+    nograd = jtu.tree_map(_nograd_filter, tree)
+
+    return grad, nograd
+
+
+def tree_zipper(grad, nograd):
+    def _zipper(*args):
+        for arg in args:
+            if arg is not None:
+                return arg
+        return None
+
+    def _is_none(x):
+        return x is None
+
+    return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
