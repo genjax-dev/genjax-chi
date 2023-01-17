@@ -18,13 +18,13 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Float
+from genjax._src.core.typing import FloatArray
 
 
 @dataclasses.dataclass
 class MapUpdate(Pytree):
     selection: Selection
-    tau: Float
+    tau: FloatArray
 
     def flatten(self):
         return (self.tau,), (self.selection,)
