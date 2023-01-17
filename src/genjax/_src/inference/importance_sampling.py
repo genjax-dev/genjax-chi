@@ -22,24 +22,26 @@ import jax.numpy as jnp
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Int
+from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import typecheck
 from genjax._src.utilities import slash
 
 
 @dataclasses.dataclass
 class ImportanceSampling(Pytree):
-    num_particles: Int
+    num_particles: IntArray
     model: GenerativeFunction
     proposal: Union[None, GenerativeFunction] = None
 
     def flatten(self):
         return (), (self.num_particles, self.model, self.proposal)
 
+    @typecheck
     @classmethod
     def new(
         cls,
-        num_particles: Int,
+        num_particles: IntArray,
         model: GenerativeFunction,
         proposal: Union[None, GenerativeFunction] = None,
     ):
@@ -55,8 +57,7 @@ class ImportanceSampling(Pytree):
         observations: ChoiceMap,
         model_args: Tuple,
     ):
-        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
-        sub_keys = jnp.array(sub_keys)
+        key, sub_keys = slash(key, self.num_particles + 1)
         _, (lws, trs) = jax.vmap(
             self.model.importance, in_axes=(0, None, None)
         )(
@@ -102,7 +103,8 @@ class ImportanceSampling(Pytree):
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
         return key, (m_trs, log_normalized_weights, log_ml_estimate)
 
-    def apply(self, key, choice_map: ChoiceMap, *args):
+    @typecheck
+    def apply(self, key: PRNGKey, choice_map: ChoiceMap, *args):
         # Importance sampling with custom proposal branch.
         if len(args) == 2:
             assert isinstance(args[0], tuple)
@@ -122,13 +124,14 @@ class ImportanceSampling(Pytree):
                 key, choice_map, model_args
             )
 
-    def __call__(self, key, choice_map: ChoiceMap, *args):
+    @typecheck
+    def __call__(self, key: PRNGKey, choice_map: ChoiceMap, *args):
         return self.apply(key, choice_map, *args)
 
 
 @dataclasses.dataclass
 class SamplingImportanceResampling(Pytree):
-    num_particles: Int
+    num_particles: IntArray
     model: GenerativeFunction
     proposal: Union[None, GenerativeFunction] = None
 
@@ -138,7 +141,7 @@ class SamplingImportanceResampling(Pytree):
     @classmethod
     def new(
         cls,
-        num_particles: Int,
+        num_particles: IntArray,
         model: GenerativeFunction,
         proposal: Union[None, GenerativeFunction] = None,
     ):

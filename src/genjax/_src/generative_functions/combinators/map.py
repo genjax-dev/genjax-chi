@@ -31,6 +31,7 @@ from beartype.typing import Tuple
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.tracetypes import TraceType
@@ -65,6 +66,9 @@ class MapTrace(Trace):
             self.inner,
             self.score,
         ), ()
+
+    def project(self, selection: Selection):
+        return self.inner.project(selection)
 
     def get_args(self):
         return self.inner.get_args()
@@ -161,7 +165,7 @@ class MapCombinator(GenerativeFunction):
         assert isinstance(kernel, GenerativeFunction)
         if in_axes is None or all(map(lambda v: v is None, in_axes)):
             assert repeats is not None
-        return MapCombinator(kernel, in_axes, repeats)
+        return MapCombinator(in_axes, repeats, kernel)
 
     def _static_broadcast_dim_len(self, args):
         if self.repeats is not None:
@@ -254,6 +258,11 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
+    def _importance_empty(self, key, chm, args):
+        key, map_tr = self.simulate(key, args)
+        w = 0.0
+        return key, (w, map_tr)
+
     def _importance_fallback(self, key, chm, args):
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         # Check incoming choice map, and coerce to `VectorChoiceMap`
@@ -297,8 +306,11 @@ class MapCombinator(GenerativeFunction):
     def importance(
         self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
+        # Note: these branches are resolved at tracing time.
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
+        elif isinstance(chm, EmptyChoiceMap):
+            return self._importance_empty(key, chm, args)
         else:
             return self._importance_fallback(key, chm, args)
 

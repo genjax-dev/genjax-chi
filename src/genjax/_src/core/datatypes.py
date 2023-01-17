@@ -198,6 +198,16 @@ class GenerativeFunction(Pytree):
     provide a differentiable `importance` implementation.
     """
 
+    # This is used in tracing -- the user is not required to provide
+    # a PRNGKey, because the value of the key is not important, only
+    # the fact that the value has type PRNGKey.
+    def __abstract_call__(self, *args) -> Tuple[PRNGKey, Any]:
+        key = jax.random.PRNGKey(0)
+        key, retval = self.__call__(key, *args)
+        return key, retval
+
+    # This overloads the call functionality of all generative functions
+    # the user is required to provide a PRNGKey.
     def __call__(self, key: PRNGKey, *args) -> Tuple[PRNGKey, Any]:
         key, tr = self.simulate(key, args)
         retval = tr.get_retval()
