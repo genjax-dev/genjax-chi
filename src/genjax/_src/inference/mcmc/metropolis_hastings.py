@@ -72,4 +72,4 @@ class MetropolisHastings(MCMCKernel):
 # Shorthands #
 ##############
 
-mh = MetropolisHastings
+mh = MetropolisHastings.new

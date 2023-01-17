@@ -16,6 +16,7 @@
 
 # Closed modules.
 from genjax import prox
+from genjax import typing
 
 from .console import *
 from .core import *

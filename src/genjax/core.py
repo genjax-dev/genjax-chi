@@ -33,13 +33,6 @@ from genjax._src.core.diff_rules import diff_propagation_rules
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.staging import stage
-from genjax._src.core.typing import Bool
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import Float
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
 
 
 __all__ = [
@@ -67,14 +60,6 @@ __all__ = [
     "diff_propagation_rules",
     # Pytree meta.
     "Pytree",
-    # Common GenJAX types.
-    "PRNGKey",
-    "Int",
-    "IntArray",
-    "Float",
-    "FloatArray",
-    "Bool",
-    "BoolArray",
     # Utilities.
     "stage",
 ]

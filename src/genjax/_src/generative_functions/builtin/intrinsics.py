@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.core as core
 import jax.tree_util as jtu
 
@@ -64,21 +63,18 @@ def trace(addr, call, **kwargs):
 # Abstract evaluation for trace
 #####
 
-# We defer the call here so that, when we
+# We defer the abstract call here so that, when we
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
-def _apply(gen_fn, *args):
-    return gen_fn(*args)
+def _abstract_gen_fn_call(gen_fn, *args):
+    return gen_fn.__abstract_call__(*args)
 
 
-# Here, we create a stub key for abstract evaluation.
-# Only the shape matters.
 def gen_fn_abstract_eval(*args, addr, tree_in, **kwargs):
-    stub_key = jax.random.PRNGKey(0)
     gen_fn, args = jtu.tree_unflatten(tree_in, args)
 
-    # See note above on `_apply`.
-    closed_jaxpr, _ = stage(_apply)(gen_fn, stub_key, *args)
+    # See note above on `_abstract_gen_fn_call`.
+    closed_jaxpr, _ = stage(_abstract_gen_fn_call)(gen_fn, *args)
 
     retvals = closed_jaxpr.out_avals[1:]
     return retvals

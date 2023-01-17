@@ -115,4 +115,4 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
 # Shorthands #
 ##############
 
-mala = MetropolisAdjustedLangevinAlgorithm
+mala = MetropolisAdjustedLangevinAlgorithm.new
