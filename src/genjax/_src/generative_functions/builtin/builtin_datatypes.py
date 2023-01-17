@@ -23,7 +23,6 @@ from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.tracetypes import TraceType
-from genjax._src.core.tree import Leaf
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
@@ -99,13 +98,6 @@ class BuiltinChoiceMap(ChoiceMap):
 
     def __setitem__(self, k, v):
         self.trie[k] = v
-
-    def __getitem__(self, k):
-        chm = self.get_subtree(k)
-        if isinstance(chm, Leaf):
-            return chm.get_leaf_value()
-        else:
-            return chm
 
     def __hash__(self):
         return hash(self.trie)

@@ -76,11 +76,18 @@ class VectorChoiceMap(ChoiceMap):
     def get_subtrees_shallow(self):
         return self.inner.get_subtrees_shallow()
 
+    # TODO: This currently provides poor support for merging
+    # two vector choices maps with different index arrays.
     def merge(self, other):
-        return VectorChoiceMap(
-            self.indices,
-            self.inner.merge(other),
-        )
+        if isinstance(other, VectorChoiceMap):
+            return VectorChoiceMap(
+                other.indices, self.inner.merge(other.inner)
+            )
+        else:
+            return VectorChoiceMap(
+                self.indices,
+                self.inner.merge(other),
+            )
 
     def __hash__(self):
         return hash(self.inner)
@@ -158,7 +165,7 @@ class IndexedChoiceMap(ChoiceMap):
             else:
                 index_map.append(counter)
                 counter += 1
-        index_map = np.array(index_map)
+        index_map = jnp.array(index_map)
 
         non_empty_submaps = list(
             filter(lambda v: not isinstance(v, EmptyChoiceMap), submaps)

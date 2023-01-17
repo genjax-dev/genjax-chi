@@ -46,6 +46,10 @@ class Leaf(Tree):
     def get_leaf_value(self):
         pass
 
+    @abc.abstractmethod
+    def set_leaf_value(self, v):
+        pass
+
     def has_subtree(self, addr):
         return False
 

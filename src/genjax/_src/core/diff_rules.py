@@ -132,6 +132,10 @@ class Diff(Cell):
     def get_val(self):
         return self.val
 
+    @classmethod
+    def tree_map_diff(cls, tree, change_value):
+        return jtu.tree_map(lambda v: Diff.new(v, change=change_value), tree)
+
 
 def check_is_diff(v):
     return isinstance(v, Diff) or isinstance(v, Cell)
@@ -148,9 +152,9 @@ def fallback_diff_rule(
         in_vals = list(map(lambda v: v.get_val(), incells))
         out = prim.bind(*in_vals, **params)
         if all(map(lambda v: v.get_change() == NoChange, incells)):
-            new_out = jtu.tree_map(lambda v: Diff.new(v, change=NoChange), out)
+            new_out = Diff.tree_map_diff(out, NoChange)
         else:
-            new_out = jtu.tree_map(lambda v: Diff.new(v), out)
+            new_out = Diff.tree_map_diff(out, UnknownChange)
         if not prim.multiple_results:
             new_out = [new_out]
     else:

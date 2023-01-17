@@ -23,7 +23,11 @@ import jax
 import jax.tree_util as jtu
 import numpy as np
 
+from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import tree_grad_split
+from genjax._src.core.pytree import tree_zipper
+from genjax._src.core.specialization import is_concrete
 from genjax._src.core.tracetypes import Bottom
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf
@@ -67,7 +71,22 @@ class ChoiceMap(Tree):
             return jax.tree_util.tree_map(lambda v: v[addr], self)
         choice = self.get_subtree(addr)
         if isinstance(choice, Leaf):
-            return choice.get_leaf_value()
+            v = choice.get_leaf_value()
+
+            # If the choice is a Leaf, it might participate in masking.
+            # Here, we check if the value is masked.
+            # Then, we either unwrap the mask - or return it,
+            # depending on the concreteness of the mask value.
+            if isinstance(v, BooleanMask):
+                if is_concrete(v.mask):
+                    if v.mask:
+                        return v.unmask()
+                    else:
+                        return EmptyChoiceMap()
+                else:
+                    return v
+            else:
+                return v
         else:
             return choice
 
@@ -142,7 +161,15 @@ class Trace(ChoiceMap, Tree):
             return jax.tree_util.tree_map(lambda v: v[addr], self)
         choices = self.get_choices()
         choice = choices.get_subtree(addr)
-        if isinstance(choice, Leaf):
+        if isinstance(choice, BooleanMask):
+            if is_concrete(choice.mask):
+                if choice.mask:
+                    return choice.unmask()
+                else:
+                    return EmptyChoiceMap()
+            else:
+                return choice
+        elif isinstance(choice, Leaf):
             return choice.get_leaf_value()
         else:
             return choice
@@ -269,12 +296,16 @@ class GenerativeFunction(Pytree):
     ]:
         key, sub_key = jax.random.split(key)
 
-        def score(provided: ChoiceMap, args: Tuple) -> FloatArray:
+        def score(
+            differentiable: Tuple, nondifferentiable: Tuple
+        ) -> FloatArray:
+            provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.merge(provided)
             _, (_, score) = self.assess(sub_key, merged, args)
             return score
 
-        def retval(provided: ChoiceMap, args: Tuple) -> Any:
+        def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
+            provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.merge(provided)
             _, (retval, _) = self.assess(sub_key, merged, args)
             return retval
@@ -287,9 +318,10 @@ class GenerativeFunction(Pytree):
         fixed = selection.complement().filter(trace.strip())
         evaluation_point = selection.filter(trace.strip())
         key, scorer, _ = self.unzip(key, fixed)
-        choice_gradient_tree = jax.grad(scorer)(
-            evaluation_point, trace.get_args()
+        grad, nograd = tree_grad_split(
+            (evaluation_point, trace.get_args()),
         )
+        choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return key, choice_gradient_tree
 
     # Supports Graphviz visualization.
@@ -308,6 +340,9 @@ class EmptyChoiceMap(ChoiceMap, Leaf):
         return (), ()
 
     def get_leaf_value(self):
+        raise Exception("EmptyChoiceMap has no leaf value.")
+
+    def set_leaf_value(self, v):
         raise Exception("EmptyChoiceMap has no leaf value.")
 
     def get_selection(self):
@@ -330,6 +365,9 @@ class ValueChoiceMap(ChoiceMap, Leaf):
 
     def get_leaf_value(self):
         return self.value
+
+    def set_leaf_value(self, v):
+        return ValueChoiceMap(v)
 
     def get_selection(self):
         return AllSelection()
@@ -362,6 +400,11 @@ class NoneSelection(Selection, Leaf):
             "NoneSelection is a Selection: it does not provide a leaf choice value."
         )
 
+    def set_leaf_value(self):
+        raise Exception(
+            "NoneSelection is a Selection: it does not provide a leaf choice value."
+        )
+
 
 @dataclasses.dataclass
 class AllSelection(Selection, Leaf):
@@ -375,6 +418,11 @@ class AllSelection(Selection, Leaf):
         return NoneSelection()
 
     def get_leaf_value(self):
+        raise Exception(
+            "AllSelection is a Selection: it does not provide a leaf choice value."
+        )
+
+    def set_leaf_value(self):
         raise Exception(
             "AllSelection is a Selection: it does not provide a leaf choice value."
         )

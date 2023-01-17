@@ -17,6 +17,7 @@ import dataclasses
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import Selection
+from genjax._src.core.diff_rules import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 
@@ -29,21 +30,28 @@ class MapUpdate(Pytree):
     def flatten(self):
         return (self.tau,), (self.selection,)
 
+    def _grad_step_no_none(self, v1, v2):
+        if v2 is None:
+            return v1
+        else:
+            return v1 + self.tau * v2
+
     def apply(self, key, trace):
         args = trace.get_args()
         gen_fn = trace.get_gen_fn()
+        argdiffs = jtu.tree_map(Diff.no_change, args)
         key, forward_gradient_trie = gen_fn.choice_grad(
             key, trace, self.selection
         )
         forward_values = self.selection.filter(trace.strip())
         forward_values = forward_values.strip()
         forward_values = jtu.tree_map(
-            lambda v1, v2: v1 + self.tau * v2,
+            self._grad_step_no_none,
             forward_values,
             forward_gradient_trie,
         )
         key, (_, _, new_trace, _) = gen_fn.update(
-            key, trace, forward_values, args
+            key, trace, forward_values, argdiffs
         )
         return key, (new_trace, True)
 

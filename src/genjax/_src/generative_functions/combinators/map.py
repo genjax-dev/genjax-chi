@@ -28,6 +28,7 @@ import numpy as np
 from beartype import beartype
 from beartype.typing import Tuple
 
+from genjax._src.core import mask
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
@@ -315,27 +316,20 @@ class MapCombinator(GenerativeFunction):
             return self._importance_fallback(key, chm, args)
 
     # The choice map passed in here is a vector choice map.
-    def _update_vcm(self, key, prev, chm, diffs):
-        def _update(key, prev, chm, diffs):
+    def _update_vcm(self, key, prev, chm, argdiffs):
+        def _update(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(
-                key, prev, chm, diffs
+                key, prev, chm, argdiffs
             )
             return key, (retdiff, w, tr, d)
 
-        def _fallback(key, prev, chm, diffs):
-            key, (retdiff, w, tr, d) = self.kernel.update(
-                key, prev, EmptyChoiceMap(), diffs
-            )
-            return key, (retdiff, w, tr, d)
-
-        def _inner(key, index, prev, chm, diffs):
+        def _inner(key, index, prev, chm, argdiffs):
             check = index == chm.get_index()
-            return concrete_cond(
-                check, _update, _fallback, key, prev, chm, diffs
-            )
+            masked = mask(check, chm.inner)
+            return _update(key, prev, masked, argdiffs)
 
         # Just to determine the broadcast length.
-        args = jtu.tree_leaves(diffs)
+        args = jtu.tree_leaves(argdiffs)
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
@@ -344,17 +338,17 @@ class MapCombinator(GenerativeFunction):
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _inner, in_axes=(0, 0, prev_inaxes_tree, 0, self.in_axes)
-        )(sub_keys, indices, prev.inner, chm, diffs)
+        )(sub_keys, indices, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
         map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
     # the arguments have changed.
-    def _update_empty_chm(self, key, prev, chm, diffs):
-        def _fallback(key, prev, chm, diffs):
+    def _update_empty_chm(self, key, prev, chm, argdiffs):
+        def _fallback(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(
-                key, prev, EmptyChoiceMap(), diffs
+                key, prev, EmptyChoiceMap(), argdiffs
             )
             return key, (retdiff, w, tr, d)
 
@@ -362,39 +356,39 @@ class MapCombinator(GenerativeFunction):
             lambda v: None if v.shape == () else 0, prev.inner
         )
         # Just to determine the broadcast length.
-        args = jtu.tree_leaves(diffs)
+        args = jtu.tree_leaves(argdiffs)
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
-        )(sub_keys, prev.inner, chm, diffs)
+        )(sub_keys, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map doesn't carry optimization info.
-    def _update_fallback(self, key, prev, chm, diffs):
-        def _update(key, prev, chm, diffs):
+    def _update_fallback(self, key, prev, chm, argdiffs):
+        def _update(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(
-                key, prev, chm, diffs
+                key, prev, chm, argdiffs
             )
             return key, (retdiff, w, tr, d)
 
-        def _fallback(key, prev, chm, diffs):
+        def _fallback(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(
-                key, prev, EmptyChoiceMap(), diffs
+                key, prev, EmptyChoiceMap(), argdiffs
             )
             return key, (retdiff, w, tr, d)
 
-        def _inner(key, index, prev, chm, diffs):
+        def _inner(key, index, prev, chm, argdiffs):
             check = index == chm.get_index()
             return concrete_cond(
-                check, _update, _fallback, key, prev, chm, diffs
+                check, _update, _fallback, key, prev, chm, argdiffs
             )
 
         # Just to determine the broadcast length.
-        args = jtu.tree_leaves(diffs)
+        args = jtu.tree_leaves(argdiffs)
         broadcast_dim_length = self._static_broadcast_dim_len(args)
 
         # Check incoming choice map, and coerce to `VectorChoiceMap`
@@ -421,12 +415,12 @@ class MapCombinator(GenerativeFunction):
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _inner, in_axes=(0, 0, prev_inaxes_tree, 0, self.in_axes)
-        )(sub_keys, indices, prev.inner, chm, diffs)
+        )(sub_keys, indices, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
         map_tr = MapTrace(self, indices, tr, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
-    def update(self, key, prev, chm, diffs):
+    def update(self, key, prev, chm, argdiffs):
         assert isinstance(prev, MapTrace)
 
         # Branches here implement certain optimizations when more
@@ -435,11 +429,11 @@ class MapCombinator(GenerativeFunction):
         # The fallback just inflates a choice map to the right shape
         # and runs a generic update.
         if isinstance(chm, VectorChoiceMap):
-            return self._update_vcm(key, prev, chm, diffs)
+            return self._update_vcm(key, prev, chm, argdiffs)
         elif isinstance(chm, EmptyChoiceMap):
-            return self._update_empty_chm(key, prev, chm, diffs)
+            return self._update_empty_chm(key, prev, chm, argdiffs)
         else:
-            return self._update_fallback(key, prev, chm, diffs)
+            return self._update_fallback(key, prev, chm, argdiffs)
 
     def _throw_index_check_host_exception(self, truth: int, index: int):
         def _inner(count, transforms):
