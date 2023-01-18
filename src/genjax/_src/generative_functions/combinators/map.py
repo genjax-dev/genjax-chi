@@ -435,15 +435,24 @@ class MapCombinator(GenerativeFunction):
         else:
             return self._update_fallback(key, prev, chm, argdiffs)
 
-    def _throw_index_check_host_exception(self, truth: int, index: int):
-        def _inner(count, transforms):
-            raise Exception(
-                f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference: {truth}\nPassed in: {index}"
-            )
+    # TODO: I've had so many issues with getting this to work correctly
+    # and not throw - and I'm not sure why it's been so finicky.
+    # Investigate if it occurs again.
+    def _throw_index_check_host_exception(
+        self, check, truth: IntArray, index: IntArray
+    ):
+        def _inner(args, _):
+            truth = args[0]
+            index = args[1]
+            check = args[2]
+            if not np.all(check):
+                raise Exception(
+                    f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference:\n{truth}\nPassed in:\n{index}"
+                )
 
         hcb.id_tap(
-            lambda *args: _inner(*args),
-            index,
+            _inner,
+            (truth, index, check),
             result=None,
         )
         return None
@@ -456,20 +465,13 @@ class MapCombinator(GenerativeFunction):
 
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
-        check = jnp.all(jnp.equal(indices, chm.get_index()))
+        check = jnp.count_nonzero(indices - chm.get_index()) == 0
 
         # This inserts a host callback check for bounds checking.
         # If there is an index failure, `assess` must fail
         # because we must provide a constraint for every generative
         # function call.
-        concrete_cond(
-            check,
-            lambda *args: None,
-            lambda *args: self._throw_index_check_host_exception(
-                indices,
-                chm.get_index(),
-            ),
-        )
+        self._throw_index_check_host_exception(check, indices, chm.get_index())
 
         inner = chm.inner
         key, sub_keys = slash(key, broadcast_dim_length)
