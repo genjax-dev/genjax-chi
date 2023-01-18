@@ -57,7 +57,7 @@ class ImportanceSampling(Pytree):
         observations: ChoiceMap,
         model_args: Tuple,
     ):
-        key, sub_keys = slash(key, self.num_particles + 1)
+        key, sub_keys = slash(key, self.num_particles)
         _, (lws, trs) = jax.vmap(
             self.model.importance, in_axes=(0, None, None)
         )(

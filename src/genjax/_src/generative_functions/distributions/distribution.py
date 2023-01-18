@@ -141,7 +141,7 @@ class Distribution(GenerativeFunction):
         # what to do at runtime.
         v = chm.get_leaf_value()
         if isinstance(v, BooleanMask):
-            active = v.mask()
+            active = v.mask
             v = v.unmask()
 
             def _active(key, v, args):
