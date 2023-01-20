@@ -27,33 +27,14 @@ import dataclasses
 import blackjax
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 
-from genjax._src.core import ChoiceMap
 from genjax._src.core import Selection
 from genjax._src.core import Trace
-from genjax._src.core.diff_rules import Diff
+from genjax._src.core.pytree import tree_grad_split
+from genjax._src.core.pytree import tree_zipper
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
-
-
-# Uses incremental computing to prune non-contributing sites in update.
-def _estimate(key: PRNGKey, trace: Trace, chm: ChoiceMap):
-    args = trace.get_args()
-
-    # Here, the arguments (and hence, the target) don't change
-    # if they do change, you shouldn't be using MCMC...because
-    # then the target is changing.
-    argdiffs = tuple(map(Diff.no_change, args))
-
-    key, (_, _, updated_trace, _) = trace.update(
-        key,
-        trace,
-        chm,
-        argdiffs,
-    )
-    return updated_trace.get_score()
 
 
 @dataclasses.dataclass
@@ -75,31 +56,32 @@ class HamiltonianMonteCarlo(MCMCKernel):
         # the choice map.
         gen_fn = trace.get_gen_fn()
         fixed = self.selection.complement().filter(trace.strip())
+        initial_chm_position, _ = self.selection.filter(trace.strip())
         key, scorer, _ = gen_fn.unzip(key, fixed)
-        args = trace.get_args()
 
-        def _logpdf(chm: ChoiceMap):
-            return scorer(args, chm)
+        # These go into the gradient interfaces.
+        grad, nograd = tree_grad_split(
+            (initial_chm_position, trace.get_args()),
+        )
+
+        # The nograd component never changes.
+        def _logpdf(grad):
+            return scorer(grad, nograd)
 
         hmc = blackjax.hmc(_logpdf)
-        initial_position = self.selection.filter(trace.strip())
-        stripped = jtu.tree_map(
-            lambda v: v if v.dtype == jnp.float32 else None,
-            initial_position,
-        )
-        initial_state = hmc.init(stripped)
+
+        # Pass the grad component into the HMC init.
+        initial_state = hmc.init(grad)
 
         def step(state, key):
             return _one_step(hmc.step, state, key)
 
+        # TODO: do we need to allocate keys for the full chain?
+        # Shouldn't it just pass a single key along?
         key, *sub_keys = jax.random.split(key, self.num_steps + 1)
         sub_keys = jnp.array(sub_keys)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
-        final_positions = jtu.tree_map(
-            lambda a, b: a if b is None else b,
-            initial_position,
-            states.position,
-        )
+        final_positions, _ = tree_zipper(states.position, nograd)
         return key, final_positions
 
     def reversal(self):
@@ -125,31 +107,32 @@ class NoUTurnSampler(MCMCKernel):
         # the choice map.
         gen_fn = trace.get_gen_fn()
         fixed = self.selection.complement().filter(trace.strip())
+        initial_chm_position, _ = self.selection.filter(trace.strip())
         key, scorer, _ = gen_fn.unzip(key, fixed)
-        args = trace.get_args()
 
-        def _logpdf(chm: ChoiceMap):
-            return scorer(args, chm)
+        # These go into the gradient interfaces.
+        grad, nograd = tree_grad_split(
+            (initial_chm_position, trace.get_args()),
+        )
+
+        # The nograd component never changes.
+        def _logpdf(grad):
+            return scorer(grad, nograd)
 
         hmc = blackjax.nuts(_logpdf)
-        initial_position, _ = self.selection.filter(trace.strip())
-        stripped = jtu.tree_map(
-            lambda v: v if v.dtype == jnp.float32 else None,
-            initial_position,
-        )
-        initial_state = hmc.init(stripped)
+
+        # Pass the grad component into the HMC init.
+        initial_state = hmc.init(grad)
 
         def step(state, key):
             return _one_step(hmc.step, state, key)
 
+        # TODO: do we need to allocate keys for the full chain?
+        # Shouldn't it just pass a single key along?
         key, *sub_keys = jax.random.split(key, self.num_steps + 1)
         sub_keys = jnp.array(sub_keys)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
-        final_positions = jtu.tree_map(
-            lambda a, b: a if b is None else b,
-            initial_position,
-            states.position,
-        )
+        final_positions, _ = tree_zipper(states.position, nograd)
         return key, final_positions
 
     def reversal(self):
