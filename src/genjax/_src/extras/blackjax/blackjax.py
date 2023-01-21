@@ -56,7 +56,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         # the choice map.
         gen_fn = trace.get_gen_fn()
         fixed = self.selection.complement().filter(trace.strip())
-        initial_chm_position, _ = self.selection.filter(trace.strip())
+        initial_chm_position = self.selection.filter(trace.strip())
         key, scorer, _ = gen_fn.unzip(key, fixed)
 
         # These go into the gradient interfaces.
@@ -107,7 +107,7 @@ class NoUTurnSampler(MCMCKernel):
         # the choice map.
         gen_fn = trace.get_gen_fn()
         fixed = self.selection.complement().filter(trace.strip())
-        initial_chm_position, _ = self.selection.filter(trace.strip())
+        initial_chm_position = self.selection.filter(trace.strip())
         key, scorer, _ = gen_fn.unzip(key, fixed)
 
         # These go into the gradient interfaces.
