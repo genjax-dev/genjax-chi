@@ -80,9 +80,7 @@ class VectorChoiceMap(ChoiceMap):
     # two vector choices maps with different index arrays.
     def merge(self, other):
         if isinstance(other, VectorChoiceMap):
-            return VectorChoiceMap(
-                other.indices, self.inner.merge(other.inner)
-            )
+            return VectorChoiceMap(other.indices, self.inner.merge(other.inner))
         else:
             return VectorChoiceMap(
                 self.indices,

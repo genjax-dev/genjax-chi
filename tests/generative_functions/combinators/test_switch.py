@@ -39,9 +39,9 @@ class TestSimulate:
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        assert score == genjax.Normal.logpdf(
-            v1, 0.0, 1.0
-        ) + genjax.Normal.logpdf(v2, 0.0, 1.0)
+        assert score == genjax.Normal.logpdf(v1, 0.0, 1.0) + genjax.Normal.logpdf(
+            v2, 0.0, 1.0
+        )
         key, tr = jitted(key, (1,))
         flip = tr["y3"]
         score = tr.get_score()
@@ -55,9 +55,9 @@ class TestSimulate:
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        assert score == genjax.Normal.logpdf(
-            v1, 0.0, 1.0
-        ) + genjax.Normal.logpdf(v2, 0.0, 1.0)
+        assert score == genjax.Normal.logpdf(v1, 0.0, 1.0) + genjax.Normal.logpdf(
+            v2, 0.0, 1.0
+        )
         assert w == 0.0
         key, (w, tr) = jitted(key, chm, (1,))
         flip = tr["y3"]

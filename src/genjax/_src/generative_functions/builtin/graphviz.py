@@ -209,9 +209,7 @@ def graph_to_dot(graph: Graph, args, outputs) -> str:
     captures = []
     argids = {id(v) for v in jax.tree_util.tree_leaves(args)}
     outids = {id(v) for v in jax.tree_util.tree_leaves(outputs)}
-    outname = {
-        id(v): format_path(p) for p, v in tree.flatten_with_path(outputs)
-    }
+    outname = {id(v): format_path(p) for p, v in tree.flatten_with_path(outputs)}
 
     def render_graph(g: Graph, parent: Optional[Graph] = None, depth: int = 0):
         """Renders a given graph by appending 'dot' format lines."""
@@ -316,11 +314,7 @@ def graph_to_dot(graph: Graph, args, outputs) -> str:
 
     for value in captures:
         node_id = id(value)
-        if (
-            not hasattr(value, "aval")
-            and hasattr(value, "size")
-            and value.size == 1
-        ):
+        if not hasattr(value, "aval") and hasattr(value, "size") and value.size == 1:
             label = f"<b>{value.item()}</b>"
         else:
             label = f"<b>{escape(_format_val(value))}</b>"
@@ -359,8 +353,7 @@ def graph_to_dot(graph: Graph, args, outputs) -> str:
             for b in range(use_count):
                 if a == b:
                     head.append(
-                        f"%23node{node_id}{a}:hover "
-                        "{ stroke-width: 0.2em; }"
+                        f"%23node{node_id}{a}:hover " "{ stroke-width: 0.2em; }"
                     )
                 else:
                     head.append(

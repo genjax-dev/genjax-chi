@@ -69,9 +69,7 @@ class BooleanMask(Mask):
             elif isinstance(v, Leaf):
                 leaf_value = v.get_leaf_value()
                 if isinstance(leaf_value, BooleanMask):
-                    return v.set_leaf_value(
-                        BooleanMask(self.mask, leaf_value.unmask())
-                    )
+                    return v.set_leaf_value(BooleanMask(self.mask, leaf_value.unmask()))
                 else:
                     return v.set_leaf_value(BooleanMask(self.mask, leaf_value))
             else:

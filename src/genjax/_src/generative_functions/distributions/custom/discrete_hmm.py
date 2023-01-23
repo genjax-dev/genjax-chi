@@ -25,9 +25,7 @@ from genjax._src.core.typing import Float
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
-from genjax._src.generative_functions.distributions.distribution import (
-    Distribution,
-)
+from genjax._src.generative_functions.distributions.distribution import Distribution
 
 
 tfd = tfp.distributions
@@ -176,12 +174,9 @@ def forward_filtering_backward_sampling(
             return sample
 
         def t_1_branch(key, prev, forward_filter):
-            backward_distribution = (
-                forward_filter + transition_n[:, prev_sample]
-            )
-            backward_distribution = (
+            backward_distribution = forward_filter + transition_n[:, prev_sample]
+            backward_distribution = backward_distribution - jax.scipy.special.logsumexp(
                 backward_distribution
-                - jax.scipy.special.logsumexp(backward_distribution)
             )
             sample = jax.random.categorical(key, backward_distribution)
             return sample
@@ -216,13 +211,9 @@ def forward_filtering_backward_sampling(
 
 def latent_marginals(config: DiscreteHMMConfiguration, observation_sequence):
     init = int(config.linear_grid_dim / 2)
-    initial_distribution = tfd.Categorical(
-        logits=config.transition_tensor[init, :]
-    )
+    initial_distribution = tfd.Categorical(logits=config.transition_tensor[init, :])
     transition_distribution = tfd.Categorical(logits=config.transition_tensor)
-    observation_distribution = tfd.Categorical(
-        logits=config.observation_tensor
-    )
+    observation_distribution = tfd.Categorical(logits=config.observation_tensor)
     hmm = tfd.HiddenMarkovModel(
         initial_distribution,
         transition_distribution,
@@ -246,9 +237,7 @@ def latent_sequence_posterior(
     def _inner(carry, x):
         latent, obs = x
         v = jnp.log(carry[latent])
-        v += jnp.log(
-            jax.nn.softmax(hmm.observation_distribution.logits)[latent, obs]
-        )
+        v += jnp.log(jax.nn.softmax(hmm.observation_distribution.logits)[latent, obs])
         carry = jax.nn.softmax(hmm.transition_distribution.logits[latent, :])
         return carry, v
 

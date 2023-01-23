@@ -17,9 +17,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-)
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
@@ -28,9 +26,7 @@ class _MultivariateNormal(ExactDensity):
         return jax.random.multivariate_normal(key, mean, cov, **kwargs)
 
     def logpdf(self, v, mean, cov, **kwargs):
-        return jnp.sum(
-            jax.scipy.stats.multivariate_normal.logpdf(v, mean, cov)
-        )
+        return jnp.sum(jax.scipy.stats.multivariate_normal.logpdf(v, mean, cov))
 
 
 MvNormal = _MultivariateNormal()

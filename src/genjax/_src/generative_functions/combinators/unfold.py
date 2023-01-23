@@ -40,9 +40,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
-    BuiltinSelection,
-)
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -170,9 +168,7 @@ class UnfoldCombinator(GenerativeFunction):
         return UnfoldCombinator(max_length, kernel)
 
     @typecheck
-    def get_trace_type(
-        self, key: PRNGKey, args: Tuple, **kwargs
-    ) -> VectorTraceType:
+    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> VectorTraceType:
         _ = args[0]
         args = args[1:]
         inner_type = self.kernel.get_trace_type(key, args, **kwargs)
@@ -281,13 +277,10 @@ class UnfoldCombinator(GenerativeFunction):
     def _static_padder(self, v):
         ndim = len(v.shape)
         pad_axes = list(
-            (0, self.max_length - len(v)) if k == 0 else (0, 0)
-            for k in range(0, ndim)
+            (0, self.max_length - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
         )
         return (
-            np.pad(v, pad_axes)
-            if isinstance(v, np.ndarray)
-            else jnp.pad(v, pad_axes)
+            np.pad(v, pad_axes) if isinstance(v, np.ndarray) else jnp.pad(v, pad_axes)
         )
 
     def _importance_indexed(self, key, chm, args):
@@ -435,10 +428,7 @@ class UnfoldCombinator(GenerativeFunction):
         )
         if not isinstance(chm, VectorChoiceMap):
             indices = np.array(
-                [
-                    ind if ind < fixed_len else -1
-                    for ind in range(0, self.max_length)
-                ]
+                [ind if ind < fixed_len else -1 for ind in range(0, self.max_length)]
             )
             chm = VectorChoiceMap(
                 indices,
@@ -595,14 +585,7 @@ class UnfoldCombinator(GenerativeFunction):
                 index,
             )
 
-        (count, key, state), (
-            retdiff,
-            score,
-            w,
-            tr,
-            discard,
-            indices,
-        ) = jax.lax.scan(
+        (count, key, state), (retdiff, score, w, tr, discard, indices,) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev,),
@@ -639,9 +622,7 @@ class UnfoldCombinator(GenerativeFunction):
             (prev, chm) = slice
 
             def _update(key, prev, chm, state):
-                return self.kernel.update(
-                    key, prev, chm, (state, *static_args)
-                )
+                return self.kernel.update(key, prev, chm, (state, *static_args))
 
             def _fallthrough(key, prev, chm, state):
                 return self.kernel.update(
@@ -666,14 +647,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
             return (count, key, state), (state, score, w, tr, discard, index)
 
-        (count, key, state), (
-            retdiff,
-            score,
-            w,
-            tr,
-            discard,
-            indices,
-        ) = jax.lax.scan(
+        (count, key, state), (retdiff, score, w, tr, discard, indices,) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev, chm),
@@ -719,9 +693,7 @@ class UnfoldCombinator(GenerativeFunction):
             (prev, chm) = slice
 
             def _update(key, prev, chm, state):
-                return self.kernel.update(
-                    key, prev, chm, (state, *static_args)
-                )
+                return self.kernel.update(key, prev, chm, (state, *static_args))
 
             def _fallthrough(key, prev, chm, state):
                 return self.kernel.update(
@@ -855,9 +827,7 @@ class UnfoldCombinator(GenerativeFunction):
                 lambda *args: None,
             )
 
-            key, (retval, score) = self.kernel.assess(
-                key, chm, (state, *static_args)
-            )
+            key, (retval, score) = self.kernel.assess(key, chm, (state, *static_args))
 
             check = jnp.less(count, length + 1)
             index = concrete_cond(

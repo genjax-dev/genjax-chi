@@ -18,9 +18,7 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.tracetypes import PositiveReals
-from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-)
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass

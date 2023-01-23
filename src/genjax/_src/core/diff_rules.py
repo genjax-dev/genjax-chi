@@ -145,9 +145,7 @@ def strip_diff(diff):
     return diff.get_val()
 
 
-def fallback_diff_rule(
-    prim: Any, incells: List[Diff], outcells: Any, **params
-):
+def fallback_diff_rule(prim: Any, incells: List[Diff], outcells: Any, **params):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         out = prim.bind(*in_vals, **params)

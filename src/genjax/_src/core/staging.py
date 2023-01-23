@@ -37,9 +37,7 @@ def get_shaped_aval(x):
         return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
 
     if hasattr(x, "dtype") and hasattr(x, "shape"):
-        return abstract_arrays.ShapedArray(
-            x.shape, dtypes.canonicalize_dtype(x.dtype)
-        )
+        return abstract_arrays.ShapedArray(x.shape, dtypes.canonicalize_dtype(x.dtype))
     return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
 
 
@@ -63,9 +61,7 @@ def stage(f, dynamic=True):
             jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, flat_avals)
         else:
             pvals = [pe.PartialVal.unknown(aval) for aval in flat_avals]
-            jaxpr, _, consts = pe.trace_to_jaxpr(
-                flat_fun, pvals, instantiate=True
-            )
+            jaxpr, _, consts = pe.trace_to_jaxpr(flat_fun, pvals, instantiate=True)
         typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
         return typed_jaxpr, (flat_args, in_tree, out_tree())
 
@@ -77,9 +73,7 @@ def get_trace_data_shape(gen_fn, *args):
         key, tr = gen_fn.simulate(*args)
         return key, tr
 
-    _, (_, trace_shape) = jax.make_jaxpr(_apply, return_shape=True)(
-        gen_fn, *args
-    )
+    _, (_, trace_shape) = jax.make_jaxpr(_apply, return_shape=True)(gen_fn, *args)
     return trace_shape
 
 

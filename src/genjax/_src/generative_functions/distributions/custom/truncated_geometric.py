@@ -16,9 +16,7 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 
-from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-)
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     TFPGeometric,
 )

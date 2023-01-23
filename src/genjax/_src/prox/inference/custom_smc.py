@@ -60,13 +60,9 @@ class CustomSMC(ProxDistribution):
 
         def _particle_step(key, constraints, state):
             new_target = self.step_target(state, constraints, final_target)
-            key, particle = self.step_proposal.simulate(
-                key, (state, new_target)
-            )
+            key, particle = self.step_proposal.simulate(key, (state, new_target))
             (particle_chm,) = particle.get_retval()
-            key, (_, new_target_trace) = new_target.importance(
-                key, particle_chm, ()
-            )
+            key, (_, new_target_trace) = new_target.importance(key, particle_chm, ())
             target_score = new_target_trace.get_score()
             weight = new_target_trace.get_score() - particle.get_score()
             (new_state,) = new_target_trace.get_retval()
@@ -97,9 +93,7 @@ class CustomSMC(ProxDistribution):
             target_scores = target_scores[selected_particle_indices]
             average_weight = total_weight - np.log(self.num_particles)
             weights = jnp.repeat(average_weight, self.num_particles)
-            particles = jtu.tree_map(
-                lambda v: v[selected_particle_indices], particles
-            )
+            particles = jtu.tree_map(lambda v: v[selected_particle_indices], particles)
             return (key, sub_keys, states, target_scores, weights), (
                 selected_particle_indices,
                 particles,
@@ -163,9 +157,7 @@ class CustomSMC(ProxDistribution):
         average_weight = total_weight - np.log(self.num_particles)
         log_normalized_weights = final_weights - total_weight
         key, sub_key = jax.random.split(key)
-        selected_particle_index = jax.random.categorical(
-            key, log_normalized_weights
-        )
+        selected_particle_index = jax.random.categorical(key, log_normalized_weights)
 
         # `final_tr` comes from `final_target.importance`
         # instead of just returning a particle choice map,
@@ -221,9 +213,7 @@ class CustomSMC(ProxDistribution):
             constraints,
             state,
         ):
-            key, particle = self.step_proposal.simulate(
-                key, (state, new_target)
-            )
+            key, particle = self.step_proposal.simulate(key, (state, new_target))
             return key, particle
 
         # This switches on the array index value
@@ -243,9 +233,7 @@ class CustomSMC(ProxDistribution):
                 state,
             )
             (particle_chm,) = particle.get_retval()
-            key, (_, new_target_trace) = new_target.importance(
-                key, particle_chm, ()
-            )
+            key, (_, new_target_trace) = new_target.importance(key, particle_chm, ())
             target_score = new_target_trace.get_score()
             weight = new_target_trace.get_score() - particle.get_score()
             (new_state,) = new_target_trace.get_retval()

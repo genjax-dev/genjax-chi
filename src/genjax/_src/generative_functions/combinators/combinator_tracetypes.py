@@ -52,9 +52,7 @@ class VectorTraceType(TraceType):
         def _inner(k, v):
             return (k, VectorTraceType(v, self.length))
 
-        return map(
-            lambda args: _inner(*args), self.inner.get_subtrees_shallow()
-        )
+        return map(lambda args: _inner(*args), self.inner.get_subtrees_shallow())
 
     def merge(self, other):
         raise Exception("Not implemented.")

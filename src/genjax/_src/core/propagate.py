@@ -130,9 +130,7 @@ class Cell(Pytree):
 
 
 def flatmap_outcells(cell_type, v, **kwargs):
-    return jtu.tree_map(
-        lambda v: cell_type.new(v, **kwargs), jtu.tree_leaves(v)
-    )
+    return jtu.tree_map(lambda v: cell_type.new(v, **kwargs), jtu.tree_leaves(v))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -168,9 +166,7 @@ class Equation:
             id(invar) if isinstance(invar, jax_core.Literal) else invar
             for invar in self.invars
         )
-        return hash(
-            (hashable_invars, self.outvars, self.primitive, self.params_tree)
-        )
+        return hash((hashable_invars, self.outvars, self.primitive, self.params_tree))
 
     def __str__(self):
         return "{outvars} = {primitive} {invars}".format(
@@ -262,9 +258,7 @@ class PropagationRules(Pytree):
         return (), (self.fallback_rule, self.rule_set)
 
     def rule_set_merge(self, other):
-        return PropagationRules(
-            self.fallback_rule, {**self.rule_set, **other.rule_set}
-        )
+        return PropagationRules(self.fallback_rule, {**self.rule_set, **other.rule_set})
 
     def get(self, primitive):
         if primitive in self.rule_set:
@@ -363,9 +357,7 @@ class PropagationInterpreter(Pytree):
     cell_type: Type[Cell]
     propagation_rules: PropagationRules
     handler: Union[None, Handler] = None
-    reducer: Callable[
-        [Environment, Equation, State, State], State
-    ] = identity_reducer
+    reducer: Callable[[Environment, Equation, State, State], State] = identity_reducer
     initial_state: State = None
 
     def flatten(self):
@@ -532,11 +524,7 @@ def call_rule(prim, incells, outcells, **params):
 
 
 default_call_rules = {}
-default_call_rules[xla.xla_call_p] = functools.partial(
-    call_rule, xla.xla_call_p
-)
-default_call_rules[jax_core.call_p] = functools.partial(
-    call_rule, jax_core.call_p
-)
+default_call_rules[xla.xla_call_p] = functools.partial(call_rule, xla.xla_call_p)
+default_call_rules[jax_core.call_p] = functools.partial(call_rule, jax_core.call_p)
 
 default_propagation_rules = PropagationRules(None, default_call_rules)

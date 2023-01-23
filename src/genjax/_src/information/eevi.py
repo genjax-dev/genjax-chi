@@ -70,9 +70,9 @@ class EntropyEstimatorsViaInference(Pytree):
         target = Target(self.model, model_args, observations)
         key, *sub_keys = jax.random.split(key, self.n_upper_bound + 1)
         sub_keys = jnp.array(sub_keys)
-        _, (log_q, _) = jax.vmap(
-            self.proposal.importance, in_axes=(0, None, None)
-        )(sub_keys, ValueChoiceMap(latents), (target,))
+        _, (log_q, _) = jax.vmap(self.proposal.importance, in_axes=(0, None, None))(
+            sub_keys, ValueChoiceMap(latents), (target,)
+        )
         log_w = log_q - log_p
         return key, -jnp.mean(log_w), (log_p, log_q)
 

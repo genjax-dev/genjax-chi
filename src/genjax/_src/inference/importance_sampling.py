@@ -58,9 +58,7 @@ class ImportanceSampling(Pytree):
         model_args: Tuple,
     ):
         key, sub_keys = slash(key, self.num_particles)
-        _, (lws, trs) = jax.vmap(
-            self.model.importance, in_axes=(0, None, None)
-        )(
+        _, (lws, trs) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
             sub_keys,
             observations,
             model_args,
@@ -90,9 +88,7 @@ class ImportanceSampling(Pytree):
         chm = p_trs.get_choices().merge(observations)
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, (lws, m_trs) = jax.vmap(
-            self.model.importance, in_axes=(0, 0, None)
-        )(
+        _, (lws, m_trs) = jax.vmap(self.model.importance, in_axes=(0, 0, None))(
             sub_keys,
             chm,
             model_args,
@@ -120,9 +116,7 @@ class ImportanceSampling(Pytree):
             assert isinstance(args, tuple)
             assert self.proposal is None
             model_args = args[0]
-            return self._bootstrap_importance_sampling(
-                key, choice_map, model_args
-            )
+            return self._bootstrap_importance_sampling(key, choice_map, model_args)
 
     @typecheck
     def __call__(self, key: PRNGKey, choice_map: ChoiceMap, *args):
@@ -158,9 +152,9 @@ class SamplingImportanceResampling(Pytree):
         model_args: Tuple,
     ):
         key, sub_keys = slash(key, self.num_particles)
-        _, (lws, trs) = jax.vmap(
-            self.model.importance, in_axes=(0, None, None)
-        )(sub_keys, obs, model_args)
+        _, (lws, trs) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
+            sub_keys, obs, model_args
+        )
         log_total_weight = jax.scipy.special.logsumexp(lws)
         log_normalized_weights = lws - log_total_weight
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
@@ -186,9 +180,7 @@ class SamplingImportanceResampling(Pytree):
             assert isinstance(args, tuple)
             assert self.proposal is None
             model_args = args[0]
-            return self._bootstrap_importance_resampling(
-                key, choice_map, model_args
-            )
+            return self._bootstrap_importance_resampling(key, choice_map, model_args)
 
     def __call__(self, key: PRNGKey, choice_map: ChoiceMap, *args):
         return self.apply(key, choice_map, *args)

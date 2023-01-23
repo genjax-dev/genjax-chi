@@ -93,14 +93,10 @@ class VariationalInference(Pytree):
         def _assess(key, var_trace):
             var_choices = var_trace.strip()
             constraints = observations.merge(var_choices)
-            key, (_, model_weight) = self.model.assess(
-                key, constraints, model_args
-            )
+            key, (_, model_weight) = self.model.assess(key, constraints, model_args)
             return key, model_weight
 
-        sub_keys, log_weights = jax.vmap(_assess, in_axes=(0, 0))(
-            sub_keys, var_trace
-        )
+        sub_keys, log_weights = jax.vmap(_assess, in_axes=(0, 0))(sub_keys, var_trace)
 
         log_total_weight = logsumexp(log_weights)
         L = log_total_weight - jnp.log(self.gradient_samples_per_iter)
@@ -137,9 +133,7 @@ class VariationalInference(Pytree):
             1.0 / self.gradient_samples_per_iter,
         )
         iwelbo_estimate = L / self.gradient_samples_per_iter
-        updates, self.opt_state = self.optimizer.update(
-            params_grad, self.opt_state
-        )
+        updates, self.opt_state = self.optimizer.update(params_grad, self.opt_state)
         self.variational_model.update_params(updates)
         return key, iwelbo_estimate
 
