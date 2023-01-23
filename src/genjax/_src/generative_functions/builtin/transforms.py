@@ -93,9 +93,7 @@ class Bare(Cell):
         return self.val
 
 
-def bare_fallback_rule(
-    prim: Any, incells: List[Bare], outcells: Any, **params
-):
+def bare_fallback_rule(prim: Any, incells: List[Bare], outcells: Any, **params):
     if all(map(lambda v: v.top(), incells)):
         in_vals = list(map(lambda v: v.get_val(), incells))
         out = prim.bind(*in_vals, **params)
@@ -124,9 +122,7 @@ def bare_call_p_rule(prim, incells, outcells, **params):
 
 
 bare_call_rules = {}
-bare_call_rules[xla.xla_call_p] = functools.partial(
-    bare_call_p_rule, xla.xla_call_p
-)
+bare_call_rules[xla.xla_call_p] = functools.partial(bare_call_p_rule, xla.xla_call_p)
 bare_call_rules[core.call_p] = functools.partial(bare_call_p_rule, core.call_p)
 
 bare_propagation_rules = PropagationRules(bare_fallback_rule, bare_call_rules)
@@ -236,9 +232,7 @@ class Simulate(Handler):
 def simulate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def _inner(key, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(
-            *args, **kwargs
-        )
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Simulate.new(key)
         with PropagationInterpreter.new(
@@ -351,9 +345,7 @@ class Importance(Handler):
 def importance_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def _inner(key, constraints, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(
-            *args, **kwargs
-        )
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Importance.new(key, constraints)
         with PropagationInterpreter.new(
@@ -494,11 +486,7 @@ class Update(Handler):
         has_value = self.previous_trace.has_cached_value(addr)
 
         # If no changes, we can just fetch from trace.
-        if (
-            is_concrete(has_value)
-            and has_value
-            and all(map(check_no_change, incells))
-        ):
+        if is_concrete(has_value) and has_value and all(map(check_no_change, incells)):
             cached_value = self.previous_trace.get_cached_value(addr)
             self.cache_state[addr] = cached_value
 
@@ -535,9 +523,7 @@ def update_transform(source_fn, **kwargs):
         with PropagationInterpreter.new(
             Diff, diff_propagation_rules, handler
         ) as interpreter:
-            flat_argdiffs, _ = jtu.tree_flatten(
-                argdiffs, is_leaf=check_is_diff
-            )
+            flat_argdiffs, _ = jtu.tree_flatten(argdiffs, is_leaf=check_is_diff)
             final_env, _ = interpreter(
                 jaxpr,
                 [Diff.new(v, change=NoChange) for v in consts],
@@ -649,9 +635,7 @@ class Assess(Handler):
 def assess_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def _inner(key, constraints, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(
-            *args, **kwargs
-        )
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         handler = Assess.new(key, constraints)
         with PropagationInterpreter.new(

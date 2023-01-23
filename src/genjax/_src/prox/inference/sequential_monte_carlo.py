@@ -181,9 +181,7 @@ class SMCExtendPropagator(SMCPropagator):
     def flatten(self):
         return (), (self.k,)
 
-    def propagate_target(
-        self, target: Target, new_args: Tuple, new_choices: ChoiceMap
-    ):
+    def propagate_target(self, target: Target, new_args: Tuple, new_choices: ChoiceMap):
         old_constraints = target.constraints
         new_constraints = old_constraints.merge(new_choices)
         return Target(
@@ -263,9 +261,7 @@ class SMCExtendPropagator(SMCPropagator):
             particle_chm,
             new_target.args,
         )
-        new_weights = (
-            sliced_collection.get_weights() - k_score + model_score_change
-        )
+        new_weights = sliced_collection.get_weights() - k_score + model_score_change
         new_collection = ParticleCollection(
             new_particles, new_weights, state.collection.lml_est
         )
@@ -301,9 +297,7 @@ class SMCExtendPropagator(SMCPropagator):
         key, (_, _, previous_trace, discard) = new_retained_trace.update(
             key, EmptyChoiceMap(), argdiffs
         )
-        previous_latents = (
-            discard.get_selection().complement().filter(retained)
-        )
+        previous_latents = discard.get_selection().complement().filter(retained)
         key, (_, forward_weight_retained) = self.k.assess(
             key,
             ValueChoiceMap(discard),
@@ -340,9 +334,7 @@ class SMCChangeTargetPropagator(SMCPropagator):
     ) -> Tuple[PRNGKey, SMCState]:
         old_target_latents_selection = state.get_target().latent_selection()
         key, *sub_keys = jax.random.split(key, state.get_num_particles() + 1)
-        old_target_latents = old_target_latents_selection.filter(
-            state.get_particles()
-        )
+        old_target_latents = old_target_latents_selection.filter(state.get_particles())
 
         def _importance(key, latents):
             merged = self.new_target.constraints.merge(latents)
@@ -465,17 +457,13 @@ class SMCAlgorithm(ProxDistribution):
         total_weight = jax.scipy.special.logsumexp(weights)
         log_normalized_weights = weights - total_weight
         key, sub_key = jax.random.split(key)
-        particle_index = jax.random.categorical(
-            sub_key, log_normalized_weights
-        )
+        particle_index = jax.random.categorical(sub_key, log_normalized_weights)
         particle = jtu.tree_map(
             lambda v: v[particle_index], particle_collection.particles
         )
         chm = particle.get_choices()
         score = (
-            particle_collection.lml_est
-            + total_weight
-            - jnp.log(state.num_particles)
+            particle_collection.lml_est + total_weight - jnp.log(state.num_particles)
         )
         return key, (score, chm)
 
@@ -500,14 +488,10 @@ class SMCInit(SMCAlgorithm):
     def get_final_target(self):
         return self.target
 
-    def run_smc(
-        self, key: PRNGKey, target: Target
-    ) -> Tuple[PRNGKey, SMCState]:
+    def run_smc(self, key: PRNGKey, target: Target) -> Tuple[PRNGKey, SMCState]:
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, proposals = jax.vmap(self.q.simulate, in_axes=(0, None))(
-            sub_keys, (target,)
-        )
+        _, proposals = jax.vmap(self.q.simulate, in_axes=(0, None))(sub_keys, (target,))
         chm = proposals.get_retval()
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
@@ -524,9 +508,7 @@ class SMCInit(SMCAlgorithm):
     def run_csmc(self, key, choices, target):
         key, *sub_keys = jax.random.split(key, self.num_particles)
         sub_keys = jnp.array(sub_keys)
-        _, proposals = jax.vmap(self.q.simulate, in_axes=(0, None))(
-            sub_keys, target
-        )
+        _, proposals = jax.vmap(self.q.simulate, in_axes=(0, None))(sub_keys, target)
 
         # Set retained.
         key, kept = self.q.importance(
@@ -535,9 +517,7 @@ class SMCInit(SMCAlgorithm):
             (target,),
         )
 
-        proposals = jtu.tree_map(
-            lambda v1, v2: jnp.hstack((v1, v2)), proposals, kept
-        )
+        proposals = jtu.tree_map(lambda v1, v2: jnp.hstack((v1, v2)), proposals, kept)
 
         chm = proposals.get_retval()
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)

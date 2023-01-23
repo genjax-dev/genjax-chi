@@ -18,9 +18,7 @@ from math import pi
 import jax
 import jax.numpy as jnp
 
-from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-)
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
@@ -31,9 +29,7 @@ class _Normal(ExactDensity):
     def logpdf(self, v, mu, std, **kwargs):
         z = (v - mu) / std
         return jnp.sum(
-            -1.0
-            * (jnp.square(jnp.abs(z)) + jnp.log(2.0 * pi))
-            / (2 - jnp.log(std))
+            -1.0 * (jnp.square(jnp.abs(z)) + jnp.log(2.0 * pi)) / (2 - jnp.log(std))
         )
 
 

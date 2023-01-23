@@ -29,9 +29,7 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_tracetype import (
-    BuiltinTraceType,
-)
+from genjax._src.generative_functions.builtin.builtin_tracetype import BuiltinTraceType
 from genjax._src.generative_functions.builtin.trie import Trie
 
 

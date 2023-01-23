@@ -81,9 +81,7 @@ class TestSimulate:
 
     def test_hierarchical_simple_normal_multiple_returns(self):
         key = jax.random.PRNGKey(314159)
-        fn = jax.jit(
-            genjax.simulate(hierarchical_simple_normal_multiple_returns)
-        )
+        fn = jax.jit(genjax.simulate(hierarchical_simple_normal_multiple_returns))
         key, tr = fn(key, ())
         chm = tr.get_choices()
         y1_ = tr["y1", "y1"]

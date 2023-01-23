@@ -294,9 +294,7 @@ class SwitchCombinator(GenerativeFunction):
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(
-            switch, branch_functions, key, prev, new, argdiffs
-        )
+        return jax.lax.switch(switch, branch_functions, key, prev, new, argdiffs)
 
     def _assess(self, branch_gen_fn, key, chm, args):
         return branch_gen_fn.assess(key, chm, args[1:])

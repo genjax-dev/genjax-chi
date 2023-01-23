@@ -40,9 +40,7 @@ class MapUpdate(Pytree):
         args = trace.get_args()
         gen_fn = trace.get_gen_fn()
         argdiffs = jtu.tree_map(Diff.no_change, args)
-        key, forward_gradient_trie = gen_fn.choice_grad(
-            key, trace, self.selection
-        )
+        key, forward_gradient_trie = gen_fn.choice_grad(key, trace, self.selection)
         forward_values = self.selection.filter(trace.strip())
         forward_values = forward_values.strip()
         forward_values = jtu.tree_map(
@@ -50,9 +48,7 @@ class MapUpdate(Pytree):
             forward_values,
             forward_gradient_trie,
         )
-        key, (_, _, new_trace, _) = gen_fn.update(
-            key, trace, forward_values, argdiffs
-        )
+        key, (_, _, new_trace, _) = gen_fn.update(key, trace, forward_values, argdiffs)
         return key, (new_trace, True)
 
     def __call__(self, key, trace):

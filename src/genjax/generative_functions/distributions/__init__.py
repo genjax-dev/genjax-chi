@@ -16,9 +16,7 @@ from genjax._src.generative_functions.distributions import Bernoulli
 from genjax._src.generative_functions.distributions import Cauchy
 from genjax._src.generative_functions.distributions import Dirichlet
 from genjax._src.generative_functions.distributions import DiscreteHMM
-from genjax._src.generative_functions.distributions import (
-    DiscreteHMMConfiguration,
-)
+from genjax._src.generative_functions.distributions import DiscreteHMMConfiguration
 from genjax._src.generative_functions.distributions import Distribution
 from genjax._src.generative_functions.distributions import ExactDensity
 from genjax._src.generative_functions.distributions import Exponential

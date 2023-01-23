@@ -17,9 +17,7 @@ from typing import Any
 
 import tinygp
 
-from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-)
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass

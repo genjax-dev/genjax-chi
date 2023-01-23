@@ -296,9 +296,7 @@ class GenerativeFunction(Pytree):
     ]:
         key, sub_key = jax.random.split(key)
 
-        def score(
-            differentiable: Tuple, nondifferentiable: Tuple
-        ) -> FloatArray:
+        def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.merge(provided)
             _, (_, score) = self.assess(sub_key, merged, args)

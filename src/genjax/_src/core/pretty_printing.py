@@ -62,9 +62,7 @@ def _pformat_tuple(obj: Tuple, **kwargs) -> Tree:
     return tree
 
 
-def _dict_entry(
-    key: PrettyPrintable, value: PrettyPrintable, **kwargs
-) -> Tree:
+def _dict_entry(key: PrettyPrintable, value: PrettyPrintable, **kwargs) -> Tree:
     tree = Tree(f"[b]{key}[/b]")
     sub_tree = _pformat(value, **kwargs)
     tree.add(sub_tree)
@@ -88,10 +86,7 @@ def _named_entry(name: str, value: Any, **kwargs) -> Tree:
 
 def _pformat_namedtuple(obj: NamedTuple, **kwargs) -> Tree:
     tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
-    entries = [
-        _named_entry(name, getattr(obj, name), **kwargs)
-        for name in obj._fields
-    ]
+    entries = [_named_entry(name, getattr(obj, name), **kwargs) for name in obj._fields]
     for entry in entries:
         tree.add(entry)
     return tree

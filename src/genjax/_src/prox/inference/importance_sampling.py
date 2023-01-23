@@ -27,9 +27,7 @@ from genjax._src.prox.target import Target
 
 def _logsumexp_with_extra(arr, x):
     max_arr = jnp.maximum(jnp.maximum(arr), x)
-    return max_arr + jnp.log(
-        jnp.sum(jnp.exp(arr - max_arr)) + jnp.exp(x - max - arr)
-    )
+    return max_arr + jnp.log(jnp.sum(jnp.exp(arr - max_arr)) + jnp.exp(x - max - arr))
 
 
 @dataclass

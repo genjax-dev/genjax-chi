@@ -101,9 +101,9 @@ class Distribution(GenerativeFunction):
 
     @typecheck
     def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
-        _, (_, (_, ttype)) = jax.make_jaxpr(
-            self.random_weighted, return_shape=True
-        )(key, *args)
+        _, (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
+            key, *args
+        )
         return lift(ttype)
 
     @abc.abstractmethod
@@ -235,9 +235,7 @@ class Distribution(GenerativeFunction):
 
             key, w = concrete_cond(active, _active, _inactive, key, v, *args)
             discard = maybe_discard
-            retval_diff = jtu.tree_map(
-                lambda v: Diff.new(v, change=NoChange), prev_v
-            )
+            retval_diff = jtu.tree_map(lambda v: Diff.new(v, change=NoChange), prev_v)
 
         # Case 2: the new choice map is not empty here.
         else:
@@ -264,12 +262,7 @@ class Distribution(GenerativeFunction):
                 return key, prev_v, 0.0
 
             key, v, w = concrete_cond(
-                active_chm,
-                _constraints_active,
-                _constraints_inactive,
-                key,
-                v,
-                *args
+                active_chm, _constraints_active, _constraints_inactive, key, v, *args
             )
 
             discard = mask(active_chm, ValueChoiceMap(prev.get_leaf_value()))
@@ -284,11 +277,7 @@ class Distribution(GenerativeFunction):
 
     @typecheck
     def assess(
-        self,
-        key: PRNGKey,
-        evaluation_point: ValueChoiceMap,
-        args: Tuple,
-        **kwargs
+        self, key: PRNGKey, evaluation_point: ValueChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         v = evaluation_point.get_leaf_value()
         key, (score, _) = self.estimate_logpdf(key, v, *args)

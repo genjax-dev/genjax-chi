@@ -33,9 +33,7 @@ def metropolis_hastings(proposal: ProxDistribution):
         choices = tr.get_choices()
         key, (weight, new, discard) = model.update(key, trace, choices, diffs)
         proposal_args_bwd = (new, *proposal_args)
-        key, (bwd_weight, _) = proposal.importance(
-            key, discard, proposal_args_bwd
-        )
+        key, (bwd_weight, _) = proposal.importance(key, discard, proposal_args_bwd)
         alpha = weight - fwd_weight + bwd_weight
         key, sub_key = jax.random.split(key)
         check = jnp.log(jax.random.uniform(sub_key)) < alpha

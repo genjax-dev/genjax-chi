@@ -98,9 +98,7 @@ class RealInterval(TraceType, Leaf):
         if isinstance(other, Reals):
             return np.sum(self.shape) <= np.sum(other.shape)
         elif isinstance(other, PositiveReals):
-            return self.lower_bound >= 0.0 and np.sum(self.shape) <= np.sum(
-                other.shape
-            )
+            return self.lower_bound >= 0.0 and np.sum(self.shape) <= np.sum(other.shape)
         else:
             return False
 

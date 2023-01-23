@@ -94,9 +94,7 @@ def set_payload(leaf_schema, pytree):
         if k in payload:
             v = payload[k]
             cur_len = len(v)
-            v.extend(
-                [jnp.zeros(shape, dtype) for _ in range(0, limit - cur_len)]
-            )
+            v.extend([jnp.zeros(shape, dtype) for _ in range(0, limit - cur_len)])
         else:
             payload[k] = [jnp.zeros(shape, dtype) for _ in range(0, limit)]
     return payload

@@ -26,27 +26,13 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
-    BuiltinChoiceMap,
-)
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
-    BuiltinTrace,
-)
-from genjax._src.generative_functions.builtin.builtin_tracetype import (
-    get_trace_type,
-)
-from genjax._src.generative_functions.builtin.transforms import (
-    assess_transform,
-)
-from genjax._src.generative_functions.builtin.transforms import (
-    importance_transform,
-)
-from genjax._src.generative_functions.builtin.transforms import (
-    simulate_transform,
-)
-from genjax._src.generative_functions.builtin.transforms import (
-    update_transform,
-)
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
+from genjax._src.generative_functions.builtin.builtin_tracetype import get_trace_type
+from genjax._src.generative_functions.builtin.transforms import assess_transform
+from genjax._src.generative_functions.builtin.transforms import importance_transform
+from genjax._src.generative_functions.builtin.transforms import simulate_transform
+from genjax._src.generative_functions.builtin.transforms import update_transform
 
 
 @dataclass
@@ -98,9 +84,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
                 discard,
             ),
             cache,
-        ) = update_transform(self.source, **kwargs)(
-            key, prev, constraints, argdiffs
-        )
+        ) = update_transform(self.source, **kwargs)(key, prev, constraints, argdiffs)
         return key, (
             retval_diffs,
             w,
@@ -112,7 +96,5 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def assess(
         self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
-        key, (retval, score) = assess_transform(self.source, **kwargs)(
-            key, chm, args
-        )
+        key, (retval, score) = assess_transform(self.source, **kwargs)(key, chm, args)
         return key, (retval, score)

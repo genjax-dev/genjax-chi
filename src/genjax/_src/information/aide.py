@@ -81,12 +81,12 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
         q: GenerativeFunction,
         q_args: Tuple,
     ):
-        key, logpq = self._estimate_log_ratio(
-            p, q, self.num_meta_p, self.num_meta_q
-        )(key, p_args, q_args)
-        key, logqp = self._estimate_log_ratio(
-            q, p, self.num_meta_q, self.num_meta_p
-        )(key, q_args, p_args)
+        key, logpq = self._estimate_log_ratio(p, q, self.num_meta_p, self.num_meta_q)(
+            key, p_args, q_args
+        )
+        key, logqp = self._estimate_log_ratio(q, p, self.num_meta_q, self.num_meta_p)(
+            key, q_args, p_args
+        )
         return key, logpq + logqp, (logpq, logqp)
 
     def __call__(
