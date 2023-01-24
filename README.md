@@ -14,13 +14,13 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
 
-<center>
+<div align="center">
 
 |          **Build Status**          |
 | :--------------------------------: |
 | [![][build_action_badge]][actions] |
 
-</center>
+</div>
 
 [build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg
 [actions]: https://github.com/probcomp/genjax/actions
