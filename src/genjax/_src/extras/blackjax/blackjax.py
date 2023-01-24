@@ -32,6 +32,7 @@ from genjax._src.core import Selection
 from genjax._src.core import Trace
 from genjax._src.core.pytree import tree_grad_split
 from genjax._src.core.pytree import tree_zipper
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
@@ -40,10 +41,17 @@ from genjax._src.inference.mcmc.kernel import MCMCKernel
 @dataclasses.dataclass
 class HamiltonianMonteCarlo(MCMCKernel):
     selection: Selection
-    num_steps: Int
+    step_size: Any
+    inverse_mass_matrix: Any
+    num_integration_steps: Int
 
     def flatten(self):
-        return (), (self.selection, self.num_steps)
+        return (), (
+            self.selection,
+            self.step_size,
+            self.inverse_mass_matrix,
+            self.num_integration_steps,
+        )
 
     def apply(self, key: PRNGKey, trace: Trace):
         def _one_step(kernel, state, key):
@@ -68,7 +76,12 @@ class HamiltonianMonteCarlo(MCMCKernel):
         def _logpdf(grad):
             return scorer(grad, nograd)
 
-        hmc = blackjax.hmc(_logpdf)
+        hmc = blackjax.hmc(
+            _logpdf,
+            self.step_size,
+            self.inverse_mass_matrix,
+            self.num_integration_steps,
+        )
 
         # Pass the grad component into the HMC init.
         initial_state = hmc.init(grad)
@@ -78,7 +91,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
-        key, *sub_keys = jax.random.split(key, self.num_steps + 1)
+        key, *sub_keys = jax.random.split(key, self.num_integration_steps + 1)
         sub_keys = jnp.array(sub_keys)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions, _ = tree_zipper(states.position, nograd)
@@ -91,10 +104,10 @@ class HamiltonianMonteCarlo(MCMCKernel):
 @dataclasses.dataclass
 class NoUTurnSampler(MCMCKernel):
     selection: Selection
-    num_steps: Int
+    num_integration_steps: Int
 
     def flatten(self):
-        return (), (self.selection, self.num_steps)
+        return (), (self.selection, self.num_integration_steps)
 
     def apply(self, key: PRNGKey, trace: Trace):
         def _one_step(kernel, state, key):
@@ -129,7 +142,7 @@ class NoUTurnSampler(MCMCKernel):
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
-        key, *sub_keys = jax.random.split(key, self.num_steps + 1)
+        key, *sub_keys = jax.random.split(key, self.num_integration_steps + 1)
         sub_keys = jnp.array(sub_keys)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions, _ = tree_zipper(states.position, nograd)
@@ -143,5 +156,5 @@ class NoUTurnSampler(MCMCKernel):
 # Shorthands #
 ##############
 
-hmc = HamiltonianMonteCarlo
-nuts = NoUTurnSampler
+hmc = HamiltonianMonteCarlo.new
+nuts = NoUTurnSampler.new
