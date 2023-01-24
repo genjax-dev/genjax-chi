@@ -9,11 +9,21 @@
 </div>
 <br>
 
-[![Build Status](https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg)](https://github.com/probcomp/genjax/actions)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![][jax_badge]](https://github.com/google/jax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
+
+<center>
+
+|          **Build Status**          |
+| :--------------------------------: |
+| [![][build_action_badge]][actions] |
+
+</center>
+
+[build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg
+[actions]: https://github.com/probcomp/genjax/actions
 
 <div align="center">
 <b>(Early stage)</b> 🔪 expect sharp edges 🔪
