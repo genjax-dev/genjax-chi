@@ -199,7 +199,7 @@ class Selection(Tree):
 
 
 #####
-# GenerativeFunction
+# Generative function
 #####
 
 
@@ -213,9 +213,7 @@ class GenerativeFunction(Pytree):
 
     Any implementation will interact with the JAX tracing machinery,
     however, so there are specific API requirements above the requirements
-    enforced in other languages (like Gen in Julia). In particular,
-    any implementation must provide a :code:`__call__` method so that
-    JAX can correctly determine output shapes.
+    enforced in other languages (like Gen in Julia).
 
     The user *must* match the interface signatures of the native JAX
     implementation. This is not statically checked - but failure to do so
@@ -230,19 +228,12 @@ class GenerativeFunction(Pytree):
     # the fact that the value has type PRNGKey.
     def __abstract_call__(self, *args) -> Tuple[PRNGKey, Any]:
         key = jax.random.PRNGKey(0)
-        key, retval = self.__call__(key, *args)
-        return key, retval
-
-    # This overloads the call functionality of all generative functions
-    # the user is required to provide a PRNGKey.
-    def __call__(self, key: PRNGKey, *args) -> Tuple[PRNGKey, Any]:
         key, tr = self.simulate(key, args)
         retval = tr.get_retval()
         return key, retval
 
     def get_trace_type(
         self,
-        key: PRNGKey,
         args: Tuple,
         **kwargs,
     ) -> TraceType:

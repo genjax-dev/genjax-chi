@@ -39,6 +39,9 @@ from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
+from genjax._src.generative_functions.builtin.builtin_gen_fn import (
+    DeferredGenerativeFunctionCall,
+)
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -154,6 +157,11 @@ class MapCombinator(GenerativeFunction):
 
     def flatten(self):
         return (self.kernel,), (self.in_axes, self.repeats)
+
+    # This overloads the call functionality for this generative function
+    # and allows usage of shorthand notation in the builtin DSL.
+    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @beartype
     @classmethod

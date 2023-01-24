@@ -43,6 +43,9 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_gen_fn import (
+    DeferredGenerativeFunctionCall,
+)
 from genjax._src.generative_functions.builtin.builtin_tracetype import lift
 
 
@@ -98,6 +101,11 @@ class DistributionTrace(Trace, Leaf):
 class Distribution(GenerativeFunction):
     def flatten(self):
         return (), ()
+
+    # This overloads the call functionality for this generative function
+    # and allows usage of shorthand notation in the builtin DSL.
+    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
     def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:

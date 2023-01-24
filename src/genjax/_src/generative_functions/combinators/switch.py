@@ -45,6 +45,9 @@ from genjax._src.core.masks import BooleanMask
 from genjax._src.core.staging import get_trace_data_shape
 from genjax._src.core.sumtree import Sumtree
 from genjax._src.core.typing import FloatArray
+from genjax._src.generative_functions.builtin.builtin_gen_fn import (
+    DeferredGenerativeFunctionCall,
+)
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     IndexedChoiceMap,
 )
@@ -148,6 +151,11 @@ class SwitchCombinator(GenerativeFunction):
 
     def flatten(self):
         return (self.branches,), ()
+
+    # This overloads the call functionality for this generative function
+    # and allows usage of shorthand notation in the builtin DSL.
+    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     def get_trace_type(self, key, args):
         subtypes = []
