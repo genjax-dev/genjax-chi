@@ -1505,14 +1505,14 @@ Sphinx = ">=2"
 
 [[package]]
 name = "jupyterlab"
-version = "3.5.2"
+version = "3.5.3"
 description = "JupyterLab computational environment"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyterlab-3.5.2-py3-none-any.whl", hash = "sha256:16e9b8320dcec469c70bb883e993e0bb84c4ea1a734063731f66922cf72add1b"},
-    {file = "jupyterlab-3.5.2.tar.gz", hash = "sha256:10ac094215ffb872ddffbe2982bf1c039a79fecc326e191e7cc5efd84f331dad"},
+    {file = "jupyterlab-3.5.3-py3-none-any.whl", hash = "sha256:8e1a4414b681dafd3f19bd45cb0c79cb713bc78ef4e8440b95d86881c23a9fe5"},
+    {file = "jupyterlab-3.5.3.tar.gz", hash = "sha256:51e889448ae194eeef8e50f63f5c4f487f728f477befe436e9749672f7511dbe"},
 ]
 
 [package.dependencies]
