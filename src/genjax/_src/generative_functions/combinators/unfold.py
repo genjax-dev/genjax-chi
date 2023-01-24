@@ -41,6 +41,9 @@ from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
+from genjax._src.generative_functions.builtin.builtin_gen_fn import (
+    DeferredGenerativeFunctionCall,
+)
 from genjax._src.generative_functions.combinators.combinator_datatypes import (
     VectorChoiceMap,
 )
@@ -166,6 +169,11 @@ class UnfoldCombinator(GenerativeFunction):
     @classmethod
     def new(cls, kernel, max_length):
         return UnfoldCombinator(max_length, kernel)
+
+    # This overloads the call functionality for this generative function
+    # and allows usage of shorthand notation in the builtin DSL.
+    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
     def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> VectorTraceType:

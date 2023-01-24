@@ -18,10 +18,12 @@ from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import check_is_diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.staging import stage
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -29,10 +31,28 @@ from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_tracetype import get_trace_type
+from genjax._src.generative_functions.builtin.intrinsics import trace
 from genjax._src.generative_functions.builtin.transforms import assess_transform
 from genjax._src.generative_functions.builtin.transforms import importance_transform
 from genjax._src.generative_functions.builtin.transforms import simulate_transform
 from genjax._src.generative_functions.builtin.transforms import update_transform
+
+
+@dataclass
+class DeferredGenerativeFunctionCall(Pytree):
+    gen_fn: GenerativeFunction
+    kwargs: Dict
+    args: Tuple
+
+    def flatten(self):
+        return (self.args,), (self.gen_fn, self.kwargs)
+
+    @classmethod
+    def new(cls, gen_fn, args, kwargs):
+        return DeferredGenerativeFunctionCall(gen_fn, kwargs, args)
+
+    def __matmul__(self, addr):
+        return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
 
 @dataclass
@@ -42,9 +62,14 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def flatten(self):
         return (), (self.source,)
 
+    # This overloads the call functionality for this generative function
+    # and allows usage of shorthand notation in the builtin DSL.
+    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
+
     @typecheck
-    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
-        closed_jaxpr, _ = stage(self.__call__)(key, *args)
+    def get_trace_type(self, *args: Tuple, **kwargs) -> TraceType:
+        closed_jaxpr, _ = stage(self.source)(*args)
         return get_trace_type(closed_jaxpr)
 
     @typecheck
