@@ -12,28 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Note: this code was originally from two places in the JAX codebase.
+# NOTE: this code was originally from two places in the JAX codebase.
 # A fork by Roy Frostig and source code for `oryx`, a probabilistic
 # programming library built on top of JAX.
-#
 # The code has been modified to enable simultaneous propagation of
 # `Cell` abstract/concrete values and static dispatch handling of
 # primitives for probabilistic programming.
-#
 # The author maintains the code attribution notice from the `oryx`
 # authors above, as a derivative work.
-
-# Note: this code was originally from two places in the JAX codebase.
-# A fork by Roy Frostig and source code for `oryx`, a probabilistic
-# programming library built on top of JAX.
-#
-# The code has been modified to enable simultaneous propagation of
-# `Cell` abstract/concrete values and static dispatch handling of
-# primitives for probabilistic programming.
-#
-# The author maintains the code attribution notice from the `oryx`
-# authors above, as a derivative work.
-
 
 import collections
 import dataclasses
