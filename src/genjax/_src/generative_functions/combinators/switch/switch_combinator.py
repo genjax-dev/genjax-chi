@@ -48,10 +48,10 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
-from genjax._src.generative_functions.combinators.combinator_datatypes import (
+from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     IndexedChoiceMap,
 )
-from genjax._src.generative_functions.combinators.combinator_tracetypes import (
+from genjax._src.generative_functions.combinators.switch.switch_tracetypes import (
     SumTraceType,
 )
 

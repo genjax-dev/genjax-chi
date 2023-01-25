@@ -77,15 +77,11 @@ def benchmark(session):
         "--benchmark-warmup",
         "on",
         "--ignore",
-        "experiments",
-        "--ignore",
         "tests",
         "--benchmark-disable-gc",
         "--benchmark-min-rounds",
         "5000",
     )
-    session.run("coverage", "json")
-    session.run("coverage", "report")
 
 
 @session(python=python_version)

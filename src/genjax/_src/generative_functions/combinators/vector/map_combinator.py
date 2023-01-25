@@ -42,10 +42,10 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
-from genjax._src.generative_functions.combinators.combinator_datatypes import (
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.combinators.combinator_tracetypes import (
+from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
 )
 from genjax._src.utilities import slash
