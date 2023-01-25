@@ -12,20 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from .recurse import *
-from .switch import *
-from .train import *
-from .vector import *
-
-
-##############
-# Shorthands #
-##############
-
-vector_choice_map = VectorChoiceMap.new
-Map = MapCombinator.new
-Unfold = UnfoldCombinator.new
-Switch = SwitchCombinator.new
-Recurse = RecurseCombinator.new
-Train = TrainCombinator.new
+from .map_combinator import *
+from .unfold_combinator import *
+from .vector_datatypes import *
+from .vector_tracetypes import *

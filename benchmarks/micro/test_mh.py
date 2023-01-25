@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 
 import jax
-import numpy as np
 
 import genjax
 from genjax import MetropolisHastings
@@ -23,12 +21,6 @@ from genjax import Normal
 from genjax import TFPUniform
 from genjax import trace
 from genjax._src.language_decorator import gen
-
-
-console = genjax.pretty()
-
-# Global.
-key = jax.random.PRNGKey(314159)
 
 
 @gen
@@ -57,20 +49,16 @@ def inf(key, init_trace):
     return key, score
 
 
-def benchmark(key, iters=100):
-    jitted = jax.jit(inf)
-    key, init_trace = jax.jit(normalModel.simulate)(key, ())
-    jitted(key, init_trace)
-    times = []
-    for _ in range(0, iters):
-        start = time.time()
-        key, score = jitted(key, init_trace)
-        score.block_until_ready()  # force.
-        stop = time.time()
-        times.append(stop - start)
+class TestMHMicro:
+    def test_benchmark(self, benchmark):
+        key = jax.random.PRNGKey(314159)
+        key, init_trace = jax.jit(normalModel.simulate)(key, ())
+        jitted = jax.jit(inf)
+        jitted(key, init_trace)
 
-    times = np.array(times)
-    return np.mean(times), np.var(times)
+        def _benchmark(key, iters=9):
+            for _ in range(0, iters):
+                key, score = jitted(key, init_trace)
+                score.block_until_ready()  # force.
 
-
-print(benchmark(key))
+        benchmark(_benchmark, key)
