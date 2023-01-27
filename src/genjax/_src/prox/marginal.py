@@ -33,8 +33,8 @@ class Marginal(ProxDistribution):
     def flatten(self):
         return (), (self.p, self.q, self.addr)
 
-    def get_trace_type(self, key, *args):
-        inner_type = self.p.get_trace_type(key, *args)
+    def get_trace_type(self, *args):
+        inner_type = self.p.get_trace_type(*args)
         selection = BuiltinSelection([self.addr])
         trace_type = selection.filter(inner_type)
         return trace_type

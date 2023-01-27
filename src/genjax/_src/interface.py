@@ -40,28 +40,53 @@ methods form the conceptual core of the computational behavior of generative fun
     (there's no runtime cost when using the getter variants in jitted code, JAX eliminates it).
 """
 
+import functools
 from typing import Callable
 
 
 def simulate(gen_fn, **kwargs) -> Callable:
-    return lambda *args: gen_fn.simulate(*args, **kwargs)
+    @functools.wraps(gen_fn.simulate)
+    def _inner(*args):
+        return gen_fn.simulate(*args, **kwargs)
+
+    return _inner
 
 
 def importance(gen_fn, **kwargs) -> Callable:
-    return lambda *args: gen_fn.importance(*args, **kwargs)
+    @functools.wraps(gen_fn.importance)
+    def _inner(*args):
+        return gen_fn.importance(*args, **kwargs)
+
+    return _inner
 
 
 def update(gen_fn, **kwargs) -> Callable:
-    return lambda *args: gen_fn.update(*args, **kwargs)
+    @functools.wraps(gen_fn.update)
+    def _inner(*args):
+        return gen_fn.update(*args, **kwargs)
+
+    return _inner
 
 
 def assess(gen_fn, **kwargs) -> Callable:
-    return lambda *args: gen_fn.assess(*args, **kwargs)
+    @functools.wraps(gen_fn.assess)
+    def _inner(*args):
+        return gen_fn.assess(*args, **kwargs)
+
+    return _inner
 
 
 def unzip(gen_fn, **kwargs) -> Callable:
-    return lambda *args: gen_fn.unzip(*args, **kwargs)
+    @functools.wraps(gen_fn.unzip)
+    def _inner(*args):
+        return gen_fn.unzip(*args, **kwargs)
+
+    return _inner
 
 
 def get_trace_type(gen_fn, **kwargs) -> Callable:
-    return lambda *args: gen_fn.get_trace_type(*args, **kwargs)
+    @functools.wraps(gen_fn.get_trace_type)
+    def _inner(*args):
+        return gen_fn.get_trace_type(*args, **kwargs)
+
+    return _inner

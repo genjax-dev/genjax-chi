@@ -23,9 +23,9 @@ from genjax._src.prox.prox_distribution import ProxDistribution
 from genjax._src.prox.target import Target
 
 
-def _static_check_subseteq_trace_type(key, target, proposal):
-    proposal_trace_type = proposal.get_trace_type(key, (target,))
-    target_trace_type = target.get_trace_type(key)
+def _static_check_subseteq_trace_type(target, proposal):
+    proposal_trace_type = proposal.get_trace_type(target)
+    target_trace_type = target.get_trace_type()
     check, mismatch = target_trace_type.subseteq(proposal_trace_type)
     if not check:
         raise Exception(
@@ -54,15 +54,15 @@ class ChoiceMapDistribution(ProxDistribution):
             selection = AllSelection()
         return ChoiceMapDistribution(p, selection, None)
 
-    def get_trace_type(self, key, args, **kwargs):
-        inner_type = self.p.get_trace_type(key, args)
+    def get_trace_type(self, *args, **kwargs):
+        inner_type = self.p.get_trace_type(*args)
         trace_type = self.selection.filter(inner_type)
         correct_if_check = trace_type
         if self.custom_q is None:
             return correct_if_check
         else:
             target = Target(self.p, None, args, self.selection)
-            _static_check_subseteq_trace_type(key, target, self.custom_q)
+            _static_check_subseteq_trace_type(target, self.custom_q)
             return correct_if_check
 
     def random_weighted(self, key, *args):

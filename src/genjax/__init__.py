@@ -14,6 +14,9 @@
 
 "GenJAX is a probabilistic programming system constructed by combining the concepts of Gen with the program transformation and hardware accelerator compilation capabilities of JAX."
 
+# This __init__ file exports GenJAX's public API.
+# For the internals, see _src.
+
 # Closed modules.
 from genjax import prox
 from genjax import typing
