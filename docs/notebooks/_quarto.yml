@@ -1,43 +1,62 @@
 project:
-  title: "GenJAX Jupyter notebooks"
+  title: 'GenJAX Jupyter notebooks'
   output-dir: ../_build/notebooks
   type: website
 
 author: McCoy Reynolds Becker
-theme:
-  light: [simplex, custom.scss]
 
 website:
-  title: "Gen ⊗ JAX"
-  search: 
+  title: 'Gen ⊗ JAX'
+  search:
     location: sidebar
     type: textbox
   open-graph: true
   page-navigation: true
   repo-url: https://github.com/probcomp/genjax
   repo-actions: [edit, issue]
-  
-  sidebar:    
+
+  sidebar:
     logo: logo.png
-    style: "floating"
+    style: 'docked'
+    border: true
+    pinned: true
+    align: center
+    collapse-level: 1
+    tools:
+      - icon: github
+        href: https://github.com/probcomp/genjax
+        text: 'GitHub repository'
     contents:
-      - section: "Basics"
+      - section: 'Basics'
         contents:
-          - introduction/intro_to_genjax/intro_to_genjax.ipynb
-      - text: "---"
-      - section: "Intermediate"
+          - href: introduction/intro_to_genjax/intro_to_genjax.ipynb
+            text: Intro to Gen + GenJAX
+      - text: '---'
+      - section: 'Intermediate'
         contents:
-          - intermediate/intro_to_combinators/intro_to_combinators.ipynb
-          - intermediate/incremental_computation/incremental.ipynb
-          - intermediate/gradient_interfaces/gradient_interfaces.ipynb
-          - intermediate/gaussian_processes/gaussian_processes.ipynb
-      - text: "---"
-      - section: "Advanced"
+          - href: intermediate/intro_to_combinators/intro_to_combinators.ipynb
+            text: Generative function combinators
+          - href: intermediate/incremental_computation/incremental.ipynb
+            text: Incremental computing
+          - href: intermediate/gradient_interfaces/gradient_interfaces.ipynb
+            text: Differentiable programming
+          - href: intermediate/gaussian_processes/gaussian_processes.ipynb
+            text: Gaussian processes
+      - text: '---'
+      - section: 'Advanced'
         contents:
-          - advanced/impl_builtin_language/impl_builtin_language.ipynb
-          - advanced/recurse_combinator/recurse_combinator.ipynb
-          - advanced/smc_language/smc_language.ipynb
-          - advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
+          - href: advanced/recurse_combinator/recurse_combinator.ipynb
+            text: Recurse combinator
+          - href: advanced/smc_language/smc_language.ipynb
+            text: SMC inference DSL
+          - href: advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
+            text: Composable programming with approx. densities
+      - text: '---'
+      - section: 'Internals'
+        contents:
+          - href: advanced/impl_builtin_language/impl_builtin_language.ipynb
+            text: Probabilistic semantics via interpreters
+
   page-footer:
     left: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
     right:
@@ -51,12 +70,13 @@ citation-location: margin
 
 format:
   html:
+    theme:
+      light: [cosmo, custom.scss]
+      dark: [cosmo, custom-dark.scss]
+    mainfont: 'Atkinson Hyperlegible'
     toc: true
     code-copy: true
     code-overflow: wrap
-    self-contained: true
-    highlight-style: breeze
-    grid:
-      sidebar-width: 250px
-      body-width: 800px
-      margin-width: 300px
+    highlight-style: github
+
+freeze: auto
