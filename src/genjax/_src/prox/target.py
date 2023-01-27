@@ -29,8 +29,8 @@ class Target(Pytree):
     def flatten(self):
         return (self.args, self.constraints), (self.p,)
 
-    def get_trace_type(self, key, *args):
-        inner_type = self.p.get_trace_type(key, self.args)
+    def get_trace_type(self):
+        inner_type = self.p.get_trace_type(*self.args)
         latent_selection = self.latent_selection()
         trace_type = latent_selection.filter(inner_type)
         return trace_type
