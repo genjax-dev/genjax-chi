@@ -27,10 +27,12 @@ from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_tracetype import get_trace_type
+from genjax._src.generative_functions.builtin.intrinsics import cache
 from genjax._src.generative_functions.builtin.intrinsics import trace
 from genjax._src.generative_functions.builtin.transforms import assess_transform
 from genjax._src.generative_functions.builtin.transforms import importance_transform
@@ -38,6 +40,35 @@ from genjax._src.generative_functions.builtin.transforms import simulate_transfo
 from genjax._src.generative_functions.builtin.transforms import update_transform
 
 
+# This class is used to allow syntactic sugar (e.g. the `@` operator)
+# in the builtin language for functions via the `cache` intrinsics.
+@dataclass
+class DeferredFunctionCall(Pytree):
+    fn: Callable
+    kwargs: Dict
+    args: Union[None, Tuple]
+
+    def flatten(self):
+        return (self.args,), (self.gen_fn, self.kwargs)
+
+    @classmethod
+    def new(cls, fn, **kwargs):
+        assert not isinstance(fn, GenerativeFunction)
+        return DeferredFunctionCall(fn, kwargs, None)
+
+    def __call__(self, *args):
+        return DeferredFunctionCall(self.fn, self.kwargs, args)
+
+    def __matmul__(self, addr):
+        return cache(addr, self.fn, **self.kwargs)(*self.args)
+
+
+def save(fn, **kwargs):
+    return DeferredFunctionCall.new(fn, **kwargs)
+
+
+# This class is used to allow syntactic sugar (e.g. the `@` operator)
+# in the builtin language for generative functions via the `trace` intrinsic.
 @dataclass
 class DeferredGenerativeFunctionCall(Pytree):
     gen_fn: GenerativeFunction

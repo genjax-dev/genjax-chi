@@ -50,9 +50,9 @@ VarOrLiteral = Union[jax_core.Var, jax_core.Literal]
 safe_map = jax_core.safe_map
 safe_zip = jax_core.safe_zip
 
-###########################
-# Propagation interpreter #
-###########################
+#####################
+# Graph interpreter #
+#####################
 
 
 class Cell(Pytree):
@@ -305,7 +305,7 @@ PropagationRule = Callable[
 
 
 @dataclasses.dataclass
-class PropagationInterpreter(Pytree):
+class Interpreter(Pytree):
     """This interpreter converts a `Jaxpr` to a directed graph where
     `jax.core.Var` instances are nodes and primitives are edges.
 
@@ -354,7 +354,7 @@ class PropagationInterpreter(Pytree):
             self.reducer,
         )
 
-    # This allows us to treat `PropagationInterpreter`
+    # This allows us to treat `Interpreter`
     # instances as a resource in `with` statements, and
     # control how we throw exceptions from the interpreter
     # loop.
@@ -374,7 +374,7 @@ class PropagationInterpreter(Pytree):
         initial_state: State = None,
     ):
         try:
-            yield PropagationInterpreter(
+            yield Interpreter(
                 cell_type,
                 propagation_rules,
                 handler,

@@ -12,23 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
+"""This module contains definitions for interpreters which act as program
+transformers when staged out by JAX.
 
-import genjax
-
-
-@genjax.gen
-def simple_normal():
-    y1 = genjax.Normal(0.0, 1.0) @ "y1"
-    y2 = genjax.Normal(0.0, 1.0) @ "y2"
-    return y1 + y2
-
-
-class TestAssessSimpleNormal:
-    def test_simple_normal_assess(self):
-        key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
-        jitted = jax.jit(genjax.assess(simple_normal))
-        chm = tr.get_choices().strip()
-        key, (retval, score) = jitted(key, chm, ())
-        assert score == tr.get_score()
+These interpreters support different patterns of program transformation.
+Mostly, each implementation contains similar functionality, but are kept
+separate to allow customization (here, I mean things like interpretation
+environments, or abstract types which define the object-level values the
+interpreter produces for each primitive statement in the Jaxpr).
+"""

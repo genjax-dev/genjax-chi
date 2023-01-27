@@ -14,14 +14,11 @@
 
 from dataclasses import dataclass
 
-import graphviz
 import jax
 import objexplore
 import rich
 import rich.traceback as traceback
 from rich.console import Console
-
-from genjax._src.generative_functions.builtin.graphviz import make_dot
 
 
 #####
@@ -68,15 +65,6 @@ class GenJAXConsole:
             raise Exception("Interactive explore only works in terminal.")
         else:
             objexplore.explore(module)
-
-    # EXPERIMENTAL.
-    def graph(self, fn, *args):
-        g = make_dot(fn)(*args)
-        g = graphviz.Source(g)
-        if is_notebook():
-            return g
-        else:
-            g.view()
 
 
 def pretty(show_locals=False, max_frames=30, suppress=[jax], **kwargs):
