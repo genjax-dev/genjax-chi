@@ -18,11 +18,8 @@ from typing import List
 
 import jax.tree_util as jtu
 
-from genjax._src.core.propagate import Cell
-from genjax._src.core.propagate import PropagationRules
-from genjax._src.core.propagate import default_propagation_rules
+from genjax._src.core.interpreters.cps import Cell
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.staging import get_shaped_aval
 from genjax._src.core.typing import IntArray
 
 
@@ -88,39 +85,14 @@ class Diff(Cell):
     val: Any
     change: Change
 
-    def __init__(self, aval, val, change):
-        super().__init__(aval)
-        self.val = val
-        self.change = change
-
     def flatten(self):
-        return (self.val, self.change), (self.aval,)
-
-    def __lt__(self, other):
-        return self.bottom() and other.top()
-
-    def top(self):
-        return self.val is not None
-
-    def bottom(self):
-        return self.val is None
-
-    def join(self, other):
-        if other.bottom():
-            return self
-        else:
-            return other
+        return (self.val, self.change), ()
 
     @classmethod
     def new(cls, val, change: Change = UnknownChange):
         if isinstance(val, Diff):
             return Diff.new(val.get_val(), change=val.get_change())
-        aval = get_shaped_aval(val)
-        return Diff(aval, val, change)
-
-    @classmethod
-    def unknown(cls, aval):
-        return Diff(aval, None, UnknownChange)
+        return Diff(val, change)
 
     @classmethod
     def no_change(cls, v):
@@ -145,25 +117,17 @@ def strip_diff(diff):
     return diff.get_val()
 
 
-def fallback_diff_rule(prim: Any, incells: List[Diff], outcells: Any, **params):
-    if all(map(lambda v: v.top(), incells)):
-        in_vals = list(map(lambda v: v.get_val(), incells))
-        out = prim.bind(*in_vals, **params)
-        if all(map(lambda v: v.get_change() == NoChange, incells)):
-            new_out = Diff.tree_map_diff(out, NoChange)
-        else:
-            new_out = Diff.tree_map_diff(out, UnknownChange)
-        if not prim.multiple_results:
-            new_out = [new_out]
+def fallback_diff_rule(prim: Any, incells: List[Diff], **params):
+    in_vals = list(map(lambda v: v.get_val(), incells))
+    out = prim.bind(*in_vals, **params)
+    if all(map(lambda v: v.get_change() == NoChange, incells)):
+        new_out = Diff.tree_map_diff(out, NoChange)
     else:
-        new_out = outcells
-    return incells, new_out, None
+        new_out = Diff.tree_map_diff(out, UnknownChange)
+    if not prim.multiple_results:
+        new_out = [new_out]
+    return new_out
 
 
 def check_no_change(diff):
     return isinstance(diff.get_change(), _NoChange)
-
-
-diff_propagation_rules = PropagationRules(
-    fallback_diff_rule, default_propagation_rules.get_rule_set()
-)

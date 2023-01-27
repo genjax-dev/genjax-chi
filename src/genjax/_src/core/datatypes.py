@@ -313,10 +313,6 @@ class GenerativeFunction(Pytree):
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return key, choice_gradient_tree
 
-    # Supports Graphviz visualization.
-    def _push_dot_repr(self, subgraph, key, args):
-        pass
-
 
 #####
 # Concrete choice maps
@@ -327,6 +323,11 @@ class GenerativeFunction(Pytree):
 class EmptyChoiceMap(ChoiceMap, Leaf):
     def flatten(self):
         return (), ()
+
+    # Overload Leaf: matches Gen.jl - getting a subtree from
+    # empty returns empty.
+    def get_subtree(self, addr):
+        return self
 
     def get_leaf_value(self):
         raise Exception("EmptyChoiceMap has no leaf value.")

@@ -17,17 +17,16 @@ inference modules are buillt on top of, as well as utility functionality for
 coercing class definitions to valid `Pytree` method implementors (guaranteeing
 compatibility with JAX's serializing/deserializing to `Pytree` instances).
 
-This module also exports some "core" transformations on `Jaxpr`
-instances - allowing the interpreters to run on `Jaxpr` representations
-of Python functions.
+This module also exports some interpreter-based transformations on `Jaxpr`
+instances. Interpreters are all written in initial style - they operate on `ClosedJaxpr` instances - but they are JAX compatible, meaning they can be staged out for zero runtime cost.
 """
 
 from .callback import *
 from .datatypes import *
 from .diff_rules import *
 from .hashabledict import *
+from .interpreters import *
 from .masks import *
-from .propagate import *
 from .pytree import *
 from .specialization import *
 from .staging import *

@@ -43,6 +43,7 @@ def _trace(gen_fn, addr, *args, **kwargs):
         tree_in=tree_in,
         **kwargs,
     )
+
     # Collapse single arity returns.
     retvals = tuple(retvals)
     if len(retvals) == 1:
@@ -50,9 +51,9 @@ def _trace(gen_fn, addr, *args, **kwargs):
     return retvals
 
 
-def trace(addr, call, **kwargs):
+def trace(addr, gen_fn, **kwargs):
     return lambda *args: _trace(
-        call,
+        gen_fn,
         addr,
         *args,
         **kwargs,
@@ -90,15 +91,22 @@ gen_fn_p.must_handle = True
 ##############################################################
 
 
-def cache(addr, call, *args, **kwargs):
+def cache(addr, fn, *args, **kwargs):
     assert isinstance(args, tuple)
-    assert not isinstance(call, GenerativeFunction)
-    return cache_p.bind(
-        *args,
+    assert not isinstance(fn, GenerativeFunction)
+    flat_args, tree_in = jtu.tree_flatten((fn, args))
+    retvals = cache_p.bind(
+        *flat_args,
         addr=addr,
-        fn=call,
+        tree_in=tree_in,
         **kwargs,
     )
+
+    # Collapse single arity returns.
+    retvals = tuple(retvals)
+    if len(retvals) == 1:
+        retvals = retvals[0]
+    return retvals
 
 
 #####
@@ -112,5 +120,5 @@ def cache_abstract_eval(*args, addr, fn, **kwargs):
 
 
 cache_p.def_abstract_eval(cache_abstract_eval)
-cache_p.multiple_results = False
+cache_p.multiple_results = True
 cache_p.must_handle = True
