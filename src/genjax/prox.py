@@ -36,13 +36,19 @@ from genjax._src.prox import SMCInit
 from genjax._src.prox import SMCPropagator
 from genjax._src.prox import SMCSequencePropagator
 from genjax._src.prox import Target
+from genjax._src.prox import chm_dist
+from genjax._src.prox import marginal
+from genjax._src.prox import target
 
 
 __all__ = [
     "Target",
+    "target",
     "ProxDistribution",
     "Marginal",
+    "marginal",
     "ChoiceMapDistribution",
+    "chm_dist",
     "ImportanceSampling",
     "ParticleCollection",
     "SMCPropagator",

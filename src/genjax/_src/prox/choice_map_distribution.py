@@ -95,3 +95,10 @@ class ChoiceMapDistribution(ProxDistribution):
             weight,
             ValueChoiceMap.new(new.get_choices().strip()),
         )
+
+
+##############
+# Shorthands #
+##############
+
+chm_dist = ChoiceMapDistribution.new
