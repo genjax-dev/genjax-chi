@@ -45,3 +45,10 @@ class Target(Pytree):
     def importance(self, key, chm: ChoiceMap, _: Tuple):
         merged = self.constraints.merge(chm)
         return self.p.importance(key, merged, self.args)
+
+
+##############
+# Shorthands #
+##############
+
+target = Target.new

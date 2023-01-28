@@ -19,7 +19,6 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
-from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.prox.prox_distribution import ProxDistribution
 from genjax._src.prox.target import Target
 
@@ -27,7 +26,7 @@ from genjax._src.prox.target import Target
 @dataclass
 class Marginal(ProxDistribution):
     p: GenerativeFunction
-    q: Distribution
+    q: ProxDistribution
     addr: Any
 
     def flatten(self):
@@ -62,3 +61,10 @@ class Marginal(ProxDistribution):
         choices = choices.merge(chm)
         key, (p_w, _) = self.p.importance(key, choices, args)
         return key, (p_w - q_w, val)
+
+
+##############
+# Shorthands #
+##############
+
+marginal = Marginal.new
