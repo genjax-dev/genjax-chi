@@ -99,7 +99,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
-    def get_trace_type(self, *args: Tuple, **kwargs) -> TraceType:
+    def get_trace_type(self, *args, **kwargs) -> TraceType:
         closed_jaxpr, _ = stage(self.source)(*args)
         return get_trace_type(closed_jaxpr)
 
