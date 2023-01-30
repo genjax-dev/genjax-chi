@@ -473,3 +473,10 @@ class MapCombinator(GenerativeFunction):
             sub_keys, inner, args
         )
         return key, (retval, jnp.sum(score))
+
+
+##############
+# Shorthands #
+##############
+
+Map = MapCombinator.new

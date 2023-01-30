@@ -23,7 +23,7 @@ from genjax._src.prox import ChangeTarget
 from genjax._src.prox import ChoiceMapDistribution
 from genjax._src.prox import Compose
 from genjax._src.prox import Extend
-from genjax._src.prox import ImportanceSampling
+from genjax._src.prox import Importance
 from genjax._src.prox import Init
 from genjax._src.prox import Marginal
 from genjax._src.prox import ParticleCollection
@@ -37,6 +37,7 @@ from genjax._src.prox import SMCPropagator
 from genjax._src.prox import SMCSequencePropagator
 from genjax._src.prox import Target
 from genjax._src.prox import chm_dist
+from genjax._src.prox import importance
 from genjax._src.prox import marginal
 from genjax._src.prox import target
 
@@ -49,7 +50,8 @@ __all__ = [
     "marginal",
     "ChoiceMapDistribution",
     "chm_dist",
-    "ImportanceSampling",
+    "Importance",
+    "importance",
     "ParticleCollection",
     "SMCPropagator",
     "SMCExtendPropagator",

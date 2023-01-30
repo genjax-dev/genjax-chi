@@ -39,7 +39,8 @@ class Target(Pytree):
         return self.constraints.get_selection().complement()
 
     def get_latents(self, v):
-        latents = self.latent_selection.filter(v.strip())
+        latent_selection = self.latent_selection()
+        latents = latent_selection.filter(v.strip())
         return latents
 
     def importance(self, key, chm: ChoiceMap, _: Tuple):

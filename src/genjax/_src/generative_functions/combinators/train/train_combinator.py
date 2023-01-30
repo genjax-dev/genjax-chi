@@ -89,3 +89,10 @@ class TrainCombinator(GenerativeFunction):
 
     def get_params(self):
         return self.params
+
+
+##############
+# Shorthands #
+##############
+
+Train = TrainCombinator.new

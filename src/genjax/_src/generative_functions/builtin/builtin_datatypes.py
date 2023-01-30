@@ -181,8 +181,8 @@ class BuiltinComplementSelection(Selection):
         def _inner(k, v):
             sub = self.trie[k]
             if sub is None:
-                sub = AllSelection()
-            under = sub.filter(v)
+                sub = NoneSelection()
+            under = sub.complement().filter(v)
             return k, under
 
         trie = Trie.new()

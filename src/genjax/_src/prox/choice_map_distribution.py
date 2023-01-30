@@ -40,19 +40,14 @@ class ChoiceMapDistribution(ProxDistribution):
     selection: Selection
     custom_q: Union[None, ProxDistribution]
 
-    def __init__(self, p, selection, custom_q=None):
-        self.p = p
-        self.selection = selection
-        self.custom_q = custom_q
-
     def flatten(self):
         return (), (self.p, self.selection, self.custom_q)
 
     @classmethod
-    def new(cls, p: GenerativeFunction, selection=None):
+    def new(cls, p: GenerativeFunction, selection=None, custom_q=None):
         if selection is None:
             selection = AllSelection()
-        return ChoiceMapDistribution(p, selection, None)
+        return ChoiceMapDistribution(p, selection, custom_q)
 
     def get_trace_type(self, *args, **kwargs):
         inner_type = self.p.get_trace_type(*args)
@@ -83,18 +78,20 @@ class ChoiceMapDistribution(ProxDistribution):
 
     def estimate_logpdf(self, key, choices, *args):
         if self.custom_q is None:
-            key, (weight, new) = self.p.importance(key, choices, args)
+            key, (_, weight) = self.p.assess(key, choices, args)
         else:
+            # Perform a compile-time trace type check.
             target = Target(self.p, None, args, choices)
-            _static_check_subseteq_trace_type(key, target, self.custom_q)
+            _static_check_subseteq_trace_type(
+                key,
+                target,
+                self.custom_q,
+            )
 
             key, tr = self.custom_q.simulate(key, (target,))
-            key, (w, new) = target.importance(key, tr.get_retval(), ())
+            key, (w, _) = target.importance(key, tr.get_retval(), ())
             weight = w - tr.get_score()
-        return key, (
-            weight,
-            ValueChoiceMap.new(new.get_choices().strip()),
-        )
+        return key, weight
 
 
 ##############
