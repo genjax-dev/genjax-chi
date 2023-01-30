@@ -176,10 +176,10 @@ class UnfoldCombinator(GenerativeFunction):
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
-    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> VectorTraceType:
+    def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
         _ = args[0]
         args = args[1:]
-        inner_type = self.kernel.get_trace_type(key, args, **kwargs)
+        inner_type = self.kernel.get_trace_type(*args, **kwargs)
         return VectorTraceType(inner_type, self.max_length)
 
     def _throw_bounds_host_exception(self, count: int):

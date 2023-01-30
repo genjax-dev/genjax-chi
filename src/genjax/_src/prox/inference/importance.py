@@ -21,8 +21,10 @@ import jax.tree_util as jtu
 import numpy as np
 
 from genjax._src.core.datatypes import ValueChoiceMap
+from genjax._src.core.typing import typecheck
 from genjax._src.prox.prox_distribution import ProxDistribution
 from genjax._src.prox.target import Target
+from genjax._src.prox.utils import static_check_subseteq_trace_type
 
 
 def _logsumexp_with_extra(arr, x):
@@ -35,12 +37,13 @@ class Importance(ProxDistribution):
     num_particles: int
     proposal: Union[None, ProxDistribution]
 
-    def __init__(self, num_particles, proposal=None):
-        self.num_particles = num_particles
-        self.proposal = proposal
-
     def flatten(self):
         return (), (self.num_particles, self.proposal)
+
+    @typecheck
+    @classmethod
+    def new(cls, num_particles, proposal=None):
+        return Importance(num_particles, proposal)
 
     def default_random_weighted(self, key, target: Target):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
@@ -60,6 +63,9 @@ class Importance(ProxDistribution):
         )
 
     def custom_random_weighted(self, key, target: Target):
+        # Perform a compile-time trace type check.
+        static_check_subseteq_trace_type(target, self.proposal)
+
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, particles = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
@@ -135,4 +141,4 @@ class Importance(ProxDistribution):
 # Shorthands #
 ##############
 
-importance = Importance
+importance = Importance.new

@@ -29,7 +29,7 @@ class _Cauchy(ExactDensity):
     def logpdf(self, v, **kwargs):
         return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
 
-    def get_trace_type(self, key, **kwargs):
+    def get_trace_type(self, **kwargs):
         shape = kwargs.get("shape", ())
         return PositiveReals(shape)
 

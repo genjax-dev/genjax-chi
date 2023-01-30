@@ -161,12 +161,15 @@ class SwitchCombinator(GenerativeFunction):
     def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
-    def get_trace_type(self, key, args):
+    def get_trace_type(self, *args):
         subtypes = []
         for gen_fn in self.branches:
-            subtypes.append(gen_fn.get_trace_type(key, args[1:]))
+            subtypes.append(gen_fn.get_trace_type(*args[1:]))
         return SumTraceType(subtypes)
 
+    # Method is used to create a branch-agnostic type
+    # which is acceptable for JAX's typing across `lax.switch`
+    # branches.
     def _create_sum_pytree(self, key, choices, args):
         covers = []
         for gen_fn in self.branches:

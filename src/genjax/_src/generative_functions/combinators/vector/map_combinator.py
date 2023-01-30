@@ -25,8 +25,6 @@ import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
-from beartype import beartype
-from beartype.typing import Tuple
 
 from genjax._src.core import mask
 from genjax._src.core.datatypes import ChoiceMap
@@ -39,6 +37,8 @@ from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
@@ -163,7 +163,7 @@ class MapCombinator(GenerativeFunction):
     def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
-    @beartype
+    @typecheck
     @classmethod
     def new(
         cls,
@@ -187,17 +187,13 @@ class MapCombinator(GenerativeFunction):
     # This is a terrible and needs to be re-written.
     # Why do I need to `vmap` to get the correct trace type
     # from the inner kernel? Fix.
-    @beartype
-    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
+    @typecheck
+    def get_trace_type(self, *args, **kwargs) -> TraceType:
         broadcast_dim_length = self._static_broadcast_dim_len(args)
-        key, sub_keys = slash(key, broadcast_dim_length)
-        kernel_tt = jax.vmap(self.kernel.get_trace_type, in_axes=(0, self.in_axes))(
-            sub_keys, args
-        )
-        kernel_tt = jtu.tree_map(lambda v: v[0], kernel_tt)
+        kernel_tt = self.kernel.get_trace_type(*args)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
-    @beartype
+    @typecheck
     def simulate(self, key: PRNGKey, args: Tuple, **kwargs) -> Tuple[PRNGKey, MapTrace]:
         broadcast_dim_length = self._static_broadcast_dim_len(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
@@ -305,7 +301,7 @@ class MapCombinator(GenerativeFunction):
 
         return key, (w, map_tr)
 
-    @beartype
+    @typecheck
     def importance(
         self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
@@ -451,7 +447,7 @@ class MapCombinator(GenerativeFunction):
         )
         return None
 
-    @beartype
+    @typecheck
     def assess(
         self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
