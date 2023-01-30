@@ -33,7 +33,7 @@ class _Categorical(ExactDensity):
         w = jnp.sum(logpdf[v])
         return w
 
-    def get_trace_type(self, key, logits, **kwargs):
+    def get_trace_type(self, logits, **kwargs):
         shape = kwargs.get("shape", ())
         return Finite(np.prod(logits.shape), shape)
 

@@ -232,11 +232,7 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return key, retval
 
-    def get_trace_type(
-        self,
-        args: Tuple,
-        **kwargs,
-    ) -> TraceType:
+    def get_trace_type(self, *args, **kwargs) -> TraceType:
         shape = kwargs.get("shape", ())
         return Bottom(shape)
 

@@ -108,7 +108,10 @@ class Distribution(GenerativeFunction):
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
-    def get_trace_type(self, key: PRNGKey, args: Tuple, **kwargs) -> TraceType:
+    def get_trace_type(self, *args, **kwargs) -> TraceType:
+        # `get_trace_type` is compile time - the key value
+        # doesn't matter, just the type.
+        key = jax.random.PRNGKey(1)
         _, (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
             key, *args
         )

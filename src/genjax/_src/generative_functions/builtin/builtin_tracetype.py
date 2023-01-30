@@ -137,15 +137,13 @@ def get_trace_type(jaxpr: jc.ClosedJaxpr):
             gen_fn = eqn.params["gen_fn"]
             addr = eqn.params["addr"]
             invals = safe_map(read, eqn.invars)
-            key = invals[0]
-            args = tuple(invals[1:])
-            ty = gen_fn.get_trace_type(key, args, **eqn.params)
+            args = tuple(invals)
+            ty = gen_fn.get_trace_type(*args, **eqn.params)
             trace_type[addr] = ty
         outvals = safe_map(lambda v: v.aval, eqn.outvars)
         safe_map(write, eqn.outvars, outvals)
 
-    key = jaxpr.out_avals[0]
-    return_type = tuple(map(lift, jaxpr.out_avals[1:]))
+    return_type = tuple(map(lift, jaxpr.out_avals))
     return BuiltinTraceType(trace_type, return_type)
 
 

@@ -21,17 +21,7 @@ from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.prox.prox_distribution import ProxDistribution
 from genjax._src.prox.target import Target
-
-
-def _static_check_subseteq_trace_type(target, proposal):
-    proposal_trace_type = proposal.get_trace_type(target)
-    target_trace_type = target.get_trace_type()
-    check, mismatch = target_trace_type.subseteq(proposal_trace_type)
-    if not check:
-        raise Exception(
-            f"Trace type mismatch.\n{target} with proposal {proposal}"
-            f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
-        )
+from genjax._src.prox.utils import static_check_subseteq_trace_type
 
 
 @dataclass
@@ -49,15 +39,15 @@ class ChoiceMapDistribution(ProxDistribution):
             selection = AllSelection()
         return ChoiceMapDistribution(p, selection, custom_q)
 
-    def get_trace_type(self, *args, **kwargs):
+    def get_trace_type(self, *args):
         inner_type = self.p.get_trace_type(*args)
         trace_type = self.selection.filter(inner_type)
         correct_if_check = trace_type
         if self.custom_q is None:
             return correct_if_check
         else:
-            target = Target(self.p, None, args, self.selection)
-            _static_check_subseteq_trace_type(target, self.custom_q)
+            target = Target(self.p, args, self.selection)
+            static_check_subseteq_trace_type(target, self.custom_q)
             return correct_if_check
 
     def random_weighted(self, key, *args):
@@ -68,9 +58,12 @@ class ChoiceMapDistribution(ProxDistribution):
             weight = tr.project(self.selection)
         else:
             unselected = self.selection.complement().filter(choices)
-            target = Target(self.p, None, args, selected_choices)
+            target = Target(self.p, args, choices)
 
-            key, (w, _) = self.custom_q.importance(
+            # Perform a compile-time trace type check.
+            static_check_subseteq_trace_type(target, self.custom_q)
+
+            key, (w, _) = self.custom_q.assess(
                 key, ValueChoiceMap.new(unselected), (target,)
             )
             weight = tr.get_score() - w
@@ -80,13 +73,10 @@ class ChoiceMapDistribution(ProxDistribution):
         if self.custom_q is None:
             key, (_, weight) = self.p.assess(key, choices, args)
         else:
+            target = Target(self.p, args, choices)
+
             # Perform a compile-time trace type check.
-            target = Target(self.p, None, args, choices)
-            _static_check_subseteq_trace_type(
-                key,
-                target,
-                self.custom_q,
-            )
+            static_check_subseteq_trace_type(target, self.custom_q)
 
             key, tr = self.custom_q.simulate(key, (target,))
             key, (w, _) = target.importance(key, tr.get_retval(), ())

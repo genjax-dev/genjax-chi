@@ -12,26 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
-import jax
-import jax.numpy as jnp
-
-from genjax._src.core.tracetypes import PositiveReals
-from genjax._src.generative_functions.distributions.distribution import ExactDensity
-
-
-@dataclass
-class _Exponential(ExactDensity):
-    def sample(self, key, **kwargs):
-        return jax.random.exponential(key, **kwargs)
-
-    def logpdf(self, v, **kwargs):
-        return jnp.sum(jax.scipy.stats.expon.logpdf(v))
-
-    def get_trace_type(self, **kwargs):
-        shape = kwargs.get("shape", ())
-        return PositiveReals(shape)
-
-
-Exponential = _Exponential()
+def static_check_subseteq_trace_type(target, proposal):
+    proposal_trace_type = proposal.get_trace_type(target)
+    target_trace_type = target.get_trace_type()
+    check, mismatch = target_trace_type.subseteq(proposal_trace_type)
+    if not check:
+        raise Exception(
+            f"Trace type mismatch.\n{target} with proposal {proposal}"
+            f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
+        )
