@@ -17,40 +17,48 @@ website:
 
   sidebar:
     logo: logo.png
-    style: 'docked'
+    style: 'floating'
     border: true
     pinned: true
     align: center
     collapse-level: 1
     tools:
+      - icon: house-heart
+        href: /
+        text: 'Home'
+      - icon: building
+        href: http://probcomp.csail.mit.edu/
+        text: 'MIT Probabilistic Computing Project'
       - icon: github
         href: https://github.com/probcomp/genjax
         text: 'GitHub repository'
     contents:
-      - section: 'Basics'
+      - section: 'Concepts'
         contents:
-          - href: introduction/intro_to_genjax/intro_to_genjax.ipynb
-            text: Intro to Gen + GenJAX
-      - text: '---'
-      - section: 'Intermediate'
-        contents:
-          - href: intermediate/intro_to_combinators/intro_to_combinators.ipynb
+          - href: concepts/introduction/intro_to_genjax.ipynb
+            text: Introduction
+          - href: concepts/combinators/intro_to_combinators.ipynb
             text: Generative function combinators
-          - href: intermediate/incremental_computation/incremental.ipynb
+          - href: concepts/incremental_computation/incremental.ipynb
             text: Incremental computing
-          - href: intermediate/gradient_interfaces/gradient_interfaces.ipynb
+          - href: concepts/gradient_interfaces/gradient_interfaces.ipynb
             text: Differentiable programming
+      - text: '---'
+      - section: 'Inference programming'
+        contents:
           - href: intermediate/gaussian_processes/gaussian_processes.ipynb
             text: Gaussian processes
+          - href: intermediate/goal_inference/goal_inference.ipynb
+            text: Agent goal inference
       - text: '---'
-      - section: 'Advanced'
+      - section: 'Advanced inference programming'
         contents:
           - href: advanced/recurse_combinator/recurse_combinator.ipynb
             text: Recurse combinator
+          - href: advanced/prox/prox.ipynb
+            text: '`Prox` (approximate densities)'
           - href: advanced/smc_language/smc_language.ipynb
-            text: SMC inference DSL
-          - href: advanced/pseudomarginal_smc/pseudomarginal_smc.ipynb
-            text: Composable programming with approx. densities
+            text: SMC inference language
       - text: '---'
       - section: 'Internals'
         contents:
@@ -78,5 +86,3 @@ format:
     code-copy: true
     code-overflow: wrap
     highlight-style: github
-
-freeze: auto

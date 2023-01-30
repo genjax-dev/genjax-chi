@@ -859,3 +859,10 @@ class UnfoldCombinator(GenerativeFunction):
 
         score = jnp.sum(score)
         return key, (retval, score)
+
+
+##############
+# Shorthands #
+##############
+
+Unfold = UnfoldCombinator.new

@@ -60,7 +60,7 @@ class Marginal(ProxDistribution):
         choices = tr.get_choices()
         choices = choices.merge(chm)
         key, (p_w, _) = self.p.importance(key, choices, args)
-        return key, (p_w - q_w, val)
+        return key, p_w - q_w
 
 
 ##############

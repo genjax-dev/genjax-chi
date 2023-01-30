@@ -31,7 +31,7 @@ def _logsumexp_with_extra(arr, x):
 
 
 @dataclass
-class ImportanceSampling(ProxDistribution):
+class Importance(ProxDistribution):
     num_particles: int
     proposal: Union[None, ProxDistribution]
 
@@ -60,7 +60,7 @@ class ImportanceSampling(ProxDistribution):
         )
 
     def custom_random_weighted(self, key, target: Target):
-        key, sub_keys = jax.random.split(key, self.num_particles + 1)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, particles = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys, (target,)
@@ -135,4 +135,4 @@ class ImportanceSampling(ProxDistribution):
 # Shorthands #
 ##############
 
-importance_sampling = ImportanceSampling
+importance = Importance

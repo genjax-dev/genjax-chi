@@ -107,3 +107,10 @@ class VectorChoiceMap(ChoiceMap):
 @dataclass
 class VectorSelection(Selection):
     pass
+
+
+##############
+# Shorthands #
+##############
+
+vector_choice_map = VectorChoiceMap.new

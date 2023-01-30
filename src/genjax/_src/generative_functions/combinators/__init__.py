@@ -17,15 +17,3 @@ from .recurse import *
 from .switch import *
 from .train import *
 from .vector import *
-
-
-##############
-# Shorthands #
-##############
-
-vector_choice_map = VectorChoiceMap.new
-Map = MapCombinator.new
-Unfold = UnfoldCombinator.new
-Switch = SwitchCombinator.new
-Recurse = RecurseCombinator.new
-Train = TrainCombinator.new

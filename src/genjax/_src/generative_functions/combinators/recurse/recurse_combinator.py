@@ -39,3 +39,10 @@ class RecurseTrace(Trace):
 @dataclass
 class RecurseCombinator(GenerativeFunction):
     pass
+
+
+##############
+# Shorthands #
+##############
+
+Recurse = RecurseCombinator.new

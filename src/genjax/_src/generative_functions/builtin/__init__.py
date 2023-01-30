@@ -28,5 +28,9 @@ from .intrinsics import cache
 from .intrinsics import trace
 
 
+##############
+# Shorthands #
+##############
+
 choice_map = BuiltinChoiceMap.new
 select = BuiltinSelection.new

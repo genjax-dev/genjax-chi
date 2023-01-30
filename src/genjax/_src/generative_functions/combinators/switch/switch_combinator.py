@@ -152,6 +152,10 @@ class SwitchCombinator(GenerativeFunction):
     def flatten(self):
         return (self.branches,), ()
 
+    @classmethod
+    def new(cls, *args):
+        return SwitchCombinator([*args])
+
     # This overloads the call functionality for this generative function
     # and allows usage of shorthand notation in the builtin DSL.
     def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
@@ -327,3 +331,10 @@ class SwitchCombinator(GenerativeFunction):
             chm,
             *args,
         )
+
+
+##############
+# Shorthands #
+##############
+
+Switch = SwitchCombinator.new

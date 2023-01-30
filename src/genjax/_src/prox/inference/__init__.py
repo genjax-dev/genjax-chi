@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .importance_sampling import *
+from .importance import *
 from .sequential_monte_carlo import *
