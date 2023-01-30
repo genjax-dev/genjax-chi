@@ -17,75 +17,55 @@ from dataclasses import dataclass
 import jax
 import jax.core as jc
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from jax.util import safe_map
 
-from genjax._src.core.hashabledict import HashableDict
-from genjax._src.core.hashabledict import hashabledict
+from genjax._src.core.tracetypes import Bottom
 from genjax._src.core.tracetypes import Finite
 from genjax._src.core.tracetypes import Integers
 from genjax._src.core.tracetypes import Reals
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import static_check_is_array
 from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
+from genjax._src.generative_functions.builtin.trie import Trie
 
 
 @dataclass
 class BuiltinTraceType(TraceType):
-    inner: HashableDict
+    trie: Trie
     return_type: TraceType
 
     def flatten(self):
-        return (), (self.inner, self.return_type)
-
-    def get_leaf_value(self):
-        raise Exception("BuiltinTraceType is not a leaf choice tree.")
+        return (), (self.trie, self.return_type)
 
     def has_subtree(self, addr):
-        if isinstance(addr, tuple) and len(addr) > 1:
-            first, *rest = addr
-            rest = tuple(rest)
-            if self.has_subtree(first):
-                subtree = self.get_subtree(first)
-                return subtree.has_subtree(rest)
-            else:
-                return False
-        else:
-            if isinstance(addr, tuple):
-                addr = addr[0]
-            return addr in self.inner
+        return self.trie.has_subtree(addr)
 
     def get_subtree(self, addr):
-        if isinstance(addr, tuple) and len(addr) > 1:
-            first, *rest = addr
-            rest = tuple(rest)
-            if self.has_subtree(first):
-                subtree = self.get_subtree(first)
-                return subtree.get_subtree(rest)
-            else:
-                raise Exception(f"Tree has no subtree at {first}")
+        value = self.trie.get_subtree(addr)
+        if value is None:
+            return Bottom()
         else:
-            if isinstance(addr, tuple):
-                addr = addr[0]
-            return self.inner[addr]
+            return value
 
     def get_subtrees_shallow(self):
-        return self.inner.items()
+        return self.trie.get_subtrees_shallow()
 
     def merge(self, other):
-        new = hashabledict()
+        trie = Trie.new()
         for (k, v) in self.get_subtrees_shallow():
             if other.has_subtree(k):
-                sub = other[k]
-                new[k] = v.merge(sub)
+                sub = other.get_subtree(k)
+                trie[k] = v.merge(sub)
             else:
-                new[k] = v
+                trie[k] = v
         for (k, v) in other.get_subtrees_shallow():
-            if not self.has_subtree(k):
-                new[k] = v
+            if not trie.has_subtree(k):
+                trie[k] = v
         if isinstance(other, BuiltinTraceType):
-            return BuiltinTraceType(new, other.get_rettype())
+            return BuiltinTraceType(trie, other.get_rettype())
         else:
-            return BuiltinTraceType(new, self.get_rettype())
+            return BuiltinTraceType(trie, self.get_rettype())
 
     def get_rettype(self):
         return self.return_type
@@ -97,8 +77,8 @@ class BuiltinTraceType(TraceType):
             check = True
             tree = dict()
             for (k, v) in self.get_subtrees_shallow():
-                if k in other.inner:
-                    sub = other.inner[k]
+                if k in other.trie:
+                    sub = other.trie[k]
                     subcheck, mismatch = v.subseteq(sub)
                     if not subcheck:
                         tree[k] = mismatch
@@ -107,7 +87,7 @@ class BuiltinTraceType(TraceType):
                     tree[k] = (v, None)
 
             for (k, v) in other.get_subtrees_shallow():
-                if k not in self.inner:
+                if k not in self.trie:
                     check = False
                     tree[k] = (None, v)
             return check, tree
@@ -134,10 +114,10 @@ def get_trace_type(jaxpr: jc.ClosedJaxpr):
 
     for eqn in jaxpr.eqns:
         if eqn.primitive == gen_fn_p:
-            gen_fn = eqn.params["gen_fn"]
+            tree_in = eqn.params["tree_in"]
             addr = eqn.params["addr"]
             invals = safe_map(read, eqn.invars)
-            args = tuple(invals)
+            gen_fn, args = jtu.tree_unflatten(tree_in, invals)
             ty = gen_fn.get_trace_type(*args, **eqn.params)
             trace_type[addr] = ty
         outvals = safe_map(lambda v: v.aval, eqn.outvars)
