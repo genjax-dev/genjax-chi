@@ -13,12 +13,12 @@
 # limitations under the License.
 
 
-def static_check_subseteq_trace_type(target, proposal):
+def stack_check_supports(target, proposal):
     proposal_trace_type = proposal.get_trace_type(target)
     target_trace_type = target.get_trace_type()
-    check, mismatch = target_trace_type.subseteq(proposal_trace_type)
+    check, mismatch = target_trace_type.on_support(proposal_trace_type)
     if not check:
         raise Exception(
             f"Trace type mismatch.\n{target} with proposal {proposal}"
-            f"\n\nMeasure ⊆ failure at the following addresses:\n{mismatch}"
+            f"\n\nAbsolute continuity failure at the following addresses:\n{mismatch}"
         )

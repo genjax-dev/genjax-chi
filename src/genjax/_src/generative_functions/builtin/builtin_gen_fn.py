@@ -31,7 +31,7 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
-from genjax._src.generative_functions.builtin.builtin_tracetype import get_trace_type
+from genjax._src.generative_functions.builtin.builtin_tracetype import trace_typer
 from genjax._src.generative_functions.builtin.intrinsics import cache
 from genjax._src.generative_functions.builtin.intrinsics import trace
 from genjax._src.generative_functions.builtin.transforms import assess_transform
@@ -101,7 +101,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
         closed_jaxpr, _ = stage(self.source)(*args)
-        return get_trace_type(closed_jaxpr)
+        return trace_typer(closed_jaxpr)
 
     @typecheck
     def simulate(

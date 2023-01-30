@@ -67,8 +67,6 @@ class ChoiceMap(Tree):
         return self.flatten() == other.flatten()
 
     def __getitem__(self, addr):
-        if isinstance(addr, slice):
-            return jax.tree_util.tree_map(lambda v: v[addr], self)
         choice = self.get_subtree(addr)
         if isinstance(choice, Leaf):
             v = choice.get_leaf_value()
@@ -157,8 +155,6 @@ class Trace(ChoiceMap, Tree):
         return jtu.tree_map(_inner, self.get_choices(), is_leaf=_check)
 
     def __getitem__(self, addr):
-        if isinstance(addr, slice):
-            return jax.tree_util.tree_map(lambda v: v[addr], self)
         choices = self.get_choices()
         choice = choices.get_subtree(addr)
         if isinstance(choice, BooleanMask):

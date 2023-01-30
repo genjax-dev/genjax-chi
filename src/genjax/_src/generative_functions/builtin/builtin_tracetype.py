@@ -70,36 +70,41 @@ class BuiltinTraceType(TraceType):
     def get_rettype(self):
         return self.return_type
 
-    def subseteq(self, other):
+    def on_support(self, other):
         if not isinstance(other, BuiltinTraceType):
             return False, self
         else:
             check = True
-            tree = dict()
+            trie = Trie.new()
             for (k, v) in self.get_subtrees_shallow():
                 if k in other.trie:
                     sub = other.trie[k]
-                    subcheck, mismatch = v.subseteq(sub)
+                    subcheck, mismatch = v.on_support(sub)
                     if not subcheck:
-                        tree[k] = mismatch
+                        trie[k] = mismatch
                 else:
                     check = False
-                    tree[k] = (v, None)
+                    trie[k] = (v, None)
 
             for (k, v) in other.get_subtrees_shallow():
                 if k not in self.trie:
                     check = False
-                    tree[k] = (None, v)
-            return check, tree
+                    trie[k] = (None, v)
+            return check, trie
 
-    def __subseteq__(self, other):
-        check, _ = self.subseteq(other)
+    def __check__(self, other):
+        check, _ = self.on_support(other)
         return check
 
 
-def get_trace_type(jaxpr: jc.ClosedJaxpr):
+######
+# Typing interpreter
+######
+
+
+def trace_typer(jaxpr: jc.ClosedJaxpr):
     env = {}
-    trace_type = dict()
+    trace_type = Trie.new()
 
     def read(var):
         if type(var) is jc.Literal:
@@ -124,10 +129,15 @@ def get_trace_type(jaxpr: jc.ClosedJaxpr):
         safe_map(write, eqn.outvars, outvals)
 
     return_type = tuple(map(lift, jaxpr.out_avals))
+
+    # Collapse single arity returns.
+    if len(return_type) == 1:
+        return_type = return_type[0]
+
     return BuiltinTraceType(trace_type, return_type)
 
 
-# Lift Python values to the Trace Types lattice.
+# Lift Python values to the trace type lattice.
 def lift(v, shape=()):
     if v == jnp.int32:
         return Integers(shape)
