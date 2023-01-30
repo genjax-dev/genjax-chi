@@ -11,3 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+
+import genjax
+
+
+@genjax.gen
+def simple_normal():
+    y1 = genjax.Normal(0.0, 1.0) @ "y1"
+    y2 = genjax.Normal(0.0, 1.0) @ "y2"
+    return y1 + y2
+
+
+class TestSimpleNormalTraceType:
+    def test_simple_normal_trace_type(self):
+        tt = simple_normal.get_trace_type()
+        assert tt["y1"] == genjax.Reals(())
+        assert tt["y2"] == genjax.Reals(())
+        assert tt.get_rettype() == genjax.Reals(())

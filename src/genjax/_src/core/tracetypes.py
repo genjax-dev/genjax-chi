@@ -46,6 +46,10 @@ class TraceType(Tree):
     def get_choices(self):
         return self
 
+    def __getitem__(self, addr):
+        sub = self.get_subtree(addr)
+        return sub
+
 
 @dataclass
 class LeafTraceType(TraceType, Leaf):
