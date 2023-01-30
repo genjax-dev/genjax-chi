@@ -54,6 +54,12 @@ class Pytree(metaclass=abc.ABCMeta):
     def new(cls, *args, **kwargs):
         return cls(*args, **kwargs)
 
+    # This exposes slicing the struct-of-array representation,
+    # taking leaves and indexing/randing into them on the first index,
+    # returning a value with the same `Pytree` structure.
+    def slice(self, index_or_range):
+        return jtu.tree_map(lambda v: v[index_or_range], self)
+
     def __rich_console__(self, console, options):
         tree = gpp.tree_pformat(self)
         yield tree
