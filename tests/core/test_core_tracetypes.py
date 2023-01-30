@@ -11,3 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import genjax
+
+
+class TestCoreTraceTypes:
+    def test_bottom_bottom(self):
+        tt1 = genjax.Bottom()
+        tt2 = genjax.Bottom()
+        check, _ = tt1.on_support(tt2)
+        assert check
+
+    def test_bottom_against_reals(self):
+        tt1 = genjax.Bottom()
+        tt2 = genjax.Reals((3, 4))
+        check, _ = tt1.on_support(tt2)
+        assert check
+
+    def test_reals_against_bottom(self):
+        tt1 = genjax.Reals((3, 4))
+        tt2 = genjax.Bottom()
+        check, _ = tt1.on_support(tt2)
+        assert check

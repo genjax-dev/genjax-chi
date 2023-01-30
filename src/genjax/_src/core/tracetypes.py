@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Tuple
 
-import numpy as np
 import rich
 
 from genjax._src.core.tree import Leaf
@@ -26,16 +25,16 @@ from genjax._src.core.tree import Tree
 
 @dataclass
 class TraceType(Tree):
-    def subseteq(self, other):
+    def on_support(self, other):
         assert isinstance(other, TraceType)
-        check = self.__subseteq__(other)
+        check = self.__check__(other)
         if check:
             return check, ()
         else:
             return check, (self, other)
 
     @abc.abstractmethod
-    def __subseteq__(self, other):
+    def __check__(self, other):
         pass
 
     @abc.abstractmethod
@@ -67,9 +66,11 @@ class Reals(LeafTraceType):
     def flatten(self):
         return (), (self.shape,)
 
-    def __subseteq__(self, other):
+    def __check__(self, other):
         if isinstance(other, Reals):
-            return np.sum(self.shape) <= np.sum(other.shape)
+            return self.shape == other.shape
+        elif isinstance(other, Bottom):
+            return True
         else:
             return False
 
@@ -85,9 +86,11 @@ class PositiveReals(LeafTraceType):
     def flatten(self):
         return (), (self.shape,)
 
-    def __subseteq__(self, other):
+    def __check__(self, other):
         if isinstance(other, PositiveReals):
-            return np.sum(self.shape) <= np.sum(other.shape)
+            return self.shape == other.shape
+        elif isinstance(other, Bottom):
+            return True
         else:
             return False
 
@@ -105,11 +108,11 @@ class RealInterval(TraceType, Leaf):
     def flatten(self):
         return (), (self.shape, self.lower_bound, self.upper_bound)
 
-    def __subseteq__(self, other):
-        if isinstance(other, Reals):
-            return np.sum(self.shape) <= np.sum(other.shape)
-        elif isinstance(other, PositiveReals):
-            return self.lower_bound >= 0.0 and np.sum(self.shape) <= np.sum(other.shape)
+    def __check__(self, other):
+        if isinstance(other, PositiveReals):
+            return self.lower_bound >= 0.0 and self.shape == other.shape
+        elif isinstance(other, Bottom):
+            return True
         else:
             return False
 
@@ -127,9 +130,11 @@ class Integers(LeafTraceType):
     def flatten(self):
         return (), (self.shape,)
 
-    def __subseteq__(self, other):
+    def __check__(self, other):
         if isinstance(other, Integers) or isinstance(other, Reals):
-            return np.sum(self.shape) <= np.sum(other.shape)
+            return self.shape == other.shape
+        elif isinstance(other, Bottom):
+            return True
         else:
             return False
 
@@ -145,13 +150,15 @@ class Naturals(LeafTraceType):
     def flatten(self):
         return (), (self.shape,)
 
-    def __subseteq__(self, other):
+    def __check__(self, other):
         if (
             isinstance(other, Naturals)
             or isinstance(other, Reals)
             or isinstance(other, PositiveReals)
         ):
-            return np.sum(self.shape) <= np.sum(other.shape)
+            return self.shape <= other.shape
+        elif isinstance(other, Bottom):
+            return True
         else:
             return False
 
@@ -168,17 +175,17 @@ class Finite(TraceType, Leaf):
     def flatten(self):
         return (), (self.shape, self.limit)
 
-    def __subseteq__(self, other):
+    def __check__(self, other):
         if (
             isinstance(other, Naturals)
             or isinstance(other, Reals)
             or isinstance(other, PositiveReals)
         ):
-            return np.sum(self.shape) <= np.sum(other.shape)
+            return self.shape <= other.shape
         elif isinstance(other, Finite):
-            return self.limit <= other.limit and np.sum(self.shape) <= np.sum(
-                other.shape
-            )
+            return self.limit <= other.limit and self.shape <= other.shape
+        elif isinstance(other, Bottom):
+            return True
         else:
             return False
 
@@ -189,13 +196,11 @@ class Finite(TraceType, Leaf):
 
 @dataclass
 class Bottom(LeafTraceType):
-    shape: Tuple
-
     def flatten(self):
-        return (), (self.shape,)
+        return (), ()
 
-    def __subseteq__(self, other):
-        return np.sum(self.shape) <= np.sum(other.shape)
+    def __check__(self, other):
+        return True
 
     def _tree_console_overload(self):
         tree = rich.tree.Tree("[magenta][b]⊥[/b]")

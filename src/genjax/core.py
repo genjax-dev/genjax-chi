@@ -32,6 +32,13 @@ from genjax._src.core.diff_rules import UnknownChange
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.staging import stage
+from genjax._src.core.tracetypes import Bottom
+from genjax._src.core.tracetypes import Finite
+from genjax._src.core.tracetypes import Integers
+from genjax._src.core.tracetypes import Naturals
+from genjax._src.core.tracetypes import PositiveReals
+from genjax._src.core.tracetypes import RealInterval
+from genjax._src.core.tracetypes import Reals
 
 
 __all__ = [
@@ -56,6 +63,15 @@ __all__ = [
     "NoChange",
     "IntChange",
     "Diff",
+    # Trace types.
+    "Bottom",
+    "Reals",
+    "PositiveReals",
+    "RealInterval",
+    "Integers",
+    "Naturals",
+    "Finite",
+    "Bottom",
     # Pytree meta.
     "Pytree",
     # Utilities.
