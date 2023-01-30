@@ -62,7 +62,7 @@ website:
       - text: '---'
       - section: 'Internals'
         contents:
-          - href: advanced/impl_builtin_language/impl_builtin_language.ipynb
+          - href: internals/impl_builtin_language/impl_builtin_language.ipynb
             text: Probabilistic semantics via interpreters
 
   page-footer:
