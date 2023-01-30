@@ -85,4 +85,4 @@ format:
     toc: true
     code-copy: true
     code-overflow: wrap
-    highlight-style: github
+    highlight-style: breeze
