@@ -33,9 +33,3 @@ from .staging import *
 from .sumtree import *
 from .tracetypes import *
 from .tree import *
-
-
-value_choice_map = ValueChoiceMap.new
-select_all = AllSelection.new
-select_none = NoneSelection.new
-mask = BooleanMask.new

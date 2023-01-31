@@ -341,3 +341,4 @@ class SwitchCombinator(GenerativeFunction):
 ##############
 
 Switch = SwitchCombinator.new
+switch = Switch

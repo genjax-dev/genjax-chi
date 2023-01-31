@@ -46,3 +46,4 @@ class RecurseCombinator(GenerativeFunction):
 ##############
 
 Recurse = RecurseCombinator.new
+recurse = Recurse

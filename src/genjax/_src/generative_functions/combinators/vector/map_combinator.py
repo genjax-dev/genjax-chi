@@ -476,3 +476,4 @@ class MapCombinator(GenerativeFunction):
 ##############
 
 Map = MapCombinator.new
+map = Map

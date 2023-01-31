@@ -19,7 +19,7 @@ These combinators accept generative functions as arguments, and return
 generative functions with modified choice map shapes and behavior.
 
 They are used to express common patterns of computation, including
-if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`TrainCombinator`).
+if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`MapCombinator`), and dependent for-loop (:code:`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (:code:`LearnCombinator`).
 
 .. attention::
 
@@ -35,25 +35,35 @@ if-else (:code:`SwitchCombinator`), mapping across vectorial arguments (:code:`M
     These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
 """
 
+from genjax._src.generative_functions.combinators import Learn
+from genjax._src.generative_functions.combinators import LearnCombinator
 from genjax._src.generative_functions.combinators import Map
 from genjax._src.generative_functions.combinators import MapCombinator
 from genjax._src.generative_functions.combinators import Switch
 from genjax._src.generative_functions.combinators import SwitchCombinator
-from genjax._src.generative_functions.combinators import Train
-from genjax._src.generative_functions.combinators import TrainCombinator
 from genjax._src.generative_functions.combinators import Unfold
 from genjax._src.generative_functions.combinators import UnfoldCombinator
+from genjax._src.generative_functions.combinators import learn
+from genjax._src.generative_functions.combinators import map
+from genjax._src.generative_functions.combinators import switch
+from genjax._src.generative_functions.combinators import unfold
+from genjax._src.generative_functions.combinators import vec_chm
 from genjax._src.generative_functions.combinators import vector_choice_map
 
 
 __all__ = [
     "MapCombinator",
     "Map",
+    "map",
     "UnfoldCombinator",
     "Unfold",
+    "unfold",
     "SwitchCombinator",
     "Switch",
-    "TrainCombinator",
-    "Train",
+    "switch",
+    "LearnCombinator",
+    "Learn",
+    "learn",
     "vector_choice_map",
+    "vec_chm",
 ]

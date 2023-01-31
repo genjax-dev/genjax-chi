@@ -408,3 +408,13 @@ class AllSelection(Selection, Leaf):
         raise Exception(
             "AllSelection is a Selection: it does not provide a leaf choice value."
         )
+
+
+##############
+# Shorthands #
+##############
+
+value_choice_map = ValueChoiceMap.new
+val_chm = value_choice_map
+select_all = AllSelection.new
+select_none = NoneSelection.new

@@ -15,6 +15,7 @@
 from genjax._src.core import mask
 from genjax._src.core import select_all
 from genjax._src.core import select_none
+from genjax._src.core import val_chm
 from genjax._src.core import value_choice_map
 from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
@@ -47,6 +48,7 @@ __all__ = [
     "EmptyChoiceMap",
     "ValueChoiceMap",
     "value_choice_map",
+    "val_chm",
     "Trace",
     "Selection",
     "AllSelection",

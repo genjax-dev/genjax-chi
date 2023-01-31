@@ -114,3 +114,4 @@ class VectorSelection(Selection):
 ##############
 
 vector_choice_map = VectorChoiceMap.new
+vec_chm = vector_choice_map

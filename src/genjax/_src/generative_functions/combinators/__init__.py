@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
+from .learn import *
 from .recurse import *
 from .switch import *
-from .train import *
 from .vector import *
