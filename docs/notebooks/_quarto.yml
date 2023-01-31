@@ -66,10 +66,7 @@ website:
             text: Probabilistic semantics via interpreters
 
   page-footer:
-    left: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
-    right:
-      - icon: github
-        href: https://github.com/probcomp/genjax
+    center: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
 
 toc: true
 toc-location: right
