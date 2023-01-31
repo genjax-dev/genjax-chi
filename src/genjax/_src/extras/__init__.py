@@ -65,3 +65,10 @@ tinygp = LazyLoader(
     globals(),
     "genjax._src.extras.tinygp",
 )
+
+# Equinox provides neural networks.
+equinox = LazyLoader(
+    "equinox",
+    globals(),
+    "genjax._src.extras.equinox",
+)

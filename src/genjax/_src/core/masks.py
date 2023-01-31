@@ -14,18 +14,13 @@
 
 import abc
 from dataclasses import dataclass
-from typing import Any
-from typing import Union
 
-import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
 
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.tree import Leaf
-
-
-Bool = Union[jnp.bool_, np.bool_]
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Bool
 
 
 @dataclass
@@ -84,3 +79,10 @@ class BooleanMask(Mask):
         hash1 = hash(self.inner)
         hash2 = hash(self.mask)
         return hash((hash1, hash2))
+
+
+##############
+# Shorthands #
+##############
+
+mask = BooleanMask.new
