@@ -21,7 +21,7 @@ from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.prox.prox_distribution import ProxDistribution
 from genjax._src.prox.target import Target
-from genjax._src.prox.utils import stack_check_supports
+from genjax._src.prox.utils import static_check_supports
 
 
 @dataclass
@@ -47,7 +47,7 @@ class ChoiceMapDistribution(ProxDistribution):
             return correct_if_check
         else:
             target = Target(self.p, args, self.selection)
-            stack_check_supports(target, self.custom_q)
+            static_check_supports(target, self.custom_q)
             return correct_if_check
 
     def random_weighted(self, key, *args):
@@ -61,7 +61,7 @@ class ChoiceMapDistribution(ProxDistribution):
             target = Target(self.p, args, choices)
 
             # Perform a compile-time trace type check.
-            stack_check_supports(target, self.custom_q)
+            static_check_supports(target, self.custom_q)
 
             key, (w, _) = self.custom_q.assess(
                 key, ValueChoiceMap.new(unselected), (target,)
@@ -76,7 +76,7 @@ class ChoiceMapDistribution(ProxDistribution):
             target = Target(self.p, args, choices)
 
             # Perform a compile-time trace type check.
-            stack_check_supports(target, self.custom_q)
+            static_check_supports(target, self.custom_q)
 
             key, tr = self.custom_q.simulate(key, (target,))
             key, (w, _) = target.importance(key, tr.get_retval(), ())

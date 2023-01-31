@@ -19,6 +19,7 @@ from typing import Tuple
 
 import rich
 
+from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.tree import Leaf
 from genjax._src.core.tree import Tree
 
@@ -64,7 +65,7 @@ class LeafTraceType(TraceType, Leaf):
 
 
 @dataclass
-class Reals(LeafTraceType):
+class Reals(LeafTraceType, CustomPretty):
     shape: Tuple
 
     def flatten(self):
@@ -78,13 +79,14 @@ class Reals(LeafTraceType):
         else:
             return False
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[magenta][b]ℝ[/b] {self.shape}")
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree(f"[b]ℝ[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class PositiveReals(LeafTraceType):
+class PositiveReals(LeafTraceType, CustomPretty):
     shape: Tuple
 
     def flatten(self):
@@ -98,13 +100,14 @@ class PositiveReals(LeafTraceType):
         else:
             return False
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[magenta][b]ℝ⁺[/b] {self.shape}")
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree(f"[b]ℝ⁺[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class RealInterval(TraceType, Leaf):
+class RealInterval(LeafTraceType, CustomPretty):
     shape: Tuple
     lower_bound: Any
     upper_bound: Any
@@ -120,15 +123,16 @@ class RealInterval(TraceType, Leaf):
         else:
             return False
 
-    def _tree_console_overload(self):
+    # CustomPretty.
+    def pformat_free(self, **kwargs):
         tree = rich.tree.Tree(
-            f"[magenta][b]ℝ[/b] [{self.lower_bound}, {self.upper_bound}]{self.shape}"
+            f"[b]ℝ[/b] [{self.lower_bound}, {self.upper_bound}]{self.shape}"
         )
         return tree
 
 
 @dataclass
-class Integers(LeafTraceType):
+class Integers(LeafTraceType, CustomPretty):
     shape: Tuple
 
     def flatten(self):
@@ -142,13 +146,14 @@ class Integers(LeafTraceType):
         else:
             return False
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[magenta][b]ℤ[/b] {self.shape}")
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree(f"[b]ℤ[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class Naturals(LeafTraceType):
+class Naturals(LeafTraceType, CustomPretty):
     shape: Tuple
 
     def flatten(self):
@@ -166,13 +171,14 @@ class Naturals(LeafTraceType):
         else:
             return False
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[magenta][b]ℕ[/b] {self.shape}")
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree(f"[b]ℕ[/b] {self.shape}")
         return tree
 
 
 @dataclass
-class Finite(TraceType, Leaf):
+class Finite(LeafTraceType, CustomPretty):
     shape: Tuple
     limit: int
 
@@ -193,19 +199,35 @@ class Finite(TraceType, Leaf):
         else:
             return False
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree(f"[magenta][b]𝔽[/b] [{self.limit}] {self.shape}")
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree(f"[b]𝔽[/b] [{self.limit}] {self.shape}")
         return tree
 
 
 @dataclass
-class Bottom(LeafTraceType):
+class Bottom(LeafTraceType, CustomPretty):
     def flatten(self):
         return (), ()
 
     def __check__(self, other):
         return True
 
-    def _tree_console_overload(self):
-        tree = rich.tree.Tree("[magenta][b]⊥[/b]")
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree("[b]⊥[/b]")
+        return tree
+
+
+@dataclass
+class Empty(LeafTraceType, CustomPretty):
+    def flatten(self):
+        return (), ()
+
+    def __check__(self, other):
+        return False
+
+    # CustomPretty.
+    def pformat_tree(self, **kwargs):
+        tree = rich.tree.Tree("[b]ϕ[/b] (empty)")
         return tree

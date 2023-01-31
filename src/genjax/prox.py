@@ -39,6 +39,7 @@ from genjax._src.prox import Target
 from genjax._src.prox import chm_dist
 from genjax._src.prox import importance
 from genjax._src.prox import marginal
+from genjax._src.prox import static_check_supports
 from genjax._src.prox import target
 
 
@@ -64,4 +65,5 @@ __all__ = [
     "ChangeTarget",
     "Compose",
     "Sequence",
+    "static_check_supports",
 ]

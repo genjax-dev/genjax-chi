@@ -19,7 +19,6 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.staging import stage
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -31,7 +30,9 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
-from genjax._src.generative_functions.builtin.builtin_tracetype import trace_typer
+from genjax._src.generative_functions.builtin.builtin_tracetype import (
+    trace_type_transform,
+)
 from genjax._src.generative_functions.builtin.intrinsics import cache
 from genjax._src.generative_functions.builtin.intrinsics import trace
 from genjax._src.generative_functions.builtin.transforms import assess_transform
@@ -100,8 +101,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
-        closed_jaxpr, _ = stage(self.source)(*args)
-        return trace_typer(closed_jaxpr)
+        return trace_type_transform(self.source, **kwargs)(*args)
 
     @typecheck
     def simulate(
