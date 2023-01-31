@@ -34,7 +34,7 @@ class Marginal(ProxDistribution):
 
     def get_trace_type(self, *args):
         inner_type = self.p.get_trace_type(*args)
-        selection = BuiltinSelection([self.addr])
+        selection = BuiltinSelection.new([self.addr])
         trace_type = selection.filter(inner_type)
         return trace_type
 
@@ -43,18 +43,18 @@ class Marginal(ProxDistribution):
         weight = tr.get_score()
         choices = tr.get_choices()
         val = choices[self.addr]
-        selection = BuiltinSelection([self.addr]).complement()
+        selection = BuiltinSelection.new([self.addr]).complement()
         other_choices = selection.filter(choices)
-        target = Target(self.p, args, BuiltinChoiceMap({self.addr: val}))
+        target = Target.new(self.p, args, BuiltinChoiceMap.new({self.addr: val}))
         key, (q_weight, _) = self.q.importance(
-            key, ValueChoiceMap(other_choices), (target,)
+            key, ValueChoiceMap.new(other_choices), (target,)
         )
         weight -= q_weight
         return key, (weight, val)
 
     def estimate_logpdf(self, key, val, *args):
-        chm = BuiltinChoiceMap({self.addr: val})
-        target = Target(self.p, args, chm)
+        chm = BuiltinChoiceMap.new({self.addr: val})
+        target = Target.new(self.p, args, chm)
         key, tr = self.q.simulate(key, (target,))
         q_w = tr.get_score()
         choices = tr.get_choices()

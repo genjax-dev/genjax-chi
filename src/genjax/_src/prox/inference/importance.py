@@ -107,7 +107,7 @@ class Importance(ProxDistribution):
             sub_keys, (target,)
         )
         key, (retained_bwd, retained_tr) = self.proposal.importance(
-            key, ValueChoiceMap(chm), (target,)
+            key, ValueChoiceMap.new(chm), (target,)
         )
         merged = target.constraints.merge(unchosen.get_retval())
         key, sub_keys = jax.random.split(key, self.num_particles)

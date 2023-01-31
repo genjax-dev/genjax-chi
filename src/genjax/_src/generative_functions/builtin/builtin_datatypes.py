@@ -26,7 +26,6 @@ from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_tracetype import BuiltinTraceType
@@ -115,10 +114,10 @@ class BuiltinSelection(Selection):
 
     @typecheck
     @classmethod
-    def new(cls, selected: List):
+    def new(cls, *addrs):
         trie = Trie.new()
-        for k in selected:
-            trie[k] = AllSelection()
+        for addr in addrs:
+            trie[addr] = AllSelection()
         return BuiltinSelection(trie)
 
     def filter(self, tree):

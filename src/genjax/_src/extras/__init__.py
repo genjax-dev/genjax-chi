@@ -22,25 +22,46 @@ GenJAX.
 import importlib
 import importlib.util
 import sys
+import types
 
 
-def lazy_extras_import(name):
-    spec = importlib.util.find_spec(f"genjax._src.extras.{name}")
-    loader = importlib.util.LazyLoader(spec.loader)
-    spec.loader = loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[f"genjax._src.extras.{name}"] = module
-    loader.exec_module(module)
-    return module
+class LazyLoader(types.ModuleType):
+    def __init__(self, local_name, parent_module_globals, name):
+        self._local_name = local_name
+        self._parent_module_globals = parent_module_globals
+        super(LazyLoader, self).__init__(name)
+
+    def _load(self):
+        try:
+            module = importlib.import_module(self.__name__)
+            self._parent_module_globals[self._local_name] = module
+            self.__dict__.update(module.__dict__)
+            return module
+        except ModuleNotFoundError as e:
+            e.add_note(
+                f"(GenJAX) Attempted to load {self._local_name} extension but failed, is it installed in your environment?"
+            )
+            raise e
+
+    def __getattr__(self, item):
+        module = self._load()
+        return getattr(module, item)
+
+    def __dir__(self):
+        module = self._load()
+        return dir(module)
 
 
 # BlackJAX provides HMC samplers.
-def blackjax():
-    """Load the :code:`BlackJAX` compatibility layer."""
-    return lazy_extras_import("blackjax")
-
+blackjax = LazyLoader(
+    "blackjax",
+    globals(),
+    "genjax._src.extras.blackjax",
+)
 
 # tinygp provides Gaussian process model ingredients.
-def tinygp():
-    """Load the :code:`tinygp` compatibility layer."""
-    return lazy_extras_import("tinygp")
+tinygp = LazyLoader(
+    "tinygp",
+    globals(),
+    "genjax._src.extras.tinygp",
+)
