@@ -276,3 +276,13 @@ class BuiltinTrace(Trace):
 
     def get_cached_value(self, addr):
         return self.cache.get_subtree(addr)
+
+
+##############
+# Shorthands #
+##############
+
+choice_map = BuiltinChoiceMap.new
+chm = choice_map
+select = BuiltinSelection.new
+sel = select

@@ -38,7 +38,7 @@ from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.core.diff_rules import strip_diff
+from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Int
@@ -198,7 +198,7 @@ class SMCExtendPropagator(SMCPropagator):
         argdiffs: Tuple,
         new_choices: ChoiceMap,
     ) -> Tuple[PRNGKey, SMCState]:
-        new_args = map(strip_diff, argdiffs)
+        new_args = tree_strip_diff(argdiffs)
         new_target = self.propagate_target(
             state.get_target(),
             new_args,
@@ -236,7 +236,7 @@ class SMCExtendPropagator(SMCPropagator):
         new_retained_trace: Trace,
         forward_weight_retained: Float,
     ):
-        new_args = map(strip_diff, argdiffs)
+        new_args = tree_strip_diff(argdiffs)
         new_target = self.propagate_target(
             state.get_target(),
             new_args,
@@ -284,7 +284,7 @@ class SMCExtendPropagator(SMCPropagator):
         argdiffs: Tuple,
         new_constraints: ChoiceMap,
     ) -> Tuple[PRNGKey, SMCState]:
-        new_args = map(strip_diff, argdiffs)
+        new_args = tree_strip_diff(argdiffs)
         new_target = self.propagate_target(
             previous_target,
             new_args,

@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.core import all_select
 from genjax._src.core import mask
-from genjax._src.core import select_all
-from genjax._src.core import select_none
+from genjax._src.core import none_select
 from genjax._src.core import val_chm
 from genjax._src.core import value_choice_map
 from genjax._src.core.datatypes import AllSelection
@@ -52,9 +52,9 @@ __all__ = [
     "Trace",
     "Selection",
     "AllSelection",
-    "select_all",
+    "all_select",
     "NoneSelection",
-    "select_none",
+    "none_select",
     "GenerativeFunction",
     # Mask types.
     "BooleanMask",

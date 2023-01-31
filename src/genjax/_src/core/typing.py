@@ -50,6 +50,7 @@ Callable = typing.Callable
 Sequence = typing.Sequence
 Dict = btyping.Dict
 List = btyping.List
+Int = int
 
 
 def static_check_is_array(v):
@@ -73,6 +74,7 @@ __all__ = [
     "FloatArray",
     "BoolArray",
     "IntArray",
+    "Int",
     "Tuple",
     "Any",
     "Union",

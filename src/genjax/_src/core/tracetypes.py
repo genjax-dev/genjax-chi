@@ -14,6 +14,7 @@
 
 import abc
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 from typing import Tuple
 
@@ -22,6 +23,8 @@ import rich
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.tree import Leaf
 from genjax._src.core.tree import Tree
+from genjax._src.core.typing import Bool
+from genjax._src.core.typing import IntArray
 
 
 @dataclass
@@ -52,8 +55,51 @@ class TraceType(Tree):
         return sub
 
 
+BaseMeasure = Enum("BaseMeasure", ["Counting", "Lebesgue", "Bottom"])
+
+
 @dataclass
 class LeafTraceType(TraceType, Leaf):
+    shape: Tuple
+
+    def flatten(self):
+        return (), (self.shape,)
+
+    @abc.abstractmethod
+    def get_base_measure(self) -> BaseMeasure:
+        pass
+
+    @abc.abstractmethod
+    def check_subset(self, other) -> Bool:
+        pass
+
+    def check_shape(self, other) -> Bool:
+        return self.shape == other.shape
+
+    def check_base_measure(self, other) -> Bool:
+        m1 = self.get_base_measure()
+        m2 = other.get_base_measure()
+        return m1 == m2
+
+    def __check__(self, other) -> Bool:
+        shape_check = self.check_shape(other)
+        measure_check = self.check_base_measure(other)
+        subset_check = self.check_subset(other)
+        check = (
+            (shape_check and measure_check and subset_check)
+            or isinstance(other, Bottom)
+            or isinstance(self, Bottom)
+        )
+        return check
+
+    def on_support(self, other):
+        assert isinstance(other, TraceType)
+        check = self.__check__(other)
+        if check:
+            return check, ()
+        else:
+            return check, (self, other)
+
     def get_leaf_value(self):
         raise Exception("LeafTraceType doesn't keep a leaf value.")
 
@@ -66,18 +112,11 @@ class LeafTraceType(TraceType, Leaf):
 
 @dataclass
 class Reals(LeafTraceType, CustomPretty):
-    shape: Tuple
+    def get_base_measure(self) -> BaseMeasure:
+        return BaseMeasure.Lebesgue
 
-    def flatten(self):
-        return (), (self.shape,)
-
-    def __check__(self, other):
-        if isinstance(other, Reals):
-            return self.shape == other.shape
-        elif isinstance(other, Bottom):
-            return True
-        else:
-            return False
+    def check_subset(self, other):
+        return isinstance(other, Reals) or isinstance(other, Bottom)
 
     # CustomPretty.
     def pformat_tree(self, **kwargs):
@@ -87,18 +126,15 @@ class Reals(LeafTraceType, CustomPretty):
 
 @dataclass
 class PositiveReals(LeafTraceType, CustomPretty):
-    shape: Tuple
+    def get_base_measure(self):
+        return BaseMeasure.Lebesgue
 
-    def flatten(self):
-        return (), (self.shape,)
-
-    def __check__(self, other):
-        if isinstance(other, PositiveReals):
-            return self.shape == other.shape
-        elif isinstance(other, Bottom):
-            return True
-        else:
-            return False
+    def check_subset(self, other):
+        return (
+            isinstance(other, PositiveReals)
+            or isinstance(other, Reals)
+            or isinstance(other, Bottom)
+        )
 
     # CustomPretty.
     def pformat_tree(self, **kwargs):
@@ -108,20 +144,23 @@ class PositiveReals(LeafTraceType, CustomPretty):
 
 @dataclass
 class RealInterval(LeafTraceType, CustomPretty):
-    shape: Tuple
     lower_bound: Any
     upper_bound: Any
 
     def flatten(self):
         return (), (self.shape, self.lower_bound, self.upper_bound)
 
-    def __check__(self, other):
-        if isinstance(other, PositiveReals):
-            return self.lower_bound >= 0.0 and self.shape == other.shape
-        elif isinstance(other, Bottom):
-            return True
-        else:
-            return False
+    def get_base_measure(self):
+        return BaseMeasure.Lebesgue
+
+    # TODO: we need to check if `lower_bound` and `upper_bound`
+    # are concrete.
+    def check_subset(self, other):
+        return (
+            isinstance(other, PositiveReals)
+            or isinstance(other, Reals)
+            or isinstance(other, Bottom)
+        )
 
     # CustomPretty.
     def pformat_free(self, **kwargs):
@@ -133,18 +172,18 @@ class RealInterval(LeafTraceType, CustomPretty):
 
 @dataclass
 class Integers(LeafTraceType, CustomPretty):
-    shape: Tuple
-
     def flatten(self):
         return (), (self.shape,)
 
-    def __check__(self, other):
-        if isinstance(other, Integers) or isinstance(other, Reals):
-            return self.shape == other.shape
-        elif isinstance(other, Bottom):
-            return True
-        else:
-            return False
+    def get_base_measure(self):
+        return BaseMeasure.Counting
+
+    def check_subset(self, other):
+        return (
+            isinstance(other, Integers)
+            or isinstance(other, Reals)
+            or isinstance(other, Bottom)
+        )
 
     # CustomPretty.
     def pformat_tree(self, **kwargs):
@@ -154,22 +193,17 @@ class Integers(LeafTraceType, CustomPretty):
 
 @dataclass
 class Naturals(LeafTraceType, CustomPretty):
-    shape: Tuple
+    def get_base_measure(self):
+        return BaseMeasure.Counting
 
-    def flatten(self):
-        return (), (self.shape,)
-
-    def __check__(self, other):
-        if (
+    def subset_check(self, other):
+        return (
             isinstance(other, Naturals)
-            or isinstance(other, Reals)
+            or isinstance(other, Integers)
             or isinstance(other, PositiveReals)
-        ):
-            return self.shape <= other.shape
-        elif isinstance(other, Bottom):
-            return True
-        else:
-            return False
+            or isinstance(other, Reals)
+            or isinstance(other, Bottom)
+        )
 
     # CustomPretty.
     def pformat_tree(self, **kwargs):
@@ -179,25 +213,19 @@ class Naturals(LeafTraceType, CustomPretty):
 
 @dataclass
 class Finite(LeafTraceType, CustomPretty):
-    shape: Tuple
-    limit: int
+    limit: IntArray
 
-    def flatten(self):
-        return (), (self.shape, self.limit)
+    def get_base_measure(self):
+        return BaseMeasure.Counting
 
-    def __check__(self, other):
-        if (
+    def check_subset(self, other):
+        return (
             isinstance(other, Naturals)
-            or isinstance(other, Reals)
+            or isinstance(other, Integers)
             or isinstance(other, PositiveReals)
-        ):
-            return self.shape <= other.shape
-        elif isinstance(other, Finite):
-            return self.limit <= other.limit and self.shape <= other.shape
-        elif isinstance(other, Bottom):
-            return True
-        else:
-            return False
+            or isinstance(other, Reals)
+            or isinstance(other, Bottom)
+        )
 
     # CustomPretty.
     def pformat_tree(self, **kwargs):
@@ -207,10 +235,13 @@ class Finite(LeafTraceType, CustomPretty):
 
 @dataclass
 class Bottom(LeafTraceType, CustomPretty):
-    def flatten(self):
-        return (), ()
+    def __init__(self):
+        super().__init__(())
 
-    def __check__(self, other):
+    def get_base_measure(self):
+        return BaseMeasure.Bottom
+
+    def check_subset(self, other):
         return True
 
     # CustomPretty.
@@ -221,11 +252,11 @@ class Bottom(LeafTraceType, CustomPretty):
 
 @dataclass
 class Empty(LeafTraceType, CustomPretty):
-    def flatten(self):
-        return (), ()
+    def __init__(self):
+        super().__init__(())
 
-    def __check__(self, other):
-        return False
+    def check_subset(self, other):
+        return True
 
     # CustomPretty.
     def pformat_tree(self, **kwargs):

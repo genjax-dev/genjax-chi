@@ -25,79 +25,32 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
+from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.staging import make_zero_trace
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    VectorTrace,
+)
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
 )
-
-
-#####
-# UnfoldTrace
-#####
-
-
-@dataclass
-class UnfoldTrace(Trace):
-    gen_fn: GenerativeFunction
-    indices: Sequence
-    inner: Trace
-    args: Tuple
-    retval: Any
-    score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.indices,
-            self.inner,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
-
-    def get_args(self):
-        return self.args
-
-    def get_choices(self):
-        return VectorChoiceMap(self.indices, self.inner)
-
-    def get_gen_fn(self):
-        return self.gen_fn
-
-    def get_retval(self):
-        return self.retval
-
-    def get_score(self):
-        return self.score
-
-    def project(self, selection: Selection) -> FloatArray:
-        if isinstance(selection, BuiltinSelection):
-            return self.inner.project(selection)
-        elif isinstance(selection, AllSelection):
-            return self.score
-        else:
-            return 0.0
 
 
 #####
@@ -183,7 +136,7 @@ class UnfoldCombinator(GenerativeFunction):
         return VectorTraceType(inner_type, self.max_length)
 
     def _throw_bounds_host_exception(self, count: int):
-        def _inner(count, transforms):
+        def _inner(count, _):
             raise Exception(
                 f"\nUnfoldCombinator {self} received a length argument ({count}) longer than specified max length ({self.max_length})"
             )
@@ -196,9 +149,7 @@ class UnfoldCombinator(GenerativeFunction):
         return None
 
     @typecheck
-    def simulate(
-        self, key: PRNGKey, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, UnfoldTrace]:
+    def simulate(self, key: PRNGKey, args: Tuple, **_) -> Tuple[PRNGKey, VectorTrace]:
         length = args[0]
         state = args[1]
         static_args = args[2:]
@@ -207,8 +158,8 @@ class UnfoldCombinator(GenerativeFunction):
         check = jnp.less(self.max_length, length + 1)
         concrete_cond(
             check,
-            lambda *args: self._throw_bounds_host_exception(length + 1),
-            lambda *args: None,
+            lambda *_: self._throw_bounds_host_exception(length + 1),
+            lambda *_: None,
         )
 
         zero_trace = make_zero_trace(
@@ -223,7 +174,7 @@ class UnfoldCombinator(GenerativeFunction):
             score = tr.get_score()
             return (key, tr, state, count, count + 1, score)
 
-        def _inner_zero_fallback(key, state, static_args, count):
+        def _inner_zero_fallback(key, state, _, count):
             state = state
             score = 0.0
             return (key, zero_trace, state, -1, count, score)
@@ -250,14 +201,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retval,
-            jnp.sum(scores),
-        )
+        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
 
         return key, unfold_tr
 
@@ -314,28 +258,12 @@ class UnfoldCombinator(GenerativeFunction):
                 return key, (0.0, tr)
 
             check = count == target_index
-            key, (w, tr) = concrete_cond(
-                check,
-                _importance,
-                _simulate,
-                key,
-                state,
-            )
-
+            key, (w, tr) = concrete_cond(check, _importance, _simulate, key, state)
             check = jnp.less(count, length + 1)
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
+            index = concrete_cond(check, lambda *_: count, lambda *_: -1)
             count, state, score, w = concrete_cond(
                 check,
-                lambda *args: (
-                    count + 1,
-                    tr.get_retval(),
-                    tr.get_score(),
-                    w,
-                ),
+                lambda *args: (count + 1, tr.get_retval(), tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
             return (count, key, state), (w, score, tr, index, state)
@@ -347,14 +275,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retval,
-            jnp.sum(score),
-        )
+        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -410,14 +331,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retval,
-            jnp.sum(score),
-        )
+        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -489,14 +403,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retval,
-            jnp.sum(score),
-        )
+        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -504,7 +411,7 @@ class UnfoldCombinator(GenerativeFunction):
     @typecheck
     def importance(
         self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, UnfoldTrace]]:
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
         length = args[0]
 
         # This inserts a host callback check for bounds checking.
@@ -522,109 +429,13 @@ class UnfoldCombinator(GenerativeFunction):
         else:
             return self._importance_fallback(key, chm, args)
 
-    # The choice map has an index mask, can efficiently
-    # update.
-    def _update_indexed(self, key, prev, chm, args):
-        length = args[0]
-        state = args[1]
-        static_args = args[2:]
-
-        # The purpose of this branch is to efficiently perform single
-        # index updates. This is a common pattern in e.g. SMC, so we
-        # optimize for it here.
-
-        # Unwrap the index mask.
-        inner_choice_map = chm.inner
-        target_index = chm.get_index()
-
-        def _inner(carry, slice):
-            count, key, state = carry
-            (prev,) = slice
-
-            def _update(key, prev, state):
-                return self.kernel.update(
-                    key,
-                    prev,
-                    inner_choice_map,
-                    (state, *static_args),
-                )
-
-            def _fallthrough(key, prev, state):
-                return self.kernel.update(
-                    key,
-                    prev,
-                    EmptyChoiceMap(),
-                    (state, *static_args),
-                )
-
-            # Here, we check the index.
-            check = count == target_index
-            key, (retdiff, w, tr, discard) = concrete_cond(
-                check,
-                _update,
-                _fallthrough,
-                key,
-                prev,
-                state,
-            )
-
-            # `Unfold` has upper-bound allocation size,
-            # but any particular invocation may go less than
-            # that size -- here, we fill define fallbacks to
-            # fill up to the allocation size.
-            check = jnp.less(count, length + 1)
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
-            count, state, score, weight = concrete_cond(
-                check,
-                lambda *args: (count + 1, retdiff, tr.get_score(), w),
-                lambda *args: (count, state, 0.0, 0.0),
-            )
-            return (count, key, state), (
-                retdiff,
-                state,
-                score,
-                w,
-                tr,
-                discard,
-                index,
-            )
-
-        (count, key, state), (retdiff, score, w, tr, discard, indices,) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            (prev,),
-            length=self.max_length,
-        )
-
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retdiff.get_val(),
-            jnp.sum(score),
-        )
-
-        w = jnp.sum(w)
-        return key, (retdiff, w, unfold_tr, discard)
-
     # The choice map is a vector choice map.
     def _update_vcm(self, key, prev, chm, argdiffs):
         length = argdiffs[0]
         state = argdiffs[1]
         static_args = argdiffs[2:]
-        args = tuple(map(lambda v: v.get_val(), argdiffs))
+        args = tree_strip_diff(argdiffs)
 
-        # Here, we skip any choice map pre-setup -
-        # assuming the user is encoding information directly
-        # so `chm: VectorChoiceMap`.
-
-        # The scan call here is the same as the fallback call in
-        # `_update_fallback`.
         def _inner(carry, slice):
             count, key, state = carry
             (prev, chm) = slice
@@ -643,11 +454,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
 
             check = jnp.less(count, length + 1)
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
+            index = concrete_cond(check, lambda *args: count, lambda *args: -1)
             count, state, score, weight = concrete_cond(
                 check,
                 lambda *args: (count + 1, retdiff, tr.get_score(), w),
@@ -655,20 +462,17 @@ class UnfoldCombinator(GenerativeFunction):
             )
             return (count, key, state), (state, score, w, tr, discard, index)
 
-        (count, key, state), (retdiff, score, w, tr, discard, indices,) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            (prev, chm),
-            length=self.max_length,
-        )
-
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
+        (count, key, state), (
+            retdiff,
+            score,
+            w,
             tr,
-            args,
-            retdiff.get_val(),
-            jnp.sum(score),
+            discard,
+            indices,
+        ) = jax.lax.scan(_inner, (0, key, state), (prev, chm), length=self.max_length)
+
+        unfold_tr = VectorTrace(
+            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
         )
 
         w = jnp.sum(w)
@@ -714,11 +518,7 @@ class UnfoldCombinator(GenerativeFunction):
             )
 
             check = jnp.less(count, length + 1)
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
+            index = concrete_cond(check, lambda *args: count, lambda *args: -1)
             count, state, score, weight = concrete_cond(
                 check,
                 lambda *args: (count + 1, retdiff, tr.get_score(), w),
@@ -727,19 +527,11 @@ class UnfoldCombinator(GenerativeFunction):
             return (count, key, state), (state, score, w, tr, discard, index)
 
         (_, key, _), (retdiff, score, w, tr, discard, indices) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            (prev, chm),
-            length=self.max_length,
+            _inner, (0, key, state), (prev, chm), length=self.max_length
         )
 
-        unfold_tr = UnfoldTrace(
-            self,
-            indices,
-            tr,
-            args,
-            retdiff.get_val(),
-            jnp.sum(score),
+        unfold_tr = VectorTrace(
+            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
         )
 
         w = jnp.sum(w)
@@ -750,17 +542,16 @@ class UnfoldCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         prev: Trace,
-        chm: ChoiceMap,
+        chm: Union[EmptyChoiceMap, VectorChoiceMap],
         argdiffs: Tuple,
-        **kwargs,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, UnfoldTrace, ChoiceMap]]:
+        **_,
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, VectorTrace, ChoiceMap]]:
         length = argdiffs[0].get_val()
 
         # Unwrap the previous trace at this address
         # we should get a `VectorChoiceMap`.
         # We don't need the index indicators from the trace,
         # so we can just unwrap it.
-        assert isinstance(prev, UnfoldTrace)
         prev = prev.inner
 
         # This inserts a host callback check for bounds checking.
@@ -781,7 +572,7 @@ class UnfoldCombinator(GenerativeFunction):
         if isinstance(chm, VectorChoiceMap):
             return self._update_vcm(key, prev, chm, argdiffs)
         else:
-            return self._update_fallback(key, prev, chm, argdiffs)
+            return self._update_empty(key, prev, chm, argdiffs)
 
     def _throw_index_check_host_exception(self, index: IntArray):
         def _inner(count, transforms):

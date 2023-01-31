@@ -27,7 +27,7 @@ from genjax._src.core.diff_rules import Diff
 from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.diff_rules import check_no_change
-from genjax._src.core.diff_rules import strip_diff
+from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.specialization import is_concrete
 from genjax._src.core.staging import stage
 from genjax._src.core.typing import FloatArray
@@ -305,7 +305,7 @@ class Update(cps.Handler):
 def update_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def _inner(key, previous_trace, constraints, argdiffs):
-        vals = jtu.tree_map(strip_diff, argdiffs, is_leaf=check_is_diff)
+        vals = tree_strip_diff(argdiffs)
         jaxpr, (_, _, out_tree) = stage(source_fn)(*vals, **kwargs)
         jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
         handler = Update.new(key, previous_trace, constraints)
@@ -321,7 +321,7 @@ def update_transform(source_fn, **kwargs):
                 out_tree,
                 flat_retval_diffs,
             )
-            retvals = tuple(map(strip_diff, flat_retval_diffs))
+            retvals = tree_strip_diff(flat_retval_diffs)
             retvals = jtu.tree_unflatten(out_tree, retvals)
             w = handler.weight
             constraints = handler.choice_state
