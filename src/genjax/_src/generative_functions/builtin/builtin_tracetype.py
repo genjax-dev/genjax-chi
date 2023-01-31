@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
 import jax
@@ -20,7 +21,9 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.util import safe_map
 
+from genjax._src.core.staging import stage
 from genjax._src.core.tracetypes import Bottom
+from genjax._src.core.tracetypes import Empty
 from genjax._src.core.tracetypes import Finite
 from genjax._src.core.tracetypes import Integers
 from genjax._src.core.tracetypes import Reals
@@ -33,10 +36,10 @@ from genjax._src.generative_functions.builtin.trie import Trie
 @dataclass
 class BuiltinTraceType(TraceType):
     trie: Trie
-    return_type: TraceType
+    retval_type: TraceType
 
     def flatten(self):
-        return (), (self.trie, self.return_type)
+        return (), (self.trie, self.retval_type)
 
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
@@ -68,7 +71,7 @@ class BuiltinTraceType(TraceType):
             return BuiltinTraceType(trie, self.get_rettype())
 
     def get_rettype(self):
-        return self.return_type
+        return self.retval_type
 
     def on_support(self, other):
         if not isinstance(other, BuiltinTraceType):
@@ -101,10 +104,28 @@ class BuiltinTraceType(TraceType):
 # Typing interpreter
 ######
 
+# Lift Python values to the trace type lattice.
+def lift(v, shape=()):
+    if v is None:
+        return Empty()
+    elif v == jnp.int32:
+        return Integers(shape)
+    elif v == jnp.float32:
+        return Reals(shape)
+    elif v == bool:
+        return Finite(shape, 2)
+    elif static_check_is_array(v):
+        return lift(v.dtype, shape=v.shape)
+    elif isinstance(v, jax.ShapeDtypeStruct):
+        return lift(v.dtype, shape=v.shape)
+    elif isinstance(v, jc.ShapedArray):
+        return lift(v.dtype, shape=v.shape)
 
-def trace_typer(jaxpr: jc.ClosedJaxpr):
+
+def trace_typing(jaxpr: jc.ClosedJaxpr, flat_in, consts):
+    # Simple environment, nothing fancy required.
     env = {}
-    trace_type = Trie.new()
+    inner_trace_type = Trie.new()
 
     def read(var):
         if type(var) is jc.Literal:
@@ -114,8 +135,8 @@ def trace_typer(jaxpr: jc.ClosedJaxpr):
     def write(var, val):
         env[var] = val
 
-    safe_map(write, jaxpr.jaxpr.invars, jaxpr.in_avals)
-    safe_map(write, jaxpr.jaxpr.constvars, jaxpr.literals)
+    safe_map(write, jaxpr.invars, flat_in)
+    safe_map(write, jaxpr.constvars, consts)
 
     for eqn in jaxpr.eqns:
         if eqn.primitive == gen_fn_p:
@@ -124,30 +145,24 @@ def trace_typer(jaxpr: jc.ClosedJaxpr):
             invals = safe_map(read, eqn.invars)
             gen_fn, args = jtu.tree_unflatten(tree_in, invals)
             ty = gen_fn.get_trace_type(*args, **eqn.params)
-            trace_type[addr] = ty
+            inner_trace_type[addr] = ty
         outvals = safe_map(lambda v: v.aval, eqn.outvars)
         safe_map(write, eqn.outvars, outvals)
 
-    return_type = tuple(map(lift, jaxpr.out_avals))
-
-    # Collapse single arity returns.
-    if len(return_type) == 1:
-        return_type = return_type[0]
-
-    return BuiltinTraceType(trace_type, return_type)
+    return safe_map(read, jaxpr.outvars), inner_trace_type
 
 
-# Lift Python values to the trace type lattice.
-def lift(v, shape=()):
-    if v == jnp.int32:
-        return Integers(shape)
-    if v == jnp.float32:
-        return Reals(shape)
-    if v == bool:
-        return Finite(shape, 2)
-    if static_check_is_array(v):
-        return lift(v.dtype, shape=v.shape)
-    if isinstance(v, jax.ShapeDtypeStruct):
-        return lift(v.dtype, shape=v.shape)
-    elif isinstance(v, jc.ShapedArray):
-        return lift(v.dtype, shape=v.shape)
+def trace_type_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
+    def _inner(*args):
+        closed_jaxpr, (flat_in, _, out_tree) = stage(source_fn)(*args, **kwargs)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        flat_out, inner_tt = trace_typing(jaxpr, flat_in, consts)
+        flat_out = list(map(lambda v: lift(v), flat_out))
+        if flat_out:
+            rettypes = jtu.tree_unflatten(out_tree, flat_out)
+        else:
+            rettypes = lift(None)
+        return BuiltinTraceType(inner_tt, rettypes)
+
+    return _inner

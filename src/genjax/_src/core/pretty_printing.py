@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 import dataclasses
 import functools as ft
 import types
@@ -31,6 +32,13 @@ from rich.tree import Tree
 
 Dataclass = Any
 PrettyPrintable = Any
+
+
+@dataclasses.dataclass
+class CustomPretty:
+    @abc.abstractmethod
+    def pformat_tree(self, **kwargs):
+        pass
 
 
 def simple_dtype(dtype) -> str:
@@ -143,8 +151,8 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
     if truncate_leaf(obj):
         tree = Tree(f"[b]{type(obj).__name__}(...)[/b]")
         return tree
-    elif hasattr(obj, "_pformat_custom"):
-        return obj._pformat_custom(**kwargs)
+    elif isinstance(obj, CustomPretty):
+        return obj.pformat_tree(**kwargs)
     elif dataclasses.is_dataclass(obj):
         return _pformat_dataclass(obj, **kwargs)
     elif isinstance(obj, list):

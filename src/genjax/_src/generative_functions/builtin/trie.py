@@ -20,6 +20,7 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.hashabledict import HashableDict
 from genjax._src.core.hashabledict import hashabledict
+from genjax._src.core.pretty_printing import CustomPretty
 
 
 #####
@@ -28,7 +29,7 @@ from genjax._src.core.hashabledict import hashabledict
 
 
 @dataclass
-class Trie(ChoiceMap):
+class Trie(ChoiceMap, CustomPretty):
     inner: HashableDict
 
     def flatten(self):
@@ -113,7 +114,7 @@ class Trie(ChoiceMap):
     def __hash__(self):
         return hash(self.inner)
 
-    def _pformat_custom(self, **kwargs):
+    def pformat_tree(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         for (k, v) in self.inner.items():
             subk = tree.add(f"[bold]:{k}")

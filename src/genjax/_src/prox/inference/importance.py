@@ -24,7 +24,7 @@ from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.typing import typecheck
 from genjax._src.prox.prox_distribution import ProxDistribution
 from genjax._src.prox.target import Target
-from genjax._src.prox.utils import stack_check_supports
+from genjax._src.prox.utils import static_check_supports
 
 
 def _logsumexp_with_extra(arr, x):
@@ -64,7 +64,7 @@ class Importance(ProxDistribution):
 
     def custom_random_weighted(self, key, target: Target):
         # Perform a compile-time trace type check.
-        stack_check_supports(target, self.proposal)
+        static_check_supports(target, self.proposal)
 
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)

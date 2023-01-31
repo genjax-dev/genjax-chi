@@ -17,3 +17,4 @@ from .inference import *
 from .marginal import *
 from .prox_distribution import *
 from .target import *
+from .utils import *
