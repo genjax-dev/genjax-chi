@@ -258,6 +258,11 @@ class Empty(LeafTraceType, CustomPretty):
     def check_subset(self, other):
         return True
 
+    # Pretty sure this is wrong - but `Empty` can't occur
+    # in distributions return anyways.
+    def get_base_measure(self):
+        return BaseMeasure.Counting
+
     # CustomPretty.
     def pformat_tree(self, **kwargs):
         tree = rich.tree.Tree("[b]ϕ[/b] (empty)")
