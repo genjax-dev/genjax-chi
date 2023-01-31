@@ -113,8 +113,17 @@ def check_is_diff(v):
     return isinstance(v, Diff) or isinstance(v, Cell)
 
 
-def strip_diff(diff):
-    return diff.get_val()
+def tree_strip_diff(tree):
+    def _check(v):
+        return isinstance(v, Diff)
+
+    def _inner(v):
+        if isinstance(v, Diff):
+            return v.get_val()
+        else:
+            return v
+
+    return jtu.tree_map(_inner, tree, is_leaf=_check)
 
 
 def fallback_diff_rule(prim: Any, incells: List[Diff], **params):

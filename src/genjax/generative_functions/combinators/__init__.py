@@ -48,7 +48,9 @@ from genjax._src.generative_functions.combinators import map
 from genjax._src.generative_functions.combinators import switch
 from genjax._src.generative_functions.combinators import unfold
 from genjax._src.generative_functions.combinators import vec_chm
+from genjax._src.generative_functions.combinators import vec_sel
 from genjax._src.generative_functions.combinators import vector_choice_map
+from genjax._src.generative_functions.combinators import vector_select
 
 
 __all__ = [
@@ -66,4 +68,6 @@ __all__ = [
     "learn",
     "vector_choice_map",
     "vec_chm",
+    "vector_select",
+    "vec_sel",
 ]

@@ -31,9 +31,8 @@ from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.diff_rules import Diff
 from genjax._src.core.diff_rules import NoChange
-from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.diff_rules import check_no_change
-from genjax._src.core.diff_rules import strip_diff
+from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.tracetypes import TraceType
@@ -218,7 +217,7 @@ class Distribution(GenerativeFunction):
             return key, (retval_diff, 0.0, prev, maybe_discard)
 
         # Otherwise, we consider the cases.
-        args = jtu.tree_map(strip_diff, argdiffs, is_leaf=check_is_diff)
+        args = tree_strip_diff(argdiffs)
 
         # First, we have to check if the trace provided
         # is masked or not. It's possible that a trace

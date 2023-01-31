@@ -416,5 +416,7 @@ class AllSelection(Selection, Leaf):
 
 value_choice_map = ValueChoiceMap.new
 val_chm = value_choice_map
-select_all = AllSelection.new
-select_none = NoneSelection.new
+all_select = AllSelection.new
+all_sel = all_select
+none_select = NoneSelection.new
+none_sel = none_select

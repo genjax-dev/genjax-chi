@@ -40,7 +40,7 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import check_is_diff
-from genjax._src.core.diff_rules import strip_diff
+from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.staging import get_trace_data_shape
 from genjax._src.core.sumtree import Sumtree
@@ -186,33 +186,17 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(
-            self,
-            choice_map,
-            args,
-            retval,
-            score,
-        )
+        trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, trace
 
     def simulate(self, key, args):
         switch = args[0]
 
         def _inner(br):
-            return lambda key, *args: self._simulate(
-                br,
-                key,
-                args,
-            )
+            return lambda key, *args: self._simulate(br, key, args)
 
         branch_functions = list(map(_inner, self.branches))
-
-        return jax.lax.switch(
-            switch,
-            branch_functions,
-            key,
-            *args,
-        )
+        return jax.lax.switch(switch, branch_functions, key, *args)
 
     def _importance(self, branch_gen_fn, key, chm, args):
         key, (w, tr) = branch_gen_fn.importance(key, chm, args[1:])
@@ -223,41 +207,24 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(
-            self,
-            choice_map,
-            args,
-            retval,
-            score,
-        )
+        trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, (w, trace)
 
     def importance(self, key, chm, args):
         switch = args[0]
 
         def _inner(br):
-            return lambda key, chm, *args: self._importance(
-                br,
-                key,
-                chm,
-                args,
-            )
+            return lambda key, chm, *args: self._importance(br, key, chm, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(
-            switch,
-            branch_functions,
-            key,
-            chm,
-            *args,
-        )
+        return jax.lax.switch(switch, branch_functions, key, chm, *args)
 
     def _update(self, branch_gen_fn, key, prev, new, argdiffs):
         # Create a skeleton discard instance.
         discard_option = BooleanMask.new(False, prev.strip())
         concrete_branch_index = self.branches.index(branch_gen_fn)
-        argument_index = strip_diff(argdiffs[0])
+        argument_index = tree_strip_diff(argdiffs[0])
         maybe_discard = discard_option.submaps[concrete_branch_index]
 
         # We have to mask the submap at the concrete_branch_index
@@ -269,15 +236,12 @@ class SwitchCombinator(GenerativeFunction):
 
         # Actually perform the update.
         key, (retval_diff, w, tr, actual_discard) = branch_gen_fn.update(
-            key,
-            prev,
-            new,
-            argdiffs[1:],
+            key, prev, new, argdiffs[1:]
         )
 
         # Here, we create a Sumtree -- and we place the real trace
         # data inside of it.
-        args = jtu.tree_map(strip_diff, argdiffs, is_leaf=check_is_diff)
+        args = jtu.tree_map(tree_strip_diff, argdiffs, is_leaf=check_is_diff)
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         choice_map = IndexedChoiceMap(concrete_branch_index, choices)
@@ -290,17 +254,11 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
-        trace = SwitchTrace(
-            self,
-            choice_map,
-            args,
-            retval,
-            score,
-        )
+        trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, (retval_diff, w, trace, discard_option)
 
     def update(self, key, prev, new, argdiffs):
-        switch = strip_diff(argdiffs[0])
+        switch = tree_strip_diff(argdiffs[0])
 
         def _inner(br):
             return lambda key, prev, new, argdiffs: self._update(
@@ -318,22 +276,11 @@ class SwitchCombinator(GenerativeFunction):
         switch = args[0]
 
         def _inner(br):
-            return lambda key, chm, *args: self._assess(
-                br,
-                key,
-                chm,
-                args,
-            )
+            return lambda key, chm, *args: self._assess(br, key, chm, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(
-            switch,
-            branch_functions,
-            key,
-            chm,
-            *args,
-        )
+        return jax.lax.switch(switch, branch_functions, key, chm, *args)
 
 
 ##############
