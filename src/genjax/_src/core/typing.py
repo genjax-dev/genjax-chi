@@ -24,33 +24,33 @@ import typing
 import beartype.typing as btyping
 import jax
 import jax.numpy as jnp
+import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf
 from beartype import beartype
-from jaxtyping import Array
-from jaxtyping import Bool
-from jaxtyping import Float
-from jaxtyping import Int
-from jaxtyping import UInt
 
 
 conf = BeartypeConf(is_color=False)
 typecheck = beartype(conf=conf)
 
-PRNGKey = UInt[Array, "..."]
-PrettyPrintable = typing.Any
 Dataclass = typing.Any
-FloatArray = typing.Union[float, Float[Array, "..."]]
-BoolArray = typing.Union[bool, Bool[Array, "..."]]
-IntArray = typing.Union[int, Int[Array, "..."]]
-Tuple = btyping.Tuple
+PrettyPrintable = typing.Any
+PRNGKey = jtyping.UInt[jtyping.Array, "..."]
+FloatArray = typing.Union[float, jtyping.Float[jtyping.Array, "..."]]
+BoolArray = typing.Union[bool, jtyping.Bool[jtyping.Array, "..."]]
+IntArray = typing.Union[int, jtyping.Int[jtyping.Array, "..."]]
 Any = typing.Any
 Union = typing.Union
 Callable = typing.Callable
 Sequence = typing.Sequence
+Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
 Int = int
+Float = float
+Bool = bool
+String = str
+Address = Union[String, Int, Tuple["Address"]]
 
 
 def static_check_is_array(v):
@@ -63,18 +63,17 @@ def static_check_is_array(v):
 
 # TODO: the dtype comparison needs to be replaced with something
 # more robust.
-def static_check_grad(v):
+def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
 __all__ = [
-    "PRNGKey",
     "PrettyPrintable",
     "Dataclass",
+    "PRNGKey",
     "FloatArray",
     "BoolArray",
     "IntArray",
-    "Int",
     "Tuple",
     "Any",
     "Union",
@@ -82,5 +81,9 @@ __all__ = [
     "Sequence",
     "Dict",
     "List",
+    "Int",
+    "Bool",
+    "Float",
     "static_check_is_array",
+    "static_check_supports_grad",
 ]

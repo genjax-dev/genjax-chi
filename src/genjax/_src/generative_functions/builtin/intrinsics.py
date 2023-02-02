@@ -16,6 +16,7 @@ import jax.core as core
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.specialization import is_concrete
 from genjax._src.core.staging import stage
 
 
@@ -29,35 +30,38 @@ gen_fn_p = core.Primitive("trace")
 # Cache intrinsic.
 cache_p = core.Primitive("cache")
 
+# Inline intrinsic.
+inline_p = core.Primitive("inline")
+
+#####
+# Static address checks
+#####
+
+# Usage in intrinsics: ensure that addresses do not contain JAX traced values.
+def static_address_type_check(addr):
+    check = all(jtu.tree_leaves(jtu.tree_map(is_concrete, addr)))
+    if not check:
+        raise Exception("Addresses must not contained JAX traced values.")
+
+
 ############################################################
 # Trace call (denotes invocation of a generative function) #
 ############################################################
 
 
 def _trace(gen_fn, addr, *args, **kwargs):
-    assert isinstance(gen_fn, GenerativeFunction)
     flat_args, tree_in = jtu.tree_flatten((gen_fn, args))
-    retvals = gen_fn_p.bind(
-        *flat_args,
-        addr=addr,
-        tree_in=tree_in,
-        **kwargs,
-    )
+    retvals = gen_fn_p.bind(*flat_args, addr=addr, tree_in=tree_in, **kwargs)
+    retvals = tuple(retvals)
 
     # Collapse single arity returns.
-    retvals = tuple(retvals)
-    if len(retvals) == 1:
-        retvals = retvals[0]
-    return retvals
+    return retvals[0] if len(retvals) == 1 else retvals
 
 
-def trace(addr, gen_fn, **kwargs):
-    return lambda *args: _trace(
-        gen_fn,
-        addr,
-        *args,
-        **kwargs,
-    )
+def trace(addr, gen_fn: GenerativeFunction, **kwargs):
+    assert isinstance(gen_fn, GenerativeFunction)
+    static_address_type_check(addr)
+    return lambda *args: _trace(gen_fn, addr, *args, **kwargs)
 
 
 #####
@@ -91,22 +95,20 @@ gen_fn_p.must_handle = True
 ##############################################################
 
 
-def cache(addr, fn, *args, **kwargs):
-    assert isinstance(args, tuple)
-    assert not isinstance(fn, GenerativeFunction)
+def _cache(fn, addr, *args, **kwargs):
     flat_args, tree_in = jtu.tree_flatten((fn, args))
-    retvals = cache_p.bind(
-        *flat_args,
-        addr=addr,
-        tree_in=tree_in,
-        **kwargs,
-    )
+    retvals = cache_p.bind(*flat_args, addr=addr, tree_in=tree_in, **kwargs)
+    retvals = tuple(retvals)
 
     # Collapse single arity returns.
-    retvals = tuple(retvals)
-    if len(retvals) == 1:
-        retvals = retvals[0]
-    return retvals
+    return retvals[0] if len(retvals) == 1 else retvals
+
+
+def cache(addr, fn, *args, **kwargs):
+    # fn must be deterministic.
+    assert not isinstance(fn, GenerativeFunction)
+    static_address_type_check(addr)
+    return lambda *args: _cache(fn, addr, *args, **kwargs)
 
 
 #####
@@ -122,3 +124,30 @@ def cache_abstract_eval(*args, addr, fn, **kwargs):
 cache_p.def_abstract_eval(cache_abstract_eval)
 cache_p.multiple_results = True
 cache_p.must_handle = True
+
+#################################################################
+# Inline call (denotes inlining of another generative function) #
+#################################################################
+
+
+def _inline(gen_fn, *args, **kwargs):
+    flat_args, tree_in = jtu.tree_flatten((gen_fn, args))
+    retvals = gen_fn_p.bind(*flat_args, tree_in=tree_in, **kwargs)
+    retvals = tuple(retvals)
+
+    # Collapse single arity returns.
+    return retvals[0] if len(retvals) == 1 else retvals
+
+
+def inline(gen_fn: GenerativeFunction, **kwargs):
+    assert isinstance(gen_fn, GenerativeFunction)
+    return lambda *args: _inline(gen_fn, *args, **kwargs)
+
+
+#####
+# Abstract evaluation for inline
+#####
+
+inline_p.def_abstract_eval(gen_fn_abstract_eval)
+inline_p.multiple_results = True
+inline_p.must_handle = True

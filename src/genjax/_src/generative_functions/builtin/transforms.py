@@ -14,6 +14,7 @@
 
 import dataclasses
 import functools
+import itertools
 from typing import Any
 from typing import List
 
@@ -28,6 +29,7 @@ from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.diff_rules import check_no_change
 from genjax._src.core.diff_rules import tree_strip_diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.specialization import is_concrete
 from genjax._src.core.staging import stage
 from genjax._src.core.typing import FloatArray
@@ -36,9 +38,6 @@ from genjax._src.generative_functions.builtin.builtin_datatypes import Trie
 from genjax._src.generative_functions.builtin.intrinsics import cache_p
 from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
 
-
-safe_map = core.safe_map
-safe_zip = core.safe_zip
 
 ##################################################
 # Bare values (for interfaces sans change types) #
@@ -65,6 +64,33 @@ class Bare(cps.Cell):
 #  Generative function interpreters  #
 ######################################
 
+#####
+# Transform address checks
+#####
+
+# Usage in transforms: checks for duplicate addresses.
+@dataclasses.dataclass
+class AddressVisitor(Pytree):
+    visited: List
+
+    def flatten(self):
+        return (), (self.visited,)
+
+    @classmethod
+    def new(cls):
+        return AddressVisitor([])
+
+    def visit(self, addr):
+        if addr in self.visited:
+            raise Exception("Already visited this address.")
+        else:
+            self.visited.append(addr)
+
+    def merge(self, other):
+        new = AddressVisitor.new()
+        for addr in itertools.chain(self.visited, other.visited):
+            new.visit(addr)
+
 
 #####
 # Simulate
@@ -78,6 +104,8 @@ class Simulate(cps.Handler):
     score: FloatArray
     choice_state: Trie
     cache_state: Trie
+    trace_visitor: AddressVisitor
+    cache_visitor: AddressVisitor
 
     def flatten(self):
         return (
@@ -85,6 +113,8 @@ class Simulate(cps.Handler):
             self.score,
             self.choice_state,
             self.cache_state,
+            self.trace_visitor,
+            self.cache_visitor,
         ), (self.handles,)
 
     @classmethod
@@ -92,24 +122,51 @@ class Simulate(cps.Handler):
         score = 0.0
         choice_state = Trie.new()
         cache_state = Trie.new()
+        trace_visitor = AddressVisitor.new()
+        cache_visitor = AddressVisitor.new()
         handles = [gen_fn_p, cache_p]
-        return Simulate(handles, key, score, choice_state, cache_state)
+        return Simulate(
+            handles, key, score, choice_state, cache_state, trace_visitor, cache_visitor
+        )
 
     def trace(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
+        # Use the visitor to check if an address of this value
+        # has already been visited.
+        self.trace_visitor.visit(addr)
+
+        # Unflatten the flattened `Pytree` arguments.
         gen_fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+
+        # Send the GFI call to the generative function callee.
         self.key, tr = gen_fn.simulate(self.key, args, **kwargs)
+
+        # Set state in the handler.
         score = tr.get_score()
         self.choice_state[addr] = tr
         self.score += score
+
+        # Get the return value, lift back to the CPS
+        # interpreter value type lattice (here, `Bare`).
         v = tr.get_retval()
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
 
     def cache(self, cell_type, prim, args, addr, fn, tree_in, cont, **kwargs):
+        # Use the visitor to check if an address of this value
+        # has already been visited.
+        self.cache_visitor.visit(addr)
+
+        # Unflatten the flattened `Pytree` arguments.
         args = jtu.tree_unflatten(tree_in, args)
         retval = fn(*args)
+
+        # Store the return value with the handler.
         self.cache_state[addr] = retval
-        return cont(retval)
+
+        # Get the return value, lift back to the CPS
+        # interpreter value type lattice (here, `Bare`).
+        v = cps.flatmap_outcells(cell_type, retval)
+        return cont(*v)
 
 
 def simulate_transform(source_fn, **kwargs):

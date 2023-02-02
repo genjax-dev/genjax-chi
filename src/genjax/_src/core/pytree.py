@@ -30,7 +30,7 @@ import numpy as np
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.specialization import is_concrete
-from genjax._src.core.typing import static_check_grad
+from genjax._src.core.typing import static_check_supports_grad
 
 
 class Pytree(metaclass=abc.ABCMeta):
@@ -130,13 +130,13 @@ def squeeze(tree):
 
 def tree_grad_split(tree):
     def _grad_filter(v):
-        if static_check_grad(v):
+        if static_check_supports_grad(v):
             return v
         else:
             return None
 
     def _nograd_filter(v):
-        if not static_check_grad(v):
+        if not static_check_supports_grad(v):
             return v
         else:
             return None
