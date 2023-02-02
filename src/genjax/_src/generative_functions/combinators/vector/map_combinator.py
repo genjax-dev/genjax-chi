@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Union
 
+import builtins
 import jax
 import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
@@ -133,7 +134,7 @@ class MapCombinator(GenerativeFunction):
         repeats: Union[None, IntArray] = None,
     ) -> "MapCombinator":
         assert isinstance(kernel, GenerativeFunction)
-        if in_axes is None or all(map(lambda v: v is None, in_axes)):
+        if in_axes is None or all(builtins.map(lambda v: v is None, in_axes)):
             assert repeats is not None
         return MapCombinator(in_axes, repeats, kernel)
 
