@@ -114,7 +114,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, indices: Union[List, FloatArray], inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner

@@ -34,6 +34,7 @@ from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.staging import make_zero_trace
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -119,8 +120,9 @@ class UnfoldCombinator(GenerativeFunction):
     def flatten(self):
         return (self.kernel,), (self.max_length,)
 
+    @typecheck
     @classmethod
-    def new(cls, kernel, max_length):
+    def new(cls, kernel: GenerativeFunction, max_length: Int):
         return UnfoldCombinator(max_length, kernel)
 
     # This overloads the call functionality for this generative function
