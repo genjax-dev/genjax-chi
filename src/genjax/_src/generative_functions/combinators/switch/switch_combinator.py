@@ -28,9 +28,6 @@ can have different shape/dtype choices. The resulting :code:`SwitchTrace` will e
 """
 
 from dataclasses import dataclass
-from typing import Any
-from typing import List
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
@@ -44,7 +41,11 @@ from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.staging import get_trace_data_shape
 from genjax._src.core.sumtree import Sumtree
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
@@ -152,8 +153,9 @@ class SwitchCombinator(GenerativeFunction):
     def flatten(self):
         return (self.branches,), ()
 
+    @typecheck
     @classmethod
-    def new(cls, *args):
+    def new(cls, *args: GenerativeFunction):
         return SwitchCombinator([*args])
 
     # This overloads the call functionality for this generative function
@@ -288,4 +290,3 @@ class SwitchCombinator(GenerativeFunction):
 ##############
 
 Switch = SwitchCombinator.new
-switch = Switch
