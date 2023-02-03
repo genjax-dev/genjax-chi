@@ -36,18 +36,12 @@ except ImportError:
 package = "genjax"
 python_version = "3.11"
 nox.needs_version = ">= 2021.6.6"
-nox.options.sessions = (
-    "tests",
-    "xdoctests",
-    "lint",
-    "build",
-)
+nox.options.sessions = ("tests", "xdoctests", "lint", "build")
 
 
 @session(python=python_version)
 def tests(session):
-    session.install("poetry")
-    session.run("poetry", "install")
+    session.run_always("poetry", "install", external=True)
     session.run(
         "poetry",
         "run",
@@ -67,8 +61,7 @@ def tests(session):
 
 @session(python=python_version)
 def benchmark(session):
-    session.install("poetry")
-    session.run("poetry", "install")
+    session.run_always("poetry", "install", external=True)
     session.run(
         "coverage",
         "run",
@@ -87,6 +80,7 @@ def benchmark(session):
 @session(python=python_version)
 def xdoctests(session) -> None:
     """Run examples with xdoctest."""
+    session.run_always("poetry", "install", external=True)
     if session.posargs:
         args = [package, *session.posargs]
     else:
@@ -94,7 +88,6 @@ def xdoctests(session) -> None:
         if "FORCE_COLOR" in os.environ:
             args.append("--colored=1")
 
-    session.install(".")
     session.install("xdoctest[colors]")
     session.run("python", "-m", "xdoctest", *args)
 
@@ -111,8 +104,7 @@ def safety(session) -> None:
 def mypy(session) -> None:
     """Type-check using mypy."""
     args = session.posargs or ["src", "tests", "docs/conf.py"]
-    session.install(".")
-    session.install("mypy", "pytest")
+    session.run_always("poetry", "install", external=True)
     session.run("mypy", *args)
     if not session.posargs:
         session.run("mypy", f"--python-executable={sys.executable}", "noxfile.py")
@@ -120,24 +112,15 @@ def mypy(session) -> None:
 
 @session(python=python_version)
 def lint(session: Session) -> None:
-    session.install(".")
+    session.run_always("poetry", "install", external=True)
     session.install(
-        "isort",
-        "black[jupyter]",
-        "autoflake8",
-        "flake8",
-        "docformatter[tomli]",
+        "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
     )
     session.run("isort", ".")
     session.run("black", ".")
     session.run("docformatter", "--in-place", "--recursive", ".")
     session.run(
-        "autoflake8",
-        "--in-place",
-        "--recursive",
-        "--exclude",
-        "__init__.py",
-        ".",
+        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "."
     )
     session.run("flake8", ".")
 
@@ -152,45 +135,10 @@ def build(session):
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
-    args = session.posargs or ["docs", "docs/_build"]
-    if not session.posargs and "FORCE_COLOR" in os.environ:
-        args.insert(0, "--color")
-
-    session.install(".")
-    session.install(
-        "sphinx_book_theme",
-        "sphinx",
-        "jupyter-sphinx",
-        "myst-parser",
-    )
-
-    build_dir = Path("docs", "_build")
+    session.run_always("poetry", "install", external=True)
+    session.install("mkdocs")
+    build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-
-    session.run("sphinx-build", *args)
-    session.run("quarto", "render", "docs/notebooks", external=True)
-
-
-@session(name="docs-serve", python=python_version)
-def docs_serve(session: Session) -> None:
-    """Build and serve the documentation with live reloading on file
-    changes."""
-    args = session.posargs or ["docs", "docs/_build"]
-    if not session.posargs and "FORCE_COLOR" in os.environ:
-        args.insert(0, "--color")
-
-    session.install(".")
-    session.install(
-        "sphinx_book_theme",
-        "sphinx",
-        "jupyter-sphinx",
-        "sphinx-autobuild",
-        "myst-parser",
-    )
-
-    build_dir = Path("docs", "_build")
-    if build_dir.exists():
-        shutil.rmtree(build_dir)
-
-    session.run("sphinx-autobuild", *args)
+    session.run("mkdocs", "build")
+    session.run("quarto", "render", "notebooks", external=True)

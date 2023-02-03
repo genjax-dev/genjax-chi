@@ -36,10 +36,6 @@ coverage = "^7.0.0"
 mypy = "^0.991"
 pytest-benchmark = "^4.0.0"
 autoflake8 = "^0.4.0"
-sphinx = ">=3,<5"
-jupyter-sphinx = "^0.4.0"
-sphinx-autobuild = "^2021.3.14"
-sphinx-copybutton = "^0.5.1"
 isort = "^5.11.3"
 xdoctest = "^1.1.0"
 safety = "^2.3.5"
@@ -48,6 +44,9 @@ jupyterlab = "^3.5.1"
 docformatter = {version = "^1.5.1", extras = ["tomli"]}
 matplotlib = "^3.6.2"
 seaborn = "^0.12.1"
+mkdocs = "^1.4.2"
+mkdocs-material = "^9.0.10"
+mkdocstrings = {version = "^0.20.0", extras=["python"]}
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]
