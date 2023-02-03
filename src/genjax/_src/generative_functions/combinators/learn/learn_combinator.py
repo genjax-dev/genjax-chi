@@ -96,4 +96,3 @@ class LearnCombinator(GenerativeFunction):
 ##############
 
 Learn = LearnCombinator.new
-learn = Learn

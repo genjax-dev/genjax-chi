@@ -43,10 +43,6 @@ from genjax._src.generative_functions.combinators import Switch
 from genjax._src.generative_functions.combinators import SwitchCombinator
 from genjax._src.generative_functions.combinators import Unfold
 from genjax._src.generative_functions.combinators import UnfoldCombinator
-from genjax._src.generative_functions.combinators import learn
-from genjax._src.generative_functions.combinators import map
-from genjax._src.generative_functions.combinators import switch
-from genjax._src.generative_functions.combinators import unfold
 from genjax._src.generative_functions.combinators import vec_chm
 from genjax._src.generative_functions.combinators import vec_sel
 from genjax._src.generative_functions.combinators import vector_choice_map
@@ -56,16 +52,12 @@ from genjax._src.generative_functions.combinators import vector_select
 __all__ = [
     "MapCombinator",
     "Map",
-    "map",
     "UnfoldCombinator",
     "Unfold",
-    "unfold",
     "SwitchCombinator",
     "Switch",
-    "switch",
     "LearnCombinator",
     "Learn",
-    "learn",
     "vector_choice_map",
     "vec_chm",
     "vector_select",
