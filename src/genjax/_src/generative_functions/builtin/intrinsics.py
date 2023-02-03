@@ -144,11 +144,6 @@ def _inline(gen_fn, *args, **kwargs):
     return retvals[0] if len(retvals) == 1 else retvals
 
 
-def inline(gen_fn: GenerativeFunction, **kwargs):
-    assert isinstance(gen_fn, GenerativeFunction)
-    return lambda *args: _inline(gen_fn, *args, **kwargs)
-
-
 #####
 # Abstract evaluation for inline
 #####

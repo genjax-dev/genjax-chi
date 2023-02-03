@@ -26,13 +26,13 @@ def simple_normal():
 
 @genjax.gen
 def higher_model():
-    y = genjax.inline(simple_normal)()
+    y = simple_normal.inline()
     return y
 
 
 @genjax.gen
 def higher_higher_model():
-    y = genjax.inline(higher_model)()
+    y = higher_model.inline()
     return y
 
 
