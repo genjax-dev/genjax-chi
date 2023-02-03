@@ -34,6 +34,7 @@ from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTr
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
     trace_type_transform,
 )
+from genjax._src.generative_functions.builtin.intrinsics import _inline
 from genjax._src.generative_functions.builtin.intrinsics import cache
 from genjax._src.generative_functions.builtin.intrinsics import trace
 from genjax._src.generative_functions.builtin.transforms import assess_transform
@@ -41,6 +42,10 @@ from genjax._src.generative_functions.builtin.transforms import importance_trans
 from genjax._src.generative_functions.builtin.transforms import simulate_transform
 from genjax._src.generative_functions.builtin.transforms import update_transform
 
+
+#####
+# Language syntactic sugar
+#####
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the builtin language for functions via the `cache` intrinsics.
@@ -69,6 +74,14 @@ def save(fn, **kwargs):
     return DeferredFunctionCall.new(fn, **kwargs)
 
 
+# Denotes that a generative function should be inlined in the
+# `@` syntactic sugar for addressing.
+class INLINE_FLAG:
+    pass
+
+
+inline = INLINE_FLAG()
+
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the builtin language for generative functions via the `trace` intrinsic.
 @dataclass
@@ -85,7 +98,18 @@ class DeferredGenerativeFunctionCall(Pytree):
         return DeferredGenerativeFunctionCall(gen_fn, kwargs, args)
 
     def __matmul__(self, addr):
-        return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
+        if addr == inline:
+            # To use inlining, the generative function must be a
+            # `BuiltinGenerativeFunction`.
+            assert isinstance(self.gen_fn, BuiltinGenerativeFunction)
+            return _inline(self.gen_fn, *self.args, **self.kwargs)
+        else:
+            return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
+
+
+#####
+# Generative function
+#####
 
 
 @dataclass
@@ -160,3 +184,17 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         key, (retval, score) = assess_transform(self.source, **kwargs)(key, chm, args)
         return key, (retval, score)
+
+    def inline(self, *args):
+        return _inline(self, *args)
+
+
+#####
+# Partial binding / currying
+#####
+
+
+def partial(gen_fn, *static_args):
+    return BuiltinGenerativeFunction.new(
+        lambda *args: gen_fn.inline(*args, *static_args),
+    )
