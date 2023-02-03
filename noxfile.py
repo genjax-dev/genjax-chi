@@ -51,7 +51,7 @@ def tests(session):
         "pytest",
         "--benchmark-disable",
         "--ignore",
-        "experiments",
+        "scratch",
         "--ignore",
         "benchmarks",
     )
