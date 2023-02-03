@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.generative_functions.distributions import Beta
 from genjax._src.generative_functions.distributions import Bernoulli
 from genjax._src.generative_functions.distributions import Cauchy
 from genjax._src.generative_functions.distributions import Dirichlet
@@ -88,6 +89,7 @@ __all__ = [
     "TFPMixture",
     "Distribution",
     "ExactDensity",
+    "Beta",
     "Bernoulli",
     "Cauchy",
     "Dirichlet",
