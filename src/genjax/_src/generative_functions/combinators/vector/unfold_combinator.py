@@ -659,4 +659,3 @@ class UnfoldCombinator(GenerativeFunction):
 ##############
 
 Unfold = UnfoldCombinator.new
-unfold = Unfold
