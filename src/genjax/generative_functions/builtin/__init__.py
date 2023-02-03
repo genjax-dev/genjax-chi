@@ -18,6 +18,7 @@ from genjax._src.generative_functions.builtin import BuiltinSelection
 from genjax._src.generative_functions.builtin import cache
 from genjax._src.generative_functions.builtin import chm
 from genjax._src.generative_functions.builtin import choice_map
+from genjax._src.generative_functions.builtin import inline
 from genjax._src.generative_functions.builtin import save
 from genjax._src.generative_functions.builtin import sel
 from genjax._src.generative_functions.builtin import select
@@ -35,4 +36,5 @@ __all__ = [
     "trace",
     "cache",
     "save",
+    "inline",
 ]

@@ -37,6 +37,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_datatypes import Trie
 from genjax._src.generative_functions.builtin.intrinsics import cache_p
 from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
+from genjax._src.generative_functions.builtin.intrinsics import inline_p
 
 
 ##################################################
@@ -93,12 +94,48 @@ class AddressVisitor(Pytree):
 
 
 #####
+# Inlining
+#####
+
+
+def _inline_transform(cell_type, source_fn, handler, **kwargs):
+    @functools.wraps(source_fn)
+    def _inner(args):
+        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        with cps.Interpreter.new(cell_type, handler) as interpreter:
+            flat_out = interpreter(
+                jaxpr,
+                [cell_type.new(v) for v in consts],
+                list(map(cell_type.new, flat_args)),
+            )
+            flat_out = map(lambda v: v.get_val(), flat_out)
+            retvals = jtu.tree_unflatten(out_tree, flat_out)
+
+        return retvals
+
+    return _inner
+
+
+# NOTE: A convenient mixin which implements a basic handling routine for `inline_p`.
+# NOTE: `update` doesn't use this - because it works with a slightly
+# different `Cell` lattice than the other handlers.
+class DefaultInline:
+    def inline(self, cell_type, prim, args, cont, tree_in, **kwargs):
+        gen_fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+        transformed = _inline_transform(cell_type, gen_fn.source, self)
+        v = transformed(args)
+        v = cps.flatmap_outcells(cell_type, v)
+        return cont(*v)
+
+
+#####
 # Simulate
 #####
 
 
 @dataclasses.dataclass
-class Simulate(cps.Handler):
+class Simulate(cps.Handler, DefaultInline):
     handles: List[core.Primitive]
     key: PRNGKey
     score: FloatArray
@@ -124,7 +161,7 @@ class Simulate(cps.Handler):
         cache_state = Trie.new()
         trace_visitor = AddressVisitor.new()
         cache_visitor = AddressVisitor.new()
-        handles = [gen_fn_p, cache_p]
+        handles = [gen_fn_p, cache_p, inline_p]
         return Simulate(
             handles, key, score, choice_state, cache_state, trace_visitor, cache_visitor
         )
@@ -197,7 +234,7 @@ def simulate_transform(source_fn, **kwargs):
 
 
 @dataclasses.dataclass
-class Importance(cps.Handler):
+class Importance(cps.Handler, DefaultInline):
     handles: List[core.Primitive]
     key: PRNGKey
     score: FloatArray
@@ -218,7 +255,7 @@ class Importance(cps.Handler):
 
     @classmethod
     def new(cls, key, constraints):
-        handles = [gen_fn_p, cache_p]
+        handles = [gen_fn_p, cache_p, inline_p]
         score = 0.0
         weight = 0.0
         choice_state = Trie.new()
@@ -275,6 +312,27 @@ def importance_transform(source_fn, **kwargs):
 # Update
 #####
 
+# NOTE: to support the `inline_p` primitive.
+def _update_inline_transform(cell_type, source_fn, handler, **kwargs):
+    @functools.wraps(source_fn)
+    def _inner(argdiffs):
+        vals = tree_strip_diff(argdiffs)
+        closed_jaxpr, (_, _, out_tree) = stage(source_fn)(*vals, **kwargs)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        with cps.Interpreter.new(cell_type, handler) as interpreter:
+            flat_argdiffs, _ = jtu.tree_flatten(argdiffs, is_leaf=check_is_diff)
+            flat_retval_diffs = interpreter(
+                jaxpr,
+                [Diff.new(v, change=NoChange) for v in consts],
+                flat_argdiffs,
+            )
+            retvals = tree_strip_diff(flat_retval_diffs)
+            retvals = jtu.tree_unflatten(out_tree, retvals)
+
+        return retvals
+
+    return _inner
+
 
 @dataclasses.dataclass
 class Update(cps.Handler):
@@ -302,7 +360,7 @@ class Update(cps.Handler):
 
     @classmethod
     def new(cls, key, previous_trace, constraints):
-        handles = [gen_fn_p, cache_p]
+        handles = [gen_fn_p, cache_p, inline_p]
         score = 0.0
         weight = 0.0
         choice_state = Trie.new()
@@ -358,6 +416,13 @@ class Update(cps.Handler):
         retval = cps.flatmap_outcells(cell_type, retval)
         return cont(*retval)
 
+    def inline(self, cell_type, prim, args, cont, tree_in, **kwargs):
+        gen_fn, argdiffs = jtu.tree_unflatten(tree_in, args)
+        transformed = _update_inline_transform(cell_type, gen_fn.source, self)
+        v = transformed(argdiffs)
+        v = cps.flatmap_outcells(cell_type, v)
+        return cont(*v)
+
 
 def update_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
@@ -374,12 +439,9 @@ def update_transform(source_fn, **kwargs):
                 flat_argdiffs,
             )
 
-            retval_diffs = jtu.tree_unflatten(
-                out_tree,
-                flat_retval_diffs,
-            )
             retvals = tree_strip_diff(flat_retval_diffs)
             retvals = jtu.tree_unflatten(out_tree, retvals)
+            retval_diffs = jtu.tree_unflatten(out_tree, flat_retval_diffs)
             w = handler.weight
             constraints = handler.choice_state
             cache = handler.cache_state
@@ -412,7 +474,7 @@ def update_transform(source_fn, **kwargs):
 
 
 @dataclasses.dataclass
-class Assess(cps.Handler):
+class Assess(cps.Handler, DefaultInline):
     handles: List[core.Primitive]
     key: PRNGKey
     score: FloatArray
@@ -427,7 +489,7 @@ class Assess(cps.Handler):
 
     @classmethod
     def new(cls, key, constraints):
-        handles = [gen_fn_p, cache_p]
+        handles = [gen_fn_p, cache_p, inline_p]
         score = 0.0
         return Assess(handles, key, score, constraints)
 
