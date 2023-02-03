@@ -18,6 +18,9 @@ import jax.tree_util as jtu
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.specialization import is_concrete
 from genjax._src.core.staging import stage
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import typecheck
 
 
 ##############
@@ -58,7 +61,8 @@ def _trace(gen_fn, addr, *args, **kwargs):
     return retvals[0] if len(retvals) == 1 else retvals
 
 
-def trace(addr, gen_fn: GenerativeFunction, **kwargs):
+@typecheck
+def trace(addr: Any, gen_fn: GenerativeFunction, **kwargs):
     assert isinstance(gen_fn, GenerativeFunction)
     static_address_type_check(addr)
     return lambda *args: _trace(gen_fn, addr, *args, **kwargs)
@@ -104,7 +108,8 @@ def _cache(fn, addr, *args, **kwargs):
     return retvals[0] if len(retvals) == 1 else retvals
 
 
-def cache(addr, fn, *args, **kwargs):
+@typecheck
+def cache(addr: Any, fn: Callable, *args: Any, **kwargs):
     # fn must be deterministic.
     assert not isinstance(fn, GenerativeFunction)
     static_address_type_check(addr)
@@ -132,7 +137,7 @@ cache_p.must_handle = True
 
 def _inline(gen_fn, *args, **kwargs):
     flat_args, tree_in = jtu.tree_flatten((gen_fn, args))
-    retvals = gen_fn_p.bind(*flat_args, tree_in=tree_in, **kwargs)
+    retvals = inline_p.bind(*flat_args, tree_in=tree_in, **kwargs)
     retvals = tuple(retvals)
 
     # Collapse single arity returns.
@@ -148,6 +153,17 @@ def inline(gen_fn: GenerativeFunction, **kwargs):
 # Abstract evaluation for inline
 #####
 
-inline_p.def_abstract_eval(gen_fn_abstract_eval)
+
+def inline_abstract_eval(*args, tree_in, **kwargs):
+    gen_fn, args = jtu.tree_unflatten(tree_in, args)
+
+    # See note above on `_abstract_gen_fn_call`.
+    closed_jaxpr, _ = stage(_abstract_gen_fn_call)(gen_fn, *args)
+
+    retvals = closed_jaxpr.out_avals[1:]
+    return retvals
+
+
+inline_p.def_abstract_eval(inline_abstract_eval)
 inline_p.multiple_results = True
 inline_p.must_handle = True
