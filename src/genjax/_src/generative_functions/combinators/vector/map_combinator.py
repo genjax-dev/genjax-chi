@@ -17,8 +17,6 @@ broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
 
 from dataclasses import dataclass
-from typing import Any
-from typing import Union
 
 import jax
 import jax.experimental.host_callback as hcb
@@ -31,10 +29,12 @@ from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
@@ -155,6 +155,9 @@ class MapCombinator(GenerativeFunction):
     def simulate(
         self, key: PRNGKey, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, VectorTrace]:
+        # Argument broadcast semantics must be fully specified
+        # in `in_axes`.
+        assert len(args) == len(self.in_axes)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -230,6 +233,9 @@ class MapCombinator(GenerativeFunction):
         args: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
+        # Argument broadcast semantics must be fully specified
+        # in `in_axes`.
+        assert len(args) == len(self.in_axes)
         # Note: these branches are resolved at tracing time.
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
@@ -300,6 +306,9 @@ class MapCombinator(GenerativeFunction):
         argdiffs: Tuple,
         **_,
     ):
+        # Argument broadcast semantics must be fully specified
+        # in `in_axes`.
+        assert len(argdiffs) == len(self.in_axes)
         # Branches here implement certain optimizations when more
         # information about the passed in choice map is available.
         if isinstance(chm, VectorChoiceMap):
@@ -334,6 +343,9 @@ class MapCombinator(GenerativeFunction):
     def assess(
         self, key: PRNGKey, chm: VectorChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
+        # Argument broadcast semantics must be fully specified
+        # in `in_axes`.
+        assert len(args) == len(self.in_axes)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.count_nonzero(indices - chm.get_index()) == 0
@@ -357,4 +369,3 @@ class MapCombinator(GenerativeFunction):
 ##############
 
 Map = MapCombinator.new
-map = Map

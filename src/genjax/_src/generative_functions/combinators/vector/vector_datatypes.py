@@ -114,14 +114,14 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, indices: Union[List, FloatArray], inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
-        # indices can't be empty.
-        assert indices
         # convert list to array.
         if isinstance(indices, list):
+            # indices can't be empty.
+            assert indices
             indices = jnp.array(indices)
         indices_len = len(indices)
         inner_len = VectorChoiceMap._static_check_broadcast_dim_length(inner)
