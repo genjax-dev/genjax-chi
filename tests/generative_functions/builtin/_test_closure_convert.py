@@ -12,23 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
-from typing import Callable
+import jax
+import jax.numpy as jnp
 
-from genjax._src.core import GenerativeFunction
-from genjax._src.generative_functions.builtin import BuiltinGenerativeFunction
-
-
-#####
-# Language decorator
-#####
+import genjax
 
 
-def gen(callable: Callable, **kwargs) -> GenerativeFunction:
-    if inspect.isclass(callable) or inspect.ismethod(callable):
-        return lambda source: callable(
-            BuiltinGenerativeFunction.new(source),
-            **kwargs,
-        )
-    else:
-        return BuiltinGenerativeFunction.new(callable)
+def emits_cc_gen_fn(v):
+    @genjax.gen
+    def model():
+        x = genjax.Normal(jnp.sum(v), 1.0) @ "x"
+        return x
+
+    return model
+
+
+@genjax.gen
+def model():
+    x = jnp.ones(5)
+    gen_fn = emits_cc_gen_fn(x)
+    v = gen_fn() @ "v"
+    return v
+
+
+class TestClosureConvert:
+    def test_closure_convert(self):
+        key = jax.random.PRNGKey(314159)
+        key, _ = jax.jit(genjax.simulate(model))(key, ())
+        assert True

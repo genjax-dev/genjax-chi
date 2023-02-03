@@ -14,6 +14,8 @@
 
 from dataclasses import dataclass
 
+import jax
+
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
@@ -24,6 +26,7 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
@@ -50,7 +53,7 @@ class DeferredFunctionCall(Pytree):
     args: Union[None, Tuple]
 
     def flatten(self):
-        return (self.args,), (self.gen_fn, self.kwargs)
+        return (self.args,), (self.fn, self.kwargs)
 
     @classmethod
     def new(cls, fn, **kwargs):
@@ -90,9 +93,14 @@ class DeferredGenerativeFunctionCall(Pytree):
 @dataclass
 class BuiltinGenerativeFunction(GenerativeFunction):
     source: Callable
+    aux_args: Union[None, List]
 
     def flatten(self):
-        return (), (self.source,)
+        return (self.aux_args,), (self.source,)
+
+    @classmethod
+    def new(cls, source, aux_args=None):
+        return BuiltinGenerativeFunction(source, aux_args)
 
     # This overloads the call functionality for this generative function
     # and allows usage of shorthand notation in the builtin DSL.
@@ -107,10 +115,12 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def simulate(
         self, key: PRNGKey, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, BuiltinTrace]:
-        key, (f, args, r, chm, score), cache = simulate_transform(
-            self.source, **kwargs
-        )(key, args)
-        return key, BuiltinTrace(self, args, r, chm, cache, score)
+        converted_fn, aux_args = jax.closure_convert(self.source, *args)
+        key, (f, cc_args, r, chm, score), cache = simulate_transform(
+            converted_fn, **kwargs
+        )(key, (*args, *aux_args))
+        cc_gen_fn = BuiltinGenerativeFunction.new(f, aux_args)
+        return key, BuiltinTrace(cc_gen_fn, cc_args, r, chm, cache, score)
 
     @typecheck
     def importance(

@@ -9,6 +9,8 @@ nav:
   - Inference notebooks: genjax/notebooks.md
   - Public API reference:
       - Core: genjax/library/core.md
+      - Generative functions: genjax/library/generative_functions.md
+      - Inferece: genjax/library/inference.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
@@ -49,6 +51,7 @@ plugins:
       default_handler: python
       handlers:
         python:
+          paths: [src]
           options:
             show_source: false
 
