@@ -32,6 +32,7 @@ from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import UnknownChange
 from genjax._src.core.masks import BooleanMask
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.staging import get_shaped_aval
 from genjax._src.core.staging import stage
 from genjax._src.core.tracetypes import Bottom
 from genjax._src.core.tracetypes import Finite
@@ -78,4 +79,5 @@ __all__ = [
     "Pytree",
     # Utilities.
     "stage",
+    "get_shaped_aval",
 ]
