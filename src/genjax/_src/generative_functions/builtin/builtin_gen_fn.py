@@ -120,8 +120,9 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     def flatten(self):
         return (self.aux_args,), (self.source,)
 
+    @typecheck
     @classmethod
-    def new(cls, source, aux_args=None):
+    def new(cls, source: Callable, aux_args: Union[None, List] = None):
         return BuiltinGenerativeFunction(source, aux_args)
 
     # This overloads the call functionality for this generative function
