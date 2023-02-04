@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.experimental import closure_convert
+from genjax._src.experimental.pytree_closure import closure
+from genjax._src.experimental.pytree_closure import closure_convert
 
 
-__all__ = ["closure_convert"]
+__all__ = ["closure", "closure_convert"]

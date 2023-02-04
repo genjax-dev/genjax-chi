@@ -19,7 +19,7 @@ import genjax
 
 
 def emits_cc_gen_fn(v):
-    @genjax.gen
+    @genjax.closure
     def model():
         x = genjax.Normal(jnp.sum(v), 1.0) @ "x"
         return x
@@ -31,8 +31,8 @@ def emits_cc_gen_fn(v):
 def model():
     x = jnp.ones(5)
     gen_fn = emits_cc_gen_fn(x)
-    v = gen_fn() @ "v"
-    return v
+    v = gen_fn.inline()
+    return (v, gen_fn)
 
 
 class TestClosureConvert:

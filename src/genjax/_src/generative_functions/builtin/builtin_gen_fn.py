@@ -24,7 +24,6 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
@@ -115,15 +114,14 @@ class DeferredGenerativeFunctionCall(Pytree):
 @dataclass
 class BuiltinGenerativeFunction(GenerativeFunction):
     source: Callable
-    aux_args: Union[None, List]
 
     def flatten(self):
-        return (self.aux_args,), (self.source,)
+        return (), (self.source,)
 
     @typecheck
     @classmethod
-    def new(cls, source: Callable, aux_args: Union[None, List] = None):
-        return BuiltinGenerativeFunction(source, aux_args)
+    def new(cls, source: Callable):
+        return BuiltinGenerativeFunction(source)
 
     # This overloads the call functionality for this generative function
     # and allows usage of shorthand notation in the builtin DSL.
