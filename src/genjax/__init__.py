@@ -23,6 +23,7 @@ from genjax import typing
 
 from .console import *
 from .core import *
+from .experimental import *
 from .extras import *
 from .generative_functions import *
 from .inference import *
