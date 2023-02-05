@@ -142,9 +142,3 @@ def site_build(session: Session) -> None:
         shutil.rmtree(build_dir)
     session.run("mkdocs", "build")
     session.run("quarto", "render", "notebooks", external=True)
-
-
-@session(name="notebooks-build", python=python_version)
-def notebooks_build(session: Session) -> None:
-    """Build the documentation."""
-    session.run("quarto", "render", "notebooks", external=True)
