@@ -24,9 +24,9 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core import mask
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.masks import mask
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import Any

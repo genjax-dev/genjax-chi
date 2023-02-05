@@ -12,24 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module provides the core functionality which the `GenJAX` modeling and
-inference modules are buillt on top of, as well as utility functionality for
-coercing class definitions to valid `Pytree` method implementors (guaranteeing
-compatibility with JAX's serializing/deserializing to `Pytree` instances).
+"""This module provides the core functionality and JAX compatibility layer
+which the `GenJAX` generative function modeling and inference modules are built
+on top of. It contains (truncated, and in no particular order):
 
-This module also exports some interpreter-based transformations on `Jaxpr`
-instances. Interpreters are all written in initial style - they operate on `ClosedJaxpr` instances - but they are JAX compatible, meaning they can be staged out for zero runtime cost.
+* Core [Gen](https://www.gen.dev/) associated data types for generative functions.
+
+* Utility functionality for automatically registering class definitions as valid `Pytree` method implementors (guaranteeing `flatten`/`unflatten` compatibility across JAX transform boundaries). For more information, see [Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
+
+* Staging functionality that allows linear lifting of pure, numerical Python programs to `ClosedJaxpr` instances.
+
+* Transformation interpreters: interpreter-based transformations on which operate on `ClosedJaxpr` instances. Interpreters are all written in initial style - they operate on `ClosedJaxpr` instances, and don't implement their own custom `jax.Tracer` types - but they are JAX compatible, implying that they can be staged out for zero runtime cost.
+
+* Masking functionality which allows active/inactive flagging of data - useful when branching patterns of computation require uncertainty in whether or not data is active with respect to a generative computation.
 """
-
-from .callback import *
-from .datatypes import *
-from .diff_rules import *
-from .hashabledict import *
-from .interpreters import *
-from .masks import *
-from .pytree import *
-from .specialization import *
-from .staging import *
-from .sumtree import *
-from .tracetypes import *
-from .tree import *

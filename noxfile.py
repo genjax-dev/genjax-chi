@@ -133,7 +133,7 @@ def build(session):
 
 
 @session(name="docs-build", python=python_version)
-def docs_build(session: Session) -> None:
+def site_build(session: Session) -> None:
     """Build the documentation."""
     session.run_always("poetry", "install", external=True)
     session.install("mkdocs")
@@ -141,4 +141,10 @@ def docs_build(session: Session) -> None:
     if build_dir.exists():
         shutil.rmtree(build_dir)
     session.run("mkdocs", "build")
+    session.run("quarto", "render", "notebooks", external=True)
+
+
+@session(name="notebooks-build", python=python_version)
+def notebooks_build(session: Session) -> None:
+    """Build the documentation."""
     session.run("quarto", "render", "notebooks", external=True)

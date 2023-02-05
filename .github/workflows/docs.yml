@@ -40,8 +40,8 @@ jobs:
       - name: Install poetry/nox-poetry.
         run: pip install poetry nox-poetry
 
-      - name: Run Nox to build docs.
-        run: nox -s docs-build
+      - name: Run Nox to build notebooks.
+        run: nox -s notebooks-build
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

@@ -15,7 +15,7 @@
 import inspect
 from typing import Callable
 
-from genjax._src.core import GenerativeFunction
+from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.generative_functions.builtin import BuiltinGenerativeFunction
 
 

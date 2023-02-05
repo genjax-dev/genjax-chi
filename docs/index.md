@@ -1,18 +1,23 @@
 # Overview
 
-!!! note "What is GenJAX?"
+**Short: it's a probabilistic programming library. It's primary computational object (the generative function) supports a well-studied and useful formal interface. It empowers users with the ability to customize and optimize their model and inference algorithms.**
 
-    [GenJAX][genjax] is system for probabilistic programming constructed by combining the concepts of [Gen][gen] with the hardware accelerator compilation capabilities of [JAX][jax].
+---
 
-Gen is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. GenJAX is an implementation of Gen on top of JAX - it exposes the ability to programmatically construct and manipulate _generative functions_: computational objects which represent probability measures over structured sample spaces (c.f. [](genjax/gen_fn)). By construction, these objects expose a concise interface for expressing approximate and differentiable inference algorithms. The interface supports extension - allowing gradual performance optimization of critical modeling/inference code paths.
+**Gen** is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces) on native devices, accelerators, and other parallel fabrics. 
+{ .annotate }
 
-You can (and we, at the [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/), do!) use these objects for machine learning - including robotics, natural language processing, reasoning about agents, and modelling / creating systems which exhibit human-like reasoning.
+1.  By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms. 
 
-A precise mathematical formulation of generative functions is given in [Marco Cusumano-Towner's PhD thesis][marco_thesis].
+    The set of generative functions is extensible! You can implement your own - allowing advanced users to performance optimize their critical modeling/inference code paths.
 
-!!! note ""
+    You can (and we, at the [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/), do!) use these objects for machine learning - including robotics, natural language processing, reasoning about agents, and modelling / creating systems which exhibit human-like reasoning.
 
-    If you don't mind perusing carefully crafted documentation (albeit in another language), you might also enjoy the [Gen.jl][gen.jl] Julia documentation.
+    A precise mathematical formulation of generative functions is given in [Marco Cusumano-Towner's PhD thesis][marco_thesis].
+
+## Why Gen?
+
+GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX, or why this library exists - it's worth starting by understanding why Gen exists. Gen exists because probabilistic modeling and inference is hard - both computationally, and existing tooling.
 
 [license]: license
 [contributor guide]: contributing

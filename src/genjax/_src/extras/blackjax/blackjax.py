@@ -28,8 +28,8 @@ import blackjax
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core import Selection
-from genjax._src.core import Trace
+from genjax._src.core.datatypes import Selection
+from genjax._src.core.datatypes import Trace
 from genjax._src.core.pytree import tree_grad_split
 from genjax._src.core.pytree import tree_zipper
 from genjax._src.core.typing import Any

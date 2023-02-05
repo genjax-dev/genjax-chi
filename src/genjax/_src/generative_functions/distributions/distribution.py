@@ -21,7 +21,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core import mask
 from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
@@ -34,6 +33,7 @@ from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import check_no_change
 from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.masks import BooleanMask
+from genjax._src.core.masks import mask
 from genjax._src.core.specialization import concrete_cond
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf

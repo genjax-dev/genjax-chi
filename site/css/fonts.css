@@ -1,0 +1,13 @@
+@font-face {
+  font-family: 'Berkeley';
+  src: url(../assets/font/BerkeleyMonoVariable-Regular.ttf) format('truetype');
+  font-style: normal;
+  font-weight: 100 1000;
+}
+
+@font-face {
+  font-family: 'Berkeley';
+  src: url(../assets/font/BerkeleyMonoVariable-Italic.ttf) format('truetype');
+  font-style: italic;
+  font-weight: 100 1000;
+}

@@ -7,6 +7,7 @@ dist/
 .ipynb_checkpoints
 /bazel-*
 .jax_configure.bazelrc
+.cache
 /tensorflow
 .DS_Store
 .mypy_cache/
@@ -31,4 +32,3 @@ cmake_install.cmake
 img
 scratch
 docs/_build
-site/

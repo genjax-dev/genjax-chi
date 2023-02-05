@@ -1,7 +1,22 @@
+# Copyright 2022 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 site_name: Gen ⊗ JAX
 site_url: https://probcomp.github.io/genjax/
 repo_url: https://github.com/probcomp/genjax
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
+
 nav:
   - Home: index.md
   - Concepts:
@@ -10,23 +25,40 @@ nav:
   - Public API reference:
       - Core: genjax/library/core.md
       - Generative functions: genjax/library/generative_functions.md
-      - Inferece: genjax/library/inference.md
+      - Inference: genjax/library/inference.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
       - License: license.md
 theme:
   name: material
+  logo: assets/img/gen-logo.png
+  favicon: assets/img/gen-logo.png
+  icon:
+    repo: fontawesome/brands/github
   font:
-    text: Atkinson Hyperlegible
-    code: Fira Code
+    text: Atkinson Hyperlegible 
   features:
+    - optimize
+    - typeset
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.tooltips
     - navigation.footer
-    - search.suggest
-    - search.highlight
-    - header.autohide
+    - navigation.indexes
+    - navigation.sections
     - navigation.tabs
     - navigation.top
+    - navigation.tracking
+    - navigation.instant
+    - navigation.path
+    - navigation.prune
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
   palette:
     # Palette toggle for light mode
     - scheme: default
@@ -41,24 +73,34 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+      
+watch:
+  - src/genjax
 
 plugins:
   - search
   - offline
+  - git-authors
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
   - mkdocstrings:
       enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
       custom_templates: templates
       default_handler: python
       handlers:
         python:
-          paths: [src]
           options:
-            show_source: false
+            show_source: true
+            show_root_heading: true
 
 extra:
   generator: false
 
-extra_css: [css/custom.css]
+extra_css: 
+  - css/fonts.css
+  - css/custom.css
+  - css/mkdocstrings.css
 
 extra_javascript:
   - js/mathjax.js
@@ -66,11 +108,13 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 markdown_extensions:
+  - attr_list
+  - md_in_html
   - admonition
-  - toc:
-      permalink: true
   - pymdownx.details
   - pymdownx.highlight
   - pymdownx.superfences
   - pymdownx.arithmatex:
       generic: true
+  - toc:
+      permalink: true

@@ -201,15 +201,14 @@ class Selection(Tree):
 
 @dataclasses.dataclass
 class GenerativeFunction(Pytree):
-    """
-    :code:`GenerativeFunction` abstract class which allows user-defined
-    implementations of the generative function interface methods.
-    The :code:`builtin` and :code:`distributions` languages both
-    implement a class inheritor of :code:`GenerativeFunction`.
+    """Abstract class which provides an inheritance base for user-defined
+    implementations of the generative function interface methods e.g. the
+    `BuiltinGenerativeFunction` and `Distribution` languages both implement a
+    class inheritor of `GenerativeFunction`.
 
     Any implementation will interact with the JAX tracing machinery,
     however, so there are specific API requirements above the requirements
-    enforced in other languages (like Gen in Julia).
+    enforced in other languages (unlike Gen in Julia, for example).
 
     The user *must* match the interface signatures of the native JAX
     implementation. This is not statically checked - but failure to do so
