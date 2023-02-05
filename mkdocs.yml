@@ -80,7 +80,9 @@ watch:
 plugins:
   - search
   - offline
-  - git-authors
+  - git-committers:
+      repository: probcomp/genjax
+      branch: main
   - git-revision-date-localized:
       enable_creation_date: true
       type: date
