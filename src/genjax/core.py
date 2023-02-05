@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core import all_select
-from genjax._src.core import mask
-from genjax._src.core import none_select
-from genjax._src.core import val_chm
-from genjax._src.core import value_choice_map
 from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
@@ -25,12 +20,17 @@ from genjax._src.core.datatypes import NoneSelection
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
+from genjax._src.core.datatypes import all_select
+from genjax._src.core.datatypes import none_select
+from genjax._src.core.datatypes import val_chm
+from genjax._src.core.datatypes import value_choice_map
 from genjax._src.core.diff_rules import Change
 from genjax._src.core.diff_rules import Diff
 from genjax._src.core.diff_rules import IntChange
 from genjax._src.core.diff_rules import NoChange
 from genjax._src.core.diff_rules import UnknownChange
 from genjax._src.core.masks import BooleanMask
+from genjax._src.core.masks import mask
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.staging import get_shaped_aval
 from genjax._src.core.staging import stage

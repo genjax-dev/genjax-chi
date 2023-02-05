@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.core as core
+import jax.core as jc
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import GenerativeFunction
@@ -28,13 +28,13 @@ from genjax._src.core.typing import typecheck
 ##############
 
 # Generative function trace intrinsic.
-gen_fn_p = core.Primitive("trace")
+gen_fn_p = jc.Primitive("trace")
 
 # Cache intrinsic.
-cache_p = core.Primitive("cache")
+cache_p = jc.Primitive("cache")
 
 # Inline intrinsic.
-inline_p = core.Primitive("inline")
+inline_p = jc.Primitive("inline")
 
 #####
 # Static address checks

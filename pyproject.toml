@@ -44,9 +44,14 @@ jupyterlab = "^3.5.1"
 docformatter = {version = "^1.5.1", extras = ["tomli"]}
 matplotlib = "^3.6.2"
 seaborn = "^0.12.1"
+
+[tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.2"
-mkdocs-material = "^9.0.10"
+mkdocs-material = {git = "https://github.com/squidfunk/mkdocs-material-insiders"}
 mkdocstrings = {version = "^0.20.0", extras=["python"]}
+mkdocs-git-authors-plugin = "^0.7.0"
+mkdocs-git-revision-date-localized-plugin = "^1.1.0"
+mkdocs-git-committers-plugin-2 = "^1.1.1"
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]

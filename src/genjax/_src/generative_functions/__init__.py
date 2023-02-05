@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""This module contains several standard generative function classes useful for
+structuring probabilistic programs."""
+
 from .builtin import *
 from .combinators import *
 from .distributions import *

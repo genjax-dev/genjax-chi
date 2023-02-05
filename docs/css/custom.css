@@ -4,5 +4,11 @@
 .md-typeset h4,
 .md-typeset h5,
 .md-typeset h6 {
-  font-weight: 700;
+  font-weight: bold;
+}
+
+.md-typeset code {
+  font-family: 'Berkeley';
+  font-weight: 500;
+  font-variant-ligatures: discretionary-ligatures;
 }
