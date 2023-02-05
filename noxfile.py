@@ -133,7 +133,7 @@ def build(session):
 
 
 @session(name="docs-build", python=python_version)
-def site_build(session: Session) -> None:
+def docs_build(session: Session) -> None:
     """Build the documentation."""
     session.run_always("poetry", "install", external=True)
     session.install("mkdocs")
