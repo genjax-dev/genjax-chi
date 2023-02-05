@@ -669,9 +669,15 @@
 
 
 <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
-<p><strong>Short: it's a probabilistic programming library. It's primary computational object (the generative function) supports a well-studied and useful formal interface. It empowers users with the ability to customize and optimize their model and inference algorithms.</strong></p>
+<p class="annotate"><strong>GenJAX: a probabilistic programming library designed from the ground up to scale Bayesian modeling and inference into high performance settings.</strong> (1)</p>
+<ol>
+<li>
+<p>Here, <em>high performance</em> means massively parallel, either cores or devices.</p>
+<p>For those whom this overview page may be irrelevant: we're talking about putting expressive models and customizable Bayesian inference on GPUs, TPUs, etc - without sacrificing abstraction or modularity.</p>
+</li>
+</ol>
 <hr />
-<p class="annotate"><strong>Gen</strong> is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. <strong>GenJAX</strong> is an implementation of Gen on top of <a href="https://github.com/google/jax">JAX</a> - exposing the ability to programmatically construct and manipulate <strong>generative functions</strong> (1) (computational objects which represent probability measures over structured sample spaces) on native devices, accelerators, and other parallel fabrics. </p>
+<p class="annotate"><a href="https://www.gen.dev/"><strong>Gen</strong></a> is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. <strong>GenJAX</strong> is an implementation of Gen on top of <a href="https://github.com/google/jax"><strong>JAX</strong></a> - exposing the ability to programmatically construct and manipulate <strong>generative functions</strong> (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. </p>
 <ol>
 <li>
 <p>By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms. </p>
@@ -680,8 +686,61 @@
 <p>A precise mathematical formulation of generative functions is given in <a href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner's PhD thesis</a>.</p>
 </li>
 </ol>
+<div class="grid cards">
+<ul>
+<li>
+<p><strong>Model code</strong></p>
+<div class="highlight"><pre><span></span><code><span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
+<span class="k">def</span> <span class="nf">model</span><span class="p">():</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">Beta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">@</span> <span class="s2">&quot;p&quot;</span>
+  <span class="n">v</span> <span class="o">=</span> <span class="n">Bernoulli</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">@</span> <span class="s2">&quot;v&quot;</span>
+  <span class="k">return</span> <span class="n">v</span>
+</code></pre></div>
+<p>Defining a beta-bernoulli process in GenJAX.</p>
+</li>
+<li>
+<p><strong>Inference code</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">sir</span><span class="p">(</span><span class="n">prng_key</span><span class="p">,</span> <span class="n">gen_fn</span><span class="p">,</span> 
+        <span class="n">obs</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">):</span>
+    <span class="k">pass</span>
+</code></pre></div>
+<p>This works for <strong>any</strong> generative function - not just the beta-bernoulli model defined on the left.</p>
+</li>
+</ul>
+</div>
 <h2 id="why-gen">Why Gen?<a class="headerlink" href="#why-gen" title="Permanent link">&para;</a></h2>
-<p>GenJAX is a <a href="https://www.gen.dev/">Gen</a> implementation. If you're considering using GenJAX, or why this library exists - it's worth starting by understanding why Gen exists. Gen exists because probabilistic modeling and inference is hard - both computationally, and existing tooling.</p>
+<p>GenJAX is a <a href="https://www.gen.dev/">Gen</a> implementation. If you're considering using GenJAX, or why this library exists - it's worth starting by understanding why Gen exists. </p>
+<p class="annotate">Gen exists because probabilistic modeling and inference is hard: understanding a domain well enough to construct a probabilistic model in the Bayesian paradigm is challenging, and that's half the battle - the other half is designing effective inference algorithms to probe the implications of the model (1).</p>
+<ol>
+<li>
+<p>Some probabilistic programming languages restrict the set of allowable models, providing (in return) efficient (often, exact) inference. </p>
+<p>Gen considers a wide class of models - include Bayesian nonparametrics, open-universe models, and models over rich structures (like programs!) - which don't natively support efficient exact inference.</p>
+</li>
+</ol>
+<p>In the past, probabilistic modellers typically considered the following design loop.</p>
+<pre class="mermaid"><code>graph LR
+  A[Design model.] --&gt; B[Implement inference by hand.];
+  B --&gt; C[Model + inference okay?];
+  C --&gt; D[Happy.];
+  C --&gt; A;</code></pre>
+<p class="annotate">The first generation (1) of probabilistic programming systems introduced inference engines which could operate abstractly over many different models, without requiring the programmer to return and tweak their inference code.</p>
+<ol>
+<li>
+<p>Here, the definition of "first generation" includes systems like JAGS, BUGS, BLOG, IBAL, Church, Infer.NET, Figaro, Stan, amongst others.</p>
+<p>But more precisely, many systems preceded the <a href="https://www.darpa.mil/program/probabilistic-programming-for-advancing-machine-learning">DARPA PPAML project</a> - which gave rise to several novel systems, including the predecessors of Gen.</p>
+</li>
+</ol>
+<pre class="mermaid"><code>graph LR
+  A[Design model.] --&gt; C[Use pre-built inference engine.];
+  B[Inference engine.] ---&gt; C[Use pre-built inference engine.];
+  C --&gt; D[Model + inference okay?];
+  D --&gt; E[Happy.];
+  D ---&gt; A;</code></pre>
+<p>Gen eliminates introduces a separation between modeling and inference code: <strong>the generative function interface</strong>.</p>
+<p align="center">
+<img width="600px" src="./assets/img/gen-architecture.png"/>
+</p>
+<p><br></p>
 
   
     
