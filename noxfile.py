@@ -41,7 +41,7 @@ nox.options.sessions = ("tests", "xdoctests", "lint", "build")
 
 @session(python=python_version)
 def tests(session):
-    session.run_always("poetry", "install", external=True)
+    session.run_always("poetry", "install", "--without", "docs", external=True)
     session.run(
         "poetry",
         "run",
@@ -61,7 +61,7 @@ def tests(session):
 
 @session(python=python_version)
 def benchmark(session):
-    session.run_always("poetry", "install", external=True)
+    session.run_always("poetry", "install", "--without", "docs", external=True)
     session.run(
         "coverage",
         "run",
@@ -80,7 +80,7 @@ def benchmark(session):
 @session(python=python_version)
 def xdoctests(session) -> None:
     """Run examples with xdoctest."""
-    session.run_always("poetry", "install", external=True)
+    session.run_always("poetry", "install", "--without", "docs", external=True)
     if session.posargs:
         args = [package, *session.posargs]
     else:
@@ -104,7 +104,7 @@ def safety(session) -> None:
 def mypy(session) -> None:
     """Type-check using mypy."""
     args = session.posargs or ["src", "tests", "docs/conf.py"]
-    session.run_always("poetry", "install", external=True)
+    session.run_always("poetry", "install", "--without", "docs", external=True)
     session.run("mypy", *args)
     if not session.posargs:
         session.run("mypy", f"--python-executable={sys.executable}", "noxfile.py")
@@ -112,7 +112,7 @@ def mypy(session) -> None:
 
 @session(python=python_version)
 def lint(session: Session) -> None:
-    session.run_always("poetry", "install", external=True)
+    session.run_always("poetry", "install", "--without", "docs", external=True)
     session.install(
         "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
     )
