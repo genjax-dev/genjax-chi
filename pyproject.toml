@@ -16,7 +16,7 @@ classifiers = ["Development Status :: 4 - Beta"]
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.11, <4.0"
+python = ">=3.11, <3.12"
 jax = "^0.4.1"
 jaxlib = "^0.4.1"
 numpy = "^1.24.0"
@@ -53,6 +53,7 @@ mkdocs-git-authors-plugin = "^0.7.0"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.2.0", extras=["ansi"]}
+manim = "^0.17.2"
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]
