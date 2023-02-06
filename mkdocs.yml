@@ -19,9 +19,10 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
   - Home: index.md
-  - Concepts:
-      - Diff with Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
+  - Concepts:
+      - Generative functions: genjax/concepts/generative_functions.md
+      - Diff with Gen.jl: genjax/concepts/diff_jl.md
   - Public API reference:
       - Core: genjax/library/core.md
       - Generative functions: genjax/library/generative_functions.md
@@ -46,6 +47,7 @@ theme:
     - content.code.annotate
     - content.code.copy
     - content.tooltips
+    - content.tabs.link
     - navigation.footer
     - navigation.indexes
     - navigation.sections
@@ -80,9 +82,7 @@ watch:
 plugins:
   - search
   - offline
-  - git-committers:
-      repository: probcomp/genjax
-      branch: main
+  - markdown-exec
   - git-revision-date-localized:
       enable_creation_date: true
       type: date
@@ -114,12 +114,15 @@ markdown_extensions:
   - md_in_html
   - admonition
   - pymdownx.details
-  - pymdownx.highlight
+  - pymdownx.highlight:
+      anchor_linenums: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.arithmatex:
       generic: true
   - toc:

@@ -5,11 +5,11 @@
 
 1.  Here, _high performance_ means massively parallel, either cores or devices.
 
-    For those whom this overview page may be irrelevant: we're talking about putting expressive models and customizable Bayesian inference on GPUs, TPUs, etc - without sacrificing abstraction or modularity.
+    For those whom this overview page may be irrelevant: the value proposition is about putting expressive models and customizable Bayesian inference on GPUs, TPUs, etc - without sacrificing abstraction or modularity.
 
 ---
 
-[**Gen**][gen] is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [**JAX**][jax] - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. 
+[**Gen**][gen] is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [**JAX**][jax] (2) - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. 
 { .annotate }
 
 1.  By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms. 
@@ -20,10 +20,15 @@
 
     A precise mathematical formulation of generative functions is given in [Marco Cusumano-Towner's PhD thesis][marco_thesis].
 
+2.  If the usage of JAX is not a dead giveaway, GenJAX is written in Python.
 
 <div class="grid cards" markdown>
 
--   __Model code__
+=== "Model code"
+   
+    <p align="center">
+    Defining a beta-bernoulli process in GenJAX.
+    </p>
 
     ```python
     @genjax.gen
@@ -33,24 +38,43 @@
       return v
     ```
 
-    Defining a beta-bernoulli process in GenJAX.
 
--   __Inference code__
+===   "Inference code"
+    
+    <p align="center">
+    This works for **any** generative function, not just the beta-bernoulli model.
+    </p>
     
     ```python
-    def sir(prng_key, gen_fn, 
-            obs, args, n_samples):
+    # Sampling importance resampling.
+    def sir(prng_key: PRNGKey, gen_fn: GenerativeFunction
+            obs: ChoiceMap, args: Tuple, n_samples: Int):
         pass
     ```
 
-    This works for **any** generative function - not just the beta-bernoulli model defined on the left.
+
+</div>
+
+## What sort of things do you use GenJAX for?
+
+<div class="grid cards" markdown>
+
+=== "Real time object tracking"
+    Real time tracking of objects in 3D using probabilistic rendering. (Left) Ground truth, (center) depth mask, (right) inference overlaid on ground truth.
+
+    <p align="center">
+    <img width="450px" src="./assets/gif/cube_tracking_inference_enum.gif"/>
+    </p>
+
 </div>
 
 ## Why Gen?
 
-GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX, or why this library exists - it's worth starting by understanding why Gen exists. 
+GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX - it's worth starting by understanding why Gen exists, and what problems it purports to solve.
 
-Gen exists because probabilistic modeling and inference is hard: understanding a domain well enough to construct a probabilistic model in the Bayesian paradigm is challenging, and that's half the battle - the other half is designing effective inference algorithms to probe the implications of the model (1).
+### The evolution of probabilistic programming languages
+
+Probabilistic modeling and inference is hard: understanding a domain well enough to construct a probabilistic model in the Bayesian paradigm is challenging, and that's half the battle - the other half is designing effective inference algorithms to probe the implications of the model (1).
 { .annotate }
 
 1.  Some probabilistic programming languages restrict the set of allowable models, providing (in return) efficient (often, exact) inference. 
@@ -67,29 +91,45 @@ graph LR
   C --> A;
 ```
 
-The first generation (1) of probabilistic programming systems introduced inference engines which could operate abstractly over many different models, without requiring the programmer to return and tweak their inference code.
+The first generation (1) of probabilistic programming systems introduced inference engines which could operate abstractly over many different models, without requiring the programmer to return and tweak their inference code. The utopia envisioned by these systems is shown below.
 { .annotate }
 
 1.  Here, the definition of "first generation" includes systems like JAGS, BUGS, BLOG, IBAL, Church, Infer.NET, Figaro, Stan, amongst others.
 
     But more precisely, many systems preceded the [DARPA PPAML project][ppaml] - which gave rise to several novel systems, including the predecessors of Gen.
 
-
 ``` mermaid
 graph LR
-  A[Design model.] --> C[Use pre-built inference engine.];
-  B[Inference engine.] ---> C[Use pre-built inference engine.];
-  C --> D[Model + inference okay?];
+  A[Design model.] --> D[Model + inference okay?];
+  B[Inference engine.] ---> D;
   D --> E[Happy.];
   D ---> A;
 ```
 
-Gen eliminates introduces a separation between modeling and inference code: **the generative function interface**.
+The problem with this utopia is that we often do need to program our inference algorithms (1) to achieve maximum performance, both in regards to accuracy as well as runtime. First generation systems were not designed with this in mind.
+{.annotate}
+
+1.  Here, _programmable inference_ denotes using a custom proposal distribution in importance sampling, or a custom variational family for variational inference, or even a custom kernel in Markov chain Monte Carlo.
+
+### Programmable inference
+
+The goal then is to allow users to customize when required, while retaining the rapid model/inference iteration properties explored by first generation systems.
+
+Gen addresses this goal by introducing a separation between modeling and inference code: **the generative function interface**.
 
 <p align="center">
-<img width="600px" src="./assets/img/gen-architecture.png"/>
+<img width="800px" src="./assets/img/gen-architecture.png"/>
 </p>
-<br>
+
+## Whose using Gen?
+
+Gen supports a growing list of users, with collaboration across academic research labs and industry affiliates.
+
+<p align="center">
+<img width="450px" src="./assets/img/gen-users.png"/>
+</p>
+
+We're looking to expand our user base! If you're interested, [please contact us to get involved][probcomp_contact_form].
 
 [gen]: https://www.gen.dev/
 [gen.jl]: https://github.com/probcomp/Gen.jl
@@ -97,3 +137,5 @@ Gen eliminates introduces a separation between modeling and inference code: **th
 [jax]: https://github.com/google/jax
 [marco_thesis]: https://www.mct.dev/assets/mct-thesis.pdf
 [ppaml]: https://www.darpa.mil/program/probabilistic-programming-for-advancing-machine-learning
+[probcomp]: http://probcomp.csail.mit.edu/
+[probcomp_contact_form]: https://docs.google.com/forms/d/e/1FAIpQLSfbPY5e0KMVEFg7tjVUsOsKy5tWV9Moml3dPkDPXvP8-TSMNA/viewform?usp=sf_link
