@@ -48,6 +48,8 @@
       
     
     
+      <link rel="stylesheet" href="assets/_markdown_exec_ansi.css">
+    
       <link rel="stylesheet" href="assets/_mkdocstrings.css">
     
       <link rel="stylesheet" href="css/fonts.css">
@@ -233,24 +235,6 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="genjax/diff_jl.html" class="md-tabs__link">
-          
-  
-  Concepts
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
     <li class="md-tabs__item">
       <a href="genjax/notebooks.html" class="md-tabs__link">
         
@@ -259,6 +243,24 @@
 
       </a>
     </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="genjax/concepts/generative_functions.html" class="md-tabs__link">
+          
+  
+  Concepts
+
+        </a>
+      </li>
+    
   
 
       
@@ -374,49 +376,6 @@
   
   
   
-    
-    
-      
-        
-      
-    
-    
-      
-      
-    
-    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
-      
-        
-  
-  
-    <a href="genjax/diff_jl.html" class="md-nav__link">
-      
-  
-  <span class="md-ellipsis">
-    
-  
-    Concepts
-  
-
-    
-  </span>
-  
-  
-
-      
-    </a>
-  
-
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
     <li class="md-nav__item">
       <a href="genjax/notebooks.html" class="md-nav__link">
         
@@ -433,6 +392,53 @@
   
 
       </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+    <a href="genjax/concepts/generative_functions.html" class="md-nav__link">
+      
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
     </li>
   
 
@@ -915,21 +921,21 @@ and/or steps to reproduce the issue.</p>
 <li><a href="https://nox-poetry.readthedocs.io/">nox-poetry</a></li>
 </ul>
 <p>Install the package with development requirements:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>poetry<span class="w"> </span>install
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>poetry<span class="w"> </span>install
 </code></pre></div>
 <p>You can now run an interactive Python session:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>poetry<span class="w"> </span>run<span class="w"> </span>python
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>poetry<span class="w"> </span>run<span class="w"> </span>python
 </code></pre></div>
 <h2 id="how-to-test-the-project">How to test the project<a class="headerlink" href="#how-to-test-the-project" title="Permanent link">&para;</a></h2>
 <p>Run the full test suite:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>nox
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>nox
 </code></pre></div>
 <p>List the available Nox sessions:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>nox<span class="w"> </span>--list-sessions
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>nox<span class="w"> </span>--list-sessions
 </code></pre></div>
 <p>You can also run a specific Nox session.
 For example, invoke the unit test suite like this:</p>
-<div class="highlight"><pre><span></span><code><span class="gp">$ </span>nox<span class="w"> </span>--session<span class="o">=</span>tests
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="gp">$ </span>nox<span class="w"> </span>--session<span class="o">=</span>tests
 </code></pre></div>
 <p>Unit tests are located in the <em>tests</em> directory,
 and are written using the <a href="https://pytest.readthedocs.io/">pytest</a> testing framework.</p>
@@ -983,6 +989,8 @@ This will allow a chance to talk it over with the owners and validate your appro
             </div>
           
           
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
         
@@ -1053,7 +1061,7 @@ This will allow a chance to talk it over with the owners and validate your appro
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": ".", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": ".", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tooltips", "content.tabs.link", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
       <script src="assets/javascripts/bundle.7ce0e818.min.js"></script>
