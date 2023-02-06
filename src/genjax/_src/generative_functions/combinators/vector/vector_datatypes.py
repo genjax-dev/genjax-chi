@@ -32,6 +32,7 @@ from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
 
 
@@ -129,6 +130,20 @@ class VectorChoiceMap(ChoiceMap):
         assert indices_len == inner_len
 
         return VectorChoiceMap(indices, inner)
+
+    @typecheck
+    @classmethod
+    def convert(cls, choice_map: BuiltinChoiceMap):
+        indices = []
+        subtrees = []
+        for (ind, subtree) in choice_map.get_subtrees_shallow():
+            indices.append(ind)
+            subtrees.append(subtree)
+
+        # Assert that all Pytrees in list can be
+        # stacked at leaves.
+        # static_check_pytree_stackable(subtrees)
+        # return VectorChoiceMap.new(indices, tree_stack(subtrees))
 
     def get_selection(self):
         subselection = self.inner.get_selection()
