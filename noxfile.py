@@ -128,7 +128,7 @@ def lint(session: Session) -> None:
 @session(python=python_version)
 def build(session):
     session.install("poetry")
-    session.run("poetry", "install")
+    session.run_always("poetry", "install", "--without", "docs", external=True)
     session.run("poetry", "build")
 
 
