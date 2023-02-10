@@ -1393,14 +1393,14 @@ scipy = ">=1.5"
 
 [[package]]
 name = "jaxopt"
-version = "0.5.5"
+version = "0.6"
 description = "Hardware accelerated, batchable and differentiable optimizers in JAX."
 category = "main"
-optional = true
+optional = false
 python-versions = "*"
 files = [
-    {file = "jaxopt-0.5.5-py3-none-any.whl", hash = "sha256:bf0265913f6ee55c7216f12dffeabd38a6f43fd186035a050863d0996b0506fe"},
-    {file = "jaxopt-0.5.5.tar.gz", hash = "sha256:1131fdb8da6d4ee45e7224bc1e3bc84ad60db02cddfce40eda1be9aa9f6ab937"},
+    {file = "jaxopt-0.6-py3-none-any.whl", hash = "sha256:69af71c39969e9e5fa54bd50cbab3e18f6c32659d92e1bf56912a24c8ad0fca6"},
+    {file = "jaxopt-0.6.tar.gz", hash = "sha256:19df9cb745ee39fa27f9ba4f01bbec5b0e3a8a1f60320aff553131a5f152c9fa"},
 ]
 
 [package.dependencies]
