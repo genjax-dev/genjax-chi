@@ -1341,13 +1341,13 @@ numpy = "*"
 
 [[package]]
 name = "jax"
-version = "0.4.2"
+version = "0.4.3"
 description = "Differentiate, compile, and transform Numpy code."
 category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jax-0.4.2.tar.gz", hash = "sha256:d561d431f1662a3888eae73818a53c280fba405c13442a32ac8238dc7e5dcca4"},
+    {file = "jax-0.4.3.tar.gz", hash = "sha256:d43f08f940aa30eb339965cfb3d6bee2296537b0dc2f0c65ccae3009279529ae"},
 ]
 
 [package.dependencies]
@@ -1357,34 +1357,34 @@ scipy = ">=1.5"
 
 [package.extras]
 australis = ["protobuf (>=3.13,<4)"]
-ci = ["jaxlib (==0.4.1)"]
-cpu = ["jaxlib (==0.4.2)"]
-cuda = ["jaxlib (==0.4.2+cuda11.cudnn86)"]
-cuda11-cudnn82 = ["jaxlib (==0.4.2+cuda11.cudnn82)"]
-cuda11-cudnn86 = ["jaxlib (==0.4.2+cuda11.cudnn86)"]
-minimum-jaxlib = ["jaxlib (==0.4.1)"]
-tpu = ["jaxlib (==0.4.2)", "libtpu-nightly (==0.1.dev20230124)", "requests"]
+ci = ["jaxlib (==0.4.2)"]
+cpu = ["jaxlib (==0.4.3)"]
+cuda = ["jaxlib (==0.4.3+cuda11.cudnn86)"]
+cuda11-cudnn82 = ["jaxlib (==0.4.3+cuda11.cudnn82)"]
+cuda11-cudnn86 = ["jaxlib (==0.4.3+cuda11.cudnn86)"]
+minimum-jaxlib = ["jaxlib (==0.4.2)"]
+tpu = ["jaxlib (==0.4.3)", "libtpu-nightly (==0.1.dev20230207)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.4.2"
+version = "0.4.3"
 description = "XLA library for JAX"
 category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jaxlib-0.4.2-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:3f20630c74a56b0feff148dcd36241a754b23a42a439ccca677bb96e8c2a7474"},
-    {file = "jaxlib-0.4.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:63cb14fc6e311b3b67314d1404bb228e96bdb0ee328179c99244fb7e8a75f70b"},
-    {file = "jaxlib-0.4.2-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:fe54adb9b7c3315724d5ad8eaa1639d0589957f3611ec562fe3090cd4f13906b"},
-    {file = "jaxlib-0.4.2-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:e991a8659a10fd868d64adb475dd221627c0732f4104dc3fdd00be9bf4b904f2"},
-    {file = "jaxlib-0.4.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:a78ceb252b28bb015380eabb2dd38e2cbf7cbe9bef24638494b64ce8186b9f61"},
-    {file = "jaxlib-0.4.2-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:6b5e56346c89e0239abe85b6cd4d6780001d4b896a1304a0ab4ba12f0ccd9121"},
-    {file = "jaxlib-0.4.2-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:8de6d5a7deb7fde0703c8861789a14a1ed6da49073187c4162703d24f67b1650"},
-    {file = "jaxlib-0.4.2-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:361aebe5b5817637164f66c5e626ca7da337c9855905dd61345a0b3751bd2709"},
-    {file = "jaxlib-0.4.2-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:beabf17667b973460b735d9ee561c1bb50549038be528672c822e331f41a1071"},
-    {file = "jaxlib-0.4.2-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:3076428735b6494c27e1022d9880d6df0842ae74f65d1f3cad868464e73cd8f0"},
-    {file = "jaxlib-0.4.2-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:dad0c0f387f053c937d60b60d2cc642204007ebf5f81eadb67231f4910e951a2"},
-    {file = "jaxlib-0.4.2-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:5aef0a828f8cd58d1f77d9f6bbfb888538b2fb7e0357b909f6858b298b409265"},
+    {file = "jaxlib-0.4.3-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:512b31532cdec88bf04721bff66ad8639a8d95a462284cb9af2e7a9b7a9d37ed"},
+    {file = "jaxlib-0.4.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:ae631f788c060e0c765c01176c210723fcb9b6824b2a189bfd13c2152c228c1d"},
+    {file = "jaxlib-0.4.3-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:f17b53736aca7c31a5eedd4cdad64be92c8b774c943a516d72296d6e2a3dc6c2"},
+    {file = "jaxlib-0.4.3-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:71a77f3fa7922a5e87c24596abc246e1af85c77eee20b67c161d9d85b3e22944"},
+    {file = "jaxlib-0.4.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:af2cd5613feb1fb4b8895483f0d3140378803f591d79ac6db7718b7b21664baf"},
+    {file = "jaxlib-0.4.3-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:2a284b9b7972b25a4bbfba674be91c295b4cacd62640d956045383d7b40525ba"},
+    {file = "jaxlib-0.4.3-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:2ab6546ad6fd2b3a4720ba0b03e355e59840a61e0852991ea78bb6ab7e9dc60e"},
+    {file = "jaxlib-0.4.3-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:0c78c3b24a84e177a8a9ac668d5fc991f23f0a7406dcd3e262b6a29a7c907855"},
+    {file = "jaxlib-0.4.3-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:2f00f05970c62fea2054ce081d0d14c4d2d40655c9c58bc4b7967fe6888d2143"},
+    {file = "jaxlib-0.4.3-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:9aa4e89c6d8f1415af70d5f02dfb40e6895337896680b900b801ed648151ac4b"},
+    {file = "jaxlib-0.4.3-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:8e8765fe1a5284b072fab8d10018c88449c6922a4752a91c9211b2fe4c95151a"},
+    {file = "jaxlib-0.4.3-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:ca5532c2865f10f782a5d106d355a40fd80a1a509d0400a5886f83254003fb14"},
 ]
 
 [package.dependencies]
@@ -1393,14 +1393,14 @@ scipy = ">=1.5"
 
 [[package]]
 name = "jaxopt"
-version = "0.5.5"
+version = "0.6"
 description = "Hardware accelerated, batchable and differentiable optimizers in JAX."
 category = "main"
-optional = true
+optional = false
 python-versions = "*"
 files = [
-    {file = "jaxopt-0.5.5-py3-none-any.whl", hash = "sha256:bf0265913f6ee55c7216f12dffeabd38a6f43fd186035a050863d0996b0506fe"},
-    {file = "jaxopt-0.5.5.tar.gz", hash = "sha256:1131fdb8da6d4ee45e7224bc1e3bc84ad60db02cddfce40eda1be9aa9f6ab937"},
+    {file = "jaxopt-0.6-py3-none-any.whl", hash = "sha256:69af71c39969e9e5fa54bd50cbab3e18f6c32659d92e1bf56912a24c8ad0fca6"},
+    {file = "jaxopt-0.6.tar.gz", hash = "sha256:19df9cb745ee39fa27f9ba4f01bbec5b0e3a8a1f60320aff553131a5f152c9fa"},
 ]
 
 [package.dependencies]
@@ -2299,14 +2299,14 @@ files = [
 
 [[package]]
 name = "mistune"
-version = "2.0.4"
+version = "2.0.5"
 description = "A sane Markdown parser with useful plugins and renderers"
 category = "dev"
 optional = false
 python-versions = "*"
 files = [
-    {file = "mistune-2.0.4-py2.py3-none-any.whl", hash = "sha256:182cc5ee6f8ed1b807de6b7bb50155df7b66495412836b9a74c8fbdfc75fe36d"},
-    {file = "mistune-2.0.4.tar.gz", hash = "sha256:9ee0a66053e2267aba772c71e06891fa8f1af6d4b01d5e84e267b4570d4d9808"},
+    {file = "mistune-2.0.5-py2.py3-none-any.whl", hash = "sha256:bad7f5d431886fcbaf5f758118ecff70d31f75231b34024a1341120340a65ce8"},
+    {file = "mistune-2.0.5.tar.gz", hash = "sha256:0246113cb2492db875c6be56974a7c893333bf26cd92891c85f63151cee09d34"},
 ]
 
 [[package]]
