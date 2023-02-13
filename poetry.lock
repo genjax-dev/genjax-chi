@@ -1396,7 +1396,7 @@ name = "jaxopt"
 version = "0.6"
 description = "Hardware accelerated, batchable and differentiable optimizers in JAX."
 category = "main"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "jaxopt-0.6-py3-none-any.whl", hash = "sha256:69af71c39969e9e5fa54bd50cbab3e18f6c32659d92e1bf56912a24c8ad0fca6"},
@@ -2133,14 +2133,14 @@ ansi = ["pygments-ansi-color"]
 
 [[package]]
 name = "markdown2"
-version = "2.4.7"
+version = "2.4.8"
 description = "A fast and complete Python implementation of Markdown"
 category = "dev"
 optional = false
 python-versions = ">=3.5, <4"
 files = [
-    {file = "markdown2-2.4.7-py2.py3-none-any.whl", hash = "sha256:62156ad2426249a1d1a9059cfe7eab712ff2f397660991b1796c342c19bfa922"},
-    {file = "markdown2-2.4.7.tar.gz", hash = "sha256:dfb52ff4007389567b391ce8fa3cff3dd363d1f282d20205383c6a710f9870d1"},
+    {file = "markdown2-2.4.8-py2.py3-none-any.whl", hash = "sha256:7d49ca871d3e0e412c65d7d21fcbc13ae897f7876f3e5f14dd4db3b7fbf27f10"},
+    {file = "markdown2-2.4.8.tar.gz", hash = "sha256:90475aca3d9c8e7df6d70c51de5bbbe9edf7fcf6a380bd1044d321500f5445da"},
 ]
 
 [package.extras]
