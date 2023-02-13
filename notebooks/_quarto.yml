@@ -79,6 +79,7 @@ format:
       light: [cosmo, custom.scss]
       dark: [cosmo, custom-dark.scss]
     mainfont: 'Atkinson Hyperlegible'
+    monofont: 'Berkeley'
     toc: true
     code-copy: true
     code-overflow: wrap

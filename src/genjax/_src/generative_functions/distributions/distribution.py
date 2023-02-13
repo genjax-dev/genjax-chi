@@ -39,6 +39,7 @@ from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.tree import Leaf
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
@@ -106,6 +107,12 @@ class Distribution(GenerativeFunction):
     def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
+    def __mul__(self, other):
+        p = Product([])
+        p.append(self)
+        p.append(other)
+        return p
+
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
         # `get_trace_type` is compile time - the key value
@@ -155,7 +162,7 @@ class Distribution(GenerativeFunction):
             v = v.unmask()
 
             def _active(key, v, args):
-                key, (w, v) = self.estimate_logpdf(key, v, *args)
+                key, w = self.estimate_logpdf(key, v, *args)
                 return key, v, w
 
             def _inactive(key, v, _):
@@ -175,7 +182,7 @@ class Distribution(GenerativeFunction):
         # Otherwise, we just estimate the logpdf of the value
         # we got out of the choice map.
         else:
-            key, (w, v) = self.estimate_logpdf(key, v, *args)
+            key, w = self.estimate_logpdf(key, v, *args)
             score = w
 
         return key, (
@@ -236,7 +243,7 @@ class Distribution(GenerativeFunction):
             # If the value is active, we compute any weight
             # corrections from changing arguments.
             def _active(key, v, *args):
-                key, (fwd, _) = self.estimate_logpdf(key, v, *args)
+                key, fwd = self.estimate_logpdf(key, v, *args)
                 return key, fwd - prev_score
 
             # If the value is inactive, we do nothing.
@@ -265,7 +272,7 @@ class Distribution(GenerativeFunction):
             active = jnp.all(jnp.logical_and(active_chm, active))
 
             def _constraints_active(key, v, *args):
-                key, (fwd, _) = self.estimate_logpdf(key, v, *args)
+                key, fwd = self.estimate_logpdf(key, v, *args)
                 return key, v, fwd - prev_score
 
             def _constraints_inactive(key, v, *args):
@@ -290,7 +297,7 @@ class Distribution(GenerativeFunction):
         self, key: PRNGKey, evaluation_point: ValueChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         v = evaluation_point.get_leaf_value()
-        key, (score, _) = self.estimate_logpdf(key, v, *args)
+        key, score = self.estimate_logpdf(key, v, *args)
         return key, (v, score)
 
 
@@ -317,4 +324,52 @@ class ExactDensity(Distribution):
 
     def estimate_logpdf(self, key, v, *args, **kwargs):
         w = self.logpdf(v, *args, **kwargs)
-        return key, (w, v)
+        return key, w
+
+
+#####
+# Product
+#####
+
+
+@dataclass
+class Product(Distribution):
+    components: List[Distribution]
+
+    def flatten(self):
+        return (self.components,), ()
+
+    @classmethod
+    def new(cls, *other: Distribution):
+        v = Product([])
+        for sub in other:
+            v.append(sub)
+        return v
+
+    def append(self, other: Distribution):
+        n = Product(self.components)
+        if isinstance(other, Product):
+            for sub in other.components:
+                n.append(sub)
+        else:
+            n.components.append(other)
+        return n
+
+    @typecheck
+    def random_weighted(self, key: PRNGKey, *args: Tuple):
+        assert len(args) == len(self.components)
+        tw, ret = 0.0, []
+        for (op_args, op) in zip(args, self.components):
+            key, (w, v) = op.random_weighted(key, *op_args)
+            tw += w
+            ret.append(v)
+        return key, (tw, (*ret,))
+
+    @typecheck
+    def estimate_logpdf(self, key: PRNGKey, v: Tuple, *args: Tuple):
+        assert len(args) == len(self.components)
+        tw = 0.0
+        for (op, op_args, r) in zip(self.components, args, v):
+            key, w = op.estimate_logpdf(key, r, *op_args)
+            tw += w
+        return key, tw

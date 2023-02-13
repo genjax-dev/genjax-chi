@@ -45,6 +45,23 @@ def tests(session):
     session.run(
         "poetry",
         "run",
+        "pytest",
+        "--benchmark-disable",
+        "--ignore",
+        "scratch",
+        "--ignore",
+        "benchmarks",
+        "-n",
+        "auto",
+    )
+
+
+@session(python=python_version)
+def coverage(session):
+    session.run_always("poetry", "install", "--without", "docs", external=True)
+    session.run(
+        "poetry",
+        "run",
         "coverage",
         "run",
         "-m",
@@ -127,7 +144,6 @@ def lint(session: Session) -> None:
 
 @session(python=python_version)
 def build(session):
-    session.install("poetry")
     session.run_always("poetry", "install", "--without", "docs", external=True)
     session.run("poetry", "build")
 
@@ -142,3 +158,17 @@ def docs_build(session: Session) -> None:
         shutil.rmtree(build_dir)
     session.run("mkdocs", "build")
     session.run("quarto", "render", "notebooks", external=True)
+
+
+@session(name="notebooks-serve", python=python_version)
+def notebooks_serve(session: Session) -> None:
+    """Build the documentation."""
+    session.run_always("poetry", "install", "--without", "docs", external=True)
+    session.run("quarto", "preview", "notebooks", external=True)
+
+
+@session(name="jupyter", python=python_version)
+def jupyter(session: Session) -> None:
+    """Build the documentation."""
+    session.run_always("poetry", "install", "--without", "docs", external=True)
+    session.run("jupyter-lab", external=True)

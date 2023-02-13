@@ -438,49 +438,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </div>
 <p>This generative function holds a Python <code>Callable</code> object. For this generative function language, the interface methods (see the list under <strong>Generative function interface</strong> below) which are useful for modeling and inference are given semantics via JAX’s tracing and program transformation infrastructure.</p>
 <p>Let’s examine some of these operations now.</p>
-<div class="cell" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>console.inspect(genjax.BuiltinGenerativeFunction, methods<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>console.inspect(h.simulate, methods<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #000080; text-decoration-color: #000080">╭─ </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">class</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008000; text-decoration-color: #008000">'genjax._src.generative_functions.builtin.builtin_gen_fn.BuiltinGene</span><span style="color: #000080; text-decoration-color: #000080">─╮</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">class </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">BuiltinGenerativeFunction</span><span style="font-weight: bold">(</span>source: Callable<span style="font-weight: bold">)</span> -&gt; <span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span>:                   <span style="color: #000080; text-decoration-color: #000080">│</span>
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #000080; text-decoration-color: #000080">╭─ </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">bound</span><span style="color: #000000; text-decoration-color: #000000"> method BuiltinGenerativeFunction.simulate of </span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFuncti</span><span style="color: #000080; text-decoration-color: #000080">─╮</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">BuiltinGenerativeFunction.simulate</span><span style="font-weight: bold">(</span>key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>, ar <span style="color: #000080; text-decoration-color: #000080">│</span>
 <span style="color: #000080; text-decoration-color: #000080">│</span>                                                                              <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFunction</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080">source: Callable</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">)</span>                                  <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                                                                              <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>         <span style="color: #808000; text-decoration-color: #808000; font-style: italic">assess</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">assess</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>, chm:    <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap, args: tuple,          <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>,            <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>typing.Any, typing.Union<span style="font-weight: bold">[</span>float,                       <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]]]]</span>:                           <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>    <span style="color: #808000; text-decoration-color: #808000; font-style: italic">choice_grad</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">choice_grad</span><span style="font-weight: bold">(</span>self, key, trace, selection<span style="font-weight: bold">)</span>:               <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>        <span style="color: #808000; text-decoration-color: #808000; font-style: italic">flatten</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">flatten</span><span style="font-weight: bold">(</span>self<span style="font-weight: bold">)</span>:                                          <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #808000; text-decoration-color: #808000; font-style: italic">get_trace_type</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">get_trace_type</span><span style="font-weight: bold">(</span>self, *args, **kwargs<span style="font-weight: bold">)</span> -&gt;                <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.tracetypes.TraceType:                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>     <span style="color: #808000; text-decoration-color: #808000; font-style: italic">importance</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">importance</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  chm: genjax._src.core.datatypes.ChoiceMap, args: tuple,     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>,            <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>typing.Union<span style="font-weight: bold">[</span>float, jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]]</span>,   <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.generative_functions.builtin.builtin_datatypes… <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>            <span style="color: #808000; text-decoration-color: #808000; font-style: italic">new</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">new</span><span style="font-weight: bold">(</span>*args, **kwargs<span style="font-weight: bold">)</span>:                                   <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>       <span style="color: #808000; text-decoration-color: #808000; font-style: italic">simulate</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">simulate</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>, args: <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple, **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.generative_functions.builtin.builtin_datatypes… <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>          <span style="color: #808000; text-decoration-color: #808000; font-style: italic">slice</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">slice</span><span style="font-weight: bold">(</span>self, index_or_range<span style="font-weight: bold">)</span>:                            <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>      <span style="color: #808000; text-decoration-color: #808000; font-style: italic">unflatten</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">unflatten</span><span style="font-weight: bold">(</span>data, xs<span style="font-weight: bold">)</span>:                                    <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>          <span style="color: #808000; text-decoration-color: #808000; font-style: italic">unzip</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">unzip</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>, fixed:   <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap<span style="font-weight: bold">)</span> -&gt;                    <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Tuple<span style="font-weight: bold">[</span>jaxUInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>,                                <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Callable<span style="font-weight: bold">[[</span>genjax._src.core.datatypes.ChoiceMap, Tuple<span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Union<span style="font-weight: bold">[</span>float, jaxFloat<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]]]</span>,                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Callable<span style="font-weight: bold">[[</span>genjax._src.core.datatypes.ChoiceMap, Tuple<span style="font-weight: bold">]</span>,     <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  Any<span style="font-weight: bold">]]</span>:                                                      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>         <span style="color: #808000; text-decoration-color: #808000; font-style: italic">update</span> = <span style="color: #00ffff; text-decoration-color: #00ffff; font-style: italic">def </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">update</span><span style="font-weight: bold">(</span>self, key: jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>, prev:   <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.Trace, constraints:              <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap, argdiffs: tuple,      <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  **kwargs<span style="font-weight: bold">)</span> -&gt; tuple<span style="font-weight: bold">[</span>jaxtyping.UInt<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]</span>,            <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  tuple<span style="font-weight: bold">[</span>typing.Any, typing.Union<span style="font-weight: bold">[</span>float,                       <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  jaxtyping.Float<span style="font-weight: bold">[</span>Array, <span style="color: #008000; text-decoration-color: #008000">'...'</span><span style="font-weight: bold">]]</span>,                             <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.Trace,                           <span style="color: #000080; text-decoration-color: #000080">│</span>
-<span style="color: #000080; text-decoration-color: #000080">│</span>                  genjax._src.core.datatypes.ChoiceMap<span style="font-weight: bold">]]</span>:                     <span style="color: #000080; text-decoration-color: #000080">│</span>
+<span style="color: #000080; text-decoration-color: #000080">│</span> <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">29</span><span style="font-style: italic"> attribute(s) not shown.</span> Run <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">inspect</span><span style="font-weight: bold">(</span>inspect<span style="font-weight: bold">)</span> for options.                 <span style="color: #000080; text-decoration-color: #000080">│</span>
 <span style="color: #000080; text-decoration-color: #000080">╰──────────────────────────────────────────────────────────────────────────────╯</span>
 </pre>
 </div>
@@ -844,16 +808,46 @@ JAX interfaces
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>selected <span class="op">=</span> selection.<span class="bu">filter</span>(tr.get_choices())</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>selected</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinChoiceMap</span>
-└── trie
-    └── <span style="font-weight: bold">Trie</span>
-        └── <span style="font-weight: bold">:m1</span>
-            └── <span style="font-weight: bold">ValueChoiceMap</span>
-                └── value
-                    └──  bool[]
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800000; text-decoration-color: #800000">╭─────────────────────────────── </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">Traceback </span><span style="color: #bf7f7f; text-decoration-color: #bf7f7f; font-weight: bold">(most recent call last)</span><span style="color: #800000; text-decoration-color: #800000"> ────────────────────────────────╮</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_22961/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">3713048218.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">&lt;module&gt;</span>     <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">[Errno 2] No such file or directory: </span>                                                            <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">'/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_22961/3713048218.py'</span>                 <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/_src/generative_functions/builtin/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">builtin_datatype</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #808000; text-decoration-color: #808000; font-weight: bold">s.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">120</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">new</span>                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">117 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">new</span>(<span style="color: #00ffff; text-decoration-color: #00ffff">cls</span>, *addrs):                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">118 │   │   </span>trie = Trie.new()                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">119 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">for</span> addr <span style="color: #ff00ff; text-decoration-color: #ff00ff">in</span> addrs:                                                                 <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span>120 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   │   │   </span>trie[addr] = AllSelection()                                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">121 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> BuiltinSelection(trie)                                                      <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">122 │   </span>                                                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">123 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">filter</span>(<span style="color: #00ffff; text-decoration-color: #00ffff">self</span>, tree):                                                                <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/_src/generative_functions/builtin/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">trie.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">106</span> in   <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">__setitem__</span>                                                                                      <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">103 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> Trie(new)                                                                   <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">104 │   </span>                                                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">105 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">__setitem__</span>(<span style="color: #00ffff; text-decoration-color: #00ffff">self</span>, k, v):                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span>106 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   │   </span><span style="color: #00ffff; text-decoration-color: #00ffff">self</span>.trie_insert(k, v)                                                             <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">107 │   </span>                                                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">108 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">__getitem__</span>(<span style="color: #00ffff; text-decoration-color: #00ffff">self</span>, k):                                                              <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">109 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> <span style="color: #00ffff; text-decoration-color: #00ffff">self</span>.get_subtree(k)                                                         <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/_src/generative_functions/builtin/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">trie.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">57</span> in    <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">trie_insert</span>                                                                                      <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 54 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">else</span>:                                                                              <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 55 │   │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">if</span> <span style="color: #00ffff; text-decoration-color: #00ffff">isinstance</span>(addr, <span style="color: #00ffff; text-decoration-color: #00ffff">tuple</span>):                                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 56 │   │   │   │   </span>addr = addr[<span style="color: #0000ff; text-decoration-color: #0000ff">0</span>]                                                             <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span> 57 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   │   │   </span><span style="color: #00ffff; text-decoration-color: #00ffff">self</span>.inner[addr] = value                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 58 │   </span>                                                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 59 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">has_subtree</span>(<span style="color: #00ffff; text-decoration-color: #00ffff">self</span>, addr):                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f"> 60 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">if</span> <span style="color: #00ffff; text-decoration-color: #00ffff">isinstance</span>(addr, <span style="color: #00ffff; text-decoration-color: #00ffff">tuple</span>) <span style="color: #ff00ff; text-decoration-color: #ff00ff">and</span> <span style="color: #00ffff; text-decoration-color: #00ffff">len</span>(addr) &gt; <span style="color: #0000ff; text-decoration-color: #0000ff">1</span>:                                      <span style="color: #800000; text-decoration-color: #800000">│</span>
+<span style="color: #800000; text-decoration-color: #800000">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</span>
+<span style="color: #ff0000; text-decoration-color: #ff0000; font-weight: bold">TypeError: </span>unhashable type: <span style="color: #008000; text-decoration-color: #008000">'list'</span>
 </pre>
 </div>
 </div>
@@ -866,7 +860,7 @@ JAX interfaces
 <p>In the remainder of this notebook, let’s see how we can do machine learning with them.</p>
 <p>Let’s consider a modeling problem where we wish to perform generalized regression with outliers between two variates, taking a family of polynomials as potential curves.</p>
 <p>One such model for this data generating process is shown below.</p>
-<div class="cell" data-execution_count="10">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Two branches for a branching submodel.</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model_y(x, coefficients):</span>
@@ -909,110 +903,25 @@ JAX interfaces
 </ol>
 <p>Courtesy of the interface, we get to design our <code>model</code> generative function in pieces.</p>
 <p>Now, let’s examine the sampled observation address <code>("ys", "y")</code> from a sample trace from our model.</p>
-<div class="cell" data-execution_count="11">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> jnp.arange(<span class="dv">0</span>, <span class="dv">10</span>, <span class="fl">0.5</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> jax.jit(model.simulate)(key, (data,))</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">"ys"</span>, <span class="st">"y"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">IndexedChoiceMap</span>
-├── index
-│   └──  i32[20]
-└── submaps
-    └── <span style="font-weight: bold">list</span>
-        ├── <span style="font-weight: bold">BuiltinTrace</span>
-        │   ├── gen_fn
-        │   │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-        │   │       └── source
-        │   │           └── &lt;function model_y&gt;
-        │   ├── args
-        │   │   └── <span style="font-weight: bold">tuple</span>
-        │   │       ├──  f32[20]
-        │   │       └──  f32[20,3]
-        │   ├── retval
-        │   │   └──  f32[20]
-        │   ├── choices
-        │   │   └── <span style="font-weight: bold">Trie</span>
-        │   │       └── <span style="font-weight: bold">:value</span>
-        │   │           └── <span style="font-weight: bold">DistributionTrace</span>
-        │   │               ├── gen_fn
-        │   │               │   └── <span style="font-weight: bold">_Normal</span>
-        │   │               ├── args
-        │   │               │   └── <span style="font-weight: bold">tuple</span>
-        │   │               │       ├──  f32[20]
-        │   │               │       └──  f32[20]
-        │   │               ├── value
-        │   │               │   └──  f32[20]
-        │   │               └── score
-        │   │                   └──  f32[20]
-        │   ├── cache
-        │   │   └── <span style="font-weight: bold">Trie</span>
-        │   └── score
-        │       └──  f32[20]
-        └── <span style="font-weight: bold">BuiltinTrace</span>
-            ├── gen_fn
-            │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-            │       └── source
-            │           └── &lt;function outlier_model&gt;
-            ├── args
-            │   └── <span style="font-weight: bold">tuple</span>
-            │       ├──  f32[20]
-            │       └──  f32[20,3]
-            ├── retval
-            │   └──  f32[20]
-            ├── choices
-            │   └── <span style="font-weight: bold">Trie</span>
-            │       └── <span style="font-weight: bold">:value</span>
-            │           └── <span style="font-weight: bold">DistributionTrace</span>
-            │               ├── gen_fn
-            │               │   └── <span style="font-weight: bold">_Normal</span>
-            │               ├── args
-            │               │   └── <span style="font-weight: bold">tuple</span>
-            │               │       ├──  f32[20]
-            │               │       └──  f32[20]
-            │               ├── value
-            │               │   └──  f32[20]
-            │               └── score
-            │                   └──  f32[20]
-            ├── cache
-            │   └── <span style="font-weight: bold">Trie</span>
-            └── score
-                └──  f32[20]
-</pre>
-</div>
 </div>
 <p>Here, I’m just showing the subtrace from the switching model invocation - but it is already quite large and unwieldy!</p>
 <p>Besides, it also doesn’t tell us much about the values we truly care about here - the sampled values.</p>
 <p>From this model, we can get these in two ways.</p>
 <p>The first way: we can just look at the trace return value.</p>
-<div class="cell" data-execution_count="12">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>tr.get_retval()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span>   <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.7448314</span> ,    <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.41097283</span>,   <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.9558886</span> ,   <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.498426</span>  ,
-         <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-9.625496</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-15.6570425</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-22.74233</span>   ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-30.96311</span>   ,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-30.182352</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-64.04883</span>   ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-62.844086</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-75.89779</span>   ,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-90.39219</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-105.64662</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-121.877945</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-140.97981</span>   ,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-159.82722</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-180.46971</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-207.86064</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-224.98926</span>   <span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
-</pre>
-</div>
 </div>
 <p>The second way: we can get them out of the choice map of the trace directly.</p>
-<div class="cell" data-execution_count="13">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> tr.get_choices()</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>chm[<span class="st">"ys"</span>, <span class="st">"y"</span>, <span class="st">"value"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span>   <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.7448314</span> ,    <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.41097283</span>,   <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.9558886</span> ,   <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.498426</span>  ,
-         <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-9.625496</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-15.6570425</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-22.74233</span>   ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-30.96311</span>   ,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-30.182352</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-64.04883</span>   ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-62.844086</span>  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-75.89779</span>   ,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-90.39219</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-105.64662</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-121.877945</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-140.97981</span>   ,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-159.82722</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-180.46971</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-207.86064</span>   , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-224.98926</span>   <span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
-</pre>
-</div>
 </div>
 <p>Now, let’s construct a small visualization function to show us the samples.</p>
-<div class="cell" data-execution_count="14">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> viz(ax, x, y, <span class="op">**</span>kwargs):</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    (data,) <span class="op">=</span> tr.get_args()</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    chm <span class="op">=</span> tr.get_choices()</span>
@@ -1029,9 +938,6 @@ JAX interfaces
 <span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    viz(ax, x, y, marker<span class="op">=</span><span class="st">"."</span>)</span>
 <span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<p><img src="intro_to_genjax_files/figure-html/cell-15-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>These are the <code>("ys", "y", "value")</code> samples for 9 traces from our model, against the points from the data we passed.</p>
 <p>We just walked through one of the main elements of probabilistic programming: setting up a program, which represents a joint distribution over random variates, some of which we’ll identify with data we expect to see in the world.</p>
@@ -1041,17 +947,14 @@ JAX interfaces
 <section id="your-first-inference-program" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="your-first-inference-program">Your first inference program</h2>
 <p>Now, let’s say we have some data.</p>
-<div class="cell" data-execution_count="15">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.array([<span class="fl">0.3</span>, <span class="fl">0.7</span>, <span class="fl">1.1</span>, <span class="fl">1.4</span>, <span class="fl">2.3</span>, <span class="fl">2.5</span>, <span class="fl">3.0</span>, <span class="fl">4.0</span>, <span class="fl">5.0</span>])</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> <span class="fl">2.0</span> <span class="op">*</span> x <span class="op">+</span> <span class="fl">1.5</span> <span class="op">+</span> x<span class="op">**</span><span class="dv">2</span></span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>y[<span class="dv">2</span>] <span class="op">=</span> <span class="fl">50.0</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="16">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>fig_data, ax_data <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>viz(ax_data, x, y, color<span class="op">=</span><span class="st">"blue"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<p><img src="intro_to_genjax_files/figure-html/cell-17-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>In Bayesian inference, if we wish to consider the conditional distribution <span class="math inline">\(P(\tau, r; x | \text{data})\)</span> induced from a model <span class="math inline">\(P(\tau, \text{data}, r; x)\)</span> - Bayes’ rule gives us a way to compute it.</p>
 <p><span class="math display">\[
@@ -1062,7 +965,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <p>If we wish to approximately sample from the posterior, to get an empirical sense of its shape and properties, we will often utilize techniques which provide exact samplers for another distribution which gets asymptotically close to the target posterior if we increase certain hyperparameters.</p>
 <p>One such algorithm is <em>importance sampling</em>, and that’s what we’ll write today.</p>
 <p>Here’s importance sampling (with a single sample) without a custom proposal in GenJAX.</p>
-<div class="cell" data-execution_count="17">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>observations <span class="op">=</span> genjax.choice_map(</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"ys"</span>: genjax.vector_choice_map(genjax.choice_map({(<span class="st">"y"</span>, <span class="st">"value"</span>): y}))}</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -1072,27 +975,15 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <p>We’re introduced to another interface method!</p>
 <p><code>importance</code> accepts a PRNG key, a choice map representing observations (sometimes called constraints), and model arguments. It returns a new evolved PRNG key, and a tuple contained a log <em>importance weight</em> and a trace.</p>
 <p>The trace is consistent with the arguments and constraints passed into the invocation.</p>
-<div class="cell" data-execution_count="18">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>observations[<span class="st">"ys"</span>, <span class="st">"y"</span>, <span class="st">"value"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">array</span><span style="font-weight: bold">([</span> <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2.19</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">3.39</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">50</span>.  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.26</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">11.39</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">12.75</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">16.5</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">25.5</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">36.5</span> <span style="font-weight: bold">])</span>
-</pre>
 </div>
-</div>
-<div class="cell" data-execution_count="19">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">"ys"</span>, <span class="st">"y"</span>, <span class="st">"value"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span> <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2.19</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">3.39</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">50</span>.  ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.26</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">11.39</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">12.75</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">16.5</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">25.5</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">36.5</span> <span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
-</pre>
-</div>
 </div>
 <p>Let’s examine the weight now, and compare it to the score.</p>
-<div class="cell" data-execution_count="20">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>(w, tr.get_score())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-10115.872</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>, <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-10121.649</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">))</span>
-</pre>
-</div>
 </div>
 <p>Notice that these two quantities are different.</p>
 <p>Remember: the score is the normalized log density of the choice map measure evaluated at the complete set of trace constraints. We’ll refer to complete traces by <span class="math inline">\(\tau\)</span>.</p>
@@ -1117,7 +1008,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 </div>
 <p>Let’s start by considering two distributions which we can sample from, and evaluate densities.</p>
 <div class="page-columns page-full"><p>Below, I’m plotting the densities of two distributions - a 1D Gaussian mixture and a 1D Gaussian<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn8"><p><sup>8</sup>&nbsp;GenJAX allows usage of TensorFlow Distributions as generative functions. Here, we’re just using the <code>logpdf</code> interface from distributions which expose exact <code>logpdf</code> evaluation - but <code>genjax</code> exports a wrapper which implements the complete generative function interface.</p></li></div></div>
-<div class="cell" data-execution_count="21">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>mix <span class="op">=</span> genjax.TFPMixture(genjax.TFPCategorical, [genjax.TFPNormal, genjax.TFPNormal])</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>mix_args <span class="op">=</span> ([<span class="fl">0.5</span>, <span class="fl">0.5</span>], [(<span class="op">-</span><span class="fl">3.0</span>, <span class="fl">0.8</span>), (<span class="fl">1.0</span>, <span class="fl">0.3</span>)])</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> genjax.TFPNormal</span>
@@ -1145,16 +1036,13 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"1D Gaussian mixture PDF"</span>,</span>
 <span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>ax.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<p><img src="intro_to_genjax_files/figure-html/cell-22-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>To gain context on importance sampling, imagine that the distribution which produces the blue curve is difficult to sample from - but it exposes a <code>logpdf</code> interface which we can use to evaluate the density at any point on the support of the distribution.</p>
 <p>Now, suppose you hand me the distribution which made the red curve - and it is easy to sample from, and it also exposes a <code>logpdf</code> interface.</p>
 <p>One thing we could do is sample from the red curve and then “correct” for the fact that we’re sampling from the wrong distribution.</p>
 <p>This is the key intuition behind importance sampling.</p>
 <p>Now, I’m going to write a procedure and ask you to just go with it … for a moment.</p>
-<div class="cell" data-execution_count="22">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> importance_sample(hard, easy):</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _inner(key, hard_args, easy_args):</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>        key, sub_key <span class="op">=</span> jax.random.split(key)</span>
@@ -1166,62 +1054,30 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _inner</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="23">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>hard <span class="op">=</span> genjax.TFPMixture(genjax.TFPCategorical, [genjax.TFPNormal, genjax.TFPNormal])</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>easy <span class="op">=</span> genjax.TFPNormal</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>jitted <span class="op">=</span> jax.jit(importance_sample(hard, easy))</span>
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>key, (importance_weight, sample) <span class="op">=</span> jitted(key, mix_args, d_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="24">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>(importance_weight, sample)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.0058784</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>, <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.78240925</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">))</span>
-</pre>
-</div>
 </div>
 <p>Now, we can easily run this procedure many times in parallel.</p>
-<div class="cell" data-execution_count="25">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>jitted <span class="op">=</span> jax.jit(jax.vmap(importance_sample(hard, easy), in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="va">None</span>, <span class="va">None</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="26">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>key, <span class="op">*</span>sub_keys <span class="op">=</span> jax.random.split(key, <span class="dv">100</span> <span class="op">+</span> <span class="dv">1</span>)</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>sub_keys <span class="op">=</span> jnp.array(sub_keys)</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>_, (importance_weight, sample) <span class="op">=</span> jitted(sub_keys, mix_args, d_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="27">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>importance_weight</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.2341752e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.2633801e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.3759670e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.9383879e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-9.7561479e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.3102112e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.1128283e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.1514070e+00</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">4.5841384e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.0724092e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.8354319e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.5122299e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.2061067e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.1719730e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.5693016e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.1405115e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.3810544e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.2284150e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">7.8095734e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.8515360e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.8184617e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.8381605e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-7.5211000e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0577252e+00</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0453278e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0218762e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9.8658347e-01</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9.5912194e-01</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.9758319e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0580635e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.1381865e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.3692460e+00</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0351460e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.5306203e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.6269362e-01</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.0733199e-02</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.1496689e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.2260799e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.1138239e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">4.6291578e-01</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.1340222e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">8.6949825e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.1810038e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9703891e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-7.1519613e-03</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.2844566e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.3207369e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.3978152e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0548264e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.6061153e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.9159632e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.1040215e-01</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.5413404e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.2319851e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.4652884e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.0214028e-01</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.9174856e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.8656144e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.3170371e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.0201246e-01</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.6653061e-02</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.0496669e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.3092539e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.4331427e+00</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0071430e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.6184292e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.1847696e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.5587354e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.8828015e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.7577522e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.6165695e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.5585594e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.7351907e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.7679203e-01</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.9070494e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.9766405e+00</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">5.7461774e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0918140e-02</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.6561151e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">4.9570715e-01</span>,
-        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.3730204e-01</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9.7846591e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-3.9247353e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0440333e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.2158747e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.4731362e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.5478611e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0888841e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-7.3868978e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.2448354e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9.5782554e-01</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">3.7766671e-01</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-6.2152562e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.2021756e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-5.1431012e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.7538964e+00</span>,
-       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6911263e+00</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-7.5708902e-01</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.1147037e+00</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9.9778765e-01</span><span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
-</pre>
-</div>
 </div>
 <p>We’re just sampling from <code>easy</code>, then scoring the samples with <code>importance_weight</code> according to the log ratio <code>easy_logpdf(sample) - hard_logpdf(sample)</code>.</p>
 <p>Here’s the trick - from our collection of samples and weights, let’s normalize the weights into a distribution and sample a single sample to return using it.</p>
-<div class="cell" data-execution_count="28">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sampling_importance_resampling(hard, easy, n_samples):</span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _inner(key, hard_args, easy_args):</span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>        fn <span class="op">=</span> importance_sample(hard, easy)</span>
@@ -1237,21 +1093,17 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _inner</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="29">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>hard <span class="op">=</span> genjax.TFPMixture(genjax.TFPCategorical, [genjax.TFPNormal, genjax.TFPNormal])</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>easy <span class="op">=</span> genjax.TFPNormal</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>jitted <span class="op">=</span> jax.jit(sampling_importance_resampling(hard, easy, <span class="dv">100</span>))</span>
 <span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>key, sample <span class="op">=</span> jitted(key, mix_args, d_args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="30">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>sample</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.556716</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
-</pre>
-</div>
 </div>
 <p>Let’s run this procedure a bunch of times and plot the points on the x-axis of our plot above.</p>
-<div class="cell" data-execution_count="31">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_on_x(ax, x, <span class="op">**</span>kwargs):</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    ax.scatter(x, np.zeros_like(x), <span class="op">**</span>kwargs)</span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1263,9 +1115,6 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>_, samples <span class="op">=</span> jitted(sub_keys, mix_args, d_args)</span>
 <span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>plot_on_x(ax, samples, color<span class="op">=</span><span class="st">"gold"</span>, marker<span class="op">=</span><span class="st">"."</span>, alpha<span class="op">=</span><span class="fl">0.05</span>)</span>
 <span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>fig</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display" data-execution_count="31">
-<p><img src="intro_to_genjax_files/figure-html/cell-32-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>Notice what happens with the SIR samples (in gold)?</p>
 <p>They accumulate around the places you’d expect to see if you were sampling from the <code>hard</code> distribution!</p>
@@ -1274,11 +1123,8 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <section id="back-to-our-generative-function" class="level3 page-columns page-full">
 <h3 class="anchored" data-anchor-id="back-to-our-generative-function">Back to our generative function</h3>
 <p>Now that we’ve seen the ingredients and implementation of importance sampling and sampling importance resampling - let’s return to our original problem.</p>
-<div class="cell" data-execution_count="32">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>fig_data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display" data-execution_count="32">
-<p><img src="intro_to_genjax_files/figure-html/cell-33-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>If you studied the previous section careful - one question might jump out at you: what is the “easy” distribution for <code>model.importance</code>?</p>
 <section id="builtin-proposals" class="level4 page-columns page-full">
@@ -1296,7 +1142,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <section id="sequential-importance-resampling-in-genjax" class="level4 page-columns page-full">
 <h4 class="anchored" data-anchor-id="sequential-importance-resampling-in-genjax">Sequential importance resampling in GenJAX</h4>
 <div class="page-columns page-full"><p>Here’s SIR using builtin proposals (just a single call to <code>model.importance</code>) in GenJAX<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a>:</p><div class="no-row-height column-margin column-container"><li id="fn11"><p><sup>11</sup>&nbsp;To implement a variant with custom proposals, all we need to do is first <code>proposal.simulate</code>, merge the proposal choice map with the constraints, then <code>model.importance</code> followed by a final weight adjustment <code>w = w - proposal_tr.get_score()</code> - easy peasy.</p></li></div></div>
-<div class="cell" data-execution_count="33">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sampling_importance_resampling(model, n_samples):</span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _inner(key, observations, model_args):</span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>        key, <span class="op">*</span>sub_keys <span class="op">=</span> jax.random.split(key, n_samples <span class="op">+</span> <span class="dv">1</span>)</span>
@@ -1311,7 +1157,7 @@ P(\tau, r; x | \text{data}) = \frac{P(\tau, \text{data}, r; x)}{\int P(\tau, \te
 <span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _inner</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>One difference between our first implementation (on just distributions) above and this one is that <code>Trace</code> instances are structured objects (but all of them are <code>Pytree</code> implementors) - meaning we need to index into the leaves when we wish to return a single sampled trace.</p>
-<div class="cell" data-execution_count="34">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>model_args <span class="op">=</span> (x,)</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>jitted <span class="op">=</span> jax.jit(</span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    jax.vmap(sampling_importance_resampling(model, <span class="dv">100</span>), in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="va">None</span>, <span class="va">None</span>))</span>
