@@ -19,9 +19,13 @@ from genjax._src.core.datatypes import AllSelection
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.prox.prox_distribution import ProxDistribution
-from genjax._src.prox.target import Target
-from genjax._src.prox.utils import static_check_supports
+from genjax._src.generative_functions.distributions.prox.prox_distribution import (
+    ProxDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.target import Target
+from genjax._src.generative_functions.distributions.prox.utils import (
+    static_check_supports,
+)
 
 
 @dataclass

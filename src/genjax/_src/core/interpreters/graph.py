@@ -246,16 +246,16 @@ class PropagationRules(Pytree):
     def rule_set_merge(self, other):
         return PropagationRules(self.fallback_rule, {**self.rule_set, **other.rule_set})
 
-    def get(self, primitive):
+    def get_rule_set(self):
+        return self.rule_set
+
+    def __getitem__(self, primitive):
         if primitive in self.rule_set:
-            return self.rule_set.get(primitive)
+            return self.rule_set[primitive]
         assert self.fallback_rule is not None
         return lambda incells, outcells, **params: self.fallback_rule(
             primitive, incells, outcells, **params
         )
-
-    def get_rule_set(self):
-        return self.rule_set
 
 
 def update_queue_state(
@@ -430,7 +430,7 @@ class Interpreter(Pytree):
                         )
                     )
                 ]
-                rule = self.propagation_rules.get(eqn.primitive)
+                rule = self.propagation_rules[eqn.primitive]
             else:
                 subfuns = []
 
@@ -447,7 +447,7 @@ class Interpreter(Pytree):
                 ############################################
 
                 else:
-                    rule = self.propagation_rules.get(eqn.primitive)
+                    rule = self.propagation_rules[eqn.primitive]
 
             # Apply a propagation rule.
             new_incells, new_outcells, eqn_state = rule(

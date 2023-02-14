@@ -22,9 +22,13 @@ import numpy as np
 
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.typing import typecheck
-from genjax._src.prox.prox_distribution import ProxDistribution
-from genjax._src.prox.target import Target
-from genjax._src.prox.utils import static_check_supports
+from genjax._src.generative_functions.distributions.prox.prox_distribution import (
+    ProxDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.target import Target
+from genjax._src.generative_functions.distributions.prox.utils import (
+    static_check_supports,
+)
 
 
 def _logsumexp_with_extra(arr, x):
