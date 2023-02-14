@@ -18,6 +18,7 @@
 # For the internals, see _src.
 
 # Closed modules.
+from genjax import coryx
 from genjax import prox
 from genjax import typing
 

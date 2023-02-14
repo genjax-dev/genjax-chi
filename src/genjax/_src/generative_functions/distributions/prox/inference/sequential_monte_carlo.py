@@ -43,8 +43,10 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
-from genjax._src.prox.prox_distribution import ProxDistribution
-from genjax._src.prox.target import Target
+from genjax._src.generative_functions.distributions.prox.prox_distribution import (
+    ProxDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.target import Target
 
 
 #####

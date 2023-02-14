@@ -28,8 +28,8 @@ from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
-from genjax._src.prox import ProxDistribution
-from genjax._src.prox import Target
+from genjax._src.generative_functions.distributions.prox import ProxDistribution
+from genjax._src.generative_functions.distributions.prox import Target
 
 
 @dataclasses.dataclass

@@ -11,3 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from genjax._src.generative_functions.distributions.coryx import ildj
+from genjax._src.generative_functions.distributions.coryx import ildj_registry_rules
+from genjax._src.generative_functions.distributions.coryx import inverse
+
+
+__all__ = [
+    "ildj",
+    "inverse",
+    "ildj_registry_rules",
+]

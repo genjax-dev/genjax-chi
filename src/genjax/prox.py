@@ -19,28 +19,30 @@ Lew's framework for programming with composable approximate densities
 GenProx.
 """
 
-from genjax._src.prox import ChangeTarget
-from genjax._src.prox import ChoiceMapDistribution
-from genjax._src.prox import Compose
-from genjax._src.prox import Extend
-from genjax._src.prox import Importance
-from genjax._src.prox import Init
-from genjax._src.prox import Marginal
-from genjax._src.prox import ParticleCollection
-from genjax._src.prox import ProxDistribution
-from genjax._src.prox import Sequence
-from genjax._src.prox import SMCChangeTargetPropagator
-from genjax._src.prox import SMCCompose
-from genjax._src.prox import SMCExtendPropagator
-from genjax._src.prox import SMCInit
-from genjax._src.prox import SMCPropagator
-from genjax._src.prox import SMCSequencePropagator
-from genjax._src.prox import Target
-from genjax._src.prox import chm_dist
-from genjax._src.prox import importance
-from genjax._src.prox import marginal
-from genjax._src.prox import static_check_supports
-from genjax._src.prox import target
+from genjax._src.generative_functions.distributions.prox import ChangeTarget
+from genjax._src.generative_functions.distributions.prox import ChoiceMapDistribution
+from genjax._src.generative_functions.distributions.prox import Compose
+from genjax._src.generative_functions.distributions.prox import Extend
+from genjax._src.generative_functions.distributions.prox import Importance
+from genjax._src.generative_functions.distributions.prox import Init
+from genjax._src.generative_functions.distributions.prox import Marginal
+from genjax._src.generative_functions.distributions.prox import ParticleCollection
+from genjax._src.generative_functions.distributions.prox import ProxDistribution
+from genjax._src.generative_functions.distributions.prox import Sequence
+from genjax._src.generative_functions.distributions.prox import (
+    SMCChangeTargetPropagator,
+)
+from genjax._src.generative_functions.distributions.prox import SMCCompose
+from genjax._src.generative_functions.distributions.prox import SMCExtendPropagator
+from genjax._src.generative_functions.distributions.prox import SMCInit
+from genjax._src.generative_functions.distributions.prox import SMCPropagator
+from genjax._src.generative_functions.distributions.prox import SMCSequencePropagator
+from genjax._src.generative_functions.distributions.prox import Target
+from genjax._src.generative_functions.distributions.prox import chm_dist
+from genjax._src.generative_functions.distributions.prox import importance
+from genjax._src.generative_functions.distributions.prox import marginal
+from genjax._src.generative_functions.distributions.prox import static_check_supports
+from genjax._src.generative_functions.distributions.prox import target
 
 
 __all__ = [
