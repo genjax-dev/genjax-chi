@@ -13,4 +13,5 @@
 # limitations under the License.
 
 from .core import *
+from .lang import *
 from .rules import *

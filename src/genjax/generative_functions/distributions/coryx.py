@@ -15,10 +15,14 @@
 from genjax._src.generative_functions.distributions.coryx import ildj
 from genjax._src.generative_functions.distributions.coryx import ildj_registry_rules
 from genjax._src.generative_functions.distributions.coryx import inverse
+from genjax._src.generative_functions.distributions.coryx import rv
+from genjax._src.generative_functions.distributions.coryx import trans_dist
 
 
 __all__ = [
     "ildj",
     "inverse",
     "ildj_registry_rules",
+    "trans_dist",
+    "rv",
 ]
