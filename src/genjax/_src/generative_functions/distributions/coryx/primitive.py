@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Module for higher order primitives."""
+
 import itertools as it
 
 from jax import abstract_arrays
@@ -204,7 +205,7 @@ def initial_style_bind(prim, **params):
 
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
-            jaxpr, (in_tree, out_tree) = trace_util.stage(f, dynamic=True)(
+            jaxpr, (_, in_tree, out_tree) = trace_util.stage(f, dynamic=True)(
                 *args, **kwargs
             )
             flat_args = tree_util.tree_leaves(args)

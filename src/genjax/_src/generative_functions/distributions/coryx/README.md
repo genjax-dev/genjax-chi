@@ -1,10 +1,27 @@
 # `coryx` (distribution transformation DSL)
 
-This module supports a distribution DSL similar to [Gen.jl][gen_dist]. The design of the DSL is heavily inspired by the two [Oryx][oryx] core transformations `inverse` and `ildj`.
+## Contents
+
+This module supports a distribution DSL similar to [Gen.jl][gen_dist]. The design of the DSL is heavily inspired by the two [Oryx][oryx] core transformations `inverse` and `ildj`, as well as the language which Oryx presents in the `ppl` module.
 
 We utilize these core transformations to support a generative function language which allows sampling the values of random variables from other `Distribution` generative functions, and transforming them with a function `f` which is compatible with the `ildj` transformation.
 
-In the future (pending more information about Oryx's development model), this DSL may rely on Oryx directly for its functionality - for now, we've forked the code here.
+> In the future (pending more information about Oryx's development model), we may rely on Oryx directly for its functionality - for now, we've forked the code here and kept all attribution notices.
+
+## Language
+
+This module also exposes a language decorator, allowing users to express programs in the distribution transformation DSL. Here's an example `@genjax.dist` program:
+
+```python
+@genjax.dist
+def new_dist(x):
+    v = genjax.rv(genjax.Normal)(x, 1.0)
+    return jnp.exp(v / 2.0) + 2.0
+```
+
+### Language syntax
+
+### Admissible programs
 
 ## Code copyright
 

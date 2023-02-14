@@ -223,9 +223,9 @@ class GenerativeFunction(Pytree):
     # the fact that the value has type PRNGKey.
     def __abstract_call__(self, *args) -> Tuple[PRNGKey, Any]:
         key = jax.random.PRNGKey(0)
-        key, tr = self.simulate(key, args)
+        _, tr = self.simulate(key, args)
         retval = tr.get_retval()
-        return key, retval
+        return retval
 
     def get_trace_type(self, *args, **kwargs) -> TraceType:
         shape = kwargs.get("shape", ())

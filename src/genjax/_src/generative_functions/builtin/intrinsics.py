@@ -85,7 +85,7 @@ def gen_fn_abstract_eval(*args, addr, tree_in, **kwargs):
     # See note above on `_abstract_gen_fn_call`.
     closed_jaxpr, _ = stage(_abstract_gen_fn_call)(gen_fn, *args)
 
-    retvals = closed_jaxpr.out_avals[1:]
+    retvals = closed_jaxpr.out_avals
     return retvals
 
 
@@ -155,7 +155,7 @@ def inline_abstract_eval(*args, tree_in, **kwargs):
     # See note above on `_abstract_gen_fn_call`.
     closed_jaxpr, _ = stage(_abstract_gen_fn_call)(gen_fn, *args)
 
-    retvals = closed_jaxpr.out_avals[1:]
+    retvals = closed_jaxpr.out_avals
     return retvals
 
 
