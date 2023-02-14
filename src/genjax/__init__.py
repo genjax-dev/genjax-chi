@@ -17,10 +17,11 @@
 # This __init__ file exports GenJAX's public API.
 # For the internals, see _src.
 
-# Closed modules.
-from genjax import coryx
-from genjax import prox
 from genjax import typing
+
+# Closed modules.
+from genjax.generative_functions.distributions import coryx
+from genjax.generative_functions.distributions import prox
 
 from .console import *
 from .core import *
