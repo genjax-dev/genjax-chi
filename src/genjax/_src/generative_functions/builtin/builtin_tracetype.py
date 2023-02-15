@@ -28,9 +28,9 @@ from genjax._src.core.tracetypes import Finite
 from genjax._src.core.tracetypes import Integers
 from genjax._src.core.tracetypes import Reals
 from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.trie import Trie
 from genjax._src.core.typing import static_check_is_array
-from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
-from genjax._src.generative_functions.builtin.trie import Trie
+from genjax._src.generative_functions.builtin.builtin_primitives import gen_fn_p
 
 
 @dataclass
@@ -140,10 +140,10 @@ def trace_typing(jaxpr: jc.ClosedJaxpr, flat_in, consts):
 
     for eqn in jaxpr.eqns:
         if eqn.primitive == gen_fn_p:
-            tree_in = eqn.params["tree_in"]
+            in_tree = eqn.params["in_tree"]
             addr = eqn.params["addr"]
             invals = safe_map(read, eqn.invars)
-            gen_fn, args = jtu.tree_unflatten(tree_in, invals)
+            gen_fn, *args = jtu.tree_unflatten(in_tree, invals)
             ty = gen_fn.get_trace_type(*args, **eqn.params)
             inner_trace_type[addr] = ty
         outvals = safe_map(lambda v: v.aval, eqn.outvars)

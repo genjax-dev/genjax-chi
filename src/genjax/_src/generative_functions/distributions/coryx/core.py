@@ -29,7 +29,7 @@ from jax.interpreters import xla
 import genjax._src.core.interpreters.graph as propagate
 import genjax._src.core.staging as trace_util
 import genjax._src.generative_functions.distributions.coryx.slice as slc
-from genjax._src.generative_functions.distributions.coryx import primitive
+from genjax._src.core import primitives
 
 
 safe_map = jax_core.safe_map
@@ -279,7 +279,7 @@ def register_elementwise(prim):
 
 
 def register_binary(prim):
-    """Registers an binary primitive with ILDJ."""
+    """Registers a binary primitive with ILDJ."""
 
     def make_rule(f_left, f_right):
         def ildj_rule(incells, outcells, **params):
@@ -312,7 +312,7 @@ def hop_inverse_rule(prim):
     ildj_registry_rules[prim] = functools.partial(propagate.call_rule, prim)
 
 
-primitive.register_hop_transformation_rule("inverse", hop_inverse_rule)
+primitives.register_hop_transformation_rule("inverse", hop_inverse_rule)
 
 
 def initial_ildj(incells, outcells, *, jaxpr, num_consts, **_):
@@ -329,7 +329,7 @@ def initial_inverse_rule(prim):
     ildj_registry_rules[prim] = initial_ildj
 
 
-primitive.register_initial_transformation_rule("inverse", initial_inverse_rule)
+primitives.register_initial_transformation_rule("inverse", initial_inverse_rule)
 
 
 def map_ildj(prim, incells, outcells, **params):

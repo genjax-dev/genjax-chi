@@ -26,7 +26,6 @@ from jax import util as jax_util
 
 from genjax._src.generative_functions.distributions.coryx import core as inverse_core
 from genjax._src.generative_functions.distributions.coryx import custom_inverse as ci
-from genjax._src.generative_functions.distributions.coryx import primitive
 from genjax._src.generative_functions.distributions.coryx import slice as slc
 
 
@@ -176,17 +175,6 @@ def concatenate_ildj(incells, outcells, *, dimension):
 
 
 ildj_registry_rules[lax.concatenate_p] = concatenate_ildj
-
-
-def tie_all_ildj(incells, outcells, **params):
-    del params
-    new_cells = [
-        incell.join(outcell) for incell, outcell in zip(incells, outcells, strict=True)
-    ]
-    return new_cells, new_cells, None
-
-
-ildj_registry_rules[primitive.tie_all_p] = tie_all_ildj
 
 
 def reshape_ildj(incells, outcells, **params):

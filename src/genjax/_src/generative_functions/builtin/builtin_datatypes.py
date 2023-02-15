@@ -23,13 +23,13 @@ from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.trie import Trie
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_tracetype import BuiltinTraceType
-from genjax._src.generative_functions.builtin.trie import Trie
 
 
 #####

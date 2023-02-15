@@ -32,12 +32,12 @@ from genjax._src.core.diff_rules import tree_strip_diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.specialization import is_concrete
 from genjax._src.core.staging import stage
+from genjax._src.core.trie import Trie
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
-from genjax._src.generative_functions.builtin.builtin_datatypes import Trie
-from genjax._src.generative_functions.builtin.intrinsics import cache_p
-from genjax._src.generative_functions.builtin.intrinsics import gen_fn_p
-from genjax._src.generative_functions.builtin.intrinsics import inline_p
+from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
+from genjax._src.generative_functions.builtin.builtin_primitives import gen_fn_p
+from genjax._src.generative_functions.builtin.builtin_primitives import inline_p
 
 
 ##################################################
@@ -109,9 +109,8 @@ def _inline_transform(cell_type, source_fn, handler, **kwargs):
                 [cell_type.new(v) for v in consts],
                 list(map(cell_type.new, flat_args)),
             )
-            flat_out = map(lambda v: v.get_val(), flat_out)
-            retvals = jtu.tree_unflatten(out_tree, flat_out)
-
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        retvals = jtu.tree_unflatten(out_tree, flat_out)
         return retvals
 
     return _inner
@@ -121,8 +120,9 @@ def _inline_transform(cell_type, source_fn, handler, **kwargs):
 # NOTE: `update` doesn't use this - because it works with a slightly
 # different `Cell` lattice than the other handlers.
 class DefaultInline:
-    def inline(self, cell_type, prim, args, cont, tree_in, **kwargs):
-        gen_fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+    def inline(self, cell_type, prim, args, cont, in_tree, **kwargs):
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        args = tuple(args)
         transformed = _inline_transform(cell_type, gen_fn.source, self)
         v = transformed(args)
         v = cps.flatmap_outcells(cell_type, v)
@@ -166,16 +166,17 @@ class Simulate(cps.Handler, DefaultInline):
             handles, key, score, choice_state, cache_state, trace_visitor, cache_visitor
         )
 
-    def trace(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
+    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
         # Use the visitor to check if an address of this value
         # has already been visited.
         self.trace_visitor.visit(addr)
 
         # Unflatten the flattened `Pytree` arguments.
-        gen_fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        args = tuple(args)
 
         # Send the GFI call to the generative function callee.
-        self.key, tr = gen_fn.simulate(self.key, args, **kwargs)
+        self.key, tr = gen_fn.simulate(self.key, args)
 
         # Set state in the handler.
         score = tr.get_score()
@@ -188,13 +189,13 @@ class Simulate(cps.Handler, DefaultInline):
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
 
-    def cache(self, cell_type, prim, args, addr, fn, tree_in, cont, **kwargs):
+    def cache(self, cell_type, prim, args, addr, fn, in_tree, cont, **kwargs):
         # Use the visitor to check if an address of this value
         # has already been visited.
         self.cache_visitor.visit(addr)
 
         # Unflatten the flattened `Pytree` arguments.
-        args = jtu.tree_unflatten(tree_in, args)
+        args = jtu.tree_unflatten(in_tree, args)
         retval = fn(*args)
 
         # Store the return value with the handler.
@@ -216,13 +217,12 @@ def simulate_transform(source_fn, **kwargs):
             flat_out = interpreter(
                 jaxpr, [Bare.new(v) for v in consts], list(map(Bare.new, flat_args))
             )
-            flat_out = map(lambda v: v.get_val(), flat_out)
-            retvals = jtu.tree_unflatten(out_tree, flat_out)
-            score = handler.score
-            constraints = handler.choice_state
-            cache = handler.cache_state
-            key = handler.key
-
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        retvals = jtu.tree_unflatten(out_tree, flat_out)
+        score = handler.score
+        constraints = handler.choice_state
+        cache = handler.cache_state
+        key = handler.key
         return key, (source_fn, args, retvals, constraints, score), cache
 
     return _inner
@@ -264,9 +264,10 @@ class Importance(cps.Handler, DefaultInline):
             handles, key, score, weight, constraints, choice_state, cache_state
         )
 
-    def trace(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
-        gen_fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         sub_map = self.constraints.get_subtree(addr)
+        args = tuple(args)
         self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
         self.choice_state[addr] = tr
         self.score += tr.get_score()
@@ -275,8 +276,8 @@ class Importance(cps.Handler, DefaultInline):
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
 
-    def cache(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
-        fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+    def cache(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         retval = fn(*args)
         self.cache_state[addr] = retval
         retval = cps.flatmap_outcells(cell_type, retval)
@@ -295,14 +296,13 @@ def importance_transform(source_fn, **kwargs):
                 [Bare.new(v) for v in consts],
                 list(map(Bare.new, flat_args)),
             )
-            flat_out = map(lambda v: v.get_val(), flat_out)
-            retvals = jtu.tree_unflatten(out_tree, flat_out)
-            w = handler.weight
-            score = handler.score
-            constraints = handler.choice_state
-            cache = handler.cache_state
-            key = handler.key
-
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        retvals = jtu.tree_unflatten(out_tree, flat_out)
+        w = handler.weight
+        score = handler.score
+        constraints = handler.choice_state
+        cache = handler.cache_state
+        key = handler.key
         return key, (w, (source_fn, args, retvals, constraints, score)), cache
 
     return _inner
@@ -378,10 +378,11 @@ class Update(cps.Handler):
             cache_state,
         )
 
-    def trace(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
-        gen_fn, argdiffs = jtu.tree_unflatten(tree_in, args)
+    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+        gen_fn, *argdiffs = jtu.tree_unflatten(in_tree, args)
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
+        argdiffs = tuple(argdiffs)
         self.key, (retval_diff, w, tr, discard) = gen_fn.update(
             self.key, subtrace, subconstraints, argdiffs
         )
@@ -392,8 +393,8 @@ class Update(cps.Handler):
         retval_diff = cps.flatmap_outcells(cell_type, retval_diff)
         return cont(*retval_diff)
 
-    def cache(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
-        fn, args = jtu.tree_unflatten(tree_in, args)
+    def cache(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+        fn, args = jtu.tree_unflatten(in_tree, args)
         has_value = self.previous_trace.has_cached_value(addr)
 
         if is_concrete(has_value) and has_value and all(map(check_no_change, args)):
@@ -416,9 +417,10 @@ class Update(cps.Handler):
         retval = cps.flatmap_outcells(cell_type, retval)
         return cont(*retval)
 
-    def inline(self, cell_type, prim, args, cont, tree_in, **kwargs):
-        gen_fn, argdiffs = jtu.tree_unflatten(tree_in, args)
+    def inline(self, cell_type, prim, args, cont, in_tree, **kwargs):
+        gen_fn, *argdiffs = jtu.tree_unflatten(in_tree, args)
         transformed = _update_inline_transform(cell_type, gen_fn.source, self)
+        argdiffs = tuple(argdiffs)
         v = transformed(argdiffs)
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
@@ -439,15 +441,14 @@ def update_transform(source_fn, **kwargs):
                 flat_argdiffs,
             )
 
-            retvals = tree_strip_diff(flat_retval_diffs)
-            retvals = jtu.tree_unflatten(out_tree, retvals)
-            retval_diffs = jtu.tree_unflatten(out_tree, flat_retval_diffs)
-            w = handler.weight
-            constraints = handler.choice_state
-            cache = handler.cache_state
-            discard = handler.discard
-            key = handler.key
-
+        retvals = tree_strip_diff(flat_retval_diffs)
+        retvals = jtu.tree_unflatten(out_tree, retvals)
+        retval_diffs = jtu.tree_unflatten(out_tree, flat_retval_diffs)
+        w = handler.weight
+        constraints = handler.choice_state
+        cache = handler.cache_state
+        discard = handler.discard
+        key = handler.key
         return (
             key,
             (
@@ -493,16 +494,17 @@ class Assess(cps.Handler, DefaultInline):
         score = 0.0
         return Assess(handles, key, score, constraints)
 
-    def trace(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
-        gen_fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         submap = self.constraints.get_subtree(addr)
+        args = tuple(args)
         self.key, (v, score) = gen_fn.assess(self.key, submap, args)
         self.score += score
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
 
-    def cache(self, cell_type, prim, args, cont, addr, tree_in, **kwargs):
-        fn, args = jtu.tree_unflatten(tree_in, cps.static_map_unwrap(args))
+    def cache(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         retval = fn(*args)
         retval = cps.flatmap_outcells(cell_type, retval)
         return cont(*retval)
@@ -520,11 +522,10 @@ def assess_transform(source_fn, **kwargs):
                 [Bare.new(v) for v in consts],
                 list(map(Bare.new, flat_args)),
             )
-            flat_out = map(lambda v: v.get_val(), flat_out)
-            retvals = jtu.tree_unflatten(out_tree, flat_out)
-            score = handler.score
-            key = handler.key
-
+        flat_out = map(lambda v: v.get_val(), flat_out)
+        retvals = jtu.tree_unflatten(out_tree, flat_out)
+        score = handler.score
+        key = handler.key
         return key, (retvals, score)
 
     return _inner

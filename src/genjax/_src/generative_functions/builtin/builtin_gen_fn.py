@@ -19,27 +19,33 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.diff_rules import check_is_diff
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.staging import get_shaped_aval
 from genjax._src.core.tracetypes import TraceType
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
+from genjax._src.generative_functions.builtin.builtin_primitives import _inline
+from genjax._src.generative_functions.builtin.builtin_primitives import cache
+from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
     trace_type_transform,
 )
-from genjax._src.generative_functions.builtin.intrinsics import _inline
-from genjax._src.generative_functions.builtin.intrinsics import cache
-from genjax._src.generative_functions.builtin.intrinsics import trace
-from genjax._src.generative_functions.builtin.transforms import assess_transform
-from genjax._src.generative_functions.builtin.transforms import importance_transform
-from genjax._src.generative_functions.builtin.transforms import simulate_transform
-from genjax._src.generative_functions.builtin.transforms import update_transform
+from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
+from genjax._src.generative_functions.builtin.builtin_transforms import (
+    importance_transform,
+)
+from genjax._src.generative_functions.builtin.builtin_transforms import (
+    simulate_transform,
+)
+from genjax._src.generative_functions.builtin.builtin_transforms import update_transform
 
 
 #####
@@ -47,7 +53,7 @@ from genjax._src.generative_functions.builtin.transforms import update_transform
 #####
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
-# in the builtin language for functions via the `cache` intrinsics.
+# in the builtin language for functions via the `cache` builtin_primitives.
 @dataclass
 class DeferredFunctionCall(Pytree):
     fn: Callable
@@ -107,21 +113,63 @@ class DeferredGenerativeFunctionCall(Pytree):
 
 
 #####
+# Pytree closure
+#####
+
+# TODO: investigate if `inspect` can provide better APIs
+# for the functionality implemented in this class.
+@dataclass
+class PytreeClosure(Pytree):
+    callable: Callable
+    environment: List
+
+    def flatten(self):
+        return (self.environment,), (self.callable,)
+
+    def __call__(self, *args):
+        if self.callable.__closure__ is None:
+            return self.callable(*args)
+        else:
+            for (cell, v) in zip(self.callable.__closure__, self.environment):
+                cell.cell_contents = v
+            ret = self.callable(*args)
+            for cell in self.callable.__closure__:
+                cell.cell_contents = None
+            return ret
+
+    def __hash__(self):
+        avals = list(map(get_shaped_aval, self.environment))
+        return hash((self.callable, *avals))
+
+
+def closure_convert(callable):
+    captured = []
+    if callable.__closure__ is None:
+        return PytreeClosure(callable, captured)
+    else:
+        for cell in callable.__closure__:
+            captured.append(cell.cell_contents)
+            cell.cell_contents = None
+        return PytreeClosure(callable, captured)
+
+
+#####
 # Generative function
 #####
 
 
 @dataclass
 class BuiltinGenerativeFunction(GenerativeFunction):
-    source: Callable
+    source: PytreeClosure
 
     def flatten(self):
-        return (), (self.source,)
+        return (self.source,), ()
 
     @typecheck
     @classmethod
     def new(cls, source: Callable):
-        return BuiltinGenerativeFunction(source)
+        converted = closure_convert(source)
+        return BuiltinGenerativeFunction(converted)
 
     # This overloads the call functionality for this generative function
     # and allows usage of shorthand notation in the builtin DSL.
