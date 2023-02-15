@@ -20,7 +20,7 @@ inverses.
 """
 
 import jax
-import jax.numpy as np
+import jax.numpy as jnp
 from jax import lax
 from jax import util as jax_util
 
@@ -38,14 +38,14 @@ Slice = slc.Slice
 safe_map = jax_util.safe_map
 custom_inverse = ci.custom_inverse
 
-register_elementwise(lax.exp_p)(np.log)
-register_elementwise(lax.log_p)(np.exp)
-register_elementwise(lax.sin_p)(np.arcsin)
-register_elementwise(lax.cos_p)(np.arccos)
-register_elementwise(lax.expm1_p)(np.log1p)
-register_elementwise(lax.log1p_p)(np.expm1)
+register_elementwise(lax.exp_p)(jnp.log)
+register_elementwise(lax.log_p)(jnp.exp)
+register_elementwise(lax.sin_p)(jnp.arcsin)
+register_elementwise(lax.cos_p)(jnp.arccos)
+register_elementwise(lax.expm1_p)(jnp.log1p)
+register_elementwise(lax.log1p_p)(jnp.expm1)
 register_elementwise(lax.neg_p)(lambda x: -x)
-register_elementwise(lax.sqrt_p)(np.square)
+register_elementwise(lax.sqrt_p)(jnp.square)
 
 
 @register_elementwise(lax.integer_pow_p)
@@ -56,9 +56,9 @@ def integer_pow_inverse(z, *, y):
     elif y == 1:
         return z
     elif y == -1:
-        return np.reciprocal(z)
+        return jnp.reciprocal(z)
     elif y == 2:
-        return np.sqrt(z)
+        return jnp.sqrt(z)
     return lax.pow(z, 1.0 / y)
 
 
@@ -67,7 +67,7 @@ def pow_left(x, z, ildj_):
     # y = f^-1(z) = log(z) / log(x)
     # grad(f^-1)(z) = 1 / (z log(x))
     # log(grad(f^-1)(z)) = log(1 / (z log(x))) = -log(z) - log(log(x))
-    return np.log(z) / np.log(x), ildj_ - np.log(z) - np.log(np.log(x))
+    return jnp.log(z) / jnp.log(x), ildj_ - jnp.log(z) - jnp.log(jnp.log(x))
 
 
 def pow_right(y, z, ildj_):
@@ -75,8 +75,8 @@ def pow_right(y, z, ildj_):
     # x = f^-1(z) = z ** (1 / y)
     # grad(f^-1)(z) = 1 / y * z ** (1 / y - 1)
     # log(grad(f^-1)(z)) = (1 / y - 1)log(z) - log(y)
-    y_inv = np.reciprocal(y)
-    return lax.pow(z, y_inv), ildj_ + (y_inv - 1.0) * np.log(z) - np.log(y)
+    y_inv = jnp.reciprocal(y)
+    return lax.pow(z, y_inv), ildj_ + (y_inv - 1.0) * jnp.log(z) - jnp.log(y)
 
 
 register_binary(lax.pow_p)(pow_left, pow_right)
@@ -105,22 +105,22 @@ register_binary(lax.sub_p)(sub_left, sub_right)
 
 
 def mul_left(left_val, out_val, ildj_):
-    return out_val / left_val, -np.log(np.abs(left_val)) + ildj_
+    return out_val / left_val, -jnp.log(jnp.abs(left_val)) + ildj_
 
 
 def mul_right(right_val, out_val, ildj_):
-    return out_val / right_val, -np.log(np.abs(right_val)) + ildj_
+    return out_val / right_val, -jnp.log(jnp.abs(right_val)) + ildj_
 
 
 register_binary(lax.mul_p)(mul_left, mul_right)
 
 
 def div_left(left_val, out_val, ildj_):
-    return left_val / out_val, ((np.log(left_val) - 2 * np.log(out_val)) + ildj_)
+    return left_val / out_val, ((jnp.log(left_val) - 2 * jnp.log(out_val)) + ildj_)
 
 
 def div_right(right_val, out_val, ildj_):
-    return out_val * right_val, np.log(np.abs(right_val)) + ildj_
+    return out_val * right_val, jnp.log(jnp.abs(right_val)) + ildj_
 
 
 register_binary(lax.div_p)(div_left, div_right)
@@ -164,8 +164,8 @@ def concatenate_ildj(incells, outcells, *, dimension):
             d = incell.aval.shape[dimension]
             idx += d
             sections.append(idx)
-        invals = np.split(outval, sections, dimension)
-        ildjs = np.split(outildj, sections, dimension)
+        invals = jnp.split(outval, sections, dimension)
+        ildjs = jnp.split(outildj, sections, dimension)
         inslcs = [[NDSlice.new(inval, ildj_)] for inval, ildj_ in zip(invals, ildjs)]
         incells = [
             InverseAndILDJ(old_incell.aval, inslc)
@@ -189,7 +189,7 @@ def reshape_ildj(incells, outcells, **params):
         )
     elif outcell.top() and not incell.top():
         val = outcell.val
-        new_incells = [InverseAndILDJ.new(np.reshape(val, incell.aval.shape))]
+        new_incells = [InverseAndILDJ.new(jnp.reshape(val, incell.aval.shape))]
         return new_incells, outcells, None
     return incells, outcells, None
 
@@ -232,6 +232,9 @@ def convert_element_type_ildj(incells, outcells, *, new_dtype, **params):
 
 ildj_registry_rules[lax.convert_element_type_p] = convert_element_type_ildj
 
+##################
+# Monkey patches #
+##################
 
 # Monkey patching JAX so we can define custom, more numerically stable inverses.
 jax.scipy.special.expit = custom_inverse(jax.scipy.special.expit)
