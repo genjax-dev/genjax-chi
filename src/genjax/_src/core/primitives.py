@@ -16,7 +16,6 @@
 
 import itertools as it
 
-from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax import tree_util
@@ -196,6 +195,24 @@ def call_bind(prim, **params):
     return bind
 
 
+class InitialStylePrimitive(FlatPrimitive):
+    """Contains default implementations of transformations."""
+
+    def __init__(self, name):
+        super().__init__(name)
+
+        def fun_impl(*args, **params):
+            consts, args = jax_util.split_list(args, [params["num_consts"]])
+            return jax_core.eval_jaxpr(params["jaxpr"], consts, *args)
+
+        self.def_impl(fun_impl)
+        for register_func in initial_transformation_rules.values():
+            register_func(self)
+
+    def subcall(self, name):
+        return InitialStylePrimitive(f"{self.name}/{name}")
+
+
 def initial_style_bind(prim, **params):
     """Binds a primitive to a function call."""
 
@@ -222,66 +239,3 @@ def initial_style_bind(prim, **params):
         return wrapped
 
     return bind
-
-
-class InitialStylePrimitive(FlatPrimitive):
-    """Contains default implementations of transformations."""
-
-    def __init__(self, name):
-        super().__init__(name)
-
-        def fun_impl(*args, **params):
-            consts, args = jax_util.split_list(args, [params["num_consts"]])
-            return jax_core.eval_jaxpr(params["jaxpr"], consts, *args)
-
-        self.def_impl(fun_impl)
-        for register_func in initial_transformation_rules.values():
-            register_func(self)
-
-    def subcall(self, name):
-        return InitialStylePrimitive(f"{self.name}/{name}")
-
-
-tie_all_p = jax_core.Primitive("tie_all")
-tie_all_p.multiple_results = True
-tie_all_p.def_impl(lambda *args: args)
-tie_all_p.def_abstract_eval(
-    lambda *args: safe_map(  # pylint: disable=g-long-lambda
-        abstract_arrays.raise_to_shaped, args
-    )
-)
-
-mlir.register_lowering(tie_all_p, lambda c, *args: args)
-
-
-def _tie_all_batch_rule(batched_args, batch_dims):
-    return batched_args, batch_dims
-
-
-def _tie_all_transpose(cts_in, *args, **params):
-    del args, params
-    return cts_in
-
-
-def _tie_all_jvp(primals, tangents, **params):
-    del params
-    return primals, tangents
-
-
-ad.primitive_jvps[tie_all_p] = _tie_all_jvp
-ad.primitive_transposes[tie_all_p] = _tie_all_transpose
-batching.primitive_batchers[tie_all_p] = _tie_all_batch_rule
-
-
-def tie_all(*args):
-    """An identity function that ties arguments together in a JAX trace."""
-    flat_args, in_tree = tree_util.tree_flatten(args)
-    if len(flat_args) <= 1:
-        return args
-    out = tie_all_p.bind(*flat_args)
-    return tree_util.tree_unflatten(in_tree, out)
-
-
-def tie_in(x, y):
-    """A reimplementation of `jax.tie_in` that handles pytrees."""
-    return tie_all(x, y)[1]

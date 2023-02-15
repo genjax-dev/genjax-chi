@@ -30,6 +30,7 @@ import jax.tree_util as jtu
 
 import genjax._src.core.interpreters.cps as cps
 import genjax._src.generative_functions.distributions.coryx.core as inverse_core
+from genjax._src.core import primitives
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.staging import stage
 from genjax._src.core.typing import Any
@@ -38,8 +39,7 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.transforms import Bare
-from genjax._src.generative_functions.distributions.coryx import primitive
+from genjax._src.generative_functions.builtin.builtin_transforms import Bare
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
@@ -47,12 +47,11 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 # Intrinsics #
 ##############
 
-random_variable_p = primitive.InitialStylePrimitive("random_variable")
+random_variable_p = primitives.InitialStylePrimitive("random_variable")
 
 
 def _random_variable(gen_fn, *args, **kwargs):
-    flat_args, in_tree = jtu.tree_flatten((gen_fn, args))
-    result = primitive.initial_style_bind(random_variable_p)(_abstract_gen_fn_call)(
+    result = primitives.initial_style_bind(random_variable_p)(_abstract_gen_fn_call)(
         gen_fn, *args, **kwargs
     )
     return result

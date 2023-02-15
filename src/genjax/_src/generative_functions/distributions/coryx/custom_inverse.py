@@ -28,9 +28,9 @@ for further documentation.
 from jax import util as jax_util
 from jax._src import tree_util
 
+from genjax._src.core import primitives
 from genjax._src.generative_functions.distributions.coryx import core
 from genjax._src.generative_functions.distributions.coryx import kwargs_util
-from genjax._src.generative_functions.distributions.coryx import primitive
 from genjax._src.generative_functions.distributions.coryx import slice as slc
 
 
@@ -47,7 +47,7 @@ class CustomInverse:
         self.prim = prim
 
     def __call__(self, *args, **kwargs):
-        return primitive.initial_style_bind(self.prim)(self.func)(*args, **kwargs)
+        return primitives.initial_style_bind(self.prim)(self.func)(*args, **kwargs)
 
     def def_inverse_unary(self, f_inv=None, f_ildj=None):
         """Defines a unary inverse rule.
@@ -227,7 +227,7 @@ def custom_inverse(f):
       A `CustomInverse` object whose inverse can be overridden with
       `def_inverse_unary` or `def_inverse`.
     """
-    return CustomInverse(f, primitive.InitialStylePrimitive(f.__name__))
+    return CustomInverse(f, primitives.InitialStylePrimitive(f.__name__))
 
 
 class NonInvertibleError(Exception):

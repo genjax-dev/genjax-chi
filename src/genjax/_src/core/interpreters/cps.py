@@ -110,9 +110,9 @@ class Environment:
 @dataclasses.dataclass
 class Handler(Pytree):
     """
-    A handler dispatchs a :code:`jax.core.Primitive` - and must provide
-    a :code:`Callable` with signature :code:`def (name_of_primitive)(continuation, *args)`
-    where :code:`*args` must match the :core:`jax.core.Primitive` declaration signature.
+    A handler dispatchs a `jax.core.Primitive` - and must provide
+    a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
+    where `*args` must match the `jax.core.Primitive` declaration signature.
     """
 
     handles: List[jc.Primitive]
@@ -131,9 +131,13 @@ class Handler(Pytree):
     def handle(
         self, cell_type: Type[Cell], prim: jc.Primitive, args, kwargs, params, cont
     ):
+        # NOTE: If the prim is registered with the handler,
+        # we attempt to handle.
         if prim in self.handles:
             try:
                 callable = getattr(self, repr(prim))
+
+            # TODO: provide a better exception.
             except Exception as e:
                 raise e
             return callable(cell_type, prim, args, cont, **kwargs)
