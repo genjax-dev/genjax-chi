@@ -81,8 +81,8 @@ Many bits of knowledge have gone into this project -- [you can find many of thes
 This project has several JAX-based influences. Here's an abbreviated list:
 
 - [This notebook on static dispatch (author unknown)](https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3)
-- [Patrick Kidger's work on neural networks via callable Pytrees](https://github.com/patrick-kidger/equinox)
-- [Oryx](https://github.com/jax-ml/oryx)
+- [Equinox (Patrick Kidger's work on neural networks via callable Pytrees)](https://github.com/patrick-kidger/equinox)
+- [Oryx (interpreters and interpreter design)](https://github.com/jax-ml/oryx)
 
 ### Acknowledgements
 
