@@ -28,25 +28,37 @@ from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.prox import ProxDistribution
 from genjax._src.generative_functions.distributions.prox import Target
 
 
 @dataclasses.dataclass
 class SymmetricDivergenceOverDatasets(Pytree):
+    num_meta_p: Int
+    num_meta_q: Int
     p: GenerativeFunction
     q: ProxDistribution
     inf_selection: Selection
-    num_meta_p: Int
-    num_meta_q: Int
 
     def flatten(self):
-        return (), (
-            self.p,
-            self.q,
-            self.inf_selection,
+        return (self.p, self.q, self.inf_selection), (
             self.num_meta_p,
             self.num_meta_q,
+        )
+
+    @typecheck
+    @classmethod
+    def new(
+        cls,
+        p: GenerativeFunction,
+        q: ProxDistribution,
+        inf_selection: Selection,
+        num_meta_p: Int,
+        num_meta_q: Int,
+    ):
+        return SymmetricDivergenceOverDatasets(
+            num_meta_p, num_meta_q, p, q, inf_selection
         )
 
     def _estimate_log_ratio(self, key: PRNGKey, p_args: Tuple):
@@ -54,12 +66,12 @@ class SymmetricDivergenceOverDatasets(Pytree):
         # Keys are folded in, for working memory.
         def _inner_p(key, index, chm, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = self.p.importance(new_key, chm, args)
+            _, (w, _) = self.p.assess(new_key, chm, args)
             return w
 
         def _inner_q(key, index, chm, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = self.q.importance(new_key, chm, args)
+            _, (w, _) = self.q.assess(new_key, chm, args)
             return w
 
         obs_target = self.inf_selection.complement()

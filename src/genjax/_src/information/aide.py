@@ -32,34 +32,44 @@ from genjax._src.core.typing import PRNGKey
 class AuxiliaryInferenceDivergenceEstimator(Pytree):
     num_meta_p: Int
     num_meta_q: Int
+    p: GenerativeFunction
+    q: GenerativeFunction
 
     def flatten(self):
-        return (), (self.num_meta_p, self.num_meta_q)
+        return (self.p, self.q), (self.num_meta_p, self.num_meta_q)
+
+    @classmethod
+    def new(
+        cls,
+        p: GenerativeFunction,
+        q: GenerativeFunction,
+        num_meta_p: Int,
+        num_meta_q: Int,
+    ):
+        return AuxiliaryInferenceDivergenceEstimator(num_meta_p, num_meta_q, p, q)
 
     def _estimate_log_ratio(
         self,
         key: PRNGKey,
-        p: GenerativeFunction,
         p_args: Tuple,
-        q: GenerativeFunction,
         q_args: Tuple,
     ):
         # Inner functions -- to be mapped over.
         # Keys are folded in, for working memory.
         def _inner_p(key, index, chm, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = p.importance(new_key, chm, args)
+            _, (w, _) = self.p.importance(new_key, chm, args)
             return w
 
         def _inner_q(key, index, chm, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = q.importance(new_key, chm, args)
+            _, (w, _) = self.q.importance(new_key, chm, args)
             return w
 
         key_indices_p = jnp.arange(0, self.num_meta_p + 1)
         key_indices_q = jnp.arange(0, self.num_meta_q + 1)
 
-        key, tr = p.simulate(key, p_args)
+        key, tr = self.p.simulate(key, p_args)
         chm = tr.get_choices().strip()
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
@@ -76,28 +86,24 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
     def estimate(
         self,
         key: PRNGKey,
-        p: GenerativeFunction,
         p_args: Tuple,
-        q: GenerativeFunction,
         q_args: Tuple,
     ):
-        key, logpq = self._estimate_log_ratio(p, q, self.num_meta_p, self.num_meta_q)(
-            key, p_args, q_args
-        )
-        key, logqp = self._estimate_log_ratio(q, p, self.num_meta_q, self.num_meta_p)(
-            key, q_args, p_args
-        )
+        key, logpq = self._estimate_log_ratio(
+            self.p, self.q, self.num_meta_p, self.num_meta_q
+        )(key, p_args, q_args)
+        key, logqp = self._estimate_log_ratio(
+            self.q, self.p, self.num_meta_q, self.num_meta_p
+        )(key, q_args, p_args)
         return key, logpq + logqp, (logpq, logqp)
 
     def __call__(
         self,
         key: PRNGKey,
-        p: GenerativeFunction,
         p_args: Tuple,
-        q: GenerativeFunction,
         q_args: Tuple,
     ):
-        return self.estimate(key, p, p_args, q, q_args)
+        return self.estimate(key, p_args, q_args)
 
 
 ##############

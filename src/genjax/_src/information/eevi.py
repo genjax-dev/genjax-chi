@@ -25,17 +25,38 @@ from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.prox import ProxDistribution
 from genjax._src.generative_functions.distributions.prox import Target
 
 
 @dataclasses.dataclass
 class EntropyEstimatorsViaInference(Pytree):
+    n_lower_bound: Int
+    n_upper_bound: Int
     model: GenerativeFunction
     proposal: ProxDistribution
     targets: Selection
-    n_lower_bound: Int
-    n_upper_bound: Int
+
+    def flatten(self):
+        return (self.model, self.proposal, self.targets), (
+            self.n_lower_bound,
+            self.n_upper_bound,
+        )
+
+    @typecheck
+    @classmethod
+    def new(
+        cls,
+        model: GenerativeFunction,
+        proposal: ProxDistribution,
+        targets: Selection,
+        n_lower_bound: Int,
+        n_upper_bound: Int,
+    ):
+        return EntropyEstimatorsViaInference(
+            n_lower_bound, n_upper_bound, model, proposal, targets
+        )
 
     def _entropy_lower_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)
@@ -70,7 +91,7 @@ class EntropyEstimatorsViaInference(Pytree):
         target = Target(self.model, model_args, observations)
         key, *sub_keys = jax.random.split(key, self.n_upper_bound + 1)
         sub_keys = jnp.array(sub_keys)
-        _, (log_q, _) = jax.vmap(self.proposal.importance, in_axes=(0, None, None))(
+        _, (log_q, _) = jax.vmap(self.proposal.assess, in_axes=(0, None, None))(
             sub_keys, ValueChoiceMap(latents), (target,)
         )
         log_w = log_q - log_p
