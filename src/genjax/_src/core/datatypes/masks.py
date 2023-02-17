@@ -17,8 +17,8 @@ from dataclasses import dataclass
 
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.tree import Leaf
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
 

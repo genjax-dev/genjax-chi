@@ -28,7 +28,7 @@ for further documentation.
 from jax import util as jax_util
 from jax._src import tree_util
 
-from genjax._src.core import primitives
+from genjax._src.core.interpreters import primitives
 from genjax._src.generative_functions.distributions.coryx import core
 from genjax._src.generative_functions.distributions.coryx import kwargs_util
 from genjax._src.generative_functions.distributions.coryx import slice as slc

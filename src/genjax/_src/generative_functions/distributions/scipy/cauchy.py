@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.tracetypes import PositiveReals
+from genjax._src.core.datatypes.tracetypes import PositiveReals
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 

@@ -22,11 +22,11 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes import ChoiceMap
-from genjax._src.core.datatypes import EmptyChoiceMap
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import Trace
-from genjax._src.core.masks import BooleanMask
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.masks import BooleanMask
 from genjax._src.core.typing import IntArray
 
 
@@ -35,7 +35,7 @@ from genjax._src.core.typing import IntArray
 ###############################
 
 #####
-# IndexedChoiceMap
+# TaggedChoiceMap
 #####
 
 # Note that the abstract/concrete semantics of `jnp.choose`
@@ -48,7 +48,7 @@ from genjax._src.core.typing import IntArray
 
 
 @dataclass
-class IndexedChoiceMap(ChoiceMap):
+class TaggedChoiceMap(ChoiceMap):
     index: IntArray
     submaps: Sequence[Union[ChoiceMap, Trace]]
 
@@ -110,11 +110,11 @@ class IndexedChoiceMap(ChoiceMap):
 
     def get_selection(self):
         subselections = list(map(lambda v: v.get_selection(), self.submaps))
-        return IndexedSelection.new(self.index, subselections)
+        return TaggedSelection.new(self.index, subselections)
 
     def merge(self, other):
         new_submaps = list(map(lambda v: v.merge(other), self.submaps))
-        return IndexedChoiceMap.new(self.index, new_submaps)
+        return TaggedChoiceMap.new(self.index, new_submaps)
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
@@ -128,11 +128,11 @@ class IndexedChoiceMap(ChoiceMap):
 
 
 #####
-# IndexedSelection
+# TaggedSelection
 #####
 
 
 @dataclass
-class IndexedSelection(Selection):
+class TaggedSelection(Selection):
     index: IntArray
     subselections: Sequence[Selection]

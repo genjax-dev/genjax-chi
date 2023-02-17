@@ -31,7 +31,7 @@ class TestUpdateSimpleNormal:
         key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_normal))
 
-        new = genjax.BuiltinChoiceMap.new({("y1",): 2.0})
+        new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, (_, w, updated, discard) = jitted(key, tr, new, ())
@@ -49,7 +49,7 @@ class TestUpdateSimpleNormal:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-        new = genjax.BuiltinChoiceMap.new({("y1",): 2.0, ("y2",): 3.0})
+        new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
         key, (_, w, updated, discard) = jitted(key, tr, new, ())
         updated_chm = updated.get_choices()
@@ -80,7 +80,7 @@ class TestUpdateSimpleLinkedNormal:
         key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_linked_normal))
 
-        new = genjax.BuiltinChoiceMap.new({("y1",): 2.0})
+        new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, (_, w, updated, discard) = jitted(key, tr, new, ())
@@ -117,7 +117,7 @@ class TestUpdateSimpleHierarchicalNormal:
         key, tr = jax.jit(genjax.simulate(simple_hierarchical_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_hierarchical_normal))
 
-        new = genjax.BuiltinChoiceMap.new({("y1",): 2.0})
+        new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, (_, w, updated, discard) = jitted(key, tr, new, ())

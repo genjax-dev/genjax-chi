@@ -12,28 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.builtin import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin import BuiltinGenerativeFunction
-from genjax._src.generative_functions.builtin import BuiltinSelection
 from genjax._src.generative_functions.builtin import cache
-from genjax._src.generative_functions.builtin import chm
-from genjax._src.generative_functions.builtin import choice_map
 from genjax._src.generative_functions.builtin import inline
 from genjax._src.generative_functions.builtin import partial
 from genjax._src.generative_functions.builtin import save
-from genjax._src.generative_functions.builtin import sel
-from genjax._src.generative_functions.builtin import select
 from genjax._src.generative_functions.builtin import trace
 
 
 __all__ = [
     "BuiltinGenerativeFunction",
-    "BuiltinChoiceMap",
-    "BuiltinSelection",
-    "choice_map",
-    "chm",
-    "select",
-    "sel",
     "trace",
     "cache",
     "save",

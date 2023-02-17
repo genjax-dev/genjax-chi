@@ -18,13 +18,17 @@ from enum import Enum
 from typing import Any
 from typing import Tuple
 
+import jax
+import jax.core as jc
+import jax.numpy as jnp
 import rich
 
+from genjax._src.core.datatypes.tree import Leaf
+from genjax._src.core.datatypes.tree import Tree
 from genjax._src.core.pretty_printing import CustomPretty
-from genjax._src.core.tree import Leaf
-from genjax._src.core.tree import Tree
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import static_check_is_array
 
 
 @dataclass
@@ -267,3 +271,21 @@ class Empty(LeafTraceType, CustomPretty):
     def pformat_tree(self, **kwargs):
         tree = rich.tree.Tree("[b]ϕ[/b] (empty)")
         return tree
+
+
+# Lift Python values to the trace type lattice.
+def tt_lift(v, shape=()):
+    if v is None:
+        return Empty()
+    elif v == jnp.int32:
+        return Integers(shape)
+    elif v == jnp.float32:
+        return Reals(shape)
+    elif v == bool:
+        return Finite(shape, 2)
+    elif static_check_is_array(v):
+        return tt_lift(v.dtype, shape=v.shape)
+    elif isinstance(v, jax.ShapeDtypeStruct):
+        return tt_lift(v.dtype, shape=v.shape)
+    elif isinstance(v, jc.ShapedArray):
+        return tt_lift(v.dtype, shape=v.shape)

@@ -16,11 +16,12 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Pytree
 from genjax._src.core.datatypes import Trace
-from genjax._src.core.diff_rules import check_is_diff
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.staging import get_shaped_aval
-from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.trie import TrieChoiceMap
+from genjax._src.core.interpreters.graph.diff_rules import check_is_diff
+from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -30,7 +31,6 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import _inline
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
@@ -222,7 +222,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
-            BuiltinChoiceMap(discard),
+            TrieChoiceMap(discard),
         )
 
     @typecheck

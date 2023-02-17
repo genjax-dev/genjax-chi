@@ -16,7 +16,7 @@ import itertools
 from dataclasses import dataclass
 from typing import Sequence
 
-from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.datatypes.tracetypes import TraceType
 
 
 #####

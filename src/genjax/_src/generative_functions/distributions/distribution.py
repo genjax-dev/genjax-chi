@@ -22,21 +22,22 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import AllSelection
+from genjax._src.core.datatypes import BooleanMask
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Leaf
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes import TraceType
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.core.diff_rules import Diff
-from genjax._src.core.diff_rules import NoChange
-from genjax._src.core.diff_rules import check_no_change
-from genjax._src.core.diff_rules import tree_strip_diff
-from genjax._src.core.masks import BooleanMask
-from genjax._src.core.masks import mask
-from genjax._src.core.specialization import concrete_cond
-from genjax._src.core.tracetypes import TraceType
-from genjax._src.core.tree import Leaf
+from genjax._src.core.datatypes import mask
+from genjax._src.core.datatypes.tracetypes import tt_lift
+from genjax._src.core.interpreters.graph.diff_rules import Diff
+from genjax._src.core.interpreters.graph.diff_rules import NoChange
+from genjax._src.core.interpreters.graph.diff_rules import check_no_change
+from genjax._src.core.interpreters.graph.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -46,7 +47,6 @@ from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
-from genjax._src.generative_functions.builtin.builtin_tracetype import lift
 
 
 #####
@@ -121,7 +121,7 @@ class Distribution(GenerativeFunction):
         _, (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
             key, *args
         )
-        return lift(ttype)
+        return tt_lift(ttype)
 
     @abc.abstractmethod
     def random_weighted(self, *args, **kwargs):

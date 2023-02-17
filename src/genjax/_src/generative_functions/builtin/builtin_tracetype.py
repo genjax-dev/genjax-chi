@@ -15,21 +15,15 @@
 import functools
 from dataclasses import dataclass
 
-import jax
 import jax.core as jc
-import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.util import safe_map
 
-from genjax._src.core.staging import stage
-from genjax._src.core.tracetypes import Bottom
-from genjax._src.core.tracetypes import Empty
-from genjax._src.core.tracetypes import Finite
-from genjax._src.core.tracetypes import Integers
-from genjax._src.core.tracetypes import Reals
-from genjax._src.core.tracetypes import TraceType
-from genjax._src.core.trie import Trie
-from genjax._src.core.typing import static_check_is_array
+from genjax._src.core.datatypes.tracetypes import Bottom
+from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.tracetypes import tt_lift
+from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.generative_functions.builtin.builtin_primitives import gen_fn_p
 
 
@@ -53,22 +47,6 @@ class BuiltinTraceType(TraceType):
 
     def get_subtrees_shallow(self):
         return self.trie.get_subtrees_shallow()
-
-    def merge(self, other):
-        trie = Trie.new()
-        for (k, v) in self.get_subtrees_shallow():
-            if other.has_subtree(k):
-                sub = other.get_subtree(k)
-                trie[k] = v.merge(sub)
-            else:
-                trie[k] = v
-        for (k, v) in other.get_subtrees_shallow():
-            if not trie.has_subtree(k):
-                trie[k] = v
-        if isinstance(other, BuiltinTraceType):
-            return BuiltinTraceType(trie, other.get_rettype())
-        else:
-            return BuiltinTraceType(trie, self.get_rettype())
 
     def get_rettype(self):
         return self.retval_type
@@ -103,23 +81,6 @@ class BuiltinTraceType(TraceType):
 ######
 # Typing interpreter
 ######
-
-# Lift Python values to the trace type lattice.
-def lift(v, shape=()):
-    if v is None:
-        return Empty()
-    elif v == jnp.int32:
-        return Integers(shape)
-    elif v == jnp.float32:
-        return Reals(shape)
-    elif v == bool:
-        return Finite(shape, 2)
-    elif static_check_is_array(v):
-        return lift(v.dtype, shape=v.shape)
-    elif isinstance(v, jax.ShapeDtypeStruct):
-        return lift(v.dtype, shape=v.shape)
-    elif isinstance(v, jc.ShapedArray):
-        return lift(v.dtype, shape=v.shape)
 
 
 def trace_typing(jaxpr: jc.ClosedJaxpr, flat_in, consts):
@@ -158,11 +119,11 @@ def trace_type_transform(source_fn, **kwargs):
         closed_jaxpr, (flat_in, _, out_tree) = stage(source_fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out, inner_tt = trace_typing(jaxpr, flat_in, consts)
-        flat_out = list(map(lambda v: lift(v), flat_out))
+        flat_out = list(map(lambda v: tt_lift(v), flat_out))
         if flat_out:
             rettypes = jtu.tree_unflatten(out_tree, flat_out)
         else:
-            rettypes = lift(None)
+            rettypes = tt_lift(None)
         return BuiltinTraceType(inner_tt, rettypes)
 
     return _inner
