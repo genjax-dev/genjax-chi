@@ -26,9 +26,9 @@ import numpy as np
 
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.masks import mask
-from genjax._src.core.specialization import concrete_cond
-from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.datatypes import TraceType
+from genjax._src.core.datatypes import mask
+from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray

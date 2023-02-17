@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.tracetypes import TraceType
+from genjax._src.core.datatypes import TraceType
 
 
 #####

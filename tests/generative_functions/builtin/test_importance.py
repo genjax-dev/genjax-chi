@@ -29,7 +29,7 @@ class TestImportance:
     def test_simple_normal_importance(self):
         key = jax.random.PRNGKey(314159)
         fn = genjax.importance(simple_normal)
-        chm = genjax.BuiltinChoiceMap.new({("y1",): 0.5, ("y2",): 0.5})
+        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
         key, (_, tr) = fn(key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]

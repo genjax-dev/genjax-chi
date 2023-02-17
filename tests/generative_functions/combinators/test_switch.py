@@ -64,7 +64,7 @@ class TestSimulate:
         score = tr.get_score()
         assert score == genjax.Bernoulli.logpdf(flip, 0.3)
         assert w == 0.0
-        chm = genjax.BuiltinChoiceMap.new({"y3": True})
+        chm = genjax.choice_map({"y3": True})
         key, (w, tr) = jitted(key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()

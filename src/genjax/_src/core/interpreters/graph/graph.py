@@ -40,8 +40,8 @@ from jax import tree_util as jtu
 from jax.interpreters import partial_eval as pe
 from jax.interpreters import xla
 
+from genjax._src.core.interpreters.staging import extract_call_jaxpr
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.staging import extract_call_jaxpr
 
 
 State = Any

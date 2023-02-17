@@ -35,10 +35,6 @@ class Tree(Pytree):
     def get_subtrees_shallow(self):
         pass
 
-    @abc.abstractmethod
-    def merge(self, other):
-        pass
-
 
 @dataclass
 class Leaf(Tree):
@@ -59,7 +55,7 @@ class Leaf(Tree):
         )
 
     def get_subtrees_shallow(self):
-        return ()
+        raise Exception(f"{type(self)} is a Leaf: it does not have any subtrees.")
 
     def merge(self, other):
-        return other
+        raise Exception(f"{type(self)} is a Leaf: can't merge.")

@@ -32,9 +32,9 @@ import jax.tree_util as jtu
 import numpy as np
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.hashabledict import HashableDict
-from genjax._src.core.hashabledict import hashabledict
-from genjax._src.core.specialization import is_concrete
+from genjax._src.core.datatypes.hashabledict import HashableDict
+from genjax._src.core.datatypes.hashabledict import hashabledict
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import static_check_supports_grad
 
 
@@ -53,7 +53,7 @@ def tree_stack(trees):
     vmapped function.
 
     This function respects concrete vs. traced values. It will leave concrete
-    leaves unchanged (it will not lift them to :code:`jax.core.Tracer`).
+    leaves unchanged (it will not lift them to `jax.core.Tracer`).
     """
     leaves_list = []
     treedef_list = []

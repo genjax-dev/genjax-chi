@@ -24,23 +24,29 @@ from genjax._src.core.datatypes import all_select
 from genjax._src.core.datatypes import none_select
 from genjax._src.core.datatypes import val_chm
 from genjax._src.core.datatypes import value_choice_map
-from genjax._src.core.diff_rules import Change
-from genjax._src.core.diff_rules import Diff
-from genjax._src.core.diff_rules import IntChange
-from genjax._src.core.diff_rules import NoChange
-from genjax._src.core.diff_rules import UnknownChange
-from genjax._src.core.masks import BooleanMask
-from genjax._src.core.masks import mask
+from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.tracetypes import Bottom
+from genjax._src.core.datatypes.tracetypes import Finite
+from genjax._src.core.datatypes.tracetypes import Integers
+from genjax._src.core.datatypes.tracetypes import Naturals
+from genjax._src.core.datatypes.tracetypes import PositiveReals
+from genjax._src.core.datatypes.tracetypes import RealInterval
+from genjax._src.core.datatypes.tracetypes import Reals
+from genjax._src.core.datatypes.trie import TrieChoiceMap
+from genjax._src.core.datatypes.trie import TrieSelection
+from genjax._src.core.datatypes.trie import chm
+from genjax._src.core.datatypes.trie import choice_map
+from genjax._src.core.datatypes.trie import sel
+from genjax._src.core.datatypes.trie import select
+from genjax._src.core.interpreters.graph.diff_rules import Change
+from genjax._src.core.interpreters.graph.diff_rules import Diff
+from genjax._src.core.interpreters.graph.diff_rules import IntChange
+from genjax._src.core.interpreters.graph.diff_rules import NoChange
+from genjax._src.core.interpreters.graph.diff_rules import UnknownChange
+from genjax._src.core.interpreters.staging import get_shaped_aval
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.staging import get_shaped_aval
-from genjax._src.core.staging import stage
-from genjax._src.core.tracetypes import Bottom
-from genjax._src.core.tracetypes import Finite
-from genjax._src.core.tracetypes import Integers
-from genjax._src.core.tracetypes import Naturals
-from genjax._src.core.tracetypes import PositiveReals
-from genjax._src.core.tracetypes import RealInterval
-from genjax._src.core.tracetypes import Reals
 
 
 __all__ = [
@@ -57,6 +63,12 @@ __all__ = [
     "NoneSelection",
     "none_select",
     "GenerativeFunction",
+    "TrieChoiceMap",
+    "TrieSelection",
+    "choice_map",
+    "chm",
+    "select",
+    "sel",
     # Mask types.
     "BooleanMask",
     "mask",

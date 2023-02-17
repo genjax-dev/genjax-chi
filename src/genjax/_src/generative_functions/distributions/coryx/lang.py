@@ -28,11 +28,10 @@ import jax
 import jax.core as jc
 import jax.tree_util as jtu
 
-import genjax._src.core.interpreters.cps as cps
-import genjax._src.generative_functions.distributions.coryx.core as inverse_core
-from genjax._src.core import primitives
 from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.staging import stage
+from genjax._src.core.interpreters import primitives
+from genjax._src.core.interpreters.cps import cps
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
@@ -40,6 +39,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_transforms import Bare
+from genjax._src.generative_functions.distributions.coryx import core as inverse_core
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 

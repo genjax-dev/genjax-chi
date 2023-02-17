@@ -23,15 +23,15 @@ import jax
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.masks import BooleanMask
+from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.datatypes.tracetypes import Bottom
+from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.tree import Leaf
+from genjax._src.core.datatypes.tree import Tree
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import tree_grad_split
 from genjax._src.core.pytree import tree_zipper
-from genjax._src.core.specialization import is_concrete
-from genjax._src.core.tracetypes import Bottom
-from genjax._src.core.tracetypes import TraceType
-from genjax._src.core.tree import Leaf
-from genjax._src.core.tree import Tree
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey

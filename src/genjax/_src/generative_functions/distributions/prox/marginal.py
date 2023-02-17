@@ -17,8 +17,8 @@ from typing import Any
 
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
+from genjax._src.core.datatypes.trie import TrieChoiceMap
+from genjax._src.core.datatypes.trie import TrieSelection
 from genjax._src.generative_functions.distributions.prox.prox_distribution import (
     ProxDistribution,
 )
@@ -36,7 +36,7 @@ class Marginal(ProxDistribution):
 
     def get_trace_type(self, *args):
         inner_type = self.p.get_trace_type(*args)
-        selection = BuiltinSelection.new([self.addr])
+        selection = TrieSelection.new([self.addr])
         trace_type = selection.filter(inner_type)
         return trace_type
 
@@ -45,9 +45,9 @@ class Marginal(ProxDistribution):
         weight = tr.get_score()
         choices = tr.get_choices()
         val = choices[self.addr]
-        selection = BuiltinSelection.new([self.addr]).complement()
+        selection = TrieSelection.new([self.addr]).complement()
         other_choices = selection.filter(choices)
-        target = Target.new(self.p, args, BuiltinChoiceMap.new({self.addr: val}))
+        target = Target.new(self.p, args, TrieChoiceMap.new({self.addr: val}))
         key, (q_weight, _) = self.q.importance(
             key, ValueChoiceMap.new(other_choices), (target,)
         )
@@ -55,7 +55,7 @@ class Marginal(ProxDistribution):
         return key, (weight, val)
 
     def estimate_logpdf(self, key, val, *args):
-        chm = BuiltinChoiceMap.new({self.addr: val})
+        chm = TrieChoiceMap.new({self.addr: val})
         target = Target.new(self.p, args, chm)
         key, tr = self.q.simulate(key, (target,))
         q_w = tr.get_score()

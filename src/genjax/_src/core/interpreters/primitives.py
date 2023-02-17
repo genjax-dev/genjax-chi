@@ -26,7 +26,7 @@ from jax.interpreters import batching
 from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
-import genjax._src.core.staging as trace_util
+import genjax._src.core.interpreters.staging as trace_util
 from genjax._src.core.typing import Callable
 
 

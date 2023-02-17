@@ -36,11 +36,11 @@ import jax.tree_util as jtu
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
-from genjax._src.core.diff_rules import check_is_diff
-from genjax._src.core.diff_rules import tree_strip_diff
-from genjax._src.core.masks import BooleanMask
+from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.interpreters.graph.diff_rules import check_is_diff
+from genjax._src.core.interpreters.graph.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
-from genjax._src.core.staging import get_trace_data_shape
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -50,7 +50,7 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
-    IndexedChoiceMap,
+    TaggedChoiceMap,
 )
 from genjax._src.generative_functions.combinators.switch.switch_tracetypes import (
     SumTraceType,
@@ -65,7 +65,7 @@ from genjax._src.generative_functions.combinators.switch.switch_tracetypes impor
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    chm: IndexedChoiceMap
+    chm: TaggedChoiceMap
     args: Tuple
     retval: Any
     score: FloatArray
@@ -184,7 +184,7 @@ class SwitchCombinator(GenerativeFunction):
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
-        choice_map = IndexedChoiceMap(branch_index, choices)
+        choice_map = TaggedChoiceMap(branch_index, choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
@@ -205,7 +205,7 @@ class SwitchCombinator(GenerativeFunction):
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
-        choice_map = IndexedChoiceMap(branch_index, choices)
+        choice_map = TaggedChoiceMap(branch_index, choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
@@ -246,7 +246,7 @@ class SwitchCombinator(GenerativeFunction):
         args = jtu.tree_map(tree_strip_diff, argdiffs, is_leaf=check_is_diff)
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
-        choice_map = IndexedChoiceMap(concrete_branch_index, choices)
+        choice_map = TaggedChoiceMap(concrete_branch_index, choices)
 
         # Merge the skeleton discard with the actual one.
         actual_discard = maybe_discard.merge(actual_discard)

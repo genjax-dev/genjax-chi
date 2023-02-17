@@ -18,7 +18,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from genjax._src.core.tracetypes import Finite
+from genjax._src.core.datatypes.tracetypes import Finite
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 

@@ -26,14 +26,14 @@ from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes import TrieChoiceMap
+from genjax._src.core.datatypes import TrieSelection
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
 
 
 ######################################
@@ -82,7 +82,7 @@ class VectorTrace(Trace):
         return self.score
 
     def project(self, selection: Selection) -> FloatArray:
-        if isinstance(selection, BuiltinSelection):
+        if isinstance(selection, TrieSelection):
             return self.inner.project(selection)
         elif isinstance(selection, AllSelection):
             return self.score
@@ -133,7 +133,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def convert(cls, choice_map: BuiltinChoiceMap):
+    def convert(cls, choice_map: TrieChoiceMap):
         indices = []
         subtrees = []
         for (ind, subtree) in choice_map.get_subtrees_shallow():
