@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/img/gen-logo.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.11+insiders-4.29.0">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.13+insiders-4.31.0">
     
     
       
@@ -29,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.b6d2c4d8.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.527e139f.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.a0c5b2b5.min.css">
       
       
 
@@ -211,7 +211,7 @@
           
             
 <nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
-  <div class="md-tabs__inner md-grid">
+  <div class="md-grid">
     <ul class="md-tabs__list">
       
         
@@ -580,7 +580,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.simulate" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.simulate" class="md-nav__link">
     <span class="md-ellipsis">
       
         simulate()
@@ -591,7 +591,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.importance" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.importance" class="md-nav__link">
     <span class="md-ellipsis">
       
         importance()
@@ -602,7 +602,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.update" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.update" class="md-nav__link">
     <span class="md-ellipsis">
       
         update()
@@ -613,7 +613,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.assess" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.assess" class="md-nav__link">
     <span class="md-ellipsis">
       
         assess()
@@ -793,7 +793,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.simulate" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.simulate" class="md-nav__link">
     <span class="md-ellipsis">
       
         simulate()
@@ -804,7 +804,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.importance" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.importance" class="md-nav__link">
     <span class="md-ellipsis">
       
         importance()
@@ -815,7 +815,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.update" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.update" class="md-nav__link">
     <span class="md-ellipsis">
       
         update()
@@ -826,7 +826,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#genjax._src.core.datatypes.GenerativeFunction.assess" class="md-nav__link">
+  <a href="#genjax._src.core.datatypes.generative.GenerativeFunction.assess" class="md-nav__link">
     <span class="md-ellipsis">
       
         assess()
@@ -915,7 +915,6 @@
   
 
 
-
   <h1>Core</h1>
 
 <div class="doc doc-object doc-module">
@@ -1001,7 +1000,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
         <details class="quote">
-          <summary>Source code in <code>genjax/_src/core/datatypes.py</code></summary>
+          <summary>Source code in <code>genjax/_src/core/datatypes/generative.py</code></summary>
           <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-202">202</a></span>
 <span class="normal"><a href="#__codelineno-0-203">203</a></span>
 <span class="normal"><a href="#__codelineno-0-204">204</a></span>
@@ -1129,9 +1128,9 @@ provide a differentiable <code>importance</code> implementation.</p>
 <a id="__codelineno-0-223" name="__codelineno-0-223"></a>    <span class="c1"># the fact that the value has type PRNGKey.</span>
 <a id="__codelineno-0-224" name="__codelineno-0-224"></a>    <span class="k">def</span> <span class="nf">__abstract_call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">PRNGKey</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <a id="__codelineno-0-225" name="__codelineno-0-225"></a>        <span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-<a id="__codelineno-0-226" name="__codelineno-0-226"></a>        <span class="n">key</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+<a id="__codelineno-0-226" name="__codelineno-0-226"></a>        <span class="n">_</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
 <a id="__codelineno-0-227" name="__codelineno-0-227"></a>        <span class="n">retval</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
-<a id="__codelineno-0-228" name="__codelineno-0-228"></a>        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">retval</span>
+<a id="__codelineno-0-228" name="__codelineno-0-228"></a>        <span class="k">return</span> <span class="n">retval</span>
 <a id="__codelineno-0-229" name="__codelineno-0-229"></a>
 <a id="__codelineno-0-230" name="__codelineno-0-230"></a>    <span class="k">def</span> <span class="nf">get_trace_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TraceType</span><span class="p">:</span>
 <a id="__codelineno-0-231" name="__codelineno-0-231"></a>        <span class="n">shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shape&quot;</span><span class="p">,</span> <span class="p">())</span>
@@ -1228,20 +1227,20 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
 
-<h3 id="genjax._src.core.datatypes.GenerativeFunction.simulate" class="doc doc-heading">
+<h3 id="genjax._src.core.datatypes.generative.GenerativeFunction.simulate" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">simulate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
   </span>
 
-<a href="#genjax._src.core.datatypes.GenerativeFunction.simulate" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#genjax._src.core.datatypes.generative.GenerativeFunction.simulate" class="headerlink" title="Permanent link">&para;</a></h3>
 
 
   <div class="doc doc-contents ">
 
       <details class="quote">
-        <summary>Source code in <code>genjax/_src/core/datatypes.py</code></summary>
+        <summary>Source code in <code>genjax/_src/core/datatypes/generative.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-234">234</a></span>
 <span class="normal"><a href="#__codelineno-0-235">235</a></span>
 <span class="normal"><a href="#__codelineno-0-236">236</a></span>
@@ -1265,20 +1264,20 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
 
-<h3 id="genjax._src.core.datatypes.GenerativeFunction.importance" class="doc doc-heading">
+<h3 id="genjax._src.core.datatypes.generative.GenerativeFunction.importance" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">importance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
   </span>
 
-<a href="#genjax._src.core.datatypes.GenerativeFunction.importance" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#genjax._src.core.datatypes.generative.GenerativeFunction.importance" class="headerlink" title="Permanent link">&para;</a></h3>
 
 
   <div class="doc doc-contents ">
 
       <details class="quote">
-        <summary>Source code in <code>genjax/_src/core/datatypes.py</code></summary>
+        <summary>Source code in <code>genjax/_src/core/datatypes/generative.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-242">242</a></span>
 <span class="normal"><a href="#__codelineno-0-243">243</a></span>
 <span class="normal"><a href="#__codelineno-0-244">244</a></span>
@@ -1304,20 +1303,20 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
 
-<h3 id="genjax._src.core.datatypes.GenerativeFunction.update" class="doc doc-heading">
+<h3 id="genjax._src.core.datatypes.generative.GenerativeFunction.update" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">original</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">diffs</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
   </span>
 
-<a href="#genjax._src.core.datatypes.GenerativeFunction.update" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#genjax._src.core.datatypes.generative.GenerativeFunction.update" class="headerlink" title="Permanent link">&para;</a></h3>
 
 
   <div class="doc doc-contents ">
 
       <details class="quote">
-        <summary>Source code in <code>genjax/_src/core/datatypes.py</code></summary>
+        <summary>Source code in <code>genjax/_src/core/datatypes/generative.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-251">251</a></span>
 <span class="normal"><a href="#__codelineno-0-252">252</a></span>
 <span class="normal"><a href="#__codelineno-0-253">253</a></span>
@@ -1345,20 +1344,20 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
 
-<h3 id="genjax._src.core.datatypes.GenerativeFunction.assess" class="doc doc-heading">
+<h3 id="genjax._src.core.datatypes.generative.GenerativeFunction.assess" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">assess</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">evaluation_point</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
   </span>
 
-<a href="#genjax._src.core.datatypes.GenerativeFunction.assess" class="headerlink" title="Permanent link">&para;</a></h3>
+<a href="#genjax._src.core.datatypes.generative.GenerativeFunction.assess" class="headerlink" title="Permanent link">&para;</a></h3>
 
 
   <div class="doc doc-contents ">
 
       <details class="quote">
-        <summary>Source code in <code>genjax/_src/core/datatypes.py</code></summary>
+        <summary>Source code in <code>genjax/_src/core/datatypes/generative.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-261">261</a></span>
 <span class="normal"><a href="#__codelineno-0-262">262</a></span>
 <span class="normal"><a href="#__codelineno-0-263">263</a></span>
@@ -1501,7 +1500,7 @@ provide a differentiable <code>importance</code> implementation.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tooltips", "content.tabs.link", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.7ce0e818.min.js"></script>
+      <script src="../../assets/javascripts/bundle.9115145a.min.js"></script>
       
         <script src="../../js/mathjax.js"></script>
       

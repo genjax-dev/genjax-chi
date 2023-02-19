@@ -9,7 +9,7 @@
 <meta name="author" content="McCoy Reynolds Becker">
 <meta name="dcterms.date" content="2022-12-07">
 
-<title>Gen ⊗ JAX - Online time series inference using pseudomarginal SMC</title>
+<title>Gen ⊗ JAX - Developer’s intro to JAX</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -94,7 +94,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../advanced/prox/prox.html" rel="next">
 <script src="../../site_libs/quarto-html/quarto.js"></script>
 <script src="../../site_libs/quarto-html/popper.min.js"></script>
 <script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -125,8 +124,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 }</script>
 
 
-<meta property="og:title" content="Gen ⊗ JAX - Online time series inference using pseudomarginal SMC">
-<meta property="og:description" content="This notebook showcases an advanced modeling application of several Gen-specific ingredients.">
+<meta property="og:title" content="Gen ⊗ JAX - Developer’s intro to JAX">
+<meta property="og:description" content="This guide is intended to bring a potential GenJAX contributor up to speed on JAX, as well as several of the core transformation idioms (which form the foundation for several of the modeling…">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -136,7 +135,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <header id="quarto-header" class="headroom fixed-top">
   <nav class="quarto-secondary-nav" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
     <div class="container-fluid d-flex justify-content-between">
-      <h1 class="quarto-secondary-nav-title">Online time series inference using pseudomarginal SMC</h1>
+      <h1 class="quarto-secondary-nav-title">Developer’s intro to JAX</h1>
       <button type="button" class="quarto-btn-toggle btn" aria-label="Show secondary navigation">
         <i class="bi bi-chevron-right"></i>
       </button>
@@ -218,15 +217,15 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
         <li class="px-0"><hr class="sidebar-divider hi "></li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="true">Advanced inference programming</a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">Advanced inference programming</a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../advanced/recurse_combinator/recurse_combinator.html" class="sidebar-item-text sidebar-link active">Recurse combinator</a>
+  <a href="../../advanced/recurse_combinator/recurse_combinator.html" class="sidebar-item-text sidebar-link">Recurse combinator</a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -262,14 +261,29 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </nav>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#jax-basics" id="toc-jax-basics" class="nav-link active" data-scroll-target="#jax-basics">JAX basics</a>
+  <ul class="collapse">
+  <li><a href="#common-transformations" id="toc-common-transformations" class="nav-link" data-scroll-target="#common-transformations">Common transformations</a></li>
+  <li><a href="#pytrees" id="toc-pytrees" class="nav-link" data-scroll-target="#pytrees">Pytrees</a></li>
+  </ul></li>
+  <li><a href="#primitives-and-interpreters" id="toc-primitives-and-interpreters" class="nav-link" data-scroll-target="#primitives-and-interpreters">Primitives and interpreters</a>
+  <ul class="collapse">
+  <li><a href="#primitives" id="toc-primitives" class="nav-link" data-scroll-target="#primitives">Primitives</a></li>
+  <li><a href="#interpreters" id="toc-interpreters" class="nav-link" data-scroll-target="#interpreters">Interpreters</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/internals/developers/jax_intro.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title d-none d-lg-block">Online time series inference using pseudomarginal SMC</h1>
+<h1 class="title d-none d-lg-block">Developer’s intro to JAX</h1>
 </div>
 
 
@@ -296,38 +310,72 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This notebook showcases an advanced modeling application of several Gen-specific ingredients. It combines combinator patterns for structured generative computation, with <a href="https://github.com/probcomp/GenProx.jl">the approximate density interface</a> using variants of sequential Monte Carlo (SMC) <a href="../smc_language/smc_language">constructed using a composable mini-language for SMC algorithms</a>. These ingredients come together to replicate <a href="https://dl.acm.org/doi/10.1145/3290350">Feras Saad’s 2019 experiments on Bayesian program synthesis for Gaussian process models</a> on the GPU.
+    This guide is intended to bring a potential GenJAX contributor up to speed on JAX, as well as several of the core transformation idioms (which form the foundation for several of the modeling languages) used in GenJAX.
   </div>
 </div>
 
 </header>
 
-<div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.tree_util <span class="im">as</span> jtu</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">"white"</span>)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Pretty printing.</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty(width<span class="op">=</span><span class="dv">70</span>)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-tags="[]" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>In this notebook, we’ll be combining several advanced ingredients of Gen and GenJAX to construct approximate densities induced by customized sequential Monte Carlo (SMC) targeting successively richer approximations to latent structure.</p>
-<p>The notebook assumes several pre-requisites:</p>
-<ul>
-<li><p>Understanding generative functions, their interfaces, and the math that the interface functions compute.</p></li>
-<li><p>Understanding generative function combinators, and how <code>genjax.Recurse</code> can allow us to express bounded tree-like computations.</p></li>
-<li><p>Understanding the approximate density interface exposed by <code>GenProx</code>, and how we can equip generative functions with inference strategies to define approximate densities.</p></li>
-</ul>
+<section id="jax-basics" class="level2">
+<h2 class="anchored" data-anchor-id="jax-basics">JAX basics</h2>
+<section id="common-transformations" class="level3">
+<h3 class="anchored" data-anchor-id="common-transformations">Common transformations</h3>
+</section>
+<section id="pytrees" class="level3">
+<h3 class="anchored" data-anchor-id="pytrees">Pytrees</h3>
+</section>
+</section>
+<section id="primitives-and-interpreters" class="level2">
+<h2 class="anchored" data-anchor-id="primitives-and-interpreters">Primitives and interpreters</h2>
+<div class="cell" data-tags="[]" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.core <span class="im">as</span> jc</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="primitives" class="level3">
+<h3 class="anchored" data-anchor-id="primitives">Primitives</h3>
+<p>JAX allows you to define primitives, and give them custom type interpreters, implementation semantics, and lowering.</p>
+<div class="cell" data-tags="[]" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>foo_p <span class="op">=</span> jc.Primitive(<span class="st">"foo"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The way JAX developers typically expose primitives is by defining a wrapper function which wraps the primitive and calls <code>Primitive.bind</code>.</p>
+<p>Let’s do something slightly naive now, and we’ll refactor it later when we learn a bit more about JAX.</p>
+<div class="cell" data-tags="[]" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> foo(<span class="op">*</span>args):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> foo_p.bind(<span class="op">*</span>args)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can attempt to use this primitive now in JAX code.</p>
+<div class="cell" data-tags="[]" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f(x):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> foo(x)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>jax.make_jaxpr(f)(<span class="fl">5.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-error">
+<pre><code>NotImplementedError: Abstract evaluation for 'foo' not implemented</code></pre>
+</div>
+</div>
+<p>It’s upset - because JAX needs to know how to pass symbolic tracer values through the primitive to trace it.</p>
+<p>Here’s how we define this for a new primitive.</p>
+<div class="cell" data-tags="[]" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> abstract_foo(<span class="op">*</span>args):</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> args</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="primitive-abstract-base-classes" class="level4">
+<h4 class="anchored" data-anchor-id="primitive-abstract-base-classes">Primitive abstract base classes</h4>
+<p>GenJAX supports convenient base classes for primitives that automatically implement several of the methods I’ve covered above. I (McCoy) originally found this pattern in Oryx, and it was too good to not adopt.</p>
+<p>Some of the patterns here will make more sense after the <strong>Interpreters</strong> section, where I discuss “initial” and “final” style primitives / tracing.</p>
+</section>
+</section>
+<section id="interpreters" class="level3">
+<h3 class="anchored" data-anchor-id="interpreters">Interpreters</h3>
+<p>Interpreters can be written in two styles - one is significantly easier to understand, but offers somewhat poor debugging (to users), the second is more complicated - but has nicer debugging.</p>
+<p>Here, we’ll cover the first style - later on in development, we may switch some of the interpreters over to the second style, so I’ll mention it at the end.</p>
 
 
+</section>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
@@ -463,15 +511,6 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="../../advanced/prox/prox.html" class="pagination-link">
-        <span class="nav-page-text"><code>Prox</code> (approximate densities)</span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">

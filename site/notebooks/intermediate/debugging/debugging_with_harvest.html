@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.313">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="McCoy Reynolds Becker">
+
+<title>Gen ⊗ JAX – debugging_with_harvest</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="nav-sidebar floating">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+    <div class="container-fluid d-flex justify-content-between">
+      <h1 class="quarto-secondary-nav-title"></h1>
+      <button type="button" class="quarto-btn-toggle btn" aria-label="Show secondary navigation">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-center sidebar-header">
+      <a href="../../index.html" class="sidebar-logo-link">
+      <img src="../../logo.png" alt="" class="sidebar-logo py-0 d-lg-inline d-none">
+      </a>
+      <div class="sidebar-tools-main tools-wide">
+    <a href="../../" title="Home" class="sidebar-tool px-1"><i class="bi bi-house-heart"></i></a>
+    <a href="http://probcomp.csail.mit.edu/" title="MIT Probabilistic Computing Project" class="sidebar-tool px-1"><i class="bi bi-building"></i></a>
+    <a href="https://github.com/probcomp/genjax" title="GitHub repository" class="sidebar-tool px-1"><i class="bi bi-github"></i></a>
+</div>
+      </div>
+      <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+      </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false">Concepts</a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/introduction/intro_to_genjax.html" class="sidebar-item-text sidebar-link">Introduction</a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">Generative function combinators</a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/incremental_computation/incremental.html" class="sidebar-item-text sidebar-link">Incremental computing</a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/gradient_interfaces/gradient_interfaces.html" class="sidebar-item-text sidebar-link">Differentiable programming</a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="false">Inference programming</a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="false">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../intermediate/gaussian_processes/gaussian_processes.html" class="sidebar-item-text sidebar-link">Gaussian processes</a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../intermediate/goal_inference/goal_inference.ipynb" class="sidebar-item-text sidebar-link">Agent goal inference</a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">Advanced inference programming</a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../advanced/recurse_combinator/recurse_combinator.html" class="sidebar-item-text sidebar-link">Recurse combinator</a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../advanced/prox/prox.html" class="sidebar-item-text sidebar-link"><code>Prox</code> (approximate densities)</a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../advanced/smc_language/smc_language.html" class="sidebar-item-text sidebar-link">SMC inference language</a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="false">Internals</a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="false">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../internals/impl_builtin_language/impl_builtin_language.html" class="sidebar-item-text sidebar-link">Probabilistic semantics via interpreters</a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+
+<div class="cell" data-tags="[]" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax <span class="im">import</span> tag, grab, stab</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f(x):</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> tag(x <span class="op">+</span> <span class="dv">1</span>, name<span class="op">=</span><span class="st">"x"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> tag(x<span class="op">**</span><span class="dv">2</span>, name<span class="op">=</span><span class="st">"result"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>v, state <span class="op">=</span> genjax.grab(f)(<span class="fl">5.0</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>state</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">{</span><span style="color: #008000; text-decoration-color: #008000">'result'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">36</span>., <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)</span>, <span style="color: #008000; text-decoration-color: #008000">'x'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6</span>., <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)}</span>
+</pre>
+</div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>v, state <span class="op">=</span> stab(f)({<span class="st">"x"</span>: <span class="fl">7.0</span>}, (<span class="fl">5.0</span>,))</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>state</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">{</span><span style="color: #008000; text-decoration-color: #008000">'x'</span>: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">7.0</span>, <span style="color: #008000; text-decoration-color: #008000">'result'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">49</span>., <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)}</span>
+</pre>
+</div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="31">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model():</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    z <span class="op">=</span> genjax.Normal(<span class="fl">0.0</span>, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"z"</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    tag(z, name<span class="op">=</span><span class="st">"z"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> genjax.Normal(z, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"x"</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> x</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="32">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>constraints <span class="op">=</span> genjax.choice_map({<span class="st">"x"</span>: <span class="fl">2.0</span>})</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>inf <span class="op">=</span> genjax.ImportanceSampling(<span class="dv">100</span>, model)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>(key, v), state <span class="op">=</span> grab(inf.<span class="bu">apply</span>)(key, constraints, ())</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>state</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">{</span>
+    <span style="color: #008000; text-decoration-color: #008000">'z'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0777285</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.6389318</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.072295</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0587243</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.74628353</span>,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.8768594</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.3461314</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.5929449</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.11110353</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.4110108</span> ,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.20897324</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.3270965</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.11289356</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9024343</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.64536655</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.38893652</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.2228566</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.42775536</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.519392</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.3270665</span> ,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.0635363</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.5874186</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.5464482</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.3175389</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.5641471</span> ,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.26859504</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2.0410233</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.08568616</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.4696364</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.3236998</span> ,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.9212755</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.6189734</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9075297</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.79741675</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.2148403</span> ,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.33393195</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.00413238</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.28339526</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.3672132</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.1263298</span> ,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.8099676</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0993193</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.38760015</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.9735606</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.5405926</span> ,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.3420604</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.0914567</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.32163438</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.7207502</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.01913247</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.88028514</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.77343243</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.61635333</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.73834735</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.28792608</span>,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.2350752</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.450053</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.3470198</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0626476</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.05557972</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.942201</span>  , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.49291527</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.05032474</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.3209357</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0449208</span> ,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.8462567</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.6798554</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.38001558</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.1247578</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.3861492</span> ,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.94750285</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.1325008</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.15599969</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.23517562</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.6153367</span> ,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0988618</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.7117237</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.63358915</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.9463552</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.69777656</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.7035838</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9746379</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.7403492</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.8639038</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.8381066</span> ,
+        <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.3696862</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.79448056</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.9515729</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.25247133</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.01274541</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.5428115</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.10070203</span>,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.5334349</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.5132065</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.6213474</span> ,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.6301</span>    ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0559464</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.6987994</span> ,  <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.1017772</span> , <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9293785</span> <span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
+<span style="font-weight: bold">}</span>
+</pre>
+</div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="30">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>v</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">(</span>
+    <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinTrace</span><span style="font-weight: bold">(</span>
+        <span style="color: #808000; text-decoration-color: #808000">gen_fn</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFunction</span><span style="font-weight: bold">(</span>
+            <span style="color: #808000; text-decoration-color: #808000">source</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PytreeClosure</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">callable</span>=<span style="font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">function</span><span style="color: #000000; text-decoration-color: #000000"> model at </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0x28bee9440</span><span style="font-weight: bold">&gt;</span>, <span style="color: #808000; text-decoration-color: #808000">environment</span>=<span style="font-weight: bold">[])</span>
+        <span style="font-weight: bold">)</span>,
+        <span style="color: #808000; text-decoration-color: #808000">args</span>=<span style="font-weight: bold">()</span>,
+        <span style="color: #808000; text-decoration-color: #808000">retval</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.<span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)</span>,
+        <span style="color: #808000; text-decoration-color: #808000">choices</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Trie</span><span style="font-weight: bold">(</span>
+            <span style="color: #808000; text-decoration-color: #808000">inner</span>=<span style="font-weight: bold">{</span>
+                <span style="color: #008000; text-decoration-color: #008000">'x'</span>: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">DistributionTrace</span><span style="font-weight: bold">(</span>
+                    <span style="color: #808000; text-decoration-color: #808000">gen_fn</span>=,
+                    <span style="color: #808000; text-decoration-color: #808000">args</span>=<span style="font-weight: bold">(</span>
+                        <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>.<span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)</span>,
+                        <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span>.<span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)</span>
+                    <span style="font-weight: bold">)</span>,
+                    <span style="color: #808000; text-decoration-color: #808000">value</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>., <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span>.<span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span>, <span style="color: #808000; text-decoration-color: #808000">weak_type</span>=<span style="color: #00ff00; text-decoration-color: #00ff00; font-style: italic">True</span><span style="font-weight: bold">)</span>,
+                    <span style="color: #808000; text-decoration-color: #808000">score</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span><span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
+                <span style="font-weight: bold">)</span>
+            <span style="font-weight: bold">}</span>
+        <span style="font-weight: bold">)</span>,
+        <span style="color: #808000; text-decoration-color: #808000">cache</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Trie</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">inner</span>=<span style="font-weight: bold">{})</span>,
+        <span style="color: #808000; text-decoration-color: #808000">score</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span><span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
+    <span style="font-weight: bold">)</span>,
+    <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">([</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>,
+       <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span>, <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-4.6051702</span><span style="font-weight: bold">]</span>,      <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>,
+    <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-2.9189386</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
+<span style="font-weight: bold">)</span>
+</pre>
+</div>
+</div>
+
+
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+      <div class="nav-footer-center">© Copyright 2022 <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a></div>
+  </div>
+</footer>
+
+
+
+</body></html>
