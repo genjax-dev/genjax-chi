@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .cps import *
-from .diff_rules import *
+from .harvest import *

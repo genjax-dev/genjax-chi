@@ -27,8 +27,8 @@ from jax.interpreters import pxla
 from jax.interpreters import xla
 
 from genjax._src.core.interpreters import primitives
+from genjax._src.core.interpreters import propagate
 from genjax._src.core.interpreters import staging as trace_util
-from genjax._src.core.interpreters.graph import graph as propagate
 from genjax._src.generative_functions.distributions.coryx import slice as slc
 
 

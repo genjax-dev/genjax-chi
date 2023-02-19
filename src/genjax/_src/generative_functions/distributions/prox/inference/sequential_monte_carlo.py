@@ -15,11 +15,11 @@
 """This module contains a mini-language for constructing compositional SMC
 algorithms.
 
-It includes two main components: :code:`SMCPropagator` and :code:`SMCAlgorithm`.
+It includes two main components: `SMCPropagator` and `SMCAlgorithm`.
 
-:code:`SMCPropagator` ingredients accept a set of inputs which they expect to be given by higher-level `SMCAlgorithm` combinators. By exposing their requirements to their callers, they can be chained together to support higher-level patterns with efficient JAX compilation.
+`SMCPropagator` ingredients accept a set of inputs which they expect to be given by higher-level `SMCAlgorithm` combinators. By exposing their requirements to their callers, they can be chained together to support higher-level patterns with efficient JAX compilation.
 
-:code:`SMCAlgorithm` ingredients are self-contained SMC algorithm instances which can be run to produce particle populations which are properly weighted with respect to their registered inference :code:`Target` instances.
+`SMCAlgorithm` ingredients are self-contained SMC algorithm instances which can be run to produce particle populations which are properly weighted with respect to their registered inference `Target` instances.
 """
 
 import abc
@@ -38,7 +38,7 @@ from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.core.interpreters.graph.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.cps.diff_rules import tree_strip_diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Int

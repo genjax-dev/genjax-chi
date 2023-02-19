@@ -58,29 +58,27 @@ from genjax._src.utilities import slash
 
 @dataclass
 class MapCombinator(GenerativeFunction):
-    """
-    :code:`MapCombinator` accepts a single generative function as input and
-    provides :code:`vmap`-based implementations of the generative function
-    interface methods. :code:`MapCombinator` also accepts :code:`in_axes` as
-    an argument to specify exactly which axes of the :code:`(key, *args)`
-    should be broadcasted over.
+    """`MapCombinator` accepts a single generative function as input and
+    provides `vmap`-based implementations of the generative function interface
+    methods. `MapCombinator` also accepts `in_axes` as an argument to specify
+    exactly which axes of the `(key, *args)` should be broadcasted over.
 
     Parameters
     ----------
 
-    gen_fn: :code:`GenerativeFunction`
+    gen_fn: `GenerativeFunction`
         A single `GenerativeFunction` instance.
 
-    in_args: :code:`Tuple[Int, ...]`
-        A tuple specifying which :code:`(key, *args)` to broadcast
+    in_args: `Tuple[Int, ...]`
+        A tuple specifying which `(key, *args)` to broadcast
         over.
 
     Returns
     -------
 
-    :code:`MapCombinator`
-        A single :code:`MapCombinator` generative function which
-        implements :code:`vmap` support for each generative function
+    `MapCombinator`
+        A single `MapCombinator` generative function which
+        implements `vmap` support for each generative function
         interface method.
 
     Example

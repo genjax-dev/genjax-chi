@@ -121,7 +121,7 @@ def flatmap_outcells(cell_type, v, **kwargs):
 
 @dataclasses.dataclass(frozen=True)
 class Equation:
-    """Hashable wrapper for :code:`jax.core.Jaxpr`."""
+    """Hashable wrapper for `jax.core.Jaxpr`."""
 
     invars: Tuple[jax_core.Var]
     outvars: Tuple[jax_core.Var]
@@ -210,9 +210,9 @@ class Environment:
 @dataclasses.dataclass
 class Handler(Pytree):
     """
-    A handler dispatchs a :code:`jax.core.Primitive` - and must provide
-    a :code:`Callable` with signature :code:`def (name_of_primitive)(continuation, *args)`
-    where :code:`*args` must match the :core:`jax.core.Primitive` declaration signature.
+    A handler dispatchs a `jax.core.Primitive` - and must provide
+    a `Callable` with signature `def (name_of_primitive)(continuation, *args)`
+    where `*args` must match the :core:`jax.core.Primitive` declaration signature.
     """
 
     handles: List[jax_core.Primitive]
@@ -330,14 +330,14 @@ class Interpreter(Pytree):
         incells: used to populate the Jaxpr's invars
         outcells: used to populate the Jaxpr's outcells
         reducer: An optional callable used to reduce over the state at each
-            equation in the Jaxpr. :code:`reducer`: takes in
-            :code:`(env, eqn, state, new_state)` as arguments and should
-            return an updated state. The :code:`new_state` value is provided
+            equation in the Jaxpr. `reducer`: takes in
+            `(env, eqn, state, new_state)` as arguments and should
+            return an updated state. The `new_state` value is provided
             by each equation.
-        initial_state: The initial :code:`state` value used in the reducer
+        initial_state: The initial `state` value used in the reducer
 
     Returns:
-        The :code:`Jaxpr` environment after propagation has terminated
+        The `Jaxpr` environment after propagation has terminated
     """
 
     cell_type: Type[Cell]

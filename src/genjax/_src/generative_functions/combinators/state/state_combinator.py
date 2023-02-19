@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """This module provides a combinator which transforms a generative function
-into a :code:`nn.Module`-like object that holds learnable parameters.
+into a `nn.Module`-like object that holds learnable parameters.
 
-It exposes an extended set of interfaces (new: :code:`param_grad` and :code:`update_state`) which allow programmatic computation of gradients with respect to held parameters, as well as updating parameters.
+It exposes an extended set of interfaces (new: `param_grad` and `update_state`) which allow programmatic computation of gradients with respect to held parameters, as well as updating parameters.
 
-It enables learning idioms which cohere with other packages in the JAX ecosystem (e.g. supporting :code:`optax` optimizers).
+It enables learning idioms which cohere with other packages in the JAX ecosystem (e.g. supporting `optax` optimizers).
 """
 
 from dataclasses import dataclass
@@ -30,7 +30,7 @@ from genjax._src.core.datatypes import GenerativeFunction
 
 
 @dataclass
-class LearnCombinator(GenerativeFunction):
+class StateCombinator(GenerativeFunction):
     inner: GenerativeFunction
     state: Any
 
@@ -95,4 +95,4 @@ class LearnCombinator(GenerativeFunction):
 # Shorthands #
 ##############
 
-Learn = LearnCombinator.new
+State = StateCombinator.new

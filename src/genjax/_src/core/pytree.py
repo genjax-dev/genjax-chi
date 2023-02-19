@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module contains a utility class for defining new :code:`jax.Pytree`
+"""This module contains a utility class for defining new `jax.Pytree`
 implementors.
 
-In addition to this functionality, there's a "sum type" :code:`Pytree`
+In addition to this functionality, there's a "sum type" `Pytree`
 implementation which allows effective decomposition of multiple potential
-:code:`Pytree` value inhabitants into a common tree shape.
+`Pytree` value inhabitants into a common tree shape.
 
-This allows, among other things, an efficient implementation of :code:`SwitchCombinator`.
+This allows, among other things, an efficient implementation of `SwitchCombinator`.
 """
 
 import abc

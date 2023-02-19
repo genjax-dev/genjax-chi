@@ -46,6 +46,7 @@ Sequence = typing.Sequence
 Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
+Generator = btyping.Generator
 Int = int
 Float = float
 Bool = bool
@@ -84,6 +85,7 @@ __all__ = [
     "Int",
     "Bool",
     "Float",
+    "Generator",
     "static_check_is_array",
     "static_check_supports_grad",
 ]
