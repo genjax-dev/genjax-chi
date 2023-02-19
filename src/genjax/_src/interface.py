@@ -23,9 +23,9 @@ methods form the conceptual core of the computational behavior of generative fun
 .. note::
 
     This module exposes the generative function interface as a set of
-    Python functions. When called with :code:`f: GenerativeFunction`
-    and :code:`**kwargs`, they return the corresponding
-    :code:`GenerativeFunction` method.
+    Python functions. When called with `f: GenerativeFunction`
+    and `**kwargs`, they return the corresponding
+    `GenerativeFunction` method.
 
     Here's an example:
 
@@ -35,7 +35,7 @@ methods form the conceptual core of the computational behavior of generative fun
         fn = genjax.simulate(genjax.Normal)
         print(fn)
 
-    If you know you have a :code:`GenerativeFunction`, you can just refer to the
+    If you know you have a `GenerativeFunction`, you can just refer to the
     methods directly - but sometimes it is useful to use the getter variants
     (there's no runtime cost when using the getter variants in jitted code, JAX eliminates it).
 """

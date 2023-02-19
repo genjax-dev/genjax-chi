@@ -30,14 +30,14 @@ from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.combinators.learn import LearnCombinator
+from genjax._src.generative_functions.combinators.state import StateCombinator
 from genjax._src.utilities import slash
 
 
 @dataclasses.dataclass
 class VariationalInference(Pytree):
     model: GenerativeFunction
-    variational_model: LearnCombinator
+    variational_model: StateCombinator
     gradient_samples_per_iter: IntArray
     optimizer: GradientTransformation
     optimizer_state: Any
@@ -54,7 +54,7 @@ class VariationalInference(Pytree):
     def new(
         cls,
         model: GenerativeFunction,
-        variational_model: LearnCombinator,
+        variational_model: StateCombinator,
         iters: IntArray = 1000,
         gradient_samples_per_iter: IntArray = 100,
         optimizer: GradientTransformation = adam(1e-5),

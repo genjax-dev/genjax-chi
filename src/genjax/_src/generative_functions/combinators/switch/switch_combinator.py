@@ -18,11 +18,11 @@ return different shaped choice maps.
 
 It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.switch`_.
 
-Generative functions which are passed in as branches to :code:`SwitchCombinator`
+Generative functions which are passed in as branches to `SwitchCombinator`
 must accept the same argument types, and return the same type of return value.
 
 The internal choice maps for the branch generative functions
-can have different shape/dtype choices. The resulting :code:`SwitchTrace` will efficiently share :code:`(shape, dtype)` storage across branches.
+can have different shape/dtype choices. The resulting `SwitchTrace` will efficiently share `(shape, dtype)` storage across branches.
 
 .. _jax.lax.switch: https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html
 """
@@ -37,8 +37,8 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.masks import BooleanMask
-from genjax._src.core.interpreters.graph.diff_rules import check_is_diff
-from genjax._src.core.interpreters.graph.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.cps.diff_rules import check_is_diff
+from genjax._src.core.interpreters.cps.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
 from genjax._src.core.typing import Any
@@ -112,13 +112,14 @@ class SwitchTrace(Trace):
 
 @dataclass
 class SwitchCombinator(GenerativeFunction):
-    """
-    :code:`SwitchCombinator` accepts a set of generative functions as input
-    configuration and implements :code:`GenerativeFunction` interface semantics that support branching control flow patterns, including control flow patterns which branch on other stochastic choices.
+    """`SwitchCombinator` accepts a set of generative functions as input
+    configuration and implements `GenerativeFunction` interface semantics that
+    support branching control flow patterns, including control flow patterns
+    which branch on other stochastic choices.
 
-    This combinator provides a "sum" :code:`Trace` type which allows the internal generative functions to have different choice maps.
+    This combinator provides a "sum" `Trace` type which allows the internal generative functions to have different choice maps.
 
-    This pattern allows :code:`GenJAX` to express existence
+    This pattern allows `GenJAX` to express existence
     uncertainty over random choices -- as different generative
     function branches need not share addresses.
 

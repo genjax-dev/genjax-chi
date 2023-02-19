@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """This module holds an abstract class which forms the core functionality for
-"tree-like" classes (like :code:`ChoiceMap` and :code:`Selection`)."""
+"tree-like" classes (like `ChoiceMap` and `Selection`)."""
 
 import abc
 from dataclasses import dataclass

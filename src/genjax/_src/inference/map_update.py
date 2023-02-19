@@ -17,7 +17,7 @@ import dataclasses
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import Selection
-from genjax._src.core.interpreters.graph.diff_rules import Diff
+from genjax._src.core.interpreters.cps.diff_rules import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 

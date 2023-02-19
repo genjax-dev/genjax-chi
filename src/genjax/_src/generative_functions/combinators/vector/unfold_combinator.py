@@ -29,7 +29,7 @@ from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
-from genjax._src.core.interpreters.graph.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.cps.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.typing import Any
@@ -61,33 +61,32 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 @dataclass
 class UnfoldCombinator(GenerativeFunction):
-    """
-    :code:`UnfoldCombinator` accepts a single kernel generative function
-    as input and a static unroll length which specifies how many iterations
-    to run the chain for.
+    """`UnfoldCombinator` accepts a single kernel generative function as input
+    and a static unroll length which specifies how many iterations to run the
+    chain for.
 
     A kernel generative function is one which accepts and returns
-    the same signature of arguments. Under the hood, :code:`UnfoldCombinator`
-    is implemented using :code:`jax.lax.scan` - which has the same
+    the same signature of arguments. Under the hood, `UnfoldCombinator`
+    is implemented using `jax.lax.scan` - which has the same
     requirements.
 
     Parameters
     ----------
 
-    gen_fn: :code:`GenerativeFunction`
+    gen_fn: `GenerativeFunction`
         A single *kernel* `GenerativeFunction` instance.
 
-    length: :code:`Int`
+    length: `Int`
         An integer specifying the unroll length of the chain of applications.
 
     Returns
     -------
-    :code:`UnfoldCombinator`
-        A single :code:`UnfoldCombinator` generative function which
+    `UnfoldCombinator`
+        A single `UnfoldCombinator` generative function which
         implements the generative function interface using a scan-like
         pattern. This generative function will perform a dependent-for
         iteration (passing the return value of generative function application)
-        to the next iteration for :code:`length` number of steps.
+        to the next iteration for `length` number of steps.
         The programmer must provide an initial value to start the chain of
         iterations off.
 

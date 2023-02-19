@@ -13,14 +13,7 @@
 # limitations under the License.
 
 """This module supports a set of (WIP) integration interfaces with variants of
-Hamiltonian Monte Carlo exported by the :code:`blackjax` sampling library.
-
-[Blackjax]_.
-
-.. note::
-
-    .. [Blackjax] BlackJAX is a sampling library designed for ease of use, speed and modularity. (https://github.com/blackjax-devs/blackjax)
-"""
+Hamiltonian Monte Carlo exported by the `blackjax` sampling library."""
 
 import dataclasses
 

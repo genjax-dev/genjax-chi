@@ -25,11 +25,11 @@ import genjax._src.core.interpreters.cps as cps
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.graph.diff_rules import Diff
-from genjax._src.core.interpreters.graph.diff_rules import NoChange
-from genjax._src.core.interpreters.graph.diff_rules import check_is_diff
-from genjax._src.core.interpreters.graph.diff_rules import check_no_change
-from genjax._src.core.interpreters.graph.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.cps.diff_rules import Diff
+from genjax._src.core.interpreters.cps.diff_rules import NoChange
+from genjax._src.core.interpreters.cps.diff_rules import check_is_diff
+from genjax._src.core.interpreters.cps.diff_rules import check_no_change
+from genjax._src.core.interpreters.cps.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree

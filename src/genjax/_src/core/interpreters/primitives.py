@@ -26,7 +26,7 @@ from jax.interpreters import batching
 from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
-import genjax._src.core.interpreters.staging as trace_util
+from genjax._src.core.interpreters import staging
 from genjax._src.core.typing import Callable
 
 
@@ -222,7 +222,7 @@ def initial_style_bind(prim, **params):
 
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
-            jaxpr, (_, in_tree, out_tree) = trace_util.stage(f, dynamic=True)(
+            jaxpr, (_, in_tree, out_tree) = staging.stage(f, dynamic=True)(
                 *args, **kwargs
             )
             flat_args = tree_util.tree_leaves(args)

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """This module supports a JAX compatible implementation of SMC as a
-:code:`ProxDistribution`."""
+`ProxDistribution`."""
 
 from dataclasses import dataclass
 from typing import Any

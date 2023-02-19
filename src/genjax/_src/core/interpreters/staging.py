@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import operator
+import threading
 from functools import reduce
 
 import jax
@@ -25,6 +27,11 @@ from jax import tree_util as jtu
 from jax._src import dtypes
 from jax.interpreters import partial_eval as pe
 from jax.random import KeyArray
+
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Dict
+from genjax._src.core.typing import Generator
+from genjax._src.core.typing import List
 
 
 safe_map = jax_core.safe_map
@@ -96,6 +103,38 @@ def trees(f):
         return stage(f)(*args, **kwargs)[1]
 
     return wrapped
+
+
+class _ThreadLocalState(threading.local):
+    def __init__(self):
+        super().__init__()
+        self.dynamic_contexts: Dict[jax_core.MainTrace, List[Any]] = {}
+
+
+_thread_local_state = _ThreadLocalState()
+
+
+@contextlib.contextmanager
+def new_dynamic_context(
+    master: jax_core.MainTrace, context: Any
+) -> Generator[None, None, None]:
+    """Creates a dynamic context for a trace."""
+    if master not in _thread_local_state.dynamic_contexts:
+        _thread_local_state.dynamic_contexts[master] = []
+    _thread_local_state.dynamic_contexts[master].append(context)
+    try:
+        yield
+    finally:
+        _thread_local_state.dynamic_contexts[master].pop()
+        if not _thread_local_state.dynamic_contexts[master]:
+            del _thread_local_state.dynamic_contexts[master]
+
+
+def get_dynamic_context(trace: jax_core.Trace) -> Any:
+    """Returns the current active dynamic context for a trace."""
+    if trace.main not in _thread_local_state.dynamic_contexts:
+        raise ValueError(f"No dynamic context registered for trace: {trace}")
+    return _thread_local_state.dynamic_contexts[trace.main][-1]
 
 
 def extract_call_jaxpr(primitive, params):

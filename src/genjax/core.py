@@ -39,11 +39,11 @@ from genjax._src.core.datatypes.trie import chm
 from genjax._src.core.datatypes.trie import choice_map
 from genjax._src.core.datatypes.trie import sel
 from genjax._src.core.datatypes.trie import select
-from genjax._src.core.interpreters.graph.diff_rules import Change
-from genjax._src.core.interpreters.graph.diff_rules import Diff
-from genjax._src.core.interpreters.graph.diff_rules import IntChange
-from genjax._src.core.interpreters.graph.diff_rules import NoChange
-from genjax._src.core.interpreters.graph.diff_rules import UnknownChange
+from genjax._src.core.interpreters.cps.diff_rules import Change
+from genjax._src.core.interpreters.cps.diff_rules import Diff
+from genjax._src.core.interpreters.cps.diff_rules import IntChange
+from genjax._src.core.interpreters.cps.diff_rules import NoChange
+from genjax._src.core.interpreters.cps.diff_rules import UnknownChange
 from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
