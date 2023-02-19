@@ -44,7 +44,7 @@ class Cell(Pytree):
     """Base interface for objects used during interpretation."""
 
     @classmethod
-    def new(cls, value):
+    def new(cls, _):
         """Creates a new instance of a Cell from a value."""
         raise NotImplementedError
 

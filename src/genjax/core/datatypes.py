@@ -39,13 +39,6 @@ from genjax._src.core.datatypes.trie import chm
 from genjax._src.core.datatypes.trie import choice_map
 from genjax._src.core.datatypes.trie import sel
 from genjax._src.core.datatypes.trie import select
-from genjax._src.core.interpreters.cps.diff_rules import Change
-from genjax._src.core.interpreters.cps.diff_rules import Diff
-from genjax._src.core.interpreters.cps.diff_rules import IntChange
-from genjax._src.core.interpreters.cps.diff_rules import NoChange
-from genjax._src.core.interpreters.cps.diff_rules import UnknownChange
-from genjax._src.core.interpreters.staging import get_shaped_aval
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 
 
@@ -72,12 +65,6 @@ __all__ = [
     # Mask types.
     "BooleanMask",
     "mask",
-    # Diff types.
-    "Change",
-    "UnknownChange",
-    "NoChange",
-    "IntChange",
-    "Diff",
     # Trace types.
     "Bottom",
     "Reals",
@@ -89,7 +76,4 @@ __all__ = [
     "Bottom",
     # Pytree meta.
     "Pytree",
-    # Utilities.
-    "stage",
-    "get_shaped_aval",
 ]

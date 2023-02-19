@@ -40,7 +40,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_transforms import Bare
 from genjax._src.generative_functions.distributions.coryx import core as inverse_core
-from genjax._src.generative_functions.distributions.distribution import ExactDensity
+from genjax._src.generative_functions.distributions.distribution import Distribution
 
 
 ##############
@@ -58,7 +58,7 @@ def _random_variable(gen_fn, *args, **kwargs):
 
 
 @typecheck
-def rv(gen_fn: GenerativeFunction, **kwargs):
+def random_variable(gen_fn: GenerativeFunction, **kwargs):
     return lambda *args: _random_variable(gen_fn, *args, **kwargs)
 
 
@@ -93,8 +93,7 @@ class Sample(cps.Handler):
 
     def random_variable(self, cell_type, prim, args, cont, in_tree, **kwargs):
         gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
-        self.key, sub_key = jax.random.split(self.key)
-        v = gen_fn.sample(sub_key, *args)
+        self.key, (_, v) = gen_fn.random_weighted(self.key, *args)
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
 
@@ -126,23 +125,24 @@ def sample_transform(source_fn, **kwargs):
 @dataclass
 class Sow(cps.Handler):
     handles: List[jc.Primitive]
+    key: PRNGKey
     values: List[Any]
     score: FloatArray
 
     def flatten(self):
-        return (self.values, self.score), (self.handles,)
+        return (self.key, self.values, self.score), (self.handles,)
 
     @classmethod
-    def new(cls, values: List[Any]):
+    def new(cls, key: PRNGKey, values: List[Any]):
         handles = [random_variable_p]
         values.reverse()
         score = 0.0
-        return Sow(handles, values, score)
+        return Sow(handles, key, values, score)
 
     def random_variable(self, cell_type, prim, args, cont, in_tree, **kwargs):
         gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         v = self.values.pop()
-        w = gen_fn.logpdf(v, *args)
+        self.key, w = gen_fn.estimate_logpdf(self.key, v, *args)
         self.score += w
         v = cps.flatmap_outcells(cell_type, v)
         return cont(*v)
@@ -150,21 +150,22 @@ class Sow(cps.Handler):
 
 def sow_transform(source_fn, constraints, **kwargs):
     @functools.wraps(source_fn)
-    def _inner(*args):
+    def _inner(key, *args):
         closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         if isinstance(constraints, tuple):
-            handler = Sow.new([*constraints])
+            handler = Sow.new(key, [*constraints])
         else:
-            handler = Sow.new([constraints])
+            handler = Sow.new(key, [constraints])
         with cps.Interpreter.new(Bare, handler) as interpreter:
             flat_out = interpreter(
                 jaxpr, [Bare.new(v) for v in consts], list(map(Bare.new, flat_args))
             )
         flat_out = map(lambda v: v.get_val(), flat_out)
         retvals = jtu.tree_unflatten(out_tree, flat_out)
+        key = handler.key
         score = handler.score
-        return retvals, score
+        return key, (retvals, score)
 
     return _inner
 
@@ -175,23 +176,26 @@ def sow_transform(source_fn, constraints, **kwargs):
 
 
 @dataclass
-class TransformedDistribution(ExactDensity):
+class TransformedDistribution(Distribution):
     source: Callable
 
-    def sample(self, key, *args, **kwargs):
-        _, v = sample_transform(self.source)(key, *args)
-        return v
+    def random_weighted(self, key, *args, **kwargs):
+        key, v = sample_transform(self.source)(key, *args)
+        key, w = self.estimate_logpdf(key, v, *args)
+        return key, (w, v)
 
-    def logpdf(self, v, *args, **kwargs):
+    def estimate_logpdf(self, key, v, *args, **kwargs):
+        key, sub_key = jax.random.split(key)
+
         def returner(constraints):
-            return sow_transform(self.source, constraints)(*args)[0]
+            return sow_transform(self.source, constraints)(sub_key, *args)[1][0]
 
         def scorer(constraints):
-            return sow_transform(self.source, constraints)(*args)[1]
+            return sow_transform(self.source, constraints)(sub_key, *args)[1][1]
 
         inverses, ildj_correction = inverse_core.inverse_and_ildj(returner)(v)
         score = scorer(inverses) + ildj_correction
-        return score
+        return key, score
 
 
 ##############
@@ -199,3 +203,4 @@ class TransformedDistribution(ExactDensity):
 ##############
 
 dist = TransformedDistribution.new
+rv = random_variable
