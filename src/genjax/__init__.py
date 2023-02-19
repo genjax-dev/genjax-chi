@@ -25,7 +25,7 @@ from genjax.generative_functions.distributions import prox
 
 from .console import *
 from .core import *
-from .debugger import *
+from .debugging import *
 from .experimental import *
 from .extras import *
 from .generative_functions import *
