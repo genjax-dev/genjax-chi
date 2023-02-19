@@ -356,7 +356,7 @@ class Product(Distribution):
         return n
 
     @typecheck
-    def random_weighted(self, key: PRNGKey, *args: Tuple):
+    def random_weighted(self, key: PRNGKey, *args):
         assert len(args) == len(self.components)
         tw, ret = 0.0, []
         for (op_args, op) in zip(args, self.components):
@@ -366,7 +366,7 @@ class Product(Distribution):
         return key, (tw, (*ret,))
 
     @typecheck
-    def estimate_logpdf(self, key: PRNGKey, v: Tuple, *args: Tuple):
+    def estimate_logpdf(self, key: PRNGKey, v: Tuple, *args):
         assert len(args) == len(self.components)
         tw = 0.0
         for (op, op_args, r) in zip(self.components, args, v):
