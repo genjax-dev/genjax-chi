@@ -121,7 +121,12 @@ Gen addresses this goal by introducing a separation between modeling and inferen
 <img width="800px" src="./assets/img/gen-architecture.png"/>
 </p>
 
-The interface provides an abstraction layer that inference algorithms can call to compute the right math (think: importance weights, accept reject ratios, gradient estimators). Advanced developers can create new model languages by implementing the interface - and immediately gain access to advanced inference procedures.
+The interface provides an abstraction layer that inference algorithms can call to compute the right math (1). Advanced developers can create new model languages by implementing the interface - and immediately gain access to advanced inference procedures.
+{ .annotate }
+
+1.  Examples of hard-to-get-right math: importance weights, accept reject ratios, and gradient estimators. 
+
+    For simple models and inference, one might painlessly derive these quantities. As soon as the model/inference gets complicated, however, you might find yourself thanking the interface.
 
 ## Whose using Gen?
 
