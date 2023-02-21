@@ -862,7 +862,7 @@ This works for <strong>any</strong> generative function, not just the beta-berno
   B[Inference engine.] ---&gt; D;
   D --&gt; E[Happy.];
   D ---&gt; A;</code></pre>
-<p class="annotate">The problem with this utopia is that we often do need to program our inference algorithms (1) to achieve maximum performance, both in regards to accuracy as well as runtime. First generation systems were not designed with this in mind.</p>
+<p class="annotate">The problem with this utopia is that we often do need to program our inference algorithms (1) to achieve maximum performance, with respect to accuracy as well as runtime. First generation systems were not designed with this in mind.</p>
 <ol>
 <li>Here, <em>programmable inference</em> denotes using a custom proposal distribution in importance sampling, or a custom variational family for variational inference, or even a custom kernel in Markov chain Monte Carlo.</li>
 </ol>
@@ -873,6 +873,7 @@ This works for <strong>any</strong> generative function, not just the beta-berno
 <img width="800px" src="./assets/img/gen-architecture.png"/>
 </p>
 
+<p>The interface provides an abstraction layer that inference algorithms can call to compute the right math (think: importance weights, accept reject ratios, gradient estimators). Advanced developers can create new model languages by implementing the interface - and immediately gain access to advanced inference procedures.</p>
 <h2 id="whose-using-gen">Whose using Gen?<a class="headerlink" href="#whose-using-gen" title="Permanent link">&para;</a></h2>
 <p>Gen supports a growing list of users, with collaboration across academic research labs and industry affiliates.</p>
 <p align="center">

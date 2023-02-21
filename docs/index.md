@@ -106,7 +106,7 @@ graph LR
   D ---> A;
 ```
 
-The problem with this utopia is that we often do need to program our inference algorithms (1) to achieve maximum performance, both in regards to accuracy as well as runtime. First generation systems were not designed with this in mind.
+The problem with this utopia is that we often do need to program our inference algorithms (1) to achieve maximum performance, with respect to accuracy as well as runtime. First generation systems were not designed with this in mind.
 {.annotate}
 
 1.  Here, _programmable inference_ denotes using a custom proposal distribution in importance sampling, or a custom variational family for variational inference, or even a custom kernel in Markov chain Monte Carlo.
@@ -120,6 +120,8 @@ Gen addresses this goal by introducing a separation between modeling and inferen
 <p align="center">
 <img width="800px" src="./assets/img/gen-architecture.png"/>
 </p>
+
+The interface provides an abstraction layer that inference algorithms can call to compute the right math (think: importance weights, accept reject ratios, gradient estimators). Advanced developers can create new model languages by implementing the interface - and immediately gain access to advanced inference procedures.
 
 ## Whose using Gen?
 
