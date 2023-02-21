@@ -20,75 +20,60 @@ It exposes an extended set of interfaces (new: `param_grad` and `update_state`) 
 It enables learning idioms which cohere with other packages in the JAX ecosystem (e.g. supporting `optax` optimizers).
 """
 
+import functools
 from dataclasses import dataclass
 from typing import Any
 
-import jax.tree_util as jtu
-
-from genjax._src.core.datatypes import EmptyChoiceMap
+from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes import Trace
+from genjax._src.core.interpreters.harvest import harvest
+from genjax._src.core.interpreters.harvest import plant
+from genjax._src.core.interpreters.harvest import sow
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
+from genjax._src.core.typing import typecheck
+
+
+TAG = "state"
+collect = functools.partial(harvest, tag=TAG)
+inject = functools.partial(plant, tag=TAG)
+param = functools.partial(sow, tag=TAG)
 
 
 @dataclass
 class StateCombinator(GenerativeFunction):
-    inner: GenerativeFunction
-    state: Any
+    inner: Union[Callable, GenerativeFunction]
+    params: Any
 
     def flatten(self):
         return (self.inner, self.state), ()
 
-    def simulate(self, key, args):
-        return self.inner.simulate(key, (*args[0:-1], self.state))
+    @typecheck
+    def simulate(self, key: PRNGKey, args: Tuple):
+        return self.inner.simulate(key, (self.params, *args))
 
-    def importance(self, key, chm, args):
-        return self.inner.importance(
-            key,
-            chm,
-            (*args[0:-1], self.state),
-        )
+    @typecheck
+    def importance(self, key: PRNGKey, chm: ChoiceMap, args: Tuple):
+        return self.inner.importance(key, chm, (self.params, *args))
 
-    def update(self, key, prev, chm, args):
-        return self.inner.update(
-            key,
-            prev,
-            chm,
-            (*args[0:-1], self.state),
-        )
+    @typecheck
+    def update(self, key: PRNGKey, prev: Trace, chm: ChoiceMap, args: Tuple):
+        return self.inner.update(key, prev, chm, (self.params, *args))
 
-    def assess(self, key, chm, args):
-        return self.inner.assess(
-            key,
-            chm,
-            (*args[0:-1], self.state),
-        )
+    @typecheck
+    def assess(self, key: PRNGKey, chm: ChoiceMap, args: Tuple):
+        return self.inner.assess(key, chm, (self.params, *args))
 
-    def score_state(self, key, tr, state):
-        gen_fn = tr.get_gen_fn()
-        choices = tr.strip()
-        args = tr.get_args()
-        key, scorer, _ = gen_fn.unzip(key, choices)
-        logpdf = scorer(EmptyChoiceMap(), (*args[0:-1], state))
-        return key, logpdf
 
-    def update_state(self, updates):
-        def _apply_update(u, p):
-            if u is None:
-                return p
-            else:
-                return p + u
+def init(f):
+    def wrapped(*args):
+        _, params = collect(f)({}, *args)
+        return StateCombinator.new(inject(f), params)
 
-        def _is_none(x):
-            return x is None
-
-        self.state = jtu.tree_map(
-            _apply_update,
-            updates,
-            self.state,
-            is_leaf=_is_none,
-        )
-
-    def get_state(self):
-        return self.state
+    return wrapped
 
 
 ##############

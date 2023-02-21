@@ -88,6 +88,8 @@ This project has several JAX-based influences. Here's an abbreviated list:
 
 The maintainers of this library would like to acknowledge the JAX team as well as the Oryx team for useful discussions and reference code for interpreter-based transformation patterns.
 
+---
+
 <div align="center">
 Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a>. All code is licensed under the <a href="LICENSE">Apache 2.0 License</a>.
 </div>

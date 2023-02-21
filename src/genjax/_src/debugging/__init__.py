@@ -28,11 +28,12 @@ NAMESPACE = "debug"
 
 
 tag = functools.partial(harvest.sow, tag=NAMESPACE)
+collect = functools.partial(harvest.harvest, tag=NAMESPACE)
 
 
 def grab(f):
     def wrapped(*args, **kwargs):
-        return harvest.harvest(f, tag=NAMESPACE)({}, *args)
+        return collect(f)({}, *args)
 
     return wrapped
 
@@ -40,7 +41,7 @@ def grab(f):
 def stab(f):
     @typecheck
     def wrapped(plants: Dict, args: Tuple):
-        v, state = harvest.harvest(f, tag=NAMESPACE)(plants, *args)
+        v, state = collect(f)(plants, *args)
         return v, {**plants, **state}
 
     return wrapped
