@@ -86,7 +86,7 @@ This project has several JAX-based influences. Here's an abbreviated list:
 
 ### Acknowledgements
 
-The maintainers of this library would like to acknowledge the JAX team as well as the Oryx team for useful discussions and reference code for interpreter-based transformation patterns.
+The maintainers of this library would like to acknowledge the JAX maintainers and the Oryx maintainers for useful discussions and reference code for interpreter-based transformation patterns.
 
 ---
 
