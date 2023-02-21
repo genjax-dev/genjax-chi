@@ -43,6 +43,8 @@ from genjax._src.generative_functions.combinators import Switch
 from genjax._src.generative_functions.combinators import SwitchCombinator
 from genjax._src.generative_functions.combinators import Unfold
 from genjax._src.generative_functions.combinators import UnfoldCombinator
+from genjax._src.generative_functions.combinators import init
+from genjax._src.generative_functions.combinators import param
 from genjax._src.generative_functions.combinators import vec_chm
 from genjax._src.generative_functions.combinators import vec_sel
 from genjax._src.generative_functions.combinators import vector_choice_map
@@ -58,6 +60,8 @@ __all__ = [
     "Switch",
     "StateCombinator",
     "State",
+    "param",
+    "init",
     "vector_choice_map",
     "vec_chm",
     "vector_select",

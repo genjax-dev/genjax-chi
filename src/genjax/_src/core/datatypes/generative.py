@@ -218,7 +218,7 @@ class GenerativeFunction(Pytree):
     provide a differentiable `importance` implementation.
     """
 
-    # This is used in tracing -- the user is not required to provide
+    # This is used to support tracing -- the user is not required to provide
     # a PRNGKey, because the value of the key is not important, only
     # the fact that the value has type PRNGKey.
     def __abstract_call__(self, *args) -> Tuple[PRNGKey, Any]:

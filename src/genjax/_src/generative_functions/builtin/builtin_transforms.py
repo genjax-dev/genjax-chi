@@ -215,7 +215,9 @@ def simulate_transform(source_fn, **kwargs):
         handler = Simulate.new(key)
         with cps.Interpreter.new(Bare, handler) as interpreter:
             flat_out = interpreter(
-                jaxpr, [Bare.new(v) for v in consts], list(map(Bare.new, flat_args))
+                jaxpr,
+                [Bare.new(v) for v in consts],
+                list(map(Bare.new, flat_args)),
             )
         flat_out = map(lambda v: v.get_val(), flat_out)
         retvals = jtu.tree_unflatten(out_tree, flat_out)

@@ -118,7 +118,7 @@ class Handler(Pytree):
     handles: List[jc.Primitive]
 
     # Allows a fallback handling rule to be applied,
-    # for primitives which we don't to provide any special
+    # for primitives which we don't provide any special
     # interpretation to.
     def fallback(self, cell_type: Type[Cell], prim: jc.Primitive, args, cont, **params):
         # Strip to JAX values.
