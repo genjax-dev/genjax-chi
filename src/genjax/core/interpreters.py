@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import cps
-from genjax._src.core.interpreters import harvest
 from genjax._src.core.interpreters import propagate
-from genjax._src.core.interpreters.cps.diff_rules import Change
-from genjax._src.core.interpreters.cps.diff_rules import Diff
-from genjax._src.core.interpreters.cps.diff_rules import IntChange
-from genjax._src.core.interpreters.cps.diff_rules import NoChange
-from genjax._src.core.interpreters.cps.diff_rules import UnknownChange
+from genjax._src.core.interpreters.context import harvest
+from genjax._src.core.interpreters.context.diff_rules import Change
+from genjax._src.core.interpreters.context.diff_rules import Diff
+from genjax._src.core.interpreters.context.diff_rules import IntChange
+from genjax._src.core.interpreters.context.diff_rules import NoChange
+from genjax._src.core.interpreters.context.diff_rules import UnknownChange
 from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import stage
 
 
 __all__ = [
+    "context",
     "cps",
     "harvest",
     "propagate",

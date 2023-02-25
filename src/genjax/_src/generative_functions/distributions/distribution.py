@@ -33,10 +33,10 @@ from genjax._src.core.datatypes import TraceType
 from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.datatypes import mask
 from genjax._src.core.datatypes.tracetypes import tt_lift
-from genjax._src.core.interpreters.cps.diff_rules import Diff
-from genjax._src.core.interpreters.cps.diff_rules import NoChange
-from genjax._src.core.interpreters.cps.diff_rules import check_no_change
-from genjax._src.core.interpreters.cps.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.context.diff_rules import Diff
+from genjax._src.core.interpreters.context.diff_rules import NoChange
+from genjax._src.core.interpreters.context.diff_rules import check_no_change
+from genjax._src.core.interpreters.context.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray

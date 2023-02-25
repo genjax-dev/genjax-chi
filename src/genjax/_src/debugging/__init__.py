@@ -17,7 +17,7 @@ pure functions."""
 
 import functools
 
-from genjax._src.core.interpreters import harvest
+from genjax._src.core.interpreters.context import harvest
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
@@ -28,20 +28,21 @@ NAMESPACE = "debug"
 
 
 tag = functools.partial(harvest.sow, tag=NAMESPACE)
-collect = functools.partial(harvest.harvest, tag=NAMESPACE)
+_collect = functools.partial(harvest.reap, tag=NAMESPACE)
+plant_and_collect = functools.partial(harvest.harvest, tag=NAMESPACE)
 
 
 def grab(f):
     def wrapped(*args, **kwargs):
-        return collect(f)({}, *args)
+        return _collect(f)(*args, **kwargs)
 
     return wrapped
 
 
 def stab(f):
     @typecheck
-    def wrapped(plants: Dict, args: Tuple):
-        v, state = collect(f)(plants, *args)
+    def wrapped(plants: Dict, args: Tuple, **kwargs):
+        v, state = plant_and_collect(f)(plants, *args, **kwargs)
         return v, {**plants, **state}
 
     return wrapped

@@ -46,7 +46,12 @@ Sequence = typing.Sequence
 Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
+Iterable = btyping.Iterable
 Generator = btyping.Generator
+Hashable = btyping.Hashable
+FrozenSet = btyping.FrozenSet
+Optional = btyping.Optional
+Type = btyping.Type
 Int = int
 Float = float
 Bool = bool
@@ -86,6 +91,8 @@ __all__ = [
     "Bool",
     "Float",
     "Generator",
+    "Iterable",
+    "Type",
     "static_check_is_array",
     "static_check_supports_grad",
 ]

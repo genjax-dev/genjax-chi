@@ -1,0 +1,352 @@
+# Copyright 2022 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""This module contains a forward evaluation interpreter with stateful contexts
+and custom primitive handling lookups."""
+
+import abc
+import copy
+import dataclasses
+import functools
+from contextlib import contextmanager
+
+import jax.core as jc
+import jax.tree_util as jtu
+from jax import abstract_arrays
+from jax import api_util
+from jax import linear_util as lu
+from jax import util as jax_util
+from jax.util import safe_map
+
+from genjax._src.core.interpreters import staging
+from genjax._src.core.pytree import Pytree
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Dict
+from genjax._src.core.typing import Iterable
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Union
+
+
+################################
+# Traces, tracers, and context #
+################################
+
+Value = Any
+
+
+class ContextualTracer(jc.Tracer):
+    """A `ContextualTracer` just encapsulates a single value."""
+
+    def __init__(self, trace: "ContextualTrace", val: Value, meta=None):
+        self._trace = trace
+        self.val = val
+        self.meta = meta
+
+    @property
+    def aval(self):
+        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+
+    def full_lower(self):
+        return self
+
+
+class ContextualTrace(jc.Trace):
+    """An evaluating trace that dispatches to a dynamic context."""
+
+    def pure(self, val: Value) -> ContextualTracer:
+        return ContextualTracer(self, val)
+
+    def sublift(self, tracer: ContextualTracer) -> ContextualTracer:
+        return self.pure(tracer.val)
+
+    def lift(self, val: Value) -> ContextualTracer:
+        return self.pure(val)
+
+    def process_primitive(
+        self,
+        primitive: jc.Primitive,
+        tracers: List[ContextualTracer],
+        params: Dict[str, Any],
+    ) -> Union[ContextualTracer, List[ContextualTracer]]:
+        context = staging.get_dynamic_context(self)
+        custom_rule = context.get_custom_rule(primitive)
+        if custom_rule:
+            return custom_rule(self, *tracers, **params)
+        return self.default_process_primitive(primitive, tracers, params)
+
+    def default_process_primitive(
+        self,
+        primitive: jc.Primitive,
+        tracers: List[ContextualTracer],
+        params: Dict[str, Any],
+    ) -> Union[ContextualTracer, List[ContextualTracer]]:
+        context = staging.get_dynamic_context(self)
+        vals = [v.val for v in tracers]
+        if context.can_handle(primitive):
+            outvals = context.process_primitive(primitive, *vals, **params)
+            return jax_util.safe_map(self.pure, outvals)
+        outvals = primitive.bind(*vals, **params)
+        if not primitive.multiple_results:
+            outvals = [outvals]
+        out_tracers = jax_util.safe_map(self.full_raise, outvals)
+        if primitive.multiple_results:
+            return out_tracers
+        return out_tracers[0]
+
+    def process_call(
+        self,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[ContextualTracer],
+        params: Dict[str, Any],
+    ):
+        context = staging.get_dynamic_context(self)
+        return context.process_higher_order_primitive(
+            self, call_primitive, f, tracers, params, False
+        )
+
+    def post_process_call(self, call_primitive, out_tracers, params):
+        vals = tuple(t.val for t in out_tracers)
+        master = self.main
+
+        def todo(x):
+            trace = ContextualTrace(master, jc.cur_sublevel())
+            return jax_util.safe_map(functools.partial(ContextualTracer, trace), x)
+
+        return vals, todo
+
+    def process_map(
+        self,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[ContextualTracer],
+        params: Dict[str, Any],
+    ):
+        context = staging.get_dynamic_context(self)
+        return context.process_higher_order_primitive(
+            self, call_primitive, f, tracers, params, True
+        )
+
+    post_process_map = post_process_call
+
+    def process_custom_jvp_call(self, primitive, fun, jvp, tracers):
+        context = staging.get_dynamic_context(self)
+        return context.process_custom_jvp_call(self, primitive, fun, jvp, tracers)
+
+    def post_process_custom_jvp_call(self, out_tracers, jvp_was_run):
+        context = staging.get_dynamic_context(self)
+        return context.post_process_custom_jvp_call(self, out_tracers, jvp_was_run)
+
+    def process_custom_vjp_call(self, primitive, fun, fwd, bwd, tracers, out_trees):
+        context = staging.get_dynamic_context(self)
+        return context.process_custom_vjp_call(
+            self, primitive, fun, fwd, bwd, tracers, out_trees
+        )
+
+    def post_process_custom_vjp_call(self, out_tracers, params):
+        context = staging.get_dynamic_context(self)
+        return context.post_process_custom_vjp_call(self, out_tracers, params)
+
+    def post_process_custom_vjp_call_fwd(self, out_tracers, out_trees):
+        context = staging.get_dynamic_context(self)
+        return context.post_process_custom_vjp_call_fwd(self, out_tracers, out_trees)
+
+
+@dataclasses.dataclass
+class Context(Pytree):
+    @abc.abstractmethod
+    def yield_state(self):
+        pass
+
+    @abc.abstractmethod
+    def can_handle(self, primitive):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_custom_rule(self, primitive):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def process_primitive(
+        self,
+        primitive,
+        *args,
+        **kwargs,
+    ):
+        raise NotImplementedError
+
+    def process_higher_order_primitive(
+        self,
+        trace: ContextualTrace,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[ContextualTracer],
+        params: Dict[str, Any],
+        is_map: bool,
+    ):
+        raise NotImplementedError
+
+    def process_custom_jvp_call(self, trace, primitive, fun, jvp, tracers):
+        raise NotImplementedError
+
+    def post_process_custom_jvp_call(self, trace, out_tracers, jvp_was_run):
+        raise NotImplementedError
+
+    def process_custom_vjp_call(
+        self, trace, primitive, fun, fwd, bwd, tracers, out_trees
+    ):
+        raise NotImplementedError
+
+    def post_process_custom_vjp_call(self, trace, out_tracers, params):
+        raise NotImplementedError
+
+    def post_process_custom_vjp_call_fwd(self, trace, out_tracers, out_trees):
+        raise NotImplementedError
+
+
+####################################
+# Continuation passing interpreter #
+####################################
+
+VarOrLiteral = Union[jc.Var, jc.Literal]
+
+
+class Environment:
+    """Keeps track of variables and their values during propagation."""
+
+    def __init__(self):
+        self.env: Dict[jc.Var, Value] = {}
+
+    def read(self, var: VarOrLiteral) -> Value:
+        if isinstance(var, jc.Literal):
+            return var.val
+        else:
+            return self.env.get(var)
+
+    def write(self, var: VarOrLiteral, cell: Value) -> Value:
+        if isinstance(var, jc.Literal):
+            return cell
+        cur_cell = self.read(var)
+        if isinstance(var, jc.DropVar):
+            return cur_cell
+        self.env[var] = cell
+        return self.env[var]
+
+    def __getitem__(self, var: VarOrLiteral) -> Value:
+        return self.read(var)
+
+    def __setitem__(self, key, val):
+        raise ValueError(
+            "Environments do not support __setitem__. Please use the "
+            "`write` method instead."
+        )
+
+    def __contains__(self, var: VarOrLiteral):
+        if isinstance(var, jc.Literal):
+            return True
+        return var in self.env
+
+    def copy(self):
+        return copy.copy(self)
+
+
+@dataclasses.dataclass
+class Interpreter:
+    # This produces an instance of `Interpreter`
+    # as a context manager - to allow us to control stack traces,
+    # if required.
+    @classmethod
+    @contextmanager
+    def new(cls):
+        try:
+            yield Interpreter()
+        except Exception as e:
+            raise e
+
+    def _eval_jaxpr(
+        self,
+        main: jc.MainTrace,
+        jaxpr: jc.Jaxpr,
+        consts: List[Value],
+        args: List[Value],
+    ):
+        env = Environment()
+        trace = ContextualTrace(main, jc.cur_sublevel())
+        safe_map(env.write, jaxpr.constvars, consts)
+        safe_map(env.write, jaxpr.invars, args)
+        for eqn in jaxpr.eqns:
+            invals = safe_map(env.read, eqn.invars)
+            outvals = eqn.primitive.bind_with_trace(trace, invals, eqn.params)
+            if not eqn.primitive.multiple_results:
+                outvals = [outvals]
+            safe_map(env.write, eqn.outvars, outvals)
+        return safe_map(env.read, jaxpr.outvars)
+
+    def __call__(self, main, fn, *args, **kwargs):
+        closed_jaxpr, (flat_args, _, out_tree) = staging.stage(fn)(*args, **kwargs)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        flat_out = self._eval_jaxpr(main, jaxpr, consts, flat_args)
+        out = jtu.tree_unflatten(out_tree, flat_out)
+        return out
+
+
+#########################
+# Linear transformation #
+#########################
+
+# This is a convenient interface to use the interpreter.
+#
+# Arguments get lifted to ContextualTracers and passed in
+# to the interpreter evaluation.
+#
+# The trace, tracers, and context explicitly control the behavior
+# of primitive bind invocations inside the interpreter loop.
+
+
+@lu.transformation
+def _transform(main: jc.MainTrace, ctx: Context, args: Iterable[Any]):
+    """A context transformation that returns stateful context values."""
+    trace = ContextualTrace(main, jc.cur_sublevel())
+    in_tracers = jax_util.safe_map(trace.pure, args)
+    with staging.new_dynamic_context(main, ctx):
+        ans = yield in_tracers, {}
+        out_tracers = jax_util.safe_map(trace.full_raise, ans)
+        stateful_tracers = jtu.tree_map(trace.full_raise, ctx.yield_state())
+        del main
+    (
+        out_values,
+        stateful_values,
+    ) = jtu.tree_map(lambda x: x.val, (out_tracers, stateful_tracers))
+    yield out_values, stateful_values
+
+
+def transform(f, ctx: Context):
+    # Runs the interpreter.
+    def _run_interpreter(main, *args, **kwargs):
+        with Interpreter.new() as interpreter:
+            return interpreter(main, f, *args, **kwargs)
+
+    # Propagates tracer values through running the interpreter.
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        with jc.new_main(ContextualTrace) as main:
+            fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
+            flat_args, in_tree = jtu.tree_flatten(args)
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
+            flat_fun = _transform(flat_fun, main, ctx)
+            out_flat, ctx_statefuls = flat_fun.call_wrapped(flat_args)
+            del main
+        return jtu.tree_unflatten(out_tree(), out_flat), ctx_statefuls
+
+    return wrapped
