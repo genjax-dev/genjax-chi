@@ -13,4 +13,3 @@
 # limitations under the License.
 
 from .cps import *
-from .diff_rules import *

@@ -27,9 +27,9 @@ from typing import Any
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
-from genjax._src.core.interpreters.harvest import harvest
-from genjax._src.core.interpreters.harvest import plant
-from genjax._src.core.interpreters.harvest import sow
+from genjax._src.core.interpreters.context.harvest import plant
+from genjax._src.core.interpreters.context.harvest import reap
+from genjax._src.core.interpreters.context.harvest import sow
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -38,7 +38,7 @@ from genjax._src.core.typing import typecheck
 
 
 TAG = "state"
-collect = functools.partial(harvest, tag=TAG)
+collect = functools.partial(reap, tag=TAG)
 inject = functools.partial(plant, tag=TAG)
 param = functools.partial(sow, tag=TAG)
 
@@ -53,25 +53,25 @@ class StateCombinator(GenerativeFunction):
 
     @typecheck
     def simulate(self, key: PRNGKey, args: Tuple):
-        return self.inner.simulate(key, (self.params, *args))
+        return inject(self.inner.simulate)(self.params, key, args)
 
     @typecheck
     def importance(self, key: PRNGKey, chm: ChoiceMap, args: Tuple):
-        return self.inner.importance(key, chm, (self.params, *args))
+        return inject(self.inner.importance)(self.params, key, chm, args)
 
     @typecheck
     def update(self, key: PRNGKey, prev: Trace, chm: ChoiceMap, args: Tuple):
-        return self.inner.update(key, prev, chm, (self.params, *args))
+        return inject(self.inner.update)(self.params, key, prev, chm, args)
 
     @typecheck
     def assess(self, key: PRNGKey, chm: ChoiceMap, args: Tuple):
-        return self.inner.assess(key, chm, (self.params, *args))
+        return inject(self.inner.assess)(self.params, key, chm, args)
 
 
 def init(f):
     def wrapped(*args):
-        _, params = collect(f)({}, *args)
-        return StateCombinator.new(inject(f), params)
+        _, params = collect(f.simulate)(*args)
+        return StateCombinator.new(f, params)
 
     return wrapped
 

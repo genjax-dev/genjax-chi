@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 import dataclasses
 import functools
 import itertools
@@ -21,15 +22,16 @@ from typing import List
 import jax.core as core
 import jax.tree_util as jtu
 
+import genjax._src.core.interpreters.context as context
 import genjax._src.core.interpreters.cps as cps
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.cps.diff_rules import Diff
-from genjax._src.core.interpreters.cps.diff_rules import NoChange
-from genjax._src.core.interpreters.cps.diff_rules import check_is_diff
-from genjax._src.core.interpreters.cps.diff_rules import check_no_change
-from genjax._src.core.interpreters.cps.diff_rules import tree_strip_diff
+from genjax._src.core.interpreters.context.diff_rules import Diff
+from genjax._src.core.interpreters.context.diff_rules import NoChange
+from genjax._src.core.interpreters.context.diff_rules import check_is_diff
+from genjax._src.core.interpreters.context.diff_rules import check_no_change
+from genjax._src.core.interpreters.context.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
@@ -51,7 +53,7 @@ class Bare(cps.Cell):
     meta: Any
 
     def flatten(self):
-        return (self.val,), (self.aval,)
+        return (self.val,), (self.meta,)
 
     @classmethod
     def new(cls, val):
@@ -97,6 +99,16 @@ class AddressVisitor(Pytree):
 # Inlining
 #####
 
+# TODO: deprecate.
+class DefaultInline:
+    def inline(self, cell_type, prim, args, cont, in_tree, **kwargs):
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        args = tuple(args)
+        transformed = _inline_transform(cell_type, gen_fn.source, self)
+        v = transformed(args)
+        v = cps.flatmap_outcells(cell_type, v)
+        return cont(*v)
+
 
 def _inline_transform(cell_type, source_fn, handler, **kwargs):
     @functools.wraps(source_fn)
@@ -116,17 +128,74 @@ def _inline_transform(cell_type, source_fn, handler, **kwargs):
     return _inner
 
 
-# NOTE: A convenient mixin which implements a basic handling routine for `inline_p`.
-# NOTE: `update` doesn't use this - because it works with a slightly
-# different `Cell` lattice than the other handlers.
-class DefaultInline:
-    def inline(self, cell_type, prim, args, cont, in_tree, **kwargs):
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
-        args = tuple(args)
-        transformed = _inline_transform(cell_type, gen_fn.source, self)
-        v = transformed(args)
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+# NOTE: base context class for GFI transforms below.
+@dataclasses.dataclass
+class BuiltinInterfaceContext(context.Context):
+    @abc.abstractmethod
+    def handle_trace(self, *tracers, **params):
+        pass
+
+    @abc.abstractmethod
+    def handle_cache(self, *tracers, **params):
+        pass
+
+    def can_handle(self, primitive):
+        return False
+
+    def process_primitive(self, primitive):
+        raise NotImplementedError
+
+    def get_custom_rule(self, primitive):
+        if primitive is gen_fn_p:
+            return self.handle_trace
+        elif primitive is cache_p:
+            return self.handle_cache
+        else:
+            return None
+
+
+#####
+# Inlining
+#####
+
+
+@dataclasses.dataclass
+class InlineContext(context.Context):
+    def flatten(self):
+        return (), ()
+
+    def yield_state(self):
+        return ()
+
+    def can_handle(self, primitive):
+        return primitive is inline_p
+
+    # Recursively inline - eliminate all `inline_p` primitive
+    # bind calls.
+    def process_inline(self, *args, **params):
+        in_tree = params["in_tree"]
+        gen_fn, *call_args = jtu.tree_unflatten(in_tree, args)
+        retvals = inline_transform(gen_fn.source)(*call_args)
+        return jtu.tree_leaves(retvals)
+
+    def process_primitive(self, primitive, *args, **params):
+        if primitive is inline_p:
+            return self.process_inline(*args, **params)
+        else:
+            raise NotImplementedError
+
+    def get_custom_rule(self, primitive):
+        return None
+
+
+def inline_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
+    def wrapper(*args):
+        ctx = InlineContext.new()
+        retvals, _ = context.transform(source_fn, ctx)(*args, **kwargs)
+        return retvals
+
+    return wrapper
 
 
 #####
@@ -135,8 +204,7 @@ class DefaultInline:
 
 
 @dataclasses.dataclass
-class Simulate(cps.Handler, DefaultInline):
-    handles: List[core.Primitive]
+class SimulateContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
     choice_state: Trie
@@ -152,7 +220,7 @@ class Simulate(cps.Handler, DefaultInline):
             self.cache_state,
             self.trace_visitor,
             self.cache_visitor,
-        ), (self.handles,)
+        ), ()
 
     @classmethod
     def new(cls, key: PRNGKey):
@@ -161,73 +229,41 @@ class Simulate(cps.Handler, DefaultInline):
         cache_state = Trie.new()
         trace_visitor = AddressVisitor.new()
         cache_visitor = AddressVisitor.new()
-        handles = [gen_fn_p, cache_p, inline_p]
-        return Simulate(
-            handles, key, score, choice_state, cache_state, trace_visitor, cache_visitor
+        return SimulateContext(
+            key, score, choice_state, cache_state, trace_visitor, cache_visitor
         )
 
-    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
-        # Use the visitor to check if an address of this value
-        # has already been visited.
+    def yield_state(self):
+        return (self.key, self.choice_state, self.cache_state, self.score)
+
+    def handle_trace(self, _, *args, **params):
+        addr = params.get("addr")
+        in_tree = params.get("in_tree")
         self.trace_visitor.visit(addr)
-
-        # Unflatten the flattened `Pytree` arguments.
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
-        args = tuple(args)
-
-        # Send the GFI call to the generative function callee.
-        self.key, tr = gen_fn.simulate(self.key, args)
-
-        # Set state in the handler.
+        gen_fn, *call_args = jtu.tree_unflatten(in_tree, args)
+        call_args = tuple(call_args)
+        self.key, tr = gen_fn.simulate(self.key, call_args)
         score = tr.get_score()
         self.choice_state[addr] = tr
         self.score += score
-
-        # Get the return value, lift back to the CPS
-        # interpreter value type lattice (here, `Bare`).
         v = tr.get_retval()
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+        return jtu.tree_leaves(v)
 
-    def cache(self, cell_type, prim, args, addr, fn, in_tree, cont, **kwargs):
-        # Use the visitor to check if an address of this value
-        # has already been visited.
-        self.cache_visitor.visit(addr)
-
-        # Unflatten the flattened `Pytree` arguments.
-        args = jtu.tree_unflatten(in_tree, args)
-        retval = fn(*args)
-
-        # Store the return value with the handler.
-        self.cache_state[addr] = retval
-
-        # Get the return value, lift back to the CPS
-        # interpreter value type lattice (here, `Bare`).
-        v = cps.flatmap_outcells(cell_type, retval)
-        return cont(*v)
+    def handle_cache(self, _, *args, **params):
+        raise NotImplementedError
 
 
 def simulate_transform(source_fn, **kwargs):
+    inlined = inline_transform(source_fn, **kwargs)
+
     @functools.wraps(source_fn)
-    def _inner(key, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Simulate.new(key)
-        with cps.Interpreter.new(Bare, handler) as interpreter:
-            flat_out = interpreter(
-                jaxpr,
-                [Bare.new(v) for v in consts],
-                list(map(Bare.new, flat_args)),
-            )
-        flat_out = map(lambda v: v.get_val(), flat_out)
-        retvals = jtu.tree_unflatten(out_tree, flat_out)
-        score = handler.score
-        constraints = handler.choice_state
-        cache = handler.cache_state
-        key = handler.key
+    def wrapper(key, args):
+        ctx = SimulateContext.new(key)
+        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        key, constraints, cache, score = statefuls
         return key, (source_fn, args, retvals, constraints, score), cache
 
-    return _inner
+    return wrapper
 
 
 #####
