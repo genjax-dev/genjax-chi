@@ -8,7 +8,7 @@ This README contains a brief description of each interpreter.
 
 ## Context
 
-A final style forward interpreter which dispatches registered primitives to a dynamic context (which the user can inherit and override).
+A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` forward interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
 * (**harvest**) Oryx's `harvest` transformation.
 * (**diff_rules**) Forward metadata propagation transformation.
@@ -17,7 +17,9 @@ A final style forward interpreter which dispatches registered primitives to a dy
 
 [Original adapted from notebook on static effect dispatch][effects_notebook]
 
-A final style continuation passing interpreter which dispatches registered primitives to a dynamic context (which the user can inherit and override).
+(WIP)
+
+A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` continuation passing interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
 * (**adev**) [ADEV](https://arxiv.org/pdf/2212.06386.pdf)
 
@@ -25,7 +27,7 @@ A final style continuation passing interpreter which dispatches registered primi
 
 [Original from Oryx][oryx_propagate]
 
-An initial style interpreter which treats a `Jaxpr` as a graph, primitives as edges, and variables as nodes - and attempts to compute using fixpoint iteration on a lifted type lattice.
+An initial style interpreter (no special `Trace` or `Tracers`) which treats a `Jaxpr` as a graph, primitives as edges, and variables as nodes - and attempts to compute using fixpoint iteration on a lifted type lattice (short: allows forward + backward propagation of abstract values).
 
 * (Supports **`coryx`**) A DSL for exact densities.
 
