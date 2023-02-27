@@ -559,3 +559,108 @@ def assess_transform(source_fn, **kwargs):
         return key, (retvals, score)
 
     return _inner
+
+
+###################
+# ADEV and fusion #
+###################
+
+#####
+# Probabilistic computation transform
+#####
+
+
+@dataclasses.dataclass
+class ADEVConvertContext(BuiltinInterfaceContext):
+    key: PRNGKey
+
+    def flatten(self):
+        return (self.key,), ()
+
+    def yield_state(self):
+        return (self.key,)
+
+    @classmethod
+    def new(cls, key):
+        return ADEVConvertContext(
+            key,
+        )
+
+    def handle_trace(self, _, *args, **params):
+        in_tree = params["in_tree"]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        args = tuple(args)
+        self.key, v = gen_fn.adev_convert(self.key, *args)
+        return jtu.tree_leaves(v)
+
+    def handle_cache(self, _, *args, **params):
+        in_tree = params["in_tree"]
+        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        retval = fn(*args)
+        return jtu.tree_leaves(retval)
+
+
+def adev_conversion_transform(source_fn, **kwargs):
+    inlined = inline_transform(source_fn, **kwargs)
+
+    @functools.wraps(source_fn)
+    def wrapper(key, args):
+        ctx = ADEVConvertContext.new(key)
+        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        (key,) = statefuls
+        return key, retvals
+
+    return wrapper
+
+
+#####
+# Fuse canonicalize transform
+#####
+
+
+@dataclasses.dataclass
+class FuseContext(BuiltinInterfaceContext):
+    key: PRNGKey
+    choice_state: Trie
+
+    def flatten(self):
+        return (
+            self.key,
+            self.choice_state,
+        ), ()
+
+    def yield_state(self):
+        return (self.key, self.choice_state)
+
+    @classmethod
+    def new(cls, key):
+        choice_state = Trie.new()
+        return FuseContext(key, choice_state)
+
+    def handle_trace(self, _, *args, **params):
+        addr = params["addr"]
+        in_tree = params["in_tree"]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        args = tuple(args)
+        self.key, (v, chm) = gen_fn.fuse_canonicalize(self.key, *args)
+        self.choice_state[addr] = chm
+        return jtu.tree_leaves(v)
+
+    def handle_cache(self, _, *args, **params):
+        in_tree = params["in_tree"]
+        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        retval = fn(*args)
+        return jtu.tree_leaves(retval)
+
+
+def fuse_transform(source_fn, **kwargs):
+    inlined = inline_transform(source_fn, **kwargs)
+
+    @functools.wraps(source_fn)
+    def wrapper(key, args):
+        ctx = FuseContext.new(key)
+        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        key, choices = statefuls
+        return key, (retvals, choices)
+
+    return wrapper

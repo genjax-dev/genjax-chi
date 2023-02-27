@@ -304,7 +304,22 @@ class GenerativeFunction(Pytree):
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return key, choice_gradient_tree
 
-    def fuse(self, _: "GenerativeFunction") -> Callable:
+    ###################
+    # ADEV and fusion #
+    ###################
+
+    # Express sampling using primitives which are compatible with ADEV's probabilistic computation language.
+    def adev_convert(self, key: PRNGKey, args: Tuple):
+        raise NotImplementedError
+
+    # Convert a generative function to a canonical form for proposal
+    # fusion.
+    def fuse_canonicalize(self, key: PRNGKey, args: Tuple):
+        raise NotImplementedError
+
+    # Fuse a generative function and a proposal to produce a probabilistic
+    # computation that returns an ELBO estimate.
+    def fuse(self, _: "GenerativeFunction"):
         raise NotImplementedError
 
 
