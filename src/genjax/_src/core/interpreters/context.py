@@ -35,7 +35,6 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
-from genjax._src.core.typing import Type
 from genjax._src.core.typing import Union
 
 
@@ -405,10 +404,36 @@ def _transform(main: jc.MainTrace, ctx: Context, args: Iterable[Any]):
     yield out_values, stateful_values
 
 
-def transform(f, ctx: Context, interpreter_type: Type = Fwd):
+def transform(f, ctx: Context):
     # Runs the interpreter.
     def _run_interpreter(main, *args, **kwargs):
-        with interpreter_type.new() as interpreter:
+        with Fwd.new() as interpreter:
+            return interpreter(main, f, *args, **kwargs)
+
+    # Propagates tracer values through running the interpreter.
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        with jc.new_main(ContextualTrace) as main:
+            fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
+            flat_args, in_tree = jtu.tree_flatten(args)
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
+            flat_fun = _transform(flat_fun, main, ctx)
+            out_flat, ctx_statefuls = flat_fun.call_wrapped(flat_args)
+            del main
+        return jtu.tree_unflatten(out_tree(), out_flat), ctx_statefuls
+
+    return wrapped
+
+
+#####
+# CPS transform
+#####
+
+
+def cps_transform(f, ctx: Context):
+    # Runs the interpreter.
+    def _run_interpreter(main, *args, **kwargs):
+        with Cont.new() as interpreter:
             return interpreter(main, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.

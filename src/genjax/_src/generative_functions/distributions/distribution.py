@@ -34,6 +34,7 @@ from genjax._src.core.datatypes import ValueChoiceMap
 from genjax._src.core.datatypes import mask
 from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
+from genjax._src.core.transforms import adev
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import NoChange
 from genjax._src.core.transforms.incremental import check_no_change
@@ -107,6 +108,8 @@ class Distribution(GenerativeFunction):
     def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
+    # Syntactical overload to define `Product` of distributions.
+    # C.f. below.
     def __mul__(self, other):
         p = Product([])
         p.append(self)
@@ -169,14 +172,7 @@ class Distribution(GenerativeFunction):
                 w = 0.0
                 return key, v, w
 
-            key, v, w = concrete_cond(
-                active,
-                _active,
-                _inactive,
-                key,
-                v,
-                args,
-            )
+            key, v, w = concrete_cond(active, _active, _inactive, key, v, args)
             score = w
 
         # Otherwise, we just estimate the logpdf of the value
@@ -299,6 +295,34 @@ class Distribution(GenerativeFunction):
         v = evaluation_point.get_leaf_value()
         key, score = self.estimate_logpdf(key, v, *args)
         return key, (v, score)
+
+    ########
+    # ADEV #
+    ########
+
+    @typecheck
+    def adev_convert(self, key: PRNGKey, args: Tuple):
+        strat = adev.strat(adev.Reinforce, addr="leaf")
+        prob_prim = adev.ProbabilisticPrimitive(self)
+        key, v = adev.sample(prob_prim, key, strat, args)
+        return key, v
+
+    @typecheck
+    def fuse_canonicalize(self, key: PRNGKey, args: Tuple):
+        strat = adev.strat(adev.Reinforce, addr="leaf")
+        prob_prim = adev.ProbabilisticPrimitive(self)
+        key, v = adev.sample(prob_prim, key, strat, args)
+        return key, (v, ValueChoiceMap(v))
+
+    @typecheck
+    def fuse(self, proposal: "Distribution") -> adev.ProbabilisticComputation:
+        def wrapper(key, p_args, q_args):
+            key, (v, _) = proposal.fuse_canonicalize(key, q_args)
+            key, qw = proposal.estimate_logpdf(key, v, *q_args)
+            key, pw = self.estimate_logpdf(key, v, *p_args)
+            return key, pw - qw
+
+        return adev.ProbabilisticComputation(wrapper)
 
 
 #####
