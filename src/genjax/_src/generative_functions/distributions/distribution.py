@@ -130,9 +130,8 @@ class Distribution(GenerativeFunction):
     def random_weighted(self, *args, **kwargs):
         pass
 
-    @classmethod
     @abc.abstractmethod
-    def estimate_logpdf(cls, key, v, *args, **kwargs):
+    def estimate_logpdf(self, key, v, *args, **kwargs):
         pass
 
     @typecheck
