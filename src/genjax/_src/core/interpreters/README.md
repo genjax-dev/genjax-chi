@@ -10,6 +10,8 @@ This README contains a brief description of each interpreter.
 
 A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` forward interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
+### Supports
+
 * (**GFI implementations for `Builtin` language**)
 * (**harvest**) Oryx's `harvest` transformation.
 * (**diff_rules**) Forward metadata propagation transformation.
@@ -22,6 +24,8 @@ A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which 
 
 A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` continuation passing interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
+### Supports
+
 * (**adev**) [ADEV](https://arxiv.org/pdf/2212.06386.pdf)
 
 ## Propagate
@@ -30,7 +34,9 @@ A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which 
 
 An initial style interpreter (no special `Trace` or `Tracers`) which treats a `Jaxpr` as a graph, primitives as edges, and variables as nodes - and attempts to compute using fixpoint iteration on a lifted type lattice (short: allows forward + backward propagation of abstract values).
 
-* (Supports **`coryx`**) A DSL for exact densities.
+### Supports
+
+* (**`coryx`**) A DSL for exact densities based on Oryx.
 
 [effects_notebook]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [oryx_propagate]: https://github.com/jax-ml/oryx/blob/main/oryx/core/interpreters/propagate.py
