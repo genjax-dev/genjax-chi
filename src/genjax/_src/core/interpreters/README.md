@@ -10,6 +10,7 @@ This README contains a brief description of each interpreter.
 
 A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` forward interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
+* (**GFI implementations for `Builtin` language**)
 * (**harvest**) Oryx's `harvest` transformation.
 * (**diff_rules**) Forward metadata propagation transformation.
 
