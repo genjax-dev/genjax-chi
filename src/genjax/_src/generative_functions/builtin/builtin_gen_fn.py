@@ -20,8 +20,8 @@ from genjax._src.core.datatypes import Pytree
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.trie import TrieChoiceMap
-from genjax._src.core.interpreters.context.diff_rules import check_is_diff
 from genjax._src.core.interpreters.staging import get_shaped_aval
+from genjax._src.core.transforms.incremental import check_is_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict

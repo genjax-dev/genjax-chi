@@ -24,7 +24,7 @@ from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.generative_functions.builtin.builtin_primitives import gen_fn_p
+from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
 
 
 @dataclass
@@ -100,7 +100,7 @@ def trace_typing(jaxpr: jc.ClosedJaxpr, flat_in, consts):
     safe_map(write, jaxpr.constvars, consts)
 
     for eqn in jaxpr.eqns:
-        if eqn.primitive == gen_fn_p:
+        if eqn.primitive == trace_p:
             in_tree = eqn.params["in_tree"]
             addr = eqn.params["addr"]
             invals = safe_map(read, eqn.invars)

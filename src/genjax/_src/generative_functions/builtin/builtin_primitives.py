@@ -27,7 +27,7 @@ from genjax._src.core.typing import typecheck
 ##############
 
 # Generative function trace intrinsic.
-gen_fn_p = primitives.InitialStylePrimitive("trace")
+trace_p = primitives.InitialStylePrimitive("trace")
 
 # Cache intrinsic.
 cache_p = primitives.InitialStylePrimitive("cache")
@@ -61,11 +61,11 @@ def _abstract_gen_fn_call(gen_fn, *args):
 # Trace call (denotes invocation of a generative function) #
 ############################################################
 
-# Uses `gen_fn_p` primitive.
+# Uses `trace_p` primitive.
 
 
 def _trace(gen_fn, addr, *args, **kwargs):
-    return primitives.initial_style_bind(gen_fn_p, addr=addr)(_abstract_gen_fn_call)(
+    return primitives.initial_style_bind(trace_p, addr=addr)(_abstract_gen_fn_call)(
         gen_fn, *args, **kwargs
     )
 

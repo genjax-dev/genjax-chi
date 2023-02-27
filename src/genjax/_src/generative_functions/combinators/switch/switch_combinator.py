@@ -37,10 +37,10 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Selection
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.masks import BooleanMask
-from genjax._src.core.interpreters.context.diff_rules import check_is_diff
-from genjax._src.core.interpreters.context.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
+from genjax._src.core.transforms.incremental import check_is_diff
+from genjax._src.core.transforms.incremental import tree_strip_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List

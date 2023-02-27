@@ -35,6 +35,7 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
+from genjax._src.core.typing import Type
 from genjax._src.core.typing import Union
 
 
@@ -45,10 +46,10 @@ from genjax._src.core.typing import Union
 Value = Any
 
 
-class ContinuationPassingTracer(jc.Tracer):
-    """A `ContinuationPassingTracer` just encapsulates a single value."""
+class ContextualTracer(jc.Tracer):
+    """A `ContextualTracer` just encapsulates a single value."""
 
-    def __init__(self, trace: "ContinuationPassingTrace", val: Value, meta=None):
+    def __init__(self, trace: "ContextualTrace", val: Value, meta=None):
         self._trace = trace
         self.val = val
         self.meta = meta
@@ -61,24 +62,24 @@ class ContinuationPassingTracer(jc.Tracer):
         return self
 
 
-class ContinuationPassingTrace(jc.Trace):
+class ContextualTrace(jc.Trace):
     """An evaluating trace that dispatches to a dynamic context."""
 
-    def pure(self, val: Value) -> ContinuationPassingTracer:
-        return ContinuationPassingTracer(self, val)
+    def pure(self, val: Value) -> ContextualTracer:
+        return ContextualTracer(self, val)
 
-    def sublift(self, tracer: ContinuationPassingTracer) -> ContinuationPassingTracer:
+    def sublift(self, tracer: ContextualTracer) -> ContextualTracer:
         return self.pure(tracer.val)
 
-    def lift(self, val: Value) -> ContinuationPassingTracer:
+    def lift(self, val: Value) -> ContextualTracer:
         return self.pure(val)
 
     def process_primitive(
         self,
         primitive: jc.Primitive,
-        tracers: List[ContinuationPassingTracer],
+        tracers: List[ContextualTracer],
         params: Dict[str, Any],
-    ) -> Union[ContinuationPassingTracer, List[ContinuationPassingTracer]]:
+    ) -> Union[ContextualTracer, List[ContextualTracer]]:
         context = staging.get_dynamic_context(self)
         custom_rule = context.get_custom_rule(primitive)
         if custom_rule:
@@ -88,9 +89,9 @@ class ContinuationPassingTrace(jc.Trace):
     def default_process_primitive(
         self,
         primitive: jc.Primitive,
-        tracers: List[ContinuationPassingTracer],
+        tracers: List[ContextualTracer],
         params: Dict[str, Any],
-    ) -> Union[ContinuationPassingTracer, List[ContinuationPassingTracer]]:
+    ) -> Union[ContextualTracer, List[ContextualTracer]]:
         context = staging.get_dynamic_context(self)
         vals = [v.val for v in tracers]
         if context.can_handle(primitive):
@@ -108,7 +109,7 @@ class ContinuationPassingTrace(jc.Trace):
         self,
         call_primitive: jc.Primitive,
         f: Any,
-        tracers: List[ContinuationPassingTracer],
+        tracers: List[ContextualTracer],
         params: Dict[str, Any],
     ):
         context = staging.get_dynamic_context(self)
@@ -121,10 +122,8 @@ class ContinuationPassingTrace(jc.Trace):
         master = self.main
 
         def todo(x):
-            trace = ContinuationPassingTrace(master, jc.cur_sublevel())
-            return jax_util.safe_map(
-                functools.partial(ContinuationPassingTracer, trace), x
-            )
+            trace = ContextualTrace(master, jc.cur_sublevel())
+            return jax_util.safe_map(functools.partial(ContextualTracer, trace), x)
 
         return vals, todo
 
@@ -132,7 +131,7 @@ class ContinuationPassingTrace(jc.Trace):
         self,
         call_primitive: jc.Primitive,
         f: Any,
-        tracers: List[ContinuationPassingTracer],
+        tracers: List[ContextualTracer],
         params: Dict[str, Any],
     ):
         context = staging.get_dynamic_context(self)
@@ -190,10 +189,10 @@ class Context(Pytree):
 
     def process_higher_order_primitive(
         self,
-        trace: ContinuationPassingTrace,
+        trace: ContextualTrace,
         call_primitive: jc.Primitive,
         f: Any,
-        tracers: List[ContinuationPassingTracer],
+        tracers: List[ContextualTracer],
         params: Dict[str, Any],
         is_map: bool,
     ):
@@ -217,9 +216,9 @@ class Context(Pytree):
         raise NotImplementedError
 
 
-####################################
-# Continuation passing interpreter #
-####################################
+################
+# Interpreters #
+################
 
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
@@ -264,7 +263,10 @@ class Environment:
 
 
 @dataclasses.dataclass
-class Interpreter:
+class ForwardInterpreter(Pytree):
+    def flatten(self):
+        return (), ()
+
     # This produces an instance of `Interpreter`
     # as a context manager - to allow us to control stack traces,
     # if required.
@@ -272,7 +274,53 @@ class Interpreter:
     @contextmanager
     def new(cls):
         try:
-            yield Interpreter()
+            yield ForwardInterpreter()
+        except Exception as e:
+            raise e
+
+    def _eval_jaxpr(
+        self,
+        main: jc.MainTrace,
+        jaxpr: jc.Jaxpr,
+        consts: List[Value],
+        args: List[Value],
+    ):
+        env = Environment()
+        trace = ContextualTrace(main, jc.cur_sublevel())
+        safe_map(env.write, jaxpr.constvars, consts)
+        safe_map(env.write, jaxpr.invars, args)
+        for eqn in jaxpr.eqns:
+            invals = safe_map(env.read, eqn.invars)
+            outvals = eqn.primitive.bind_with_trace(trace, invals, eqn.params)
+            if not eqn.primitive.multiple_results:
+                outvals = [outvals]
+            safe_map(env.write, eqn.outvars, outvals)
+        return safe_map(env.read, jaxpr.outvars)
+
+    def __call__(self, main, fn, *args, **kwargs):
+        closed_jaxpr, (flat_args, _, out_tree) = staging.stage(fn)(*args, **kwargs)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        flat_out = self._eval_jaxpr(main, jaxpr, consts, flat_args)
+        out = jtu.tree_unflatten(out_tree, flat_out)
+        return out
+
+
+Fwd = ForwardInterpreter
+
+
+@dataclasses.dataclass
+class CPSInterpreter(Pytree):
+    def flatten(self):
+        return (), ()
+
+    # This produces an instance of `Interpreter`
+    # as a context manager - to allow us to control stack traces,
+    # if required.
+    @classmethod
+    @contextmanager
+    def new(cls):
+        try:
+            yield CPSInterpreter()
         except Exception as e:
             raise e
 
@@ -284,7 +332,7 @@ class Interpreter:
         args: List[Value],
     ):
         env = Environment()
-        trace = ContinuationPassingTrace(main, jc.cur_sublevel())
+        trace = ContextualTrace(main, jc.cur_sublevel())
         safe_map(env.write, jaxpr.constvars, consts)
         safe_map(env.write, jaxpr.invars, args)
 
@@ -325,13 +373,15 @@ class Interpreter:
         return out
 
 
+Cont = CPSInterpreter
+
 #########################
 # Linear transformation #
 #########################
 
 # This is a convenient interface to use the interpreter.
 #
-# Arguments get lifted to ContinuationPassingTracers and passed in
+# Arguments get lifted to ContextualTracers and passed in
 # to the interpreter evaluation.
 #
 # The trace, tracers, and context explicitly control the behavior
@@ -341,8 +391,8 @@ class Interpreter:
 @lu.transformation
 def _transform(main: jc.MainTrace, ctx: Context, args: Iterable[Any]):
     """A context transformation that returns stateful context values."""
-    trace = ContinuationPassingTrace(main, jc.cur_sublevel())
-    in_tracers = jax_util.safe_map(trace.pure, args)
+    trace = ContextualTrace(main, jc.cur_sublevel())
+    in_tracers = jax_util.safe_map(trace.full_raise, args)
     with staging.new_dynamic_context(main, ctx):
         ans = yield in_tracers, {}
         out_tracers = jax_util.safe_map(trace.full_raise, ans)
@@ -355,16 +405,16 @@ def _transform(main: jc.MainTrace, ctx: Context, args: Iterable[Any]):
     yield out_values, stateful_values
 
 
-def transform(f, ctx: Context):
+def transform(f, ctx: Context, interpreter_type: Type = Fwd):
     # Runs the interpreter.
     def _run_interpreter(main, *args, **kwargs):
-        with Interpreter.new() as interpreter:
+        with interpreter_type.new() as interpreter:
             return interpreter(main, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        with jc.new_main(ContinuationPassingTrace) as main:
+        with jc.new_main(ContextualTrace) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
             flat_args, in_tree = jtu.tree_flatten(args)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
@@ -374,3 +424,24 @@ def transform(f, ctx: Context):
         return jtu.tree_unflatten(out_tree(), out_flat), ctx_statefuls
 
     return wrapped
+
+
+####################################
+# Value tag / metadata propagation #
+####################################
+
+
+@dataclasses.dataclass
+class Tag(Pytree):
+    @abc.abstractmethod
+    def should_flatten(self):
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def lift(cls, value: Value) -> "Tag":
+        pass
+
+    @abc.abstractmethod
+    def widen(self):
+        pass

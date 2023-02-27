@@ -27,19 +27,19 @@ import genjax._src.core.interpreters.cps as cps
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.context.diff_rules import Diff
-from genjax._src.core.interpreters.context.diff_rules import NoChange
-from genjax._src.core.interpreters.context.diff_rules import check_is_diff
-from genjax._src.core.interpreters.context.diff_rules import check_no_change
-from genjax._src.core.interpreters.context.diff_rules import tree_strip_diff
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.transforms.incremental import Diff
+from genjax._src.core.transforms.incremental import NoChange
+from genjax._src.core.transforms.incremental import check_is_diff
+from genjax._src.core.transforms.incremental import check_no_change
+from genjax._src.core.transforms.incremental import tree_strip_diff
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
-from genjax._src.generative_functions.builtin.builtin_primitives import gen_fn_p
 from genjax._src.generative_functions.builtin.builtin_primitives import inline_p
+from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
 
 
 ##################################################
@@ -146,7 +146,7 @@ class BuiltinInterfaceContext(context.Context):
         raise NotImplementedError
 
     def get_custom_rule(self, primitive):
-        if primitive is gen_fn_p:
+        if primitive is trace_p:
             return self.handle_trace
         elif primitive is cache_p:
             return self.handle_cache
@@ -272,8 +272,7 @@ def simulate_transform(source_fn, **kwargs):
 
 
 @dataclasses.dataclass
-class Importance(cps.Handler, DefaultInline):
-    handles: List[core.Primitive]
+class ImportanceContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
     weight: FloatArray
@@ -289,20 +288,24 @@ class Importance(cps.Handler, DefaultInline):
             self.constraints,
             self.choice_state,
             self.cache_state,
-        ), (self.handles,)
+        ), ()
+
+    def yield_state(self):
+        return (self.key, self.score, self.weight, self.choice_state, self.cache_state)
 
     @classmethod
     def new(cls, key, constraints):
-        handles = [gen_fn_p, cache_p, inline_p]
         score = 0.0
         weight = 0.0
         choice_state = Trie.new()
         cache_state = Trie.new()
-        return Importance(
-            handles, key, score, weight, constraints, choice_state, cache_state
+        return ImportanceContext(
+            key, score, weight, constraints, choice_state, cache_state
         )
 
-    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+    def handle_trace(self, _, *args, **params):
+        addr = params["addr"]
+        in_tree = params["in_tree"]
         gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         sub_map = self.constraints.get_subtree(addr)
         args = tuple(args)
@@ -311,39 +314,28 @@ class Importance(cps.Handler, DefaultInline):
         self.score += tr.get_score()
         self.weight += w
         v = tr.get_retval()
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+        return jtu.tree_leaves(v)
 
-    def cache(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
+    def handle_cache(self, _, *args, **params):
+        addr = params["addr"]
+        in_tree = params["in_tree"]
         fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
         retval = fn(*args)
         self.cache_state[addr] = retval
-        retval = cps.flatmap_outcells(cell_type, retval)
-        return cont(*retval)
+        return jtu.tree_leaves(retval)
 
 
 def importance_transform(source_fn, **kwargs):
-    @functools.wraps(source_fn)
-    def _inner(key, constraints, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Importance.new(key, constraints)
-        with cps.Interpreter.new(Bare, handler) as interpreter:
-            flat_out = interpreter(
-                jaxpr,
-                [Bare.new(v) for v in consts],
-                list(map(Bare.new, flat_args)),
-            )
-        flat_out = map(lambda v: v.get_val(), flat_out)
-        retvals = jtu.tree_unflatten(out_tree, flat_out)
-        w = handler.weight
-        score = handler.score
-        constraints = handler.choice_state
-        cache = handler.cache_state
-        key = handler.key
-        return key, (w, (source_fn, args, retvals, constraints, score)), cache
+    inlined = inline_transform(source_fn, **kwargs)
 
-    return _inner
+    @functools.wraps(source_fn)
+    def wrapper(key, constraints, args):
+        ctx = ImportanceContext.new(key, constraints)
+        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        key, score, weight, choices, cache = statefuls
+        return key, (weight, (source_fn, args, retvals, choices, score)), cache
+
+    return wrapper
 
 
 #####
@@ -398,7 +390,7 @@ class Update(cps.Handler):
 
     @classmethod
     def new(cls, key, previous_trace, constraints):
-        handles = [gen_fn_p, cache_p, inline_p]
+        handles = [trace_p, cache_p, inline_p]
         score = 0.0
         weight = 0.0
         choice_state = Trie.new()
@@ -528,7 +520,7 @@ class Assess(cps.Handler, DefaultInline):
 
     @classmethod
     def new(cls, key, constraints):
-        handles = [gen_fn_p, cache_p, inline_p]
+        handles = [trace_p, cache_p, inline_p]
         score = 0.0
         return Assess(handles, key, score, constraints)
 
