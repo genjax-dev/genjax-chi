@@ -364,8 +364,11 @@ class CPSInterpreter(Pytree):
 
             return safe_map(env.read, jaxpr.outvars)
 
-    def __call__(self, main, fn, *args, **kwargs):
-        closed_jaxpr, (flat_args, _, out_tree) = staging.stage(fn)(*args, **kwargs)
+    def __call__(self, main, kont, fn, *args, **kwargs):
+        def _inner(*args, **kwargs):
+            return kont(fn(*args, **kwargs))
+
+        closed_jaxpr, (flat_args, _, out_tree) = staging.stage(_inner)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr_cps(main, jaxpr, consts, flat_args)
         out = jtu.tree_unflatten(out_tree, flat_out)
@@ -432,15 +435,15 @@ def transform(f, ctx: Context):
 
 def cps_transform(f, ctx: Context):
     # Runs the interpreter.
-    def _run_interpreter(main, *args, **kwargs):
+    def _run_interpreter(main, kont, *args, **kwargs):
         with Cont.new() as interpreter:
-            return interpreter(main, f, *args, **kwargs)
+            return interpreter(main, kont, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
-    def wrapped(*args, **kwargs):
+    def wrapped(kont, *args, **kwargs):
         with jc.new_main(ContextualTrace) as main:
-            fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
+            fun = lu.wrap_init(functools.partial(_run_interpreter, main, kont), kwargs)
             flat_args, in_tree = jtu.tree_flatten(args)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
             flat_fun = _transform(flat_fun, main, ctx)

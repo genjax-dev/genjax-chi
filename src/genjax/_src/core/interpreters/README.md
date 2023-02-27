@@ -1,5 +1,7 @@
 # GenJAX core interpreters
 
+> Note: the `cps` directory needs to be deprecated, in favor of `context` and the CPS interpreter there.
+
 This directory contains several interpreters. These interpreters form the basis layer for functionality which relies on program transformations to implement semantics.
 
 Several of these interpreters have been collected and modified from notebooks or other JAX-based systems. For each interpreter / transformation implementation, we've tried to keep a reference to the original attribution.
@@ -20,7 +22,7 @@ A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which 
 
 [Original adapted from notebook on static effect dispatch][effects_notebook]
 
-(WIP)
+(WIP, in `context`)
 
 A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` continuation passing interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
