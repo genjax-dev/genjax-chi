@@ -342,6 +342,9 @@ def importance_transform(source_fn, **kwargs):
 # Update
 #####
 
+# TODO: deprecate usage of old CPS interpreter - replace
+# with contextual version.
+
 # NOTE: to support the `inline_p` primitive.
 def _update_inline_transform(cell_type, source_fn, handler, **kwargs):
     @functools.wraps(source_fn)
@@ -505,8 +508,7 @@ def update_transform(source_fn, **kwargs):
 
 
 @dataclasses.dataclass
-class Assess(cps.Handler, DefaultInline):
-    handles: List[core.Primitive]
+class AssessContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
     constraints: ChoiceMap
@@ -516,49 +518,44 @@ class Assess(cps.Handler, DefaultInline):
             self.key,
             self.score,
             self.constraints,
-        ), (self.handles,)
+        ), ()
+
+    def yield_state(self):
+        return (self.key, self.score)
 
     @classmethod
     def new(cls, key, constraints):
-        handles = [trace_p, cache_p, inline_p]
         score = 0.0
-        return Assess(handles, key, score, constraints)
+        return AssessContext(key, score, constraints)
 
-    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
-        submap = self.constraints.get_subtree(addr)
+    def handle_trace(self, _, *tracers, **params):
+        addr = params["addr"]
+        in_tree = params["in_tree"]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
+        submap = self.constraints.get_subtree(addr)
         self.key, (v, score) = gen_fn.assess(self.key, submap, args)
         self.score += score
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+        return jtu.tree_leaves(v)
 
-    def cache(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
-        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+    def handle_cache(self, _, *tracers, **params):
+        in_tree = params["in_tree"]
+        fn, *args = jtu.tree_unflatten(in_tree, tracers)
         retval = fn(*args)
-        retval = cps.flatmap_outcells(cell_type, retval)
-        return cont(*retval)
+        return jtu.tree_leaves(retval)
 
 
 def assess_transform(source_fn, **kwargs):
+    inlined = inline_transform(source_fn, **kwargs)
+
     @functools.wraps(source_fn)
-    def _inner(key, constraints, args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Assess.new(key, constraints)
-        with cps.Interpreter.new(Bare, handler) as interpreter:
-            flat_out = interpreter(
-                jaxpr,
-                [Bare.new(v) for v in consts],
-                list(map(Bare.new, flat_args)),
-            )
-        flat_out = map(lambda v: v.get_val(), flat_out)
-        retvals = jtu.tree_unflatten(out_tree, flat_out)
-        score = handler.score
-        key = handler.key
+    def wrapper(key, constraints, args):
+        ctx = AssessContext.new(key, constraints)
+        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        key, score = statefuls
         return key, (retvals, score)
 
-    return _inner
+    return wrapper
 
 
 ###################
