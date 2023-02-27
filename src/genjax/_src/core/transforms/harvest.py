@@ -22,8 +22,8 @@ from jax.interpreters import ad
 from jax.interpreters import batching
 from jax.interpreters import mlir
 
+from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import primitives as prim
-from genjax._src.core.interpreters.context import context
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict

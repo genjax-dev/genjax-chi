@@ -304,6 +304,9 @@ class GenerativeFunction(Pytree):
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return key, choice_gradient_tree
 
+    def fuse(self, _: "GenerativeFunction") -> Callable:
+        raise NotImplementedError
+
 
 #####
 # Concrete choice maps

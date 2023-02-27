@@ -17,7 +17,7 @@ pure functions."""
 
 import functools
 
-from genjax._src.core.interpreters.context import harvest
+from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple

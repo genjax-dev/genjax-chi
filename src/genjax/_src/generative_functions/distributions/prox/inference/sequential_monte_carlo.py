@@ -38,8 +38,8 @@ from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import EmptyChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes import ValueChoiceMap
-from genjax._src.core.interpreters.context.diff_rules import tree_strip_diff
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.transforms.incremental import tree_strip_diff
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey

@@ -15,27 +15,15 @@
 from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import cps
 from genjax._src.core.interpreters import propagate
-from genjax._src.core.interpreters.context import harvest
-from genjax._src.core.interpreters.context.diff_rules import Change
-from genjax._src.core.interpreters.context.diff_rules import Diff
-from genjax._src.core.interpreters.context.diff_rules import IntChange
-from genjax._src.core.interpreters.context.diff_rules import NoChange
-from genjax._src.core.interpreters.context.diff_rules import UnknownChange
 from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import stage
 
 
 __all__ = [
+    # Interpreter modules.
     "context",
     "cps",
-    "harvest",
     "propagate",
-    # Diff types.
-    "Change",
-    "UnknownChange",
-    "NoChange",
-    "IntChange",
-    "Diff",
     # Utilities.
     "stage",
     "get_shaped_aval",

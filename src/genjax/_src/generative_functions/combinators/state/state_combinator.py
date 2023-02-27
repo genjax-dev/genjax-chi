@@ -27,9 +27,9 @@ from typing import Any
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
-from genjax._src.core.interpreters.context.harvest import plant
-from genjax._src.core.interpreters.context.harvest import reap
-from genjax._src.core.interpreters.context.harvest import sow
+from genjax._src.core.transforms.harvest import plant
+from genjax._src.core.transforms.harvest import reap
+from genjax._src.core.transforms.harvest import sow
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
