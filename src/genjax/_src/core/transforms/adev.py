@@ -53,7 +53,7 @@ class AbstractProbabilisticComputation(Pytree):
         pass
 
 
-# Overloads for leaf generative functions, like distributions.
+# Overloads (for now, just distributions).
 @dataclasses.dataclass
 class ProbabilisticPrimitive(AbstractProbabilisticComputation):
     distribution: GenerativeFunction
@@ -72,12 +72,17 @@ class ProbabilisticComputation(AbstractProbabilisticComputation):
 
 @typecheck
 def prob_comp(gen_fn: GenerativeFunction):
+    # `GenerativeFunction.adev_convert` is a function which expresses
+    # forward sampling in terms of ADEV language primitives.
     return ProbabilisticComputation(gen_fn.adev_convert)
 
 
 #######################
 # Gradient strategies #
 #######################
+
+# TODO: determine the interface for these strategies.
+# E.g. strategy gets `kont`, gets to choose how to use it.
 
 
 @dataclasses.dataclass
@@ -98,6 +103,12 @@ class ExactEnum(GradientStrategy):
 ######################
 # Strategy intrinsic #
 ######################
+
+# NOTE: this lets us embed strategies into code, and plant/change them
+# via a transformation.
+
+# TODO: To support address/hierarchy in strategies - we'll have to use
+# a nest primitive from `harvest`.
 
 NAMESPACE = "adev_strategy"
 adev_tag = functools.partial(harvest.sow, tag=NAMESPACE)
