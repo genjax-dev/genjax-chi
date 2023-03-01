@@ -8,6 +8,8 @@ This README contains a brief description of each interpreter.
 
 ## Context
 
+**Implementation:** `context.py`
+
 A final style (customized trace/tracer) interpreter (it defines its own `Trace` and `Tracers`) which wraps `Jaxpr` interpreters (defined in the module: `Fwd` and `Cont`). Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
 ### Supports
@@ -18,6 +20,8 @@ A final style (customized trace/tracer) interpreter (it defines its own `Trace` 
 * (**adev**) [ADEV](https://arxiv.org/pdf/2212.06386.pdf) CPS transform with dual number propagation.
 
 ## Propagate
+
+**Implementation:** `propagate.py`
 
 [Original from Oryx][oryx_propagate]
 

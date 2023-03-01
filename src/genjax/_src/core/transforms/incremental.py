@@ -267,6 +267,8 @@ def _jvp(main: jc.MainTrace, ctx: Context, diffs: Iterable[Diff]):
     trace = DiffTrace(main, jc.cur_sublevel())
     in_tracers = jtu.tree_leaves([d.get_tracers(trace) for d in diffs])
     with staging.new_dynamic_context(main, ctx):
+        # Give ctx main so that we can new up
+        # tracers at the correct level when required.
         ctx.main_trace = main
         ans = yield in_tracers, {}
         out_tracers = jax_util.safe_map(trace.full_raise, ans)
