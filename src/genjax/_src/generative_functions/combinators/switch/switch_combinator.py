@@ -39,8 +39,8 @@ from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.masks import BooleanMask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
-from genjax._src.core.transforms.incremental import check_is_diff
-from genjax._src.core.transforms.incremental import tree_strip_diff
+from genjax._src.core.transforms.incremental import static_check_is_diff
+from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -227,7 +227,7 @@ class SwitchCombinator(GenerativeFunction):
         # Create a skeleton discard instance.
         discard_option = BooleanMask.new(False, prev.strip())
         concrete_branch_index = self.branches.index(branch_gen_fn)
-        argument_index = tree_strip_diff(argdiffs[0])
+        argument_index = tree_diff_primal(argdiffs[0])
         maybe_discard = discard_option.submaps[concrete_branch_index]
 
         # We have to mask the submap at the concrete_branch_index
@@ -244,7 +244,7 @@ class SwitchCombinator(GenerativeFunction):
 
         # Here, we create a Sumtree -- and we place the real trace
         # data inside of it.
-        args = jtu.tree_map(tree_strip_diff, argdiffs, is_leaf=check_is_diff)
+        args = jtu.tree_map(tree_diff_primal, argdiffs, is_leaf=static_check_is_diff)
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         choice_map = TaggedChoiceMap(concrete_branch_index, choices)
@@ -261,7 +261,7 @@ class SwitchCombinator(GenerativeFunction):
         return key, (retval_diff, w, trace, discard_option)
 
     def update(self, key, prev, new, argdiffs):
-        switch = tree_strip_diff(argdiffs[0])
+        switch = tree_diff_primal(argdiffs[0])
 
         def _inner(br):
             return lambda key, prev, new, argdiffs: self._update(

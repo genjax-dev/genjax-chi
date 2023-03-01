@@ -16,14 +16,24 @@ import abc
 import dataclasses
 import functools
 
+import jax.core as jc
 import jax.tree_util as jtu
+from jax import api_util
+from jax import linear_util as lu
+from jax import util as jax_util
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import primitives
+from genjax._src.core.interpreters import staging
+from genjax._src.core.interpreters.context import Cont
+from genjax._src.core.interpreters.context import Context
+from genjax._src.core.interpreters.context import ContextualTrace
+from genjax._src.core.interpreters.context import ContextualTracer
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms import harvest
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
@@ -117,13 +127,11 @@ def _sample(prob_comp, strat, key, args, **kwargs):
 
 @typecheck
 def sample(
-    prob_comp: AbstractProbabilisticComputation,
-    key: PRNGKey,
-    strat: GradientStrategy,
-    args: Tuple,
-    **kwargs
+    prob_comp: AbstractProbabilisticComputation, key: PRNGKey, args: Tuple, **kwargs
 ):
-    return _sample(prob_comp, key, strat, args, **kwargs)
+    # Default strategy is REINFORCE.
+    strategy = strat(Reinforce(), "sample")
+    return _sample(prob_comp, key, strategy, args, **kwargs)
 
 
 ##############
@@ -136,12 +144,12 @@ def sample(
 
 
 @dataclasses.dataclass
-class ADEVContext(context.Context):
+class ADEVContext(Context):
     @abc.abstractmethod
     def handle_sample(self, *tracers, **params):
         pass
 
-    def can_handle(self, primitive):
+    def can_process(self, primitive):
         return False
 
     def process_primitive(self, primitive):
@@ -177,15 +185,67 @@ def simulate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(*args):
         ctx = SimulateContext.new()
-        retvals, _ = context.transform(source_fn, ctx)(*args, **kwargs)
+        retvals, _ = ctx.transform(source_fn, ctx)(*args, **kwargs)
         return retvals
 
     return wrapper
 
 
 #####
-# Grad estimate
+# Grad estimate transform
 #####
+
+# Real tangents & CPS
+
+
+@lu.transformation
+def _cps_jvp(
+    main: jc.MainTrace, ctx: Context, primals: Iterable[Any], tangents: Iterable[Any]
+):
+    """A context transformation that returns stateful context values."""
+    trace = ContextualTrace(main, jc.cur_sublevel())
+    in_tracers = [ContextualTracer(trace, x, t) for x, t in zip(primals, tangents)]
+    with staging.new_dynamic_context(main, ctx):
+        ans = yield in_tracers, {}
+        out_tracers = jax_util.safe_map(trace.full_raise, ans)
+        stateful_tracers = jtu.tree_map(trace.full_raise, ctx.yield_state())
+        del main
+    (
+        out_values,
+        stateful_values,
+    ) = jtu.tree_map(lambda x: x.val, (out_tracers, stateful_tracers))
+    out_tangents = jtu.tree_map(lambda x: x.meta, out_tracers)
+    yield (out_values, out_tangents), stateful_values
+
+
+# Designed to support ADEV - here, we enforce that primals and tangents
+# must have the same Pytree shape.
+def cps_jvp(f, ctx: Context):
+    # Runs the interpreter.
+    def _run_interpreter(main, kont, *args, **kwargs):
+        with Cont.new() as interpreter:
+            return interpreter(main, kont, f, *args, **kwargs)
+
+    # Propagates tracer values through running the interpreter.
+    @functools.wraps(f)
+    def wrapped(kont, primals, tangents, **kwargs):
+        with jc.new_main(ContextualTrace) as main:
+            fun = lu.wrap_init(functools.partial(_run_interpreter, main, kont), kwargs)
+            flat_primals, primal_tree = jtu.tree_flatten(primals)
+            flat_tangents, tangent_tree = jtu.tree_flatten(tangents)
+            assert primal_tree == tangent_tree
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
+            flat_fun = _cps_jvp(flat_fun, main, ctx)
+            (out_primals, out_tangents), ctx_statefuls = flat_fun.call_wrapped(
+                flat_primals, flat_tangents
+            )
+            del main
+        return (
+            jtu.tree_unflatten(out_tree(), out_primals),
+            jtu.tree_unflatten(out_tree(), out_tangents),
+        ), ctx_statefuls
+
+    return wrapped
 
 
 @dataclasses.dataclass
@@ -210,9 +270,20 @@ class GradEstimateContext(ADEVContext):
 
 def grad_estimate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
-    def wrapper(*args):
+    def wrapper(key, primals, tangents):
         ctx = GradEstimateContext.new()
-        retvals, _ = context.transform(source_fn, ctx)(*args, **kwargs)
+        retvals, _ = cps_jvp(source_fn, ctx)(key, primals, tangents, **kwargs)
         return retvals
 
     return wrapper
+
+
+##############
+# Shorthands #
+##############
+
+
+def prob_comp(gen_fn: GenerativeFunction) -> ProbabilisticComputation:
+    """Create an `adev.ProbabilisticComputation` from a generative function by
+    wrapping the generative function's `adev_convert`."""
+    return ProbabilisticComputation(gen_fn.adev_convert)

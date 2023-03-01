@@ -129,7 +129,7 @@ class HarvestContext(context.Context):
     def get_custom_rule(self, primitive):
         return None
 
-    def can_handle(self, primitive):
+    def can_process(self, primitive):
         return primitive in [sow_p]
 
     def process_primitive(self, primitive, *args, **kwargs):

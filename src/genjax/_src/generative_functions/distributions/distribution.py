@@ -37,8 +37,9 @@ from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.transforms import adev
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import NoChange
-from genjax._src.core.transforms.incremental import check_no_change
-from genjax._src.core.transforms.incremental import tree_strip_diff
+from genjax._src.core.transforms.incremental import UnknownChange
+from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -211,15 +212,13 @@ class Distribution(GenerativeFunction):
 
         # Incremental optimization - if nothing has changed,
         # just return the previous trace.
-        if isinstance(constraints, EmptyChoiceMap) and all(
-            map(check_no_change, argdiffs)
-        ):
+        if isinstance(constraints, EmptyChoiceMap) and static_check_no_change(argdiffs):
             v = prev.get_retval()
-            retval_diff = Diff.new(v, change=NoChange)
+            retval_diff = Diff(v, NoChange)
             return key, (retval_diff, 0.0, prev, maybe_discard)
 
         # Otherwise, we consider the cases.
-        args = tree_strip_diff(argdiffs)
+        args = tree_diff_primal(argdiffs)
 
         # First, we have to check if the trace provided
         # is masked or not. It's possible that a trace
@@ -247,7 +246,7 @@ class Distribution(GenerativeFunction):
 
             key, w = concrete_cond(active, _active, _inactive, key, v, *args)
             discard = maybe_discard
-            retval_diff = jtu.tree_map(lambda v: Diff.new(v, change=NoChange), prev_v)
+            retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), prev_v)
 
         # Case 2: the new choice map is not empty here.
         else:
@@ -266,8 +265,9 @@ class Distribution(GenerativeFunction):
             # values.
             active = jnp.all(jnp.logical_and(active_chm, active))
 
+            key, fwd = self.estimate_logpdf(key, v, *args)
+
             def _constraints_active(key, v, *args):
-                key, fwd = self.estimate_logpdf(key, v, *args)
                 return key, v, fwd - prev_score
 
             def _constraints_inactive(key, v, *args):
@@ -278,7 +278,7 @@ class Distribution(GenerativeFunction):
             )
 
             discard = mask(active_chm, ValueChoiceMap(prev.get_leaf_value()))
-            retval_diff = Diff.new(v)
+            retval_diff = Diff(v, UnknownChange)
 
         return key, (
             retval_diff,
@@ -301,27 +301,28 @@ class Distribution(GenerativeFunction):
 
     @typecheck
     def adev_convert(self, key: PRNGKey, args: Tuple):
-        strat = adev.strat(adev.Reinforce, addr="leaf")
         prob_prim = adev.ProbabilisticPrimitive(self)
-        key, v = adev.sample(prob_prim, key, strat, args)
+        key, v = adev.sample(prob_prim, key, args)
         return key, v
 
     @typecheck
-    def fuse_canonicalize(self, key: PRNGKey, args: Tuple):
-        strat = adev.strat(adev.Reinforce, addr="leaf")
+    def prepare_fuse(self, key: PRNGKey, args: Tuple):
         prob_prim = adev.ProbabilisticPrimitive(self)
-        key, v = adev.sample(prob_prim, key, strat, args)
+        key, v = adev.sample(prob_prim, key, args)
         return key, (v, ValueChoiceMap(v))
 
     @typecheck
     def fuse(self, proposal: "Distribution") -> adev.ProbabilisticComputation:
         def wrapper(key, p_args, q_args):
-            key, (v, _) = proposal.fuse_canonicalize(key, q_args)
+            key, (v, _) = proposal.prepare_fuse(key, q_args)
             key, qw = proposal.estimate_logpdf(key, v, *q_args)
             key, pw = self.estimate_logpdf(key, v, *p_args)
             return key, pw - qw
 
         return adev.ProbabilisticComputation(wrapper)
+
+    def prob_comp(self) -> adev.ProbabilisticComputation:
+        return adev.ProbabilisticComputation(self.adev_convert)
 
 
 #####

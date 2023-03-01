@@ -16,51 +16,29 @@ import abc
 import dataclasses
 import functools
 import itertools
-from typing import Any
-from typing import List
 
-import jax.core as core
+import jax.core as jc
 import jax.tree_util as jtu
+from jax import util as jax_util
 
 import genjax._src.core.interpreters.context as context
-import genjax._src.core.interpreters.cps as cps
 from genjax._src.core.datatypes import ChoiceMap
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.transforms import incremental
 from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import NoChange
-from genjax._src.core.transforms.incremental import check_is_diff
-from genjax._src.core.transforms.incremental import check_no_change
-from genjax._src.core.transforms.incremental import tree_strip_diff
+from genjax._src.core.transforms.incremental import DiffTrace
+from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import tree_diff_get_tracers
+from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
 from genjax._src.generative_functions.builtin.builtin_primitives import inline_p
 from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
-
-
-##################################################
-# Bare values (for interfaces sans change types) #
-##################################################
-
-
-@dataclasses.dataclass
-class Bare(cps.Cell):
-    val: Any
-    meta: Any
-
-    def flatten(self):
-        return (self.val,), (self.meta,)
-
-    @classmethod
-    def new(cls, val):
-        return Bare(val, None)
-
-    def get_val(self):
-        return self.val
 
 
 ######################################
@@ -96,37 +74,8 @@ class AddressVisitor(Pytree):
 
 
 #####
-# Inlining
+# Builtin interpreter context
 #####
-
-# TODO: deprecate.
-class DefaultInline:
-    def inline(self, cell_type, prim, args, cont, in_tree, **kwargs):
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
-        args = tuple(args)
-        transformed = _inline_transform(cell_type, gen_fn.source, self)
-        v = transformed(args)
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
-
-
-def _inline_transform(cell_type, source_fn, handler, **kwargs):
-    @functools.wraps(source_fn)
-    def _inner(args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        with cps.Interpreter.new(cell_type, handler) as interpreter:
-            flat_out = interpreter(
-                jaxpr,
-                [cell_type.new(v) for v in consts],
-                list(map(cell_type.new, flat_args)),
-            )
-        flat_out = map(lambda v: v.get_val(), flat_out)
-        retvals = jtu.tree_unflatten(out_tree, flat_out)
-        return retvals
-
-    return _inner
-
 
 # NOTE: base context class for GFI transforms below.
 @dataclasses.dataclass
@@ -139,7 +88,7 @@ class BuiltinInterfaceContext(context.Context):
     def handle_cache(self, *tracers, **params):
         pass
 
-    def can_handle(self, primitive):
+    def can_process(self, primitive):
         return False
 
     def process_primitive(self, primitive):
@@ -167,7 +116,7 @@ class InlineContext(context.Context):
     def yield_state(self):
         return ()
 
-    def can_handle(self, primitive):
+    def can_process(self, primitive):
         return primitive is inline_p
 
     # Recursively inline - eliminate all `inline_p` primitive
@@ -303,10 +252,10 @@ class ImportanceContext(BuiltinInterfaceContext):
             key, score, weight, constraints, choice_state, cache_state
         )
 
-    def handle_trace(self, _, *args, **params):
+    def handle_trace(self, _, *tracers, **params):
         addr = params["addr"]
         in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         sub_map = self.constraints.get_subtree(addr)
         args = tuple(args)
         self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
@@ -316,10 +265,10 @@ class ImportanceContext(BuiltinInterfaceContext):
         v = tr.get_retval()
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, _, *args, **params):
+    def handle_cache(self, _, *tracers, **params):
         addr = params["addr"]
         in_tree = params["in_tree"]
-        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        fn, args = jtu.tree_unflatten(in_tree, *tracers)
         retval = fn(*args)
         self.cache_state[addr] = retval
         return jtu.tree_leaves(retval)
@@ -342,34 +291,9 @@ def importance_transform(source_fn, **kwargs):
 # Update
 #####
 
-# TODO: deprecate usage of old CPS interpreter - replace
-# with contextual version.
-
-# NOTE: to support the `inline_p` primitive.
-def _update_inline_transform(cell_type, source_fn, handler, **kwargs):
-    @functools.wraps(source_fn)
-    def _inner(argdiffs):
-        vals = tree_strip_diff(argdiffs)
-        closed_jaxpr, (_, _, out_tree) = stage(source_fn)(*vals, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        with cps.Interpreter.new(cell_type, handler) as interpreter:
-            flat_argdiffs, _ = jtu.tree_flatten(argdiffs, is_leaf=check_is_diff)
-            flat_retval_diffs = interpreter(
-                jaxpr,
-                [Diff.new(v, change=NoChange) for v in consts],
-                flat_argdiffs,
-            )
-            retvals = tree_strip_diff(flat_retval_diffs)
-            retvals = jtu.tree_unflatten(out_tree, retvals)
-
-        return retvals
-
-    return _inner
-
 
 @dataclasses.dataclass
-class Update(cps.Handler):
-    handles: List[core.Primitive]
+class UpdateContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
     weight: FloatArray
@@ -389,18 +313,31 @@ class Update(cps.Handler):
             self.discard,
             self.choice_state,
             self.cache_state,
-        ), (self.handles,)
+        ), ()
+
+    def yield_state(self):
+        return (
+            self.key,
+            self.weight,
+            self.choice_state,
+            self.cache_state,
+            self.discard,
+        )
+
+    def get_tracers(self, diff):
+        main = self.main_trace
+        trace = DiffTrace(main, jc.cur_sublevel())
+        out_tracers = tree_diff_get_tracers(diff, trace)
+        return out_tracers
 
     @classmethod
     def new(cls, key, previous_trace, constraints):
-        handles = [trace_p, cache_p, inline_p]
         score = 0.0
         weight = 0.0
         choice_state = Trie.new()
         cache_state = Trie.new()
         discard = Trie.new()
-        return Update(
-            handles,
+        return UpdateContext(
             key,
             score,
             weight,
@@ -411,8 +348,11 @@ class Update(cps.Handler):
             cache_state,
         )
 
-    def trace(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
-        gen_fn, *argdiffs = jtu.tree_unflatten(in_tree, args)
+    def handle_trace(self, _, *tracers, **params):
+        addr = params["addr"]
+        in_tree = params["in_tree"]
+        gen_fn, *tracer_argdiffs = jtu.tree_unflatten(in_tree, tracers)
+        argdiffs = tuple(jax_util.safe_map(Diff.from_tracer, tracer_argdiffs))
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
         argdiffs = tuple(argdiffs)
@@ -423,83 +363,60 @@ class Update(cps.Handler):
         self.weight += w
         self.choice_state[addr] = tr
         self.discard[addr] = discard
-        retval_diff = cps.flatmap_outcells(cell_type, retval_diff)
-        return cont(*retval_diff)
+        # We have to convert the Diff back to tracers to return
+        # from the primitive.
+        out_tracers = self.get_tracers(retval_diff)
+        return jtu.tree_leaves(out_tracers)
 
-    def cache(self, cell_type, prim, args, cont, addr, in_tree, **kwargs):
-        fn, args = jtu.tree_unflatten(in_tree, args)
+    # TODO: fix -- add Diff/tracer return.
+    def handle_cache(self, _, *tracers, **params):
+        addr = params["addr"]
+        in_tree = params["in_tree"]
+        fn, args = jtu.tree_unflatten(in_tree, tracers)
         has_value = self.previous_trace.has_cached_value(addr)
 
-        if is_concrete(has_value) and has_value and all(map(check_no_change, args)):
+        if (
+            is_concrete(has_value)
+            and has_value
+            and all(map(static_check_no_change, args))
+        ):
             cached_value = self.previous_trace.get_cached_value(addr)
             self.cache_state[addr] = cached_value
-            retval = cps.flatmap_outcells(
-                cell_type,
-                cached_value,
-                change=NoChange,
-            )
-            return cont(*retval)
+            return jtu.tree_leaves(cached_value)
 
-        # Otherwise, we codegen by calling into the function.
         retval = fn(*args)
         self.cache_state[addr] = retval
-
-        # Here, we keep the outcells dimension (e.g. the same as
-        # the number of outgoing variables in the equation) invariant
-        # under our expansion.
-        retval = cps.flatmap_outcells(cell_type, retval)
-        return cont(*retval)
-
-    def inline(self, cell_type, prim, args, cont, in_tree, **kwargs):
-        gen_fn, *argdiffs = jtu.tree_unflatten(in_tree, args)
-        transformed = _update_inline_transform(cell_type, gen_fn.source, self)
-        argdiffs = tuple(argdiffs)
-        v = transformed(argdiffs)
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+        return jtu.tree_leaves(retval)
 
 
 def update_transform(source_fn, **kwargs):
-    @functools.wraps(source_fn)
-    def _inner(key, previous_trace, constraints, argdiffs):
-        vals = tree_strip_diff(argdiffs)
-        jaxpr, (_, _, out_tree) = stage(source_fn)(*vals, **kwargs)
-        jaxpr, consts = jaxpr.jaxpr, jaxpr.literals
-        handler = Update.new(key, previous_trace, constraints)
-        with cps.Interpreter.new(Diff, handler) as interpreter:
-            flat_argdiffs, _ = jtu.tree_flatten(argdiffs, is_leaf=check_is_diff)
-            flat_retval_diffs = interpreter(
-                jaxpr,
-                [Diff.new(v, change=NoChange) for v in consts],
-                flat_argdiffs,
-            )
+    inlined = inline_transform(source_fn, **kwargs)
 
-        retvals = tree_strip_diff(flat_retval_diffs)
-        retvals = jtu.tree_unflatten(out_tree, retvals)
-        retval_diffs = jtu.tree_unflatten(out_tree, flat_retval_diffs)
-        w = handler.weight
-        constraints = handler.choice_state
-        cache = handler.cache_state
-        discard = handler.discard
-        key = handler.key
+    @functools.wraps(source_fn)
+    def wrapper(key, previous_trace, constraints, diffs):
+        ctx = UpdateContext.new(key, previous_trace, constraints)
+        retval_diffs, statefuls = incremental.transform(inlined, ctx)(*diffs, **kwargs)
+        retval_primals = tree_diff_primal(retval_diffs)
+        arg_primals = tree_diff_primal(diffs)
+        key, weight, choices, cache, discard = statefuls
         return (
             key,
             (
                 retval_diffs,
-                w,
+                weight,
                 (
                     source_fn,
-                    vals,
-                    retvals,
-                    constraints,
-                    previous_trace.get_score() + w,
+                    arg_primals,
+                    retval_primals,
+                    choices,
+                    previous_trace.get_score() + weight,
                 ),
                 discard,
             ),
             cache,
         )
 
-    return _inner
+    return wrapper
 
 
 #####
@@ -583,16 +500,16 @@ class ADEVConvertContext(BuiltinInterfaceContext):
             key,
         )
 
-    def handle_trace(self, _, *args, **params):
+    def handle_trace(self, _, *tracers, **params):
         in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
         self.key, v = gen_fn.adev_convert(self.key, *args)
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, _, *args, **params):
+    def handle_cache(self, _, *tracers, **params):
         in_tree = params["in_tree"]
-        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        fn, args = jtu.tree_unflatten(in_tree, tracers)
         retval = fn(*args)
         return jtu.tree_leaves(retval)
 
@@ -634,18 +551,18 @@ class FuseContext(BuiltinInterfaceContext):
         choice_state = Trie.new()
         return FuseContext(key, choice_state)
 
-    def handle_trace(self, _, *args, **params):
+    def handle_trace(self, _, *tracers, **params):
         addr = params["addr"]
         in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
-        self.key, (v, chm) = gen_fn.fuse_canonicalize(self.key, *args)
+        self.key, (v, chm) = gen_fn.prepare_fuse(self.key, *args)
         self.choice_state[addr] = chm
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, _, *args, **params):
+    def handle_cache(self, _, *tracers, **params):
         in_tree = params["in_tree"]
-        fn, args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+        fn, args = jtu.tree_unflatten(in_tree, tracers)
         retval = fn(*args)
         return jtu.tree_leaves(retval)
 

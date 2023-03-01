@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from genjax._src.core.interpreters import context
-from genjax._src.core.interpreters import cps
 from genjax._src.core.interpreters import propagate
 from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import stage
@@ -22,7 +21,6 @@ from genjax._src.core.interpreters.staging import stage
 __all__ = [
     # Interpreter modules.
     "context",
-    "cps",
     "propagate",
     # Utilities.
     "stage",
