@@ -277,8 +277,11 @@ def _jvp(main: jc.MainTrace, ctx: Context, diffs: Iterable[Diff]):
     yield out_diffs, stateful_values
 
 
-# Designed to support incremental computing. There's no constraint
-# on Pytree equality between primals and tangents.
+# NOTE: There's no constraint on Pytree equality between primals and tangents.
+# I'm really not sure about this, more generally.
+# How to specify custom tangents for arbitrary Pytree types?
+# This solution works for array-like values (e.g. JAX native values)
+# but I'm not sure how to generalize to custom tangents for structure.
 def jvp(f, ctx: Context):
     # Runs the interpreter.
     def _run_interpreter(main, *args, **kwargs):
