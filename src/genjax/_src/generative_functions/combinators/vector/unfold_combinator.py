@@ -31,7 +31,7 @@ from genjax._src.core.datatypes import GenerativeFunction
 from genjax._src.core.datatypes import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
-from genjax._src.core.transforms.incremental import tree_strip_diff
+from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
@@ -435,7 +435,7 @@ class UnfoldCombinator(GenerativeFunction):
         length = argdiffs[0]
         state = argdiffs[1]
         static_args = argdiffs[2:]
-        args = tree_strip_diff(argdiffs)
+        args = tree_diff_primal(argdiffs)
 
         def _inner(carry, slice):
             count, key, state = carry

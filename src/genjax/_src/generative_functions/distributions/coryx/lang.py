@@ -21,24 +21,22 @@ It also relies on `coryx` - the core [`Oryx`][oryx] functionality forked from Or
 [oryx]: https://github.com/jax-ml/oryx
 """
 
+import abc
+import dataclasses
 import functools
-from dataclasses import dataclass
 
 import jax
-import jax.core as jc
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.interpreters import context as ctx
 from genjax._src.core.interpreters import primitives
-from genjax._src.core.interpreters.cps import cps
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_transforms import Bare
 from genjax._src.generative_functions.distributions.coryx import core as inverse_core
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
@@ -73,14 +71,33 @@ def _abstract_gen_fn_call(gen_fn, *args):
 # Transforms #
 ##############
 
+# NOTE: base context class for transforms below.
+@dataclasses.dataclass
+class CoryxContext(ctx.Context):
+    @abc.abstractmethod
+    def handle_random_variable(self, *tracers, **params):
+        pass
+
+    def can_process(self, primitive):
+        return False
+
+    def process_primitive(self, primitive):
+        raise NotImplementedError
+
+    def get_custom_rule(self, primitive):
+        if primitive is random_variable_p:
+            return self.handle_random_variable
+        else:
+            return None
+
+
 #####
 # Sample
 #####
 
 
-@dataclass
-class Sample(cps.Handler):
-    handles: List[jc.Primitive]
+@dataclasses.dataclass
+class SampleContext(CoryxContext):
     key: PRNGKey
 
     def flatten(self):
@@ -88,33 +105,24 @@ class Sample(cps.Handler):
 
     @classmethod
     def new(cls, key: PRNGKey):
-        handles = [random_variable_p]
-        return Sample(handles, key)
+        return SampleContext(key)
 
-    def random_variable(self, cell_type, prim, args, cont, in_tree, **kwargs):
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+    def handle_random_variable(self, _, *tracers, **params):
+        in_tree = params["in_tree"]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         self.key, (_, v) = gen_fn.random_weighted(self.key, *args)
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+        return jtu.tree_leaves(v)
 
 
 def sample_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
-    def _inner(key, *args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        handler = Sample.new(key)
-        with cps.Interpreter.new(Bare, handler) as interpreter:
-            flat_out = interpreter(
-                jaxpr, [Bare.new(v) for v in consts], list(map(Bare.new, flat_args))
-            )
-            flat_out = map(lambda v: v.get_val(), flat_out)
-            retvals = jtu.tree_unflatten(out_tree, flat_out)
-            key = handler.key
-
+    def wrapper(key, *args):
+        context = SampleContext.new(key)
+        retvals, statefuls = ctx.transform(source_fn, context)(*args, **kwargs)
+        (key,) = statefuls
         return key, retvals
 
-    return _inner
+    return wrapper
 
 
 #####
@@ -122,52 +130,42 @@ def sample_transform(source_fn, **kwargs):
 #####
 
 
-@dataclass
-class Sow(cps.Handler):
-    handles: List[jc.Primitive]
+@dataclasses.dataclass
+class SowContext(CoryxContext):
     key: PRNGKey
     values: List[Any]
     score: FloatArray
 
     def flatten(self):
-        return (self.key, self.values, self.score), (self.handles,)
+        return (self.key, self.values, self.score), ()
 
     @classmethod
     def new(cls, key: PRNGKey, values: List[Any]):
-        handles = [random_variable_p]
         values.reverse()
         score = 0.0
-        return Sow(handles, key, values, score)
+        return SowContext(key, values, score)
 
-    def random_variable(self, cell_type, prim, args, cont, in_tree, **kwargs):
-        gen_fn, *args = jtu.tree_unflatten(in_tree, cps.static_map_unwrap(args))
+    def handle_random_variable(self, _, *tracers, **params):
+        in_tree = params["in_tree"]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         v = self.values.pop()
         self.key, w = gen_fn.estimate_logpdf(self.key, v, *args)
         self.score += w
-        v = cps.flatmap_outcells(cell_type, v)
-        return cont(*v)
+        return jtu.tree_leaves(v)
 
 
 def sow_transform(source_fn, constraints, **kwargs):
     @functools.wraps(source_fn)
-    def _inner(key, *args):
-        closed_jaxpr, (flat_args, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+    def wrapper(key, *args):
         if isinstance(constraints, tuple):
-            handler = Sow.new(key, [*constraints])
+            context = SowContext.new(key, [*constraints])
         else:
-            handler = Sow.new(key, [constraints])
-        with cps.Interpreter.new(Bare, handler) as interpreter:
-            flat_out = interpreter(
-                jaxpr, [Bare.new(v) for v in consts], list(map(Bare.new, flat_args))
-            )
-        flat_out = map(lambda v: v.get_val(), flat_out)
-        retvals = jtu.tree_unflatten(out_tree, flat_out)
-        key = handler.key
-        score = handler.score
+            context = SowContext.new(key, [constraints])
+        retvals, statefuls = ctx.transform(source_fn, context)(*args, **kwargs)
+        key, score = statefuls
         return key, (retvals, score)
 
-    return _inner
+    return wrapper
 
 
 #####################
@@ -175,7 +173,7 @@ def sow_transform(source_fn, constraints, **kwargs):
 #####################
 
 
-@dataclass
+@dataclasses.dataclass
 class TransformedDistribution(Distribution):
     source: Callable
 

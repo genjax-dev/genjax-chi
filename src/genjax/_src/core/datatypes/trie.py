@@ -51,6 +51,9 @@ class Trie(ChoiceMap, CustomPretty):
     def get_selection(self):
         raise Exception("Trie doesn't provide conversion to Selection.")
 
+    def get_choices(self):
+        return TrieChoiceMap(self)
+
     def trie_insert(self, addr, value):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr

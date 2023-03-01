@@ -125,6 +125,9 @@ class TestUpdateSimpleHierarchicalNormal:
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2", "y1"]
         y3 = updated_chm["y3", "y1"]
+        assert y1 == new["y1"]
+        assert y2 == original_chm["y2", "y1"]
+        assert y3 == original_chm["y3", "y1"]
         score1 = genjax.Normal.logpdf(y1, 0.0, 1.0)
         score2 = genjax.Normal.logpdf(y2, y1, 1.0)
         score3 = genjax.Normal.logpdf(y3, y1 + y2, 1.0)

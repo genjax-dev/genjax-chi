@@ -308,18 +308,20 @@ class GenerativeFunction(Pytree):
     # ADEV and fusion #
     ###################
 
-    # Express sampling using primitives which are compatible with ADEV's probabilistic computation language.
-    def adev_convert(self, key: PRNGKey, args: Tuple):
+    def adev_convert(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Any]:
+        """Convert a generative function to a forward sampling function which
+        uses primitives which are compatible with ADEV's probabilistic
+        computation language."""
         raise NotImplementedError
 
-    # Convert a generative function to a canonical form for proposal
-    # fusion.
-    def fuse_canonicalize(self, key: PRNGKey, args: Tuple):
+    def prepare_fuse(self, key: PRNGKey, args: Tuple):
+        """Convert a generative function to a canonical form with ADEV
+        primitives for proposal fusion."""
         raise NotImplementedError
 
-    # Fuse a generative function and a proposal to produce a probabilistic
-    # computation that returns an ELBO estimate.
     def fuse(self, _: "GenerativeFunction"):
+        """Fuse a generative function and a proposal to produce a probabilistic
+        computation that returns an ELBO estimate."""
         raise NotImplementedError
 
 

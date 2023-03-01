@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module contains a forward evaluation interpreter with stateful contexts
-and custom primitive handling lookups."""
+"""This module contains a transformation infrastructure based on interpreters
+with stateful contexts and custom primitive handling lookups."""
 
 import abc
 import copy
@@ -27,7 +27,6 @@ from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax import util as jax_util
-from jax.util import safe_map
 
 from genjax._src.core.interpreters import staging
 from genjax._src.core.pytree import Pytree
@@ -35,6 +34,7 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
+from genjax._src.core.typing import Type
 from genjax._src.core.typing import Union
 
 
@@ -46,12 +46,11 @@ Value = Any
 
 
 class ContextualTracer(jc.Tracer):
-    """A `ContextualTracer` just encapsulates a single value."""
+    """A `ContextualTracer` encapsulates a single value."""
 
-    def __init__(self, trace: "ContextualTrace", val: Value, meta=None):
+    def __init__(self, trace: "ContextualTrace", val: Value):
         self._trace = trace
         self.val = val
-        self.meta = meta
 
     @property
     def aval(self):
@@ -93,7 +92,7 @@ class ContextualTrace(jc.Trace):
     ) -> Union[ContextualTracer, List[ContextualTracer]]:
         context = staging.get_dynamic_context(self)
         vals = [v.val for v in tracers]
-        if context.can_handle(primitive):
+        if context.can_process(primitive):
             outvals = context.process_primitive(primitive, *vals, **params)
             return jax_util.safe_map(self.pure, outvals)
         outvals = primitive.bind(*vals, **params)
@@ -170,11 +169,11 @@ class Context(Pytree):
         pass
 
     @abc.abstractmethod
-    def can_handle(self, primitive):
+    def get_custom_rule(self, primitive):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_custom_rule(self, primitive):
+    def can_process(self, primitive):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -279,27 +278,28 @@ class ForwardInterpreter(Pytree):
 
     def _eval_jaxpr(
         self,
+        trace_type: Type[jc.Trace],
         main: jc.MainTrace,
         jaxpr: jc.Jaxpr,
         consts: List[Value],
         args: List[Value],
     ):
         env = Environment()
-        trace = ContextualTrace(main, jc.cur_sublevel())
-        safe_map(env.write, jaxpr.constvars, consts)
-        safe_map(env.write, jaxpr.invars, args)
+        trace = trace_type(main, jc.cur_sublevel())
+        jax_util.safe_map(env.write, jaxpr.constvars, consts)
+        jax_util.safe_map(env.write, jaxpr.invars, args)
         for eqn in jaxpr.eqns:
-            invals = safe_map(env.read, eqn.invars)
+            invals = jax_util.safe_map(env.read, eqn.invars)
             outvals = eqn.primitive.bind_with_trace(trace, invals, eqn.params)
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
-            safe_map(env.write, eqn.outvars, outvals)
-        return safe_map(env.read, jaxpr.outvars)
+            jax_util.safe_map(env.write, eqn.outvars, outvals)
+        return jax_util.safe_map(env.read, jaxpr.outvars)
 
-    def __call__(self, main, fn, *args, **kwargs):
+    def __call__(self, trace_type, main, fn, *args, **kwargs):
         closed_jaxpr, (flat_args, _, out_tree) = staging.stage(fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self._eval_jaxpr(main, jaxpr, consts, flat_args)
+        flat_out = self._eval_jaxpr(trace_type, main, jaxpr, consts, flat_args)
         out = jtu.tree_unflatten(out_tree, flat_out)
         return out
 
@@ -325,26 +325,27 @@ class CPSInterpreter(Pytree):
 
     def _eval_jaxpr_cps(
         self,
+        trace_type: Type[jc.Trace],
         main: jc.MainTrace,
         jaxpr: jc.Jaxpr,
         consts: List[Value],
         args: List[Value],
     ):
         env = Environment()
-        trace = ContextualTrace(main, jc.cur_sublevel())
-        safe_map(env.write, jaxpr.constvars, consts)
-        safe_map(env.write, jaxpr.invars, args)
+        trace = trace_type(main, jc.cur_sublevel())
+        jax_util.safe_map(env.write, jaxpr.constvars, consts)
+        jax_util.safe_map(env.write, jaxpr.invars, args)
 
         def eval_jaxpr_recurse(eqns, env, invars, args):
             # The rule could call the continuation multiple times so we
             # we need this function to be somewhat pure.
             # We copy `env` to ensure it isn't mutated.
             env = env.copy()
-            safe_map(env.write, invars, args)
+            jax_util.safe_map(env.write, invars, args)
 
             if eqns:
                 eqn = eqns[0]
-                in_vals = safe_map(env.read, eqn.invars)
+                in_vals = jax_util.safe_map(env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
                 args = subfuns + in_vals
 
@@ -360,26 +361,26 @@ class CPSInterpreter(Pytree):
                 if not eqn.primitive.multiple_results:
                     outvals = [outvals]
 
-                safe_map(env.write, eqn.outvars, outvals)
+                jax_util.safe_map(env.write, eqn.outvars, outvals)
 
-            return safe_map(env.read, jaxpr.outvars)
+            return jax_util.safe_map(env.read, jaxpr.outvars)
 
-    def __call__(self, main, kont, fn, *args, **kwargs):
+    def __call__(self, trace_type, main, kont, fn, *args, **kwargs):
         def _inner(*args, **kwargs):
             return kont(fn(*args, **kwargs))
 
         closed_jaxpr, (flat_args, _, out_tree) = staging.stage(_inner)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self._eval_jaxpr_cps(main, jaxpr, consts, flat_args)
+        flat_out = self._eval_jaxpr_cps(trace_type, main, jaxpr, consts, flat_args)
         out = jtu.tree_unflatten(out_tree, flat_out)
         return out
 
 
 Cont = CPSInterpreter
 
-#########################
-# Linear transformation #
-#########################
+##########################
+# Linear transformations #
+##########################
 
 # This is a convenient interface to use the interpreter.
 #
@@ -389,11 +390,16 @@ Cont = CPSInterpreter
 # The trace, tracers, and context explicitly control the behavior
 # of primitive bind invocations inside the interpreter loop.
 
+###############
+# No tangents #
+###############
+
 
 @lu.transformation
-def _transform(main: jc.MainTrace, ctx: Context, args: Iterable[Any]):
-    """A context transformation that returns stateful context values."""
-    trace = ContextualTrace(main, jc.cur_sublevel())
+def _transform(
+    trace_type: Type[jc.Trace], main: jc.MainTrace, ctx: Context, args: Iterable[Any]
+):
+    trace = trace_type(main, jc.cur_sublevel())
     in_tracers = jax_util.safe_map(trace.full_raise, args)
     with staging.new_dynamic_context(main, ctx):
         ans = yield in_tracers, {}
@@ -407,20 +413,20 @@ def _transform(main: jc.MainTrace, ctx: Context, args: Iterable[Any]):
     yield out_values, stateful_values
 
 
-def transform(f, ctx: Context):
+def transform(f, ctx: Context, trace_type: Type[jc.Trace] = ContextualTrace):
     # Runs the interpreter.
     def _run_interpreter(main, *args, **kwargs):
         with Fwd.new() as interpreter:
-            return interpreter(main, f, *args, **kwargs)
+            return interpreter(trace_type, main, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        with jc.new_main(ContextualTrace) as main:
+        with jc.new_main(trace_type) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
             flat_args, in_tree = jtu.tree_flatten(args)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
-            flat_fun = _transform(flat_fun, main, ctx)
+            flat_fun = _transform(flat_fun, trace_type, main, ctx)
             out_flat, ctx_statefuls = flat_fun.call_wrapped(flat_args)
             del main
         return jtu.tree_unflatten(out_tree(), out_flat), ctx_statefuls
@@ -433,43 +439,22 @@ def transform(f, ctx: Context):
 #####
 
 
-def cps_transform(f, ctx: Context):
+def cps_transform(f, ctx: Context, trace_type: Type[jc.Trace] = ContextualTrace):
     # Runs the interpreter.
     def _run_interpreter(main, kont, *args, **kwargs):
         with Cont.new() as interpreter:
-            return interpreter(main, kont, f, *args, **kwargs)
+            return interpreter(trace_type, main, kont, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
     def wrapped(kont, *args, **kwargs):
-        with jc.new_main(ContextualTrace) as main:
+        with jc.new_main(trace_type) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main, kont), kwargs)
             flat_args, in_tree = jtu.tree_flatten(args)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
-            flat_fun = _transform(flat_fun, main, ctx)
+            flat_fun = _transform(flat_fun, trace_type, main, ctx)
             out_flat, ctx_statefuls = flat_fun.call_wrapped(flat_args)
             del main
         return jtu.tree_unflatten(out_tree(), out_flat), ctx_statefuls
 
     return wrapped
-
-
-####################################
-# Value tag / metadata propagation #
-####################################
-
-
-@dataclasses.dataclass
-class Tag(Pytree):
-    @abc.abstractmethod
-    def should_flatten(self):
-        pass
-
-    @classmethod
-    @abc.abstractmethod
-    def lift(cls, value: Value) -> "Tag":
-        pass
-
-    @abc.abstractmethod
-    def widen(self):
-        pass
