@@ -44,14 +44,13 @@ from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import Value
 from genjax._src.core.typing import typecheck
 
 
 #######################################
 # Change type lattice and propagation #
 #######################################
-
-Value = Any
 
 
 class DiffTracer(jc.Tracer):

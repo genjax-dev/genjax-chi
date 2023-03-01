@@ -57,6 +57,7 @@ Float = float
 Bool = bool
 String = str
 Address = Union[String, Int, Tuple["Address"]]
+Value = Any
 
 
 def static_check_is_array(v):
@@ -80,6 +81,7 @@ __all__ = [
     "FloatArray",
     "BoolArray",
     "IntArray",
+    "Value",
     "Tuple",
     "Any",
     "Union",

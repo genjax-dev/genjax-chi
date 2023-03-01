@@ -17,6 +17,10 @@ import functools
 
 import jax.core as jc
 import jax.tree_util as jtu
+import jax.util as jax_util
+from jax import abstract_arrays
+from jax import api_util
+from jax import linear_util as lu
 from jax._src import effects
 from jax.interpreters import ad
 from jax.interpreters import batching
@@ -24,18 +28,24 @@ from jax.interpreters import mlir
 
 from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import primitives as prim
+from genjax._src.core.interpreters import staging
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FrozenSet
 from genjax._src.core.typing import Hashable
 from genjax._src.core.typing import Iterable
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Optional
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import Value
 
 
-Value = Any
+#################
+# Sow intrinsic #
+#################
+
 
 sow_p = jc.Primitive("sow")
 sow_p.multiple_results = True
@@ -114,6 +124,205 @@ def sow(value, *, tag: Hashable, name: String, mode: String = "strict", key=None
     return jtu.tree_unflatten(in_tree, out_flat)
 
 
+##################
+# Nest intrinsic #
+##################
+
+nest_p = jc.CallPrimitive("nest")
+
+
+def _nest_impl(f, *args, **_):
+    with jc.new_sublevel():
+        return f.call_wrapped(*args)
+
+
+nest_p.def_impl(_nest_impl)
+
+
+def _nest_lowering(ctx, *args, name, call_jaxpr, scope, **_):
+    return mlir._xla_call_lower(  # pylint: disable=protected-access
+        ctx,
+        *args,
+        name=jax_util.wrap_name(name, f"nest[{scope}]"),
+        call_jaxpr=call_jaxpr,
+        donated_invars=(False,) * len(args),
+    )
+
+
+mlir.register_lowering(nest_p, _nest_lowering)
+
+
+def _nest_transpose_rule(*args, **kwargs):
+    return ad.call_transpose(nest_p, *args, **kwargs)
+
+
+ad.primitive_transposes[nest_p] = _nest_transpose_rule
+
+
+def nest(f, *, scope: str):
+    """Wraps a function to create a new scope for harvested values.
+
+    Harvested values live in one dynamic name scope (for a particular tag),
+    and in strict mode, values with the same name cannot be collected or injected
+    more than once. `nest(f, scope=[name])` will take all tagged values in `f` and
+    put them into a nested dictionary with key `[name]`. This enables having
+    duplicate names in one namespace provided they are in different scopes. This
+    is different from using a separate tag to namespace, as it enables creating
+    nested/hierarchical structure within a single tag's namespace.
+    Example:
+    ```python
+    def foo(x):
+      return sow(x, tag='test', name='x')
+    harvest(foo, tag='test')({}, 1.)  # (1., {'x': 1.})
+    harvest(nest(foo, scope='a'), tag='test')({}, 1.)  # (1., {'a': {'x': 1.}})
+    ```
+    Args:
+      f: a function to be transformed
+      scope: a string that will act as the parent scope of all values tagged in
+        `f`.
+    Returns:
+      A semantically identical function to `f`, but when harvested, uses nested
+      values according to the input scope.
+    """
+
+    def wrapped(*args, **kwargs):
+        fun = lu.wrap_init(f, kwargs)
+        flat_args, in_tree = jtu.tree_flatten(args)
+        flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
+        out_flat = nest_p.bind(
+            flat_fun, *flat_args, scope=scope, name=getattr(f, "__name__", "<no name>")
+        )
+        return jtu.tree_unflatten(out_tree(), out_flat)
+
+    return wrapped
+
+
+##########################
+# Harvest transformation #
+##########################
+
+
+class HarvestTracer(jc.Tracer):
+    """A `HarvestTracer` just encapsulates a single value."""
+
+    def __init__(self, trace: "HarvestTrace", val: Value):
+        self._trace = trace
+        self.val = val
+
+    @property
+    def aval(self):
+        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+
+    def full_lower(self):
+        return self
+
+
+class HarvestTrace(jc.Trace):
+    """An evaluating trace that dispatches to a dynamic context."""
+
+    def pure(self, val: Value) -> HarvestTracer:
+        return HarvestTracer(self, val)
+
+    def sublift(self, tracer: HarvestTracer) -> HarvestTracer:
+        return self.pure(tracer.val)
+
+    def lift(self, val: Value) -> HarvestTracer:
+        return self.pure(val)
+
+    def process_primitive(
+        self,
+        primitive: jc.Primitive,
+        tracers: List[HarvestTracer],
+        params: Dict[str, Any],
+    ) -> Union[HarvestTracer, List[HarvestTracer]]:
+        context = staging.get_dynamic_context(self)
+        custom_rule = context.get_custom_rule(primitive)
+        if custom_rule:
+            return custom_rule(self, *tracers, **params)
+        return self.default_process_primitive(primitive, tracers, params)
+
+    def default_process_primitive(
+        self,
+        primitive: jc.Primitive,
+        tracers: List[HarvestTracer],
+        params: Dict[String, Any],
+    ) -> Union[HarvestTracer, List[HarvestTracer]]:
+        context = staging.get_dynamic_context(self)
+        vals = [t.val for t in tracers]
+        if primitive is sow_p:
+            outvals = context.process_sow(*vals, **params)
+            return jax_util.safe_map(self.pure, outvals)
+        outvals = primitive.bind(*vals, **params)
+        if not primitive.multiple_results:
+            outvals = [outvals]
+        out_tracers = jax_util.safe_map(self.pure, outvals)
+        if primitive.multiple_results:
+            return out_tracers
+        return out_tracers[0]
+
+    def process_call(
+        self,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[HarvestTracer],
+        params: Dict[String, Any],
+    ):
+        context = staging.get_dynamic_context(self)
+        if call_primitive is nest_p:
+            return context.process_nest(self, f, *tracers, **params)
+        return context.process_higher_order_primitive(
+            self, call_primitive, f, tracers, params, False
+        )
+
+    def post_process_call(self, call_primitive, out_tracers, params):
+        vals = tuple(t.val for t in out_tracers)
+        master = self.main
+
+        def todo(x):
+            trace = HarvestTrace(master, jc.cur_sublevel())
+            return jax_util.safe_map(functools.partial(HarvestTracer, trace), x)
+
+        return vals, todo
+
+    def process_map(
+        self,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[HarvestTracer],
+        params: Dict[String, Any],
+    ):
+        context = staging.get_dynamic_context(self)
+        return context.process_higher_order_primitive(
+            self, call_primitive, f, tracers, params, True
+        )
+
+    post_process_map = post_process_call
+
+    def process_custom_jvp_call(self, primitive, fun, jvp, tracers, *, symbolic_zeros):
+        context = staging.get_dynamic_context(self)
+        return context.process_custom_jvp_call(
+            self, primitive, fun, jvp, tracers, symbolic_zeros=symbolic_zeros
+        )
+
+    def post_process_custom_jvp_call(self, out_tracers, jvp_was_run):
+        context = staging.get_dynamic_context(self)
+        return context.post_process_custom_jvp_call(self, out_tracers, jvp_was_run)
+
+    def process_custom_vjp_call(self, primitive, fun, fwd, bwd, tracers, out_trees):
+        context = staging.get_dynamic_context(self)
+        return context.process_custom_vjp_call(
+            self, primitive, fun, fwd, bwd, tracers, out_trees
+        )
+
+    def post_process_custom_vjp_call(self, out_tracers, params):
+        context = staging.get_dynamic_context(self)
+        return context.post_process_custom_vjp_call(self, out_tracers, params)
+
+    def post_process_custom_vjp_call_fwd(self, out_tracers, out_trees):
+        context = staging.get_dynamic_context(self)
+        return context.post_process_custom_vjp_call_fwd(self, out_tracers, out_trees)
+
+
 @dataclasses.dataclass(frozen=True)
 class HarvestSettings:
     """Contains the settings for a HarvestTrace."""
@@ -155,6 +364,14 @@ class HarvestContext(context.Context):
     def handle_sow(self, *values, name, tag, mode, tree):
         raise NotImplementedError
 
+    def process_nest(self, trace, f, *tracers, scope, name):
+        raise NotImplementedError
+
+
+###########
+# Reaping #
+###########
+
 
 @dataclasses.dataclass
 class Reap(Pytree):
@@ -186,13 +403,28 @@ class ReapContext(HarvestContext):
         del tag
         if name in self.reaps:
             raise ValueError(f"Variable has already been reaped: {name}")
-        # TODO: revisit.
-        # avals = jtu.tree_unflatten(
-        #    tree,
-        #    [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
-        # )
-        self.reaps[name] = jtu.tree_unflatten(tree, values)
+        avals = jtu.tree_unflatten(
+            tree,
+            [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
+        )
+        self.reaps[name] = Reap(
+            jtu.tree_unflatten(tree, values), dict(mode=mode, aval=avals)
+        )
         return values
+
+    def process_nest(self, trace, f, *tracers, scope, name, **params):
+        out_tracers, reap_tracers, _ = self.reap_higher_order_primitive(
+            trace, nest_p, f, tracers, dict(params, name=name, scope=scope), False
+        )
+        tag = self.settings.tag
+        if reap_tracers:
+            flat_reap_tracers, reap_tree = jtu.tree_flatten(reap_tracers)
+            trace.process_primitive(
+                sow_p,
+                flat_reap_tracers,
+                dict(name=scope, tag=tag, tree=reap_tree, mode="strict"),
+            )
+        return out_tracers
 
 
 def reap(
@@ -217,6 +449,10 @@ def reap(
     return wrapper
 
 
+############
+# Planting #
+############
+
 plant_custom_rules = {}
 
 
@@ -225,7 +461,7 @@ class PlantContext(HarvestContext):
     """Contains the settings and storage for the current trace in the stack."""
 
     settings: HarvestSettings
-    plants: Dict[str, Any]
+    plants: Dict[String, Any]
 
     def flatten(self):
         return (self.plants,), (self.settings,)
@@ -266,6 +502,11 @@ def plant(
         return retvals
 
     return wrapper
+
+
+#############
+# Interface #
+#############
 
 
 def harvest(
