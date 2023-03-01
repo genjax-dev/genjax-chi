@@ -1,7 +1,5 @@
 # GenJAX core interpreters
 
-> Note: the `cps` directory needs to be deprecated, in favor of `context` and the CPS interpreter there.
-
 This directory contains several interpreters. These interpreters form the basis layer for functionality which relies on program transformations to implement semantics.
 
 Several of these interpreters have been collected and modified from notebooks or other JAX-based systems. For each interpreter / transformation implementation, we've tried to keep a reference to the original attribution.
@@ -10,25 +8,14 @@ This README contains a brief description of each interpreter.
 
 ## Context
 
-A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` forward interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
+A final style (customized trace/tracer) interpreter (it defines its own `Trace` and `Tracers`) which wraps `Jaxpr` interpreters (defined in the module: `Fwd` and `Cont`). Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
 
 ### Supports
 
 * (**GFI implementations for `Builtin` language**)
 * (**harvest**) Oryx's `harvest` transformation.
 * (**diff_rules**) Forward metadata propagation transformation.
-
-## CPS
-
-[Original adapted from notebook on static effect dispatch][effects_notebook]
-
-(WIP, in `context`)
-
-A final style interpreter (e.g. it defines its own `Trace` and `Tracers`) which wraps a `Jaxpr` continuation passing interpreter. Allows dispatching registered primitives to a dynamic context (which the user can inherit and override). The context can store and yield state - allowing lifting of pure functions to ones which accept and return state.
-
-### Supports
-
-* (**adev**) [ADEV](https://arxiv.org/pdf/2212.06386.pdf)
+* (**adev**) [ADEV](https://arxiv.org/pdf/2212.06386.pdf) CPS transform with dual number propagation.
 
 ## Propagate
 
