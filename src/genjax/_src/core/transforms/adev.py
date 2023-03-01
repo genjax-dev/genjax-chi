@@ -36,6 +36,7 @@ from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Value
 from genjax._src.core.typing import typecheck
 
 
@@ -46,16 +47,26 @@ from genjax._src.core.typing import typecheck
 
 @dataclasses.dataclass
 class AbstractProbabilisticComputation(Pytree):
-    def simulate(self, key, args):
+    """`AbstractProbabilisticComputation` is the abstract interface class for
+    probabilistic computations in the ADEV language.
+
+    It exposes two interfaces:
+    * `simulate` - sample forward, producing a new `PRNGKey` and a sampled return value.
+    * `grad_estimate` - perform ADEV gradient estimation, return a new `PRNGKey` and an estimate of the gradient of the return value function with respect to input arguments `args`.
+    """
+
+    def simulate(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Value]:
         pass
 
-    def grad_estimate(self, key, args):
+    def grad_estimate(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Value]:
         pass
 
 
 # Overloads (for now, just distributions).
 @dataclasses.dataclass
 class ProbabilisticPrimitive(AbstractProbabilisticComputation):
+    """An inheritor of APC, for wrapping distributions."""
+
     distribution: GenerativeFunction
 
     def simulate(self, key, args):
@@ -72,8 +83,10 @@ class ProbabilisticComputation(AbstractProbabilisticComputation):
 
 @typecheck
 def prob_comp(gen_fn: GenerativeFunction):
-    # `GenerativeFunction.adev_convert` is a function which expresses
-    # forward sampling in terms of ADEV language primitives.
+    """Convert a `GenerativeFunction` to a `ProbabilisticComputation`."""
+    # `GenerativeFunction.adev_convert` is an interface which expresses
+    # forward sampling from a generative function in terms of
+    # ADEV language primitives.
     return ProbabilisticComputation(gen_fn.adev_convert)
 
 
@@ -82,7 +95,7 @@ def prob_comp(gen_fn: GenerativeFunction):
 #######################
 
 # TODO: determine the interface for these strategies.
-# E.g. strategy gets `kont`, gets to choose how to use it.
+# E.g. strategy gets `kont` and the probabilistic computation, gets to choose how to use them.
 
 
 @dataclasses.dataclass

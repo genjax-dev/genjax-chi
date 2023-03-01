@@ -36,13 +36,12 @@ from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Type
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import Value
 
 
 ################################
 # Traces, tracers, and context #
 ################################
-
-Value = Any
 
 
 class ContextualTracer(jc.Tracer):
