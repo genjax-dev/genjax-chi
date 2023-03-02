@@ -25,12 +25,12 @@ from genjax._src.core.transforms.adev import SupportsEnum
 from genjax._src.core.transforms.adev import SupportsMVD
 from genjax._src.core.transforms.adev import SupportsReinforce
 from genjax._src.core.transforms.adev import register
-from genjax._src.generative_functions.distributions.scipy.normal import Bernoulli
+from genjax._src.generative_functions.distributions.scipy.bernoulli import Bernoulli
+from genjax._src.generative_functions.distributions.scipy.bernoulli import _Bernoulli
 from genjax._src.generative_functions.distributions.scipy.normal import Normal
-from genjax._src.generative_functions.distributions.scipy.normal import Poisson
-from genjax._src.generative_functions.distributions.scipy.normal import _Bernoulli
 from genjax._src.generative_functions.distributions.scipy.normal import _Normal
-from genjax._src.generative_functions.distributions.scipy.normal import _Poisson
+from genjax._src.generative_functions.distributions.scipy.poisson import Poisson
+from genjax._src.generative_functions.distributions.scipy.poisson import _Poisson
 
 
 identity = lambda v: v
