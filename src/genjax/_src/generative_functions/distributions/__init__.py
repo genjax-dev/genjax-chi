@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .adev_registry import *
 from .custom import *
 from .distribution import *
 from .scipy import *
