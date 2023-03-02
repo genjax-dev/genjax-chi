@@ -26,6 +26,7 @@ from jax.interpreters.ad import JVPTrace
 from jax.interpreters.ad import JVPTracer
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.interpreters import context as ctx
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.context import Cont
@@ -239,8 +240,8 @@ class SimulateContext(ADEVContext):
 def simulate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(*args):
-        ctx = SimulateContext.new()
-        retvals, _ = ctx.transform(source_fn, ctx)(*args, **kwargs)
+        context = SimulateContext.new()
+        retvals, _ = ctx.transform(source_fn, context)(*args, **kwargs)
         return retvals
 
     return wrapper
@@ -400,8 +401,10 @@ def grad_estimate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, primals, tangents):
         ctx = GradEstimateContext.new()
-        (_, out_tangents), _ = cps_jvp(source_fn, ctx)(key, primals, tangents, **kwargs)
-        return out_tangents
+        (key, _, out_tangents), _ = cps_jvp(source_fn, ctx)(
+            key, primals, tangents, **kwargs
+        )
+        return key, out_tangents
 
     return wrapper
 
@@ -435,7 +438,7 @@ def adev(gen_fn: GenerativeFunction):
         # ADEV language primitives.
         return ADEVProgram(gen_fn.adev_simulate)
     else:
-        return prim
+        return prim()
 
 
 ###########################
