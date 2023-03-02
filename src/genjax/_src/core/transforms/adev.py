@@ -33,84 +33,111 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Value
+from genjax._src.core.typing import Type
 from genjax._src.core.typing import typecheck
 
 
-#############################
-# Probabilistic computation #
-#############################
+identity = lambda v: v
+
+############################
+# Gradient strategy traits #
+############################
 
 
 @dataclasses.dataclass
-class AbstractProbabilisticComputation(Pytree):
-    """`AbstractProbabilisticComputation` is the abstract interface class for
-    probabilistic computations in the ADEV language.
-
-    It exposes two interfaces:
-    * `simulate` - sample forward, producing a new `PRNGKey` and a sampled return value.
-    * `grad_estimate` - perform ADEV gradient estimation, return a new `PRNGKey` and an estimate of the gradient of the return value function with respect to input arguments `args`.
-    """
-
-    def simulate(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Value]:
-        pass
-
-    def grad_estimate(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Value]:
+class SupportsReinforce(Pytree):
+    @abc.abstractmethod
+    def reinforce_estimate(self, key, duals, kont):
         pass
 
 
-# Overloads (for now, just distributions).
 @dataclasses.dataclass
-class ProbabilisticPrimitive(AbstractProbabilisticComputation):
-    """An inheritor of APC, for wrapping distributions."""
+class SupportsEnum(Pytree):
+    @abc.abstractmethod
+    def enum_estimate(self, key, duals, kont):
+        pass
 
-    distribution: GenerativeFunction
 
+@dataclasses.dataclass
+class SupportsMVD(Pytree):
+    @abc.abstractmethod
+    def mvd_estimate(self, key, duals, kont):
+        pass
+
+
+#############
+# ADEV term #
+#############
+
+
+@dataclasses.dataclass
+class ADEVTerm(Pytree):
+    @abc.abstractmethod
     def simulate(self, key, args):
-        return self.distribution.random_weighted(key, *args)
+        pass
+
+    @abc.abstractmethod
+    def grad_estimate(self, key, strat, duals):
+        pass
+
+
+###################
+# ADEV primitives #
+###################
 
 
 @dataclasses.dataclass
-class ProbabilisticComputation(AbstractProbabilisticComputation):
-    source: Callable
-
+class ADEVPrimitive(ADEVTerm):
     def flatten(self):
-        return (), (self.source,)
+        return (), ()
 
+    @abc.abstractmethod
+    def simulate(self, key, args):
+        pass
 
-@typecheck
-def prob_comp(gen_fn: GenerativeFunction):
-    """Convert a `GenerativeFunction` to a `ProbabilisticComputation`."""
-    # `GenerativeFunction.adev_convert` is an interface which expresses
-    # forward sampling from a generative function in terms of
-    # ADEV language primitives.
-    return ProbabilisticComputation(gen_fn.adev_convert)
+    def grad_estimate(self, key, strat, duals):
+        return strat.apply(self, key, duals, identity)
 
 
 #######################
 # Gradient strategies #
 #######################
 
-# TODO: determine the interface for these strategies.
-# E.g. strategy gets `kont` and the probabilistic computation, gets to choose how to use them.
 
-
+# Indicator classes.
 @dataclasses.dataclass
 class GradientStrategy(Pytree):
-    pass
+    def flatten(self):
+        return (), ()
+
+    @abc.abstractmethod
+    def apply(self, prim, key, args, kont):
+        pass
 
 
 @dataclasses.dataclass
 class Reinforce(GradientStrategy):
-    pass
+    def apply(self, prim, key, args, kont):
+        assert isinstance(prim, SupportsReinforce)
+        return prim.reinforce_estimate(key, args, kont)
 
 
 @dataclasses.dataclass
-class ExactEnum(GradientStrategy):
-    pass
+class Enum(GradientStrategy):
+    def apply(self, prim, key, args, kont):
+        assert isinstance(prim, SupportsEnum)
+        return prim.enum_estimate(key, args, kont)
+
+
+@dataclasses.dataclass
+class MVD(GradientStrategy):
+    def apply(self, prim, key, args, kont):
+        assert isinstance(prim, SupportsMVD)
+        return prim.mvd_estimate(key, args, kont)
 
 
 ######################
@@ -150,9 +177,7 @@ def _sample(prob_comp, strat, key, args, **kwargs):
 
 
 @typecheck
-def sample(
-    prob_comp: AbstractProbabilisticComputation, key: PRNGKey, args: Tuple, **kwargs
-):
+def sample(prob_comp: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
     # Default strategy is REINFORCE.
     strategy = strat(Reinforce(), "sample")
     return _sample(prob_comp, key, strategy, args, **kwargs)
@@ -219,7 +244,7 @@ def simulate_transform(source_fn, **kwargs):
 # Grad estimate transform
 #####
 
-# Real tangents & CPS
+# CPS with real tangents.
 
 
 @lu.transformation
@@ -286,9 +311,9 @@ class GradEstimateContext(ADEVContext):
 
     def handle_sample(self, _, *args, **params):
         in_tree = params["in_tree"]
-        cont = params["cont"]
+        kont = params["kont"]
         prob_comp, key, strat, args = jtu.tree_unflatten(in_tree, args)
-        key, v = strat.apply(cont, prob_comp, key, args)
+        key, v = strat.apply(prob_comp, key, args, kont)
         return key, jtu.tree_leaves(v)
 
 
@@ -296,18 +321,44 @@ def grad_estimate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, primals, tangents):
         ctx = GradEstimateContext.new()
-        retvals, _ = cps_jvp(source_fn, ctx)(key, primals, tangents, **kwargs)
-        return retvals
+        (_, out_tangents), _ = cps_jvp(source_fn, ctx)(key, primals, tangents, **kwargs)
+        return out_tangents
 
     return wrapper
 
 
-##############
-# Shorthands #
-##############
+#################
+# ADEV programs #
+#################
 
 
-def prob_comp(gen_fn: GenerativeFunction) -> ProbabilisticComputation:
-    """Create an `adev.ProbabilisticComputation` from a generative function by
-    wrapping the generative function's `adev_convert`."""
-    return ProbabilisticComputation(gen_fn.adev_convert)
+@dataclasses.dataclass
+class ADEVProgram(ADEVTerm):
+    source: Callable
+
+    def flatten(self):
+        return (), (self.source,)
+
+
+@typecheck
+def prob_comp(gen_fn: GenerativeFunction):
+    """Convert a `GenerativeFunction` to an `ADEVProgram`."""
+    prim = registry.get(type(gen_fn))
+    if prim is None:
+        # `GenerativeFunction.adev_simulate` is an interface which expresses
+        # forward sampling from a generative function in terms of
+        # ADEV language primitives.
+        return ADEVProgram(gen_fn.adev_simulate)
+    else:
+        return prim
+
+
+###########################
+# ADEV primitive registry #
+###########################
+
+registry: Dict[Type[GenerativeFunction], Type[ADEVPrimitive]] = {}
+
+
+def register(tg: Type[GenerativeFunction], prim: Type[ADEVPrimitive]):
+    registry[tg] = prim

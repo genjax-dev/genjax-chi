@@ -300,29 +300,20 @@ class Distribution(GenerativeFunction):
     ########
 
     @typecheck
-    def adev_convert(self, key: PRNGKey, args: Tuple):
-        prob_prim = adev.ProbabilisticPrimitive(self)
-        key, v = adev.sample(prob_prim, key, args)
-        return key, v
-
-    @typecheck
     def prepare_fuse(self, key: PRNGKey, args: Tuple):
-        prob_prim = adev.ProbabilisticPrimitive(self)
+        prob_prim = adev.ADEVPrimitive(self)
         key, v = adev.sample(prob_prim, key, args)
         return key, (v, ValueChoiceMap(v))
 
     @typecheck
-    def fuse(self, proposal: "Distribution") -> adev.ProbabilisticComputation:
+    def fuse(self, proposal: "Distribution") -> adev.ADEVProgram:
         def wrapper(key, p_args, q_args):
             key, (v, _) = proposal.prepare_fuse(key, q_args)
             key, qw = proposal.estimate_logpdf(key, v, *q_args)
             key, pw = self.estimate_logpdf(key, v, *p_args)
             return key, pw - qw
 
-        return adev.ProbabilisticComputation(wrapper)
-
-    def prob_comp(self) -> adev.ProbabilisticComputation:
-        return adev.ProbabilisticComputation(self.adev_convert)
+        return adev.ADEVProgram(wrapper)
 
 
 #####

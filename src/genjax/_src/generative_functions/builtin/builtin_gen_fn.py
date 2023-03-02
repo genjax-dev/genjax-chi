@@ -242,7 +242,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     ########
 
     @typecheck
-    def adev_convert(self, key: PRNGKey, args: Tuple, **kwargs):
+    def adev_simulate(self, key: PRNGKey, args: Tuple, **kwargs):
         key, v = adev_conversion_transform(self.source, **kwargs)(key, args)
         return key, v
 
@@ -252,16 +252,14 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         return key, (retvals, choices)
 
     @typecheck
-    def fuse(
-        self, proposal: "BuiltinGenerativeFunction"
-    ) -> adev.ProbabilisticComputation:
+    def fuse(self, proposal: "BuiltinGenerativeFunction") -> adev.ADEVProgram:
         def wrapper(key, p_args, q_args):
             key, (_, chm) = proposal.fuse_canonicalize(key, *q_args)
             key, (_, qw) = proposal.assess(key, chm, q_args)
             key, (_, pw) = self.assess(key, chm, p_args)
             return key, pw - qw
 
-        return wrapper
+        return adev.ADEVProgram(wrapper)
 
     def inline(self, *args):
         return _inline(self, *args)

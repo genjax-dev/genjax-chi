@@ -27,6 +27,7 @@ from genjax._src.core.datatypes import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.transforms import adev
 from genjax._src.core.transforms import incremental
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import DiffTrace
@@ -504,7 +505,8 @@ class ADEVConvertContext(BuiltinInterfaceContext):
         in_tree = params["in_tree"]
         gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
-        self.key, v = gen_fn.adev_convert(self.key, *args)
+        adev_term = adev.prob_comp(gen_fn)
+        self.key, v = adev_term.simulate(self.key, args)
         return jtu.tree_leaves(v)
 
     def handle_cache(self, _, *tracers, **params):

@@ -308,10 +308,10 @@ class GenerativeFunction(Pytree):
     # ADEV and fusion #
     ###################
 
-    def adev_convert(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Any]:
-        """Convert a generative function to a forward sampling function which
-        uses primitives which are compatible with ADEV's probabilistic
-        computation language."""
+    def adev_simulate(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Any]:
+        """An opt-in method which expresses forward sampling from the
+        generative function in terms of primitives which are compatible with
+        ADEV's language."""
         raise NotImplementedError
 
     def prepare_fuse(self, key: PRNGKey, args: Tuple):

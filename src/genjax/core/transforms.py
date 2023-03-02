@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.core.transforms import adev
 from genjax._src.core.transforms import harvest
 from genjax._src.core.transforms import incremental
 
 
-__all__ = ["harvest", "incremental"]
+__all__ = ["harvest", "incremental", "adev"]
