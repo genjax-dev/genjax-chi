@@ -51,10 +51,16 @@ class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsReinforce):
         return self.reinforce_estimate(self, key, primals, tangents, identity)
 
     def reinforce_estimate(self, key, primals, tangents, kont):
-        pass
+        (μ, σ) = primals
+        (μ_tangent, σ_tangent) = tangents
+        key, sub_key = jax.random.split(key)
+        v = Normal.sample(sub_key, μ, σ)
+        lp = Normal.logpdf(v, μ, σ)
+        key, r_primal, r_tangent = kont(key, [v], [1.0])
+        return key, [r_primal], [r_tangent * lp]
 
     def mvd_estimate(self, key, duals, kont):
-        pass
+        raise NotImplementedError
 
 
 register(_Normal, ADEVPrimNormal)
@@ -86,7 +92,7 @@ class ADEVPrimBernoulli(ADEVPrimitive, SupportsEnum, SupportsReinforce):
             lambda *_: jnp.log(p_tangent),
             lambda *_: jnp.log(1 - p_tangent),
         )
-        return l_primal, l_tangent + l_primal * dlp.tangent
+        return key, (l_primal, l_tangent + l_primal * dlp.tangent)
 
 
 register(_Bernoulli, ADEVPrimBernoulli)
