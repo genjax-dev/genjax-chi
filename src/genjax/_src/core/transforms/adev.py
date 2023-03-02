@@ -171,21 +171,21 @@ def strat(strategy: GradientStrategy, addr):
 sample_p = primitives.InitialStylePrimitive("sample")
 
 
-def _abstract_prob_comp_call(prob_comp, *args):
-    return prob_comp.simulate(*args)
+def _abstract_adev_term_call(adev_term, *args):
+    return adev_term.simulate(*args)
 
 
-def _sample(prob_comp, strat, key, args, **kwargs):
-    return primitives.initial_style_bind(sample_p)(_abstract_prob_comp_call)(
-        prob_comp, key, strat, args, **kwargs
+def _sample(adev_term, strat, key, args, **kwargs):
+    return primitives.initial_style_bind(sample_p)(_abstract_adev_term_call)(
+        adev_term, key, strat, args, **kwargs
     )
 
 
 @typecheck
-def sample(prob_comp: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
+def sample(adev_term: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
     # Default strategy is REINFORCE.
     strategy = strat(Reinforce(), "sample")
-    return _sample(prob_comp, key, strategy, args, **kwargs)
+    return _sample(adev_term, key, strategy, args, **kwargs)
 
 
 ##############
@@ -231,8 +231,8 @@ class SimulateContext(ADEVContext):
 
     def handle_sample(self, _, *args, **params):
         in_tree = params.get("in_tree")
-        prob_comp, key, _, args = jtu.tree_unflatten(in_tree, args)
-        key, v = prob_comp.simulate(key, args)
+        adev_term, key, _, args = jtu.tree_unflatten(in_tree, args)
+        key, v = adev_term.simulate(key, args)
         return key, jtu.tree_leaves(v)
 
 
@@ -391,8 +391,8 @@ class GradEstimateContext(ADEVContext):
     def handle_sample(self, _, *tracers, **params):
         in_tree = params["in_tree"]
         kont = params["kont"]
-        prob_comp, key, strat, tracers = jtu.tree_unflatten(in_tree, tracers)
-        key, v = strat.apply(prob_comp, key, tracers, kont)
+        adev_term, key, strat, tracers = jtu.tree_unflatten(in_tree, tracers)
+        key, v = strat.apply(adev_term, key, tracers, kont)
         return key, jtu.tree_leaves(v)
 
 
@@ -426,7 +426,7 @@ class ADEVProgram(ADEVTerm):
 
 
 @typecheck
-def prob_comp(gen_fn: GenerativeFunction):
+def adev(gen_fn: GenerativeFunction):
     """Convert a `GenerativeFunction` to an `ADEVProgram`."""
     prim = registry.get(type(gen_fn))
     if prim is None:
