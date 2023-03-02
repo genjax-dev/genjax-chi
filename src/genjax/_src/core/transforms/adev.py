@@ -21,23 +21,27 @@ import jax.tree_util as jtu
 from jax import api_util
 from jax import linear_util as lu
 from jax import util as jax_util
+from jax.interpreters import ad as jax_autodiff
+from jax.interpreters.ad import JVPTrace
+from jax.interpreters.ad import JVPTracer
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.context import Cont
 from genjax._src.core.interpreters.context import Context
-from genjax._src.core.interpreters.context import ContextualTrace
-from genjax._src.core.interpreters.context import ContextualTracer
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Iterable
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Type
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 
 
@@ -81,7 +85,7 @@ class ADEVTerm(Pytree):
         pass
 
     @abc.abstractmethod
-    def grad_estimate(self, key, strat, duals):
+    def grad_estimate(self, key, primals, tangents):
         pass
 
 
@@ -99,8 +103,9 @@ class ADEVPrimitive(ADEVTerm):
     def simulate(self, key, args):
         pass
 
-    def grad_estimate(self, key, strat, duals):
-        return strat.apply(self, key, duals, identity)
+    @abc.abstractmethod
+    def grad_estimate(self, key, primals, tangents):
+        pass
 
 
 #######################
@@ -115,29 +120,29 @@ class GradientStrategy(Pytree):
         return (), ()
 
     @abc.abstractmethod
-    def apply(self, prim, key, args, kont):
+    def apply(self, prim, key, primals, tangents, kont):
         pass
 
 
 @dataclasses.dataclass
 class Reinforce(GradientStrategy):
-    def apply(self, prim, key, args, kont):
+    def apply(self, prim, key, primals, tangents, kont):
         assert isinstance(prim, SupportsReinforce)
-        return prim.reinforce_estimate(key, args, kont)
+        return prim.reinforce_estimate(key, primals, tangents, kont)
 
 
 @dataclasses.dataclass
 class Enum(GradientStrategy):
-    def apply(self, prim, key, args, kont):
+    def apply(self, prim, key, primals, tangents, kont):
         assert isinstance(prim, SupportsEnum)
-        return prim.enum_estimate(key, args, kont)
+        return prim.enum_estimate(key, primals, tangents, kont)
 
 
 @dataclasses.dataclass
 class MVD(GradientStrategy):
-    def apply(self, prim, key, args, kont):
+    def apply(self, prim, key, primals, tangents, kont):
         assert isinstance(prim, SupportsMVD)
-        return prim.mvd_estimate(key, args, kont)
+        return prim.mvd_estimate(key, primals, tangents, kont)
 
 
 ######################
@@ -186,6 +191,7 @@ def sample(prob_comp: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
 ##############
 # Transforms #
 ##############
+
 
 #####
 # Simulate
@@ -245,15 +251,87 @@ def simulate_transform(source_fn, **kwargs):
 #####
 
 # CPS with real tangents.
+class ADEVTrace(JVPTrace):
+    """A forward-mode AD trace that dispatches to a dynamic context."""
+
+    def process_primitive(
+        self,
+        primitive: jc.Primitive,
+        tracers: List[JVPTracer],
+        params: Dict[String, Any],
+    ) -> Union[JVPTracer, List[JVPTracer]]:
+        context = staging.get_dynamic_context(self)
+        custom_rule = context.get_custom_rule(primitive)
+        if custom_rule:
+            return custom_rule(self, *tracers, **params)
+        params.pop("kont")
+        return self.default_process_primitive(primitive, tracers, params)
+
+    def default_process_primitive(
+        self,
+        primitive: jc.Primitive,
+        tracers: List[JVPTracer],
+        params: Dict[String, Any],
+    ) -> Union[JVPTracer, List[JVPTracer]]:
+        primals_in, tangents_in = jax_util.unzip2(
+            (t.primal, t.tangent) for t in tracers
+        )
+        jvp = jax_autodiff.primitive_jvps.get(primitive)
+        if not jvp:
+            msg = f"Differentiation rule for '{primitive}' not implemented"
+            raise NotImplementedError(msg)
+        primal_out, tangent_out = jvp(primals_in, tangents_in, **params)
+        if primitive.multiple_results:
+            return [JVPTracer(self, x, t) for x, t in zip(primal_out, tangent_out)]
+        else:
+            return JVPTracer(self, primal_out, tangent_out)
+
+    def process_call(
+        self,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[JVPTracer],
+        params: Dict[str, Any],
+    ):
+        context = staging.get_dynamic_context(self)
+        return context.process_higher_order_primitive(
+            self, call_primitive, f, tracers, params, False
+        )
+
+    def post_process_call(self, call_primitive, out_tracers, params):
+        vals = tuple(t.val for t in out_tracers)
+        master = self.main
+
+        def todo(x):
+            trace = ADEVTrace(master, jc.cur_sublevel())
+            return jax_util.safe_map(functools.partial(JVPTracer, trace), x)
+
+        return vals, todo
+
+    def process_map(
+        self,
+        call_primitive: jc.Primitive,
+        f: Any,
+        tracers: List[JVPTracer],
+        params: Dict[str, Any],
+    ):
+        context = staging.get_dynamic_context(self)
+        return context.process_higher_order_primitive(
+            self, call_primitive, f, tracers, params, True
+        )
 
 
 @lu.transformation
 def _cps_jvp(
-    main: jc.MainTrace, ctx: Context, primals: Iterable[Any], tangents: Iterable[Any]
+    main: jc.MainTrace,
+    ctx: Context,
+    key: PRNGKey,
+    primals: Iterable[Any],
+    tangents: Iterable[Any],
 ):
     """A context transformation that returns stateful context values."""
-    trace = ContextualTrace(main, jc.cur_sublevel())
-    in_tracers = [ContextualTracer(trace, x, t) for x, t in zip(primals, tangents)]
+    trace = ADEVTrace(main, jc.cur_sublevel())
+    in_tracers = [key] + [JVPTrace(trace, x, t) for x, t in zip(primals, tangents)]
     with staging.new_dynamic_context(main, ctx):
         ans = yield in_tracers, {}
         out_tracers = jax_util.safe_map(trace.full_raise, ans)
@@ -277,22 +355,23 @@ def cps_jvp(f, ctx: Context):
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
-    def wrapped(kont, primals, tangents, **kwargs):
-        with jc.new_main(ContextualTrace) as main:
+    def wrapped(key, primals, tangents, kont, **kwargs):
+        with jc.new_main(ADEVTrace) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main, kont), kwargs)
             flat_primals, primal_tree = jtu.tree_flatten(primals)
             flat_tangents, tangent_tree = jtu.tree_flatten(tangents)
             assert primal_tree == tangent_tree
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
             flat_fun = _cps_jvp(flat_fun, main, ctx)
-            (out_primals, out_tangents), ctx_statefuls = flat_fun.call_wrapped(
-                flat_primals, flat_tangents
+            (key, out_primals, out_tangents), _ = flat_fun.call_wrapped(
+                key, flat_primals, flat_tangents
             )
             del main
         return (
+            key,
             jtu.tree_unflatten(out_tree(), out_primals),
             jtu.tree_unflatten(out_tree(), out_tangents),
-        ), ctx_statefuls
+        )
 
     return wrapped
 
@@ -309,11 +388,11 @@ class GradEstimateContext(ADEVContext):
     def yield_state(self):
         return ()
 
-    def handle_sample(self, _, *args, **params):
+    def handle_sample(self, _, *tracers, **params):
         in_tree = params["in_tree"]
         kont = params["kont"]
-        prob_comp, key, strat, args = jtu.tree_unflatten(in_tree, args)
-        key, v = strat.apply(prob_comp, key, args, kont)
+        prob_comp, key, strat, tracers = jtu.tree_unflatten(in_tree, tracers)
+        key, v = strat.apply(prob_comp, key, tracers, kont)
         return key, jtu.tree_leaves(v)
 
 
@@ -338,6 +417,12 @@ class ADEVProgram(ADEVTerm):
 
     def flatten(self):
         return (), (self.source,)
+
+    def simulate(self, key, args):
+        return simulate_transform(self.source)(key, args)
+
+    def grad_estimate(self, key, primals, tangents):
+        return grad_estimate_transform(self.source)(key, primals, tangents)
 
 
 @typecheck
