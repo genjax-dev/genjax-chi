@@ -506,7 +506,7 @@ class ADEVConvertContext(BuiltinInterfaceContext):
         gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
         adev_term = adev.adev(gen_fn)
-        self.key, v = adev_term.simulate(self.key, args)
+        self.key, v = adev.sample(adev_term, self.key, args)
         return jtu.tree_leaves(v)
 
     def handle_cache(self, _, *tracers, **params):

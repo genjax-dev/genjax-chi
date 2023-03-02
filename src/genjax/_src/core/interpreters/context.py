@@ -349,20 +349,22 @@ class CPSInterpreter(Pytree):
                 args = subfuns + in_vals
 
                 # Create a continuation to pass to bind.
-                def cont(*args):
+                def kont(*args):
                     return eval_jaxpr_recurse(eqns[1:], env, eqn.outvars, [*args])
 
                 # Pass all the information over to the handler,
                 # which gets to choose how to interpret the primitive.
                 outvals = eqn.primitive.bind_with_trace(
-                    trace, args, {cont: cont, **params}
+                    trace, args, {"kont": kont, **params}
                 )
                 if not eqn.primitive.multiple_results:
                     outvals = [outvals]
 
-                jax_util.safe_map(env.write, eqn.outvars, outvals)
+                return jtu.tree_leaves(outvals)
 
             return jax_util.safe_map(env.read, jaxpr.outvars)
+
+        return eval_jaxpr_recurse(jaxpr.eqns, env, jaxpr.invars, args)
 
     def __call__(self, trace_type, main, kont, fn, *args, **kwargs):
         def _inner(*args, **kwargs):
