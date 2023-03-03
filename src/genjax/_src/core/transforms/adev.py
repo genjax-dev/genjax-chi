@@ -54,7 +54,7 @@ identity = lambda v: v
 
 
 @dataclasses.dataclass
-class SupportsReinforce(Pytree):
+class SupportsREINFORCE(Pytree):
     @abc.abstractmethod
     def reinforce_estimate(self, key, duals, kont):
         pass
@@ -126,21 +126,21 @@ class GradientStrategy(Pytree):
 
 
 @dataclasses.dataclass
-class Reinforce(GradientStrategy):
+class GradStratREINFORCE(GradientStrategy):
     def apply(self, prim, key, primals, tangents, kont):
-        assert isinstance(prim, SupportsReinforce)
+        assert isinstance(prim, SupportsREINFORCE)
         return prim.reinforce_estimate(key, primals, tangents, kont)
 
 
 @dataclasses.dataclass
-class Enum(GradientStrategy):
+class GradStratEnum(GradientStrategy):
     def apply(self, prim, key, primals, tangents, kont):
         assert isinstance(prim, SupportsEnum)
         return prim.enum_estimate(key, primals, tangents, kont)
 
 
 @dataclasses.dataclass
-class MVD(GradientStrategy):
+class GradStratMVD(GradientStrategy):
     def apply(self, prim, key, primals, tangents, kont):
         assert isinstance(prim, SupportsMVD)
         return prim.mvd_estimate(key, primals, tangents, kont)
@@ -186,7 +186,7 @@ def _sample(adev_term, key, strategy, args, **kwargs):
 def sample(adev_term: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
     if isinstance(adev_term, ADEVPrimitive):
         # Default strategy is REINFORCE.
-        strategy = strat(Reinforce(), "sample")
+        strategy = strat(GradStratREINFORCE(), "sample")
     return _sample(adev_term, key, strategy, args, **kwargs)
 
 

@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.transforms.adev import MVD
-from genjax._src.core.transforms.adev import Enum
-from genjax._src.core.transforms.adev import Reinforce
+from genjax._src.core.transforms.adev import GradStratEnum
+from genjax._src.core.transforms.adev import GradStratMVD
+from genjax._src.core.transforms.adev import GradStratREINFORCE
 from genjax._src.core.transforms.adev import adev
 from genjax._src.core.transforms.adev import sample
 from genjax._src.core.transforms.adev import strat
 
 
-__all__ = ["adev", "sample", "strat", "Reinforce", "MVD", "Enum"]
+__all__ = [
+    "adev",
+    "sample",
+    "strat",
+    "GradStratREINFORCE",
+    "GradStratMVD",
+    "GradStratEnum",
+]

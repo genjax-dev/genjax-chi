@@ -23,7 +23,7 @@ import jax.numpy as jnp
 from genjax._src.core.transforms.adev import ADEVPrimitive
 from genjax._src.core.transforms.adev import SupportsEnum
 from genjax._src.core.transforms.adev import SupportsMVD
-from genjax._src.core.transforms.adev import SupportsReinforce
+from genjax._src.core.transforms.adev import SupportsREINFORCE
 from genjax._src.core.transforms.adev import register
 from genjax._src.generative_functions.distributions.scipy.bernoulli import Bernoulli
 from genjax._src.generative_functions.distributions.scipy.bernoulli import _Bernoulli
@@ -41,7 +41,7 @@ identity = lambda v: v
 
 
 @dataclasses.dataclass
-class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsReinforce):
+class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
     def simulate(self, key, args):
         key, tr = Normal.simulate(key, args)
         v = tr.get_retval()
@@ -71,7 +71,7 @@ register(_Normal, ADEVPrimNormal)
 
 
 @dataclasses.dataclass
-class ADEVPrimBernoulli(ADEVPrimitive, SupportsEnum, SupportsReinforce):
+class ADEVPrimBernoulli(ADEVPrimitive, SupportsEnum, SupportsREINFORCE):
     def simulate(self, key, args):
         key, tr = Normal.simulate(key, args)
         v = tr.get_retval()
@@ -103,7 +103,7 @@ register(_Bernoulli, ADEVPrimBernoulli)
 
 
 @dataclasses.dataclass
-class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsReinforce):
+class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
     def simulate(self, key, args):
         key, tr = Poisson.simulate(key, args)
         v = tr.get_retval()
