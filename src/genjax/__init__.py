@@ -21,10 +21,10 @@
 from genjax import typing
 from genjax.core import interpreters
 from genjax.core import transforms
-from genjax.core.transforms import adev
 from genjax.generative_functions.distributions import coryx
 from genjax.generative_functions.distributions import prox
 
+from .adev import *
 from .console import *
 from .core import *
 from .debugging import *

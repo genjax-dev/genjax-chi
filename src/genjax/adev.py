@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.transforms import harvest
-from genjax._src.core.transforms import incremental
+from genjax._src.core.transforms.adev import MVD
+from genjax._src.core.transforms.adev import Enum
+from genjax._src.core.transforms.adev import Reinforce
+from genjax._src.core.transforms.adev import adev
+from genjax._src.core.transforms.adev import sample
+from genjax._src.core.transforms.adev import strat
 
 
-__all__ = ["harvest", "incremental"]
+__all__ = ["adev", "sample", "strat", "Reinforce", "MVD", "Enum"]
