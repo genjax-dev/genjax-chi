@@ -98,6 +98,7 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 [marco_thesis]: https://www.mct.dev/assets/mct-thesis.pdf
 [gen_jl]: https://github.com/probcomp/Gen.jl
 [trace_types]: https://dl.acm.org/doi/10.1145/3371087
+[adev]: https://arxiv.org/abs/2212.06386
 [ravi]: https://arxiv.org/abs/2203.02836
 [gen_prox]: https://github.com/probcomp/GenProx.jl
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
