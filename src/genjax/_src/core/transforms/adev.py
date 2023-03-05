@@ -441,7 +441,8 @@ def grad_estimate_transform(source_fn, kont, **kwargs):
         (key, _, out_tangents), _ = cps_jvp(source_fn, ctx)(
             key, primals, tangents, kont, **kwargs
         )
-        return key, out_tangents
+        # TODO: why is `tuple` conversion necessary here?
+        return key, tuple(out_tangents)
 
     return wrapper
 
