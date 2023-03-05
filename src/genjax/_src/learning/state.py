@@ -19,9 +19,12 @@ import dataclasses
 import functools
 
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import PytreeClosure
+from genjax._src.core.pytree import closure_convert
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Dict
+from genjax._src.core.typing import String
 
 
 NAMESPACE = "state"
@@ -33,11 +36,11 @@ param = functools.partial(harvest.sow, tag=NAMESPACE)
 
 @dataclasses.dataclass
 class Module(Pytree):
-    params: Any
-    apply: Callable
+    params: Dict[String, Any]
+    apply: PytreeClosure
 
     def flatten(self):
-        return (self.params,), (self.apply,)
+        return (self.params, self.apply), ()
 
     def get_params(self):
         return self.params
@@ -49,7 +52,8 @@ class Module(Pytree):
     def init(cls, apply):
         def wrapped(*args):
             _, params = collect(apply)(*args)
-            return Module(params, inject(apply))
+            pytree_closure = closure_convert(apply)
+            return Module(params, inject(pytree_closure))
 
         return wrapped
 
