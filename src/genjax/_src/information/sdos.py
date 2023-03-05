@@ -16,21 +16,23 @@
 datasets) from Domke, 2021."""
 
 import dataclasses
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import ValueChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.prox import ProxDistribution
-from genjax._src.generative_functions.distributions.prox import Target
+from genjax._src.generative_functions.distributions.prox.prox_distribution import (
+    ProxDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.target import Target
 
 
 @dataclasses.dataclass

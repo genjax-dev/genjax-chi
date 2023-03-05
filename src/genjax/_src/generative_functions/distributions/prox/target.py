@@ -15,8 +15,8 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-from genjax._src.core.datatypes import ChoiceMap
-from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 
 

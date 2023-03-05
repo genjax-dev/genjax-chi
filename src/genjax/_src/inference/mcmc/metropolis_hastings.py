@@ -19,9 +19,9 @@ import jax.numpy as jnp
 import jax.random as random
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple

@@ -35,6 +35,7 @@ from .inference import *
 from .information import *
 from .interface import *
 from .language_decorator import *
+from .learning import *
 from .utilities import *
 
 

@@ -14,7 +14,7 @@
 
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import Any

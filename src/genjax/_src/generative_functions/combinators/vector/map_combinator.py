@@ -24,10 +24,10 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.datatypes import EmptyChoiceMap
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import TraceType
-from genjax._src.core.datatypes import mask
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray

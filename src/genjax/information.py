@@ -20,12 +20,12 @@ It supports inference diagnostic tools (like AIDE and SDOS) as well as entropy e
 Some of these tools assume usage of `Prox` to support estimating density evaluations when the density in question is one produced by an inference algorithm (see SDOS, for example).
 """
 
-from genjax._src.information import AuxiliaryInferenceDivergenceEstimator
-from genjax._src.information import EntropyEstimatorsViaInference
-from genjax._src.information import SymmetricDivergenceOverDatasets
-from genjax._src.information import aide
-from genjax._src.information import eevi
-from genjax._src.information import sdos
+from genjax._src.information.aide import AuxiliaryInferenceDivergenceEstimator
+from genjax._src.information.aide import aide
+from genjax._src.information.eevi import EntropyEstimatorsViaInference
+from genjax._src.information.eevi import eevi
+from genjax._src.information.sdos import SymmetricDivergenceOverDatasets
+from genjax._src.information.sdos import sdos
 
 
 __all__ = [

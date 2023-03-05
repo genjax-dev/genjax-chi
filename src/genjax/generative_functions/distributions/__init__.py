@@ -12,51 +12,111 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.distributions import Bernoulli
-from genjax._src.generative_functions.distributions import Beta
-from genjax._src.generative_functions.distributions import Categorical
-from genjax._src.generative_functions.distributions import Cauchy
-from genjax._src.generative_functions.distributions import Dirichlet
-from genjax._src.generative_functions.distributions import DiscreteHMM
-from genjax._src.generative_functions.distributions import DiscreteHMMConfiguration
-from genjax._src.generative_functions.distributions import Distribution
-from genjax._src.generative_functions.distributions import ExactDensity
-from genjax._src.generative_functions.distributions import Exponential
-from genjax._src.generative_functions.distributions import Gamma
-from genjax._src.generative_functions.distributions import Laplace
-from genjax._src.generative_functions.distributions import Logistic
-from genjax._src.generative_functions.distributions import MvNormal
-from genjax._src.generative_functions.distributions import Normal
-from genjax._src.generative_functions.distributions import Pareto
-from genjax._src.generative_functions.distributions import Poisson
-from genjax._src.generative_functions.distributions import TFPBates
-from genjax._src.generative_functions.distributions import TFPCategorical
-from genjax._src.generative_functions.distributions import TFPChi
-from genjax._src.generative_functions.distributions import TFPChi2
-from genjax._src.generative_functions.distributions import TFPGeometric
-from genjax._src.generative_functions.distributions import TFPGumbel
-from genjax._src.generative_functions.distributions import TFPHalfCauchy
-from genjax._src.generative_functions.distributions import TFPHalfNormal
-from genjax._src.generative_functions.distributions import TFPHalfStudentT
-from genjax._src.generative_functions.distributions import TFPInverseGamma
-from genjax._src.generative_functions.distributions import TFPKumaraswamy
-from genjax._src.generative_functions.distributions import TFPLogitNormal
-from genjax._src.generative_functions.distributions import TFPMixture
-from genjax._src.generative_functions.distributions import TFPMoyal
-from genjax._src.generative_functions.distributions import TFPMultinomial
-from genjax._src.generative_functions.distributions import TFPNegativeBinomial
-from genjax._src.generative_functions.distributions import TFPNormal
-from genjax._src.generative_functions.distributions import TFPPlackettLuce
-from genjax._src.generative_functions.distributions import TFPPowerSpherical
-from genjax._src.generative_functions.distributions import TFPSkellam
-from genjax._src.generative_functions.distributions import TFPStudentT
-from genjax._src.generative_functions.distributions import TFPTruncatedCauchy
-from genjax._src.generative_functions.distributions import TFPTruncatedNormal
-from genjax._src.generative_functions.distributions import TFPUniform
-from genjax._src.generative_functions.distributions import TFPVonMises
-from genjax._src.generative_functions.distributions import TFPVonMisesFisher
-from genjax._src.generative_functions.distributions import TFPWeibull
-from genjax._src.generative_functions.distributions import TFPZipf
+from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
+    DiscreteHMM,
+)
+from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
+    DiscreteHMMConfiguration,
+)
+from genjax._src.generative_functions.distributions.distribution import Distribution
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
+from genjax._src.generative_functions.distributions.scipy.bernoulli import Bernoulli
+from genjax._src.generative_functions.distributions.scipy.beta import Beta
+from genjax._src.generative_functions.distributions.scipy.categorical import Categorical
+from genjax._src.generative_functions.distributions.scipy.cauchy import Cauchy
+from genjax._src.generative_functions.distributions.scipy.dirichlet import Dirichlet
+from genjax._src.generative_functions.distributions.scipy.exponential import Exponential
+from genjax._src.generative_functions.distributions.scipy.gamma import Gamma
+from genjax._src.generative_functions.distributions.scipy.laplace import Laplace
+from genjax._src.generative_functions.distributions.scipy.logistic import Logistic
+from genjax._src.generative_functions.distributions.scipy.multivariate_normal import (
+    MvNormal,
+)
+from genjax._src.generative_functions.distributions.scipy.normal import Normal
+from genjax._src.generative_functions.distributions.scipy.pareto import Pareto
+from genjax._src.generative_functions.distributions.scipy.poisson import Poisson
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPBates,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPCategorical,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import TFPChi
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPChi2,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPGeometric,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPGumbel,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPHalfCauchy,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPHalfNormal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPHalfStudentT,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPInverseGamma,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPKumaraswamy,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPLogitNormal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPMixture,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPMoyal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPMultinomial,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPNegativeBinomial,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPNormal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPPlackettLuce,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPPowerSpherical,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPSkellam,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPStudentT,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPTruncatedCauchy,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPTruncatedNormal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPUniform,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPVonMises,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPVonMisesFisher,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPWeibull,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPZipf,
+)
 
 
 __all__ = [

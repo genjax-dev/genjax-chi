@@ -19,13 +19,13 @@ from genjax._src.inference.importance_sampling import sampling_importance_resamp
 from genjax._src.inference.importance_sampling import sir
 from genjax._src.inference.map_update import MapUpdate
 from genjax._src.inference.map_update import map_update
-from genjax._src.inference.mcmc import MCMCKernel
-from genjax._src.inference.mcmc import MetropolisAdjustedLangevinAlgorithm
-from genjax._src.inference.mcmc import MetropolisHastings
-from genjax._src.inference.mcmc import mala
-from genjax._src.inference.mcmc import mh
-from genjax._src.inference.variational_inference import VariationalInference
-from genjax._src.inference.variational_inference import variational
+from genjax._src.inference.mcmc.kernel import MCMCKernel
+from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import (
+    MetropolisAdjustedLangevinAlgorithm,
+)
+from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import mala
+from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings
+from genjax._src.inference.mcmc.metropolis_hastings import mh
 
 
 __all__ = [
@@ -41,6 +41,4 @@ __all__ = [
     "mala",
     "MetropolisHastings",
     "mh",
-    "VariationalInference",
-    "variational",
 ]

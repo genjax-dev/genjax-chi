@@ -13,14 +13,14 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Union
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.datatypes import ValueChoiceMap
+from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.prox.prox_distribution import (
     ProxDistribution,

@@ -19,7 +19,7 @@ These combinators accept generative functions as arguments, and return
 generative functions with modified choice map shapes and behavior.
 
 They are used to express common patterns of computation, including
-if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator`), and dependent for-loop (`UnfoldCombinator`), as well as exposing new interfaces - including training learnable parameters (`StateCombinator`).
+if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator`), and dependent for-loops (`UnfoldCombinator`).
 
 .. attention::
 
@@ -35,20 +35,26 @@ if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator
     These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
 """
 
-from genjax._src.generative_functions.combinators import Map
-from genjax._src.generative_functions.combinators import MapCombinator
-from genjax._src.generative_functions.combinators import State
-from genjax._src.generative_functions.combinators import StateCombinator
-from genjax._src.generative_functions.combinators import Switch
-from genjax._src.generative_functions.combinators import SwitchCombinator
-from genjax._src.generative_functions.combinators import Unfold
-from genjax._src.generative_functions.combinators import UnfoldCombinator
-from genjax._src.generative_functions.combinators import init
-from genjax._src.generative_functions.combinators import param
-from genjax._src.generative_functions.combinators import vec_chm
-from genjax._src.generative_functions.combinators import vec_sel
-from genjax._src.generative_functions.combinators import vector_choice_map
-from genjax._src.generative_functions.combinators import vector_select
+from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
+from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+    SwitchCombinator,
+)
+from genjax._src.generative_functions.combinators.vector.map_combinator import Map
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    MapCombinator,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    UnfoldCombinator,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import vec_chm
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import vec_sel
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    vector_choice_map,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    vector_select,
+)
 
 
 __all__ = [
@@ -58,10 +64,6 @@ __all__ = [
     "Unfold",
     "SwitchCombinator",
     "Switch",
-    "StateCombinator",
-    "State",
-    "param",
-    "init",
     "vector_choice_map",
     "vec_chm",
     "vector_select",

@@ -14,11 +14,11 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import Trace
-from genjax._src.core.datatypes import Trie
-from genjax._src.core.datatypes import TrieChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.datatypes.trie import TrieChoiceMap
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Tuple

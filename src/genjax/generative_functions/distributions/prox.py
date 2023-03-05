@@ -19,30 +19,64 @@ Lew's framework for programming with composable approximate densities
 GenProx.
 """
 
-from genjax._src.generative_functions.distributions.prox import ChangeTarget
-from genjax._src.generative_functions.distributions.prox import ChoiceMapDistribution
-from genjax._src.generative_functions.distributions.prox import Compose
-from genjax._src.generative_functions.distributions.prox import Extend
-from genjax._src.generative_functions.distributions.prox import Importance
-from genjax._src.generative_functions.distributions.prox import Init
-from genjax._src.generative_functions.distributions.prox import Marginal
-from genjax._src.generative_functions.distributions.prox import ParticleCollection
-from genjax._src.generative_functions.distributions.prox import ProxDistribution
-from genjax._src.generative_functions.distributions.prox import Sequence
-from genjax._src.generative_functions.distributions.prox import (
+from genjax._src.generative_functions.distributions.prox.choice_map_distribution import (
+    ChoiceMapDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.choice_map_distribution import (
+    chm_dist,
+)
+from genjax._src.generative_functions.distributions.prox.inference.importance import (
+    Importance,
+)
+from genjax._src.generative_functions.distributions.prox.inference.importance import (
+    importance,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    ChangeTarget,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    Compose,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    Extend,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    Init,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    ParticleCollection,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    Sequence,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
     SMCChangeTargetPropagator,
 )
-from genjax._src.generative_functions.distributions.prox import SMCCompose
-from genjax._src.generative_functions.distributions.prox import SMCExtendPropagator
-from genjax._src.generative_functions.distributions.prox import SMCInit
-from genjax._src.generative_functions.distributions.prox import SMCPropagator
-from genjax._src.generative_functions.distributions.prox import SMCSequencePropagator
-from genjax._src.generative_functions.distributions.prox import Target
-from genjax._src.generative_functions.distributions.prox import chm_dist
-from genjax._src.generative_functions.distributions.prox import importance
-from genjax._src.generative_functions.distributions.prox import marginal
-from genjax._src.generative_functions.distributions.prox import static_check_supports
-from genjax._src.generative_functions.distributions.prox import target
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    SMCCompose,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    SMCExtendPropagator,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    SMCInit,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    SMCPropagator,
+)
+from genjax._src.generative_functions.distributions.prox.inference.sequential_monte_carlo import (
+    SMCSequencePropagator,
+)
+from genjax._src.generative_functions.distributions.prox.marginal import Marginal
+from genjax._src.generative_functions.distributions.prox.marginal import marginal
+from genjax._src.generative_functions.distributions.prox.prox_distribution import (
+    ProxDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.target import Target
+from genjax._src.generative_functions.distributions.prox.target import target
+from genjax._src.generative_functions.distributions.prox.utils import (
+    static_check_supports,
+)
 
 
 __all__ = [

@@ -34,10 +34,10 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes import ChoiceMap
-from genjax._src.core.datatypes import EmptyChoiceMap
-from genjax._src.core.datatypes import Trace
-from genjax._src.core.datatypes import ValueChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Float

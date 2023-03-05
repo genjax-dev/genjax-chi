@@ -44,7 +44,11 @@ class GenJAXConsole:
     rich_console: Console
 
     def print(self, obj):
-        self.rich_console.print(obj)
+        self.rich_console.print(
+            obj,
+            soft_wrap=True,
+            overflow="ellipsis",
+        )
 
     def inspect(self, obj, **kwargs):
         rich.inspect(obj, console=self.rich_console, **kwargs)
@@ -67,8 +71,14 @@ class GenJAXConsole:
             objexplore.explore(module)
 
 
-def pretty(show_locals=False, max_frames=30, suppress=[jax], **kwargs):
-    rich.pretty.install()
+def pretty(
+    overflow="ellipsis",
+    show_locals=False,
+    max_frames=30,
+    suppress=[jax],
+    **kwargs,
+):
+    rich.pretty.install(overflow=overflow)
     traceback.install(
         show_locals=show_locals,
         max_frames=max_frames,
