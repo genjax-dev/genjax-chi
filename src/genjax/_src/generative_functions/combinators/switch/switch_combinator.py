@@ -33,9 +33,9 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import BooleanMask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree

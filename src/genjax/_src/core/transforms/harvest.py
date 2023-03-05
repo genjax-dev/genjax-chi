@@ -202,7 +202,7 @@ def nest(f, *, scope: str):
 ##########################
 
 
-class HarvestTracer(jc.Tracer):
+class HarvestTracer(context.ContextualTracer):
     """A `HarvestTracer` just encapsulates a single value."""
 
     def __init__(self, trace: "HarvestTrace", val: Value):
@@ -375,11 +375,15 @@ class HarvestContext(context.Context):
 
 @dataclasses.dataclass
 class Reap(Pytree):
-    value: Any
     metadata: Dict[String, Any]
+    value: Any
 
     def flatten(self):
         return (self.value,), (self.metadata,)
+
+    @classmethod
+    def new(cls, value, metadata):
+        return Reap(metadata, value)
 
 
 @dataclasses.dataclass
@@ -407,8 +411,9 @@ class ReapContext(HarvestContext):
             tree,
             [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
         )
-        self.reaps[name] = Reap(
-            jtu.tree_unflatten(tree, values), dict(mode=mode, aval=avals)
+        self.reaps[name] = Reap.new(
+            jtu.tree_unflatten(tree, values),
+            dict(mode=mode, aval=avals),
         )
         return values
 
@@ -443,7 +448,7 @@ def reap(
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         ctx = ReapContext.new(settings)
-        retvals, (reaps,) = context.transform(fn, ctx)(*args, **kwargs)
+        retvals, (reaps,) = context.transform(fn, ctx, HarvestTrace)(*args, **kwargs)
         return retvals, reaps
 
     return wrapper
@@ -498,7 +503,7 @@ def plant(
     @functools.wraps(fn)
     def wrapper(plants, *args, **kwargs):
         ctx = PlantContext.new(settings, plants)
-        retvals, _ = context.transform(fn, ctx)(*args, **kwargs)
+        retvals, _ = context.transform(fn, ctx, HarvestTrace)(*args, **kwargs)
         return retvals
 
     return wrapper

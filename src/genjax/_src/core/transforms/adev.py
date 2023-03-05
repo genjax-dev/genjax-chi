@@ -16,6 +16,7 @@ import abc
 import dataclasses
 import functools
 
+import jax
 import jax.core as jc
 import jax.tree_util as jtu
 from jax import api_util
@@ -46,6 +47,7 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 
 
+# Trivial continuation.
 identity = lambda v: v
 
 ############################
@@ -74,6 +76,13 @@ class SupportsMVD(Pytree):
         pass
 
 
+@dataclasses.dataclass
+class SupportsCustom(Pytree):
+    @abc.abstractmethod
+    def custom_grad_estimate(self, key, duals, kont):
+        pass
+
+
 #############
 # ADEV term #
 #############
@@ -81,6 +90,7 @@ class SupportsMVD(Pytree):
 
 @dataclasses.dataclass
 class ADEVTerm(Pytree):
+    @functools.partial(jax.custom_jvp, nondiff_argnums=(0, 1))
     @abc.abstractmethod
     def simulate(self, key, args):
         pass
@@ -88,6 +98,11 @@ class ADEVTerm(Pytree):
     @abc.abstractmethod
     def grad_estimate(self, key, primals, tangents):
         pass
+
+    @simulate.defjvp
+    def simulate_jvp(primals, tangents):
+        self, key, args = primals
+        return self.grad_estimate(key, args, tangents)
 
 
 ###################
@@ -172,7 +187,7 @@ def strat(strategy: GradientStrategy, addr):
 sample_p = primitives.InitialStylePrimitive("sample")
 
 
-def _abstract_adev_term_call(adev_term, key, strat, *args):
+def _abstract_adev_term_call(adev_term, key, strategy, *args):
     return adev_term.simulate(key, args)
 
 
@@ -184,9 +199,11 @@ def _sample(adev_term, key, strategy, args, **kwargs):
 
 @typecheck
 def sample(adev_term: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
+    # Default strategy is REINFORCE.
+    strategy = GradStratREINFORCE()
     if isinstance(adev_term, ADEVPrimitive):
-        # Default strategy is REINFORCE.
-        strategy = strat(GradStratREINFORCE(), "sample")
+        # Embed using sow.
+        strategy = strat(strategy, "sample")
     return _sample(adev_term, key, strategy, args, **kwargs)
 
 
@@ -409,9 +426,9 @@ class GradEstimateContext(ADEVContext):
             key, retdual = kont(key, *new_tracers)
             return key, retdual.primal, retdual.tangent
 
-        adev_term, key, strat, *tracers = jtu.tree_unflatten(in_tree, tracers)
+        adev_term, key, strategy, *tracers = jtu.tree_unflatten(in_tree, tracers)
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in tracers)
-        key, primals, tangents = strat.apply(
+        key, primals, tangents = strategy.apply(
             adev_term, key, primals, tangents, lift_kont
         )
         return key, primals, tangents
@@ -450,7 +467,7 @@ class ADEVProgram(ADEVTerm):
 
 
 @typecheck
-def adev(gen_fn: GenerativeFunction):
+def lang(gen_fn: GenerativeFunction):
     """Convert a `GenerativeFunction` to an `ADEVProgram`."""
     prim = registry.get(type(gen_fn))
     if prim is None:

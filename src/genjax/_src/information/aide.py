@@ -16,16 +16,16 @@
 estimator) from Cusumano-Towner et al, 2017."""
 
 import dataclasses
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
 
 
 @dataclasses.dataclass

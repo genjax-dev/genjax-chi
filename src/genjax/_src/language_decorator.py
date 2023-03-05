@@ -13,10 +13,12 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable
 
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.generative_functions.builtin import BuiltinGenerativeFunction
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.typing import Callable
+from genjax._src.generative_functions.builtin.builtin_gen_fn import (
+    BuiltinGenerativeFunction,
+)
 
 
 #####

@@ -21,6 +21,3 @@ separate to allow customization (here, I mean things like interpretation
 environments, or abstract types which define the object-level values the
 interpreter produces for each primitive statement in the Jaxpr).
 """
-
-from .primitives import *
-from .staging import *

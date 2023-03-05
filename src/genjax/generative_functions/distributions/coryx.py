@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.distributions.coryx import dist
-from genjax._src.generative_functions.distributions.coryx import ildj
-from genjax._src.generative_functions.distributions.coryx import ildj_registry_rules
-from genjax._src.generative_functions.distributions.coryx import inverse
-from genjax._src.generative_functions.distributions.coryx import rv
+from genjax._src.generative_functions.distributions.coryx.core import ildj
+from genjax._src.generative_functions.distributions.coryx.core import (
+    ildj_registry_rules,
+)
+from genjax._src.generative_functions.distributions.coryx.core import inverse
+from genjax._src.generative_functions.distributions.coryx.lang import lang
+from genjax._src.generative_functions.distributions.coryx.lang import rv
 
 
 __all__ = [
     "ildj",
     "inverse",
     "ildj_registry_rules",
-    "dist",
+    "lang",
     "rv",
 ]

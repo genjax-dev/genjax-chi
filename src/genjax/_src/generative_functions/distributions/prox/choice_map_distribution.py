@@ -13,12 +13,12 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Union
 
-from genjax._src.core.datatypes import AllSelection
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import ValueChoiceMap
+from genjax._src.core.datatypes.generative import AllSelection
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.typing import Union
 from genjax._src.generative_functions.distributions.prox.prox_distribution import (
     ProxDistribution,
 )

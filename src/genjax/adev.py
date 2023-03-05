@@ -15,16 +15,29 @@
 from genjax._src.core.transforms.adev import GradStratEnum
 from genjax._src.core.transforms.adev import GradStratMVD
 from genjax._src.core.transforms.adev import GradStratREINFORCE
-from genjax._src.core.transforms.adev import adev
+from genjax._src.core.transforms.adev import lang
 from genjax._src.core.transforms.adev import sample
 from genjax._src.core.transforms.adev import strat
+from genjax._src.generative_functions.distributions.adev_registry import (
+    ADEVPrimBernoulli,
+)
+from genjax._src.generative_functions.distributions.adev_registry import ADEVPrimNormal
+from genjax._src.generative_functions.distributions.adev_registry import ADEVPrimPoisson
+
+
+Poisson = ADEVPrimPoisson
+Normal = ADEVPrimNormal
+Bernoulli = ADEVPrimBernoulli
 
 
 __all__ = [
-    "adev",
+    "lang",
     "sample",
     "strat",
     "GradStratREINFORCE",
     "GradStratMVD",
     "GradStratEnum",
+    "Normal",
+    "Bernoulli",
+    "Poisson",
 ]

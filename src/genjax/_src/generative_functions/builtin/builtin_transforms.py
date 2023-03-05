@@ -22,8 +22,8 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 
 import genjax._src.core.interpreters.context as context
-from genjax._src.core.datatypes import ChoiceMap
-from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
@@ -505,7 +505,7 @@ class ADEVConvertContext(BuiltinInterfaceContext):
         in_tree = params["in_tree"]
         gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
-        adev_term = adev.adev(gen_fn)
+        adev_term = adev.lang(gen_fn)
         self.key, v = adev.sample(adev_term, self.key, args)
         return jtu.tree_leaves(v)
 

@@ -12,4 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .state_combinator import *
+from genjax._src.learning.state import Module
+from genjax._src.learning.state import module
+from genjax._src.learning.state import param
+
+
+__all__ = ["module", "param", "Module"]

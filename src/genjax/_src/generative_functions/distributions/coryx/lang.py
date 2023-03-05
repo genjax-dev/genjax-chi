@@ -28,7 +28,7 @@ import functools
 import jax
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters import context as ctx
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.typing import Any
@@ -200,5 +200,5 @@ class TransformedDistribution(Distribution):
 # Shorthands #
 ##############
 
-dist = TransformedDistribution.new
+lang = TransformedDistribution.new
 rv = random_variable

@@ -396,21 +396,32 @@ Cont = CPSInterpreter
 ###############
 
 
+# TODO: be explicit about the `get_value` interface.
+def _unwrap_tracer(v):
+    if isinstance(v, ContextualTracer):
+        return v.val
+    else:
+        return v
+
+
 @lu.transformation
 def _transform(
-    trace_type: Type[jc.Trace], main: jc.MainTrace, ctx: Context, args: Iterable[Any]
+    trace_type: Type[jc.Trace],
+    main: jc.MainTrace,
+    ctx: Context,
+    args: Iterable[Any],
 ):
     trace = trace_type(main, jc.cur_sublevel())
     in_tracers = jax_util.safe_map(trace.full_raise, args)
     with staging.new_dynamic_context(main, ctx):
         ans = yield in_tracers, {}
         out_tracers = jax_util.safe_map(trace.full_raise, ans)
-        stateful_tracers = jtu.tree_map(trace.full_raise, ctx.yield_state())
+        stateful_tracers = ctx.yield_state()
         del main
     (
         out_values,
         stateful_values,
-    ) = jtu.tree_map(lambda x: x.val, (out_tracers, stateful_tracers))
+    ) = jtu.tree_map(_unwrap_tracer, (out_tracers, stateful_tracers))
     yield out_values, stateful_values
 
 

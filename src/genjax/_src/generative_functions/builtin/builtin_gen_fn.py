@@ -14,20 +14,21 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes import ChoiceMap
-from genjax._src.core.datatypes import GenerativeFunction
-from genjax._src.core.datatypes import Pytree
-from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.trie import TrieChoiceMap
-from genjax._src.core.interpreters.staging import get_shaped_aval
+from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import PytreeClosure
+from genjax._src.core.pytree import closure_convert
 from genjax._src.core.transforms import adev
 from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
@@ -118,47 +119,6 @@ class DeferredGenerativeFunctionCall(Pytree):
 
 
 #####
-# Pytree closure
-#####
-
-# TODO: investigate if `inspect` can provide better APIs
-# for the functionality implemented in this class.
-@dataclass
-class PytreeClosure(Pytree):
-    callable: Callable
-    environment: List
-
-    def flatten(self):
-        return (self.environment,), (self.callable,)
-
-    def __call__(self, *args):
-        if self.callable.__closure__ is None:
-            return self.callable(*args)
-        else:
-            for (cell, v) in zip(self.callable.__closure__, self.environment):
-                cell.cell_contents = v
-            ret = self.callable(*args)
-            for cell in self.callable.__closure__:
-                cell.cell_contents = None
-            return ret
-
-    def __hash__(self):
-        avals = list(map(get_shaped_aval, self.environment))
-        return hash((self.callable, *avals))
-
-
-def closure_convert(callable):
-    captured = []
-    if callable.__closure__ is None:
-        return PytreeClosure(callable, captured)
-    else:
-        for cell in callable.__closure__:
-            captured.append(cell.cell_contents)
-            cell.cell_contents = None
-        return PytreeClosure(callable, captured)
-
-
-#####
 # Generative function
 #####
 
@@ -192,6 +152,9 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         key, (f, args, r, chm, score), cache = simulate_transform(
             self.source, **kwargs
         )(key, args)
+        # `chm` is a `Trie` here.
+        if not chm.inner:
+            chm = EmptyChoiceMap()
         return key, BuiltinTrace(self, args, r, chm, cache, score)
 
     @typecheck
@@ -274,3 +237,10 @@ def partial(gen_fn, *static_args):
     return BuiltinGenerativeFunction.new(
         lambda *args: gen_fn.inline(*args, *static_args),
     )
+
+
+##############
+# Shorthands #
+##############
+
+lang = BuiltinGenerativeFunction.new

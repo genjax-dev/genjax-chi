@@ -24,7 +24,6 @@ This allows, among other things, an efficient implementation of `SwitchCombinato
 
 import abc
 from dataclasses import dataclass
-from typing import Sequence
 
 import jax
 import jax.numpy as jnp
@@ -34,7 +33,11 @@ import numpy as np
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
+from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import static_check_supports_grad
 
 
@@ -182,6 +185,50 @@ class Pytree(metaclass=abc.ABCMeta):
     def __rich_console__(self, console, options):
         tree = gpp.tree_pformat(self)
         yield tree
+
+    def __rich_repr__(self):
+        yield self
+
+
+#####
+# Pytree closure
+#####
+
+# TODO: investigate if `inspect` can provide better APIs
+# for the functionality implemented in this class.
+@dataclass
+class PytreeClosure(Pytree):
+    callable: Callable
+    environment: List
+
+    def flatten(self):
+        return (self.environment,), (self.callable,)
+
+    def __call__(self, *args):
+        if self.callable.__closure__ is None:
+            return self.callable(*args)
+        else:
+            for (cell, v) in zip(self.callable.__closure__, self.environment):
+                cell.cell_contents = v
+            ret = self.callable(*args)
+            for cell in self.callable.__closure__:
+                cell.cell_contents = None
+            return ret
+
+    def __hash__(self):
+        avals = list(map(get_shaped_aval, self.environment))
+        return hash((self.callable, *avals))
+
+
+def closure_convert(callable):
+    captured = []
+    if callable.__closure__ is None:
+        return PytreeClosure(callable, captured)
+    else:
+        for cell in callable.__closure__:
+            captured.append(cell.cell_contents)
+            cell.cell_contents = None
+        return PytreeClosure(callable, captured)
 
 
 #####

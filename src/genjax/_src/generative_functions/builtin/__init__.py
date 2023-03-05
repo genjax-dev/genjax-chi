@@ -20,8 +20,3 @@ construction of generative programs. These programs can utilize other
 generative functions inside of a new JAX primitive (`trace`) to create
 hiearchical patterns of Bayesian computation.
 """
-
-from .builtin_datatypes import *
-from .builtin_gen_fn import *
-from .builtin_primitives import *
-from .builtin_tracetype import *

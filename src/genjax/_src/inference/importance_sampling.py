@@ -19,8 +19,8 @@ from typing import Union
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes import ChoiceMap
-from genjax._src.core.datatypes import GenerativeFunction
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
