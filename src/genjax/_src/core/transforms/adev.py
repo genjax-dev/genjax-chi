@@ -100,9 +100,13 @@ class ADEVTerm(Pytree):
         pass
 
     @simulate.defjvp
-    def simulate_jvp(primals, tangents):
-        self, key, args = primals
-        return self.grad_estimate(key, args, tangents)
+    def simulate_jvp(self, key, primals, tangents):
+        key, v = self.simulate(key, primals)
+        key, tangents = self.grad_estimate(key, primals, tangents)
+        return (key, v), tangents
+
+    def __call__(self, key, *args):
+        return self.simulate(key, args)
 
 
 ###################

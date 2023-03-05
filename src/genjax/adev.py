@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.core.transforms.adev import ADEVPrimitive
+from genjax._src.core.transforms.adev import ADEVProgram
+from genjax._src.core.transforms.adev import ADEVTerm
 from genjax._src.core.transforms.adev import GradStratEnum
 from genjax._src.core.transforms.adev import GradStratMVD
 from genjax._src.core.transforms.adev import GradStratREINFORCE
@@ -40,4 +43,7 @@ __all__ = [
     "Normal",
     "Bernoulli",
     "Poisson",
+    "ADEVTerm",
+    "ADEVPrimitive",
+    "ADEVProgram",
 ]
