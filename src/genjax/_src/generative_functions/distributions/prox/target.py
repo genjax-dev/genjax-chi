@@ -13,21 +13,27 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Tuple
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
+from genjax._src.generative_functions.distributions.prox.unnorm import (
+    UnnormalizedMeasure,
+)
+from genjax._src.generative_functions.distributions.prox.unnorm import (
+    UnnormalizedMeasureFunction,
+)
 
 
 @dataclass
-class Target(Pytree):
-    p: GenerativeFunction
+class Target(UnnormalizedMeasure):
+    p: Union[GenerativeFunction, UnnormalizedMeasureFunction]
     args: Tuple
     constraints: ChoiceMap
 
     def flatten(self):
-        return (self.args, self.constraints), (self.p,)
+        return (self.p, self.args, self.constraints), ()
 
     def get_trace_type(self):
         inner_type = self.p.get_trace_type(*self.args)
