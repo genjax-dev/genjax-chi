@@ -19,6 +19,7 @@ Lew's framework for programming with composable approximate densities
 GenProx.
 """
 
+from genjax._src.generative_functions.distributions.prox import unnorm
 from genjax._src.generative_functions.distributions.prox.choice_map_distribution import (
     ChoiceMapDistribution,
 )
@@ -74,6 +75,7 @@ from genjax._src.generative_functions.distributions.prox.prox_distribution impor
 )
 from genjax._src.generative_functions.distributions.prox.target import Target
 from genjax._src.generative_functions.distributions.prox.target import target
+from genjax._src.generative_functions.distributions.prox.unnorm import score
 from genjax._src.generative_functions.distributions.prox.utils import (
     static_check_supports,
 )
@@ -102,4 +104,6 @@ __all__ = [
     "Compose",
     "Sequence",
     "static_check_supports",
+    "unnorm",
+    "score",
 ]

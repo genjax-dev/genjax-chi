@@ -433,6 +433,8 @@ class AllSelection(Selection, Leaf):
 # Shorthands #
 ##############
 
+empty_choice_map = EmptyChoiceMap.new
+emp_chm = empty_choice_map
 value_choice_map = ValueChoiceMap.new
 val_chm = value_choice_map
 all_select = AllSelection.new

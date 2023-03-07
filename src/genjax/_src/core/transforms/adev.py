@@ -58,28 +58,28 @@ identity = lambda v: v
 @dataclasses.dataclass
 class SupportsREINFORCE(Pytree):
     @abc.abstractmethod
-    def reinforce_estimate(self, key, duals, kont):
+    def reinforce_estimate(self, key, primals, tangents, kont):
         pass
 
 
 @dataclasses.dataclass
 class SupportsEnum(Pytree):
     @abc.abstractmethod
-    def enum_estimate(self, key, duals, kont):
+    def enum_estimate(self, key, primals, tangents, kont):
         pass
 
 
 @dataclasses.dataclass
 class SupportsMVD(Pytree):
     @abc.abstractmethod
-    def mvd_estimate(self, key, duals, kont):
+    def mvd_estimate(self, key, primals, tangents, kont):
         pass
 
 
 @dataclasses.dataclass
 class SupportsCustom(Pytree):
     @abc.abstractmethod
-    def custom_grad_estimate(self, key, duals, kont):
+    def custom_grad_estimate(self, key, primals, tangents, kont):
         pass
 
 
@@ -96,14 +96,13 @@ class ADEVTerm(Pytree):
         pass
 
     @abc.abstractmethod
-    def grad_estimate(self, key, primals, tangents):
+    def grad_estimate(self, key, primals, tangents, kont=identity):
         pass
 
     @simulate.defjvp
     def simulate_jvp(self, key, primals, tangents):
-        key, v = self.simulate(key, primals)
-        key, tangents = self.grad_estimate(key, primals, tangents)
-        return (key, v), tangents
+        key, primals, tangents = self.grad_estimate(key, primals, tangents)
+        return (key, primals), tangents
 
     def __call__(self, key, *args):
         return self.simulate(key, args)
@@ -124,7 +123,7 @@ class ADEVPrimitive(ADEVTerm):
         pass
 
     @abc.abstractmethod
-    def grad_estimate(self, key, primals, tangents):
+    def grad_estimate(self, key, primals, tangents, kont=identity):
         pass
 
 
@@ -422,31 +421,45 @@ class GradEstimateContext(ADEVContext):
     def handle_sample(self, _, *tracers, **params):
         in_tree = params["in_tree"]
         kont = params["kont"]
-
-        def lift_kont(key, primals, tangents):
-            new_tracers = [
-                JVPTracer(self.trace, x, t) for x, t in zip(primals, tangents)
-            ]
-            key, retdual = kont(key, *new_tracers)
-            return key, retdual.primal, retdual.tangent
-
         adev_term, key, strategy, *tracers = jtu.tree_unflatten(in_tree, tracers)
+
+        # TODO: generalize to Pytrees.
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in tracers)
-        key, primals, tangents = strategy.apply(
-            adev_term, key, primals, tangents, lift_kont
-        )
-        return key, primals, tangents
+
+        # Check if the term is an `ADEVProgram`, then use
+        # `grad_estimate` to propagate dual numbers.
+        if isinstance(adev_term, ADEVProgram):
+            key, primals, tangents = adev_term.grad_estimate(
+                key, primals, tangents, kont
+            )
+            return key, primals, tangents
+
+        # We're dealing with an `ADEVPrimitive` - we defer propagating
+        # dual numbers to the gradient strategy.
+        else:
+
+            def lift_kont(key, primals, tangents):
+                new_tracers = [
+                    JVPTracer(self.trace, x, t) for x, t in zip(primals, tangents)
+                ]
+                key, retdual = kont(key, *new_tracers)
+                return key, retdual.primal, retdual.tangent
+
+            key, primals, tangents = strategy.apply(
+                adev_term, key, primals, tangents, lift_kont
+            )
+            return key, primals, tangents
 
 
 def grad_estimate_transform(source_fn, kont, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, primals, tangents):
         ctx = GradEstimateContext.new()
-        (key, _, out_tangents), _ = cps_jvp(source_fn, ctx)(
+        (key, out_primals, out_tangents), _ = cps_jvp(source_fn, ctx)(
             key, primals, tangents, kont, **kwargs
         )
         # TODO: why is `tuple` conversion necessary here?
-        return key, tuple(out_tangents)
+        return key, tuple(out_primals), tuple(out_tangents)
 
     return wrapper
 
@@ -466,8 +479,7 @@ class ADEVProgram(ADEVTerm):
     def simulate(self, key, args):
         return simulate_transform(self.source)(key, args)
 
-    def grad_estimate(self, key, primals, tangents):
-        kont = identity
+    def grad_estimate(self, key, primals, tangents, kont=identity):
         return grad_estimate_transform(self.source, kont)(key, primals, tangents)
 
 

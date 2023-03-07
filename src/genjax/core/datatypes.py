@@ -21,6 +21,8 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import all_select
+from genjax._src.core.datatypes.generative import emp_chm
+from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import val_chm
 from genjax._src.core.datatypes.generative import value_choice_map
@@ -46,6 +48,8 @@ __all__ = [
     # Datatypes.
     "ChoiceMap",
     "EmptyChoiceMap",
+    "empty_choice_map",
+    "emp_chm",
     "ValueChoiceMap",
     "value_choice_map",
     "val_chm",
