@@ -59,7 +59,6 @@ class UnnormalizedMeasure(Pytree):
 score_p = primitives.InitialStylePrimitive("score")
 
 
-@score_p.def_impl
 def _score_impl(*args, **_):
     return args
 
