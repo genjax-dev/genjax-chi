@@ -2682,14 +2682,14 @@ files = [
 
 [[package]]
 name = "nbclassic"
-version = "0.5.2"
+version = "0.5.3"
 description = "Jupyter Notebook as a Jupyter Server extension."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "nbclassic-0.5.2-py3-none-any.whl", hash = "sha256:6403a996562dadefa7fee9c49e17b663b5fd508241de5df655b90011cf3342d9"},
-    {file = "nbclassic-0.5.2.tar.gz", hash = "sha256:40f11bbcc59e8956c3d5ef132dec8e5a853e893ecf831e791d54da0d8a50d79d"},
+    {file = "nbclassic-0.5.3-py3-none-any.whl", hash = "sha256:e849277872d9ffd8fe4b39a8038d01ba82d6a1def9ce11b1b3c26c9546ed5131"},
+    {file = "nbclassic-0.5.3.tar.gz", hash = "sha256:889772a7ba524eb781d2901f396540bcad41151e1f7e043f12ebc14a6540d342"},
 ]
 
 [package.dependencies]
