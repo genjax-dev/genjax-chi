@@ -33,8 +33,8 @@
     ```python
     @genjax.gen
     def model():
-      p = Beta(0, 1) @ "p"
-      v = Bernoulli(p) @ "v"
+      p = beta(0, 1) @ "p"
+      v = bernoulli(p) @ "v"
       return v
     ```
 
