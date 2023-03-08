@@ -1366,7 +1366,7 @@ tpu = ["jaxlib (==0.4.4)", "libtpu-nightly (==0.1.dev20230216)", "requests"]
 type = "git"
 url = "https://github.com/google/jax"
 reference = "main"
-resolved_reference = "595836e69cf1ca2329ff54b4031b1199d172d453"
+resolved_reference = "d62fc88fb1ea6d8033a5d6932984a322708e941c"
 
 [[package]]
 name = "jaxlib"
