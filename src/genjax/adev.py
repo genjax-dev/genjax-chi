@@ -28,9 +28,9 @@ from genjax._src.generative_functions.distributions.adev_registry import ADEVPri
 from genjax._src.generative_functions.distributions.adev_registry import ADEVPrimPoisson
 
 
-Poisson = ADEVPrimPoisson
-Normal = ADEVPrimNormal
-Bernoulli = ADEVPrimBernoulli
+poisson = ADEVPrimPoisson()
+normal = ADEVPrimNormal()
+bernoulli = ADEVPrimBernoulli()
 
 
 __all__ = [
@@ -40,9 +40,9 @@ __all__ = [
     "GradStratREINFORCE",
     "GradStratMVD",
     "GradStratEnum",
-    "Normal",
-    "Bernoulli",
-    "Poisson",
+    "normal",
+    "bernoulli",
+    "poisson",
     "ADEVTerm",
     "ADEVPrimitive",
     "ADEVProgram",

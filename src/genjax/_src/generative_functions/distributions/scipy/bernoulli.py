@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Bernoulli(ExactDensity):
+class Bernoulli(ExactDensity):
     def sample(self, key, *args, **kwargs):
         return jax.random.bernoulli(key, *args, **kwargs)
 
@@ -29,4 +29,4 @@ class _Bernoulli(ExactDensity):
         return jnp.sum(jax.scipy.stats.bernoulli.logpmf(v, *args))
 
 
-Bernoulli = _Bernoulli()
+bernoulli = Bernoulli()

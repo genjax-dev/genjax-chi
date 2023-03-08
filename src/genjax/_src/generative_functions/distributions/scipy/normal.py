@@ -22,7 +22,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Normal(ExactDensity):
+class Normal(ExactDensity):
     def sample(self, key, mu, std, **kwargs):
         return mu + std * jax.random.normal(key, **kwargs)
 
@@ -33,4 +33,4 @@ class _Normal(ExactDensity):
         )
 
 
-Normal = _Normal()
+normal = Normal()

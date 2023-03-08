@@ -20,22 +20,22 @@ import genjax
 
 @genjax.gen
 def simple_normal():
-    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
     return y1 + y2
 
 
 @genjax.gen
 def simple_normal_multiple_returns():
-    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
     return y1, y2
 
 
 @genjax.gen
 def _submodel():
-    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
     return y1, y2
 
 
@@ -51,10 +51,10 @@ class TestSimulate:
         fn = jax.jit(genjax.simulate(simple_normal))
         key, tr = fn(key, ())
         chm = tr.get_choices()
-        _, (score1, _) = genjax.Normal.importance(
+        _, (score1, _) = genjax.normal.importance(
             key, chm.get_subtree("y1").get_choices(), (0.0, 1.0)
         )
-        _, (score2, _) = genjax.Normal.importance(
+        _, (score2, _) = genjax.normal.importance(
             key, chm.get_subtree("y2").get_choices(), (0.0, 1.0)
         )
         test_score = score1 + score2
@@ -70,10 +70,10 @@ class TestSimulate:
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        _, (score1, _) = genjax.Normal.importance(
+        _, (score1, _) = genjax.normal.importance(
             key, genjax.value_choice_map(y1), (0.0, 1.0)
         )
-        _, (score2, _) = genjax.Normal.importance(
+        _, (score2, _) = genjax.normal.importance(
             key, genjax.value_choice_map(y2), (0.0, 1.0)
         )
         test_score = score1 + score2
@@ -89,10 +89,10 @@ class TestSimulate:
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        _, (score1, _) = genjax.Normal.importance(
+        _, (score1, _) = genjax.normal.importance(
             key, genjax.value_choice_map(y1), (0.0, 1.0)
         )
-        _, (score2, _) = genjax.Normal.importance(
+        _, (score2, _) = genjax.normal.importance(
             key, genjax.value_choice_map(y2), (0.0, 1.0)
         )
         test_score = score1 + score2

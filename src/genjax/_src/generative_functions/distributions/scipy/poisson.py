@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Poisson(ExactDensity):
+class Poisson(ExactDensity):
     def sample(self, key, lam, **kwargs):
         return jax.random.poisson(key, lam, **kwargs)
 
@@ -29,4 +29,4 @@ class _Poisson(ExactDensity):
         return jnp.sum(jax.scipy.stats.poisson.logpmf(v, lam))
 
 
-Poisson = _Poisson()
+poisson = Poisson()

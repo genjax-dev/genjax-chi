@@ -25,6 +25,9 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import (
 # Language decorator
 #####
 
+# TODO: possibly just shorthand `gen = BuiltinGenerativeFunction.new`
+# and defer wrapping into higher combinators via `functools` idioms.
+
 
 def gen(callable: Callable, **kwargs) -> GenerativeFunction:
     if inspect.isclass(callable) or inspect.ismethod(callable):

@@ -21,7 +21,7 @@ import genjax
 def emits_cc_gen_fn(v):
     @genjax.gen
     def model():
-        x = genjax.Normal(jnp.sum(v), 1.0) @ "x"
+        x = genjax.normal(jnp.sum(v), 1.0) @ "x"
         return x
 
     return model

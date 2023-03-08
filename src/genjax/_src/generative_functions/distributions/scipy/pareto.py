@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Pareto(ExactDensity):
+class Pareto(ExactDensity):
     def sample(self, key, b, **kwargs):
         return jax.random.pareto(key, b, **kwargs)
 
@@ -29,4 +29,4 @@ class _Pareto(ExactDensity):
         return jnp.sum(jax.scipy.stats.pareto.logpdf(v, b))
 
 
-Pareto = _Pareto()
+pareto = Pareto()

@@ -62,7 +62,7 @@ class ChoiceMapDistribution(ProxDistribution):
             weight = tr.project(self.selection)
         else:
             unselected = self.selection.complement().filter(choices)
-            target = Target.new(self.p, args, choices)
+            target = Target.new(self.p, args, selected_choices)
 
             # Perform a compile-time trace type check.
             static_check_supports(target, self.custom_q)

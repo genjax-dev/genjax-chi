@@ -20,8 +20,8 @@ import genjax
 
 @genjax.gen
 def simple_normal():
-    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
     return y1 + y2
 
 
@@ -34,10 +34,10 @@ class TestImportance:
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
-        _, (score1, _) = genjax.Normal.importance(
+        _, (score1, _) = genjax.normal.importance(
             key, chm.get_subtree("y1"), (0.0, 1.0)
         )
-        _, (score2, _) = genjax.Normal.importance(
+        _, (score2, _) = genjax.normal.importance(
             key, chm.get_subtree("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2

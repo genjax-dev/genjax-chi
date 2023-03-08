@@ -20,7 +20,7 @@ import genjax
 
 @genjax.gen
 def kernel(x):
-    z = genjax.trace("z", genjax.Normal)(x, 1.0)
+    z = genjax.trace("z", genjax.normal)(x, 1.0)
     return z
 
 

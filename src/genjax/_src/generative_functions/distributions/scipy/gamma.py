@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Gamma(ExactDensity):
+class Gamma(ExactDensity):
     def sample(self, key, a, **kwargs):
         return jax.random.gamma(key, a, **kwargs)
 
@@ -29,4 +29,4 @@ class _Gamma(ExactDensity):
         return jnp.sum(jax.scipy.stats.gamma.logpdf(v, a))
 
 
-Gamma = _Gamma()
+gamma = Gamma()

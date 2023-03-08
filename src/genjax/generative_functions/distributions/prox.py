@@ -20,6 +20,12 @@ GenProx.
 """
 
 from genjax._src.generative_functions.distributions.prox import unnorm
+from genjax._src.generative_functions.distributions.prox.approx_norm_distribution import (
+    ApproximateNormalizedDistribution,
+)
+from genjax._src.generative_functions.distributions.prox.approx_norm_distribution import (
+    approx_norm_dist,
+)
 from genjax._src.generative_functions.distributions.prox.choice_map_distribution import (
     ChoiceMapDistribution,
 )
@@ -106,4 +112,6 @@ __all__ = [
     "static_check_supports",
     "unnorm",
     "score",
+    "approx_norm_dist",
+    "ApproximateNormalizedDistribution",
 ]

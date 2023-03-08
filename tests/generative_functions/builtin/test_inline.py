@@ -19,8 +19,8 @@ import genjax
 
 @genjax.gen
 def simple_normal():
-    y1 = genjax.Normal(0.0, 1.0) @ "y1"
-    y2 = genjax.Normal(0.0, 1.0) @ "y2"
+    y1 = genjax.normal(0.0, 1.0) @ "y1"
+    y2 = genjax.normal(0.0, 1.0) @ "y2"
     return y1 + y2
 
 
@@ -53,10 +53,10 @@ class TestInline:
         chm = genjax.chm({"y1": 3.0})
         key, (w, tr) = jax.jit(higher_model.importance)(key, chm, ())
         choices = tr.strip()
-        assert w == genjax.Normal.logpdf(choices["y1"], 0.0, 1.0)
+        assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
         key, (w, tr) = jax.jit(higher_higher_model.importance)(key, chm, ())
         choices = tr.strip()
-        assert w == genjax.Normal.logpdf(choices["y1"], 0.0, 1.0)
+        assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
     def test_inline_update(self):
         key = jax.random.PRNGKey(314159)
@@ -65,25 +65,25 @@ class TestInline:
         old_value = tr.strip()["y1"]
         key, (rd, w, tr, _) = jax.jit(higher_model.update)(key, tr, chm, ())
         choices = tr.strip()
-        assert w == genjax.Normal.logpdf(
+        assert w == genjax.normal.logpdf(
             choices["y1"], 0.0, 1.0
-        ) - genjax.Normal.logpdf(old_value, 0.0, 1.0)
+        ) - genjax.normal.logpdf(old_value, 0.0, 1.0)
         key, tr = jax.jit(higher_higher_model.simulate)(key, ())
         old_value = tr.strip()["y1"]
         key, (rd, w, tr, _) = jax.jit(higher_higher_model.update)(key, tr, chm, ())
         choices = tr.strip()
-        assert w == genjax.Normal.logpdf(
+        assert w == genjax.normal.logpdf(
             choices["y1"], 0.0, 1.0
-        ) - genjax.Normal.logpdf(old_value, 0.0, 1.0)
+        ) - genjax.normal.logpdf(old_value, 0.0, 1.0)
 
     def test_inline_assess(self):
         key = jax.random.PRNGKey(314159)
         chm = genjax.chm({"y1": 3.0, "y2": 3.0})
         key, (ret, score) = jax.jit(higher_model.assess)(key, chm, ())
-        assert score == genjax.Normal.logpdf(
+        assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
-        ) + genjax.Normal.logpdf(chm["y2"], 0.0, 1.0)
+        ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
         key, (ret, score) = jax.jit(higher_higher_model.assess)(key, chm, ())
-        assert score == genjax.Normal.logpdf(
+        assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
-        ) + genjax.Normal.logpdf(chm["y2"], 0.0, 1.0)
+        ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)

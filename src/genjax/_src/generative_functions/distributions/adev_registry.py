@@ -21,16 +21,15 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.transforms.adev import ADEVPrimitive
-from genjax._src.core.transforms.adev import SupportsEnum
 from genjax._src.core.transforms.adev import SupportsMVD
 from genjax._src.core.transforms.adev import SupportsREINFORCE
 from genjax._src.core.transforms.adev import register
 from genjax._src.generative_functions.distributions.scipy.bernoulli import Bernoulli
-from genjax._src.generative_functions.distributions.scipy.bernoulli import _Bernoulli
+from genjax._src.generative_functions.distributions.scipy.bernoulli import bernoulli
 from genjax._src.generative_functions.distributions.scipy.normal import Normal
-from genjax._src.generative_functions.distributions.scipy.normal import _Normal
+from genjax._src.generative_functions.distributions.scipy.normal import normal
 from genjax._src.generative_functions.distributions.scipy.poisson import Poisson
-from genjax._src.generative_functions.distributions.scipy.poisson import _Poisson
+from genjax._src.generative_functions.distributions.scipy.poisson import poisson
 
 
 identity = lambda v: v
@@ -43,7 +42,7 @@ identity = lambda v: v
 @dataclasses.dataclass
 class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
     def simulate(self, key, args):
-        key, tr = Normal.simulate(key, args)
+        key, tr = normal.simulate(key, args)
         v = tr.get_retval()
         return key, v
 
@@ -54,8 +53,8 @@ class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
         (μ, σ) = primals
         (μ_tangent, σ_tangent) = tangents
         key, sub_key = jax.random.split(key)
-        v = Normal.sample(sub_key, μ, σ)
-        lp = Normal.logpdf(v, μ, σ)
+        v = normal.sample(sub_key, μ, σ)
+        lp = normal.logpdf(v, μ, σ)
         key, r_primal, r_tangent = kont(key, [v], [1.0])
         return key, [r_primal], [r_tangent * lp]
 
@@ -63,7 +62,7 @@ class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
         raise NotImplementedError
 
 
-register(_Normal, ADEVPrimNormal)
+register(Normal, ADEVPrimNormal)
 
 #####
 # Bernoulli
@@ -71,9 +70,9 @@ register(_Normal, ADEVPrimNormal)
 
 
 @dataclasses.dataclass
-class ADEVPrimBernoulli(ADEVPrimitive, SupportsEnum, SupportsREINFORCE):
+class ADEVPrimBernoulli(ADEVPrimitive, SupportsREINFORCE):
     def simulate(self, key, args):
-        key, tr = Normal.simulate(key, args)
+        key, tr = bernoulli.simulate(key, args)
         v = tr.get_retval()
         return key, v
 
@@ -84,7 +83,7 @@ class ADEVPrimBernoulli(ADEVPrimitive, SupportsEnum, SupportsREINFORCE):
         (p,) = primals
         (p_tangent,) = tangents
         key, sub_key = jax.random.split(key)
-        key, b = Bernoulli.sample(sub_key, p)
+        key, b = bernoulli.sample(sub_key, p)
         retdual = kont(b)
         l_primal, l_tangent = retdual.primal, retdual.tangent
         dlp = jax.lax.switch(
@@ -95,7 +94,7 @@ class ADEVPrimBernoulli(ADEVPrimitive, SupportsEnum, SupportsREINFORCE):
         return key, (l_primal, l_tangent + l_primal * dlp.tangent)
 
 
-register(_Bernoulli, ADEVPrimBernoulli)
+register(Bernoulli, ADEVPrimBernoulli)
 
 #####
 # Poisson
@@ -105,7 +104,7 @@ register(_Bernoulli, ADEVPrimBernoulli)
 @dataclasses.dataclass
 class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
     def simulate(self, key, args):
-        key, tr = Poisson.simulate(key, args)
+        key, tr = poisson.simulate(key, args)
         v = tr.get_retval()
         return key, v
 
@@ -118,7 +117,7 @@ class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
     def mvd_estimate(self, key, primals, _, kont):
         (θ,) = primals
         key, sub_key = jax.random.split(key)
-        key, x_minus = Poisson.sample(sub_key, θ)
+        key, x_minus = poisson.sample(sub_key, θ)
         x_plus = x_minus + 1
         y_plus = kont(x_plus)
         y_minus = kont(x_minus)
@@ -126,4 +125,4 @@ class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
         return nabla_est
 
 
-register(_Poisson, ADEVPrimPoisson)
+register(Poisson, ADEVPrimPoisson)

@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Laplace(ExactDensity):
+class Laplace(ExactDensity):
     def sample(self, key, **kwargs):
         return jax.random.laplace(key, **kwargs)
 
@@ -29,4 +29,4 @@ class _Laplace(ExactDensity):
         return jnp.sum(jax.scipy.stats.laplace.logpdf(v))
 
 
-Laplace = _Laplace()
+laplace = Laplace()
