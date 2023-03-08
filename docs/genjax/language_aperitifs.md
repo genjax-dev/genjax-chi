@@ -104,7 +104,7 @@ def top_model(p):
 
 Now we're describing a broadcastable generative function whose internal choices include a chain-like generative structure with dynamic truncation using padding. And we could go on!
 
-## Approximate densities
+## Approximation of marginal densities
 
 GenJAX also features an implementation of a framework for pseudomarginalization and approximate normalization called `Prox`. `Prox` allows construction of _approximate distributions_, distributions whose sample and density interfaces are replaced with unbiased estimators.
 
