@@ -47,11 +47,26 @@
     
     ```python
     # Sampling importance resampling.
-    def sir(prng_key: PRNGKey, gen_fn: GenerativeFunction
-            obs: ChoiceMap, args: Tuple, n_samples: Int):
-        pass
+    def sir(key: PRNGKey, gen_fn: GenerativeFunction, model_args: Tuple,
+            obs: ChoiceMap, n_samples: Int):
+        key, sub_keys = genjax.slash(key, n_samples)
+        _, (lws, trs) = jax.vmap(gen_fn.importance, in_axes=(0, None, None))(
+            sub_keys,
+            obs,
+            args,
+        )
+        log_total_weight = jax.scipy.special.logsumexp(lws)
+        log_normalized_weights = lws - log_total_weight
+        log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
+        return key, (trs, log_normalized_weights, log_ml_estimate)
     ```
 
+===   "Results"
+    
+    ```python exec="on" source="material-block"
+    print(5 + 10)
+    print("Hello Markdown!")
+    ```
 
 </div>
 
@@ -70,7 +85,7 @@
 
 ## Why Gen?
 
-GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX - it's worth starting by understanding why Gen exists, and what problems it purports to solve.
+GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX - it's worth starting by understanding what problems Gen purports to solve.
 
 ### The evolution of probabilistic programming languages
 
@@ -81,7 +96,7 @@ Probabilistic modeling and inference is hard: understanding a domain well enough
 
     Gen considers a wide class of models - include Bayesian nonparametrics, open-universe models, and models over rich structures (like programs!) - which don't natively support efficient exact inference.
 
-In the past, probabilistic modellers typically considered the following design loop.
+Probabilistic have historically considered the following design loop.
 
 ``` mermaid
 graph LR
@@ -106,14 +121,15 @@ graph LR
   D ---> A;
 ```
 
-The problem with this utopia is that we often do need to program our inference algorithms (1) to achieve maximum performance, with respect to accuracy as well as runtime. First generation systems were not designed with this in mind.
+The problem with this utopia is that we often need to customize our inference algorithms (1) to achieve maximum performance, with respect to accuracy as well as runtime (2). First generation systems were not designed with this in mind.
 {.annotate}
 
 1.  Here, _programmable inference_ denotes using a custom proposal distribution in importance sampling, or a custom variational family for variational inference, or even a custom kernel in Markov chain Monte Carlo.
+2.  _Composition_ of inference programs can also be highly desirable when performing inference in complex models, or designing a probabilistic application from several modeling and inference components. The first examples of universal inference engines ignored this design problem.
 
 ### Programmable inference
 
-The goal then is to allow users to customize when required, while retaining the rapid model/inference iteration properties explored by first generation systems.
+A worthy design goal is to allow users to customize when required, while retaining the rapid model/inference iteration properties explored by first generation systems.
 
 Gen addresses this goal by introducing a separation between modeling and inference code: **the generative function interface**.
 
@@ -121,7 +137,7 @@ Gen addresses this goal by introducing a separation between modeling and inferen
 <img width="800px" src="./assets/img/gen-architecture.png"/>
 </p>
 
-The interface provides an abstraction layer that inference algorithms can call to compute the right math (1). Advanced developers can create new model languages by implementing the interface - and immediately gain access to advanced inference procedures.
+The interface provides an abstraction layer that inference algorithms can call to compute the necessary (_and hard to get right_!) math (1). Probabilistic application developers can also extend the interface to new modeling languages - and immediately gain access to advanced inference procedures.
 { .annotate }
 
 1.  Examples of hard-to-get-right math: importance weights, accept reject ratios, and gradient estimators. 
