@@ -2,3 +2,6 @@
 docs/* linguist-documentation
 notebooks/* linguist-documentation
 site/* linguist-documentation
+*.html linguist-vendored
+*.js linguist-vendored
+*.ipynb linguist-vendored
