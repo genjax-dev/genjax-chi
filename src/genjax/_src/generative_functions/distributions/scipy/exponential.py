@@ -22,7 +22,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Exponential(ExactDensity):
+class Exponential(ExactDensity):
     def sample(self, key, **kwargs):
         return jax.random.exponential(key, **kwargs)
 
@@ -34,4 +34,4 @@ class _Exponential(ExactDensity):
         return PositiveReals(shape)
 
 
-Exponential = _Exponential()
+exponential = Exponential()

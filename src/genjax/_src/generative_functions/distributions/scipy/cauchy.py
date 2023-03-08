@@ -22,7 +22,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Cauchy(ExactDensity):
+class Cauchy(ExactDensity):
     def sample(self, key, **kwargs):
         return jax.random.cauchy(key, **kwargs)
 
@@ -34,4 +34,4 @@ class _Cauchy(ExactDensity):
         return PositiveReals(shape)
 
 
-Cauchy = _Cauchy()
+cauchy = Cauchy()

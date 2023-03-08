@@ -23,7 +23,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Categorical(ExactDensity):
+class Categorical(ExactDensity):
     def sample(self, key, logits, **kwargs):
         return jax.random.categorical(key, logits, **kwargs)
 
@@ -38,4 +38,4 @@ class _Categorical(ExactDensity):
         return Finite(np.prod(logits.shape), shape)
 
 
-Categorical = _Categorical()
+categorical = Categorical()

@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Beta(ExactDensity):
+class Beta(ExactDensity):
     def sample(self, key, a, b, **kwargs):
         return jax.random.beta(key, a, b, **kwargs)
 
@@ -29,4 +29,4 @@ class _Beta(ExactDensity):
         return jnp.sum(jax.scipy.stats.beta.logpdf(v, a, b))
 
 
-Beta = _Beta()
+beta = Beta()

@@ -32,18 +32,18 @@ class CustomTree(genjax.Pytree):
 
 @genjax.gen
 def simple_normal(custom_tree):
-    y1 = genjax.trace("y1", genjax.Normal)(custom_tree.x, 1.0)
-    y2 = genjax.trace("y2", genjax.Normal)(custom_tree.y, 1.0)
+    y1 = genjax.trace("y1", genjax.normal)(custom_tree.x, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(custom_tree.y, 1.0)
     return CustomTree(y1, y2)
 
 
 @dataclasses.dataclass
 class _CustomNormal(genjax.ExactDensity):
     def logpdf(self, v, custom_tree):
-        return genjax.Normal.logpdf(v, custom_tree.x, custom_tree.y)
+        return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
 
     def sample(self, key, custom_tree):
-        return genjax.Normal.sample(key, custom_tree.x, custom_tree.y)
+        return genjax.normal.sample(key, custom_tree.x, custom_tree.y)
 
 
 CustomNormal = _CustomNormal()
@@ -62,10 +62,10 @@ class TestCustomPytree:
         fn = jax.jit(genjax.simulate(simple_normal))
         key, tr = fn(key, (init_tree,))
         chm = tr.get_choices()
-        _, (score1, _) = genjax.Normal.importance(
+        _, (score1, _) = genjax.normal.importance(
             key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
         )
-        _, (score2, _) = genjax.Normal.importance(
+        _, (score2, _) = genjax.normal.importance(
             key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
         )
         test_score = score1 + score2
@@ -77,7 +77,7 @@ class TestCustomPytree:
         fn = jax.jit(genjax.simulate(custom_normal))
         key, tr = fn(key, (init_tree,))
         chm = tr.get_choices()
-        _, (score, _) = genjax.Normal.importance(
+        _, (score, _) = genjax.normal.importance(
             key, chm.get_subtree("y").get_choices(), (init_tree.x, init_tree.y)
         )
         test_score = score
@@ -90,10 +90,10 @@ class TestCustomPytree:
         fn = jax.jit(genjax.importance(simple_normal))
         key, (w, tr) = fn(key, chm, (init_tree,))
         chm = tr.get_choices()
-        _, (score1, _) = genjax.Normal.importance(
+        _, (score1, _) = genjax.normal.importance(
             key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
         )
-        _, (score2, _) = genjax.Normal.importance(
+        _, (score2, _) = genjax.normal.importance(
             key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
         )
         test_score = score1 + score2

@@ -22,7 +22,7 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.typing import FloatArray
-from genjax._src.generative_functions.distributions.scipy.normal import Normal
+from genjax._src.generative_functions.distributions.scipy.normal import normal
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
@@ -49,14 +49,14 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
     def _tree_random_normal_fixed_std(self, rng_key, mu, std):
         keys_tree = self._random_split_like_tree(rng_key, mu)
         return jax.tree_map(
-            lambda m, k: Normal.sample(k, m, std),
+            lambda m, k: normal.sample(k, m, std),
             mu,
             keys_tree,
         )
 
     def _tree_logpdf_normal_fixed_std(self, values, mu, std):
         logpdf_tree = jax.tree_map(
-            lambda v, m: Normal.logpdf(v, m, std),
+            lambda v, m: normal.logpdf(v, m, std),
             values,
             mu,
         )

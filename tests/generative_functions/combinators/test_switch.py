@@ -19,13 +19,13 @@ import genjax
 
 @genjax.gen
 def simple_normal():
-    y1 = genjax.trace("y1", genjax.Normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.Normal)(0.0, 1.0)
+    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
 
 @genjax.gen
 def simple_bernoulli():
-    y3 = genjax.trace("y3", genjax.Bernoulli)(0.3)
+    y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
 
 switch = genjax.SwitchCombinator([simple_normal, simple_bernoulli])
@@ -39,13 +39,13 @@ class TestSimulate:
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        assert score == genjax.Normal.logpdf(v1, 0.0, 1.0) + genjax.Normal.logpdf(
+        assert score == genjax.normal.logpdf(v1, 0.0, 1.0) + genjax.normal.logpdf(
             v2, 0.0, 1.0
         )
         key, tr = jitted(key, (1,))
         flip = tr["y3"]
         score = tr.get_score()
-        assert score == genjax.Bernoulli.logpdf(flip, 0.3)
+        assert score == genjax.bernoulli.logpdf(flip, 0.3)
 
     def test_switch_importance(self):
         key = jax.random.PRNGKey(314159)
@@ -55,18 +55,18 @@ class TestSimulate:
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        assert score == genjax.Normal.logpdf(v1, 0.0, 1.0) + genjax.Normal.logpdf(
+        assert score == genjax.normal.logpdf(v1, 0.0, 1.0) + genjax.normal.logpdf(
             v2, 0.0, 1.0
         )
         assert w == 0.0
         key, (w, tr) = jitted(key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()
-        assert score == genjax.Bernoulli.logpdf(flip, 0.3)
+        assert score == genjax.bernoulli.logpdf(flip, 0.3)
         assert w == 0.0
         chm = genjax.choice_map({"y3": True})
         key, (w, tr) = jitted(key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()
-        assert score == genjax.Bernoulli.logpdf(flip, 0.3)
+        assert score == genjax.bernoulli.logpdf(flip, 0.3)
         assert w == score

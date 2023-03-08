@@ -20,9 +20,9 @@ import genjax
 class TestCategorical:
     def test_scipy_vs_tf(self):
         logits = jnp.array([0.5, 0.5])
-        assert genjax.TFPCategorical.logpdf(0, logits) == genjax.Categorical.logpdf(
+        assert genjax.tfp_categorical.logpdf(0, logits) == genjax.categorical.logpdf(
             0, logits
         )
-        assert genjax.TFPCategorical.logpdf(1, logits) == genjax.Categorical.logpdf(
+        assert genjax.tfp_categorical.logpdf(1, logits) == genjax.categorical.logpdf(
             1, logits
         )

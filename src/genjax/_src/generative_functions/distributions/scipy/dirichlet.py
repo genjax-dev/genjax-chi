@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Dirichlet(ExactDensity):
+class Dirichlet(ExactDensity):
     def sample(self, key, alpha, **kwargs):
         return jax.random.dirichlet(key, alpha, **kwargs)
 
@@ -29,4 +29,4 @@ class _Dirichlet(ExactDensity):
         return jnp.sum(jax.scipy.stats.dirichlet.logpdf(v, alpha))
 
 
-Dirichlet = _Dirichlet()
+dirichlet = Dirichlet()

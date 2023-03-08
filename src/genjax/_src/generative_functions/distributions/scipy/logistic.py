@@ -21,7 +21,7 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 
 
 @dataclass
-class _Logistic(ExactDensity):
+class Logistic(ExactDensity):
     def sample(self, key, **kwargs):
         return jax.random.logistic(key, **kwargs)
 
@@ -29,4 +29,4 @@ class _Logistic(ExactDensity):
         return jnp.sum(jax.scipy.stats.logistic.logpdf(v))
 
 
-Logistic = _Logistic()
+logistic = Logistic()
