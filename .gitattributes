@@ -1,4 +1,4 @@
 * text=auto eol=lf
 docs/* linguist-documentation
 notebooks/* linguist-documentation
-site/* -linguist-detectable
+site/* linguist-documentation
