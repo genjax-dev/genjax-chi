@@ -4361,14 +4361,14 @@ tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
 name = "svgelements"
-version = "1.9.0"
+version = "1.9.1"
 description = "Svg Elements Parsing"
 category = "dev"
 optional = false
 python-versions = "*"
 files = [
-    {file = "svgelements-1.9.0-py2.py3-none-any.whl", hash = "sha256:9e0181245bfbad78c600616dadb4a98b380be991dafe92fb325b7f55daec5fdf"},
-    {file = "svgelements-1.9.0.tar.gz", hash = "sha256:21ce32f188d7968da07f585d88141c0cd8638049a68813d69c7eb941fa09fad6"},
+    {file = "svgelements-1.9.1-py2.py3-none-any.whl", hash = "sha256:792891a11323439411950ccb74069f3c7d12f544e740dfa02d7170acdc56f1eb"},
+    {file = "svgelements-1.9.1.tar.gz", hash = "sha256:d78b84148f7086c85d25ad3435fda6eb28776bb254fc9833e84e20bde56f3f3f"},
 ]
 
 [[package]]
