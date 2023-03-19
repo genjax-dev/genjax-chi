@@ -18,11 +18,11 @@ repo_url: https://github.com/probcomp/genjax
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
-  - Home: index.md
+  - Home: 
+      - index.md
+      - Gen's concepts: genjax/concepts/generative_functions.md
+      - Diff against Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
-  - Concepts:
-      - Generative functions: genjax/concepts/generative_functions.md
-      - Diff with Gen.jl: genjax/concepts/diff_jl.md
   - Language apéritifs: genjax/language_aperitifs.md
   - Public API reference:
       - Core: genjax/library/core.md
