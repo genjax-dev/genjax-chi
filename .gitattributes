@@ -5,3 +5,4 @@ site/* linguist-documentation
 *.html linguist-vendored
 *.js linguist-vendored
 *.ipynb linguist-vendored
+*.css linguist-vendored

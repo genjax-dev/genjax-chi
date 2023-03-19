@@ -289,6 +289,22 @@ class TrieComplementSelection(Selection):
         return self.trie.get_subtrees_shallow()
 
 
+###################
+# TrieConvertable #
+###################
+
+# A mixin: denotes that a choice map can be converted to a TrieChoiceMap
+
+
+@dataclass
+class TrieConvertable:
+    def convert(self) -> TrieChoiceMap:
+        new = TrieChoiceMap.new()
+        for (k, v) in self.get_submaps_shallow():
+            pass
+        return new
+
+
 ##############
 # Shorthands #
 ##############
