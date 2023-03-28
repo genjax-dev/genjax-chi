@@ -462,20 +462,20 @@ unicode-backport = ["unicodedata2"]
 
 [[package]]
 name = "chex"
-version = "0.1.6"
+version = "0.1.7"
 description = "Chex: Testing made fun, in JAX!"
 category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "chex-0.1.6-py3-none-any.whl", hash = "sha256:5e04a28fcab3c2c0fb05431c6e646e8e4889cacb3e1670369e556f12029cf785"},
-    {file = "chex-0.1.6.tar.gz", hash = "sha256:adb5d2352b5f0d248ccf594be1b1bf9ee7a2bee2a57f0eac78547538d479b0e7"},
+    {file = "chex-0.1.7-py3-none-any.whl", hash = "sha256:9f583015303b1205443843c0b55849bb287f1dfdbd22d9907b1ebb04f964d93e"},
+    {file = "chex-0.1.7.tar.gz", hash = "sha256:74ed49799ac4d229881456d468136f1b19a9f9839e3de72b058824e2a4f4dedd"},
 ]
 
 [package.dependencies]
 absl-py = ">=0.9.0"
 dm-tree = ">=0.1.5"
-jax = ">=0.1.55"
+jax = ">=0.4.6"
 jaxlib = ">=0.1.37"
 numpy = ">=1.18.0"
 toolz = ">=0.9.0"
