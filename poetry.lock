@@ -4370,13 +4370,13 @@ files = [
 
 [[package]]
 name = "srt"
-version = "3.5.2"
+version = "3.5.3"
 description = "A tiny library for parsing, modifying, and composing SRT files."
 category = "dev"
 optional = false
 python-versions = ">=2.7"
 files = [
-    {file = "srt-3.5.2.tar.gz", hash = "sha256:7aa4ad5ce4126d3f53b3e7bc4edaa86653d0378bf1c0b1ab8c59f5ab41384450"},
+    {file = "srt-3.5.3.tar.gz", hash = "sha256:4884315043a4f0740fd1f878ed6caa376ac06d70e135f306a6dc44632eed0cc0"},
 ]
 
 [[package]]
