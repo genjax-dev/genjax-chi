@@ -2393,14 +2393,14 @@ mkdocs = ">=1.0"
 
 [[package]]
 name = "mkdocs-git-committers-plugin-2"
-version = "1.1.1"
+version = "1.1.2"
 description = "An MkDocs plugin to create a list of contributors on the page"
 category = "dev"
 optional = false
 python-versions = ">=2.7"
 files = [
-    {file = "mkdocs-git-committers-plugin-2-1.1.1.tar.gz", hash = "sha256:4f6eb6137f35967dfa444703b6ea293f05bf2fd183506bc51db8fb21b061d5a3"},
-    {file = "mkdocs_git_committers_plugin_2-1.1.1-py3-none-any.whl", hash = "sha256:14d4a89bf8965ab62ca9b8b0cd90f6c9b421bb89bfedca0d91c5119f18791360"},
+    {file = "mkdocs-git-committers-plugin-2-1.1.2.tar.gz", hash = "sha256:745993c4b486de0023ea4c2758daa7a8790a60ac6e369b55203db165d203be80"},
+    {file = "mkdocs_git_committers_plugin_2-1.1.2-py3-none-any.whl", hash = "sha256:7ffa7c6eaae3ade9eaac625bd7dc155e8a543261c81a0354d12909b49eb48588"},
 ]
 
 [package.dependencies]
