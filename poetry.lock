@@ -1782,14 +1782,14 @@ files = [
 
 [[package]]
 name = "jupyterlab-server"
-version = "2.21.0"
+version = "2.22.0"
 description = "A set of server components for JupyterLab and JupyterLab like applications."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyterlab_server-2.21.0-py3-none-any.whl", hash = "sha256:ff1e7a81deb2dcb433215d469000988590fd5a5733574aa2698d643a6c9b3ace"},
-    {file = "jupyterlab_server-2.21.0.tar.gz", hash = "sha256:b4f5b48eaae1be83e2fd6fb77ac49d9b639be4ca4bd2e05b5368d29632a93725"},
+    {file = "jupyterlab_server-2.22.0-py3-none-any.whl", hash = "sha256:f4a7263ada89958854631a64bed45285caeac482925233159709f643c5871490"},
+    {file = "jupyterlab_server-2.22.0.tar.gz", hash = "sha256:0f9f6752b0c534a7b22a6542b984fa6a2c18ab4d4e0a4c79f191138506a9a75f"},
 ]
 
 [package.dependencies]
