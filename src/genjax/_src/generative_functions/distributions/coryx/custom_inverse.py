@@ -81,6 +81,7 @@ class CustomInverse:
           f_ildj: A function from `invals, outvals, out_ildjs` to `new_invals,
             new_ildjs`. Unknown values are provided as `None`.
         """
+
         def ildj_rule(incells, outcells, *, in_tree, out_tree, num_consts, **_):
             # First incell is a wrapped function because prim is a call primitive.
             const_incells, incells = jax_util.split_list(incells, [num_consts])

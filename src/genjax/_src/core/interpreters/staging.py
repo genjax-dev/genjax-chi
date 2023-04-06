@@ -60,6 +60,7 @@ def pv_like(x, abstract=True):
 
 def stage(f, dynamic=True):
     """Returns a function that stages a function to a ClosedJaxpr."""
+
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)
