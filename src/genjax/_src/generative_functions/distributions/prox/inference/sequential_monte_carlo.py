@@ -17,9 +17,14 @@ algorithms.
 
 It includes two main components: `SMCPropagator` and `SMCAlgorithm`.
 
-`SMCPropagator` ingredients accept a set of inputs which they expect to be given by higher-level `SMCAlgorithm` combinators. By exposing their requirements to their callers, they can be chained together to support higher-level patterns with efficient JAX compilation.
+`SMCPropagator` ingredients accept a set of inputs which they expect to
+be given by higher-level `SMCAlgorithm` combinators. By exposing their
+requirements to their callers, they can be chained together to support
+higher-level patterns with efficient JAX compilation.
 
-`SMCAlgorithm` ingredients are self-contained SMC algorithm instances which can be run to produce particle populations which are properly weighted with respect to their registered inference `Target` instances.
+`SMCAlgorithm` ingredients are self-contained SMC algorithm instances
+which can be run to produce particle populations which are properly
+weighted with respect to their registered inference `Target` instances.
 """
 
 import abc

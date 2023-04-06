@@ -42,18 +42,19 @@ Slice = slc.Slice
 class InverseAndILDJ(Cell):
     """Propagates inverse value slices and their ILDJs.
 
-    An InverseAndILDJ instance keeps track of a set of slices of a value. In the
-    simplest case, the slice's indices capture the entire value, in which case the
-    cell is "top". Partial information is represented with slices that do not
-    capture the entire value. No information, i.e. "bottom', is represented with a
-    cell that has no slices.
+    An InverseAndILDJ instance keeps track of a set of slices of a
+    value. In the simplest case, the slice's indices capture the entire
+    value, in which case the cell is "top". Partial information is
+    represented with slices that do not capture the entire value. No
+    information, i.e. "bottom', is represented with a cell that has no
+    slices.
 
-    Joining two cells creates set of slices, and if we detect that the slices can
-    be concatenated, we combine them into a single slice. As propagation
-    progresses, we hope to accumulate enough slices to concatenate them all into
-    this cell's `val`. ILDJs are also kept track of in the same way, except we
-    keep track of the diagonal of the Jacobian since split operations may also
-    split up the Jacobian.
+    Joining two cells creates set of slices, and if we detect that the
+    slices can be concatenated, we combine them into a single slice. As
+    propagation progresses, we hope to accumulate enough slices to
+    concatenate them all into this cell's `val`. ILDJs are also kept
+    track of in the same way, except we keep track of the diagonal of
+    the Jacobian since split operations may also split up the Jacobian.
     """
 
     def __init__(self, aval: jax_core.AbstractValue, slices: Iterable[NDSlice]):
@@ -156,7 +157,6 @@ class InverseAndILDJ(Cell):
 
 def inverse_and_ildj(f, *trace_args, reduce_ildj=True):
     """Inverse and ILDJ function transformation."""
-
     def wrapped(*args, **kwargs):
         """Function wrapper that takes in inverse arguments."""
         forward_args = trace_args if len(trace_args) else args
@@ -252,10 +252,8 @@ class InverseDict(object):
 
 def register_elementwise(prim):
     """Registers an elementwise primitive with ILDJ."""
-
     def make_rule(f):
         """Accepts an inverse function for a primitive."""
-
         def ildj_rule(incells, outcells, **params):
             """General InverseAndILDJ rule for elementwise functions."""
             (outcell,) = outcells
@@ -280,7 +278,6 @@ def register_elementwise(prim):
 
 def register_binary(prim):
     """Registers a binary primitive with ILDJ."""
-
     def make_rule(f_left, f_right):
         def ildj_rule(incells, outcells, **params):
             (outcell,) = outcells

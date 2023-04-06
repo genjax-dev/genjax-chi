@@ -15,7 +15,9 @@
 """This module supports a GenJAX implementation of Alexander K.
 
 Lew's framework for programming with composable approximate densities
-(RAVI/Prox) https://arxiv.org/abs/2203.02836 and his Gen implementation
+(RAVI/Prox)
+https://arxiv.org/abs/2203.02836
+and his Gen implementation
 GenProx.
 """
 

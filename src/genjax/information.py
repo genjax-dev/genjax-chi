@@ -15,9 +15,12 @@
 """This module contains estimators of information-theoretic quantities
 implemented using the generative function interface.
 
-It supports inference diagnostic tools (like AIDE and SDOS) as well as entropy estimation tools (like EEVI).
+It supports inference diagnostic tools (like AIDE and SDOS) as well as
+entropy estimation tools (like EEVI).
 
-Some of these tools assume usage of `Prox` to support estimating density evaluations when the density in question is one produced by an inference algorithm (see SDOS, for example).
+Some of these tools assume usage of `Prox` to support estimating density
+evaluations when the density in question is one produced by an inference
+algorithm (see SDOS, for example).
 """
 
 from genjax._src.information.aide import AuxiliaryInferenceDivergenceEstimator

@@ -16,10 +16,11 @@
 implementors.
 
 In addition to this functionality, there's a "sum type" `Pytree`
-implementation which allows effective decomposition of multiple potential
-`Pytree` value inhabitants into a common tree shape.
+implementation which allows effective decomposition of multiple
+potential `Pytree` value inhabitants into a common tree shape.
 
-This allows, among other things, an efficient implementation of `SwitchCombinator`.
+This allows, among other things, an efficient implementation of
+`SwitchCombinator`.
 """
 
 import abc
@@ -52,11 +53,12 @@ def tree_stack(trees):
     For example, given two trees ((a, b), c) and ((a', b'), c'), returns
     ((stack(a, a'), stack(b, b')), stack(c, c')).
 
-    Useful for turning a list of objects into something you can feed to a
-    vmapped function.
+    Useful for turning a list of objects into something you can feed to
+    a vmapped function.
 
-    This function respects concrete vs. traced values. It will leave concrete
-    leaves unchanged (it will not lift them to `jax.core.Tracer`).
+    This function respects concrete vs. traced values. It will leave
+    concrete leaves unchanged (it will not lift them to
+    `jax.core.Tracer`).
     """
     leaves_list = []
     treedef_list = []
@@ -76,11 +78,12 @@ def tree_stack(trees):
 def tree_unstack(tree):
     """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
 
-    For example, given a tree ((a, b), c), where a, b, and c all have first
-    dimension k, will make k trees
-    [((a[0], b[0]), c[0]), ..., ((a[k], b[k]), c[k])]
+    For example, given a tree ((a, b), c), where a, b, and c all have
+    first dimension k, will make k trees [((a[0], b[0]), c[0]), ...,
+    ((a[k], b[k]), c[k])]
 
-    Useful for turning the output of a vmapped function into normal objects.
+    Useful for turning the output of a vmapped function into normal
+    objects.
     """
     leaves, treedef = jtu.tree_flatten(tree)
     n_trees = leaves[0].shape[0]
