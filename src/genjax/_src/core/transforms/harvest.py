@@ -184,6 +184,7 @@ def nest(f, *, scope: str):
       A semantically identical function to `f`, but when harvested, uses nested
       values according to the input scope.
     """
+
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)

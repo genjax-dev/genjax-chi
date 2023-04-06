@@ -157,6 +157,7 @@ class InverseAndILDJ(Cell):
 
 def inverse_and_ildj(f, *trace_args, reduce_ildj=True):
     """Inverse and ILDJ function transformation."""
+
     def wrapped(*args, **kwargs):
         """Function wrapper that takes in inverse arguments."""
         forward_args = trace_args if len(trace_args) else args
@@ -252,8 +253,10 @@ class InverseDict(object):
 
 def register_elementwise(prim):
     """Registers an elementwise primitive with ILDJ."""
+
     def make_rule(f):
         """Accepts an inverse function for a primitive."""
+
         def ildj_rule(incells, outcells, **params):
             """General InverseAndILDJ rule for elementwise functions."""
             (outcell,) = outcells
@@ -278,6 +281,7 @@ def register_elementwise(prim):
 
 def register_binary(prim):
     """Registers a binary primitive with ILDJ."""
+
     def make_rule(f_left, f_right):
         def ildj_rule(incells, outcells, **params):
             (outcell,) = outcells

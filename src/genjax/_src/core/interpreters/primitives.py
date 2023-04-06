@@ -166,6 +166,7 @@ class FlatPrimitive(jax_core.Primitive):
 
 def call_bind(prim, **params):
     """Binds a primitive to a function call."""
+
     def bind(f):
         """Wraps a function to be bound to a primitive, keeping track of Pytree
         information."""
@@ -213,6 +214,7 @@ class InitialStylePrimitive(FlatPrimitive):
 
 def initial_style_bind(prim, **params):
     """Binds a primitive to a function call."""
+
     def bind(f):
         """Wraps a function to be bound to a primitive, keeping track of Pytree
         information."""
