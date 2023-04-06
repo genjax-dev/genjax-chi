@@ -16,14 +16,14 @@
 
 Automatic inversion works for only a certain class of functions (see
 `core.inverse` documentation for more details). For example, an
-autoregressive neural network will likely use masked weight matrices in order
-to be invertible but the automatic inversion is not aware of autoregressive
-masked matrices (yet!). Furthermore, we may want more numerically stable
-inverses for functions like softmax or sigmoid.
+autoregressive neural network will likely use masked weight matrices in
+order to be invertible but the automatic inversion is not aware of
+autoregressive masked matrices (yet!). Furthermore, we may want more
+numerically stable inverses for functions like softmax or sigmoid.
 
-This module provides a `custom_inverse` decorator for Python functions that
-enables overriding the default programmatic inversion. See `custom_inverse`
-for further documentation.
+This module provides a `custom_inverse` decorator for Python functions
+that enables overriding the default programmatic inversion. See
+`custom_inverse` for further documentation.
 """
 from jax import util as jax_util
 from jax._src import tree_util
@@ -81,7 +81,6 @@ class CustomInverse:
           f_ildj: A function from `invals, outvals, out_ildjs` to `new_invals,
             new_ildjs`. Unknown values are provided as `None`.
         """
-
         def ildj_rule(incells, outcells, *, in_tree, out_tree, num_consts, **_):
             # First incell is a wrapped function because prim is a call primitive.
             const_incells, incells = jax_util.split_list(incells, [num_consts])

@@ -44,21 +44,23 @@ class Slice:
 class NDSlice(Pytree):
     """Represents a multidimensional-slice of an array.
 
-    When we take multidimensional slices (ndslices) of arrays, we normally
-    represent them as tuples of Python `slice` objects. For example, calling
-    `x[0:2, 3:4]` passes `(slice(0, 2), slice(3, 4))` into the `__getitem__` of
-    `x`. We are interested in maintaining the information about an ndslice (the
-    tuple of slices) in addition to maintaining the value the slice corresponds to
-    and the ILDJ of the value.
+    When we take multidimensional slices (ndslices) of arrays, we
+    normally represent them as tuples of Python `slice` objects. For
+    example, calling `x[0:2, 3:4]` passes `(slice(0, 2), slice(3, 4))`
+    into the `__getitem__` of `x`. We are interested in maintaining the
+    information about an ndslice (the tuple of slices) in addition to
+    maintaining the value the slice corresponds to and the ILDJ of the
+    value.
 
-    For example, `NDSlice(jnp.ones(3), jnp.zeros(3), Slice(3, 6))` implies that
-    there is some larger value `x` when if we take the slice `x[3:6]` we obtain
-    `jnp.ones(3)` and that the ILDJ terms corresponding to that slice are
-    `jnp.zeros(3)`.
+    For example, `NDSlice(jnp.ones(3), jnp.zeros(3), Slice(3, 6))`
+    implies that there is some larger value `x` when if we take the
+    slice `x[3:6]` we obtain `jnp.ones(3)` and that the ILDJ terms
+    corresponding to that slice are `jnp.zeros(3)`.
 
-    `NDSlice`s can be concatenated with each other, combining the values, ILDJs
-    and the slice indices. Eventually when we concatenate enough `NDSlice`s we
-    can reconstruct the original value and its ILDJ.
+    `NDSlice`s can be concatenated with each other, combining the
+    values, ILDJs and the slice indices. Eventually when we concatenate
+    enough `NDSlice`s we can reconstruct the original value and its
+    ILDJ.
     """
 
     def __init__(self, value: Any, ildj: Any, *slices: Slice):

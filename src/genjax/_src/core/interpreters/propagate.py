@@ -58,23 +58,23 @@ safe_zip = jax_core.safe_zip
 class Cell(Pytree):
     """Base interface for objects used during propagation.
 
-    A `Cell` represents a member of a lattice, defined by the `top`, `bottom`
-    and `join` methods. Conceptually, a "top" cell represents complete
-    information about a value and a "bottom" cell represents no
+    A `Cell` represents a member of a lattice, defined by the `top`,
+    `bottom` and `join` methods. Conceptually, a "top" cell represents
+    complete information about a value and a "bottom" cell represents no
     information about a value.
 
     Cells that are neither top nor bottom thus have partial information.
-    The `join` method is used to combine two cells to create a cell
-    no less than the two input cells. During the propagation,
-    we hope to join cells until all cells are "top".
+    The `join` method is used to combine two cells to create a cell no
+    less than the two input cells. During the propagation, we hope to
+    join cells until all cells are "top".
 
-    Transformations that use `propagate` need to pass in objects
-    that are `Cell`-like.
+    Transformations that use `propagate` need to pass in objects that
+    are `Cell`-like.
 
-    A `Cell` needs to specify how to create a new default cell
-    from a literal value, using the `new` class method.
-    A `Cell` also needs to indicate if it is a known value with
-    the `is_unknown` method, but by default, `Cell` instances are known.
+    A `Cell` needs to specify how to create a new default cell from a
+    literal value, using the `new` class method. A `Cell` also needs to
+    indicate if it is a known value with the `is_unknown` method, but by
+    default, `Cell` instances are known.
     """
 
     def __init__(self, aval):

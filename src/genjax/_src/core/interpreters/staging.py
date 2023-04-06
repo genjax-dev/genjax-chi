@@ -40,7 +40,6 @@ safe_zip = jax_core.safe_zip
 
 def get_shaped_aval(x):
     """Converts a JAX value type into a shaped abstract value."""
-
     # TODO: This is a kludge. Abstract evaluation currently breaks
     # on `random_wrap` without this branch.
     if isinstance(x, KeyArray):
@@ -61,7 +60,6 @@ def pv_like(x, abstract=True):
 
 def stage(f, dynamic=True):
     """Returns a function that stages a function to a ClosedJaxpr."""
-
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)

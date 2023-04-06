@@ -48,17 +48,16 @@ def register_initial_transformation_rule(name: str, register_func: Callable[...,
 class HigherOrderPrimitive(jax_core.CallPrimitive):
     """A primitive that appears in traces through transformations.
 
-    In JAX, when functions composed of primitives are traced,
-    only the primitives appear in the trace. A HigherOrderPrimitive (HOP)
-    can be bound to a function using `call_bind`, which
-    traces the function and surfaces its Jaxpr
-    in the trace in the HOP's params.
+    In JAX, when functions composed of primitives are traced, only the
+    primitives appear in the trace. A HigherOrderPrimitive (HOP) can be
+    bound to a function using `call_bind`, which traces the function and
+    surfaces its Jaxpr in the trace in the HOP's params.
 
     A HOP appears in the traces of transformed functions. Specifically,
-    unlike `jax.custom_transforms` functions, which do not
-    appear in a trace after a transformation like `jax.grad` or `jax.vmap`
-    is applied, a HOP will create another HOP to appear in the trace
-    after transformation, bound to the transformed function.
+    unlike `jax.custom_transforms` functions, which do not appear in a
+    trace after a transformation like `jax.grad` or `jax.vmap` is
+    applied, a HOP will create another HOP to appear in the trace after
+    transformation, bound to the transformed function.
     """
 
     def __init__(self, name):
@@ -167,7 +166,6 @@ class FlatPrimitive(jax_core.Primitive):
 
 def call_bind(prim, **params):
     """Binds a primitive to a function call."""
-
     def bind(f):
         """Wraps a function to be bound to a primitive, keeping track of Pytree
         information."""
@@ -215,7 +213,6 @@ class InitialStylePrimitive(FlatPrimitive):
 
 def initial_style_bind(prim, **params):
     """Binds a primitive to a function call."""
-
     def bind(f):
         """Wraps a function to be bound to a primitive, keeping track of Pytree
         information."""
