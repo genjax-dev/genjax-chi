@@ -2050,14 +2050,14 @@ source = ["Cython (>=0.29.7)"]
 
 [[package]]
 name = "manim"
-version = "0.17.2"
+version = "0.17.3"
 description = "Animation engine for explanatory math videos."
 category = "dev"
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "manim-0.17.2-py3-none-any.whl", hash = "sha256:3a9857ac5c33f3ae7c12674a92d47eab8a206c0e5ae8f23ea681c4765165d4e2"},
-    {file = "manim-0.17.2.tar.gz", hash = "sha256:cb9b6f8b27c07994b929f2ab1943a3f5a6767816391744bb0f64f998dd99ecfe"},
+    {file = "manim-0.17.3-py3-none-any.whl", hash = "sha256:2d7f53b72a7c1d4882b0657fd457e6f3893267e930950d082a1d116dc8d58b4c"},
+    {file = "manim-0.17.3.tar.gz", hash = "sha256:f9c7b56aef79989c503e71d6d3aebe65a9400b421e7af8f917d2df1fb157b813"},
 ]
 
 [package.dependencies]
