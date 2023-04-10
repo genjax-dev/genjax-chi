@@ -1734,14 +1734,14 @@ test = ["ipykernel", "pre-commit", "pytest (>=7.0)", "pytest-console-scripts", "
 
 [[package]]
 name = "jupyter-server-fileid"
-version = "0.8.0"
+version = "0.9.0"
 description = ""
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jupyter_server_fileid-0.8.0-py3-none-any.whl", hash = "sha256:6092ef114eddccf6cba69c0f0feb612c2f476f2e9467828809edb854c18806bb"},
-    {file = "jupyter_server_fileid-0.8.0.tar.gz", hash = "sha256:1e0816d0857f490fadea11348570f0cba03f70f315c9842225aecfa45882b6af"},
+    {file = "jupyter_server_fileid-0.9.0-py3-none-any.whl", hash = "sha256:5b489c6fe6783c41174a728c7b81099608518387e53c3d53451a67f46a0cb7b0"},
+    {file = "jupyter_server_fileid-0.9.0.tar.gz", hash = "sha256:171538b7c7d08d11dbc57d4e6da196e0c258e4c2cd29249ef1e032bb423677f8"},
 ]
 
 [package.dependencies]
