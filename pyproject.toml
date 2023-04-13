@@ -28,6 +28,7 @@ optax = "^0.1.4"
 beartype = "^0.12.0"
 blackjax = {version = "^0.9.6", optional = true}
 tinygp = {version = "^0.2.3", optional = true}
+dill = "^0.3.6"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.12.0"

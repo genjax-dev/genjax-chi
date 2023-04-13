@@ -95,7 +95,7 @@ class ChoiceMap(Tree):
 
 
 @dataclasses.dataclass
-class Trace(ChoiceMap, Tree):
+class Trace(ChoiceMap, Tree, Pickleable):
     @abc.abstractmethod
     def get_retval(self) -> Any:
         pass
