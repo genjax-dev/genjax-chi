@@ -27,6 +27,7 @@ from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
 from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import typecheck
@@ -106,6 +107,8 @@ class Trie(ChoiceMap, CustomPretty):
         for (k, v) in self.get_subtrees_shallow():
             if other.has_subtree(k):
                 sub = other.get_subtree(k)
+                if isinstance(v, Leaf) or isinstance(sub, Leaf):
+                    raise Exception(f"Both tries have a leaf at {k}.")
                 new[k] = v.merge(sub)
             else:
                 new[k] = v
@@ -183,6 +186,7 @@ class TrieChoiceMap(ChoiceMap):
             trie[k] = v.get_selection()
         return TrieSelection(trie)
 
+    # TODO: test this.
     def merge(self, other: "TrieChoiceMap"):
         assert isinstance(other, TrieChoiceMap)
         new_inner = self.trie.merge(other.trie)
