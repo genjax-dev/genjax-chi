@@ -23,9 +23,8 @@ from jax import abstract_arrays
 from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
-from jax.interpreters import pxla
-from jax.interpreters import xla
 from jax.experimental import pjit
+from jax.interpreters import pxla
 
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters import propagate
@@ -387,9 +386,7 @@ def map_ildj(prim, incells, outcells, **params):
 
 
 ildj_registry_rules[pxla.xla_pmap_p] = functools.partial(map_ildj, pxla.xla_pmap_p)
-ildj_registry_rules[pjit.pjit_p] = functools.partial(
-    propagate.call_rule, pjit.pjit_p
-)
+ildj_registry_rules[pjit.pjit_p] = functools.partial(propagate.call_rule, pjit.pjit_p)
 ildj_registry_rules[jax_core.call_p] = functools.partial(
     propagate.call_rule, jax_core.call_p
 )
