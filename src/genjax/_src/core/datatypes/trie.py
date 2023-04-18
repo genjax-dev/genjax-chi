@@ -183,6 +183,11 @@ class TrieChoiceMap(ChoiceMap):
             trie[k] = v.get_selection()
         return TrieSelection(trie)
 
+    def merge(self, other: "TrieChoiceMap"):
+        assert isinstance(other, TrieChoiceMap)
+        new_inner = self.trie.merge(other.trie)
+        return TrieChoiceMap(new_inner)
+
     def __setitem__(self, k, v):
         self.trie[k] = v
 
