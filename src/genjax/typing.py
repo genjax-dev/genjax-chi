@@ -23,6 +23,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import typecheck
 
 
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     "Sequence",
     "Dict",
     "List",
+    "typecheck",
 ]
