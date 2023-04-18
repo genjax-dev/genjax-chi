@@ -135,7 +135,7 @@ def lint(session: Session) -> None:
     )
     session.run("isort", ".")
     session.run("black", ".")
-    #session.run("docformatter", "--in-place", "--recursive", ".")
+    # session.run("docformatter", "--in-place", "--recursive", ".")
     session.run(
         "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "."
     )
