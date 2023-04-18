@@ -31,7 +31,10 @@ NAMESPACE = "state"
 
 collect = functools.partial(harvest.reap, tag=NAMESPACE)
 inject = functools.partial(harvest.plant, tag=NAMESPACE)
-param = functools.partial(harvest.sow, tag=NAMESPACE)
+
+# "clobber" here means that parameters get shared across sites with
+# the same name and namespace.
+param = functools.partial(harvest.sow, tag=NAMESPACE, mode="clobber")
 
 
 @dataclasses.dataclass
