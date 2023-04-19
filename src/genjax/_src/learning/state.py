@@ -55,6 +55,7 @@ class Module(Pytree):
     def init(cls, apply):
         def wrapped(*args):
             _, params = collect(apply)(*args)
+            params = harvest.unreap(params)
             pytree_closure = closure_convert(apply)
             return Module(params, inject(pytree_closure))
 

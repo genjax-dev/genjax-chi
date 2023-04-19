@@ -1447,7 +1447,7 @@ tpu = ["jaxlib (==0.4.7)", "libtpu-nightly (==0.1.dev20230327)", "requests"]
 type = "git"
 url = "https://github.com/google/jax"
 reference = "main"
-resolved_reference = "6ca249da7848bd81ee19b2c02d319d9238db0084"
+resolved_reference = "c84446488827cc4dba894a8bc50c981227eb5ec1"
 
 [[package]]
 name = "jaxlib"
@@ -2203,14 +2203,14 @@ testing = ["coverage", "pyyaml"]
 
 [[package]]
 name = "markdown-exec"
-version = "1.5.3"
+version = "1.6.0"
 description = "Utilities to execute code blocks in Markdown files."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "markdown_exec-1.5.3-py3-none-any.whl", hash = "sha256:b5c74553a1ab43bf143ef8ebb7a04031221b89ff0a5b8fc63e34f054d195e653"},
-    {file = "markdown_exec-1.5.3.tar.gz", hash = "sha256:970cbdf22f03e2131e16e96f4d8d9ba65c6b31535fdbf0f2a7994195f90e1b98"},
+    {file = "markdown_exec-1.6.0-py3-none-any.whl", hash = "sha256:7dc22dda1e94815d72529caf6ec7a44a164d68e204894a48d4d0702425517504"},
+    {file = "markdown_exec-1.6.0.tar.gz", hash = "sha256:a52a84dda65c841f1a6a605d219cef9503b0a38fef8cd6c1f19b41a02d0e8d9d"},
 ]
 
 [package.dependencies]
@@ -3536,14 +3536,14 @@ files = [
 
 [[package]]
 name = "pygments"
-version = "2.15.0"
+version = "2.15.1"
 description = "Pygments is a syntax highlighting package written in Python."
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "Pygments-2.15.0-py3-none-any.whl", hash = "sha256:77a3299119af881904cd5ecd1ac6a66214b6e9bed1f2db16993b54adede64094"},
-    {file = "Pygments-2.15.0.tar.gz", hash = "sha256:f7e36cffc4c517fbc252861b9a6e4644ca0e5abadf9a113c72d1358ad09b9500"},
+    {file = "Pygments-2.15.1-py3-none-any.whl", hash = "sha256:db2db3deb4b4179f399a09054b023b6a586b76499d36965813c71aa8ed7b5fd1"},
+    {file = "Pygments-2.15.1.tar.gz", hash = "sha256:8ace4d3c1dd481894b2005f560ead0f9f19ee64fe983366be1a21e171d12775c"},
 ]
 
 [package.extras]
