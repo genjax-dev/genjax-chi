@@ -17,7 +17,8 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.11, <3.12"
-jax = {git = "https://github.com/google/jax", branch = "main"}
+#jax = {git = "https://github.com/google/jax", branch = "main"}
+jax = "^0.4.1"
 jaxlib = "^0.4.1"
 numpy = "^1.24.0"
 tensorflow-probability = "^0.19.0"

@@ -138,9 +138,11 @@ class ContextualTrace(jc.Trace):
 
     post_process_map = post_process_call
 
-    def process_custom_jvp_call(self, primitive, fun, jvp, tracers):
+    def process_custom_jvp_call(self, primitive, fun, jvp, tracers, *, symbolic_zeros):
         context = staging.get_dynamic_context(self)
-        return context.process_custom_jvp_call(self, primitive, fun, jvp, tracers)
+        return context.process_custom_jvp_call(
+            self, primitive, fun, jvp, tracers, symbolic_zeros=symbolic_zeros
+        )
 
     def post_process_custom_jvp_call(self, out_tracers, jvp_was_run):
         context = staging.get_dynamic_context(self)
@@ -195,7 +197,9 @@ class Context(Pytree):
     ):
         raise NotImplementedError
 
-    def process_custom_jvp_call(self, trace, primitive, fun, jvp, tracers):
+    def process_custom_jvp_call(
+        self, trace, primitive, fun, jvp, tracers, *, symbolic_zeros
+    ):
         raise NotImplementedError
 
     def post_process_custom_jvp_call(self, trace, out_tracers, jvp_was_run):
