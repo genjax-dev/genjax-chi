@@ -66,4 +66,4 @@ class Module(Pytree):
 # Shorthands #
 ##############
 
-module = Module.init
+init = Module.init
