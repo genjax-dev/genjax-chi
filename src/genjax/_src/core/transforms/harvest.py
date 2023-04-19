@@ -389,7 +389,7 @@ class Reap(Pytree):
 def unreap(v):
     def _unwrap(v):
         if isinstance(v, Reap):
-            return reap.value
+            return v.value
         else:
             return v
 
