@@ -386,6 +386,19 @@ class Reap(Pytree):
         return Reap(metadata, value)
 
 
+def unreap(v):
+    def _unwrap(v):
+        if isinstance(v, Reap):
+            return reap.value
+        else:
+            return v
+
+    def _check(v):
+        return isinstance(v, Reap)
+
+    return jtu.tree_map(_unwrap, v, is_leaf=_check)
+
+
 @dataclasses.dataclass
 class ReapContext(HarvestContext):
     settings: HarvestSettings
