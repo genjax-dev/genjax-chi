@@ -224,6 +224,11 @@ class TrieSelection(Selection):
             sub = self.trie[k]
             if sub is None:
                 sub = NoneSelection()
+
+            # Handles hierarchical in Trie.
+            elif isinstance(sub, Trie):
+                sub = TrieSelection(sub)
+
             under = sub.filter(v)
             return k, under
 
