@@ -67,6 +67,18 @@ class DiscreteHMMConfiguration(Pytree):
         )
 
     @classmethod
+    def copy(cls, config, transition_tensor, observation_tensor):
+        return DiscreteHMMConfiguration(
+            config.linear_grid_dim,
+            config.adjacency_distance_trans,
+            config.adjacency_distance_obs,
+            config.sigma_trans,
+            config.sigma_obs,
+            jnp.array(transition_tensor),
+            jnp.array(observation_tensor),
+        )
+
+    @classmethod
     def new(
         cls,
         linear_grid_dim: IntArray,
