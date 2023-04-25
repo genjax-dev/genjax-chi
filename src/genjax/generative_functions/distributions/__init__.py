@@ -12,15 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    DiscreteHMM,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    DiscreteHMMConfiguration,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    forward_filtering_backward_sampling,
-)
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.scipy.bernoulli import bernoulli
@@ -160,9 +151,6 @@ __all__ = [
     "cauchy",
     "categorical",
     "dirichlet",
-    "DiscreteHMM",
-    "DiscreteHMMConfiguration",
-    "forward_filtering_backward_sampling",
     "exponential",
     "gamma",
     "laplace",
