@@ -621,13 +621,13 @@ class UnfoldCombinator(GenerativeFunction):
             # If there is an index failure, `assess` must fail
             # because we must provide a constraint for every generative
             # function call.
-            #jax.lax.cond(
+            # jax.lax.cond(
             #    check,
             #    lambda *args: None,
             #    lambda *args: self._throw_index_check_host_exception(*args),
             #    count,
             #    chm.get_index(),
-            #)
+            # )
 
             key, (retval, score) = self.kernel.assess(key, chm, (state, *static_args))
 

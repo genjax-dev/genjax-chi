@@ -219,6 +219,16 @@ class TrieSelection(Selection):
             trie[addr] = AllSelection()
         return TrieSelection(trie)
 
+    @typecheck
+    @classmethod
+    def with_selections(cls, selections: Dict):
+        assert isinstance(selections, Dict)
+        trie = Trie.new()
+        for (k, v) in selections.items():
+            assert isinstance(v, Selection)
+            trie.trie_insert(k, v)
+        return TrieChoiceMap(trie)
+
     def filter(self, tree):
         def _inner(k, v):
             sub = self.trie[k]
@@ -331,4 +341,5 @@ class TrieConvertable:
 choice_map = TrieChoiceMap.new
 chm = choice_map
 select = TrieSelection.new
+select_with = TrieSelection.with_selections
 sel = select
