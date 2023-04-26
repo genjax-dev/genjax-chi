@@ -576,7 +576,7 @@ class UnfoldCombinator(GenerativeFunction):
             return self._update_empty(key, prev, chm, argdiffs)
 
     def _throw_index_check_host_exception(self, index: IntArray):
-        def _inner(count, transforms):
+        def _inner(index, _):
             raise Exception(
                 f"\nUnfoldCombinator {self} received a choice map with mismatched indices (at index {index}) in assess."
             )
