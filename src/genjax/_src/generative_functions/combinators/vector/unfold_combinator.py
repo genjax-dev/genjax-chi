@@ -621,10 +621,9 @@ class UnfoldCombinator(GenerativeFunction):
             # function call.
             concrete_cond(
                 check,
-                lambda *args: self._throw_index_check_host_exception(
-                    chm.get_index(),
-                ),
-                lambda *args: None,
+                lambda index: self._throw_index_check_host_exception(index),
+                lambda index: None,
+                chm.get_index(),
             )
 
             key, (retval, score) = self.kernel.assess(key, chm, (state, *static_args))
