@@ -272,6 +272,11 @@ class TrieComplementSelection(Selection):
             sub = self.trie[k]
             if sub is None:
                 sub = NoneSelection()
+
+            # Handles hierarchical in Trie.
+            elif isinstance(sub, Trie):
+                sub = TrieSelection(sub)
+
             under = sub.complement().filter(v)
             return k, under
 
