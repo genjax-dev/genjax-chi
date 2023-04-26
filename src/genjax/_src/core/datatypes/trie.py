@@ -227,7 +227,7 @@ class TrieSelection(Selection):
         for (k, v) in selections.items():
             assert isinstance(v, Selection)
             trie.trie_insert(k, v)
-        return TrieChoiceMap(trie)
+        return TrieSelection(trie)
 
     def filter(self, tree):
         def _inner(k, v):
