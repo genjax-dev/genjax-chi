@@ -418,16 +418,20 @@ class ReapContext(HarvestContext):
     def handle_sow(self, *values, name, tag, tree, mode):
         """Stores a sow in the reaps dictionary."""
         del tag
-        if name in self.reaps:
+        if name in self.reaps and mode == "clobber":
+            values = unreap(self.reaps[name])
+        elif name in self.reaps:
             raise ValueError(f"Variable has already been reaped: {name}")
-        avals = jtu.tree_unflatten(
-            tree,
-            [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
-        )
-        self.reaps[name] = Reap.new(
-            jtu.tree_unflatten(tree, values),
-            dict(mode=mode, aval=avals),
-        )
+        else:
+            avals = jtu.tree_unflatten(
+                tree,
+                [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
+            )
+            self.reaps[name] = Reap.new(
+                jtu.tree_unflatten(tree, values),
+                dict(mode=mode, aval=avals),
+            )
+
         return values
 
     def process_nest(self, trace, f, *tracers, scope, name, **params):
