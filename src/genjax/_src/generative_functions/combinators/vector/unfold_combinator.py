@@ -616,17 +616,18 @@ class UnfoldCombinator(GenerativeFunction):
 
             check = count == chm.get_index()
 
+            # TODO: the below doesn't work when `vmap` is used.
             # This inserts a host callback check for bounds checking.
             # If there is an index failure, `assess` must fail
             # because we must provide a constraint for every generative
             # function call.
-            concrete_cond(
-                check,
-                lambda *args: None,
-                lambda *args: self._throw_index_check_host_exception(*args),
-                count,
-                chm.get_index(),
-            )
+            #jax.lax.cond(
+            #    check,
+            #    lambda *args: None,
+            #    lambda *args: self._throw_index_check_host_exception(*args),
+            #    count,
+            #    chm.get_index(),
+            #)
 
             key, (retval, score) = self.kernel.assess(key, chm, (state, *static_args))
 
