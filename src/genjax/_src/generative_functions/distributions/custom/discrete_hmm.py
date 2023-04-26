@@ -244,7 +244,7 @@ def log_data_marginal(config, observation_sequence):
 def latent_sequence_posterior(
     config: DiscreteHMMConfiguration, latent_point, observation_sequence
 ):
-    hmm, marginals = latent_marginals(config, observation_sequence)
+    hmm, _ = latent_marginals(config, observation_sequence)
 
     def _inner(carry, x):
         latent, obs = x
