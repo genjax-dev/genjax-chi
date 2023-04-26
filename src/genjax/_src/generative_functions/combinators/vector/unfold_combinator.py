@@ -622,8 +622,8 @@ class UnfoldCombinator(GenerativeFunction):
             # function call.
             concrete_cond(
                 check,
-                lambda *args: self._throw_index_check_host_exception(*args),
                 lambda *args: None,
+                lambda *args: self._throw_index_check_host_exception(*args),
                 count,
                 chm.get_index(),
             )
