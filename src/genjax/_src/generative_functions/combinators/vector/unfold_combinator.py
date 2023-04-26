@@ -576,14 +576,14 @@ class UnfoldCombinator(GenerativeFunction):
             return self._update_empty(key, prev, chm, argdiffs)
 
     def _throw_index_check_host_exception(self, count: IntArray, index: IntArray):
-        def _inner(pair, _):
-            count, index = pair
+        def _inner(pair, transforms):
+            (count, index) = pair
             raise Exception(
                 f"\nUnfoldCombinator {self} received a choice map with mismatched indices (count {count}, at index {index}) in assess."
             )
 
         hcb.id_tap(
-            lambda pair: _inner(pair),
+            lambda *args: _inner(*args),
             (count, index),
             result=None,
         )
@@ -622,8 +622,8 @@ class UnfoldCombinator(GenerativeFunction):
             # function call.
             concrete_cond(
                 check,
-                lambda *args: self._throw_index_check_host_exception(*args),
-                lambda *args: None,
+                lambda *args: self._throw_index_check_host_exception(count, index),
+                lambda index: None,
                 count,
                 chm.get_index(),
             )
