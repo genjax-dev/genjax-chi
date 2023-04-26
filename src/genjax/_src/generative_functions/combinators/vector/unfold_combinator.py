@@ -623,7 +623,7 @@ class UnfoldCombinator(GenerativeFunction):
             concrete_cond(
                 check,
                 lambda *args: self._throw_index_check_host_exception(*args),
-                lambda index: None,
+                lambda *args: None,
                 count,
                 chm.get_index(),
             )
