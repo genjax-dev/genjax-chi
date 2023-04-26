@@ -419,7 +419,7 @@ class ReapContext(HarvestContext):
         """Stores a sow in the reaps dictionary."""
         del tag
         if name in self.reaps and mode == "clobber":
-            values = unreap(self.reaps[name])
+            values, _ = jtu.tree_flatten(unreap(self.reaps[name]))
         elif name in self.reaps:
             raise ValueError(f"Variable has already been reaped: {name}")
         else:
