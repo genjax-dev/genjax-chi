@@ -583,9 +583,8 @@ class UnfoldCombinator(GenerativeFunction):
             )
 
         hcb.id_tap(
-            lambda *args: _inner(args),
-            count,
-            index,
+            lambda pair: _inner(pair),
+            (count, index),
             result=None,
         )
         return None
