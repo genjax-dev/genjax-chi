@@ -41,6 +41,7 @@ from genjax._src.core.datatypes.trie import chm
 from genjax._src.core.datatypes.trie import choice_map
 from genjax._src.core.datatypes.trie import sel
 from genjax._src.core.datatypes.trie import select
+from genjax._src.core.datatypes.trie import select_with
 from genjax._src.core.pytree import Pytree
 
 
@@ -65,6 +66,7 @@ __all__ = [
     "choice_map",
     "chm",
     "select",
+    "select_with",
     "sel",
     # Mask types.
     "BooleanMask",

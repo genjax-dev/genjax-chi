@@ -148,7 +148,7 @@ class VectorChoiceMap(ChoiceMap):
 
     def get_selection(self):
         subselection = self.inner.get_selection()
-        return VectorSelection.new(self.indices, subselection)
+        return VectorSelection.new(subselection)
 
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
@@ -190,28 +190,18 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class VectorSelection(Selection):
-    indices: IntArray
     inner: Selection
 
     def flatten(self):
-        return (self.indices, self.inner), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, indices: Union[List, IntArray], inner: Selection):
-        if isinstance(indices, list):
-            indices = jnp.array(indices)
-        return VectorSelection(indices, inner)
+        return (self.inner,), ()
 
     def filter(self, tree):
+        assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
         filtered = self.inner.filter(tree)
-        if isinstance(tree, VectorTrace) or isinstance(tree, VectorChoiceMap):
-            return jtu.tree_map(lambda v: v[self.indices], filtered)
-        else:
-            return filtered
+        return VectorChoiceMap(tree.indices, filtered)
 
     def complement(self):
-        raise Exception("VectorSelection doesn't currently support complement.")
+        return VectorSelection(self.inner.complement())
 
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
@@ -223,6 +213,7 @@ class VectorSelection(Selection):
         return self.inner.get_subtrees_shallow()
 
     def merge(self, other):
+        assert isinstance(other, VectorSelection)
         return self.inner.merge(other)
 
 
