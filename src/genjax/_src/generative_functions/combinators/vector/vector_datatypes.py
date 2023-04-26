@@ -119,6 +119,7 @@ class VectorChoiceMap(ChoiceMap):
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
+
         # convert list to array.
         if isinstance(indices, list):
             # indices can't be empty.
