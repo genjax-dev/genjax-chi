@@ -496,7 +496,7 @@ class PlantContext(HarvestContext):
 
     def handle_sow(self, *values, name, tag, tree, mode):
         """Returns the value stored in the plants dictionary."""
-        if name in self._already_planted:
+        if name in self._already_planted and mode != "clobber":
             raise ValueError(f"Variable has already been planted: {name}")
         if name in self.plants:
             self._already_planted.add(name)
