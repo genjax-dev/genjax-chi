@@ -101,3 +101,6 @@ class TFPMixture(ExactDensity):
     def logpdf(self, v, cat_args, component_args, **kwargs):
         mix = self.make_tfp_distribution(cat_args, component_args)
         return jnp.sum(mix.log_prob(v))
+
+
+tfp_mixture = TFPMixture

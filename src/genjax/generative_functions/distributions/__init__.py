@@ -69,6 +69,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_logit_normal,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_mixture,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_moyal,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -144,6 +147,7 @@ __all__ = [
     "tfp_weibull",
     "tfp_zipf",
     "TFPMixture",
+    "tfp_mixture",
     "Distribution",
     "ExactDensity",
     "beta",
