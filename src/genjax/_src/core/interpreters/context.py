@@ -197,10 +197,12 @@ class Context(Pytree):
     ):
         raise NotImplementedError
 
+    # TODO: got this impl from the partial evaluation interpreter,
+    # is it correct?
     def process_custom_jvp_call(
         self, trace, primitive, fun, jvp, tracers, *, symbolic_zeros
     ):
-        raise NotImplementedError
+        return fun.call_wrapped(*tracers)
 
     def post_process_custom_jvp_call(self, trace, out_tracers, jvp_was_run):
         raise NotImplementedError

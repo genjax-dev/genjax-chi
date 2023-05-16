@@ -31,7 +31,6 @@ from genjax._src.core.datatypes.trie import TrieSelection
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 
@@ -115,7 +114,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, indices, inner: ChoiceMap) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
