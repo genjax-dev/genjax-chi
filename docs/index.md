@@ -27,7 +27,7 @@
 === "Model code"
    
     <p align="center">
-    Defining a beta-bernoulli process in GenJAX.
+    Defining a beta-bernoulli process model as a generative function in GenJAX.
     </p>
 
     ```python
@@ -49,7 +49,7 @@
     # Sampling importance resampling.
     def sir(key: PRNGKey, gen_fn: GenerativeFunction, model_args: Tuple,
             obs: ChoiceMap, n_samples: Int):
-        key, sub_keys = genjax.slash(key, n_samples)
+        key, sub_keys = genjax.slash(key, n_samples) # split keys
         _, (lws, trs) = jax.vmap(gen_fn.importance, in_axes=(0, None, None))(
             sub_keys,
             obs,
@@ -60,14 +60,6 @@
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
         return key, (trs, log_normalized_weights, log_ml_estimate)
     ```
-
-===   "Results"
-    
-    ```python exec="on" source="material-block"
-    print(5 + 10)
-    print("Hello Markdown!")
-    ```
-
 </div>
 
 ## What sort of things do you use GenJAX for?
