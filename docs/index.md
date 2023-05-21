@@ -88,7 +88,7 @@ Probabilistic modeling and inference is hard: understanding a domain well enough
 
     Gen considers a wide class of models - include Bayesian nonparametrics, open-universe models, and models over rich structures (like programs!) - which don't natively support efficient exact inference.
 
-Probabilistic have historically considered the following design loop.
+Model writers have historically considered the following design loop.
 
 ``` mermaid
 graph LR
