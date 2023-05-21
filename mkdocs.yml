@@ -26,7 +26,7 @@ nav:
   - Language apéritifs: genjax/language_aperitifs.md
   - Public API reference:
       - Core: genjax/library/core.md
-      - Generative functions: 
+      - Generative function languages: 
           - genjax/library/generative_functions/index.md
           - Builtin language: genjax/library/generative_functions/builtin.md
       - Inference: genjax/library/inference.md
