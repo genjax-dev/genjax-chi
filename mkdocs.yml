@@ -21,9 +21,9 @@ nav:
   - Home: 
       - index.md
       - Gen's concepts: genjax/concepts/generative_functions.md
+      - Language apéritifs: genjax/language_aperitifs.md
       - Diff against Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
-  - Language apéritifs: genjax/language_aperitifs.md
   - Public API reference:
       - Core: genjax/library/core.md
       - Generative function languages: 
