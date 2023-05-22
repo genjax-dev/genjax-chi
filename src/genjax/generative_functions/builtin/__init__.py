@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    BuiltinGenerativeFunction,
+    BuiltinGenerativeFunction, BuiltinTrace
 )
 from genjax._src.generative_functions.builtin.builtin_gen_fn import inline
 from genjax._src.generative_functions.builtin.builtin_gen_fn import lang
@@ -25,6 +25,7 @@ from genjax._src.generative_functions.builtin.builtin_primitives import trace
 
 __all__ = [
     "BuiltinGenerativeFunction",
+    "BuiltinTrace",
     "trace",
     "cache",
     "save",

@@ -1,10 +1,8 @@
-## Interpreters
-
 JAX supports transformations of pure, numerical Python programs by staging out interpreters which evaluate [`Jaxpr`](https://jax.readthedocs.io/en/latest/jaxpr.html) representations of programs.
 
 The `Core` module features interpreter infrastructure, and common transforms designed to facilitate certain types of transformations.
 
-### Contextual interpreter
+## Contextual interpreter
 
 A common type of interpreter involves overloading desired primitives with context-specific behavior by inheriting from `Trace` and define the correct methods to process the primitives.
 

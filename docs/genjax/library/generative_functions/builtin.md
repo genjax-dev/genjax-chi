@@ -2,7 +2,11 @@
     options:
       show_root_heading: false
 
-The `Builtin` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. Below, we illustrate a simple example:
+## Usage
+
+The `Builtin` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. 
+
+Below, we illustrate a simple example:
     
 ```python
 from genjax import beta 
@@ -23,4 +27,20 @@ def joint():
     return v
 ```
 
-## Control flow within the DSL
+## Language primitives
+
+The builtin language exposes custom primitives, which are handled by JAX interpreters to support the semantics of the generative function interface.
+
+### `trace`
+
+The `trace` primitive provides access to the to invoke another generative function as a callee.
+
+### `cache`
+
+The `cache` primitive is designed to expose a space vs. time trade-off for incremental computation in Gen's `update` interface.
+
+## Generative datatypes
+
+The builtin language implements a trie-like trace, choice map, and selection.
+
+::: genjax.generative_functions.builtin.BuiltinTrace

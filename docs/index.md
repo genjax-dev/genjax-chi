@@ -1,6 +1,6 @@
 # Overview
 
-**GenJAX: a probabilistic programming library designed from the ground up to scale Bayesian modeling and inference into high performance settings.** (1)
+**GenJAX: a probabilistic programming library designed to scale probabilistic modeling and inference into high performance settings.** (1)
 { .annotate }
 
 1.  Here, _high performance_ means massively parallel, either cores or devices.
