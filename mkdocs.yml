@@ -25,11 +25,20 @@ nav:
       - Diff against Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
   - Public API reference:
-      - Core: genjax/library/core.md
+      - Core: 
+          - genjax/library/core/index.md
+          - Datatypes: genjax/library/core/datatypes.md
+          - Interpreters: genjax/library/core/interpreters.md
       - Generative function languages: 
           - genjax/library/generative_functions/index.md
+          - Distributions: genjax/library/generative_functions/distributions.md
           - Builtin language: genjax/library/generative_functions/builtin.md
-      - Inference: genjax/library/inference.md
+          - Combinators: genjax/library/generative_functions/combinators.md
+          - Extension languages: genjax/library/generative_functions/extension.md
+      - Inference: 
+          - genjax/library/inference/index.md
+          - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
+          - Variational inference:
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
