@@ -96,6 +96,11 @@ class ChoiceMap(Tree):
 
 @dataclasses.dataclass
 class Trace(ChoiceMap, Tree):
+    """
+    Abstract base class for traces of generative functions. 
+
+    A `Trace` is a data structure used to represent sampled executions of a generative function. It tracks metadata associated with log probability values, as well as values associated with the invocation of a generative function, including the arguments it was invoked with, its return value, and the identity of the generative function itself.
+    """
     @abc.abstractmethod
     def get_retval(self) -> Any:
         pass
@@ -201,13 +206,11 @@ class Selection(Tree):
 
 @dataclasses.dataclass
 class GenerativeFunction(Pytree):
-    """Abstract class which provides an inheritance base for user-defined
-    implementations of the generative function interface methods e.g. the
-    `BuiltinGenerativeFunction` and `Distribution` languages both implement a
-    class inheritor of `GenerativeFunction`.
+    """
+    Abstract base class for generative functions. 
 
-    Any implementation will interact with the JAX tracing machinery,
-    however, so there are specific API requirements above the requirements
+    Any concrete implementation will interact with the JAX tracing machinery
+    so there are specific API requirements above the requirements
     enforced in other languages (unlike Gen in Julia, for example).
 
     The user *must* match the interface signatures of the native JAX
