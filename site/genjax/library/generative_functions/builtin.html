@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../../assets/img/gen-logo.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.12+insiders-4.34.0">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.14+insiders-4.35.1">
     
     
       
@@ -567,7 +567,7 @@
   <span class="md-ellipsis">
     
   
-    Datatypes
+    Generative datatypes
   
 
     
@@ -840,10 +840,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#control-flow-within-the-dsl" class="md-nav__link">
+  <a href="#usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Control flow within the DSL
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generative-datatypes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generative datatypes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax.generative_functions.builtin.BuiltinTrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BuiltinTrace
       
     </span>
   </a>
@@ -1291,10 +1352,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#control-flow-within-the-dsl" class="md-nav__link">
+  <a href="#usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Control flow within the DSL
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generative-datatypes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generative datatypes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax.generative_functions.builtin.BuiltinTrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BuiltinTrace
       
     </span>
   </a>
@@ -1420,7 +1542,9 @@ hierarchical patterns of generative computation.</p>
 
   </div>
 
-</div><p>The <code>Builtin</code> language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. Below, we illustrate a simple example:</p>
+</div><h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>The <code>Builtin</code> language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. </p>
+<p>Below, we illustrate a simple example:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">genjax</span> <span class="kn">import</span> <span class="n">beta</span> 
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span> <span class="nn">genjax</span> <span class="kn">import</span> <span class="n">bernoulli</span> 
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span> <span class="nn">genjax</span> <span class="kn">import</span> <span class="n">uniform</span> 
@@ -1438,7 +1562,152 @@ hierarchical patterns of generative computation.</p>
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">v</span> <span class="o">=</span> <span class="n">beta_bernoulli_process</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">@</span> <span class="s2">&quot;bbp&quot;</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="k">return</span> <span class="n">v</span>
 </code></pre></div>
-<h2 id="control-flow-within-the-dsl">Control flow within the DSL<a class="headerlink" href="#control-flow-within-the-dsl" title="Permanent link">&para;</a></h2>
+<h2 id="language-primitives">Language primitives<a class="headerlink" href="#language-primitives" title="Permanent link">&para;</a></h2>
+<p>The builtin language exposes custom primitives, which are handled by JAX interpreters to support the semantics of the generative function interface.</p>
+<h3 id="trace"><code>trace</code><a class="headerlink" href="#trace" title="Permanent link">&para;</a></h3>
+<p>The <code>trace</code> primitive provides access to the to invoke another generative function as a callee.</p>
+<h3 id="cache"><code>cache</code><a class="headerlink" href="#cache" title="Permanent link">&para;</a></h3>
+<p>The <code>cache</code> primitive is designed to expose a space vs. time trade-off for incremental computation in Gen's <code>update</code> interface.</p>
+<h2 id="generative-datatypes">Generative datatypes<a class="headerlink" href="#generative-datatypes" title="Permanent link">&para;</a></h2>
+<p>The builtin language implements a trie-like trace, choice map, and selection.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="genjax.generative_functions.builtin.BuiltinTrace" class="doc doc-heading">
+        <code>genjax.generative_functions.builtin.BuiltinTrace</code>
+
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#genjax.generative_functions.builtin.BuiltinTrace" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+  <div class="doc doc-contents first">
+      <p class="doc doc-class-bases">
+        Bases: <code><a class="autorefs autorefs-internal" title="genjax._src.core.datatypes.generative.Trace" href="../core/datatypes.html#genjax.core.Trace">Trace</a></code></p>
+
+
+
+        <details class="quote">
+          <summary>Source code in <code>src/genjax/_src/generative_functions/builtin/builtin_datatypes.py</code></summary>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span>
+<span class="normal"><a href="#__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#__codelineno-0-48">48</a></span>
+<span class="normal"><a href="#__codelineno-0-49">49</a></span>
+<span class="normal"><a href="#__codelineno-0-50">50</a></span>
+<span class="normal"><a href="#__codelineno-0-51">51</a></span>
+<span class="normal"><a href="#__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#__codelineno-0-77">77</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="nd">@dataclass</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="k">class</span> <span class="nc">BuiltinTrace</span><span class="p">(</span><span class="n">Trace</span><span class="p">):</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="n">gen_fn</span><span class="p">:</span> <span class="n">GenerativeFunction</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">retval</span><span class="p">:</span> <span class="n">Any</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">choices</span><span class="p">:</span> <span class="n">Trie</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">cache</span><span class="p">:</span> <span class="n">Trie</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">score</span><span class="p">:</span> <span class="n">FloatArray</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="k">return</span> <span class="p">(</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">gen_fn</span><span class="p">,</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">retval</span><span class="p">,</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">,</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>        <span class="p">),</span> <span class="p">()</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="k">def</span> <span class="nf">get_gen_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_fn</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">def</span> <span class="nf">get_choices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="k">return</span> <span class="n">TrieChoiceMap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">)</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="k">def</span> <span class="nf">get_retval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retval</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="k">def</span> <span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">selection</span><span class="p">:</span> <span class="n">Selection</span><span class="p">):</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>        <span class="n">weight</span> <span class="o">=</span> <span class="mf">0.0</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="o">.</span><span class="n">get_subtrees_shallow</span><span class="p">():</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>            <span class="k">if</span> <span class="n">selection</span><span class="o">.</span><span class="n">has_subtree</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>                <span class="n">weight</span> <span class="o">+=</span> <span class="n">v</span><span class="o">.</span><span class="n">project</span><span class="p">(</span><span class="n">selection</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="k">return</span> <span class="n">weight</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="k">def</span> <span class="nf">has_cached_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">has_subtree</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="k">def</span> <span class="nf">get_cached_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">get_subtree</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+        </details>
+
+  
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+  </div>
+
+</div>
 
   
     
@@ -1454,7 +1723,7 @@ hierarchical patterns of generative computation.</p>
         <span class="md-icon" title="Last update">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
         </span>
-        <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 21, 2023</span>
+        <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 22, 2023</span>
       </span>
     
     
@@ -1553,7 +1822,7 @@ hierarchical patterns of generative computation.</p>
     <script id="__config" type="application/json">{"base": "../../..", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tooltips", "content.tabs.link", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../../assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.8192e063.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.10c6cd24.min.js"></script>
       
         <script src="../../../js/mathjax.js"></script>
       
