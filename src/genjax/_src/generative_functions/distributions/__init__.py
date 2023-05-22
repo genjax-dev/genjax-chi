@@ -14,9 +14,14 @@
 
 """
 This module provides:
-    * Abstract base classes for distributions which inherit from `GenerativeFunction`, including `Distribution` and `ExactDensity`. The latter assumes that the inheritor exposes _exact density evaluation_, while the former makes no such assumption.
-    * Several distributions as generative functions from JAX's `scipy` module, as well as TensorFlow Distributions from TensorFlow Probability (tfp) using the JAX backend.
-    * Custom distributions, including ones with exact posteriors (like discrete HMMs).
-    * A language (`coryx`) based on [`oryx`](https://github.com/jax-ml/oryx) for defining new distribution objects from inverse log determinant Jacobian transformations on existing distributions.
-    * A language (`prox`) for defining approximate distributions using inference algorithms that support estimation of their own densities.
+
+* Abstract base classes for distributions which inherit from `GenerativeFunction`, including `Distribution` and `ExactDensity`. The latter assumes that the inheritor exposes _exact density evaluation_, while the former makes no such assumption.
+
+* Several distributions as generative functions from JAX's `scipy` module, as well as TensorFlow Distributions from TensorFlow Probability (tfp) using the JAX backend.
+
+* Custom distributions, including ones with exact posteriors (like discrete HMMs).
+
+* A language (`coryx`) based on [`oryx`](https://github.com/jax-ml/oryx) for defining new distribution objects from inverse log determinant Jacobian transformations on existing distributions.
+
+* A language (`prox`) for defining approximate distributions using inference algorithms that support estimation of their own densities.
 """
