@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module provides the core functionality and JAX compatibility layer
+"""
+This module provides the core functionality and JAX compatibility layer
 which `GenJAX` generative function and inference modules are built
 on top of. It contains (truncated, and in no particular order):
 
 * Core [Gen](https://www.gen.dev/) associated data types for generative functions.
-
+    
 * Utility functionality for automatically registering class definitions as valid `Pytree` method implementors (guaranteeing `flatten`/`unflatten` compatibility across JAX transform boundaries). For more information, see [Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
-
+    
 * Staging functionality that allows lifting of pure, numerical Python programs to `ClosedJaxpr` instances.
 
 * Transformation interpreters: interpreter-based transformations on which operate on `ClosedJaxpr` instances. Interpreters are all written in initial style - they operate on `ClosedJaxpr` instances, and don't implement their own custom `jax.Tracer` types - but they are JAX compatible, implying that they can be staged out for zero runtime cost.
