@@ -22,23 +22,34 @@ nav:
       - index.md
       - Gen's concepts: genjax/concepts/generative_functions.md
       - Language apéritifs: genjax/language_aperitifs.md
-      - Diff against Gen.jl: genjax/diff_jl.md
+      - Comparisons to Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
   - Public API reference:
       - Core: 
           - genjax/library/core/index.md
           - Datatypes: genjax/library/core/datatypes.md
           - Interpreters: genjax/library/core/interpreters.md
+          - Function transformations: genjax/library/core/transforms.md
       - Generative function languages: 
           - genjax/library/generative_functions/index.md
-          - Distributions: genjax/library/generative_functions/distributions.md
+          - Distributions: 
+              - genjax/library/generative_functions/distributions/index.md
+              - SciPy: genjax/library/generative_functions/distributions/scipy.md
+              - TensorFlow Distributions: genjax/library/generative_functions/distributions/tfd.md
+              - Coryx: genjax/library/generative_functions/distributions/coryx.md
+              - Prox: genjax/library/generative_functions/distributions/prox.md
           - Builtin language: genjax/library/generative_functions/builtin.md
           - Combinators: genjax/library/generative_functions/combinators.md
           - Extension languages: genjax/library/generative_functions/extension.md
       - Inference: 
           - genjax/library/inference/index.md
+          - Importance sampling: genjax/library/inference/is.md
           - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
-          - Variational inference:
+          - Variational inference: genjax/library/inference/vi.md
+      - Differentiable programming:
+          - genjax/library/diff_prog/index.md
+          - Differentiable state: genjax/library/diff_prog/state.md
+          - ADEV: genjax/library/diff_prog/adev.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
