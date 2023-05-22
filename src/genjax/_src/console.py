@@ -15,7 +15,6 @@
 from dataclasses import dataclass
 
 import jax
-import objexplore
 import rich
 import rich.traceback as traceback
 from rich.console import Console
@@ -63,12 +62,6 @@ class GenJAXConsole:
             private=False,
             dunder=False,
         )
-
-    def explore(self, module):
-        if is_notebook():
-            raise Exception("Interactive explore only works in terminal.")
-        else:
-            objexplore.explore(module)
 
 
 def pretty(
