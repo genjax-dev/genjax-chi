@@ -17,7 +17,6 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.8, <3.12"
-#jax = {git = "https://github.com/google/jax", branch = "main"}
 jax = "^0.4.1"
 jaxlib = "^0.4.1"
 numpy = "^1.24.0"
@@ -47,6 +46,9 @@ docformatter = {version = "^1.5.1", extras = ["tomli"]}
 matplotlib = "^3.6.2"
 seaborn = "^0.12.1"
 
+[tool.poetry.group.docs]
+optional = true
+
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.2"
 mkdocs-material = {git = "https://github.com/squidfunk/mkdocs-material-insiders"}
@@ -55,7 +57,6 @@ mkdocs-git-authors-plugin = "^0.7.0"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.2.0", extras=["ansi"]}
-manim = "^0.17.2"
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]
