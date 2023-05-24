@@ -12,6 +12,7 @@
 <div align="center">
 
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
+[![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=for-the-badge&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/)
 [![][jax_badge]](https://github.com/google/jax)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
