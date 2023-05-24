@@ -94,6 +94,7 @@ def tree_unstack(tree):
     new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
     return new_trees
 
+
 def tree_grad_split(tree):
     def _grad_filter(v):
         if static_check_supports_grad(v):
@@ -137,6 +138,7 @@ class Pytree(metaclass=abc.ABCMeta):
 
     Users who mixin this ABC are required to implement `flatten` below, but also gain access to a large set of utility functions for working with `Pytree` data.
     """
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         jtu.register_pytree_node(
@@ -158,7 +160,7 @@ class Pytree(metaclass=abc.ABCMeta):
         ## Example
 
         Let's assume that you are implementing a new dataclass:
-        
+
         ```python
         @dataclass
         class MyFoo(Pytree):
@@ -173,7 +175,6 @@ class Pytree(metaclass=abc.ABCMeta):
         **Note that the ordering in the dataclass declaration _does matter_ - you should put static fields first. The automatically defined `unflatten` method (c.f. below) assumes this ordering.**
 
         """
-        pass
 
     @classmethod
     def unflatten(cls, data, xs):
