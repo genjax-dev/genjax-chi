@@ -7,6 +7,9 @@ GenJAX features a set of core abstract datatypes which build on JAX's `Pytree` i
       members: 
         - flatten
         - unflatten
+        - slice
+        - stack
+        - unstack
 
 ## Trees
 
