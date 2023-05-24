@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.340">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="McCoy Reynolds Becker">
+<meta name="dcterms.date" content="2022-12-07">
+
+<title>Gen ⊗ JAX - Implementing the builtin modeling language</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<meta property="og:title" content="Gen ⊗ JAX - Implementing the builtin modeling language">
+<meta property="og:description" content="This notebook covers the design decisions, implementation ingredients, and interface implementations for the builtin modeling language in GenJAX. It assumes familiarity with the generative function interface, as well as familiarity with JAX’s support for composable interpreters and staging.">
+<meta property="og:site-name" content="Gen ⊗ JAX">
+</head>
+
+<body class="nav-sidebar floating slimcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+      <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../internals/impl_builtin_language/impl_builtin_language.html">Internals</a></li><li class="breadcrumb-item"><a href="../../internals/impl_builtin_language/impl_builtin_language.html">Probabilistic semantics via interpreters</a></li></ol></nav>
+      <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+      </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-center sidebar-header">
+      <a href="../../index.html" class="sidebar-logo-link">
+      <img src="../../logo.png" alt="" class="sidebar-logo py-0 d-lg-inline d-none">
+      </a>
+      <div class="sidebar-tools-main tools-wide">
+    <a href="../../" title="Home" class="quarto-navigation-tool px-1" aria-label="Home"><i class="bi bi-house-heart"></i></a>
+    <a href="http://probcomp.csail.mit.edu/" title="MIT Probabilistic Computing Project" class="quarto-navigation-tool px-1" aria-label="MIT Probabilistic Computing Project"><i class="bi bi-building"></i></a>
+    <a href="https://github.com/probcomp/genjax" title="GitHub repository" class="quarto-navigation-tool px-1" aria-label="GitHub repository"><i class="bi bi-github"></i></a>
+</div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false">
+ <span class="menu-text">Concepts</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/introduction/intro_to_genjax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Generative function combinators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/incremental_computation/incremental.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Incremental computing</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../concepts/gradient_interfaces/gradient_interfaces.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Differentiable programming</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="false">
+ <span class="menu-text">Inference programming</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../intermediate/gaussian_processes/gaussian_processes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Gaussian processes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../intermediate/goal_inference/goal_inference.ipynb" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent goal inference</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">
+ <span class="menu-text">Advanced inference programming</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../advanced/recurse_combinator/recurse_combinator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Recurse combinator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../advanced/prox/prox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><code>Prox</code> (approximate densities)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../advanced/smc_language/smc_language.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SMC inference language</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text">Internals</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../internals/impl_builtin_language/impl_builtin_language.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Probabilistic semantics via interpreters</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-magic-of-jax" id="toc-the-magic-of-jax" class="nav-link active" data-scroll-target="#the-magic-of-jax">The magic of JAX</a></li>
+  <li><a href="#new-semantics-via-program-transformations" id="toc-new-semantics-via-program-transformations" class="nav-link" data-scroll-target="#new-semantics-via-program-transformations">New semantics via program transformations</a>
+  <ul class="collapse">
+  <li><a href="#a-high-level-view" id="toc-a-high-level-view" class="nav-link" data-scroll-target="#a-high-level-view">A high level view</a></li>
+  <li><a href="#interpreter-design-decisions" id="toc-interpreter-design-decisions" class="nav-link" data-scroll-target="#interpreter-design-decisions">Interpreter design decisions</a></li>
+  </ul></li>
+  <li><a href="#how-does-propagate-work" id="toc-how-does-propagate-work" class="nav-link" data-scroll-target="#how-does-propagate-work">How does <code>propagate</code> work?</a>
+  <ul class="collapse">
+  <li><a href="#what-happens-in-simulate" id="toc-what-happens-in-simulate" class="nav-link" data-scroll-target="#what-happens-in-simulate">What happens in <code>simulate</code>?</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/internals/impl_builtin_language/impl_builtin_language.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
+    </div>
+<!-- main -->
+<main class="content page-columns page-full" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Implementing the builtin modeling language</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>McCoy Reynolds Becker </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">December 7, 2022</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+<div>
+  <div class="abstract">
+    <div class="abstract-title">Abstract</div>
+    This notebook covers the design decisions, implementation ingredients, and interface implementations for the builtin modeling language in GenJAX. It assumes familiarity with the generative function interface, as well as familiarity with JAX’s support for composable interpreters and staging.
+  </div>
+</div>
+
+</header>
+
+<div class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.tree_util <span class="im">as</span> jtu</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax <span class="im">import</span> GenerativeFunction, ChoiceMap, Selection, trace</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>sns.set_theme(style<span class="op">=</span><span class="st">"white"</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Pretty printing.</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty(width<span class="op">=</span><span class="dv">70</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>One key property of the generative function interface is that it enables a separation between model and inference code - providing an abstraction layer that facilitates the development of modular model pieces, and then inference pieces that abstract over the implementation of the interface.</p>
+<p>Now, implementing the interface on objects, and composing them in various ways (by e.g.&nbsp;specializing the implementation of the interface functions to support any intended composition) is a valid way to construct new generative functions. In fact, this is the pattern which generative function combinators follow - they accept generative functions as input, and produce new generative functions whose implementations are specialized to represent some specific pattern of computation.</p>
+<p>Explicitly constructing generative functions using languages of objects, however, can often feel unwieldy. Part of the way that GenJAX (and <a href="https://github.com/probcomp/Gen.jl">Gen.jl</a>) alleviates this restriction is by exposing languages <em>which construct generative functions from programs</em>. This drastically increases the expressivity available to the programmer.</p>
+<p>In GenJAX, here’s an example of the <code>BuiltinGenerativeFunction</code> language:</p>
+<div class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model(x):</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> genjax.trace(<span class="st">"y"</span>, genjax.Normal)(x, <span class="fl">1.0</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    z <span class="op">=</span> genjax.trace(<span class="st">"z"</span>, genjax.Normal)(y <span class="op">+</span> x, <span class="fl">1.0</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> z</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>When we apply one of the interface functions to this object, we get the associated data types that we expect.</p>
+<div class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> model.simulate(key, (<span class="fl">1.0</span>,))</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>tr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinTrace</span>
+├── gen_fn
+│   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│       └── source
+│           └── &lt;function model&gt;
+├── args
+│   └── <span style="font-weight: bold">tuple</span>
+│       └── (const) 1.0
+├── retval
+│   └──  f32[]
+├── choices
+│   └── <span style="font-weight: bold">Trie</span>
+│       ├── <span style="font-weight: bold">:y</span>
+│       │   └── <span style="font-weight: bold">DistributionTrace</span>
+│       │       ├── gen_fn
+│       │       │   └── <span style="font-weight: bold">_Normal</span>
+│       │       ├── args
+│       │       │   └── <span style="font-weight: bold">tuple</span>
+│       │       │       ├── (const) 1.0
+│       │       │       └── (const) 1.0
+│       │       ├── value
+│       │       │   └──  f32[]
+│       │       └── score
+│       │           └──  f32[]
+│       └── <span style="font-weight: bold">:z</span>
+│           └── <span style="font-weight: bold">DistributionTrace</span>
+│               ├── gen_fn
+│               │   └── <span style="font-weight: bold">_Normal</span>
+│               ├── args
+│               │   └── <span style="font-weight: bold">tuple</span>
+│               │       ├──  f32[]
+│               │       └── (const) 1.0
+│               ├── value
+│               │   └──  f32[]
+│               └── score
+│                   └──  f32[]
+├── cache
+│   └── <span style="font-weight: bold">Trie</span>
+└── score
+    └──  f32[]
+</pre>
+</div>
+</div>
+<p>How exactly do we do this? In this notebook, you’re going to find out. You’ll also get a chance to explore some of the capabilities which JAX exposes to library designers. Ideally, you’ll also get a sense of some of the limitations of JAX (and GenJAX) - which are restricted to support programs which are amenable to GPU/TPU acceleration.</p>
+<section id="the-magic-of-jax" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="the-magic-of-jax">The magic of JAX</h2>
+<p>Let’s examine the generative function object:</p>
+<div class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>model</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinGenerativeFunction</span>
+└── source
+    └── &lt;function model&gt;
+</pre>
+</div>
+</div>
+<p>All the decorator <code>genjax.gen</code> does is wrap the function into this object. It holds a reference to the function we defined above.</p>
+<p>But clearly, we need to somehow get inside that function - because we’re recording data onto the <code>BuiltinTrace</code> which come from intermediate results of the execution of the function.</p>
+<div class="page-columns page-full"><p>That’s where JAX comes in - JAX provides a way to trace pure, numerical Python programs - enabling us to construct program transformations which return new functions that compute different semantics from the original function.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn1"><p><sup>1</sup>&nbsp;Program tracing is an approach which has its roots in automatic differentiation. If you’re interesting in this technique, I cannot recommend <a href="https://jax.readthedocs.io/en/latest/autodidax.html">Autodidax: JAX core from scratch</a> enough. It will introduce you to enough interesting PL ideas to keep you occupied for months, if not years.</p></li></div></div>
+<p>Let’s utilize one of JAX’s interpreters to construct an intermediate representation of the function which our generative function object holds reference to:</p>
+<div class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>jaxpr <span class="op">=</span> jax.make_jaxpr(model.source)(<span class="fl">1.0</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>jaxpr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">{</span> <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">lambda </span><span style="color: #000000; text-decoration-color: #000000">; </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">a:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000">. </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">let</span>
+<span style="color: #000080; text-decoration-color: #000080; font-weight: bold">    </span><span style="color: #000000; text-decoration-color: #000000">b</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap b</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">c:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = trace</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">addr</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">y</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">gen_fn</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">_Normal</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">tree_in</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PyTreeDef</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">((</span><span style="color: #000000; text-decoration-color: #000000">*, *</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">))]</span><span style="color: #000000; text-decoration-color: #000000"> a </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">d:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> a</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">e:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add c d</span>
+<span style="color: #000000; text-decoration-color: #000000">    f</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap f</span>
+<span style="color: #000000; text-decoration-color: #000000">    g</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = trace</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">addr</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">z</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">gen_fn</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">_Normal</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">tree_in</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PyTreeDef</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">((</span><span style="color: #000000; text-decoration-color: #000000">*, *</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">))]</span><span style="color: #000000; text-decoration-color: #000000"> e </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">  </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">in </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #000000; text-decoration-color: #000000">g,</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">}</span>
+</pre>
+</div>
+</div>
+<p>So <code>jax.make_jaxpr</code> takes a function <code>f :: A -&gt; B</code> and returns a function <code>f :: A -&gt; Jaxpr</code>, where <code>Jaxpr</code> is the program representation above.</p>
+<p>When we run this function using Python’s interpreter, JAX lifts the input to something called a <code>Tracer</code>, JAX keeps an internal stack of interpreters which redirect infix operations on <code>Tracer</code> instances and modify their behavior. Additionally, JAX exposes new primitives (like all the <code>NumPy</code> primitives) which wrap a function called <code>bind</code>. <code>bind</code> takes in <code>Tracer</code> arguments, looks through them (and the interpreter stack), selects the interpreter which should handle the call - and then the interpreter is allowed to <code>process_primitive</code> - invoking the semantics which the interpreter defines for that primitive.</p>
+<p><code>jax.make_jaxpr</code> uses the above process to walk the program, and construct the above intermediate representation.</p>
+<p>Now, the point of having this representation is that we can transform it further! We can lower it to other representations (including things like XLA - the linear algebra accelerator that JAX utilizes to go high performance). We could also write <em>another interpreter</em> which walks this representation, invokes other primitives with <code>bind</code>, etc - deferring further transformation to the next interpreter in line.</p>
+<p>This (admittedly rough description) above is the secret behind JAX’s compositional transformations.</p>
+</section>
+<section id="new-semantics-via-program-transformations" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="new-semantics-via-program-transformations">New semantics via program transformations</h2>
+<p>Let’s examine the representation once more.</p>
+<div class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>jaxpr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">{</span> <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">lambda </span><span style="color: #000000; text-decoration-color: #000000">; </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">a:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000">. </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">let</span>
+<span style="color: #000080; text-decoration-color: #000080; font-weight: bold">    </span><span style="color: #000000; text-decoration-color: #000000">b</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap b</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">c:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = trace</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">addr</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">y</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">gen_fn</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">_Normal</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">tree_in</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PyTreeDef</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">((</span><span style="color: #000000; text-decoration-color: #000000">*, *</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">))]</span><span style="color: #000000; text-decoration-color: #000000"> a </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">d:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> a</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">e:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add c d</span>
+<span style="color: #000000; text-decoration-color: #000000">    f</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap f</span>
+<span style="color: #000000; text-decoration-color: #000000">    g</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = trace</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">addr</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">z</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">gen_fn</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">_Normal</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">tree_in</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PyTreeDef</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">((</span><span style="color: #000000; text-decoration-color: #000000">*, *</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">))]</span><span style="color: #000000; text-decoration-color: #000000"> e </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">  </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">in </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #000000; text-decoration-color: #000000">g,</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">}</span>
+</pre>
+</div>
+</div>
+<p>You’ll notice that there is an intrinsic called <code>trace</code> here - which looks suspiciously similar to <code>genjax.trace</code> above.</p>
+<p><code>trace</code> is a custom primitive that GenJAX defines - by defining a new primitive, we can place a stub in the intermediate representation, which we can further transform to implement the semantics we wish to express.</p>
+<section id="a-high-level-view" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="a-high-level-view">A high level view</h3>
+<p>Now, we need to transform it! Here’s where some serious design decisions enter into the picture.</p>
+<div class="page-columns page-full"><p>One thing you might notice about the <code>Jaxpr</code> above is that the the arity of the function is fixed, and so is the arity of the return value. But when we call <code>simulate</code> on our <code>model</code> - we get out something which is not a <code>h :: f32[]</code> (it’s actually a <a href="https://jax.readthedocs.io/en/latest/pytrees.html"><code>jax.Pytree</code></a> with a lot more data - so we’d expect a lot more return values in the <code>Jaxpr</code><a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p><div class="no-row-height column-margin column-container"><li id="fn2"><p><sup>2</sup>&nbsp;JAX flattens/unflattens <code>Pytree</code> instances on each side of the IR boundary - the IR is strongly typed, but only natively supports a few base types, and a few composite array types.</p></li></div></div>
+<p>What gives?</p>
+<p>Here’s where JAX’s support for compositional application of interpreters comes into play.</p>
+<p>Instead of attempting to modify the IR above to change the arity of everything (a process which the authors expect would be quite painful, and buggy) - we can write another interpreter which walks the IR and evaluates it, but that interpreter can keep track of the state that we want to put into the <code>BuiltinTrace</code> at the end of the interface invocation.</p>
+<p>Then, we can <em>stage out that interpreter</em> to support JIT compilation, etc. I’ll describe the process below in pseudo-types:</p>
+<p>We start with <code>f :: A -&gt; B</code>, and we stage it to get a new function <code>f' :: Type[A] -&gt; Jaxpr</code>, then we write an interpreter <code>I</code> with signature <code>I :: (Jaxpr, A) -&gt; (B, State)</code>. The application of <code>I</code> itself can also be staged.</p>
+<p>So this is really nice - we don’t have to munge the IR manually, we just get to write an interpreter to do the transformation for us. That’s the power that JAX provides for us!</p>
+</section>
+<section id="interpreter-design-decisions" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="interpreter-design-decisions">Interpreter design decisions</h3>
+<div class="page-columns page-full"><p>With the high-level view in mind, we’ll examine two of the interface implementations. The first is <code>simulate</code> - likely the easiest implementation to understand<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>. The second is <code>update</code>.</p><div class="no-row-height column-margin column-container"><li id="fn3"><p><sup>3</sup>&nbsp;For this notebook, we’re going to ignore the inference math that we wish to support!</p></li></div></div>
+<p>Now, in GenJAX, the interpreter is written to be re-usable for each of the interface functions. Because we’ve chosen to re-use the interpreter (and parametrize the transformation semantics by configuring the interpreter in other ways – besides the implementation), you’re going to see some complexity right out the gate.</p>
+<p>The reason why this complexity is there is because we wish to expose <em>incremental computing optimizations</em> in <code>update</code>. To support this customization, the interpreter can best be described as a <em>propagation interpreter</em> - similar to Julia’s abstract interpretation machinery (if you’re familiar). A propagation interpreter treats the <code>Jaxpr</code> as an undirected graph - and performs interpretation by iterating until a fixpoint condition is satisfied.</p>
+<p>The high level pattern from the previous section is still true! But if you’ve written interpreters for something like <a href="https://en.wikipedia.org/wiki/Structure_and_Interpretation_of_Computer_Programs">Structure and Interpretation of Computer Programs</a> before - this interpreter might be a slight shock to the system.</p>
+<p>Here’s a boiled down form of the <code>simulate_transform</code>:</p>
+<div class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_transform(f, <span class="op">**</span>kwargs):</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _inner(key, args):</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Step 1: stage out the function to a `Jaxpr`.</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>        closed_jaxpr, (flat_args, in_tree, out_tree) <span class="op">=</span> stage(f)(key, <span class="op">*</span>args, <span class="op">**</span>kwargs)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>        jaxpr, consts <span class="op">=</span> closed_jaxpr.jaxpr, closed_jaxpr.literals</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Step 2: create a `Simulate` instance, which we parametrize</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="co"># the propagation interpreter with.</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        <span class="co">#</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="co"># `Bare` is an instance of something called a `Cell` - the</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        <span class="co"># objects which the propagation interpreter reasons about.</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        handler <span class="op">=</span> Simulate()</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        final_env, ret_state <span class="op">=</span> propagate(</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>            Bare,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>            bare_propagation_rules,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>            jaxpr,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>            [Bare.new(v) <span class="cf">for</span> v <span class="kw">in</span> consts],</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>            <span class="bu">list</span>(<span class="bu">map</span>(Bare.new, flat_args)),</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>            [Bare.unknown(var.aval) <span class="cf">for</span> var <span class="kw">in</span> jaxpr.outvars],</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>            handler<span class="op">=</span>handler,</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Step 3: when the interpreter finishes, we read the values</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>        <span class="co"># out of its environment.</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>        flat_out <span class="op">=</span> safe_map(final_env.read, jaxpr.outvars)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>        flat_out <span class="op">=</span> <span class="bu">map</span>(<span class="kw">lambda</span> v: v.get_val(), flat_out)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>        key_and_returns <span class="op">=</span> jtu.tree_unflatten(out_tree, flat_out)</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>        key, <span class="op">*</span>retvals <span class="op">=</span> key_and_returns</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>        retvals <span class="op">=</span> <span class="bu">tuple</span>(retvals)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Here's the handler state - remember the signature from</span></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>        <span class="co"># above `I :: (Jaxpr, A) -&gt; (B, State)`, these fields</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>        <span class="co"># below are the `State`.</span></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>        score <span class="op">=</span> handler.score</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>        chm <span class="op">=</span> handler.choice_state</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>        cache <span class="op">=</span> handler.cache_state</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>        <span class="co"># This returns all the things which we want to put</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>        <span class="co"># into `BuiltinTrace`.</span></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> key, (f, args, retvals, chm, score), cache</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _inner</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>And, just to show you that this is the key behind how we implement <code>simulate</code>, I’ve copied the <code>BuiltinGenerativeFunction</code> class method for <code>simulate</code> below:</p>
+<div class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate(<span class="va">self</span>, key, args, <span class="op">**</span>kwargs):</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> <span class="bu">isinstance</span>(args, Tuple)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    key, (f, args, r, chm, score), cache <span class="op">=</span> simulate_transform(<span class="va">self</span>.source, <span class="op">**</span>kwargs)(</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>        key, args</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> key, BuiltinTrace(<span class="va">self</span>, args, r, chm, cache, score)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We’ll discuss <code>propagate</code> in a moment - but a few high-level things.</p>
+<p>Note that the <code>simulate</code> method can be staged out / used with JAX’s interfaces:</p>
+<div class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>jitted <span class="op">=</span> jax.jit(model.simulate)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> jitted(key, (<span class="fl">1.0</span>,))</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>tr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinTrace</span>
+├── gen_fn
+│   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
+│       └── source
+│           └── &lt;function model&gt;
+├── args
+│   └── <span style="font-weight: bold">tuple</span>
+│       └──  f32[]
+├── retval
+│   └──  f32[]
+├── choices
+│   └── <span style="font-weight: bold">Trie</span>
+│       ├── <span style="font-weight: bold">:y</span>
+│       │   └── <span style="font-weight: bold">DistributionTrace</span>
+│       │       ├── gen_fn
+│       │       │   └── <span style="font-weight: bold">_Normal</span>
+│       │       ├── args
+│       │       │   └── <span style="font-weight: bold">tuple</span>
+│       │       │       ├──  f32[]
+│       │       │       └──  f32[]
+│       │       ├── value
+│       │       │   └──  f32[]
+│       │       └── score
+│       │           └──  f32[]
+│       └── <span style="font-weight: bold">:z</span>
+│           └── <span style="font-weight: bold">DistributionTrace</span>
+│               ├── gen_fn
+│               │   └── <span style="font-weight: bold">_Normal</span>
+│               ├── args
+│               │   └── <span style="font-weight: bold">tuple</span>
+│               │       ├──  f32[]
+│               │       └──  f32[]
+│               ├── value
+│               │   └──  f32[]
+│               └── score
+│                   └──  f32[]
+├── cache
+│   └── <span style="font-weight: bold">Trie</span>
+└── score
+    └──  f32[]
+</pre>
+</div>
+</div>
+<p>That’s because <code>simulate_transform</code> and the interpreter implementation itself for <code>propagate</code> are all JAX traceable.</p>
+<p>The only difference between the <code>BuiltinTrace</code> which we first generated at the top of the notebook and this one is that <code>jax.jit</code> will lift the <code>1.0</code> argument to a <code>Tracer</code> type, versus the non-jitted interpreter which just uses the Python <code>float</code> value.</p>
+<p>And again, we can also stage out our <code>simulate</code> implementation and get a <code>Jaxpr</code> back:</p>
+<div class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>jax.make_jaxpr(model.simulate)(key, (<span class="fl">1.0</span>,))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">{</span> <span style="color: #000080; text-decoration-color: #000080; font-weight: bold">lambda </span><span style="color: #000000; text-decoration-color: #000000">; a</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">b:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000">. </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">let</span>
+<span style="color: #000080; text-decoration-color: #000080; font-weight: bold">    </span><span style="color: #000000; text-decoration-color: #000000">c</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap c</span>
+<span style="color: #000000; text-decoration-color: #000000">    d</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_seed</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span>
+<span style="color: #000000; text-decoration-color: #000000">    _</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap d</span>
+<span style="color: #000000; text-decoration-color: #000000">    e</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_wrap</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> a</span>
+<span style="color: #000000; text-decoration-color: #000000">    f</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_split</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">count</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> e</span>
+<span style="color: #000000; text-decoration-color: #000000">    g</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap f</span>
+<span style="color: #000000; text-decoration-color: #000000">    h</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = slice</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">limit_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">start_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">strides</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)]</span><span style="color: #000000; text-decoration-color: #000000"> g</span>
+<span style="color: #000000; text-decoration-color: #000000">    i</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = squeeze</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">dimensions</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000">,</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)]</span><span style="color: #000000; text-decoration-color: #000000"> h</span>
+<span style="color: #000000; text-decoration-color: #000000">    j</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = slice</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">limit_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">start_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">strides</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)]</span><span style="color: #000000; text-decoration-color: #000000"> g</span>
+<span style="color: #000000; text-decoration-color: #000000">    k</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = squeeze</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">dimensions</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000">,</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)]</span><span style="color: #000000; text-decoration-color: #000000"> j</span>
+<span style="color: #000000; text-decoration-color: #000000">    l</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_wrap</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> k</span>
+<span style="color: #000000; text-decoration-color: #000000">    m</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_bits</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">bit_width</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">shape</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> l</span>
+<span style="color: #000000; text-decoration-color: #000000">    n</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = shift_right_logical m </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9</span>
+<span style="color: #000000; text-decoration-color: #000000">    o</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = or n </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1065353216</span>
+<span style="color: #000000; text-decoration-color: #000000">    p</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = bitcast_convert_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> o</span>
+<span style="color: #000000; text-decoration-color: #000000">    q</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub p </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    r</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9999999403953552</span>
+<span style="color: #000000; text-decoration-color: #000000">    s</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul q r</span>
+<span style="color: #000000; text-decoration-color: #000000">    t</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add s </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9999999403953552</span>
+<span style="color: #000000; text-decoration-color: #000000">    u</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = reshape</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">dimensions</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">new_sizes</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> t</span>
+<span style="color: #000000; text-decoration-color: #000000">    v</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = max </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9999999403953552</span><span style="color: #000000; text-decoration-color: #000000"> u</span>
+<span style="color: #000000; text-decoration-color: #000000">    w</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = erf_inv v</span>
+<span style="color: #000000; text-decoration-color: #000000">    x</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.4142135381698608</span><span style="color: #000000; text-decoration-color: #000000"> w</span>
+<span style="color: #000000; text-decoration-color: #000000">    y</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span><span style="color: #000000; text-decoration-color: #000000"> x</span>
+<span style="color: #000000; text-decoration-color: #000000">    z</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> b</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">ba:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add z y</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">bb:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> b</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">bc:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub ba bb</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">bd:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = div bc </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">be:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = abs bd</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">bf:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = integer_pow</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">y</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> be</span>
+<span style="color: #000000; text-decoration-color: #000000">    bg</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = log </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.283185307179586</span>
+<span style="color: #000000; text-decoration-color: #000000">    bh</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> bg</span>
+<span style="color: #000000; text-decoration-color: #000000">    bi</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add bf bh</span>
+<span style="color: #000000; text-decoration-color: #000000">    bj</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0</span><span style="color: #000000; text-decoration-color: #000000"> bi</span>
+<span style="color: #000000; text-decoration-color: #000000">    bk</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = log </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    bl</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2.0</span><span style="color: #000000; text-decoration-color: #000000"> bk</span>
+<span style="color: #000000; text-decoration-color: #000000">    bm</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> bl</span>
+<span style="color: #000000; text-decoration-color: #000000">    bn</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = div bj bm</span>
+<span style="color: #000000; text-decoration-color: #000000">    bo</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = reduce_sum</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">axes</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> bn</span>
+<span style="color: #000000; text-decoration-color: #000000">    bp</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.0</span><span style="color: #000000; text-decoration-color: #000000"> bo</span>
+<span style="color: #000000; text-decoration-color: #000000">    bq</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add ba b</span>
+<span style="color: #000000; text-decoration-color: #000000">    br</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_wrap</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> i</span>
+<span style="color: #000000; text-decoration-color: #000000">    bs</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_split</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">count</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> br</span>
+<span style="color: #000000; text-decoration-color: #000000">    bt</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = random_unwrap bs</span>
+<span style="color: #000000; text-decoration-color: #000000">    bu</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = slice</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span>
+<span style="color: #000000; text-decoration-color: #000000">      </span><span style="color: #808000; text-decoration-color: #808000">limit_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span>
+<span style="color: #000000; text-decoration-color: #000000">      </span><span style="color: #808000; text-decoration-color: #808000">start_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span>
+<span style="color: #000000; text-decoration-color: #000000">      </span><span style="color: #808000; text-decoration-color: #808000">strides</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> bt</span>
+<span style="color: #000000; text-decoration-color: #000000">    bv</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = squeeze</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">dimensions</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000">,</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)]</span><span style="color: #000000; text-decoration-color: #000000"> bu</span>
+<span style="color: #000000; text-decoration-color: #000000">    bw</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #800080; text-decoration-color: #800080">,</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = slice</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span>
+<span style="color: #000000; text-decoration-color: #000000">      </span><span style="color: #808000; text-decoration-color: #808000">limit_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span>
+<span style="color: #000000; text-decoration-color: #000000">      </span><span style="color: #808000; text-decoration-color: #808000">start_indices</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span>
+<span style="color: #000000; text-decoration-color: #000000">      </span><span style="color: #808000; text-decoration-color: #808000">strides</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000">, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> bt</span>
+<span style="color: #000000; text-decoration-color: #000000">    bx</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> = squeeze</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">dimensions</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0</span><span style="color: #000000; text-decoration-color: #000000">,</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)]</span><span style="color: #000000; text-decoration-color: #000000"> bw</span>
+<span style="color: #000000; text-decoration-color: #000000">    by</span><span style="color: #800080; text-decoration-color: #800080">:key</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fry</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">&gt;[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_wrap</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">impl</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">fry</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> bx</span>
+<span style="color: #000000; text-decoration-color: #000000">    bz</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = random_bits</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">bit_width</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">shape</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> by</span>
+<span style="color: #000000; text-decoration-color: #000000">    ca</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = shift_right_logical bz </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">9</span>
+<span style="color: #000000; text-decoration-color: #000000">    cb</span><span style="color: #800080; text-decoration-color: #800080">:u32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = or ca </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1065353216</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">cc:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = bitcast_convert_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> cb</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">cd:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub cc </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">ce:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9999999403953552</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">cf:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul cd ce</span>
+<span style="color: #000000; text-decoration-color: #000000">    cg</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add cf </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9999999403953552</span>
+<span style="color: #000000; text-decoration-color: #000000">    ch</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = reshape</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">dimensions</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">new_sizes</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> cg</span>
+<span style="color: #000000; text-decoration-color: #000000">    ci</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = max </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-0.9999999403953552</span><span style="color: #000000; text-decoration-color: #000000"> ch</span>
+<span style="color: #000000; text-decoration-color: #000000">    cj</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = erf_inv ci</span>
+<span style="color: #000000; text-decoration-color: #000000">    ck</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.4142135381698608</span><span style="color: #000000; text-decoration-color: #000000"> cj</span>
+<span style="color: #000000; text-decoration-color: #000000">    cl</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span><span style="color: #000000; text-decoration-color: #000000"> ck</span>
+<span style="color: #000000; text-decoration-color: #000000">    cm</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add bq cl</span>
+<span style="color: #000000; text-decoration-color: #000000">    cn</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub cm bq</span>
+<span style="color: #000000; text-decoration-color: #000000">    co</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = div cn </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    cp</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = abs co</span>
+<span style="color: #000000; text-decoration-color: #000000">    cq</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = integer_pow</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">y</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> cp</span>
+<span style="color: #000000; text-decoration-color: #000000">    cr</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = log </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">6.283185307179586</span>
+<span style="color: #000000; text-decoration-color: #000000">    cs</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> cr</span>
+<span style="color: #000000; text-decoration-color: #000000">    ct</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add cq cs</span>
+<span style="color: #000000; text-decoration-color: #000000">    cu</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = mul </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">-1.0</span><span style="color: #000000; text-decoration-color: #000000"> ct</span>
+<span style="color: #000000; text-decoration-color: #000000">    cv</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = log </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span>
+<span style="color: #000000; text-decoration-color: #000000">    cw</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = sub </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">2.0</span><span style="color: #000000; text-decoration-color: #000000"> cv</span>
+<span style="color: #000000; text-decoration-color: #000000">    cx</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = convert_element_type</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">new_dtype</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #800080; text-decoration-color: #800080">float32</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #808000; text-decoration-color: #808000">weak_type</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">]</span><span style="color: #000000; text-decoration-color: #000000"> cw</span>
+<span style="color: #000000; text-decoration-color: #000000">    cy</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = div cu cx</span>
+<span style="color: #000000; text-decoration-color: #000000">    cz</span><span style="color: #800080; text-decoration-color: #800080">:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = reduce_sum</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">[</span><span style="color: #808000; text-decoration-color: #808000">axes</span><span style="color: #000000; text-decoration-color: #000000">=</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">()]</span><span style="color: #000000; text-decoration-color: #000000"> cy</span>
+<span style="color: #000000; text-decoration-color: #000000">    </span><span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">da:f32</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">[]</span><span style="color: #000000; text-decoration-color: #000000"> = add bp cz</span>
+<span style="color: #000000; text-decoration-color: #000000">  </span><span style="color: #000080; text-decoration-color: #000080; font-weight: bold">in </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">(</span><span style="color: #000000; text-decoration-color: #000000">bv, b, cm, b, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span><span style="color: #000000; text-decoration-color: #000000">, ba, bo, bq, </span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">1.0</span><span style="color: #000000; text-decoration-color: #000000">, cm, cz, da</span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">)</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #000000; text-decoration-color: #000000; font-weight: bold">}</span>
+</pre>
+</div>
+</div>
+<p>Giving us our pure, array math code. You can’t help but admit that that’s pretty elegant!</p>
+</section>
+</section>
+<section id="how-does-propagate-work" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="how-does-propagate-work">How does <code>propagate</code> work?</h2>
+<p>Now, in this section - we’re going to talk about the nitty gritty of <code>propagate</code> itself. What exactly is this interpreter doing? Let’s examine the context surrounding the call to <code>propagate</code>:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> simulate_transform(f, <span class="op">**</span>kwargs):</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _inner(key, args):</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>        closed_jaxpr, (flat_args, in_tree, out_tree) <span class="op">=</span> stage(f)(</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>            key, <span class="op">*</span>args, <span class="op">**</span>kwargs</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        jaxpr, consts <span class="op">=</span> closed_jaxpr.jaxpr, closed_jaxpr.literals</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        handler <span class="op">=</span> Simulate()</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        final_env, ret_state <span class="op">=</span> propagate(</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>            <span class="co"># A lattice type</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>            Bare,</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Lattice propagation rules</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>            bare_propagation_rules,</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>            <span class="co"># The Jaxpr which we wish to interpret</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>            jaxpr,</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Trace-time constants</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>            [Bare.new(v) <span class="cf">for</span> v <span class="kw">in</span> consts],</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Input cells</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>            <span class="bu">list</span>(<span class="bu">map</span>(Bare.new, flat_args)),</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Output cells</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>            [Bare.unknown(var.aval) <span class="cf">for</span> var <span class="kw">in</span> jaxpr.outvars],</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>            <span class="co"># How we handle `trace`.</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>            handler<span class="op">=</span>handler,</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>        ...</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _inner</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>First, we stage our model function into a <code>Jaxpr</code> - when we perform the staging process, everything (e.g.&nbsp;custom datatypes which are <code>Pytree</code> implementors) gets flattened out to array leaves.</p>
+<p>After we stage, we collect all the data which we want to use to initialize our interpreter’s environment with - but we encounter our first bit of complexity.</p>
+<p>What is <code>Bare</code>? And what is a <code>Cell</code>? Let’s start with the latter question: a <code>Cell</code> is an abstract type which represents a <em>lattice value</em>.</p>
+<p>To understand what a <em>lattice value</em> is - it’s worth gaining a high-level picture of what <code>propagate</code> attempts to do. <code>propagate</code> is an interpreter based on mixed concrete/abstract interpretation - it treats the <code>Jaxpr</code> as a graph - where the operations are nodes in the graph, and the SSA values (e.g.&nbsp;the named registers like <code>ci</code>, <code>cj</code>, etc) are edges.</p>
+<p>The interpreter will iterate over the graph - attempting to update information about the edges by applying <em>propagation rules</em> (hence the name, <code>propagate</code>) which we define (<code>bare_propagation_rules</code>, above).</p>
+<p>A propagation rule accepts a list of input cells (the SSA edges which flow into the operation) and a list of output cells. It returns a new modified list of input cells, and a new modified list of output cells, as well as a state value (in this notebook, we won’t discuss the state value - it’s unneeded for the interfaces we will describe).</p>
+<p>The way the interpreter works is that it keeps a queue of nodes and an environment which maps SSA values to lattice values. We pop a node off the queue, grab the existing lattice values for input SSA values and output SSA values, attempt to update them using a propagation rule, and then store the update in the environment. In addition, after we attempt to update the cells - <em>we determine if the update has changed the information level of any of the cells</em>. If the information level has changed for any cell (as measured using the partial order on lattice values), we add any nodes which the SSA value associated with that cell flows into back onto the queue.</p>
+<p>This process describes an iterative algorithm which attempts to compute an information fixpoint - defined by a state transition function (which operates on the state of all cells in the <code>Jaxpr</code> - the environment) which we get to customize using propagation rules.</p>
+<div class="page-columns page-full"><p>I’m not going to inline any of the implementation of this interpreter into this notebook. I’ll refer the reader to <a href="https://github.com/probcomp/genjax/blob/main/src/genjax/core/propagate.py">the implementation of the interpreter</a>.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn4"><p><sup>4</sup>&nbsp;Note that the ideas behind this interpreter are quite widespread - but the original implementation (which the GenJAX authors modified) came from <a href="https://github.com/jax-ml/oryx">Oryx</a>, and that implementation initially came from Roy Frostig (as far as we can tell).</p></li></div></div>
+<section id="what-happens-in-simulate" class="level3">
+<h3 class="anchored" data-anchor-id="what-happens-in-simulate">What happens in <code>simulate</code>?</h3>
+<p>Great - so how do we utilize this interpreter idea to implement the <code>simulate_transform</code> described above?</p>
+
+
+</section>
+</section>
+
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">© Copyright 2022 <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+</body></html>
