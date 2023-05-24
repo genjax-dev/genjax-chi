@@ -94,19 +94,6 @@ def tree_unstack(tree):
     new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
     return new_trees
 
-
-def tree_squeeze(tree):
-    def _inner(v):
-        if isinstance(v, np.ndarray):
-            return np.squeeze(v)
-        elif isinstance(v, jnp.ndarray):
-            return jnp.squeeze(v)
-        else:
-            return v
-
-    return jtu.tree_map(_inner, tree)
-
-
 def tree_grad_split(tree):
     def _grad_filter(v):
         if static_check_supports_grad(v):
@@ -145,6 +132,11 @@ def tree_zipper(grad, nograd):
 
 
 class Pytree(metaclass=abc.ABCMeta):
+    """
+    A utility abstract base class which registers a class with JAX's `Pytree` system.
+
+    Users who mixin this ABC are required to implement `flatten` below, but also gain access to a large set of utility functions for working with `Pytree` data.
+    """
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         jtu.register_pytree_node(
@@ -155,6 +147,32 @@ class Pytree(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def flatten(self):
+        """
+        `flatten` must be implemented when a user extends `Pytree` to a new class or dataclass.
+
+        `flatten` requires the following specification:
+            * must return a 2-tuple of tuples.
+            * the first tuple is "dynamic" data - things that JAX tracers are allowed to represent.
+            * the second tuple is "static" data - things which are known at JAX tracing time. Static data is also used by JAX for `Pytree` equality comparison.
+
+        ## Example
+
+        Let's assume that you are implementing a new dataclass:
+        
+        ```python
+        @dataclass
+        class MyFoo(Pytree):
+            static_field: Any
+            dynamic_field: Any
+
+            # Implementing `flatten`
+            def flatten(self):
+                return (self.dynamic_field, ), (self.static_field, )
+        ```
+
+        **Note that the ordering in the dataclass declaration _does matter_ - you should put static fields first. The automatically defined `unflatten` method (c.f. below) assumes this ordering.**
+
+        """
         pass
 
     @classmethod
@@ -169,6 +187,11 @@ class Pytree(metaclass=abc.ABCMeta):
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
     def slice(self, index_or_range):
+        """
+        Any class which mixes / extends from a `Pytree` base supports indexing/slicing on indices when leaves are arrays with non-null 1st dimension.
+
+        `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
+        """
         return jtu.tree_map(lambda v: v[index_or_range], self)
 
     def stack(self, *trees):
@@ -176,9 +199,6 @@ class Pytree(metaclass=abc.ABCMeta):
 
     def unstack(self):
         return tree_unstack(self)
-
-    def squeeze(self):
-        return tree_squeeze
 
     # Lift multiple trees into a sum type.
     def sum(self, *trees):
