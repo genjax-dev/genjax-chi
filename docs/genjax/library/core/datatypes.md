@@ -1,40 +1,31 @@
-# Generative datatypes
+# Core datatypes
 
-!!! note "Key generative datatypes in Gen"
-    
-    This documentation page contains the type and interface documentation for the primary generative datatypes used in Gen. The documentation on this page deals with the abstract base classes for these datatypes. 
+GenJAX features a set of core abstract datatypes which build on JAX's `Pytree` interface. These datatypes are used as an abstract base mixin (especially `Pytree`) for basically all of the dataclasses in GenJAX.
 
-    **Any concrete implementor of these abstract classes should be documented with the language which implements it.**
-
-## Generative functions
-
-The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types which allow inference layers to abstract over the implementation of the interface.
-
-Below, we document the base abstract class. Concrete generative function languages are described in their own documentation module.
-
-::: genjax.core.GenerativeFunction
+::: genjax.core.Pytree
     options:
       members: 
-        - simulate
-        - importance
-        - update
-        - assess
+        - flatten
+        - unflatten
 
-## Traces
+## Trees
 
-::: genjax.core.Trace
+The `Pytree` class is used to define abstract classes for tree-shaped datatypes. These classes are used to implement trace, choice map, and selection types.
+
+::: genjax.core.Tree
     options:
       members: 
-        - get_gen_fn
-        - get_retval
-        - get_choices
-        - get_score
-        - strip
+        - has_subtree
+        - get_subtree
+        - get_subtrees_shallow
 
-## Choice maps
+### Leaf
 
-::: genjax.core.ChoiceMap
+A `Leaf` is a `Tree` without any internal subtrees.
 
-## Selections
-
-::: genjax.core.Selection
+::: genjax.core.Leaf
+    options:
+      members: 
+        - has_subtree
+        - get_subtree
+        - get_subtrees_shallow

@@ -46,7 +46,9 @@ from genjax._src.core.typing import PRNGKey
 class ChoiceMap(Tree):
     @abc.abstractmethod
     def get_selection(self):
-        pass
+        """
+        Convert a `ChoiceMap` to a `Selection`.
+        """
 
     def get_choices(self):
         return self
@@ -97,10 +99,11 @@ class ChoiceMap(Tree):
 @dataclasses.dataclass
 class Trace(ChoiceMap, Tree):
     """
-    Abstract base class for traces of generative functions. 
+    Abstract base class for traces of generative functions.
 
     A `Trace` is a data structure used to represent sampled executions of a generative function. It tracks metadata associated with log probability values, as well as values associated with the invocation of a generative function, including the arguments it was invoked with, its return value, and the identity of the generative function itself.
     """
+
     @abc.abstractmethod
     def get_retval(self) -> Any:
         pass
@@ -148,6 +151,10 @@ class Trace(ChoiceMap, Tree):
         return self.get_choices().get_selection()
 
     def strip(self):
+        """
+        Remove all `Trace` metadata, and return a choice map.
+        """
+
         def _check(v):
             return isinstance(v, Trace)
 
@@ -207,7 +214,7 @@ class Selection(Tree):
 @dataclasses.dataclass
 class GenerativeFunction(Pytree):
     """
-    Abstract base class for generative functions. 
+    Abstract base class for generative functions.
 
     Any concrete implementation will interact with the JAX tracing machinery
     so there are specific API requirements above the requirements

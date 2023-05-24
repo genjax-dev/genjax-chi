@@ -35,6 +35,8 @@ from genjax._src.core.datatypes.tracetypes import Naturals
 from genjax._src.core.datatypes.tracetypes import PositiveReals
 from genjax._src.core.datatypes.tracetypes import RealInterval
 from genjax._src.core.datatypes.tracetypes import Reals
+from genjax._src.core.datatypes.tree import Leaf
+from genjax._src.core.datatypes.tree import Tree
 from genjax._src.core.datatypes.trie import TrieChoiceMap
 from genjax._src.core.datatypes.trie import TrieSelection
 from genjax._src.core.datatypes.trie import chm
@@ -82,4 +84,6 @@ __all__ = [
     "Bottom",
     # Pytree meta.
     "Pytree",
+    "Tree",
+    "Leaf",
 ]

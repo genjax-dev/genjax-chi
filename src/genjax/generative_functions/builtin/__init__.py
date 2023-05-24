@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    BuiltinGenerativeFunction, BuiltinTrace
+    BuiltinGenerativeFunction,
 )
+from genjax._src.generative_functions.builtin.builtin_gen_fn import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_gen_fn import inline
 from genjax._src.generative_functions.builtin.builtin_gen_fn import lang
 from genjax._src.generative_functions.builtin.builtin_gen_fn import partial
