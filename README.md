@@ -21,7 +21,7 @@
 
 </div>
 
-[build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg
+[build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square
 [actions]: https://github.com/probcomp/genjax/actions
 
 <div align="center">
