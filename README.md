@@ -56,7 +56,7 @@ Make sure these are installed and on path with a Python environment `^3.10.0`. R
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
 
-Assuming you have poetry, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute the notebooks, etc.
+Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute the notebooks, etc.
 
 ```bash
 conda create --name genjax-py311 python=3.11 --channel=conda-forge
