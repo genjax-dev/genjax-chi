@@ -103,18 +103,3 @@ def top_model(p):
 ```
 
 Now we're describing a broadcastable generative function whose internal choices include a chain-like generative structure with dynamic truncation using padding. And we could go on!
-
-## Approximation of marginal densities
-
-GenJAX also features an implementation of a framework for pseudomarginalization and approximate normalization called `Prox`. `Prox` allows construction of _approximate distributions_, distributions whose sample and density interfaces are replaced with unbiased estimators.
-
-## Automatic differentiation of expected values
-
-JAX is a state-of-the-art framework for AD. Not to be outdone, GenJAX features a state-of-the-art framework for constructing unbiased gradient estimators for loss functions defined as expected values (1).
-{ .annotate }
-
-1.  [Lew & Huot et al, 2022, _ADEV: Sound Automatic Differentiation of Expected Values of Probabilistic Programs_](https://arxiv.org/pdf/2212.06386.pdf)
-
-$$
-L(\theta) = E_{v \sim P(\cdot \ ; \ \theta)}[f(v, \theta)]
-$$

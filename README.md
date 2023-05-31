@@ -45,10 +45,11 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 ## Development environment
 
 This project uses:
-* [poetry](https://python-poetry.org/) for dependency management
-* [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
-* [mkdocs](https://www.mkdocs.org/) to generate static documentation.
-* [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
+
+- [poetry](https://python-poetry.org/) for dependency management
+- [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
+- [mkdocs](https://www.mkdocs.org/) to generate static documentation.
+- [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
 ### Environment setup script
 
@@ -81,7 +82,7 @@ Many bits of knowledge have gone into this project -- [you can find many of thes
 - [Marco Cusumano-Towner's thesis on Gen][marco_thesis]
 - [The main Gen.jl repository][gen_jl]
 - (Trace types) [(Lew et al) trace types][trace_types]
-- (Prox) [(Lew et al) recursive auxiliary-variable inference (RAVI)][ravi]
+- (Prox) [(Lew et al) Recursive auxiliary-variable inference (RAVI)][ravi]
 - (GenProx) [Alex Lew's Gen.jl implementation of Prox][gen_prox]
 - (ADEV) [(Lew & Huot, et al) Automatic differentiation of expected values of probabilistic programs][adev]
 
