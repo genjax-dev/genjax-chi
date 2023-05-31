@@ -26,8 +26,7 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.trie import TrieChoiceMap
-from genjax._src.core.datatypes.trie import TrieSelection
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -81,9 +80,9 @@ class VectorTrace(Trace):
         return self.score
 
     def project(self, selection: Selection) -> FloatArray:
-        if isinstance(selection, TrieSelection):
-            return self.inner.project(selection)
-        elif isinstance(selection, AllSelection):
+        if isinstance(selection, VectorSelection):
+            return self.inner.project(selection.inner)[selection.indices]
+        if isinstance(selection, AllSelection):
             return self.score
         else:
             return 0.0
@@ -133,7 +132,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def convert(cls, choice_map: TrieChoiceMap):
+    def convert(cls, choice_map: Trie):
         indices = []
         subtrees = []
         for (ind, subtree) in choice_map.get_subtrees_shallow():
@@ -189,10 +188,15 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class VectorSelection(Selection):
+    indices: Any
     inner: Selection
 
     def flatten(self):
-        return (self.inner,), ()
+        return (self.inner,), (self.indices,)
+
+    @classmethod
+    def new(cls, indices, inner):
+        return VectorSelection(indices, inner)
 
     def filter(self, tree):
         assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
@@ -221,6 +225,4 @@ class VectorSelection(Selection):
 ##############
 
 vector_choice_map = VectorChoiceMap.new
-vec_chm = vector_choice_map
 vector_select = VectorSelection.new
-vec_sel = vector_select

@@ -19,7 +19,6 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.trie import TrieChoiceMap
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import PytreeClosure
 from genjax._src.core.pytree import closure_convert
@@ -33,6 +32,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import _inline
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
@@ -190,7 +190,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
-            TrieChoiceMap(discard),
+            BuiltinChoiceMap(discard),
         )
 
     @typecheck

@@ -12,10 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
+from genjax._src.generative_functions.builtin.builtin_datatypes import (
+    BuiltinComplementSelection,
+)
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinSelection
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
+from genjax._src.generative_functions.builtin.builtin_datatypes import choice_map
+from genjax._src.generative_functions.builtin.builtin_datatypes import select
+from genjax._src.generative_functions.builtin.builtin_datatypes import select_with
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     BuiltinGenerativeFunction,
 )
-from genjax._src.generative_functions.builtin.builtin_gen_fn import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_gen_fn import inline
 from genjax._src.generative_functions.builtin.builtin_gen_fn import lang
 from genjax._src.generative_functions.builtin.builtin_gen_fn import partial
@@ -27,6 +35,12 @@ from genjax._src.generative_functions.builtin.builtin_primitives import trace
 __all__ = [
     "BuiltinGenerativeFunction",
     "BuiltinTrace",
+    "BuiltinChoiceMap",
+    "BuiltinSelection",
+    "BuiltinComplementSelection",
+    "choice_map",
+    "select",
+    "select_with",
     "trace",
     "cache",
     "save",

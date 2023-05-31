@@ -28,7 +28,7 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.trie import TrieChoiceMap
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -196,9 +196,7 @@ class MapCombinator(GenerativeFunction):
             np.pad(v, pad_axes) if isinstance(v, np.ndarray) else jnp.pad(v, pad_axes)
         )
 
-    def _static_check_trie_index_compatible(
-        self, chm: TrieChoiceMap, broadcast_dim_length: Int
-    ):
+    def _static_check_trie_index_compatible(self, chm: Trie, broadcast_dim_length: Int):
         for (k, _) in chm.get_subtrees_shallow():
             assert isinstance(k, int)
             # TODO: pull outside loop, just check the last address.
@@ -228,13 +226,13 @@ class MapCombinator(GenerativeFunction):
         map_tr = VectorTrace(self, indices, tr, args, retval, scores)
         return key, (w, map_tr)
 
-    # Implements a conversion from `TrieChoiceMap`.
+    # Implements a conversion from `Trie`.
     def _importance_tchm(self, key, chm, args):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         self._static_check_trie_index_compatible(chm, broadcast_dim_length)
 
-        # Okay, so the TrieChoiceMap has an address hierarchy which is compatible with the index structure of the MapCombinator choices.
-        # Let's coerce TrieChoiceMap into VectorChoiceMap and then just call `_importance_vcm`.
+        # Okay, so the Trie has an address hierarchy which is compatible with the index structure of the MapCombinator choices.
+        # Let's coerce Trie into VectorChoiceMap and then just call `_importance_vcm`.
         vector_chm = self._coerce_to_vector_chm(chm)
         return self._importance_vcm(key, vector_chm, args)
 
@@ -247,7 +245,7 @@ class MapCombinator(GenerativeFunction):
     def importance(
         self,
         key: PRNGKey,
-        chm: Union[EmptyChoiceMap, TrieChoiceMap, VectorChoiceMap],
+        chm: Union[EmptyChoiceMap, Trie, VectorChoiceMap],
         args: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
@@ -257,7 +255,7 @@ class MapCombinator(GenerativeFunction):
         # Note: these branches are resolved at tracing time.
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
-        elif isinstance(chm, TrieChoiceMap):
+        elif isinstance(chm, Trie):
             return self._importance_tchm(key, chm, args)
         else:
             assert isinstance(chm, EmptyChoiceMap)
