@@ -64,7 +64,7 @@ This defines a `MapCombinator` generative function - a generative function whose
 ```python
 @functools.partial(genjax.Unfold, max_length = 10)
 @genjax.gen
-def kernel(prev, static_args):
+def scanner(prev, static_args):
   sigma, = static_args
   new = normal(prev, sigma) @ "z"
   return new
