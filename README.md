@@ -44,9 +44,13 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 ## Development environment
 
-This project uses [poetry](https://python-poetry.org/) for dependency management, [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building, and [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial documentation.
+This project uses:
+* [poetry](https://python-poetry.org/) for dependency management
+* [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
+* [mkdocs](https://www.mkdocs.org/) to generate static documentation.
+* [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
-Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
+Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build.
 
 ### Environment setup script
 
@@ -63,6 +67,12 @@ cd genjax
 poetry lock
 poetry install
 poetry run jupyter-lab
+```
+
+You can test your environment with:
+
+```bash
+nox -r
 ```
 
 ## References
