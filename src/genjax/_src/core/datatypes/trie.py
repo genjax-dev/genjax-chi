@@ -17,20 +17,11 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
-from genjax._src.core.datatypes.generative import NoneSelection
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
-from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pretty_printing import CustomPretty
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import typecheck
 
 
 #####
@@ -53,7 +44,7 @@ class Trie(ChoiceMap, CustomPretty):
         raise Exception("Trie doesn't provide conversion to Selection.")
 
     def get_choices(self):
-        return TrieChoiceMap(self)
+        return self
 
     def trie_insert(self, addr, value):
         if isinstance(addr, tuple) and len(addr) > 1:
@@ -138,208 +129,17 @@ class Trie(ChoiceMap, CustomPretty):
         return tree
 
 
-#####
-# Trie-backed choice map
-#####
-
-
-@dataclass
-class TrieChoiceMap(ChoiceMap):
-    trie: Trie
-
-    def flatten(self):
-        return (self.trie,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, constraints: Dict):
-        assert isinstance(constraints, Dict)
-        trie = Trie.new()
-        for (k, v) in constraints.items():
-            v = (
-                ValueChoiceMap(v)
-                if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-                else v
-            )
-            trie.trie_insert(k, v)
-        return TrieChoiceMap(trie)
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return EmptyChoiceMap()
-        else:
-            return value.get_choices()
-
-    def get_subtrees_shallow(self):
-        return map(
-            lambda v: (v[0], v[1].get_choices()),
-            self.trie.get_subtrees_shallow(),
-        )
-
-    def get_selection(self):
-        trie = Trie.new()
-        for (k, v) in self.get_subtrees_shallow():
-            trie[k] = v.get_selection()
-        return TrieSelection(trie)
-
-    # TODO: test this.
-    def merge(self, other: "TrieChoiceMap"):
-        assert isinstance(other, TrieChoiceMap)
-        new_inner = self.trie.merge(other.trie)
-        return TrieChoiceMap(new_inner)
-
-    def __setitem__(self, k, v):
-        self.trie[k] = v
-
-    def __hash__(self):
-        return hash(self.trie)
-
-
-#####
-# Trie-backed selection
-#####
-
-
-@dataclass
-class TrieSelection(Selection):
-    trie: Trie
-
-    def flatten(self):
-        return (self.trie,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, *addrs):
-        trie = Trie.new()
-        for addr in addrs:
-            trie[addr] = AllSelection()
-        return TrieSelection(trie)
-
-    @typecheck
-    @classmethod
-    def with_selections(cls, selections: Dict):
-        assert isinstance(selections, Dict)
-        trie = Trie.new()
-        for (k, v) in selections.items():
-            assert isinstance(v, Selection)
-            trie.trie_insert(k, v)
-        return TrieSelection(trie)
-
-    def filter(self, tree):
-        def _inner(k, v):
-            sub = self.trie[k]
-            if sub is None:
-                sub = NoneSelection()
-
-            # Handles hierarchical in Trie.
-            elif isinstance(sub, Trie):
-                sub = TrieSelection(sub)
-
-            under = sub.filter(v)
-            return k, under
-
-        trie = Trie.new()
-        iter = tree.get_subtrees_shallow()
-        for (k, v) in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoiceMap):
-                trie[k] = v
-
-        if isinstance(tree, TraceType):
-            return type(tree)(trie, tree.get_rettype())
-        else:
-            return TrieChoiceMap(trie)
-
-    def complement(self):
-        return TrieComplementSelection(self.trie)
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return NoneSelection()
-        else:
-            return value
-
-    def get_subtrees_shallow(self):
-        return self.trie.get_subtrees_shallow()
-
-
-@dataclass
-class TrieComplementSelection(Selection):
-    trie: Trie
-
-    def flatten(self):
-        return (self.selection,), ()
-
-    def filter(self, chm):
-        def _inner(k, v):
-            sub = self.trie[k]
-            if sub is None:
-                sub = NoneSelection()
-
-            # Handles hierarchical in Trie.
-            elif isinstance(sub, Trie):
-                sub = TrieSelection(sub)
-
-            under = sub.complement().filter(v)
-            return k, under
-
-        trie = Trie.new()
-        iter = chm.get_subtrees_shallow()
-        for (k, v) in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoiceMap):
-                trie[k] = v
-
-        if isinstance(chm, TraceType):
-            return type(chm)(trie, chm.get_rettype())
-        else:
-            return TrieChoiceMap(trie)
-
-    def complement(self):
-        return TrieSelection(self.trie)
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return NoneSelection()
-        else:
-            return value
-
-    def get_subtrees_shallow(self):
-        return self.trie.get_subtrees_shallow()
-
-
 ###################
 # TrieConvertable #
 ###################
 
-# A mixin: denotes that a choice map can be converted to a TrieChoiceMap
+# A mixin: denotes that a choice map can be converted to a Trie
 
 
 @dataclass
 class TrieConvertable:
-    def convert(self) -> TrieChoiceMap:
-        new = TrieChoiceMap.new()
+    def convert(self) -> Trie:
+        new = Trie.new()
         for (k, v) in self.get_submaps_shallow():
             pass
         return new
-
-
-##############
-# Shorthands #
-##############
-
-choice_map = TrieChoiceMap.new
-chm = choice_map
-select = TrieSelection.new
-select_with = TrieSelection.with_selections
-sel = select

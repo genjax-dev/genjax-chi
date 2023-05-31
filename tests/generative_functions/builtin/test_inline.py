@@ -50,7 +50,7 @@ class TestInline:
 
     def test_inline_importance(self):
         key = jax.random.PRNGKey(314159)
-        chm = genjax.chm({"y1": 3.0})
+        chm = genjax.choice_map({"y1": 3.0})
         key, (w, tr) = jax.jit(higher_model.importance)(key, chm, ())
         choices = tr.strip()
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
@@ -60,7 +60,7 @@ class TestInline:
 
     def test_inline_update(self):
         key = jax.random.PRNGKey(314159)
-        chm = genjax.chm({"y1": 3.0})
+        chm = genjax.choice_map({"y1": 3.0})
         key, tr = jax.jit(higher_model.simulate)(key, ())
         old_value = tr.strip()["y1"]
         key, (rd, w, tr, _) = jax.jit(higher_model.update)(key, tr, chm, ())
@@ -78,7 +78,7 @@ class TestInline:
 
     def test_inline_assess(self):
         key = jax.random.PRNGKey(314159)
-        chm = genjax.chm({"y1": 3.0, "y2": 3.0})
+        chm = genjax.choice_map({"y1": 3.0, "y2": 3.0})
         key, (ret, score) = jax.jit(higher_model.assess)(key, chm, ())
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0

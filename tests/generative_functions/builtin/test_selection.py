@@ -24,9 +24,9 @@ def simple_normal():
     return y1 + y2
 
 
-class TestTrieSelection:
+class TestBuiltinSelection:
     def test_builtin_selection(self):
-        new = genjax.TrieSelection.new("x", ("z", "y"))
+        new = genjax.BuiltinSelection.new("x", ("z", "y"))
         assert new.has_subtree("z")
         assert new.has_subtree("x")
         v = new["x"]
@@ -37,6 +37,6 @@ class TestTrieSelection:
     def test_builtin_selection_filter(self):
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(simple_normal.simulate)(key, ())
-        selection = genjax.TrieSelection.new("y1")
+        selection = genjax.BuiltinSelection.new("y1")
         chm = selection.filter(tr)
         assert chm["y1"] == tr["y1"]
