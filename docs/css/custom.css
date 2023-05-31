@@ -10,5 +10,6 @@
 .md-typeset code {
   font-family: 'Iosevka';
   font-weight: 800;
+  font-size: 1.05em;
   font-variant-ligatures: discretionary-ligatures;
 }
