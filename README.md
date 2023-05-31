@@ -50,8 +50,6 @@ This project uses:
 * [mkdocs](https://www.mkdocs.org/) to generate static documentation.
 * [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
-Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build.
-
 ### Environment setup script
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
