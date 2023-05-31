@@ -521,28 +521,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#approximation-of-marginal-densities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Approximation of marginal densities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#automatic-differentiation-of-expected-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Automatic differentiation of expected values
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -762,28 +740,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#approximation-of-marginal-densities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Approximation of marginal densities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#automatic-differentiation-of-expected-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Automatic differentiation of expected values
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -896,16 +852,6 @@
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="k">return</span> <span class="n">v</span>
 </code></pre></div>
 <p>Now we're describing a broadcastable generative function whose internal choices include a chain-like generative structure with dynamic truncation using padding. And we could go on!</p>
-<h2 id="approximation-of-marginal-densities">Approximation of marginal densities<a class="headerlink" href="#approximation-of-marginal-densities" title="Permanent link">&para;</a></h2>
-<p>GenJAX also features an implementation of a framework for pseudomarginalization and approximate normalization called <code>Prox</code>. <code>Prox</code> allows construction of <em>approximate distributions</em>, distributions whose sample and density interfaces are replaced with unbiased estimators.</p>
-<h2 id="automatic-differentiation-of-expected-values">Automatic differentiation of expected values<a class="headerlink" href="#automatic-differentiation-of-expected-values" title="Permanent link">&para;</a></h2>
-<p class="annotate">JAX is a state-of-the-art framework for AD. Not to be outdone, GenJAX features a state-of-the-art framework for constructing unbiased gradient estimators for loss functions defined as expected values (1).</p>
-<ol>
-<li><a href="https://arxiv.org/pdf/2212.06386.pdf">Lew &amp; Huot et al, 2022, <em>ADEV: Sound Automatic Differentiation of Expected Values of Probabilistic Programs</em></a></li>
-</ol>
-<div class="arithmatex">\[
-L(\theta) = E_{v \sim P(\cdot \ ; \ \theta)}[f(v, \theta)]
-\]</div>
 
   
     
