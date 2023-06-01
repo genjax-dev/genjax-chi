@@ -51,11 +51,11 @@ This project uses:
 - [mkdocs](https://www.mkdocs.org/) to generate static documentation.
 - [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
-### Environment setup script
+### Execution environment setup script
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
 
-Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute the notebooks, etc.
+Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute tests, build and serve the documentation, etc. 
 
 ```bash
 conda create --name genjax-py311 python=3.11 --channel=conda-forge
@@ -74,6 +74,24 @@ You can test your environment with:
 ```bash
 nox -r
 ```
+
+### Documentation environment setup script
+
+If you want you deploy the Jupyter notebooks, you'll also need [quarto](https://quarto.org/docs/get-started/).
+
+In addition, you'll also need `mkdocs`:
+
+```bash
+pip install mkdocs
+```
+
+With these two installed (`mkdocs` into your active Python environment) and on path, you can fully build the documentation:
+
+```bash
+nox -r -s docs-build
+```
+
+This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory. Pushing the result to the `main` branch will trigger a CI job to deploy to the GitHub Pages branch `gh-pages`, from which the documentation is hosted.
 
 ## References
 
