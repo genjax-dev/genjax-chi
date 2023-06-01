@@ -2021,7 +2021,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 </span><span id="__span-0-262"><a id="__codelineno-0-262" name="__codelineno-0-262"></a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span>
 </span><span id="__span-0-263"><a id="__codelineno-0-263" name="__codelineno-0-263"></a>        <span class="bp">self</span><span class="p">,</span>
 </span><span id="__span-0-264"><a id="__codelineno-0-264" name="__codelineno-0-264"></a>        <span class="n">key</span><span class="p">:</span> <span class="n">PRNGKey</span><span class="p">,</span>
-</span><span id="__span-0-265"><a id="__codelineno-0-265" name="__codelineno-0-265"></a>        <span class="n">original</span><span class="p">:</span> <span class="n">Trace</span><span class="p">,</span>
+</span><span id="__span-0-265"><a id="__codelineno-0-265" name="__codelineno-0-265"></a>        <span class="n">trace</span><span class="p">:</span> <span class="n">Trace</span><span class="p">,</span>
 </span><span id="__span-0-266"><a id="__codelineno-0-266" name="__codelineno-0-266"></a>        <span class="n">new</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
 </span><span id="__span-0-267"><a id="__codelineno-0-267" name="__codelineno-0-267"></a>        <span class="n">diffs</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">,</span>
 </span><span id="__span-0-268"><a id="__codelineno-0-268" name="__codelineno-0-268"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">PRNGKey</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">FloatArray</span><span class="p">,</span> <span class="n">Trace</span><span class="p">,</span> <span class="n">ChoiceMap</span><span class="p">]]:</span>
@@ -2031,7 +2031,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 </span><span id="__span-0-272"><a id="__codelineno-0-272" name="__codelineno-0-272"></a>    <span class="k">def</span> <span class="nf">assess</span><span class="p">(</span>
 </span><span id="__span-0-273"><a id="__codelineno-0-273" name="__codelineno-0-273"></a>        <span class="bp">self</span><span class="p">,</span>
 </span><span id="__span-0-274"><a id="__codelineno-0-274" name="__codelineno-0-274"></a>        <span class="n">key</span><span class="p">:</span> <span class="n">PRNGKey</span><span class="p">,</span>
-</span><span id="__span-0-275"><a id="__codelineno-0-275" name="__codelineno-0-275"></a>        <span class="n">evaluation_point</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
+</span><span id="__span-0-275"><a id="__codelineno-0-275" name="__codelineno-0-275"></a>        <span class="n">chm</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
 </span><span id="__span-0-276"><a id="__codelineno-0-276" name="__codelineno-0-276"></a>        <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">,</span>
 </span><span id="__span-0-277"><a id="__codelineno-0-277" name="__codelineno-0-277"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">PRNGKey</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">FloatArray</span><span class="p">]]:</span>
 </span><span id="__span-0-278"><a id="__codelineno-0-278" name="__codelineno-0-278"></a>        <span class="k">pass</span>
@@ -2065,10 +2065,10 @@ provide a differentiable <code>importance</code> implementation.</p>
 </span><span id="__span-0-306"><a id="__codelineno-0-306" name="__codelineno-0-306"></a>    <span class="c1"># but provides convenient access to first-order gradients.</span>
 </span><span id="__span-0-307"><a id="__codelineno-0-307" name="__codelineno-0-307"></a>    <span class="k">def</span> <span class="nf">choice_grad</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">trace</span><span class="p">,</span> <span class="n">selection</span><span class="p">):</span>
 </span><span id="__span-0-308"><a id="__codelineno-0-308" name="__codelineno-0-308"></a>        <span class="n">fixed</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">complement</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">trace</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
-</span><span id="__span-0-309"><a id="__codelineno-0-309" name="__codelineno-0-309"></a>        <span class="n">evaluation_point</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">trace</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+</span><span id="__span-0-309"><a id="__codelineno-0-309" name="__codelineno-0-309"></a>        <span class="n">chm</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">trace</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
 </span><span id="__span-0-310"><a id="__codelineno-0-310" name="__codelineno-0-310"></a>        <span class="n">key</span><span class="p">,</span> <span class="n">scorer</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unzip</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">fixed</span><span class="p">)</span>
 </span><span id="__span-0-311"><a id="__codelineno-0-311" name="__codelineno-0-311"></a>        <span class="n">grad</span><span class="p">,</span> <span class="n">nograd</span> <span class="o">=</span> <span class="n">tree_grad_split</span><span class="p">(</span>
-</span><span id="__span-0-312"><a id="__codelineno-0-312" name="__codelineno-0-312"></a>            <span class="p">(</span><span class="n">evaluation_point</span><span class="p">,</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_args</span><span class="p">()),</span>
+</span><span id="__span-0-312"><a id="__codelineno-0-312" name="__codelineno-0-312"></a>            <span class="p">(</span><span class="n">chm</span><span class="p">,</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_args</span><span class="p">()),</span>
 </span><span id="__span-0-313"><a id="__codelineno-0-313" name="__codelineno-0-313"></a>        <span class="p">)</span>
 </span><span id="__span-0-314"><a id="__codelineno-0-314" name="__codelineno-0-314"></a>        <span class="n">choice_gradient_tree</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">scorer</span><span class="p">)(</span><span class="n">grad</span><span class="p">,</span> <span class="n">nograd</span><span class="p">)</span>
 </span><span id="__span-0-315"><a id="__codelineno-0-315" name="__codelineno-0-315"></a>        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">choice_gradient_tree</span>
@@ -2188,7 +2188,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
 <h3 id="genjax._src.core.datatypes.generative.GenerativeFunction.update" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">original</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">diffs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">trace</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">diffs</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
@@ -2213,7 +2213,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 </span><span id="__span-0-262"><a id="__codelineno-0-262" name="__codelineno-0-262"></a><span class="k">def</span> <span class="nf">update</span><span class="p">(</span>
 </span><span id="__span-0-263"><a id="__codelineno-0-263" name="__codelineno-0-263"></a>    <span class="bp">self</span><span class="p">,</span>
 </span><span id="__span-0-264"><a id="__codelineno-0-264" name="__codelineno-0-264"></a>    <span class="n">key</span><span class="p">:</span> <span class="n">PRNGKey</span><span class="p">,</span>
-</span><span id="__span-0-265"><a id="__codelineno-0-265" name="__codelineno-0-265"></a>    <span class="n">original</span><span class="p">:</span> <span class="n">Trace</span><span class="p">,</span>
+</span><span id="__span-0-265"><a id="__codelineno-0-265" name="__codelineno-0-265"></a>    <span class="n">trace</span><span class="p">:</span> <span class="n">Trace</span><span class="p">,</span>
 </span><span id="__span-0-266"><a id="__codelineno-0-266" name="__codelineno-0-266"></a>    <span class="n">new</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
 </span><span id="__span-0-267"><a id="__codelineno-0-267" name="__codelineno-0-267"></a>    <span class="n">diffs</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">,</span>
 </span><span id="__span-0-268"><a id="__codelineno-0-268" name="__codelineno-0-268"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">PRNGKey</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">FloatArray</span><span class="p">,</span> <span class="n">Trace</span><span class="p">,</span> <span class="n">ChoiceMap</span><span class="p">]]:</span>
@@ -2229,7 +2229,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 
 
 <h3 id="genjax._src.core.datatypes.generative.GenerativeFunction.assess" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">assess</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">evaluation_point</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">assess</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">chm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
@@ -2253,7 +2253,7 @@ provide a differentiable <code>importance</code> implementation.</p>
 </span><span id="__span-0-272"><a id="__codelineno-0-272" name="__codelineno-0-272"></a><span class="k">def</span> <span class="nf">assess</span><span class="p">(</span>
 </span><span id="__span-0-273"><a id="__codelineno-0-273" name="__codelineno-0-273"></a>    <span class="bp">self</span><span class="p">,</span>
 </span><span id="__span-0-274"><a id="__codelineno-0-274" name="__codelineno-0-274"></a>    <span class="n">key</span><span class="p">:</span> <span class="n">PRNGKey</span><span class="p">,</span>
-</span><span id="__span-0-275"><a id="__codelineno-0-275" name="__codelineno-0-275"></a>    <span class="n">evaluation_point</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
+</span><span id="__span-0-275"><a id="__codelineno-0-275" name="__codelineno-0-275"></a>    <span class="n">chm</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
 </span><span id="__span-0-276"><a id="__codelineno-0-276" name="__codelineno-0-276"></a>    <span class="n">args</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">,</span>
 </span><span id="__span-0-277"><a id="__codelineno-0-277" name="__codelineno-0-277"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">PRNGKey</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">FloatArray</span><span class="p">]]:</span>
 </span><span id="__span-0-278"><a id="__codelineno-0-278" name="__codelineno-0-278"></a>    <span class="k">pass</span>
