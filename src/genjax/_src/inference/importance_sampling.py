@@ -30,6 +30,10 @@ from genjax._src.utilities import slash
 
 @dataclasses.dataclass
 class ImportanceSampling(Pytree):
+    """
+    Bootstrap and proposal importance sampling for generative functions.
+    """
+
     num_particles: IntArray
     model: GenerativeFunction
     proposal: Union[None, GenerativeFunction] = None

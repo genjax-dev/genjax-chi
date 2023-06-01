@@ -30,7 +30,7 @@
     Defining a beta-bernoulli process model as a generative function in GenJAX.
     </p>
 
-    ```python
+    ```py linenums="1"
     @genjax.gen
     def model():
       p = beta(0, 1) @ "p"
@@ -45,21 +45,33 @@
     This works for **any** generative function, not just the beta-bernoulli model.
     </p>
     
-    ```python
+    ```py linenums="1"
     # Sampling importance resampling.
-    def sir(key: PRNGKey, gen_fn: GenerativeFunction, model_args: Tuple,
-            obs: ChoiceMap, n_samples: Int):
-        key, sub_keys = genjax.slash(key, n_samples) # split keys
-        _, (lws, trs) = jax.vmap(gen_fn.importance, in_axes=(0, None, None))(
-            sub_keys,
-            obs,
-            args,
-        )
+    def sir(
+        key: PRNGKey,
+        gen_fn: GenerativeFunction,
+        model_args: Tuple,
+        obs: ChoiceMap,
+        n_samples: Int,
+    ): # (1)!
+
+        key, sub_keys = genjax.slash(key, n_samples)  # split keys
+        _, (lws, trs) = jax.vmap(
+            gen_fn.importance, # (2)!
+            in_axes=(0, None, None),
+        )(sub_keys, obs, args)
         log_total_weight = jax.scipy.special.logsumexp(lws)
         log_normalized_weights = lws - log_total_weight
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
         return key, (trs, log_normalized_weights, log_ml_estimate)
     ```
+
+    1.  Here's a few notes about the signature:
+        * `PRNGKey` is the type of `jax.random.PRNGKey`. In GenJAX, we pass keys into generative code, and generative code returns a changed key.
+        * `GenerativeFunction` refers to generative functions, objects which expose Gen's probabilistic interface.
+        * For now, think of `ChoiceMap` as the type of object which Gen uses to express conditioning.
+
+    2. `gen_fn.importance` is a _generative function interface_ method. Generative functions are responsible for implementing this method, to support conditional sampling and conditional density estimation. You can learn a lot more about this method in [the generative function interface](genjax/library/core/generative.md#generative-functions).
 </div>
 
 ## What sort of things do you use GenJAX for?
