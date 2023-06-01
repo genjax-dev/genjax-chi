@@ -41,9 +41,7 @@ nox.options.sessions = ("tests", "xdoctests", "lint", "build")
 
 @session(python=python_version)
 def tests(session):
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.run(
         "poetry",
         "run",
@@ -60,9 +58,7 @@ def tests(session):
 
 @session(python=python_version)
 def coverage(session):
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.run(
         "poetry",
         "run",
@@ -82,9 +78,7 @@ def coverage(session):
 
 @session(python=python_version)
 def benchmark(session):
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.run(
         "coverage",
         "run",
@@ -103,9 +97,7 @@ def benchmark(session):
 @session(python=python_version)
 def xdoctests(session) -> None:
     """Run examples with xdoctest."""
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     if session.posargs:
         args = [package, *session.posargs]
     else:
@@ -129,9 +121,7 @@ def safety(session) -> None:
 def mypy(session) -> None:
     """Type-check using mypy."""
     args = session.posargs or ["src", "tests", "docs/conf.py"]
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.run("mypy", *args)
     if not session.posargs:
         session.run("mypy", f"--python-executable={sys.executable}", "noxfile.py")
@@ -139,9 +129,7 @@ def mypy(session) -> None:
 
 @session(python=python_version)
 def lint(session: Session) -> None:
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.install(
         "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
     )
@@ -157,7 +145,11 @@ def lint(session: Session) -> None:
 @session(python=python_version)
 def build(session):
     session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
+        "poetry",
+        "install",
+        "--with",
+        "dev",
+        external=True,
     )
     session.run("poetry", "build")
 
@@ -165,7 +157,19 @@ def build(session):
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
-    session.run_always("poetry", "install", external=True)
+    session.run_always("poetry", "install", "--with", "docs", external=True)
+    session.install("mkdocs")
+    build_dir = Path("site")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    session.run("mkdocs", "build")
+    session.run("quarto", "render", "notebooks", external=True)
+
+
+@session(name="docs-build-insider", python=python_version)
+def docs_build(session: Session) -> None:
+    """Build the documentation."""
+    session.run_always("poetry", "install", "--with", "docs-insider", external=True)
     session.install("mkdocs")
     build_dir = Path("site")
     if build_dir.exists():
@@ -177,16 +181,12 @@ def docs_build(session: Session) -> None:
 @session(name="notebooks-serve", python=python_version)
 def notebooks_serve(session: Session) -> None:
     """Build the documentation."""
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.run("quarto", "preview", "notebooks", external=True)
 
 
 @session(name="jupyter", python=python_version)
 def jupyter(session: Session) -> None:
     """Build the documentation."""
-    session.run_always(
-        "poetry", "install", "--with", "dev", "--without", "docs", external=True
-    )
+    session.run_always("poetry", "install", "--with", "dev", external=True)
     session.run("jupyter-lab", external=True)
