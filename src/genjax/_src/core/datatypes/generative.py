@@ -262,7 +262,7 @@ class GenerativeFunction(Pytree):
     def update(
         self,
         key: PRNGKey,
-        original: Trace,
+        trace: Trace,
         new: ChoiceMap,
         diffs: Tuple,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
@@ -272,7 +272,7 @@ class GenerativeFunction(Pytree):
     def assess(
         self,
         key: PRNGKey,
-        evaluation_point: ChoiceMap,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         pass
@@ -306,10 +306,10 @@ class GenerativeFunction(Pytree):
     # but provides convenient access to first-order gradients.
     def choice_grad(self, key, trace, selection):
         fixed = selection.complement().filter(trace.strip())
-        evaluation_point = selection.filter(trace.strip())
+        chm = selection.filter(trace.strip())
         key, scorer, _ = self.unzip(key, fixed)
         grad, nograd = tree_grad_split(
-            (evaluation_point, trace.get_args()),
+            (chm, trace.get_args()),
         )
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return key, choice_gradient_tree
