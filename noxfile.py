@@ -157,7 +157,9 @@ def build(session):
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
-    session.run_always("poetry", "install", "--with", "docs", external=True)
+    session.run_always(
+        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    )
     session.install("mkdocs")
     build_dir = Path("site")
     if build_dir.exists():
