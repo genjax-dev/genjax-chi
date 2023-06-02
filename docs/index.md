@@ -46,8 +46,7 @@
     </p>
     
     ```py linenums="1"
-    # Sampling importance resampling.
-    def sir(
+    def importance_sampling(
         key: PRNGKey,
         gen_fn: GenerativeFunction,
         model_args: Tuple,
