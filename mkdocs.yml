@@ -20,7 +20,6 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 nav:
   - Home: 
       - index.md
-      - Language apéritifs: genjax/language_aperitifs.md
       - Comparisons to Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
   - Library reference:

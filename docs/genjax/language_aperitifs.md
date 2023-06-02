@@ -1,12 +1,14 @@
 # Language apéritifs
 
+> This page assumes that the reader has familiarity with trace-based probabilistic programming systems.
+
 The implementation of GenJAX adhers to commonly accepted JAX idioms (1) and modern functional programming patterns (2).
 { .annotate }
 
 1.  One example: _everything_ is a [Pytree](https://github.com/patrick-kidger/equinox). Implies another: everything is JAX traceable by default.
 2.  _Modern_ here meaning patterns concerning the composition of effectful computations via effect handling abstractions.
 
-GenJAX consists of a **set of languages** based around transforming pure functions to apply semantic transformations. In this page, we'll provide a taste of some of these languages.
+GenJAX consists of a **set of languages** based around transforming pure functions to apply semantic transformations. On this page, we'll provide a taste of some of these languages.
 
 ## The builtin language
 
