@@ -23,6 +23,12 @@ from genjax._src.core.pytree import Pytree
 
 @dataclass
 class Tree(Pytree):
+    """
+    > The `Tree` class is used to define abstract classes for tree-shaped datatypes. These classes are used to implement trace, choice map, and selection types.
+
+    One should think of `Tree` as providing a convenient base class for many of the generative datatypes declared in GenJAX. `Tree` mixes in `Pytree` automatically.
+    """
+
     @abc.abstractmethod
     def has_subtree(self, addr) -> bool:
         pass
@@ -38,6 +44,12 @@ class Tree(Pytree):
 
 @dataclass
 class Leaf(Tree):
+    """
+    > The `Leaf` class specializes `Tree` to classes without any internal subtrees.
+
+    `Leaf` is a convenient base for generative datatypes which don't keep reference to other `Tree` instances - things like `ValueChoiceMap` (whose only choice value is a single value, not a dictionary or other tree-like object). `Leaf` extends `Tree` with a special extension method `get_leaf_value`.
+    """
+
     @abc.abstractmethod
     def get_leaf_value(self):
         pass

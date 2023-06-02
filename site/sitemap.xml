@@ -131,6 +131,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/combinators/unfold.html</loc>
+         <lastmod>2023-06-02</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/index.html</loc>
          <lastmod>2023-06-02</lastmod>
          <changefreq>daily</changefreq>
@@ -152,6 +157,11 @@
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/tfd.html</loc>
+         <lastmod>2023-06-02</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/custom/index.html</loc>
          <lastmod>2023-06-02</lastmod>
          <changefreq>daily</changefreq>
     </url>

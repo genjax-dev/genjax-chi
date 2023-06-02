@@ -61,56 +61,34 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 @dataclass
 class UnfoldCombinator(GenerativeFunction):
-    """`UnfoldCombinator` accepts a single kernel generative function as input
-    and a static unroll length which specifies how many iterations to run the
-    chain for.
+    """
+    > `UnfoldCombinator` accepts a kernel generative function, as well as a static maximum unroll length, and provides a scan-like pattern of generative computation.
 
-    A kernel generative function is one which accepts and returns
-    the same signature of arguments. Under the hood, `UnfoldCombinator`
-    is implemented using `jax.lax.scan` - which has the same
-    requirements.
+    !!! info "Kernel generative functions"
+        A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `UnfoldCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
 
-    Parameters
-    ----------
+    Examples:
 
-    gen_fn: `GenerativeFunction`
-        A single *kernel* `GenerativeFunction` instance.
-
-    length: `Int`
-        An integer specifying the unroll length of the chain of applications.
-
-    Returns
-    -------
-    `UnfoldCombinator`
-        A single `UnfoldCombinator` generative function which
-        implements the generative function interface using a scan-like
-        pattern. This generative function will perform a dependent-for
-        iteration (passing the return value of generative function application)
-        to the next iteration for `length` number of steps.
-        The programmer must provide an initial value to start the chain of
-        iterations off.
-
-    Example
-    -------
-
-    .. jupyter-execute::
-
+        ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
         console = genjax.pretty()
 
-
+        # A kernel generative function.
         @genjax.gen
         def random_walk(prev):
-            x = genjax.trace("x", genjax.Normal)(prev, 1.0)
+            x = genjax.normal(prev, 1.0) @ "x"
             return x
 
+        # Creating a `SwitchCombinator` via the preferred `new` class method.
+        unfold = genjax.UnfoldCombinator.new(random_walk, 1000)
 
-        unfold = genjax.Unfold(random_walk, 1000)
         init = 0.5
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(unfold))(key, (999, init))
-        console.print(tr)
+
+        print(console.render(tr))
+        ```
     """
 
     max_length: IntArray
@@ -121,7 +99,17 @@ class UnfoldCombinator(GenerativeFunction):
 
     @typecheck
     @classmethod
-    def new(cls, kernel: GenerativeFunction, max_length: Int):
+    def new(cls, kernel: GenerativeFunction, max_length: Int) -> "UnfoldCombinator":
+        """
+        The preferred constructor for `UnfoldCombinator` generative function instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.
+
+        Arguments:
+            kernel: A kernel `GenerativeFunction` instance.
+            max_length: A static maximum possible unroll length.
+
+        Returns:
+            instance: An `UnfoldCombinator` instance.
+        """
         return UnfoldCombinator(max_length, kernel)
 
     # This overloads the call functionality for this generative function
