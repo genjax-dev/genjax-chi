@@ -60,34 +60,15 @@ from genjax._src.utilities import slash
 
 @dataclass
 class MapCombinator(GenerativeFunction):
-    """`MapCombinator` accepts a single generative function as input and
+    """
+    > `MapCombinator` accepts a single generative function as input and
     provides `vmap`-based implementations of the generative function interface
-    methods. `MapCombinator` also accepts `in_axes` as an argument to specify
-    exactly which axes of the `(key, *args)` should be broadcasted over.
+    methods.
 
-    Parameters
-    ----------
 
-    gen_fn: `GenerativeFunction`
-        A single `GenerativeFunction` instance.
+    Examples:
 
-    in_args: `Tuple[Int, ...]`
-        A tuple specifying which `(key, *args)` to broadcast
-        over.
-
-    Returns
-    -------
-
-    `MapCombinator`
-        A single `MapCombinator` generative function which
-        implements `vmap` support for each generative function
-        interface method.
-
-    Example
-    -------
-
-    .. jupyter-execute::
-
+        ```python exec="yes" source="tabbed-left"
         import jax
         import jax.numpy as jnp
         import genjax
@@ -95,21 +76,20 @@ class MapCombinator(GenerativeFunction):
 
         @genjax.gen
         def add_normal_noise(x):
-            noise1 = genjax.trace("noise1", genjax.Normal)(
-                    0.0, 1.0
-            )
-            noise2 = genjax.trace("noise2", genjax.Normal)(
-                    0.0, 1.0
-            )
-            return (key, x + noise1 + noise2)
+            noise1 = genjax.normal(0.0, 1.0) @ "noise1"
+            noise2 = genjax.normal(0.0, 1.0) @ "noise2"
+            return x + noise1 + noise2
 
 
+        # Creating a `MapCombinator` via the preferred `new` class method.
         mapped = genjax.MapCombinator.new(add_normal_noise, in_axes=(0,))
 
-        arr = jnp.ones(100)
         key = jax.random.PRNGKey(314159)
+        arr = jnp.ones(100)
         key, tr = jax.jit(genjax.simulate(mapped))(key, (arr, ))
-        console.print(tr)
+
+        print(console.render(tr))
+        ```
     """
 
     in_axes: Tuple
@@ -132,6 +112,17 @@ class MapCombinator(GenerativeFunction):
         in_axes: Union[None, Tuple] = None,
         repeats: Union[None, IntArray] = None,
     ) -> "MapCombinator":
+        """
+        The preferred constructor for `MapCombinator` generative function instances. The shorthand symbol is `Map = MapCombinator.new`.
+
+        Arguments:
+            kernel: A single `GenerativeFunction` instance.
+            in_axes: A tuple specifying which `args` to broadcast over.
+            repeats: An integer specifying the length of repetitions (ignored if `in_axes` is specified, if `in_axes` is not specified - required).
+
+        Returns:
+            instance: A `MapCombinator` instance.
+        """
         assert isinstance(kernel, GenerativeFunction)
         if in_axes is None or all(map(lambda v: v is None, in_axes)):
             assert repeats is not None
