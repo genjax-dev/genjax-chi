@@ -323,13 +323,63 @@ class Distribution(GenerativeFunction):
 
 @dataclass
 class ExactDensity(Distribution):
+    """
+    > Abstract base class which extends Distribution and assumes that the implementor provides an exact logpdf method (compared to one which returns _an estimate of the logpdf_).
+
+    All of the standard distributions inherit from `ExactDensity`, and if you are looking to implement your own distribution, you should likely use this class.
+
+    !!! info "`Distribution` implementors are `Pytree` implementors"
+
+        As `Distribution` extends `Pytree`, if you use this class, you must implement `flatten` as part of your class declaration.
+    """
+
     @abc.abstractmethod
-    def sample(self, key, *args, **kwargs):
-        pass
+    def sample(self, key: PRNGKey, *args, **kwargs) -> Any:
+        """
+        > Sample from the distribution, returning a value from the event space.
+
+        Arguments:
+            key: A `PRNGKey`.
+            *args: The arguments to the distribution invocation.
+
+        Returns:
+            v: A value from the event space of the distribution.
+
+        !!! info "Implementations need not return a new `PRNGKey`"
+
+            Note that `sample` does not return a new evolved `PRNGKey`. This is for convenience - `ExactDensity` is used often, and the interface for `sample` is simple. `sample` is called by `random_weighted` in the generative function interface implementations, and always gets a fresh `PRNGKey` - `sample` as a callee need not return a new evolved key.
+
+        Examples:
+            `genjax.normal` is a distribution with an exact density, which supports the `sample` interface. Here's an example of invoking `sample`.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            v = genjax.normal.sample(key, 0.0, 1.0)
+            print(console.render(v))
+            ```
+
+            Note that you often do want or need to invoke `sample` directly - you'll likely want to use the generative function interface methods instead:
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            print(console.render(tr))
+            ```
+        """
 
     @abc.abstractmethod
     def logpdf(self, v, *args, **kwargs):
-        pass
+        """
+        > Given a value from the event space, compute the log probability of that value under the distribution.
+        """
 
     def random_weighted(self, key, *args, **kwargs):
         key, sub_key = jax.random.split(key)
