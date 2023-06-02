@@ -358,8 +358,6 @@
       
         
       
-        
-      
     
     
       
@@ -1352,19 +1350,13 @@ which <code>GenJAX</code> generative function and inference modules are built
 on top of. It contains (truncated, and in no particular order):</p>
 <ul>
 <li>
-<p>Core <a href="https://www.gen.dev/">Gen</a> associated data types for generative functions.</p>
+<p>Core data types for the associated data types of generative functions.</p>
 </li>
 <li>
-<p>Utility functionality for automatically registering class definitions as valid <code>Pytree</code> method implementors (guaranteeing <code>flatten</code>/<code>unflatten</code> compatibility across JAX transform boundaries). For more information, see <a href="https://jax.readthedocs.io/en/latest/pytrees.html">Pytrees</a>.</p>
+<p>Utility abstract data types (mixins) for automatically registering class definitions as valid <code>Pytree</code> method implementors (guaranteeing <code>flatten</code>/<code>unflatten</code> compatibility across JAX transform boundaries). For more information, see <a href="https://jax.readthedocs.io/en/latest/pytrees.html">Pytrees</a>.</p>
 </li>
 <li>
-<p>Staging functionality that allows lifting of pure, numerical Python programs to <code>ClosedJaxpr</code> instances.</p>
-</li>
-<li>
-<p>Transformation interpreters: interpreter-based transformations on which operate on <code>ClosedJaxpr</code> instances. Interpreters are all written in initial style - they operate on <code>ClosedJaxpr</code> instances, and don't implement their own custom <code>jax.Tracer</code> types - but they are JAX compatible, implying that they can be staged out for zero runtime cost.</p>
-</li>
-<li>
-<p>Masking functionality which allows active/inactive flagging of data - useful when branching patterns of computation require uncertainty in whether or not data is active with respect to a generative computation.</p>
+<p>Transformation interpreters: interpreter-based transformations which operate on <code>ClosedJaxpr</code> instances, as well as staging functionality for staging out computations to <code>ClosedJaxpr</code> instances. The core interpreters are written in a mixed initial / final style. The application of all interpreters are JAX compatible, meaning that the application of any interpreter can be staged out to eliminate the interpreter overhead.</p>
 </li>
 </ul>
 
