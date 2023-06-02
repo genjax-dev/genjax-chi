@@ -15,9 +15,9 @@
 """
 This module provides:
 
-* Abstract base classes for distributions which inherit from `GenerativeFunction`, including `Distribution` and `ExactDensity`. The latter assumes that the inheritor exposes _exact density evaluation_, while the former makes no such assumption.
+* Abstract base classes for declaring distributions as `GenerativeFunction` types. These classes include `Distribution` and `ExactDensity`. The latter assumes that the inheritor exposes _exact density evaluation_, while the former makes no such assumption.
 
-* Several distributions as generative functions from JAX's `scipy` module, as well as TensorFlow Distributions from TensorFlow Probability (tfp) using the JAX backend.
+* Several distributions from JAX's `scipy` module, as well as TensorFlow Distributions (`tfd`) from TensorFlow Probability (`tfp`) using the JAX backend.
 
 * Custom distributions, including ones with exact posteriors (like discrete HMMs).
 

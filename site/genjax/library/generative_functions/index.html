@@ -1347,6 +1347,15 @@
   
       <p>This module contains several standard generative function classes useful for
 structuring probabilistic programs.</p>
+<ul>
+<li>The <code>distributions</code> module exports standard distributions from several sources, including SciPy (<code>scipy</code>), TensorFlow Probability Distributions (<code>tfd</code>), and custom distributions.<ul>
+<li>The <code>distributions</code> module also contains a small <code>oryx</code>-like language called <code>coryx</code> which implements the generative function interface for programs with inverse log determinant Jacobian (ildj) compatible return value functions of distribution random choices.</li>
+<li>The <code>distributions</code> module also contains an implementation of <code>prox</code>, a research language for probabilistic programming with density estimates.</li>
+</ul>
+</li>
+<li>The <code>builtin</code> module contains a function-like language for defining generative functions from programs.</li>
+<li>The <code>combinators</code> module contains combinators which support transforming generative functions into new ones with structured control flow patterns of computation.</li>
+</ul>
 
   
 
@@ -1441,13 +1450,13 @@ structuring probabilistic programs.</p>
         
         
           
-          <a href="distributions/index.html" class="md-footer__link md-footer__link--next" aria-label="Next: Index" rel="next">
+          <a href="distributions/index.html" class="md-footer__link md-footer__link--next" aria-label="Next: Distributions" rel="next">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Index
+                Distributions
               </div>
             </div>
             <div class="md-footer__button md-icon">
