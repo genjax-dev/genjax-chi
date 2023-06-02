@@ -23,5 +23,5 @@ This module provides:
 
 * A language (`coryx`) based on [`oryx`](https://github.com/jax-ml/oryx) for defining new distribution objects from inverse log determinant Jacobian transformations on existing distributions.
 
-* A language (`prox`) for defining approximate distributions using inference algorithms that support estimation of their own densities.
+* A language (`gensp`) for defining distributions with estimated densities using inference.
 """
