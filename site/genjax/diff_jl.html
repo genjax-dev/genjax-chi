@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../assets/img/gen-logo.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.12+insiders-4.34.0">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.15+insiders-4.35.3">
     
     
       
@@ -29,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.14411569.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.cac7c1ad.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.df142b89.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ecc776e4.min.css">
       
       
 
@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#diffing-against-genjl" class="md-skip">
+        <a href="#comparisons-with-genjl" class="md-skip">
           Skip to content
         </a>
       
@@ -800,22 +800,26 @@
   
 
 
-<h1 id="diffing-against-genjl">Diffing against Gen.jl<a class="headerlink" href="#diffing-against-genjl" title="Permanent link">&para;</a></h1>
-<p><code>GenJAX</code> is inherits concepts from Gen and algorithm reference implementations from <a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a> - there are a few necessary design deviations between <code>GenJAX</code> and <code>Gen.jl</code> that stem from JAX's underlying array programming model. In this section, we describe several of these differences and try to highlight workarounds or discuss the reason for the discrepancy.</p>
+<h1 id="comparisons-with-genjl">Comparisons with Gen.jl<a class="headerlink" href="#comparisons-with-genjl" title="Permanent link">&para;</a></h1>
+<p>GenJAX implements concepts from Gen, and implements several inference algorithms with reference to implementations from <a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a>. In general, you should find that the programming patterns and interface idioms should match closely with <code>Gen.jl</code>.</p>
+<p>However, there are a few necessary design deviations between <code>genjax</code> and <code>Gen.jl</code> that stem from restrictions arising from JAX's compilation model. In this section, we describe several of these differences and try to highlight workarounds or discuss the reason for the discrepancy.</p>
 <h2 id="turing-universality">Turing universality<a class="headerlink" href="#turing-universality" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a> is Turing universal - it can encode any computable distribution, including those
 expressed by forms of unbounded recursion.</p>
-<p>It is a bit ambiguous whether or not <code>GenJAX</code> falls in this category: JAX does not feature mechanisms for dynamic shape allocations, but it does feature mechanisms for unbounded recursion.</p>
-<p>The former provides a technical barrier to implementing Gen's trace machinery. While JAX allows for unbounded recursion, to support Gen's interfaces we also need the ability to dynamically allocate choice data. This requirement is currently at tension with XLA's requirements of knowing the static shape of everything.</p>
-<p>However, <code>GenJAX</code> supports generative function combinators with bounded recursion / unfold chain length.
+<p class="annotate">Arguing from a practical perspective, <code>genjax</code> also falls into this category, but several things are harder to encode for GPUs(1). Additionally, JAX does not feature mechanisms for dynamic shape allocations, but it does feature mechanisms for unbounded recursion.</p>
+<ol>
+<li>We expect that GPU/TPU deployment to be the dominant usage pattern for <code>genjax</code> - and defer optimized CPU deployment to other implementations of Gen.</li>
+</ol>
+<p>Lack of dynamic allocations provides a technical barrier to implementing Gen's trace machinery for generative functions which feature recursive calls to other generative functions. While JAX allows for unbounded recursion, to generally support recording trace data - we also need the ability to dynamically allocate choice data. This requirement is currently at tension with XLA's requirements of knowing the static shape of everything. Nonetheless, one might imagine pre-allocating large arrays - passing them into <code>jax.lax.while_op</code> implementations of certain types of recursion, etc. Painful and impractical - yes, but theoretical possible.</p>
+<p><code>genjax</code> supports generative function combinators with bounded recursion / unfold chain length.
 Ahead of time, these combinators can be directed to pre-allocate arrays with enough size to handle recursion/looping
 within the bounds that the programmer sets. If these bounds are exceeded, a Python runtime error will be thrown (both on
 and off JAX device).</p>
 <p>In practice, this means that some performance engineering (space vs. expressivity) is required of the programmer. It's certainly feasible to express bounded recursive computations which terminate with probability 1 - but you'll need to ahead of time allocate space for it.</p>
 <h2 id="mutation">Mutation<a class="headerlink" href="#mutation" title="Permanent link">&para;</a></h2>
-<p>Just like JAX, GenJAX disallows mutation - expressing a mutation to an array must be done through special interfaces, and those interfaces return full copies. There are special circumstances where these interfaces will be performed in place.</p>
+<p>Just like JAX, GenJAX disallows mutation - expressing a mutating operation on an array must be done through special JAX interfaces. Outside of JIT compilation, those interfaces often fully copy array data. Inside of JIT compilation, there are special circumstances where these operations will be performed in place.</p>
 <h2 id="to-jit-or-not-to-jit">To JIT or not to JIT<a class="headerlink" href="#to-jit-or-not-to-jit" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a> is written in Julia, which automatically JITs everything. <code>GenJAX</code>, by virtue of being constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed. Thus, the idioms that are used to express and optimize inference code are necessarily different compared to <a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a>. In the inference standard library, you'll typically find algorithms implemented as dataclasses which inherit (and implement) the <code>jax.Pytree</code> interfaces. Implementing these interfaces allow usage of inference dataclasses and methods in jittable code - and, as a bonus, allow us to be specific about trace vs. runtime known values.</p>
+<p><a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a> is written in Julia, which automatically JITs everything. <code>genjax</code>, by virtue of being constructed on top of JAX, allows us to JIT JAX compatible code - but the JIT process is user directed. Thus, the idioms that are used to express and optimize inference code are necessarily different compared to <a href="https://github.com/probcomp/Gen.jl"><code>Gen.jl</code></a>. In the inference standard library, you'll typically find algorithms implemented as dataclasses which inherit (and implement) the <code>jax.Pytree</code> interfaces. Implementing these interfaces allow usage of inference dataclasses and methods in jittable code - and, as a bonus, allow us to be specific about trace vs. runtime known values.</p>
 <p>In general, it's productive to enclose as much of a computation as possible in a <code>jax.jit</code> block. This can sometimes lead to long trace times. If trace times are ballooning, a common source is explicit for-loops (with known bounds, else JAX will complain). In these cases, you might look at <a href="https://github.com/google/jax/discussions/3732">Advice on speeding up compilation time</a>. We've taken care to optimize (by e.g. using XLA primitives) the code which we expose from GenJAX - but if you find something out of the ordinary, file an issue!</p>
 
   
@@ -931,13 +935,19 @@ and off JAX device).</p>
     <script id="__config" type="application/json">{"base": "..", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.code.select", "content.tooltips", "content.tabs.link", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.8192e063.min.js"></script>
+      <script src="../assets/javascripts/bundle.10c6cd24.min.js"></script>
       
-        <script src="../js/mathjax.js"></script>
+        
+          <script src="../js/mathjax.js"></script>
+        
       
-        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        
+          <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        
       
-        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        
+          <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        
       
     
   </body>

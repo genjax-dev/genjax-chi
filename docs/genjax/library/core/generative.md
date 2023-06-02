@@ -8,9 +8,9 @@
 
 ## Generative functions
 
-The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types which allow inference layers to abstract over the implementation of the interface.
+The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types. The interface is designed to allow inference layers to abstract over implementations.
 
-Below, we document the base abstract class. Concrete generative function languages are described in their own documentation module.
+Below, we document the abstract base class, and illustrate example usage using concrete implementors. Full descriptions of concrete generative function languages are described in their own documentation module.
 
 ::: genjax.core.GenerativeFunction
     options:
@@ -21,6 +21,12 @@ Below, we document the base abstract class. Concrete generative function languag
         - assess
 
 ## Traces
+
+Traces are data structures which record (execution and inference) data about the invocation of generative functions.
+
+Traces are often specialized to a generative function language, to take advantage of data locality, and other representation optimizations.
+
+Traces support a set of accessor method interfaces designed to provide convenient manipulation when handling traces in inference algorithms.
 
 ::: genjax.core.Trace
     options:

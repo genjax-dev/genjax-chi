@@ -49,6 +49,17 @@ class GenJAXConsole:
             overflow="ellipsis",
         )
 
+    def render(self, obj):
+        console = Console(soft_wrap=True, record=True)
+        with console.capture() as _:
+            console.print(
+                obj,
+                soft_wrap=True,
+                overflow="ellipsis",
+            )
+        str_output = console.export_text()
+        return f"```raw\n{str_output}```"
+
     def inspect(self, obj, **kwargs):
         rich.inspect(obj, console=self.rich_console, **kwargs)
 
@@ -69,7 +80,6 @@ def pretty(
     show_locals=False,
     max_frames=30,
     suppress=[jax],
-    **kwargs,
 ):
     rich.pretty.install(overflow=overflow)
     traceback.install(
@@ -78,4 +88,4 @@ def pretty(
         suppress=suppress,
     )
 
-    return GenJAXConsole(Console(soft_wrap=True, **kwargs))
+    return GenJAXConsole(Console(soft_wrap=True))

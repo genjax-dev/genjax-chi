@@ -99,14 +99,35 @@ class ChoiceMap(Tree):
 @dataclasses.dataclass
 class Trace(ChoiceMap, Tree):
     """
-    Abstract base class for traces of generative functions.
+    > Abstract base class for traces of generative functions.
 
-    A `Trace` is a data structure used to represent sampled executions of a generative function. It tracks metadata associated with log probability values, as well as values associated with the invocation of a generative function, including the arguments it was invoked with, its return value, and the identity of the generative function itself.
+    A `Trace` is a data structure used to represent sampled executions of generative functions.
+
+    Traces track metadata associated with log probabilities of choices, as well as other data associated with the invocation of a generative function, including the arguments it was invoked with, its return value, and the identity of the generative function itself.
     """
 
     @abc.abstractmethod
     def get_retval(self) -> Any:
-        pass
+        """
+        Returns the return value from the generative function invocation which created the `Trace`.
+
+        Examples:
+
+            Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            retval = tr.get_retval()
+            chm = tr.get_choices()
+            v = chm.get_leaf_value()
+            print(console.render((retval, v)))
+            ```
+        """
 
     @abc.abstractmethod
     def get_score(self) -> FloatArray:
@@ -122,7 +143,21 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
-        pass
+        """
+        Returns the generative function whose invocation created the `Trace`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            gen_fn = tr.get_gen_fn()
+            print(console.render(gen_fn))
+            ```
+        """
 
     @abc.abstractmethod
     def project(self, selection: "Selection") -> FloatArray:
@@ -153,6 +188,18 @@ class Trace(ChoiceMap, Tree):
     def strip(self):
         """
         Remove all `Trace` metadata, and return a choice map.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            chm = tr.strip()
+            print(console.render(chm))
+            ```
         """
 
         def _check(v):
@@ -214,18 +261,18 @@ class Selection(Tree):
 @dataclasses.dataclass
 class GenerativeFunction(Pytree):
     """
-    Abstract base class for generative functions.
+    > Abstract base class for generative functions.
 
-    Any concrete implementation will interact with the JAX tracing machinery
-    so there are specific API requirements above the requirements
-    enforced in other languages (unlike Gen in Julia, for example).
+    !!! info "Interaction with JAX"
 
-    The user *must* match the interface signatures of the native JAX
-    implementation. This is not statically checked - but failure to do so
+        Concrete implementations of `GenerativeFunction` will likely interact with the JAX tracing machinery if used with the languages exposed by `genjax`. Hence, there are specific implementation requirements which are more stringent than the requirements
+        enforced in other Gen implementations (e.g. Gen in Julia).
+
+        * For broad compatibility, the implementation of the interfaces *should* be compatible with JAX tracing.
+        * If a user wishes to implement a generative function which is not compatible with JAX tracing, that generative function may invoke other JAX compat generative functions, but likely cannot be invoked inside of JAX compat generative functions.
+
+    Aside from JAX compatibility, an implementor *should* match the interface signatures documented below. This is not statically checked - but failure to do so
     will lead to unintended behavior or errors.
-
-    To support argument and choice gradients via JAX, the user must
-    provide a differentiable `importance` implementation.
     """
 
     # This is used to support tracing -- the user is not required to provide
@@ -247,7 +294,53 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[PRNGKey, Trace]:
-        pass
+        """
+        > Given a `PRNGKey` and arguments, execute the generative function, returning a new `PRNGKey` and a trace.
+
+        `simulate` can be informally thought of as forward sampling: given `key: PRNGKey` and arguments `args: Tuple`, the generative function should sample a choice map $c \sim p(\cdot; \\text{args})$, as well as any untraced randomness $r \sim p(\cdot; \\text{args}, c)$.
+
+        The implementation of `simulate` should then create a trace holding the choice map, as well as the score $\log \\frac{p(c; \\text{args})}{q(r; \\text{args}, c)}$.
+
+        Arguments:
+            key: A `PRNGKey`.
+            args: Arguments to the generative function.
+
+        Returns:
+            key: A new (deterministically evolved) `PRNGKey`.
+            tr: A trace capturing the data and inference data associated with the generative function invocation.
+
+        Examples:
+
+            Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            print(console.render(tr))
+            ```
+
+            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                y = genjax.normal(x, 1.0) @ "y"
+                return y
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            print(console.render(tr))
+            ```
+        """
 
     @abc.abstractmethod
     def importance(
@@ -256,7 +349,17 @@ class GenerativeFunction(Pytree):
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, Trace]]:
-        pass
+        """
+        > Given a `PRNGKey`, a choice map (constraints), and arguments, execute the generative function, returning a new `PRNGKey`, a single-sample importance weight estimate of the conditional density evaluated at the non-constrained choices, and a trace whose choice map is consistent with the constraints.
+
+        Arguments:
+            key: A `PRNGKey`.
+            args: Arguments to the generative function.
+
+        Returns:
+            key: A new (deterministically evolved) `PRNGKey`.
+            tup: A tuple `(w, tr)` where `w` is an importance weight estimate of the conditional density, and `tr` is a trace capturing the data and inference data associated with the generative function invocation.
+        """
 
     @abc.abstractmethod
     def update(
