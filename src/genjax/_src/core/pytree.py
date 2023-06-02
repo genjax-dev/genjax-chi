@@ -39,6 +39,7 @@ from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Sequence
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import static_check_supports_grad
 
 
@@ -134,9 +135,9 @@ def tree_zipper(grad, nograd):
 
 class Pytree(metaclass=abc.ABCMeta):
     """
-    A utility abstract base class which registers a class with JAX's `Pytree` system.
+    > Abstract base class which registers a class with JAX's `Pytree` system.
 
-    Users who mixin this ABC are required to implement `flatten` below, but also gain access to a large set of utility functions for working with `Pytree` data.
+    Users who mixin this ABC for class definitions are required to implement `flatten` below. In turn, instances of the class gain access to a large set of utility functions for working with `Pytree` data, as well as the ability to use `jax.tree_util` Pytree functionality.
     """
 
     def __init_subclass__(cls, **kwargs):
@@ -148,36 +149,103 @@ class Pytree(metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    def flatten(self):
+    def flatten(self) -> Tuple[Tuple, Tuple]:
         """
-        `flatten` must be implemented when a user extends `Pytree` to a new class or dataclass.
+        `flatten` must be implemented when a user mixes `Pytree` into the declaration of a new class or dataclass.
 
-        `flatten` requires the following specification:
-            * must return a 2-tuple of tuples.
-            * the first tuple is "dynamic" data - things that JAX tracers are allowed to represent.
-            * the second tuple is "static" data - things which are known at JAX tracing time. Static data is also used by JAX for `Pytree` equality comparison.
+        The implementation of `flatten` assumes the following contract:
 
-        ## Example
+        * must return a 2-tuple of tuples.
+        * the first tuple is "dynamic" data - things that JAX tracers are allowed to population.
+        * the second tuple is "static" data - things which are known at JAX tracing time. Static data is also used by JAX for `Pytree` equality comparison.
 
-        Let's assume that you are implementing a new dataclass:
+        For more information, consider [JAX's documentation on Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
 
-        ```python
-        @dataclass
-        class MyFoo(Pytree):
-            static_field: Any
-            dynamic_field: Any
+        Returns:
 
-            # Implementing `flatten`
-            def flatten(self):
-                return (self.dynamic_field, ), (self.static_field, )
-        ```
+            dynamic: Dynamic data which supports JAX tracer values.
+            static: Static data which is JAX trace time constant.
 
-        **Note that the ordering in the dataclass declaration _does matter_ - you should put static fields first. The automatically defined `unflatten` method (c.f. below) assumes this ordering.**
+        Examples:
 
+            Let's assume that you are implementing a new dataclass. Here's how you would define the dataclass using the `Pytree` mixin.
+
+            ```python
+            @dataclass
+            class MyFoo(Pytree):
+                static_field: Any
+                dynamic_field: Any
+
+                # Implementing `flatten`
+                def flatten(self):
+                    return (self.dynamic_field, ), (self.static_field, )
+            ```
+
+            !!! info "Ordering fields in `Pytree` declarations"
+
+                Note that the ordering in the dataclass declaration **does matter** - you should put static fields first. The automatically defined `unflatten` method (c.f. below) assumes this ordering.
+
+            Now, given the declaration, you can use `jax.tree_util` flattening/unflatten functionality.
+
+            ```python exec="yes" source="tabbed-left"
+            import genjax
+            import jax.tree_util as jtu
+            from genjax.core import Pytree
+            from dataclasses import dataclass
+            console = genjax.pretty()
+
+            @dataclass
+            class MyFoo(Pytree):
+                static_field: Any
+                dynamic_field: Any
+
+                # Implementing `flatten`
+                def flatten(self):
+                    return (self.dynamic_field, ), (self.static_field, )
+
+            f = MyFoo(0, 1.0)
+            leaves, form = jtu.tree_flatten(f)
+
+            print(console.render(leaves))
+            new = jtu.tree_unflatten(form, leaves)
+            print(console.render(new))
+            ```
         """
 
     @classmethod
     def unflatten(cls, data, xs):
+        """
+        Given an implementation of `flatten` (c.f. above), `unflatten` is automatically defined and registered with JAX's `Pytree` system.
+
+        `unflatten` allows usage of `jtu.tree_unflatten` to create instances of a declared class that mixes `Pytree` from a `PyTreeDef` for that class and leaf data.
+
+        Examples:
+
+            Our example from `flatten` above also applies here - where we use `jtu.tree_unflatten` to create a new instance of `MyFoo` from a `PyTreeDef` and leaf data.
+
+            ```python exec="yes" source="tabbed-left"
+            import genjax
+            import jax.tree_util as jtu
+            from genjax.core import Pytree
+            from dataclasses import dataclass
+            console = genjax.pretty()
+
+            @dataclass
+            class MyFoo(Pytree):
+                static_field: Any
+                dynamic_field: Any
+
+                # Implementing `flatten`
+                def flatten(self):
+                    return (self.dynamic_field, ), (self.static_field, )
+
+            f = MyFoo(0, 1.0)
+            leaves, form = jtu.tree_flatten(f)
+
+            new = jtu.tree_unflatten(form, leaves)
+            print(console.render(new))
+            ```
+        """
         return cls(*data, *xs)
 
     @classmethod
@@ -187,13 +255,21 @@ class Pytree(metaclass=abc.ABCMeta):
     # This exposes slicing the struct-of-array representation,
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
-    def slice(self, index_or_range):
+    def slice(self, index_or_index_array):
         """
-        Any class which mixes / extends from a `Pytree` base supports indexing/slicing on indices when leaves are arrays with non-null 1st dimension.
+        > Utility available to any class which mixes `Pytree` base. This method supports indexing/slicing on indices when leaves are arrays.
 
         `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
+
+        Arguments:
+
+            index_or_index_array: An `Int` index or an array of indices which will be used to index into the leaf arrays of the `Pytree` instance.
+
+        Returns:
+
+            new_instance: A `Pytree` instance of the same type, whose leaf values are the results of indexing into the leaf arrays with `index_or_index_array`.
         """
-        return jtu.tree_map(lambda v: v[index_or_range], self)
+        return jtu.tree_map(lambda v: v[index_or_index_array], self)
 
     def stack(self, *trees):
         return tree_stack([self, *trees])
