@@ -18,9 +18,9 @@ repo_url: https://github.com/probcomp/genjax
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
-  - Home: 
-      - index.md
-      - Comparisons to Gen.jl: genjax/diff_jl.md
+  #  - Home: 
+  #      - index.md
+  #      - Comparisons to Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
   - Library reference:
       - genjax/library/index.md
@@ -29,7 +29,6 @@ nav:
           - Core datatypes: genjax/library/core/datatypes.md
           - Generative datatypes: genjax/library/core/generative.md
           - Interpreters: genjax/library/core/interpreters.md
-          - Function transformations: genjax/library/core/transforms.md
       - Generative function languages: 
           - genjax/library/generative_functions/index.md
           - Distributions: 
@@ -37,23 +36,24 @@ nav:
               - SciPy: genjax/library/generative_functions/distributions/scipy.md
               - TensorFlow Distributions: genjax/library/generative_functions/distributions/tfd.md
               - Coryx: genjax/library/generative_functions/distributions/coryx.md
-              - Prox: genjax/library/generative_functions/distributions/prox.md
+              - GenSP: genjax/library/generative_functions/distributions/gensp.md
           - Builtin language: genjax/library/generative_functions/builtin.md
           - Combinators: genjax/library/generative_functions/combinators.md
           - Extension languages: genjax/library/generative_functions/extension.md
-      - Inference: 
-          - genjax/library/inference/index.md
-          - Importance sampling: genjax/library/inference/is.md
-          - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
-          - Variational inference: genjax/library/inference/vi.md
-      - Differentiable programming:
-          - genjax/library/diff_prog/index.md
-          - Differentiable state: genjax/library/diff_prog/state.md
-          - Automatic differentiation of expected values: genjax/library/diff_prog/adev.md
+    #      - Inference: 
+    #          - genjax/library/inference/index.md
+    #          - Importance sampling: genjax/library/inference/is.md
+    #          - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
+    #          - Variational inference: genjax/library/inference/vi.md
+    #      - Differentiable programming:
+    #          - genjax/library/diff_prog/index.md
+    #          - Differentiable state: genjax/library/diff_prog/state.md
+    #          - Automatic differentiation of expected values: genjax/library/diff_prog/adev.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
       - License: license.md
+
 theme:
   name: material
   logo: assets/img/gen-logo.png

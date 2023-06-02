@@ -12,8 +12,6 @@
       
       
       
-        <link rel="next" href="genjax/diff_jl.html">
-      
       
         
       
@@ -23,7 +21,7 @@
     
     
       
-        <title>Overview - Gen ⊗ JAX</title>
+        <title>Gen ⊗ JAX</title>
       
     
     
@@ -81,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#overview" class="md-skip">
+        <a href="#modeling-inference-notebooks" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              Modeling & inference notebooks
             
           </span>
         </div>
@@ -220,28 +218,6 @@
         
   
   
-    
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="index.html" class="md-tabs__link md-tabs__link--active">
-          
-  
-    
-  
-  Home
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
   
     <li class="md-tabs__item">
       <a href="genjax/notebooks.html" class="md-tabs__link">
@@ -344,103 +320,6 @@
       
   
   
-    
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
-        
-          
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="index.html" class="md-nav__link md-nav__link--active">
-              
-  
-  <span class="md-ellipsis">
-    
-  
-    Home
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              <label class="md-nav__link md-nav__link--active" for="__nav_1">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_1">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Home
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="genjax/diff_jl.html" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    
-  
-    Comparisons to Gen.jl
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
   
     <li class="md-nav__item">
       <a href="genjax/notebooks.html" class="md-nav__link">
@@ -472,10 +351,6 @@
       
         
           
-        
-      
-        
-      
         
       
         
@@ -586,75 +461,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-sort-of-things-do-you-use-genjax-for" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What sort of things do you use GenJAX for?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-gen" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Gen?
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Why Gen?">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#the-evolution-of-probabilistic-programming-languages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The evolution of probabilistic programming languages
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#programmable-inference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Programmable inference
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#whose-using-gen" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Whose using Gen?
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -691,167 +497,12 @@
   
 
 
-<h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
-<p class="annotate"><strong>GenJAX: a probabilistic programming library designed to scale probabilistic modeling and inference into high performance settings.</strong> (1)</p>
-<ol>
-<li>
-<p>Here, <em>high performance</em> means massively parallel, either cores or devices.</p>
-<p>For those whom this overview page may be irrelevant: the value proposition is about putting expressive models and customizable Bayesian inference on GPUs, TPUs, etc - without sacrificing abstraction or modularity.</p>
-</li>
-</ol>
-<hr />
-<p class="annotate"><a href="https://www.gen.dev/"><strong>Gen</strong></a> is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. <strong>GenJAX</strong> is an implementation of Gen on top of <a href="https://github.com/google/jax"><strong>JAX</strong></a> (2) - exposing the ability to programmatically construct and manipulate <strong>generative functions</strong> (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. </p>
-<ol>
-<li>
-<p>By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms. </p>
-<p>The set of generative functions is extensible! You can implement your own - allowing advanced users to performance optimize their critical modeling/inference code paths.</p>
-<p>You can (and we, at the <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a>, do!) use these objects for machine learning - including robotics, natural language processing, reasoning about agents, and modelling / creating systems which exhibit human-like reasoning.</p>
-<p>A precise mathematical formulation of generative functions is given in <a href="https://www.mct.dev/assets/mct-thesis.pdf">Marco Cusumano-Towner's PhD thesis</a>.</p>
-</li>
-<li>
-<p>If the usage of JAX is not a dead giveaway, GenJAX is written in Python.</p>
-</li>
-</ol>
-<div class="grid cards">
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Model code</label><label for="__tabbed_1_2">Inference code</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p><p align="center">
-Defining a beta-bernoulli process model as a generative function in GenJAX.
-</p></p>
-<div class="language-py highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1">1</a></span>
-<span class="normal"><a href="#__codelineno-0-2">2</a></span>
-<span class="normal"><a href="#__codelineno-0-3">3</a></span>
-<span class="normal"><a href="#__codelineno-0-4">4</a></span>
-<span class="normal"><a href="#__codelineno-0-5">5</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="nd">@genjax</span><span class="o">.</span><span class="n">gen</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="k">def</span> <span class="nf">model</span><span class="p">():</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3"></a>  <span class="n">p</span> <span class="o">=</span> <span class="n">beta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">@</span> <span class="s2">&quot;p&quot;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4"></a>  <span class="n">v</span> <span class="o">=</span> <span class="n">bernoulli</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">@</span> <span class="s2">&quot;v&quot;</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5"></a>  <span class="k">return</span> <span class="n">v</span>
-</span></code></pre></div></td></tr></table></div>
+<h1 id="modeling-inference-notebooks">Modeling &amp; inference notebooks<a class="headerlink" href="#modeling-inference-notebooks" title="Permanent link">&para;</a></h1>
+<div class="admonition info">
+<p class="admonition-title">Link to the notebook repository</p>
+<p>This section contains a link to a (statically hosted) series of tutorial notebooks designed to guide usage of GenJAX. These notebooks are executed and rendered with <a href="https://quarto.org/">quarto</a>, and are kept up to date with the repository along with the documentation.</p>
+<p><a href="/genjax/notebooks/index.html">The notebook repository can be found here.</a></p>
 </div>
-<div class="tabbed-block">
-<p><p align="center">
-This works for <strong>any</strong> generative function, not just the beta-bernoulli model.
-</p></p>
-<div class="language-py highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-1-1"> 1</a></span>
-<span class="normal"><a href="#__codelineno-1-2"> 2</a></span>
-<span class="normal"><a href="#__codelineno-1-3"> 3</a></span>
-<span class="normal"><a href="#__codelineno-1-4"> 4</a></span>
-<span class="normal"><a href="#__codelineno-1-5"> 5</a></span>
-<span class="normal"><a href="#__codelineno-1-6"> 6</a></span>
-<span class="normal"><a href="#__codelineno-1-7"> 7</a></span>
-<span class="normal"><a href="#__codelineno-1-8"> 8</a></span>
-<span class="normal"><a href="#__codelineno-1-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-1-10">10</a></span>
-<span class="normal"><a href="#__codelineno-1-11">11</a></span>
-<span class="normal"><a href="#__codelineno-1-12">12</a></span>
-<span class="normal"><a href="#__codelineno-1-13">13</a></span>
-<span class="normal"><a href="#__codelineno-1-14">14</a></span>
-<span class="normal"><a href="#__codelineno-1-15">15</a></span>
-<span class="normal"><a href="#__codelineno-1-16">16</a></span>
-<span class="normal"><a href="#__codelineno-1-17">17</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="k">def</span> <span class="nf">importance_sampling</span><span class="p">(</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2"></a>    <span class="n">key</span><span class="p">:</span> <span class="n">PRNGKey</span><span class="p">,</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3"></a>    <span class="n">gen_fn</span><span class="p">:</span> <span class="n">GenerativeFunction</span><span class="p">,</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4"></a>    <span class="n">model_args</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5"></a>    <span class="n">obs</span><span class="p">:</span> <span class="n">ChoiceMap</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6"></a>    <span class="n">n_samples</span><span class="p">:</span> <span class="n">Int</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="p">):</span> <span class="c1"># (1)!</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8"></a>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9"></a>    <span class="n">key</span><span class="p">,</span> <span class="n">sub_keys</span> <span class="o">=</span> <span class="n">genjax</span><span class="o">.</span><span class="n">slash</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">)</span>  <span class="c1"># split keys</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10"></a>    <span class="n">_</span><span class="p">,</span> <span class="p">(</span><span class="n">lws</span><span class="p">,</span> <span class="n">trs</span><span class="p">)</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11"></a>        <span class="n">gen_fn</span><span class="o">.</span><span class="n">importance</span><span class="p">,</span> <span class="c1"># (2)!</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12"></a>        <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13"></a>    <span class="p">)(</span><span class="n">sub_keys</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14"></a>    <span class="n">log_total_weight</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">lws</span><span class="p">)</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15"></a>    <span class="n">log_normalized_weights</span> <span class="o">=</span> <span class="n">lws</span> <span class="o">-</span> <span class="n">log_total_weight</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16"></a>    <span class="n">log_ml_estimate</span> <span class="o">=</span> <span class="n">log_total_weight</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_particles</span><span class="p">)</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17"></a>    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">trs</span><span class="p">,</span> <span class="n">log_normalized_weights</span><span class="p">,</span> <span class="n">log_ml_estimate</span><span class="p">)</span>
-</span></code></pre></div></td></tr></table></div>
-<ol>
-<li>
-<p>Here's a few notes about the signature:</p>
-<ul>
-<li><code>PRNGKey</code> is the type of <code>jax.random.PRNGKey</code>. In GenJAX, we pass keys into generative code, and generative code returns a changed key.</li>
-<li><code>GenerativeFunction</code> refers to generative functions, objects which expose Gen's probabilistic interface.</li>
-<li>For now, think of <code>ChoiceMap</code> as the type of object which Gen uses to express conditioning.</li>
-</ul>
-</li>
-<li>
-<p><code>gen_fn.importance</code> is a <em>generative function interface</em> method. Generative functions are responsible for implementing this method, to support conditional sampling and conditional density estimation. You can learn a lot more about this method in <a href="genjax/library/core/generative.html#generative-functions">the generative function interface</a>.</p>
-</li>
-</ol>
-</div>
-</div>
-</div>
-</div>
-<h2 id="what-sort-of-things-do-you-use-genjax-for">What sort of things do you use GenJAX for?<a class="headerlink" href="#what-sort-of-things-do-you-use-genjax-for" title="Permanent link">&para;</a></h2>
-<div class="grid cards">
-<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Real time object tracking</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p>Real time tracking of objects in 3D using probabilistic rendering. (Left) Ground truth, (center) depth mask, (right) inference overlaid on ground truth.</p>
-<p><p align="center">
-<img width="450px" src="./assets/gif/cube_tracking_inference_enum.gif"/>
-</p></p>
-</div>
-</div>
-</div>
-</div>
-<h2 id="why-gen">Why Gen?<a class="headerlink" href="#why-gen" title="Permanent link">&para;</a></h2>
-<p>GenJAX is a <a href="https://www.gen.dev/">Gen</a> implementation. If you're considering using GenJAX - it's worth starting by understanding what problems Gen purports to solve.</p>
-<h3 id="the-evolution-of-probabilistic-programming-languages">The evolution of probabilistic programming languages<a class="headerlink" href="#the-evolution-of-probabilistic-programming-languages" title="Permanent link">&para;</a></h3>
-<p class="annotate">Probabilistic modeling and inference is hard: understanding a domain well enough to construct a probabilistic model in the Bayesian paradigm is challenging, and that's half the battle - the other half is designing effective inference algorithms to probe the implications of the model (1).</p>
-<ol>
-<li>
-<p>Some probabilistic programming languages restrict the set of allowable models, providing (in return) efficient (often, exact) inference. </p>
-<p>Gen considers a wide class of models - include Bayesian nonparametrics, open-universe models, and models over rich structures (like programs!) - which don't natively support efficient exact inference.</p>
-</li>
-</ol>
-<p>Model writers have historically considered the following design loop.</p>
-<pre class="mermaid"><code>graph LR
-  A[Design model.] --&gt; B[Implement inference by hand.];
-  B --&gt; C[Model + inference okay?];
-  C --&gt; D[Happy.];
-  C --&gt; A;</code></pre>
-<p class="annotate">The first generation (1) of probabilistic programming systems introduced inference engines which could operate abstractly over many different models, without requiring the programmer to return and tweak their inference code. The utopia envisioned by these systems is shown below.</p>
-<ol>
-<li>
-<p>Here, the definition of "first generation" includes systems like JAGS, BUGS, BLOG, IBAL, Church, Infer.NET, Figaro, Stan, amongst others.</p>
-<p>But more precisely, many systems preceded the <a href="https://www.darpa.mil/program/probabilistic-programming-for-advancing-machine-learning">DARPA PPAML project</a> - which gave rise to several novel systems, including the predecessors of Gen.</p>
-</li>
-</ol>
-<pre class="mermaid"><code>graph LR
-  A[Design model.] --&gt; D[Model + inference okay?];
-  B[Inference engine.] ---&gt; D;
-  D --&gt; E[Happy.];
-  D ---&gt; A;</code></pre>
-<p class="annotate">The problem with this utopia is that we often need to customize our inference algorithms (1) to achieve maximum performance, with respect to accuracy as well as runtime (2). First generation systems were not designed with this in mind.</p>
-<ol>
-<li>Here, <em>programmable inference</em> denotes using a custom proposal distribution in importance sampling, or a custom variational family for variational inference, or even a custom kernel in Markov chain Monte Carlo.</li>
-<li><em>Composition</em> of inference programs can also be highly desirable when performing inference in complex models, or designing a probabilistic application from several modeling and inference components. The first examples of universal inference engines ignored this design problem.</li>
-</ol>
-<h3 id="programmable-inference">Programmable inference<a class="headerlink" href="#programmable-inference" title="Permanent link">&para;</a></h3>
-<p>A worthy design goal is to allow users to customize when required, while retaining the rapid model/inference iteration properties explored by first generation systems.</p>
-<p>Gen addresses this goal by introducing a separation between modeling and inference code: <strong>the generative function interface</strong>.</p>
-<p align="center">
-<img width="800px" src="./assets/img/gen-architecture.png"/>
-</p>
-
-<p class="annotate">The interface provides an abstraction layer that inference algorithms can call to compute the necessary (<em>and hard to get right</em>!) math (1). Probabilistic application developers can also extend the interface to new modeling languages - and immediately gain access to advanced inference procedures.</p>
-<ol>
-<li>
-<p>Examples of hard-to-get-right math: importance weights, accept reject ratios, and gradient estimators. </p>
-<p>For simple models and inference, one might painlessly derive these quantities. As soon as the model/inference gets complicated, however, you might find yourself thanking the interface.</p>
-</li>
-</ol>
-<h2 id="whose-using-gen">Whose using Gen?<a class="headerlink" href="#whose-using-gen" title="Permanent link">&para;</a></h2>
-<p>Gen supports a growing list of users, with collaboration across academic research labs and industry affiliates.</p>
-<p align="center">
-<img width="450px" src="./assets/img/gen-users.png"/>
-</p>
-
-<p>We're looking to expand our user base! If you're interested, <a href="https://docs.google.com/forms/d/e/1FAIpQLSfbPY5e0KMVEFg7tjVUsOsKy5tWV9Moml3dPkDPXvP8-TSMNA/viewform?usp=sf_link">please contact us to get involved</a>.</p>
 
   
     
@@ -905,27 +556,6 @@ This works for <strong>any</strong> generative function, not just the beta-berno
       
         <footer class="md-footer">
   
-    
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-        
-          
-          <a href="genjax/diff_jl.html" class="md-footer__link md-footer__link--next" aria-label="Next: Comparisons to Gen.jl" rel="next">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Comparisons to Gen.jl
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
   
   <div class="md-footer-meta md-typeset">

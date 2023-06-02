@@ -80,6 +80,7 @@ def pretty(
     show_locals=False,
     max_frames=30,
     suppress=[jax],
+    **kwargs,
 ):
     rich.pretty.install(overflow=overflow)
     traceback.install(
@@ -88,4 +89,4 @@ def pretty(
         suppress=suppress,
     )
 
-    return GenJAXConsole(Console(soft_wrap=True))
+    return GenJAXConsole(Console(soft_wrap=True, **kwargs))
