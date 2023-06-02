@@ -6,5 +6,6 @@ The `genjax` package consists of several modules, many of which rely on function
 
 * [The core documentation](core/index.md) discusses key datatypes and transformations, which are used throughout the codebase.
 * [The documentation on generative function languages](generative_functions/index.md) describes the functionality and usage for several generative function implementations, including distributions, a function-like language with primitives that allow callee generative functions, and combinator languages which provide structured patterns of control flow.
-* [The inference documentation](inference/index.md) provides information on the standard inference library algorithms.
-* [The differentiable programming documentation](diff_prog/index.md) describes GenJAX's approach to stateful computation and learning.
+<!-- * [The inference documentation](inference/index.md) provides information on the standard inference library algorithms.
+* [The differentiable programming documentation](diff_prog/index.md) describes GenJAX's approach to stateful computation and learning. -->
+* [The documentation on extension modules](extensions/index.md) describes how users can extend GenJAX with new generative functions and inference functionality, while depending on 3rd party libraries.

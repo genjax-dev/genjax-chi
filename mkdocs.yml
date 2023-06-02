@@ -39,7 +39,10 @@ nav:
               - GenSP: genjax/library/generative_functions/distributions/gensp.md
           - Builtin language: genjax/library/generative_functions/builtin.md
           - Combinators: genjax/library/generative_functions/combinators.md
-          - Extension languages: genjax/library/generative_functions/extension.md
+      - Extension modules: 
+          - genjax/library/extensions/index.md
+          - Gaussian processes: genjax/library/extensions/tinygp.md
+          - HMC/NUTS: genjax/library/extensions/blackjax.md
     #      - Inference: 
     #          - genjax/library/inference/index.md
     #          - Importance sampling: genjax/library/inference/is.md

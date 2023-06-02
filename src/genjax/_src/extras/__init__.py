@@ -26,6 +26,40 @@ import types
 
 
 class LazyLoader(types.ModuleType):
+    """
+    > A lazy loading system which allows extension modules to optionally depend on 3rd party dependencies which may be too heavyweight to include as required dependencies for `genjax` proper.
+
+    Examples:
+
+        To utilize the system, the `LazyLoader` expects that you provide a local name for the module, globals, and the source module. Here's example usage for an extension module utilizing `tinygp` - we give the lazy loaded module the name `tinygp`, and tell the loader that the module path is `genjax._src.extras.tinygp`:
+
+        ```python
+        # tinygp provides Gaussian process model ingredients.
+        tinygp = LazyLoader(
+            "tinygp",
+            globals(),
+            "genjax._src.extras.tinygp",
+        )
+        ```
+
+        The `tinygp` and `blackjax` extension modules rely on this system to implement functionality, while optionally depending on the presence of `tinygp` and `blackjax` (both 3rd party dependencies) for usage.
+
+        ```python exec="yes" source="tabbed-left"
+        import jax
+        import genjax
+        import tinygp.kernels as kernels
+        console = genjax.pretty()
+
+        # Extension module
+        tinygp = genjax.extras.tinygp
+
+        kernel_scaled = 4.5 * kernels.ExpSquared(scale=1.5)
+        model = tinygp.GaussianProcess(kernel_scaled)
+
+        print(console.render(model))
+        ```
+    """
+
     def __init__(self, local_name, parent_module_globals, name):
         self._local_name = local_name
         self._parent_module_globals = parent_module_globals

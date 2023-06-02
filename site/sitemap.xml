@@ -91,6 +91,21 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/extensions/index.html</loc>
+         <lastmod>2023-06-02</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/extensions/blackjax.html</loc>
+         <lastmod>2023-06-02</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/extensions/tinygp.html</loc>
+         <lastmod>2023-06-02</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/index.html</loc>
          <lastmod>2023-06-02</lastmod>
          <changefreq>daily</changefreq>
@@ -102,11 +117,6 @@
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/combinators.html</loc>
-         <lastmod>2023-06-02</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/extension.html</loc>
          <lastmod>2023-06-02</lastmod>
          <changefreq>daily</changefreq>
     </url>

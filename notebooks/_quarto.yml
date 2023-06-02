@@ -48,10 +48,6 @@ website:
         contents:
           - href: intermediate/gaussian_processes/gaussian_processes.ipynb
             text: Gaussian processes
-          - href: intermediate/goal_inference/goal_inference.ipynb
-            text: Agent goal inference
-          - href: advanced/recurse_combinator/recurse_combinator.ipynb
-            text: Recurse combinator (WIP)
           - href: advanced/gen_sp/gen_sp.ipynb
             text: '`GenSP` (density estimates)'
       - text: '---'

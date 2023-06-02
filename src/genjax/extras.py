@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.extras import LazyLoader
 from genjax._src.extras import blackjax
 from genjax._src.extras import tinygp
 
 
-__all__ = ["blackjax", "tinygp"]
+__all__ = ["blackjax", "tinygp", "LazyLoader"]
