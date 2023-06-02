@@ -113,14 +113,14 @@ class SwitchTrace(Trace):
 @dataclass
 class SwitchCombinator(GenerativeFunction):
     """
-    > `SwitchCombinator` accepts a set of generative functions as input
-    configuration and implements `GenerativeFunction` interface semantics that
+    > `SwitchCombinator` accepts multiple generative functions as input
+    and implements `GenerativeFunction` interface semantics that
     support branching control flow patterns, including control flow patterns
     which branch on other stochastic choices.
 
-    This pattern allows `GenJAX` to express existence
-    uncertainty over random choices -- as different generative
-    function branches need not share addresses.
+    !!! info "Existence uncertainty"
+
+        This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
     Examples:
 

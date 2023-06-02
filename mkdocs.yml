@@ -35,6 +35,7 @@ nav:
               - genjax/library/generative_functions/distributions/index.md
               - SciPy: genjax/library/generative_functions/distributions/scipy.md
               - TensorFlow Distributions: genjax/library/generative_functions/distributions/tfd.md
+              - Custom: genjax/library/generative_functions/distributions/custom/index.md
         #              - Coryx: genjax/library/generative_functions/distributions/coryx.md
         #              - GenSP: genjax/library/generative_functions/distributions/gensp.md
           - Builtin language: genjax/library/generative_functions/builtin.md

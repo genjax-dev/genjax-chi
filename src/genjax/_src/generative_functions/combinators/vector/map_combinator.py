@@ -61,9 +61,7 @@ from genjax._src.utilities import slash
 @dataclass
 class MapCombinator(GenerativeFunction):
     """
-    > `MapCombinator` accepts a single generative function as input and
-    provides `vmap`-based implementations of the generative function interface
-    methods.
+    > `MapCombinator` accepts a generative function as input and provides `vmap`-based implementations of the generative function interface methods.
 
 
     Examples:
