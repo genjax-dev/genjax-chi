@@ -35,10 +35,14 @@ nav:
               - genjax/library/generative_functions/distributions/index.md
               - SciPy: genjax/library/generative_functions/distributions/scipy.md
               - TensorFlow Distributions: genjax/library/generative_functions/distributions/tfd.md
-              - Coryx: genjax/library/generative_functions/distributions/coryx.md
-              - GenSP: genjax/library/generative_functions/distributions/gensp.md
+        #              - Coryx: genjax/library/generative_functions/distributions/coryx.md
+        #              - GenSP: genjax/library/generative_functions/distributions/gensp.md
           - Builtin language: genjax/library/generative_functions/builtin.md
-          - Combinators: genjax/library/generative_functions/combinators.md
+          - Combinators: 
+              - genjax/library/generative_functions/combinators/index.md
+              - Map combinator: genjax/library/generative_functions/combinators/map.md
+              - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
+              - Switch combinator: genjax/library/generative_functions/combinators/switch.md
       - Extension modules: 
           - genjax/library/extensions/index.md
           - Gaussian processes: genjax/library/extensions/tinygp.md

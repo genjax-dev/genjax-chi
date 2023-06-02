@@ -112,41 +112,41 @@ class SwitchTrace(Trace):
 
 @dataclass
 class SwitchCombinator(GenerativeFunction):
-    """`SwitchCombinator` accepts a set of generative functions as input
+    """
+    > `SwitchCombinator` accepts a set of generative functions as input
     configuration and implements `GenerativeFunction` interface semantics that
     support branching control flow patterns, including control flow patterns
     which branch on other stochastic choices.
-
-    This combinator provides a "sum" `Trace` type which allows the internal generative functions to have different choice maps.
 
     This pattern allows `GenJAX` to express existence
     uncertainty over random choices -- as different generative
     function branches need not share addresses.
 
-    Example
-    -------
+    Examples:
 
-    .. jupyter-execute::
-
+        ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
         console = genjax.pretty()
 
         @genjax.gen
         def branch_1():
-            x = genjax.trace("x1", genjax.Normal)(0.0, 1.0)
+            x = genjax.normal(0.0, 1.0) @ "x1"
 
         @genjax.gen
         def branch_2():
-            x = genjax.trace("x2", genjax.Bernoulli)(0.3)
+            x = genjax.bernoulli(0.3) @ "x2"
 
-        switch = genjax.SwitchCombinator([branch_1, branch_2])
+        # Creating a `SwitchCombinator` via the preferred `new` class method.
+        switch = genjax.SwitchCombinator.new(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(genjax.simulate(switch))
         key, _ = jitted(key, (0, ))
         key, tr = jitted(key, (1, ))
-        console.print(tr)
+
+        print(console.render(tr))
+        ```
     """
 
     branches: List[GenerativeFunction]
@@ -156,7 +156,16 @@ class SwitchCombinator(GenerativeFunction):
 
     @typecheck
     @classmethod
-    def new(cls, *args: GenerativeFunction):
+    def new(cls, *args: GenerativeFunction) -> "SwitchCombinator":
+        """
+        The preferred constructor for `SwitchCombinator` generative function instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
+
+        Arguments:
+            *args: Generative functions which will act as branch callees for the invocation of branching control flow.
+
+        Returns:
+            instance: A `SwitchCombinator` instance.
+        """
         return SwitchCombinator([*args])
 
     # This overloads the call functionality for this generative function
