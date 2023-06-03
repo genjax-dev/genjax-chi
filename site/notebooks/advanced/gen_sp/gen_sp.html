@@ -164,19 +164,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../concepts/combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Generative function combinators</span></a>
+ <span class="menu-text">(WIP) Generative function combinators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../concepts/incremental_computation/incremental.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Incremental computing</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../concepts/gradient_interfaces/gradient_interfaces.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Differentiable programming</span></a>
+ <span class="menu-text">(WIP) Incremental computing</span></a>
   </div>
 </li>
       </ul>
@@ -194,31 +188,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../intermediate/gaussian_processes/gaussian_processes.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Gaussian processes</span></a>
+ <span class="menu-text">(WIP) Gaussian processes</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../advanced/gen_sp/gen_sp.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><code>GenSP</code> (density estimates)</span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="px-0"><hr class="sidebar-divider hi "></li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">
- <span class="menu-text">Internals</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../internals/impl_builtin_language/impl_builtin_language.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Probabilistic semantics via interpreters</span></a>
   </div>
 </li>
       </ul>
@@ -234,7 +210,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#trace-types-for-absolute-continuity-diagnosis" id="toc-trace-types-for-absolute-continuity-diagnosis" class="nav-link active" data-scroll-target="#trace-types-for-absolute-continuity-diagnosis">Trace types for absolute continuity diagnosis</a></li>
-  <li><a href="#inference-diagnostics-for-gensp-distributions" id="toc-inference-diagnostics-for-gensp-distributions" class="nav-link" data-scroll-target="#inference-diagnostics-for-gensp-distributions">Inference diagnostics for GenSP distributions</a></li>
   </ul>
 <div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/advanced/gen_sp/gen_sp.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
     </div>
@@ -678,12 +653,6 @@ Absolute continuity failure at the following addresses:
 </pre>
 </div>
 </div>
-</section>
-<section id="inference-diagnostics-for-gensp-distributions" class="level2">
-<h2 class="anchored" data-anchor-id="inference-diagnostics-for-gensp-distributions">Inference diagnostics for GenSP distributions</h2>
-<p>We started with a model <span class="math inline">\(P(x, y, z)\)</span> and then we constructed a posterior inference problem by creating a <code>Target</code> with constrained <span class="math inline">\(z\)</span>.</p>
-<p>We then utilized default sampling importance resampling via <code>gensp.importance</code> to construct an estimated normalized density. Our results for that initial variant were not so good - so we improved it by creating a custom proposal for <code>gensp.importance</code> - but our custom proposal utilized auxiliary latent variables.</p>
-<p>To correctly compute the importance weight ratios including these auxiliary latents, we introduced a meta-proposal which we used to estimatedly marginalize out the new auxiliary latents.</p>
 
 
 </section>
@@ -925,7 +894,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
       <a href="../../intermediate/gaussian_processes/gaussian_processes.html" class="pagination-link">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Gaussian processes</span>
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">(WIP) Gaussian processes</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">

@@ -65,7 +65,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../concepts/incremental_computation/incremental.html" rel="prev">
 <script src="../../site_libs/quarto-html/quarto.js"></script>
 <script src="../../site_libs/quarto-html/popper.min.js"></script>
 <script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -114,7 +113,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-      <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../concepts/introduction/intro_to_genjax.html">Getting started</a></li><li class="breadcrumb-item"><a href="../../concepts/gradient_interfaces/gradient_interfaces.html">Differentiable programming</a></li></ol></nav>
+      <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Differentiable programming with GenJAX</li></ol></nav>
       <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
       </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -146,13 +145,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false">
  <span class="menu-text">Getting started</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../concepts/introduction/intro_to_genjax.html" class="sidebar-item-text sidebar-link">
@@ -162,19 +161,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../concepts/combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Generative function combinators</span></a>
+ <span class="menu-text">(WIP) Generative function combinators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../concepts/incremental_computation/incremental.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Incremental computing</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../concepts/gradient_interfaces/gradient_interfaces.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Differentiable programming</span></a>
+ <span class="menu-text">(WIP) Incremental computing</span></a>
   </div>
 </li>
       </ul>
@@ -192,31 +185,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../intermediate/gaussian_processes/gaussian_processes.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Gaussian processes</span></a>
+ <span class="menu-text">(WIP) Gaussian processes</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../../advanced/gen_sp/gen_sp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><code>GenSP</code> (density estimates)</span></a>
-  </div>
-</li>
-      </ul>
-  </li>
-        <li class="px-0"><hr class="sidebar-divider hi "></li>
-        <li class="sidebar-item sidebar-item-section">
-      <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false">
- <span class="menu-text">Internals</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="false" aria-label="Toggle section">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
-      </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../../internals/impl_builtin_language/impl_builtin_language.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Probabilistic semantics via interpreters</span></a>
   </div>
 </li>
       </ul>
@@ -237,8 +212,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#a-running-example" id="toc-a-running-example" class="nav-link" data-scroll-target="#a-running-example">A running example</a></li>
   <li><a href="#map-estimation" id="toc-map-estimation" class="nav-link" data-scroll-target="#map-estimation">MAP estimation</a></li>
-  <li><a href="#exposing-learnable-modules-with-traincombinator" id="toc-exposing-learnable-modules-with-traincombinator" class="nav-link" data-scroll-target="#exposing-learnable-modules-with-traincombinator">Exposing learnable modules with <code>TrainCombinator</code></a></li>
-  <li><a href="#automatic-differentiation-variational-inference" id="toc-automatic-differentiation-variational-inference" class="nav-link" data-scroll-target="#automatic-differentiation-variational-inference">Automatic differentiation variational inference</a></li>
   </ul>
 <div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/concepts/gradient_interfaces/gradient_interfaces.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></nav>
     </div>
@@ -546,165 +519,6 @@ Correctness of gradient estimators
 <p><img src="gradient_interfaces_files/figure-html/cell-14-output-1.svg" class="img-fluid"></p>
 </div>
 </div>
-</section>
-<section id="exposing-learnable-modules-with-traincombinator" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="exposing-learnable-modules-with-traincombinator">Exposing learnable modules with <code>TrainCombinator</code></h2>
-<p>For learning and variational inference, learnable parameters of model families are an important feature. In GenJAX, we expose a lightweight generative function wrapper around generative functions which accept <code>learnable_params</code> as a last argument - this wrapper is called <code>TrainCombinator</code>.</p>
-<div class="cell" data-execution_count="13">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>params <span class="op">=</span> {<span class="st">"x_mu"</span>: <span class="fl">0.0</span>, <span class="st">"a"</span>: <span class="fl">0.3</span>, <span class="st">"b"</span>: <span class="fl">0.4</span>}</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span>(genjax.TrainCombinator, params<span class="op">=</span>params)</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model(params):</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    x_mu <span class="op">=</span> params[<span class="st">"x_mu"</span>]</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    a <span class="op">=</span> params[<span class="st">"a"</span>]</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    b <span class="op">=</span> params[<span class="st">"b"</span>]</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> genjax.trace(<span class="st">"x"</span>, genjax.Normal)(x_mu, <span class="fl">1.0</span>)</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> genjax.trace(<span class="st">"y"</span>, genjax.Normal)(a <span class="op">*</span> x <span class="op">+</span> b, <span class="fl">1.0</span>)</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>model</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">TrainCombinator</span>
-├── inner
-│   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       └── source
-│           └── &lt;function model&gt;
-└── params
-    └── <span style="font-weight: bold">dict</span>
-        ├── <span style="font-weight: bold">x_mu</span>
-        │   └── (const) 0.0
-        ├── <span style="font-weight: bold">a</span>
-        │   └── (const) 0.3
-        └── <span style="font-weight: bold">b</span>
-            └── (const) 0.4
-</pre>
-</div>
-</div>
-<p><code>TrainCombinator</code> is a module-like abstraction which closes over the parameter store passed in and initialized by the constructor. When we call <code>TrainCombinator</code>, we don’t need to provide the <code>params</code> argument - it’s handled automatically.</p>
-<div class="cell" data-execution_count="14">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> model.simulate(key, ())</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>tr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinTrace</span>
-├── gen_fn
-│   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       └── source
-│           └── &lt;function model&gt;
-├── args
-│   └── <span style="font-weight: bold">tuple</span>
-│       └── <span style="font-weight: bold">dict</span>
-│           ├── <span style="font-weight: bold">x_mu</span>
-│           │   └── (const) 0.0
-│           ├── <span style="font-weight: bold">a</span>
-│           │   └── (const) 0.3
-│           └── <span style="font-weight: bold">b</span>
-│               └── (const) 0.4
-├── retval
-│   └──  f32[]
-├── choices
-│   └── <span style="font-weight: bold">Trie</span>
-│       ├── <span style="font-weight: bold">:x</span>
-│       │   └── <span style="font-weight: bold">DistributionTrace</span>
-│       │       ├── gen_fn
-│       │       │   └── <span style="font-weight: bold">_Normal</span>
-│       │       ├── args
-│       │       │   └── <span style="font-weight: bold">tuple</span>
-│       │       │       ├── (const) 0.0
-│       │       │       └── (const) 1.0
-│       │       ├── value
-│       │       │   └──  f32[]
-│       │       └── score
-│       │           └──  f32[]
-│       └── <span style="font-weight: bold">:y</span>
-│           └── <span style="font-weight: bold">DistributionTrace</span>
-│               ├── gen_fn
-│               │   └── <span style="font-weight: bold">_Normal</span>
-│               ├── args
-│               │   └── <span style="font-weight: bold">tuple</span>
-│               │       ├──  f32[]
-│               │       └── (const) 1.0
-│               ├── value
-│               │   └──  f32[]
-│               └── score
-│                   └──  f32[]
-├── cache
-│   └── <span style="font-weight: bold">Trie</span>
-└── score
-    └──  f32[]
-</pre>
-</div>
-</div>
-<div class="page-columns page-full"><p><code>TrainCombinator</code> exposes a convenient interface to a specialized scoring function which accepts <code>params</code> evaluation points, and returns the model logpdf.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a></p><div class="no-row-height column-margin column-container"><li id="fn6"><p><sup>6</sup>&nbsp;Note: because this interface method returns a <strong>function</strong>, we cannot JIT it. However, if we use it to produce a closure and then use that closure inside of code which we JIT, it’s fine. Producing this closure is also speedy! As long as an object of <strong>function</strong> type doesn’t try to escape across the JAX API boundary.</p></li></div></div>
-<div class="cell" data-execution_count="15">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>key, logpdf <span class="op">=</span> model.score_params(key, tr, params)</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>logpdf</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800000; text-decoration-color: #800000">╭─────────────────────────────── </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">Traceback </span><span style="color: #bf7f7f; text-decoration-color: #bf7f7f; font-weight: bold">(most recent call last)</span><span style="color: #800000; text-decoration-color: #800000"> ────────────────────────────────╮</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_80963/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">823209347.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">&lt;module&gt;</span>      <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">[Errno 2] No such file or directory: </span>                                                            <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">'/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_80963/823209347.py'</span>                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/_src/generative_functions/combinators/train/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">train_</span> <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #808000; text-decoration-color: #808000; font-weight: bold">combinator.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">70</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">score_params</span>                                                                 <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">67 │   │   </span>choices = tr.strip()                                                                <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">68 │   │   </span>args = tr.get_args()                                                                <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">69 │   │   </span>key, scorer, _ = gen_fn.unzip(key, choices)                                         <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span>70 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   │   </span>logpdf = scorer(EmptyChoiceMap(), (*args[<span style="color: #0000ff; text-decoration-color: #0000ff">0</span>:-<span style="color: #0000ff; text-decoration-color: #0000ff">1</span>], params))                            <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">71 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> key, logpdf                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">72 │   </span>                                                                                        <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">73 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">update_params</span>(<span style="color: #00ffff; text-decoration-color: #00ffff">self</span>, updates):                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/_src/core/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">datatypes.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">283</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">score</span>                <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">280 │   │   </span>key, sub_key = jax.random.split(key)                                               <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">281 │   │   </span>                                                                                   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">282 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">score</span>(differentiable: Tuple, nondifferentiable: Tuple) -&gt; FloatArray:          <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span>283 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   │   │   </span>provided, args = tree_zipper(differentiable, nondifferentiable)                <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">284 │   │   │   </span>merged = fixed.merge(provided)                                                 <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">285 │   │   │   </span>_, (_, score) = <span style="color: #00ffff; text-decoration-color: #00ffff">self</span>.assess(sub_key, merged, args)                             <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">286 │   │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> score                                                                   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/research/genjax/src/genjax/_src/core/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">pytree.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">160</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">tree_zipper</span>             <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">157 │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">def</span> <span style="color: #00ff00; text-decoration-color: #00ff00">_is_none</span>(x):                                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">158 │   │   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> x <span style="color: #ff00ff; text-decoration-color: #ff00ff">is</span> <span style="color: #0000ff; text-decoration-color: #0000ff">None</span>                                                                   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">159 │   </span>                                                                                       <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000">❱ </span>160 <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">│   </span><span style="color: #0000ff; text-decoration-color: #0000ff">return</span> jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>   <span style="color: #7f7f7f; text-decoration-color: #7f7f7f">161 </span>                                                                                           <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">tree_util.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">206</span>  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">tree_map</span>                                                                                      <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">tree_util.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">206</span>  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">&lt;listcomp&gt;</span>                                                                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</span>
-<span style="color: #ff0000; text-decoration-color: #ff0000; font-weight: bold">ValueError: </span>Custom node type mismatch: expected type: <span style="font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">class</span><span style="color: #000000; text-decoration-color: #000000"> </span><span style="color: #008000; text-decoration-color: #008000">'genjax._src.core.datatypes.EmptyChoiceMap'</span><span style="font-weight: bold">&gt;</span>, value: 
-<span style="font-weight: bold">({</span><span style="color: #008000; text-decoration-color: #008000">'x_mu'</span>: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.0</span>, <span style="color: #008000; text-decoration-color: #008000">'a'</span>: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.3</span>, <span style="color: #008000; text-decoration-color: #008000">'b'</span>: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.4</span><span style="font-weight: bold">}</span>,<span style="font-weight: bold">)</span>.
-</pre>
-</div>
-</div>
-<p>This interface supports batching out of the box.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>key, <span class="op">*</span>sub_keys <span class="op">=</span> jax.random.split(key, <span class="dv">100</span> <span class="op">+</span> <span class="dv">1</span>)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>sub_keys <span class="op">=</span> jnp.array(sub_keys)</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>sub_keys, tr <span class="op">=</span> jax.vmap(model.simulate)(sub_keys, ())</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>_, logpdf <span class="op">=</span> jax.vmap(model.score_params, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="va">None</span>))(sub_keys, tr, params)</span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>logpdf</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p>We make extensive use of batch evaluation in variational inference. For now, let’s consider maximum likelihood learning and see the other <code>TrainCombinator</code> interfaces.</p>
-</section>
-<section id="automatic-differentiation-variational-inference" class="level2">
-<h2 class="anchored" data-anchor-id="automatic-differentiation-variational-inference">Automatic differentiation variational inference</h2>
-<p>In this section, we’ll show how we can use the gradient interfaces to implement <a href="https://arxiv.org/abs/1603.00788">Automatic differentiation variational inference</a>.</p>
 
 
 </section>
@@ -944,15 +758,6 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-      <a href="../../concepts/incremental_computation/incremental.html" class="pagination-link">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Incremental computing</span>
-      </a>          
-  </div>
-  <div class="nav-page nav-page-next">
-  </div>
-</nav>
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">
