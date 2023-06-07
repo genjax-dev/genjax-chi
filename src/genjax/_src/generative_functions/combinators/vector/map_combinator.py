@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module implements a generative function combinator which allows
 broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
@@ -60,9 +59,8 @@ from genjax._src.utilities import slash
 
 @dataclass
 class MapCombinator(GenerativeFunction):
-    """
-    > `MapCombinator` accepts a generative function as input and provides `vmap`-based implementations of the generative function interface methods.
-
+    """> `MapCombinator` accepts a generative function as input and provides
+    `vmap`-based implementations of the generative function interface methods.
 
     Examples:
 
@@ -110,8 +108,8 @@ class MapCombinator(GenerativeFunction):
         in_axes: Union[None, Tuple] = None,
         repeats: Union[None, IntArray] = None,
     ) -> "MapCombinator":
-        """
-        The preferred constructor for `MapCombinator` generative function instances. The shorthand symbol is `Map = MapCombinator.new`.
+        """The preferred constructor for `MapCombinator` generative function
+        instances. The shorthand symbol is `Map = MapCombinator.new`.
 
         Arguments:
             kernel: A single `GenerativeFunction` instance.

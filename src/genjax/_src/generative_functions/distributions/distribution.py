@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains the `Distribution` abstract base class."""
 
 import abc
@@ -323,20 +322,24 @@ class Distribution(GenerativeFunction):
 
 @dataclass
 class ExactDensity(Distribution):
-    """
-    > Abstract base class which extends Distribution and assumes that the implementor provides an exact logpdf method (compared to one which returns _an estimate of the logpdf_).
+    """> Abstract base class which extends Distribution and assumes that the
+    implementor provides an exact logpdf method (compared to one which returns
+    _an estimate of the logpdf_).
 
-    All of the standard distributions inherit from `ExactDensity`, and if you are looking to implement your own distribution, you should likely use this class.
+    All of the standard distributions inherit from `ExactDensity`, and
+    if you are looking to implement your own distribution, you should
+    likely use this class.
 
     !!! info "`Distribution` implementors are `Pytree` implementors"
 
-        As `Distribution` extends `Pytree`, if you use this class, you must implement `flatten` as part of your class declaration.
+    As `Distribution` extends `Pytree`, if you use this class, you must
+    implement `flatten` as part of your class declaration.
     """
 
     @abc.abstractmethod
     def sample(self, key: PRNGKey, *args, **kwargs) -> Any:
-        """
-        > Sample from the distribution, returning a value from the event space.
+        """> Sample from the distribution, returning a value from the event
+        space.
 
         Arguments:
             key: A `PRNGKey`.
@@ -377,9 +380,8 @@ class ExactDensity(Distribution):
 
     @abc.abstractmethod
     def logpdf(self, v, *args, **kwargs):
-        """
-        > Given a value from the event space, compute the log probability of that value under the distribution.
-        """
+        """> Given a value from the event space, compute the log probability of
+        that value under the distribution."""
 
     def random_weighted(self, key, *args, **kwargs):
         key, sub_key = jax.random.split(key)

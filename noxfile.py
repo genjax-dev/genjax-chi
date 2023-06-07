@@ -133,13 +133,24 @@ def lint(session: Session) -> None:
     session.install(
         "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
     )
-    session.run("isort", ".")
-    session.run("black", ".")
-    # session.run("docformatter", "--in-place", "--recursive", ".")
+    
+    # Source
+    session.run("isort", "src")
+    session.run("black", "src")
+    session.run("docformatter", "--in-place", "--recursive", "src")
     session.run(
-        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "."
+        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "src"
     )
-    session.run("flake8", ".")
+    session.run("flake8", "src")
+    
+    # Notebooks
+    session.run("isort", "notebooks")
+    session.run("black", "notebooks")
+    session.run("docformatter", "--in-place", "--recursive", "notebooks")
+    session.run(
+        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "notebooks"
+    )
+    session.run("flake8", "notebooks")
 
 
 @session(python=python_version)
@@ -160,18 +171,6 @@ def docs_build(session: Session) -> None:
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
-    session.install("mkdocs")
-    build_dir = Path("site")
-    if build_dir.exists():
-        shutil.rmtree(build_dir)
-    session.run("mkdocs", "build")
-    session.run("quarto", "render", "notebooks", external=True)
-
-
-@session(name="docs-build-insider", python=python_version)
-def docs_build(session: Session) -> None:
-    """Build the documentation."""
-    session.run_always("poetry", "install", "--with", "docs-insider", external=True)
     session.install("mkdocs")
     build_dir = Path("site")
     if build_dir.exists():

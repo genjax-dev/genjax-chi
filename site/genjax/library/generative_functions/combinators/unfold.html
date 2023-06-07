@@ -1314,7 +1314,9 @@
 
   
       <blockquote>
-<p><code>UnfoldCombinator</code> accepts a kernel generative function, as well as a static maximum unroll length, and provides a scan-like pattern of generative computation.</p>
+<p><code>UnfoldCombinator</code> accepts a kernel generative function, as well as a
+static maximum unroll length, and provides a scan-like pattern of
+generative computation.</p>
 </blockquote>
 <div class="admonition info">
 <p class="admonition-title">Kernel generative functions</p>
@@ -1410,7 +1412,8 @@
 
         <details class="quote">
           <summary>Source code in <code>src/genjax/_src/generative_functions/combinators/vector/unfold_combinator.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-62"> 62</a></span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-61"> 61</a></span>
+<span class="normal"><a href="#__codelineno-0-62"> 62</a></span>
 <span class="normal"><a href="#__codelineno-0-63"> 63</a></span>
 <span class="normal"><a href="#__codelineno-0-64"> 64</a></span>
 <span class="normal"><a href="#__codelineno-0-65"> 65</a></span>
@@ -1991,10 +1994,11 @@
 <span class="normal"><a href="#__codelineno-0-640">640</a></span>
 <span class="normal"><a href="#__codelineno-0-641">641</a></span>
 <span class="normal"><a href="#__codelineno-0-642">642</a></span>
-<span class="normal"><a href="#__codelineno-0-643">643</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-62"><a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="nd">@dataclass</span>
-</span><span id="__span-0-63"><a id="__codelineno-0-63" name="__codelineno-0-63"></a><span class="k">class</span> <span class="nc">UnfoldCombinator</span><span class="p">(</span><span class="n">GenerativeFunction</span><span class="p">):</span>
-</span><span id="__span-0-64"><a id="__codelineno-0-64" name="__codelineno-0-64"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="__span-0-65"><a id="__codelineno-0-65" name="__codelineno-0-65"></a><span class="sd">    &gt; `UnfoldCombinator` accepts a kernel generative function, as well as a static maximum unroll length, and provides a scan-like pattern of generative computation.</span>
+<span class="normal"><a href="#__codelineno-0-643">643</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-61"><a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="nd">@dataclass</span>
+</span><span id="__span-0-62"><a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="k">class</span> <span class="nc">UnfoldCombinator</span><span class="p">(</span><span class="n">GenerativeFunction</span><span class="p">):</span>
+</span><span id="__span-0-63"><a id="__codelineno-0-63" name="__codelineno-0-63"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;&gt; `UnfoldCombinator` accepts a kernel generative function, as well as a</span>
+</span><span id="__span-0-64"><a id="__codelineno-0-64" name="__codelineno-0-64"></a><span class="sd">    static maximum unroll length, and provides a scan-like pattern of</span>
+</span><span id="__span-0-65"><a id="__codelineno-0-65" name="__codelineno-0-65"></a><span class="sd">    generative computation.</span>
 </span><span id="__span-0-66"><a id="__codelineno-0-66" name="__codelineno-0-66"></a>
 </span><span id="__span-0-67"><a id="__codelineno-0-67" name="__codelineno-0-67"></a><span class="sd">    !!! info &quot;Kernel generative functions&quot;</span>
 </span><span id="__span-0-68"><a id="__codelineno-0-68" name="__codelineno-0-68"></a><span class="sd">        A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `UnfoldCombinator` is implemented using `jax.lax.scan` - which has the same requirements.</span>
@@ -2032,8 +2036,8 @@
 </span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a>    <span class="nd">@typecheck</span>
 </span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a>    <span class="nd">@classmethod</span>
 </span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kernel</span><span class="p">:</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="n">Int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;UnfoldCombinator&quot;</span><span class="p">:</span>
-</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">        The preferred constructor for `UnfoldCombinator` generative function instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.</span>
+</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;The preferred constructor for `UnfoldCombinator` generative function</span>
+</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">        instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.</span>
 </span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>
 </span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="sd">        Arguments:</span>
 </span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a><span class="sd">            kernel: A kernel `GenerativeFunction` instance.</span>
@@ -2604,7 +2608,8 @@
 
   <div class="doc doc-contents ">
   
-      <p>The preferred constructor for <code>UnfoldCombinator</code> generative function instances. The shorthand symbol is <code>Unfold = UnfoldCombinator.new</code>.</p>
+      <p>The preferred constructor for <code>UnfoldCombinator</code> generative function
+instances. The shorthand symbol is <code>Unfold = UnfoldCombinator.new</code>.</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -2622,7 +2627,11 @@
           <td>
                 <code><a class="autorefs autorefs-internal" title="genjax._src.core.datatypes.generative.GenerativeFunction" href="../../core/generative.html#genjax.core.GenerativeFunction">GenerativeFunction</a></code>
           </td>
-          <td><p>A kernel <code>GenerativeFunction</code> instance.</p></td>
+          <td>
+            <div class="doc-md-description">
+              <p>A kernel <code>GenerativeFunction</code> instance.</p>
+            </div>
+          </td>
           <td>
               <em>required</em>
           </td>
@@ -2632,7 +2641,11 @@
           <td>
                 <code><span title="genjax._src.core.typing.Int">Int</span></code>
           </td>
-          <td><p>A static maximum possible unroll length.</p></td>
+          <td>
+            <div class="doc-md-description">
+              <p>A static maximum possible unroll length.</p>
+            </div>
+          </td>
           <td>
               <em>required</em>
           </td>
@@ -2653,7 +2666,11 @@
 <td><code>instance</code></td>          <td>
                 <code><a class="autorefs autorefs-internal" title="genjax._src.generative_functions.combinators.vector.unfold_combinator.UnfoldCombinator" href="#genjax.generative_functions.combinators.UnfoldCombinator">UnfoldCombinator</a></code>
           </td>
-          <td><p>An <code>UnfoldCombinator</code> instance.</p></td>
+          <td>
+            <div class="doc-md-description">
+              <p>An <code>UnfoldCombinator</code> instance.</p>
+            </div>
+          </td>
         </tr>
     </tbody>
   </table>
@@ -2676,8 +2693,8 @@
 <span class="normal"><a href="#__codelineno-0-113">113</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="nd">@typecheck</span>
 </span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a><span class="nd">@classmethod</span>
 </span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a><span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kernel</span><span class="p">:</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="n">Int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;UnfoldCombinator&quot;</span><span class="p">:</span>
-</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">    The preferred constructor for `UnfoldCombinator` generative function instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.</span>
+</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;The preferred constructor for `UnfoldCombinator` generative function</span>
+</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">    instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.</span>
 </span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>
 </span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="sd">    Arguments:</span>
 </span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a><span class="sd">        kernel: A kernel `GenerativeFunction` instance.</span>

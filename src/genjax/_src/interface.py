@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """The generative function interface is a set of methods and associated types
 defined for an implementor which support the generic construction (via
 interface abstraction) of programmable inference algorithms and differentiable

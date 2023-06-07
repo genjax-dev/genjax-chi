@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains a utility class for defining new `jax.Pytree`
 implementors.
 
@@ -134,10 +133,14 @@ def tree_zipper(grad, nograd):
 
 
 class Pytree(metaclass=abc.ABCMeta):
-    """
-    > Abstract base class which registers a class with JAX's `Pytree` system.
+    """> Abstract base class which registers a class with JAX's `Pytree`
+    system.
 
-    Users who mixin this ABC for class definitions are required to implement `flatten` below. In turn, instances of the class gain access to a large set of utility functions for working with `Pytree` data, as well as the ability to use `jax.tree_util` Pytree functionality.
+    Users who mixin this ABC for class definitions are required to
+    implement `flatten` below. In turn, instances of the class gain
+    access to a large set of utility functions for working with `Pytree`
+    data, as well as the ability to use `jax.tree_util` Pytree
+    functionality.
     """
 
     def __init_subclass__(cls, **kwargs):
@@ -150,8 +153,8 @@ class Pytree(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def flatten(self) -> Tuple[Tuple, Tuple]:
-        """
-        `flatten` must be implemented when a user mixes `Pytree` into the declaration of a new class or dataclass.
+        """`flatten` must be implemented when a user mixes `Pytree` into the
+        declaration of a new class or dataclass.
 
         The implementation of `flatten` assumes the following contract:
 
@@ -214,8 +217,8 @@ class Pytree(metaclass=abc.ABCMeta):
 
     @classmethod
     def unflatten(cls, data, xs):
-        """
-        Given an implementation of `flatten` (c.f. above), `unflatten` is automatically defined and registered with JAX's `Pytree` system.
+        """Given an implementation of `flatten` (c.f. above), `unflatten` is
+        automatically defined and registered with JAX's `Pytree` system.
 
         `unflatten` allows usage of `jtu.tree_unflatten` to create instances of a declared class that mixes `Pytree` from a `PyTreeDef` for that class and leaf data.
 
@@ -256,8 +259,8 @@ class Pytree(metaclass=abc.ABCMeta):
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
     def slice(self, index_or_index_array):
-        """
-        > Utility available to any class which mixes `Pytree` base. This method supports indexing/slicing on indices when leaves are arrays.
+        """> Utility available to any class which mixes `Pytree` base. This
+        method supports indexing/slicing on indices when leaves are arrays.
 
         `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
 

@@ -17,8 +17,7 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
-jax = "^0.4.1"
-jaxlib = "^0.4.1"
+jax = "^0.4.10"
 numpy = "^1.24.0"
 tensorflow-probability = "^0.19.0"
 rich = "^12.6.0"
@@ -58,7 +57,7 @@ mkdocs-git-authors-plugin = "^0.7.0"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.2.0", extras=["ansi"]}
-mkdocs-material = {path = "docs/material"}
+mkdocs-material = {path = "material"}
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]
