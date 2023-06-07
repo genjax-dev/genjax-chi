@@ -108,7 +108,7 @@ Many bits of knowledge have gone into this project -- [you can find many of thes
 
 This project has several JAX-based influences. Here's an abbreviated list:
 
-- [This notebook on static dispatch (author unknown)][effect_handling_interp]
+- [This notebook on static dispatch (Dan Piponi)][effect_handling_interp]
 - [Equinox (Patrick Kidger's work on neural networks via callable Pytrees)][equinox]
 - [Oryx (interpreters and interpreter design)][oryx]
 
