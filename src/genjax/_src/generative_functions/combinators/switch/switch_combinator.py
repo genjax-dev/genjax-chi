@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module implements a generative function combinator which allows
 branching control flow for combinations of generative functions which can
 return different shaped choice maps.
@@ -112,11 +111,10 @@ class SwitchTrace(Trace):
 
 @dataclass
 class SwitchCombinator(GenerativeFunction):
-    """
-    > `SwitchCombinator` accepts multiple generative functions as input
-    and implements `GenerativeFunction` interface semantics that
-    support branching control flow patterns, including control flow patterns
-    which branch on other stochastic choices.
+    """> `SwitchCombinator` accepts multiple generative functions as input and
+    implements `GenerativeFunction` interface semantics that support branching
+    control flow patterns, including control flow patterns which branch on
+    other stochastic choices.
 
     !!! info "Existence uncertainty"
 
@@ -157,8 +155,8 @@ class SwitchCombinator(GenerativeFunction):
     @typecheck
     @classmethod
     def new(cls, *args: GenerativeFunction) -> "SwitchCombinator":
-        """
-        The preferred constructor for `SwitchCombinator` generative function instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
+        """The preferred constructor for `SwitchCombinator` generative function
+        instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
 
         Arguments:
             *args: Generative functions which will act as branch callees for the invocation of branching control flow.

@@ -46,9 +46,7 @@ from genjax._src.core.typing import PRNGKey
 class ChoiceMap(Tree):
     @abc.abstractmethod
     def get_selection(self):
-        """
-        Convert a `ChoiceMap` to a `Selection`.
-        """
+        """Convert a `ChoiceMap` to a `Selection`."""
 
     def get_choices(self):
         return self
@@ -98,18 +96,21 @@ class ChoiceMap(Tree):
 
 @dataclasses.dataclass
 class Trace(ChoiceMap, Tree):
-    """
-    > Abstract base class for traces of generative functions.
+    """> Abstract base class for traces of generative functions.
 
-    A `Trace` is a data structure used to represent sampled executions of generative functions.
+    A `Trace` is a data structure used to represent sampled executions
+    of generative functions.
 
-    Traces track metadata associated with log probabilities of choices, as well as other data associated with the invocation of a generative function, including the arguments it was invoked with, its return value, and the identity of the generative function itself.
+    Traces track metadata associated with log probabilities of choices,
+    as well as other data associated with the invocation of a generative
+    function, including the arguments it was invoked with, its return
+    value, and the identity of the generative function itself.
     """
 
     @abc.abstractmethod
     def get_retval(self) -> Any:
-        """
-        Returns the return value from the generative function invocation which created the `Trace`.
+        """Returns the return value from the generative function invocation
+        which created the `Trace`.
 
         Examples:
 
@@ -143,8 +144,8 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
-        """
-        Returns the generative function whose invocation created the `Trace`.
+        """Returns the generative function whose invocation created the
+        `Trace`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -186,8 +187,7 @@ class Trace(ChoiceMap, Tree):
         return self.get_choices().get_selection()
 
     def strip(self):
-        """
-        Remove all `Trace` metadata, and return a choice map.
+        """Remove all `Trace` metadata, and return a choice map.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -260,8 +260,7 @@ class Selection(Tree):
 
 @dataclasses.dataclass
 class GenerativeFunction(Pytree):
-    """
-    > Abstract base class for generative functions.
+    """> Abstract base class for generative functions.
 
     !!! info "Interaction with JAX"
 
@@ -294,8 +293,8 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[PRNGKey, Trace]:
-        """
-        > Given a `PRNGKey` and arguments, execute the generative function, returning a new `PRNGKey` and a trace.
+        """> Given a `PRNGKey` and arguments, execute the generative function,
+        returning a new `PRNGKey` and a trace.
 
         `simulate` can be informally thought of as forward sampling: given `key: PRNGKey` and arguments `args: Tuple`, the generative function should sample a choice map $c \sim p(\cdot; \\text{args})$, as well as any untraced randomness $r \sim p(\cdot; \\text{args}, c)$.
 
@@ -349,8 +348,11 @@ class GenerativeFunction(Pytree):
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, Trace]]:
-        """
-        > Given a `PRNGKey`, a choice map (constraints), and arguments, execute the generative function, returning a new `PRNGKey`, a single-sample importance weight estimate of the conditional density evaluated at the non-constrained choices, and a trace whose choice map is consistent with the constraints.
+        """> Given a `PRNGKey`, a choice map (constraints), and arguments,
+        execute the generative function, returning a new `PRNGKey`, a single-
+        sample importance weight estimate of the conditional density evaluated
+        at the non-constrained choices, and a trace whose choice map is
+        consistent with the constraints.
 
         Arguments:
             key: A `PRNGKey`.

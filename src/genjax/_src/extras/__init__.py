@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module provides compatibility extension plugins for packages which
 provide functionality that is useful for modeling and inference.
 
@@ -26,8 +25,9 @@ import types
 
 
 class LazyLoader(types.ModuleType):
-    """
-    > A lazy loading system which allows extension modules to optionally depend on 3rd party dependencies which may be too heavyweight to include as required dependencies for `genjax` proper.
+    """> A lazy loading system which allows extension modules to optionally
+    depend on 3rd party dependencies which may be too heavyweight to include as
+    required dependencies for `genjax` proper.
 
     Examples:
 

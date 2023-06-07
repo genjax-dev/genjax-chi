@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module holds the language interface for the `TransformedDistribution`
 DSL. It borrows syntax from the `BuiltinGenerativeFunction` DSL, and utilizes
 some of the `BuiltinGenerativeFunction` transformation infrastructure.

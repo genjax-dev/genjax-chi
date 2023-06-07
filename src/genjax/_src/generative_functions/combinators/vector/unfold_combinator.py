@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module implements a generative function combinator which allows
 statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
@@ -61,8 +60,9 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 @dataclass
 class UnfoldCombinator(GenerativeFunction):
-    """
-    > `UnfoldCombinator` accepts a kernel generative function, as well as a static maximum unroll length, and provides a scan-like pattern of generative computation.
+    """> `UnfoldCombinator` accepts a kernel generative function, as well as a
+    static maximum unroll length, and provides a scan-like pattern of
+    generative computation.
 
     !!! info "Kernel generative functions"
         A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `UnfoldCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
@@ -100,8 +100,8 @@ class UnfoldCombinator(GenerativeFunction):
     @typecheck
     @classmethod
     def new(cls, kernel: GenerativeFunction, max_length: Int) -> "UnfoldCombinator":
-        """
-        The preferred constructor for `UnfoldCombinator` generative function instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.
+        """The preferred constructor for `UnfoldCombinator` generative function
+        instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.
 
         Arguments:
             kernel: A kernel `GenerativeFunction` instance.
