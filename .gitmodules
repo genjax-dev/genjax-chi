@@ -1,0 +1,3 @@
+[submodule "docs/material"]
+	path = docs/material
+	url = https://github.com/probcomp/mkdocs-material-insiders

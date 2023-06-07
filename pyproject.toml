@@ -58,19 +58,7 @@ mkdocs-git-authors-plugin = "^0.7.0"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.2.0", extras=["ansi"]}
-mkdocs-material = "^9.1.15"
-
-[tool.poetry.group.docs-insider]
-optional = true
-
-[tool.poetry.group.docs-insider.dependencies]
-mkdocs = "^1.4.2"
-mkdocs-material = {git = "https://github.com/squidfunk/mkdocs-material-insiders"}
-mkdocstrings = {version = "^0.20.0", extras=["python"]}
-mkdocs-git-authors-plugin = "^0.7.0"
-mkdocs-git-revision-date-localized-plugin = "^1.1.0"
-mkdocs-git-committers-plugin-2 = "^1.1.1"
-markdown-exec = {version="^1.2.0", extras=["ansi"]}
+mkdocs-material = {path = "docs/material"}
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]
