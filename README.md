@@ -85,6 +85,13 @@ In addition, you'll also need `mkdocs`:
 pip install mkdocs
 ```
 
+You'll need the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) (insiders) - which we store in `/docs` via [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+
+```bash
+git submodule init
+git submodule update
+```
+
 With these two installed (`mkdocs` into your active Python environment) and on path, you can fully build the documentation:
 
 ```bash
