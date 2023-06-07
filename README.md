@@ -85,7 +85,7 @@ In addition, you'll also need `mkdocs`:
 pip install mkdocs
 ```
 
-You'll need the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) (insiders) - which we store in `/docs` via [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+You'll need the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) (insiders) - which we store in `material` via [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 
 ```bash
 git submodule init

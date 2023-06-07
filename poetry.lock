@@ -2260,7 +2260,7 @@ images = ["cairosvg", "pillow"]
 
 [package.source]
 type = "directory"
-url = "docs/material"
+url = "material"
 
 [[package]]
 name = "mkdocs-material-extensions"
@@ -4454,4 +4454,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<4.0"
-content-hash = "b4de3fdca7582fd6aa1aae022de3be33f5a9dcaa8fead84109aaff3214d6a090"
+content-hash = "b60571b0a98c860c13ade62c5f4a7f072c200e59aa6596912522fa7279ef54aa"
