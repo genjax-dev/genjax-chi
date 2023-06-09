@@ -172,6 +172,7 @@ def docs_build(session: Session) -> None:
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
     session.install("mkdocs")
+    session.install("mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders")
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)

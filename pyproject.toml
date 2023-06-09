@@ -57,7 +57,6 @@ mkdocs-git-authors-plugin = "^0.7.0"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.2.0", extras=["ansi"]}
-mkdocs-material = {path = "material"}
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]
