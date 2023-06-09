@@ -18,7 +18,6 @@ import functools
 import jax.core as jc
 import jax.tree_util as jtu
 import jax.util as jax_util
-from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax._src import effects
@@ -211,7 +210,7 @@ class HarvestTracer(context.ContextualTracer):
 
     @property
     def aval(self):
-        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+        return jc.raise_to_shaped(jc.get_aval(self.val))
 
     def full_lower(self):
         return self
@@ -425,7 +424,7 @@ class ReapContext(HarvestContext):
         else:
             avals = jtu.tree_unflatten(
                 tree,
-                [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
+                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
             )
             self.reaps[name] = Reap.new(
                 jtu.tree_unflatten(tree, values),

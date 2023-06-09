@@ -22,7 +22,6 @@ from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
-from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax import util as jax_util
@@ -52,7 +51,7 @@ class ContextualTracer(jc.Tracer):
 
     @property
     def aval(self):
-        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+        return jc.raise_to_shaped(jc.get_aval(self.val))
 
     def full_lower(self):
         return self

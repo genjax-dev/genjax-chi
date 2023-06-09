@@ -19,7 +19,6 @@ from functools import reduce
 
 import jax
 import jax.numpy as jnp
-from jax import abstract_arrays
 from jax import api_util
 from jax import core as jax_core
 from jax import linear_util as lu
@@ -43,11 +42,11 @@ def get_shaped_aval(x):
     # TODO: This is a kludge. Abstract evaluation currently breaks
     # on `random_wrap` without this branch.
     if isinstance(x, KeyArray):
-        return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
+        return jax_core.raise_to_shaped(jax_core.get_aval(x))
 
     if hasattr(x, "dtype") and hasattr(x, "shape"):
-        return abstract_arrays.ShapedArray(x.shape, dtypes.canonicalize_dtype(x.dtype))
-    return abstract_arrays.raise_to_shaped(jax_core.get_aval(x))
+        return jax_core.ShapedArray(x.shape, dtypes.canonicalize_dtype(x.dtype))
+    return jax_core.raise_to_shaped(jax_core.get_aval(x))
 
 
 def pv_like(x, abstract=True):
