@@ -2089,13 +2089,13 @@ mkdocs = ">=1.1"
 
 [[package]]
 name = "mkdocs-git-authors-plugin"
-version = "0.7.1"
+version = "0.7.2"
 description = "Mkdocs plugin to display git authors of a page"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "mkdocs-git-authors-plugin-0.7.1.tar.gz", hash = "sha256:d5675d42327322dc6ab20dc3b8471cb4f32413017620cb083e78ad920562143e"},
-    {file = "mkdocs_git_authors_plugin-0.7.1-py3-none-any.whl", hash = "sha256:1c2107bf2c4a6eb7e11524c606038a0a2c15504c47f09fdd7cb99d81f498b78e"},
+    {file = "mkdocs-git-authors-plugin-0.7.2.tar.gz", hash = "sha256:f541730e4cabdafa0ac758c94d28ba5e8ddca4c859e5de4c89f1226cb6ccd0ad"},
+    {file = "mkdocs_git_authors_plugin-0.7.2-py3-none-any.whl", hash = "sha256:c8a2784a867db79ad3b477a96ee96875d17b09192b6d3be71f08df25afff76c4"},
 ]
 
 [package.dependencies]
