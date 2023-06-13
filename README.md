@@ -81,7 +81,7 @@ You can test your environment with:
 nox -r
 ```
 
-### Documentation environment setup script
+### Documentation environment setup
 
 If you want you deploy the documentation and Jupyter notebooks to static HTML, you'll need [quarto](https://quarto.org/docs/get-started/).
 
