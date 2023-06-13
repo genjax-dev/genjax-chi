@@ -51,13 +51,13 @@ This project uses:
 - [mkdocs](https://www.mkdocs.org/) to generate static documentation.
 - [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
-### Execution environment setup script
+### Development environment setup steps
 
-#### Choose a `jaxlib`
+#### Step 1: Choose a `jaxlib`
 
 GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
 
-#### Setting up the environment
+#### Step 2: Setting up the environment with `poetry`
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
 
