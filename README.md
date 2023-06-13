@@ -53,6 +53,12 @@ This project uses:
 
 ### Execution environment setup script
 
+#### Choose a `jaxlib`
+
+GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the `jax` bounds in GenJAX (as specified in `pyproject.toml`).
+
+#### Setting up the environment
+
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
 
 Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute tests, build and serve the documentation, etc. 
@@ -77,28 +83,25 @@ nox -r
 
 ### Documentation environment setup script
 
-If you want you deploy the Jupyter notebooks, you'll also need [quarto](https://quarto.org/docs/get-started/).
+If you want you deploy the documentation and Jupyter notebooks to static HTML, you'll need [quarto](https://quarto.org/docs/get-started/).
 
-In addition, you'll also need `mkdocs`:
+In addition, you'll need `mkdocs`:
 
 ```bash
 pip install mkdocs
 ```
 
-You'll need the [mkdocs-material](https://squidfunk.github.io/mkdocs-material/) (insiders) - which we store in `material` via [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+GenJAX builds documentation using an insiders-only version of [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). GenJAX will attempt to fetch this repository during the documentation build step.
 
-```bash
-git submodule init
-git submodule update
-```
-
-With these two installed (`mkdocs` into your active Python environment) and on path, you can fully build the documentation:
+With these dependencies installed (`mkdocs` into your active Python environment) and on path, you can fully build the documentation:
 
 ```bash
 nox -r -s docs-build
 ```
 
-This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory. Pushing the result to the `main` branch will trigger a CI job to deploy to the GitHub Pages branch `gh-pages`, from which the documentation is hosted.
+This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory. 
+
+Pushing the resulting changes to the `main` branch will trigger a CI job to deploy to the GitHub Pages branch `gh-pages`, from which the documentation is hosted.
 
 ## References
 
