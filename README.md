@@ -55,7 +55,7 @@ This project uses:
 
 #### Choose a `jaxlib`
 
-GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the `jax` bounds in GenJAX (as specified in `pyproject.toml`).
+GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
 
 #### Setting up the environment
 
