@@ -57,6 +57,8 @@ This project uses:
 
 GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
 
+[For further information, see this discussion.](https://github.com/google/jax/discussions/16380)
+
 #### Step 2: Setting up the environment with `poetry`
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)

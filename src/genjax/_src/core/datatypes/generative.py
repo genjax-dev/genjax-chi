@@ -88,6 +88,9 @@ class ChoiceMap(Tree):
         else:
             return choice
 
+    def __add__(self, other):
+        return self.merge(other)
+
 
 #####
 # Trace
@@ -179,9 +182,6 @@ class Trace(ChoiceMap, Tree):
     def get_subtrees_shallow(self):
         choices = self.get_choices()
         return choices.get_subtrees_shallow()
-
-    def merge(self, other) -> ChoiceMap:
-        return self.get_choices().merge(other.get_choices())
 
     def get_selection(self):
         return self.get_choices().get_selection()
