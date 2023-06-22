@@ -77,11 +77,11 @@ def stage(f, dynamic=True):
 
 
 def get_trace_data_shape(gen_fn, *args):
-    def _apply(gen_fn, *args):
+    def _apply(*args):
         key, tr = gen_fn.simulate(*args)
         return key, tr
 
-    _, (_, trace_shape) = jax.make_jaxpr(_apply, return_shape=True)(gen_fn, *args)
+    _, (_, trace_shape) = jax.make_jaxpr(_apply, return_shape=True)(*args)
     return trace_shape
 
 
