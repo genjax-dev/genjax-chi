@@ -112,8 +112,8 @@ Many bits of knowledge have gone into this project -- [you can find many of thes
 - [Marco Cusumano-Towner's thesis on Gen][marco_thesis]
 - [The main Gen.jl repository][gen_jl]
 - (Trace types) [(Lew et al) trace types][trace_types]
-- (Prox) [(Lew et al) Recursive auxiliary-variable inference (RAVI)][ravi]
-- (GenProx) [Alex Lew's Gen.jl implementation of Prox][gen_prox]
+- (RAVI) [(Lew et al) Recursive auxiliary-variable inference][ravi]
+- (GenSP) [Alex Lew's Gen.jl implementation of GenSP][gen_sp]
 - (ADEV) [(Lew & Huot, et al) Automatic differentiation of expected values of probabilistic programs][adev]
 
 ### JAX influences
@@ -139,7 +139,7 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 [trace_types]: https://dl.acm.org/doi/10.1145/3371087
 [adev]: https://arxiv.org/abs/2212.06386
 [ravi]: https://arxiv.org/abs/2203.02836
-[gen_prox]: https://github.com/probcomp/GenProx.jl
+[gen_sp]: https://github.com/probcomp/GenSP.jl
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox
 [oryx]: https://github.com/jax-ml/oryx
