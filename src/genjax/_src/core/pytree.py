@@ -35,8 +35,8 @@ from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
 from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import static_check_supports_grad
@@ -300,18 +300,38 @@ class Pytree(metaclass=abc.ABCMeta):
 # TODO: investigate if `inspect` can provide better APIs
 # for the functionality implemented in this class.
 @dataclass
-class PytreeClosure(Pytree):
+class PytreeClosure(Pytree, gpp.CustomPretty):
     callable: Callable
-    environment: List
+    static: Any
+    dynamic: Any
 
     def flatten(self):
-        return (self.environment,), (self.callable,)
+        return (self.dynamic,), (self.callable, self.static)
+
+    @classmethod
+    def new(cls, callable):
+        if callable.__closure__ is None:
+            return PytreeClosure(callable, None, None)
+        else:
+            captured = []
+            for cell in callable.__closure__:
+                captured.append(cell.cell_contents)
+                cell.cell_contents = None
+            static = jtu.tree_map(lambda v: v if is_concrete(v) else None, captured)
+            dynamic = jtu.tree_map(lambda v: None if is_concrete(v) else v, captured)
+            return PytreeClosure(callable, static, dynamic)
 
     def __call__(self, *args):
         if self.callable.__closure__ is None:
             return self.callable(*args)
         else:
-            for (cell, v) in zip(self.callable.__closure__, self.environment):
+            environment = jtu.tree_map(
+                lambda v1, v2: v1 if v1 is not None else v2,
+                self.static,
+                self.dynamic,
+                is_leaf=lambda v: v is None,
+            )
+            for (cell, v) in zip(self.callable.__closure__, environment):
                 cell.cell_contents = v
             ret = self.callable(*args)
             for cell in self.callable.__closure__:
@@ -322,16 +342,11 @@ class PytreeClosure(Pytree):
         avals = list(map(get_shaped_aval, self.environment))
         return hash((self.callable, *avals))
 
+    def pformat_tree(self, **kwargs):
+        return f"[b]PytreeClosure[/b]({self.callable})"
 
-def closure_convert(callable):
-    captured = []
-    if callable.__closure__ is None:
-        return PytreeClosure(callable, captured)
-    else:
-        for cell in callable.__closure__:
-            captured.append(cell.cell_contents)
-            cell.cell_contents = None
-        return PytreeClosure(callable, captured)
+
+closure_convert = PytreeClosure.new
 
 
 #####
