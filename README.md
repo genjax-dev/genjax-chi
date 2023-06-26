@@ -53,13 +53,7 @@ This project uses:
 
 ### Development environment setup steps
 
-#### Step 1: Choose a `jaxlib`
-
-GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
-
-[For further information, see this discussion.](https://github.com/google/jax/discussions/16380)
-
-#### Step 2: Setting up the environment with `poetry`
+#### Step 1: Setting up the environment with `poetry`
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
 
@@ -82,6 +76,15 @@ You can test your environment with:
 ```bash
 nox -r
 ```
+
+#### Step 2: Choose a `jaxlib`
+
+GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
+
+[For further information, see this discussion.](https://github.com/google/jax/discussions/16380)
+
+[You can likely install CUDA compatible versions by following environment setup above with a `pip` installation of the CUDA-enabled JAX.](https://github.com/google/jax#pip-installation-gpu-cuda-installed-via-pip-easier)
+
 
 ### Documentation environment setup
 
