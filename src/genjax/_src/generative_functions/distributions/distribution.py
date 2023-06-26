@@ -213,7 +213,7 @@ class Distribution(GenerativeFunction):
         # just return the previous trace.
         if isinstance(constraints, EmptyChoiceMap) and static_check_no_change(argdiffs):
             v = prev.get_retval()
-            retval_diff = Diff(v, NoChange)
+            retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), v)
             return key, (retval_diff, 0.0, prev, maybe_discard)
 
         # Otherwise, we consider the cases.
@@ -277,7 +277,7 @@ class Distribution(GenerativeFunction):
             )
 
             discard = mask(active_chm, ValueChoiceMap(prev.get_leaf_value()))
-            retval_diff = Diff(v, UnknownChange)
+            retval_diff = jtu.tree_map(lambda v: Diff(v, UnknownChange), v)
 
         return key, (
             retval_diff,
