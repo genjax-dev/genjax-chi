@@ -88,6 +88,11 @@ class ChoiceMap(Tree):
         else:
             return choice
 
+    def __setitem__(self, key, value):
+        raise Exception(
+            "ChoiceMap of type {type(self)} does not implement __setitem__."
+        )
+
     def __add__(self, other):
         return self.merge(other)
 
