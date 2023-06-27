@@ -20,7 +20,6 @@ import jax.random as random
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.typing import PRNGKey
@@ -31,11 +30,10 @@ from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 @dataclasses.dataclass
 class MetropolisHastings(MCMCKernel):
-    selection: Selection
     proposal: GenerativeFunction
 
     def flatten(self):
-        return (), (self.selection, self.proposal)
+        return (self.proposal,)
 
     @typecheck
     def apply(self, key: PRNGKey, trace: Trace, proposal_args: Tuple):
