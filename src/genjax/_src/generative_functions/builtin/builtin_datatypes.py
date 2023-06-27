@@ -139,7 +139,12 @@ class BuiltinChoiceMap(ChoiceMap):
         return BuiltinChoiceMap(new_inner)
 
     def __setitem__(self, k, v):
-        self.trie[k] = v
+        v = (
+            ValueChoiceMap(v)
+            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+            else v
+        )
+        self.trie.trie_insert(k, v)
 
     def __hash__(self):
         return hash(self.trie)
