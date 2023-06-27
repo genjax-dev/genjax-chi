@@ -29,6 +29,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
@@ -220,9 +221,109 @@ class VectorSelection(Selection):
         return self.inner.merge(other)
 
 
+#####
+# IndexChoiceMap
+#####
+
+
+@dataclass
+class IndexChoiceMap(ChoiceMap):
+    index: Int
+    inner: ChoiceMap
+
+    def flatten(self):
+        return (self.index, self.inner), ()
+
+    @typecheck
+    @classmethod
+    def new(cls, index, inner: ChoiceMap) -> ChoiceMap:
+        # if you try to wrap around an EmptyChoiceMap, do nothing.
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
+
+        return IndexChoiceMap(index, inner)
+
+    def get_selection(self):
+        subselection = self.inner.get_selection()
+        return IndexSelection.new(subselection)
+
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        return self.inner.get_subtree(addr)
+
+    def get_subtrees_shallow(self):
+        return self.inner.get_subtrees_shallow()
+
+    # TODO: This currently provides poor support for merging
+    # two vector choices maps with different index arrays.
+    def merge(self, other):
+        if isinstance(other, VectorChoiceMap):
+            return VectorChoiceMap(other.indices, self.inner.merge(other.inner))
+        else:
+            return VectorChoiceMap(self.indices, self.inner.merge(other))
+
+    def __hash__(self):
+        return hash(self.inner)
+
+    def get_index(self):
+        return self.indices
+
+    def _tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        subt = self.inner._build_rich_tree()
+        subk = Tree("[blue]indices")
+        subk.add(gpp.tree_pformat(self.indices))
+        tree.add(subk)
+        tree.add(subt)
+        return tree
+
+
+#####
+# IndexSelection
+#####
+
+
+@dataclass
+class IndexSelection(Selection):
+    index: Int
+    inner: Selection
+
+    def flatten(self):
+        return (
+            self.index,
+            self.inner,
+        ), ()
+
+    @classmethod
+    def new(cls, indices, inner):
+        pass
+
+    def filter(self, tree):
+        pass
+
+    def complement(self):
+        pass
+
+    def has_subtree(self, addr):
+        pass
+
+    def get_subtree(self, addr):
+        pass
+
+    def get_subtrees_shallow(self):
+        pass
+
+    def merge(self, other):
+        pass
+
+
 ##############
 # Shorthands #
 ##############
 
 vector_choice_map = VectorChoiceMap.new
 vector_select = VectorSelection.new
+index_choice_map = IndexChoiceMap.new
+index_select = IndexSelection.new

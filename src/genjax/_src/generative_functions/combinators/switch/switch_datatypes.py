@@ -35,7 +35,7 @@ from genjax._src.core.typing import IntArray
 ###############################
 
 #####
-# TaggedChoiceMap
+# SwitchChoiceMap
 #####
 
 # Note that the abstract/concrete semantics of `jnp.choose`
@@ -48,7 +48,7 @@ from genjax._src.core.typing import IntArray
 
 
 @dataclass
-class TaggedChoiceMap(ChoiceMap):
+class SwitchChoiceMap(ChoiceMap):
     index: IntArray
     submaps: Sequence[Union[ChoiceMap, Trace]]
 
@@ -110,11 +110,11 @@ class TaggedChoiceMap(ChoiceMap):
 
     def get_selection(self):
         subselections = list(map(lambda v: v.get_selection(), self.submaps))
-        return TaggedSelection.new(self.index, subselections)
+        return SwitchSelection.new(self.index, subselections)
 
     def merge(self, other):
         new_submaps = list(map(lambda v: v.merge(other), self.submaps))
-        return TaggedChoiceMap.new(self.index, new_submaps)
+        return SwitchChoiceMap.new(self.index, new_submaps)
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
@@ -128,11 +128,11 @@ class TaggedChoiceMap(ChoiceMap):
 
 
 #####
-# TaggedSelection
+# SwitchSelection
 #####
 
 
 @dataclass
-class TaggedSelection(Selection):
+class SwitchSelection(Selection):
     index: IntArray
     subselections: Sequence[Selection]

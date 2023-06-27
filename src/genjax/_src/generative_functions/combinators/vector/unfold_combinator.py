@@ -325,76 +325,9 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    def _importance_fallback(self, key, chm, args):
-        length = args[0]
-        state = args[1]
-        static_args = args[2:]
-
-        # Check incoming choice map, and coerce to `VectorChoiceMap`
-        # before passing into scan calls.
-        chm, fixed_len = self._static_bounds_check(chm)
-        chm = jtu.tree_map(
-            self._static_padder,
-            chm,
-        )
-        if not isinstance(chm, VectorChoiceMap):
-            indices = np.array(
-                [ind if ind < fixed_len else -1 for ind in range(0, self.max_length)]
-            )
-            chm = VectorChoiceMap(
-                indices,
-                chm,
-            )
-
-        def _inner(carry, slice):
-            count, key, state = carry
-            chm = slice
-
-            def _importance(key, chm, state):
-                return self.kernel.importance(key, chm, (state, *static_args))
-
-            def _simulate(key, chm, state):
-                key, tr = self.kernel.simulate(key, (state, *static_args))
-                return key, (0.0, tr)
-
-            check = count == chm.get_index()
-            key, (w, tr) = concrete_cond(
-                check,
-                _importance,
-                _simulate,
-                key,
-                chm,
-                state,
-            )
-
-            check = jnp.less(count, length + 1)
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
-            count, state, score, weight = concrete_cond(
-                check,
-                lambda *args: (
-                    count + 1,
-                    tr.get_retval(),
-                    tr.get_score(),
-                    w,
-                ),
-                lambda *args: (count, state, 0.0, 0.0),
-            )
-            return (count, key, state), (w, score, tr, index, state)
-
-        (count, key, state), (w, score, tr, indices, retval) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            chm,
-            length=self.max_length,
-        )
-
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
-
-        w = jnp.sum(w)
+    def _importance_empty(self, key, _, args):
+        key, unfold_tr = self.simulate(key, args)
+        w = 0.0
         return key, (w, unfold_tr)
 
     @typecheck
@@ -416,7 +349,8 @@ class UnfoldCombinator(GenerativeFunction):
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
         else:
-            return self._importance_fallback(key, chm, args)
+            assert isinstance(chm, EmptyChoiceMap)
+            return self._importance_empty(key, chm, args)
 
     # The choice map is a vector choice map.
     def _update_vcm(self, key, prev, chm, argdiffs):

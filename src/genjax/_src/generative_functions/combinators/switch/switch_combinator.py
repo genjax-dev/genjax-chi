@@ -49,7 +49,7 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
-    TaggedChoiceMap,
+    SwitchChoiceMap,
 )
 from genjax._src.generative_functions.combinators.switch.switch_tracetypes import (
     SumTraceType,
@@ -64,7 +64,7 @@ from genjax._src.generative_functions.combinators.switch.switch_tracetypes impor
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    chm: TaggedChoiceMap
+    chm: SwitchChoiceMap
     args: Tuple
     retval: Any
     score: FloatArray
@@ -192,7 +192,7 @@ class SwitchCombinator(GenerativeFunction):
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
-        choice_map = TaggedChoiceMap(branch_index, choices)
+        choice_map = SwitchChoiceMap(branch_index, choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
@@ -213,7 +213,7 @@ class SwitchCombinator(GenerativeFunction):
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
-        choice_map = TaggedChoiceMap(branch_index, choices)
+        choice_map = SwitchChoiceMap(branch_index, choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
@@ -254,7 +254,7 @@ class SwitchCombinator(GenerativeFunction):
         args = jtu.tree_map(tree_diff_primal, argdiffs, is_leaf=static_check_is_diff)
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
-        choice_map = TaggedChoiceMap(concrete_branch_index, choices)
+        choice_map = SwitchChoiceMap(concrete_branch_index, choices)
 
         # Merge the skeleton discard with the actual one.
         actual_discard = maybe_discard.merge(actual_discard)
