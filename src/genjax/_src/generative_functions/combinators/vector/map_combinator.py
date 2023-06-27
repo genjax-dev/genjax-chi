@@ -171,18 +171,6 @@ class MapCombinator(GenerativeFunction):
         assert len(fixed_len) == 1
         return ret, fixed_len.pop()
 
-    # This pads the leaves of a choice map up to
-    # `key_len` -- so that we can vmap
-    # over the leading axes of the leaves.
-    def _padder(self, v, key_len):
-        ndim = len(v.shape)
-        pad_axes = list(
-            (0, key_len - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
-        )
-        return (
-            np.pad(v, pad_axes) if isinstance(v, np.ndarray) else jnp.pad(v, pad_axes)
-        )
-
     def _static_check_trie_index_compatible(self, chm: Trie, broadcast_dim_length: Int):
         for (k, _) in chm.get_subtrees_shallow():
             assert isinstance(k, int)

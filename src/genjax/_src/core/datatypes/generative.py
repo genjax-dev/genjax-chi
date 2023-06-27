@@ -135,7 +135,30 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def get_score(self) -> FloatArray:
-        pass
+        """
+        Return the joint log score of the `Trace`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            score = tr.get_score()
+            x_score = bernoulli.logpdf(tr["x"], 0.3)
+            y_score = bernoulli.logpdf(tr["y"], 0.3)
+            print(console.render((score, x_score + y_score)))
+            ```
+        """
 
     @abc.abstractmethod
     def get_args(self) -> Tuple:
@@ -143,7 +166,28 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def get_choices(self) -> ChoiceMap:
-        pass
+        """
+        Return a `ChoiceMap` representation of the set of traced random choices sampled during the execution of the generative function to produce the `Trace`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            chm = tr.get_choices()
+            print(console.render(chm))
+            ```
+        """
 
     @abc.abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
@@ -165,7 +209,29 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def project(self, selection: "Selection") -> FloatArray:
-        pass
+        """Given a `Selection`, return the total contribution to the joint log score of the addresses contained within the `Selection`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            selection = genjax.select("x")
+            x_score = tr.project(selection)
+            x_score_t = genjax.bernoulli.logpdf(tr["x"], 0.3)
+            print(console.render((x_score_t, x_score)))
+            ```
+        """
 
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
@@ -188,6 +254,8 @@ class Trace(ChoiceMap, Tree):
 
     def strip(self):
         """Remove all `Trace` metadata, and return a choice map.
+
+        `ChoiceMap` instances produced by `tr.get_choices()` will preserve `Trace` instances. `strip` recursively calls `get_choices` to remove `Trace` instances.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -239,11 +307,57 @@ class Trace(ChoiceMap, Tree):
 class Selection(Tree):
     @abc.abstractmethod
     def filter(self, chm: ChoiceMap) -> ChoiceMap:
-        pass
+        """Filter the addresses in a choice map, returning a new choice map.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            chm = tr.strip()
+            selection = genjax.select("x")
+            filtered = selection.filter(chm)
+            print(console.render(filtered))
+            ```
+        """
 
     @abc.abstractmethod
     def complement(self) -> "Selection":
-        pass
+        """
+        Return a `Selection` which filters addresses to the complement set of the provided `Selection`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            chm = tr.strip()
+            selection = genjax.select("x")
+            complement = selection.complement()
+            filtered = complement.filter(chm)
+            print(console.render(filtered))
+            ```
+        """
 
     def get_selection(self):
         return self

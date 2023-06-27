@@ -179,6 +179,16 @@ def docs_build(session: Session) -> None:
     session.run("mkdocs", "build")
     session.run("quarto", "render", "notebooks", external=True)
 
+@session(name="docs-serve", python=python_version)
+def docs_serve(session: Session) -> None:
+    """Build the documentation."""
+    session.run_always(
+        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    )
+    session.install("mkdocs")
+    session.install("mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders")
+    session.run("mkdocs", "serve")
+
 
 @session(name="notebooks-serve", python=python_version)
 def notebooks_serve(session: Session) -> None:
