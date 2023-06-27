@@ -103,7 +103,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
 <meta property="og:title" content="Gen ⊗ JAX - Probabilistic programming with estimated densities">
-<meta property="og:description" content="This notebook illustrates usage of the GenSP language (TODO cite Alex, Mat PLDI) for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.">
+<meta property="og:description" content="This notebook illustrates usage of the GenSP language for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.">
 <meta property="og:image" content="gen_sp_files/figure-html/cell-6-output-1.svg">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
@@ -246,7 +246,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This notebook illustrates usage of the <strong>GenSP</strong> language (TODO cite Alex, Mat PLDI) for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.
+    This notebook illustrates usage of the <a href="https://dl.acm.org/doi/abs/10.1145/3591290"><strong>GenSP</strong> language</a> for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.
   </div>
 </div>
 
@@ -275,7 +275,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Let’s start by defining a model generative program. This example is from <a href="https://popl20.sigplan.org/details/lafi-2020/14/MetaPPL-Inference-Algorithms-as-First-Class-Generative-Models">Alex Lew’s 2020 LAFI talk on a related language called MetaPPL</a>.</p>
+<p>Let’s start by defining a model generative program. This example is from <a href="https://popl20.sigplan.org/details/lafi-2020/14/MetaPPL-Inference-Algorithms-as-First-Class-Generative-Models">Alex Lew’s 2020 LAFI talk on a language called MetaPPL</a>.</p>
 <div class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model():</span>
@@ -310,11 +310,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 ├── p
 │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
 │       └── source
-│           └── <span style="font-weight: bold">PytreeClosure</span>
-│               ├── callable
-│               │   └── &lt;function model&gt;
-│               └── environment
-│                   └── <span style="font-weight: bold">list</span>
+│           └── <span style="font-weight: bold">PytreeClosure</span>(&lt;function model at 0x28da2a700&gt;)
 ├── selection
 │   └── <span style="font-weight: bold">BuiltinSelection</span>
 │       └── trie
@@ -348,11 +344,7 @@ P(x, y) = \int P(x, y, z) \ dz
 │       ├── p
 │       │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
 │       │       └── source
-│       │           └── <span style="font-weight: bold">PytreeClosure</span>
-│       │               ├── callable
-│       │               │   └── &lt;function model&gt;
-│       │               └── environment
-│       │                   └── <span style="font-weight: bold">list</span>
+│       │           └── <span style="font-weight: bold">PytreeClosure</span>(&lt;function model at 0x28da2a700&gt;)
 │       ├── selection
 │       │   └── <span style="font-weight: bold">BuiltinSelection</span>
 │       │       └── trie
@@ -412,11 +404,7 @@ P(x, y) = \int P(x, y, z) \ dz
 ├── p
 │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
 │       └── source
-│           └── <span style="font-weight: bold">PytreeClosure</span>
-│               ├── callable
-│               │   └── &lt;function model&gt;
-│               └── environment
-│                   └── <span style="font-weight: bold">list</span>
+│           └── <span style="font-weight: bold">PytreeClosure</span>(&lt;function model at 0x28da2a700&gt;)
 ├── args
 │   └── <span style="font-weight: bold">tuple</span>
 └── constraints
@@ -512,11 +500,7 @@ P(x, y) = \int P(x, y, z) \ dz
         ├── p
         │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
         │       └── source
-        │           └── <span style="font-weight: bold">PytreeClosure</span>
-        │               ├── callable
-        │               │   └── &lt;function custom_q&gt;
-        │               └── environment
-        │                   └── <span style="font-weight: bold">list</span>
+        │           └── <span style="font-weight: bold">PytreeClosure</span>(&lt;function custom_q at 0x10729d760&gt;)
         ├── selection
         │   └── <span style="font-weight: bold">BuiltinSelection</span>
         │       └── trie
