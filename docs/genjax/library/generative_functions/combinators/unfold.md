@@ -30,6 +30,16 @@ To utilize `importance`, `update`, or `assess` with `Unfold`, it suffices to pro
 
 > (This section is also mirrored for `MapCombinator`)
 
-To select from `VectorChoiceMap`, both `VectorSelection` and `IndexSelection` can be used. `VectorSelection`
+To select from `VectorChoiceMap`, both `VectorSelection` and `IndexSelection` can be used. 
 
+::: genjax.generative_functions.combinators.VectorSelection
+    options:
+      show_root_heading: true
+      members:
+        - new
 
+::: genjax.generative_functions.combinators.IndexSelection
+    options:
+      show_root_heading: true
+      members:
+        - new
