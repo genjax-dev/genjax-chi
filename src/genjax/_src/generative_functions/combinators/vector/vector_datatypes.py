@@ -30,6 +30,7 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
+from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
@@ -49,7 +50,6 @@ from genjax._src.core.typing import typecheck
 @dataclass
 class VectorTrace(Trace):
     gen_fn: GenerativeFunction
-    indices: IntArray
     inner: Trace
     args: Tuple
     retval: Any
@@ -58,7 +58,6 @@ class VectorTrace(Trace):
     def flatten(self):
         return (
             self.gen_fn,
-            self.indices,
             self.inner,
             self.args,
             self.retval,
@@ -69,7 +68,7 @@ class VectorTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap.new(self.indices, self.inner)
+        return VectorChoiceMap.new(self.inner)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -82,7 +81,10 @@ class VectorTrace(Trace):
 
     def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, VectorSelection):
-            return self.inner.project(selection.inner)[selection.indices]
+            if selection.masks is not None:
+                return jnp.sum(jnp.where(selection.masks, self.inner.project(selection.inner), 0.0))
+            else:
+                return jnp.sum(self.inner.project(selection.inner))
         if isinstance(selection, AllSelection):
             return self.score
         else:
@@ -96,11 +98,11 @@ class VectorTrace(Trace):
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
-    indices: IntArray
+    masks: Union[None, BoolArray]
     inner: Union[ChoiceMap, Trace]
 
     def flatten(self):
-        return (self.indices, self.inner), ()
+        return (self.masks, self.inner), ()
 
     @classmethod
     def _static_check_broadcast_dim_length(cls, tree):
@@ -114,22 +116,22 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, indices, inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, inner: ChoiceMap, masks: Union[None, list, BoolArray] = None) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
 
-        # convert list to array.
-        if isinstance(indices, list):
+        if isinstance(masks, list) or isinstance(masks, BoolArray):
             # indices can't be empty.
-            assert indices
-            indices = jnp.array(indices)
-        indices_len = len(indices)
-        inner_len = VectorChoiceMap._static_check_broadcast_dim_length(inner)
-        # indices must have same length as leaves of the inner choice map.
-        assert indices_len == inner_len
+            assert masks
+            masks = jnp.array(masks)
+            masks_len = len(masks)
+            inner_len = VectorChoiceMap._static_check_broadcast_dim_length(inner)
+            # indices must have same length as leaves of the inner choice map.
+            assert masks_len == inner_len
+            return VectorChoiceMap(masks, inner)
 
-        return VectorChoiceMap(indices, inner)
+        return VectorChoiceMap(None, inner)
 
     @typecheck
     @classmethod
@@ -162,9 +164,9 @@ class VectorChoiceMap(ChoiceMap):
     # two vector choices maps with different index arrays.
     def merge(self, other):
         if isinstance(other, VectorChoiceMap):
-            return VectorChoiceMap(other.indices, self.inner.merge(other.inner))
+            return VectorChoiceMap(other.masks, self.inner.merge(other.inner))
         else:
-            return VectorChoiceMap(self.indices, self.inner.merge(other))
+            return VectorChoiceMap(self.masks, self.inner.merge(other))
 
     def __hash__(self):
         return hash(self.inner)
@@ -202,7 +204,7 @@ class VectorSelection(Selection):
     def filter(self, tree):
         assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
         filtered = self.inner.filter(tree)
-        return VectorChoiceMap(tree.indices, filtered)
+        return VectorChoiceMap(tree.masks, filtered)
 
     def complement(self):
         return VectorSelection(self.inner.complement())
@@ -228,56 +230,20 @@ class VectorSelection(Selection):
 
 @dataclass
 class IndexChoiceMap(ChoiceMap):
-    index: Int
+    indices: IntArray
     inner: ChoiceMap
 
     def flatten(self):
-        return (self.index, self.inner), ()
+        return (self.indices, self.inner), ()
 
     @typecheck
     @classmethod
-    def new(cls, index, inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, indices, inner: ChoiceMap) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
 
-        return IndexChoiceMap(index, inner)
-
-    def get_selection(self):
-        subselection = self.inner.get_selection()
-        return IndexSelection.new(subselection)
-
-    def has_subtree(self, addr):
-        return self.inner.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        return self.inner.get_subtree(addr)
-
-    def get_subtrees_shallow(self):
-        return self.inner.get_subtrees_shallow()
-
-    # TODO: This currently provides poor support for merging
-    # two vector choices maps with different index arrays.
-    def merge(self, other):
-        if isinstance(other, VectorChoiceMap):
-            return VectorChoiceMap(other.indices, self.inner.merge(other.inner))
-        else:
-            return VectorChoiceMap(self.indices, self.inner.merge(other))
-
-    def __hash__(self):
-        return hash(self.inner)
-
-    def get_index(self):
-        return self.indices
-
-    def _tree_console_overload(self):
-        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
-        subt = self.inner._build_rich_tree()
-        subk = Tree("[blue]indices")
-        subk.add(gpp.tree_pformat(self.indices))
-        tree.add(subk)
-        tree.add(subt)
-        return tree
+        return IndexChoiceMap(indices, inner)
 
 
 #####
@@ -287,12 +253,12 @@ class IndexChoiceMap(ChoiceMap):
 
 @dataclass
 class IndexSelection(Selection):
-    index: Int
+    indices: IntArray
     inner: Selection
 
     def flatten(self):
         return (
-            self.index,
+            self.indices,
             self.inner,
         ), ()
 
