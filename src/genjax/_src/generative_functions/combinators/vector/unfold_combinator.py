@@ -22,7 +22,6 @@ import jax
 import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
@@ -212,18 +211,6 @@ class UnfoldCombinator(GenerativeFunction):
         assert len(fixed_len) == 1
         return ret, fixed_len.pop()
 
-    # This pads the leaves of a choice map up to
-    # `self.max_length` -- so that we can scan
-    # over the leading axes of the leaves.
-    def _static_padder(self, v):
-        ndim = len(v.shape)
-        pad_axes = list(
-            (0, self.max_length - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
-        )
-        return (
-            np.pad(v, pad_axes) if isinstance(v, np.ndarray) else jnp.pad(v, pad_axes)
-        )
-
     def _importance_indexed(self, key, chm, args):
         length = args[0]
         state = args[1]
@@ -401,65 +388,6 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (retdiff, w, unfold_tr, discard)
 
-    # The choice map doesn't carry optimization info.
-    def _update_fallback(self, key, prev, chm, argdiffs):
-        length = argdiffs[0]
-        state = argdiffs[1]
-        static_args = argdiffs[2:]
-        args = tuple(map(lambda v: v.get_val(), argdiffs))
-
-        # Check incoming choice map, and coerce to `VectorChoiceMap`
-        # before passing into scan calls.
-        self._static_bounds_check(chm)
-        chm = jtu.tree_map(
-            self._static_padder,
-            chm,
-        )
-        chm = VectorChoiceMap(
-            np.array([ind for ind in range(0, self.max_length)]),
-            chm,
-        )
-
-        # The actual semantics of update are carried out by a scan
-        # call.
-
-        def _inner(carry, slice):
-            count, key, state = carry
-            (prev, chm) = slice
-
-            def _update(key, prev, chm, state):
-                return self.kernel.update(key, prev, chm, (state, *static_args))
-
-            def _fallthrough(key, prev, chm, state):
-                return self.kernel.update(
-                    key, prev, EmptyChoiceMap(), (state, *static_args)
-                )
-
-            check = count == chm.get_index()
-            key, (retdiff, w, tr, discard) = concrete_cond(
-                check, _update, _fallthrough, key, prev, chm, state
-            )
-
-            check = jnp.less(count, length + 1)
-            index = concrete_cond(check, lambda *args: count, lambda *args: -1)
-            count, state, score, weight = concrete_cond(
-                check,
-                lambda *args: (count + 1, retdiff, tr.get_score(), w),
-                lambda *args: (count, state, 0.0, 0.0),
-            )
-            return (count, key, state), (state, score, w, tr, discard, index)
-
-        (_, key, _), (retdiff, score, w, tr, discard, indices) = jax.lax.scan(
-            _inner, (0, key, state), (prev, chm), length=self.max_length
-        )
-
-        unfold_tr = VectorTrace(
-            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
-        )
-
-        w = jnp.sum(w)
-        return key, (retdiff, w, unfold_tr, discard)
-
     @typecheck
     def update(
         self,
@@ -487,11 +415,6 @@ class UnfoldCombinator(GenerativeFunction):
             lambda *args: None,
         )
 
-        # Branches here implement certain optimizations when more
-        # information about the passed in choice map is available.
-        #
-        # The fallback just inflates a choice map to the right shape
-        # and runs a generic update.
         if isinstance(chm, VectorChoiceMap):
             return self._update_vcm(key, prev, chm, argdiffs)
         else:

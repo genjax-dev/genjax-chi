@@ -36,6 +36,7 @@ Traces support a set of accessor method interfaces designed to provide convenien
         - get_choices
         - get_score
         - strip
+        - project
 
 ## Choice maps
 

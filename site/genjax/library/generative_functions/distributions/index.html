@@ -1709,7 +1709,7 @@
 </span><span id="__span-0-213"><a id="__codelineno-0-213" name="__codelineno-0-213"></a>        <span class="c1"># just return the previous trace.</span>
 </span><span id="__span-0-214"><a id="__codelineno-0-214" name="__codelineno-0-214"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="n">EmptyChoiceMap</span><span class="p">)</span> <span class="ow">and</span> <span class="n">static_check_no_change</span><span class="p">(</span><span class="n">argdiffs</span><span class="p">):</span>
 </span><span id="__span-0-215"><a id="__codelineno-0-215" name="__codelineno-0-215"></a>            <span class="n">v</span> <span class="o">=</span> <span class="n">prev</span><span class="o">.</span><span class="n">get_retval</span><span class="p">()</span>
-</span><span id="__span-0-216"><a id="__codelineno-0-216" name="__codelineno-0-216"></a>            <span class="n">retval_diff</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">NoChange</span><span class="p">)</span>
+</span><span id="__span-0-216"><a id="__codelineno-0-216" name="__codelineno-0-216"></a>            <span class="n">retval_diff</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">Diff</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">NoChange</span><span class="p">),</span> <span class="n">v</span><span class="p">)</span>
 </span><span id="__span-0-217"><a id="__codelineno-0-217" name="__codelineno-0-217"></a>            <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="n">retval_diff</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">maybe_discard</span><span class="p">)</span>
 </span><span id="__span-0-218"><a id="__codelineno-0-218" name="__codelineno-0-218"></a>
 </span><span id="__span-0-219"><a id="__codelineno-0-219" name="__codelineno-0-219"></a>        <span class="c1"># Otherwise, we consider the cases.</span>
@@ -1773,7 +1773,7 @@
 </span><span id="__span-0-277"><a id="__codelineno-0-277" name="__codelineno-0-277"></a>            <span class="p">)</span>
 </span><span id="__span-0-278"><a id="__codelineno-0-278" name="__codelineno-0-278"></a>
 </span><span id="__span-0-279"><a id="__codelineno-0-279" name="__codelineno-0-279"></a>            <span class="n">discard</span> <span class="o">=</span> <span class="n">mask</span><span class="p">(</span><span class="n">active_chm</span><span class="p">,</span> <span class="n">ValueChoiceMap</span><span class="p">(</span><span class="n">prev</span><span class="o">.</span><span class="n">get_leaf_value</span><span class="p">()))</span>
-</span><span id="__span-0-280"><a id="__codelineno-0-280" name="__codelineno-0-280"></a>            <span class="n">retval_diff</span> <span class="o">=</span> <span class="n">Diff</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">UnknownChange</span><span class="p">)</span>
+</span><span id="__span-0-280"><a id="__codelineno-0-280" name="__codelineno-0-280"></a>            <span class="n">retval_diff</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">Diff</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">UnknownChange</span><span class="p">),</span> <span class="n">v</span><span class="p">)</span>
 </span><span id="__span-0-281"><a id="__codelineno-0-281" name="__codelineno-0-281"></a>
 </span><span id="__span-0-282"><a id="__codelineno-0-282" name="__codelineno-0-282"></a>        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span>
 </span><span id="__span-0-283"><a id="__codelineno-0-283" name="__codelineno-0-283"></a>            <span class="n">retval_diff</span><span class="p">,</span>
@@ -2177,7 +2177,7 @@ space.</p>
 
 <p><strong>Examples:</strong></p>
     <p><code>genjax.normal</code> is a distribution with an exact density, which supports the <code>sample</code> interface. Here's an example of invoking <code>sample</code>.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-14--__tabbed_1_1" name="exec-14--__tabbed_1" type="radio" /><input id="exec-14--__tabbed_1_2" name="exec-14--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-14--__tabbed_1_1">Source</label><label for="exec-14--__tabbed_1_2">Result</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-19--__tabbed_1_1" name="exec-19--__tabbed_1" type="radio" /><input id="exec-19--__tabbed_1_2" name="exec-19--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-19--__tabbed_1_1">Source</label><label for="exec-19--__tabbed_1_2">Result</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">jax</span>
@@ -2196,7 +2196,7 @@ space.</p>
 </div>
 </div>
 <p>Note that you often do want or need to invoke <code>sample</code> directly - you'll likely want to use the generative function interface methods instead:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-15--__tabbed_1_1" name="exec-15--__tabbed_1" type="radio" /><input id="exec-15--__tabbed_1_2" name="exec-15--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-15--__tabbed_1_1">Source</label><label for="exec-15--__tabbed_1_2">Result</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-20--__tabbed_1_1" name="exec-20--__tabbed_1" type="radio" /><input id="exec-20--__tabbed_1_2" name="exec-20--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-20--__tabbed_1_1">Source</label><label for="exec-20--__tabbed_1_2">Result</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">jax</span>
