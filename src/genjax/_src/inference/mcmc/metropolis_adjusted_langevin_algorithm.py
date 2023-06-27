@@ -32,7 +32,7 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
     tau: FloatArray
 
     def flatten(self):
-        return (), (self.selection, self.tau)
+        return (self.selection, self.tau), ()
 
     def _grad_step_no_none(self, v1, v2):
         if v2 is None:
