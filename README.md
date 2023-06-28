@@ -89,7 +89,7 @@ GenJAX does not manage the version of `jaxlib` that you use in your execution en
 
 #### Using `requirements.txt`
 
-**This is not the recommended way to develop on `genjax`**, but may be required if you want to avoid environment collisions with `genjax` installing specific versions of `jax` and `jaxlib`.
+> **This is not the recommended way to develop on `genjax`**, but may be required if you want to avoid environment collisions with `genjax` installing specific versions of `jax` and `jaxlib`.
 
 `genjax` includes a `requirements.txt` file which is exported from the `pyproject.toml` dependency requirements -- but with `jax` and `jaxlib` removed.
 
