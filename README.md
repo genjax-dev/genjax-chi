@@ -51,7 +51,7 @@ This project uses:
 - [mkdocs](https://www.mkdocs.org/) to generate static documentation.
 - [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
-### Development environment setup with `poetry`
+### (Option 1): Development environment setup with `poetry`
 
 #### Step 1: Setting up the environment with `poetry`
 
@@ -85,7 +85,7 @@ GenJAX does not manage the version of `jaxlib` that you use in your execution en
 
 [You can likely install CUDA compatible versions by following environment setup above with a `pip` installation of the CUDA-enabled JAX.](https://github.com/google/jax#pip-installation-gpu-cuda-installed-via-pip-easier)
 
-### Self-managed development environment with `requirements.txt` 
+### (Option 2): Self-managed development environment with `requirements.txt` 
 
 #### Using `requirements.txt`
 
