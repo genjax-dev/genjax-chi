@@ -52,6 +52,7 @@ class MetropolisHastings(MCMCKernel):
         check = jnp.log(random.uniform(sub_key)) < alpha
         return (
             key,
+            # TODO: Use WHERE here (not COND).
             jax.lax.cond(
                 check,
                 lambda *args: (new, True),
