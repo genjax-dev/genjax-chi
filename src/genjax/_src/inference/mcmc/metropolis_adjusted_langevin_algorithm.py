@@ -67,7 +67,7 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         args = trace.get_args()
         gen_fn = trace.get_gen_fn()
         std = jnp.sqrt(2 * self.tau)
-        argdiffs = jtu.tree_map(Diff.no_change, args)
+        argdiffs = Diff.no_change(args)
 
         # Forward proposal.
         key, forward_gradient_trie = gen_fn.choice_grad(key, trace, self.selection)
