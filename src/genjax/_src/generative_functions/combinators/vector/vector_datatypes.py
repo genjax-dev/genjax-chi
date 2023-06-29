@@ -28,12 +28,15 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
 from genjax._src.core.typing import BoolArray
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.combinators.vector.vector_utilities import (
+    static_check_broadcast_dim_length,
+)
 
 
 ######################################
@@ -82,10 +85,12 @@ class VectorTrace(Trace):
     def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, VectorSelection):
             if selection.masks is not None:
-                return jnp.sum(jnp.where(selection.masks, self.inner.project(selection.inner), 0.0))
+                return jnp.sum(
+                    jnp.where(selection.masks, self.inner.project(selection.inner), 0.0)
+                )
             else:
                 return jnp.sum(self.inner.project(selection.inner))
-        if isinstance(selection, AllSelection):
+        elif isinstance(selection, AllSelection):
             return self.score
         else:
             return 0.0
@@ -104,19 +109,11 @@ class VectorChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.masks, self.inner), ()
 
-    @classmethod
-    def _static_check_broadcast_dim_length(cls, tree):
-        broadcast_dim_tree = jtu.tree_map(lambda v: len(v), tree)
-        leaves = jtu.tree_leaves(broadcast_dim_tree)
-        leaf_lengths = set(leaves)
-        # all the leaves must have the same first dim size.
-        assert len(leaf_lengths) == 1
-        max_index = list(leaf_lengths).pop()
-        return max_index
-
     @typecheck
     @classmethod
-    def new(cls, inner: ChoiceMap, masks: Union[None, list, BoolArray] = None) -> ChoiceMap:
+    def new(
+        cls, inner: ChoiceMap, masks: Union[None, list, BoolArray] = None
+    ) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
@@ -126,7 +123,7 @@ class VectorChoiceMap(ChoiceMap):
             assert masks
             masks = jnp.array(masks)
             masks_len = len(masks)
-            inner_len = VectorChoiceMap._static_check_broadcast_dim_length(inner)
+            inner_len = static_check_broadcast_dim_length(inner)
             # indices must have same length as leaves of the inner choice map.
             assert masks_len == inner_len
             return VectorChoiceMap(masks, inner)
@@ -171,9 +168,6 @@ class VectorChoiceMap(ChoiceMap):
     def __hash__(self):
         return hash(self.inner)
 
-    def get_index(self):
-        return self.indices
-
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
         subt = self.inner._build_rich_tree()
@@ -191,15 +185,15 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class VectorSelection(Selection):
-    indices: Any
+    masks: Union[None, BoolArray]
     inner: Selection
 
     def flatten(self):
-        return (self.inner,), (self.indices,)
+        return (self.masks, self.inner), ()
 
     @classmethod
-    def new(cls, indices, inner):
-        return VectorSelection(indices, inner)
+    def new(cls, inner, masks=None):
+        return VectorSelection(masks, inner)
 
     def filter(self, tree):
         assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
@@ -238,12 +232,32 @@ class IndexChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, indices, inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, inner: ChoiceMap, indices: Union[List, IntArray]) -> ChoiceMap:
+        if isinstance(indices, List):
+            indices = jnp.array(indices)
+
+        # Verify that dimensions are consistent before creating an
+        # `IndexChoiceMap`.
+        _ = static_check_broadcast_dim_length((inner, indices))
+
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
 
         return IndexChoiceMap(indices, inner)
+
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        return jtu.tree_map(lambda v: v[self.indices], self.inner.get_subtree(addr))
+
+    def get_selection(self):
+        inner_selection = self.inner.get_selection()
+        return IndexSelection.new(inner_selection, self.indices)
+
+    def get_subtrees_shallow(self):
+        pass
 
 
 #####

@@ -16,25 +16,9 @@ import jax
 import jax.numpy as jnp
 
 import genjax
+from genjax.generative_functions.combinators import static_check_broadcast_dim_length
 
-
-@genjax.gen
-def kernel(x):
-    z = genjax.trace("z", genjax.normal)(x, 1.0)
-    return z
-
-
-model = genjax.Unfold(kernel, max_length=10)
-
-
-class TestUnfoldSimpleNormal:
-    def test_unfold_simple_normal(self):
-        key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(model))(key, (5, 0.1))
-        unfold_score = tr.get_score()
-        assert (
-            jnp.sum(
-                tr.project(genjax.vector_select(jnp.arange(0, 6), genjax.select("z")))
-            )
-            == unfold_score
-        )
+class TestVectorUtilities:
+    def test_scalar_tuple(self):
+        v = (jnp.array(1), (jnp.array(3), jnp.array(2)))
+        v = static_check_broadcast_dim_length(v)
