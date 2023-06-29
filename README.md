@@ -66,7 +66,6 @@ pip install nox
 pip install nox-poetry
 git clone https://github.com/probcomp/genjax
 cd genjax
-poetry lock
 poetry install
 poetry run jupyter-lab
 ```
