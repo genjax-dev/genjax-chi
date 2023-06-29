@@ -24,8 +24,8 @@ from genjax._src.language_decorator import gen
 
 
 @gen
-def normalModel():
-    x = trace("x", normal)(0.0, 1.0)
+def normalModel(mu):
+    x = trace("x", normal)(mu, 1.0)
     return x
 
 
@@ -38,7 +38,7 @@ def proposal(nowAt, d):
 class TestMetropolisHastings:
     def test_simple_inf(self):
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(normalModel.simulate)(key, ())
+        key, tr = jax.jit(normalModel.simulate)(key, (0.3, ))
         mh = MetropolisHastings(proposal)
         for _ in range(0, 10):
             # Repeat the test for stochasticity.

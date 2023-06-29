@@ -40,6 +40,7 @@ class TestUnfoldSimpleNormal:
         map_over = jnp.arange(0, 3)
         chm = genjax.vector_choice_map(genjax.choice_map({"z": jnp.array([3.0, 2.0, 3.0])}))
         key, (w, tr) = jax.jit(model.importance)(key, chm, (map_over, ))
+        assert w == genjax.normal.logpdf(3.0, 0.0, 1.0) + genjax.normal.logpdf(2.0, 1.0, 1.0) + genjax.normal.logpdf(3.0, 2.0, 1.0)
     
     def test_map_index_choice_map_importance(self):
         key = jax.random.PRNGKey(314159)
