@@ -95,16 +95,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
-<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
   <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
 <meta property="og:title" content="Gen ⊗ JAX - Probabilistic programming with estimated densities">
-<meta property="og:description" content="This notebook illustrates usage of the GenSP language (TODO cite Alex, Mat PLDI) for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.">
-<meta property="og:image" content="gen_sp_files/figure-html/cell-6-output-1.svg">
+<meta property="og:description" content="This notebook illustrates usage of the GenSP language for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.">
 <meta property="og:site-name" content="Gen ⊗ JAX">
 </head>
 
@@ -246,7 +242,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div>
   <div class="abstract">
     <div class="abstract-title">Abstract</div>
-    This notebook illustrates usage of the <strong>GenSP</strong> language (TODO cite Alex, Mat PLDI) for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.
+    This notebook illustrates usage of the <a href="https://dl.acm.org/doi/abs/10.1145/3591290"><strong>GenSP</strong> language</a> for compositional programming with estimated densities. Advanced approximate inference algorithms often use proposals or variational families which sample auxiliary random variables, requiring that algorithm developers manually the prove correctness of their auxiliary variable inference strategies by considering extended model/proposal state spaces. GenSP aims to automate many of these algorithms by exposing a language whose distribution objects are closed under approximate marginalization and conditioning. In GenSP, the inference library supports algorithms which themselves are also GenSP estimated densities.
   </div>
 </div>
 
@@ -255,7 +251,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>config InlineBackend.figure_format <span class="op">=</span> <span class="st">'svg'</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="2">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.tree_util <span class="im">as</span> jtu</span>
@@ -275,8 +271,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Reproducibility.</span></span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">314159</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Let’s start by defining a model generative program. This example is from <a href="https://popl20.sigplan.org/details/lafi-2020/14/MetaPPL-Inference-Algorithms-as-First-Class-Generative-Models">Alex Lew’s 2020 LAFI talk on a related language called MetaPPL</a>.</p>
-<div class="cell" data-execution_count="3">
+<p>Let’s start by defining a model generative program. This example is from <a href="https://popl20.sigplan.org/details/lafi-2020/14/MetaPPL-Inference-Algorithms-as-First-Class-Generative-Models">Alex Lew’s 2020 LAFI talk on a language called MetaPPL</a>.</p>
+<div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model():</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> normal(<span class="fl">0.0</span>, <span class="fl">10.0</span>) <span class="op">@</span> <span class="st">"x"</span></span>
@@ -284,49 +280,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    z <span class="op">=</span> normal(x<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> y<span class="op">**</span><span class="dv">2</span>, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"z"</span></span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> z</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="4">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>key, sub_keys <span class="op">=</span> genjax.slash(key, <span class="dv">300</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>_, trs <span class="op">=</span> jax.vmap(model.simulate, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="va">None</span>))(sub_keys, ())</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> trs.strip()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="5">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure()</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> fig.add_subplot(projection<span class="op">=</span><span class="st">"3d"</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>ax.scatter(chm[<span class="st">"x"</span>], chm[<span class="st">"y"</span>], chm[<span class="st">"z"</span>])</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<p><img src="gen_sp_files/figure-html/cell-6-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>When we use <code>gensp.chm_dist</code> (which is shorthand for <code>gensp.ChoiceMapDistribution</code>) - we’re creating a new generative function whose internal proposal <code>q</code> can be changed.</p>
-<div class="cell" data-execution_count="6">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>gensp_model <span class="op">=</span> gensp.chm_dist(model, selection<span class="op">=</span>genjax.select(<span class="st">"x"</span>, <span class="st">"y"</span>), custom_q<span class="op">=</span><span class="va">None</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>gensp_model</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">ChoiceMapDistribution</span>
-├── p
-│   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       └── source
-│           └── <span style="font-weight: bold">PytreeClosure</span>
-│               ├── callable
-│               │   └── &lt;function model&gt;
-│               └── environment
-│                   └── <span style="font-weight: bold">list</span>
-├── selection
-│   └── <span style="font-weight: bold">BuiltinSelection</span>
-│       └── trie
-│           └── <span style="font-weight: bold">Trie</span>
-│               ├── <span style="font-weight: bold">:x</span>
-│               │   └── <span style="font-weight: bold">AllSelection</span>
-│               └── <span style="font-weight: bold">:y</span>
-│                   └── <span style="font-weight: bold">AllSelection</span>
-└── custom_q
-    └── (const) None
-</pre>
-</div>
 </div>
 <p>Above, we’re keeping the default internal proposal <code>q</code> by not providing a <code>custom_q</code>. This means that <code>gensp_model</code> inherits <code>q</code> from <code>model</code>.</p>
 <p>The resulting <code>gensp_model</code> object is something called a <code>ChoiceMapDistribution</code> - it’s an estimated distribution over the random choices at the addresses we pass in via <code>selection</code>.</p>
@@ -335,142 +303,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 P(x, y) = \int P(x, y, z) \ dz
 \]</span></p>
 <p>As we know, this is the source of the intractability of Bayesian inference in the first place! So how do we get around this?</p>
-<div class="cell" data-execution_count="7">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>key, tr <span class="op">=</span> gensp_model.simulate(key, ())</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>tr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 </div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">DistributionTrace</span>
-├── gen_fn
-│   └── <span style="font-weight: bold">ChoiceMapDistribution</span>
-│       ├── p
-│       │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       │       └── source
-│       │           └── <span style="font-weight: bold">PytreeClosure</span>
-│       │               ├── callable
-│       │               │   └── &lt;function model&gt;
-│       │               └── environment
-│       │                   └── <span style="font-weight: bold">list</span>
-│       ├── selection
-│       │   └── <span style="font-weight: bold">BuiltinSelection</span>
-│       │       └── trie
-│       │           └── <span style="font-weight: bold">Trie</span>
-│       │               ├── <span style="font-weight: bold">:x</span>
-│       │               │   └── <span style="font-weight: bold">AllSelection</span>
-│       │               └── <span style="font-weight: bold">:y</span>
-│       │                   └── <span style="font-weight: bold">AllSelection</span>
-│       └── custom_q
-│           └── (const) None
-├── args
-│   └── <span style="font-weight: bold">tuple</span>
-├── value
-│   └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-│       └── trie
-│           └── <span style="font-weight: bold">Trie</span>
-│               ├── <span style="font-weight: bold">:x</span>
-│               │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│               │       └── value
-│               │           └──  f32[]
-│               └── <span style="font-weight: bold">:y</span>
-│                   └── <span style="font-weight: bold">ValueChoiceMap</span>
-│                       └── value
-│                           └──  f32[]
-└── score
-    └──  f32[]
-</pre>
-</div>
-</div>
-<p>Another way to produce an estimated density is to condition a normalized distribution (producing an unnormalized one), then estimatedly normalize.</p>
+<p>Another way to produce an estimated density is to condition a normalized distribution (producing an unnormalized one), and then estimate the normalization constant.</p>
 <p>GenSP provides a way to express these densities using <code>gensp.Target</code>.</p>
-<div class="cell" data-execution_count="8">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>constraint <span class="op">=</span> genjax.choice_map({<span class="st">"z"</span>: <span class="fl">4.0</span>})</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>constraint</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 </div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinChoiceMap</span>
-└── trie
-    └── <span style="font-weight: bold">Trie</span>
-        └── <span style="font-weight: bold">:z</span>
-            └── <span style="font-weight: bold">ValueChoiceMap</span>
-                └── value
-                    └── (const) 4.0
-</pre>
-</div>
-</div>
-<div class="cell" data-execution_count="9">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>target <span class="op">=</span> gensp.target(model, (), constraint)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>target</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">Target</span>
-├── p
-│   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-│       └── source
-│           └── <span style="font-weight: bold">PytreeClosure</span>
-│               ├── callable
-│               │   └── &lt;function model&gt;
-│               └── environment
-│                   └── <span style="font-weight: bold">list</span>
-├── args
-│   └── <span style="font-weight: bold">tuple</span>
-└── constraints
-    └── <span style="font-weight: bold">BuiltinChoiceMap</span>
-        └── trie
-            └── <span style="font-weight: bold">Trie</span>
-                └── <span style="font-weight: bold">:z</span>
-                    └── <span style="font-weight: bold">ValueChoiceMap</span>
-                        └── value
-                            └── (const) 4.0
-</pre>
-</div>
 </div>
 <p>A <code>Target</code> is an unnormalized distribution. The standard inference library in GenSP exposes inference algorithms which are themselves estimated densities, whose interfaces accept <code>Target</code> instances and perform estimated normalization.</p>
-<div class="cell" data-execution_count="10">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>gensp_is <span class="op">=</span> gensp.importance(<span class="dv">50</span>, <span class="va">None</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>gensp_is</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">Importance</span>
-├── num_particles
-│   └── (const) 50
-└── proposal
-    └── (const) None
-</pre>
-</div>
 </div>
 <p>The default variant of <code>gensp.importance</code> utilizes sampling importance resampling with no custom proposal. Let’s examine the quality of the posterior approximation.</p>
-<div class="cell" data-execution_count="11">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>key, sub_keys <span class="op">=</span> genjax.slash(key, <span class="dv">1000</span>)</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>_, tr <span class="op">=</span> jax.jit(jax.vmap(gensp_is.simulate, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="va">None</span>)))(sub_keys, (target,))</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> tr.get_retval()</span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>chm</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 </div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinChoiceMap</span>
-└── trie
-    └── <span style="font-weight: bold">Trie</span>
-        ├── <span style="font-weight: bold">:x</span>
-        │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-        │       └── value
-        │           └──  f32[1000]
-        └── <span style="font-weight: bold">:y</span>
-            └── <span style="font-weight: bold">ValueChoiceMap</span>
-                └── value
-                    └──  f32[1000]
-</pre>
-</div>
-</div>
-<div class="cell" data-execution_count="12">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> fig.add_subplot()</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>ax.set_xlim(<span class="op">-</span><span class="dv">3</span>, <span class="dv">3</span>)</span>
@@ -478,12 +337,9 @@ P(x, y) = \int P(x, y, z) \ dz
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>circle <span class="op">=</span> plt.Circle((<span class="dv">0</span>, <span class="dv">0</span>), <span class="fl">2.0</span>, color<span class="op">=</span><span class="st">"k"</span>, fill<span class="op">=</span><span class="va">False</span>, lw<span class="op">=</span><span class="dv">3</span>)</span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>ax.scatter(chm[<span class="st">"x"</span>], chm[<span class="st">"y"</span>], marker<span class="op">=</span><span class="st">"."</span>)</span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>ax.add_artist(circle)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<p><img src="gen_sp_files/figure-html/cell-13-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>We can improve the quality of the approximation by providing a custom proposal.</p>
-<div class="cell" data-execution_count="13">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> custom_q(target):</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    chm <span class="op">=</span> target.constraints</span>
@@ -494,66 +350,20 @@ P(x, y) = \int P(x, y, z) \ dz
 </div>
 <p>When run within the sampling importance resampling routine, the custom proposal is allowed to inspect the observed data (here, <code>chm</code>).</p>
 <p>Note that <code>custom_q</code> samples auxiliary randomness for the <code>"θ"</code> address - to correctly define the importance weight density ratio, we need to marginalize out <code>"θ"</code>.</p>
-<div class="cell" data-execution_count="14">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>gensp_custom_q <span class="op">=</span> gensp.chm_dist(custom_q, selection<span class="op">=</span>genjax.select(<span class="st">"x"</span>, <span class="st">"y"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-execution_count="15">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>gensp_is <span class="op">=</span> gensp.importance(<span class="dv">50</span>, gensp_custom_q)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>gensp_is</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 </div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">Importance</span>
-├── num_particles
-│   └── (const) 50
-└── proposal
-    └── <span style="font-weight: bold">ChoiceMapDistribution</span>
-        ├── p
-        │   └── <span style="font-weight: bold">BuiltinGenerativeFunction</span>
-        │       └── source
-        │           └── <span style="font-weight: bold">PytreeClosure</span>
-        │               ├── callable
-        │               │   └── &lt;function custom_q&gt;
-        │               └── environment
-        │                   └── <span style="font-weight: bold">list</span>
-        ├── selection
-        │   └── <span style="font-weight: bold">BuiltinSelection</span>
-        │       └── trie
-        │           └── <span style="font-weight: bold">Trie</span>
-        │               ├── <span style="font-weight: bold">:x</span>
-        │               │   └── <span style="font-weight: bold">AllSelection</span>
-        │               └── <span style="font-weight: bold">:y</span>
-        │                   └── <span style="font-weight: bold">AllSelection</span>
-        └── custom_q
-            └── (const) None
-</pre>
-</div>
-</div>
-<div class="cell" data-execution_count="16">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>key, sub_keys <span class="op">=</span> genjax.slash(key, <span class="dv">1000</span>)</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>_, tr <span class="op">=</span> jax.jit(jax.vmap(gensp_is.simulate, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="va">None</span>)))(sub_keys, (target,))</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> tr.get_retval()</span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>chm</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 </div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinChoiceMap</span>
-└── trie
-    └── <span style="font-weight: bold">Trie</span>
-        ├── <span style="font-weight: bold">:x</span>
-        │   └── <span style="font-weight: bold">ValueChoiceMap</span>
-        │       └── value
-        │           └──  f32[1000]
-        └── <span style="font-weight: bold">:y</span>
-            └── <span style="font-weight: bold">ValueChoiceMap</span>
-                └── value
-                    └──  f32[1000]
-</pre>
-</div>
-</div>
-<div class="cell" data-execution_count="17">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">6</span>))</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> fig.add_subplot()</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>ax.set_xlim(<span class="op">-</span><span class="dv">3</span>, <span class="dv">3</span>)</span>
@@ -561,96 +371,33 @@ P(x, y) = \int P(x, y, z) \ dz
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>circle <span class="op">=</span> plt.Circle((<span class="dv">0</span>, <span class="dv">0</span>), <span class="fl">2.0</span>, color<span class="op">=</span><span class="st">"k"</span>, fill<span class="op">=</span><span class="va">False</span>, lw<span class="op">=</span><span class="dv">3</span>)</span>
 <span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>ax.scatter(chm[<span class="st">"x"</span>], chm[<span class="st">"y"</span>], marker<span class="op">=</span><span class="st">"."</span>)</span>
 <span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>ax.add_artist(circle)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<p><img src="gen_sp_files/figure-html/cell-18-output-1.svg" class="img-fluid"></p>
-</div>
 </div>
 <p>For both variants, we can estimate the log evidence and compare the value - the conditional log evidence ratio is often used for Bayesian model selection.</p>
 <section id="trace-types-for-absolute-continuity-diagnosis" class="level2">
 <h2 class="anchored" data-anchor-id="trace-types-for-absolute-continuity-diagnosis">Trace types for absolute continuity diagnosis</h2>
 <p>In the preceding sections, we were careful to identify exactly what subsets of random variables we wished to target with proposals and we lined addresses up accordingly. However, as the complexity of an estimated density tower increases - it would be useful to have automated tooling to check for support mismatches.</p>
 <p>GenJAX generative functions support a form of gradual typing based upon <a href="https://dl.acm.org/doi/10.1145/3371087">Lew et al, 2020</a> - providing a conservative representation of the support of the distribution which a generative function represents.</p>
-<div class="cell" data-execution_count="18">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>model.get_trace_type()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 </div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinTraceType</span>
-├── trie
-│   └── <span style="font-weight: bold">Trie</span>
-│       ├── <span style="font-weight: bold">:x</span>
-│       │   └── <span style="font-weight: bold">ℝ</span> ()
-│       ├── <span style="font-weight: bold">:y</span>
-│       │   └── <span style="font-weight: bold">ℝ</span> ()
-│       └── <span style="font-weight: bold">:z</span>
-│           └── <span style="font-weight: bold">ℝ</span> ()
-└── retval_type
-    └── <span style="font-weight: bold">ℝ</span> ()
-</pre>
-</div>
-</div>
-<div class="cell" data-execution_count="19">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>custom_q.get_trace_type(target)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinTraceType</span>
-├── trie
-│   └── <span style="font-weight: bold">Trie</span>
-│       ├── <span style="font-weight: bold">:θ</span>
-│       │   └── <span style="font-weight: bold">ℝ</span> ()
-│       ├── <span style="font-weight: bold">:x</span>
-│       │   └── <span style="font-weight: bold">ℝ</span> ()
-│       └── <span style="font-weight: bold">:y</span>
-│           └── <span style="font-weight: bold">ℝ</span> ()
-└── retval_type
-    └── <span style="font-weight: bold">ϕ</span> (empty)
-</pre>
-</div>
 </div>
 <p>What happens if we transform <code>custom_q</code> to internally marginalize <code>"θ"</code>?</p>
-<div class="cell" data-execution_count="20">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>gensp_custom_q.get_trace_type(target)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">BuiltinTraceType</span>
-├── trie
-│   └── <span style="font-weight: bold">Trie</span>
-│       ├── <span style="font-weight: bold">:x</span>
-│       │   └── <span style="font-weight: bold">ℝ</span> ()
-│       └── <span style="font-weight: bold">:y</span>
-│           └── <span style="font-weight: bold">ℝ</span> ()
-└── retval_type
-    └── <span style="font-weight: bold">ϕ</span> (empty)
-</pre>
-</div>
 </div>
 <p>There’s an interface for trace types called <code>on_support</code>, which checks if a trace type is on the support of another trace type.</p>
-<div class="cell" data-execution_count="21">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>t1 <span class="op">=</span> gensp_custom_q.get_trace_type(target)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>t2 <span class="op">=</span> model.get_trace_type()</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>check, mismatch_tree <span class="op">=</span> t1.on_support(t2)</span>
 <span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>mismatch_tree</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-</div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="font-weight: bold">Trie</span>
-└── <span style="font-weight: bold">:z</span>
-    └── <span style="font-weight: bold">tuple</span>
-        ├── (const) None
-        └── <span style="font-weight: bold">ℝ</span> ()
-</pre>
-</div>
 </div>
 <p>This interface returns two values: the first is a <code>bool</code> indicating if the first is on the support of the second, and the second is a “mismatch” tree which shows what addresses violate the check.</p>
 <p>Every address which violates the check gets a <code>tuple</code> showing the trace type for the first type against the second type at that address - above, we see that the proposal doesn’t provide a choice at <code>"z"</code>, the first element is <code>None</code> in the tuple.</p>
 <p>GenJAX’s GenSP implementation takes advantage of this gradual type system to perform static support checks at compile time, and return errors if mismatches occur. Observe:</p>
-<div class="cell" data-execution_count="22">
+<div class="cell">
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> no_match(target):</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    θ <span class="op">=</span> normal(<span class="fl">0.0</span>, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"θ"</span></span>
@@ -660,15 +407,6 @@ P(x, y) = \int P(x, y, z) \ dz
 <span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    gensp.static_check_supports(target, no_match)</span>
 <span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
 <span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    console.<span class="bu">print</span>(e)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">Trace type mismatch.
-Given target: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Target</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">p</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFunction</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">source</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PytreeClosure</span><span style="font-weight: bold">…</span>
-Proposal: <span style="color: #800080; text-decoration-color: #800080; font-weight: bold">BuiltinGenerativeFunction</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">source</span>=<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">PytreeClosure</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">callable</span>=<span style="font-weight: bold">&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">fu…</span>
-
-Absolute continuity failure at the following addresses:
-<span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Trie</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">inner</span>=<span style="font-weight: bold">{</span><span style="color: #008000; text-decoration-color: #008000">'x'</span>: <span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Reals</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">shape</span>=<span style="font-weight: bold">())</span>, <span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span><span style="font-weight: bold">)</span>, <span style="color: #008000; text-decoration-color: #008000">'y'</span>: <span style="font-weight: bold">(</span><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Reals</span><span style="font-weight: bold">(</span><span style="color: #808000; text-decoration-color: #808000">shape</span>=<span style="font-weight: bold">())</span>, <span style="color: #800080; text-decoration-color: #800080; font-style: italic">None</span><span style="font-weight: bold">…</span>
-</pre>
-</div>
 </div>
 
 

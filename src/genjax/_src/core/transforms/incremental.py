@@ -217,6 +217,10 @@ class Diff(Pytree):
         but with all values replaced with `change_tangent`"""
         return jtu.tree_map(lambda _: change_tangent, tree)
 
+    @classmethod
+    def no_change(cls, tree):
+        return jtu.tree_map(lambda v: Diff.new(v, NoChange), tree)
+
 
 def static_check_is_diff(v):
     return isinstance(v, Diff)
