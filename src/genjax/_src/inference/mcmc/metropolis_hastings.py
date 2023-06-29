@@ -17,7 +17,6 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 import jax.random as random
-import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
@@ -42,7 +41,7 @@ class MetropolisHastings(MCMCKernel):
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
         key, proposal_tr = self.proposal.simulate(key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
-        diffs = jtu.tree_map(Diff.no_change, model_args)
+        diffs = Diff.no_change(model_args)
         key, (_, weight, new, discard) = model.update(
             key, trace, proposal_tr.get_choices(), diffs
         )
