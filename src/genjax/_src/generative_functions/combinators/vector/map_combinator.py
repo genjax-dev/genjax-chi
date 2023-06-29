@@ -31,7 +31,6 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -41,6 +40,9 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexChoiceMap,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -48,6 +50,9 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
+)
+from genjax._src.generative_functions.combinators.vector.vector_utilities import (
+    static_check_broadcast_dim_length,
 )
 from genjax._src.utilities import slash
 
@@ -124,17 +129,9 @@ class MapCombinator(GenerativeFunction):
             assert repeats is not None
         return MapCombinator(in_axes, repeats, kernel)
 
-    def _static_broadcast_dim_length(self, args):
-        if self.repeats is not None:
-            return self.repeats
-        else:
-            for (in_axis_flag, arg) in zip(self.in_axes, args):
-                if in_axis_flag == 0:
-                    return len(arg)
-
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
         kernel_tt = self.kernel.get_trace_type(*args)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
@@ -145,38 +142,17 @@ class MapCombinator(GenerativeFunction):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         assert len(args) == len(self.in_axes)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        indices = np.array([i for i in range(0, broadcast_dim_length)])
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(
             sub_keys, args
         )
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, map_tr
 
-    def _bounds_checker(self, v, key_len):
-        lengths = []
-
-        def _inner(v):
-            if v.shape[-1] > key_len:
-                raise Exception("Length of leaf longer than max length.")
-            else:
-                lengths.append(v.shape[-1])
-                return v
-
-        ret = jtu.tree_map(_inner, v)
-        fixed_len = set(lengths)
-        assert len(fixed_len) == 1
-        return ret, fixed_len.pop()
-
-    def _static_check_trie_index_compatible(self, chm: Trie, broadcast_dim_length: Int):
-        for (k, _) in chm.get_subtrees_shallow():
-            assert isinstance(k, int)
-            # TODO: pull outside loop, just check the last address.
-            assert k < broadcast_dim_length
-
+    # Implementation specialized to `VectorChoiceMap`.
     def _importance_vcm(self, key, chm, args):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
@@ -185,31 +161,56 @@ class MapCombinator(GenerativeFunction):
             key, tr = self.kernel.simulate(key, args)
             return key, (0.0, tr)
 
-        def _inner(key, index, chm, args):
-            check = index == chm.get_index()
-            return concrete_cond(check, _importance, _simulate, key, chm, args)
+        def _switch(key, flag, chm, args):
+            return concrete_cond(flag, _importance, _simulate, key, chm, args)
 
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        indices = np.array([i for i in range(0, broadcast_dim_length)])
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
-        _, (w, tr) = jax.vmap(_inner, in_axes=(0, 0, 0, self.in_axes))(
-            sub_keys, indices, chm, args
+
+        if chm.masks is None:
+            inner = chm.inner
+            _, (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
+                sub_keys, inner, args
+            )
+        else:
+            _, (w, tr) = jax.vmap(_switch, in_axes=(0, 0, 0, self.in_axes))(
+                sub_keys, chm.masks, inner, args
+            )
+
+        w = jnp.sum(w)
+        retval = tr.get_retval()
+        scores = tr.get_score()
+        map_tr = VectorTrace(self, tr, args, retval, scores)
+        return key, (w, map_tr)
+
+    # Implementation specialized to `IndexChoiceMap`.
+    def _importance_indchm(self, key, chm, args):
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        index_array = jnp.arange(0, broadcast_dim_length)
+        flag_array = (index_array[:, None] == chm.indices).sum(axis=-1)
+        key, sub_keys = slash(key, broadcast_dim_length)
+
+        def _simulate(key, index, chm, args):
+            key, tr = self.kernel.simulate(key, args)
+            return key, (0.0, tr)
+
+        def _importance(key, index, chm, args):
+            (slice_index,) = jnp.nonzero(index == chm, size=1)
+            slice_index = slice_index[0]
+            inner_chm = chm.inner.slice(slice_index)
+            return self.kernel.importance(key, inner_chm, args)
+
+        def _switch(key, flag, index, chm, args):
+            return concrete_cond(flag, _importance, _simulate, key, index, chm, args)
+
+        _, (w, tr) = jax.vmap(_switch, in_axes=(0, 0, 0, None, self.in_axes))(
+            sub_keys, flag_array, index_array, chm, args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, indices, tr, args, retval, scores)
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (w, map_tr)
-
-    # Implements a conversion from `Trie`.
-    def _importance_tchm(self, key, chm, args):
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        self._static_check_trie_index_compatible(chm, broadcast_dim_length)
-
-        # Okay, so the Trie has an address hierarchy which is compatible with the index structure of the MapCombinator choices.
-        # Let's coerce Trie into VectorChoiceMap and then just call `_importance_vcm`.
-        vector_chm = self._coerce_to_vector_chm(chm)
-        return self._importance_vcm(key, vector_chm, args)
 
     def _importance_empty(self, key, _, args):
         key, map_tr = self.simulate(key, args)
@@ -220,7 +221,7 @@ class MapCombinator(GenerativeFunction):
     def importance(
         self,
         key: PRNGKey,
-        chm: Union[EmptyChoiceMap, Trie, VectorChoiceMap],
+        chm: Union[EmptyChoiceMap, Trie, IndexChoiceMap, VectorChoiceMap],
         args: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
@@ -230,8 +231,11 @@ class MapCombinator(GenerativeFunction):
         # Note: these branches are resolved at tracing time.
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
+        if isinstance(chm, IndexChoiceMap):
+            return self._importance_indchm(key, chm, args)
         elif isinstance(chm, Trie):
-            return self._importance_tchm(key, chm, args)
+            indchm = IndexChoiceMap.new(chm)
+            return self._importance_indchm(key, indchm, args)
         else:
             assert isinstance(chm, EmptyChoiceMap)
             return self._importance_empty(key, chm, args)
@@ -251,7 +255,7 @@ class MapCombinator(GenerativeFunction):
 
         # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
@@ -263,7 +267,7 @@ class MapCombinator(GenerativeFunction):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
@@ -280,14 +284,14 @@ class MapCombinator(GenerativeFunction):
         )
         # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
         )(sub_keys, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
-        indices = jnp.array([i for i in range(0, broadcast_dim_length)])
-        map_tr = VectorTrace(self, indices, tr, jnp.sum(tr.get_score()))
+        retval = tr.get_retval()
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     @typecheck
@@ -339,7 +343,7 @@ class MapCombinator(GenerativeFunction):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         assert len(args) == len(self.in_axes)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.count_nonzero(indices - chm.get_index()) == 0
 

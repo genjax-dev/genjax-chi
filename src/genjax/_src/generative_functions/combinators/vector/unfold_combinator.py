@@ -189,7 +189,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
+        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
 
         return key, unfold_tr
 
@@ -251,7 +251,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
+        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -307,7 +307,7 @@ class UnfoldCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
+        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -381,9 +381,7 @@ class UnfoldCombinator(GenerativeFunction):
             indices,
         ) = jax.lax.scan(_inner, (0, key, state), (prev, chm), length=self.max_length)
 
-        unfold_tr = VectorTrace(
-            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
-        )
+        unfold_tr = VectorTrace(self, tr, args, retdiff.get_val(), jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (retdiff, w, unfold_tr, discard)
