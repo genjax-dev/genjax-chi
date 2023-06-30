@@ -26,7 +26,8 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.pytree import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
@@ -130,20 +131,6 @@ class VectorChoiceMap(ChoiceMap):
 
         return VectorChoiceMap(None, inner)
 
-    @typecheck
-    @classmethod
-    def convert(cls, choice_map: Trie):
-        indices = []
-        subtrees = []
-        for (ind, subtree) in choice_map.get_subtrees_shallow():
-            indices.append(ind)
-            subtrees.append(subtree)
-
-        # Assert that all Pytrees in list can be
-        # stacked at leaves.
-        # static_check_pytree_stackable(subtrees)
-        # return VectorChoiceMap.new(indices, tree_stack(subtrees))
-
     def get_selection(self):
         subselection = self.inner.get_selection()
         return VectorSelection.new(subselection)
@@ -230,6 +217,23 @@ class IndexChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.indices, self.inner), ()
 
+    @classmethod
+    def convert(cls, chm: ChoiceMap) -> "IndexChoiceMap":
+        indices = []
+        subtrees = []
+        for (k, v) in chm.get_subtrees_shallow():
+            if isinstance(k, IntArray):
+                indices.append(k)
+                subtrees.append(v)
+            else:
+                raise Exception(
+                    f"Failed to convert choice map of type {type(chm)} to IndexChoiceMap."
+                )
+
+        inner = tree_stack(subtrees)
+        indices = jnp.array(indices)
+        return IndexChoiceMap.new(inner, indices)
+
     @typecheck
     @classmethod
     def new(cls, inner: ChoiceMap, indices: Union[List, IntArray]) -> ChoiceMap:
@@ -247,10 +251,22 @@ class IndexChoiceMap(ChoiceMap):
         return IndexChoiceMap(indices, inner)
 
     def has_subtree(self, addr):
-        return self.inner.has_subtree(addr)
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
 
     def get_subtree(self, addr):
-        return jtu.tree_map(lambda v: v[self.indices], self.inner.get_subtree(addr))
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return EmptyChoiceMap()
+        (idx, addr) = addr
+        subtree = self.inner.get_subtree(addr)
+        if isinstance(subtree, EmptyChoiceMap):
+            return EmptyChoiceMap()
+        else:
+            (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+            subtree = jtu.tree_map(lambda v: v[slice_index], subtree)
+            return mask(idx in self.indices, subtree)
 
     def get_selection(self):
         inner_selection = self.inner.get_selection()

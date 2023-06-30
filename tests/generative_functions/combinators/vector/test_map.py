@@ -27,7 +27,7 @@ def kernel(x):
 model = genjax.Map(kernel, in_axes=(0, ))
 
 
-class TestUnfoldSimpleNormal:
+class TestMapCombinator:
     def test_map_simple_normal(self):
         key = jax.random.PRNGKey(314159)
         map_over = jnp.arange(0, 50)
