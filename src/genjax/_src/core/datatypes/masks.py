@@ -44,13 +44,13 @@ class Mask(Pytree):
 @dataclass
 class BooleanMask(Mask):
     mask: Bool
-    inner: Any
+    value: Any
 
     def flatten(self):
-        return (self.mask, self.inner), ()
+        return (self.mask, self.value), ()
 
     def unmask(self):
-        return self.inner
+        return self.value
 
     def leaf_push(self):
         def _inner(v):
@@ -73,10 +73,10 @@ class BooleanMask(Mask):
         def _check(v):
             return isinstance(v, BooleanMask) or isinstance(v, Leaf)
 
-        return jtu.tree_map(_inner, self.inner, is_leaf=_check)
+        return jtu.tree_map(_inner, self.value, is_leaf=_check)
 
     def __hash__(self):
-        hash1 = hash(self.inner)
+        hash1 = hash(self.value)
         hash2 = hash(self.mask)
         return hash((hash1, hash2))
 

@@ -233,12 +233,12 @@ class MapCombinator(GenerativeFunction):
             return self._importance_vcm(key, chm, args)
         if isinstance(chm, IndexChoiceMap):
             return self._importance_indchm(key, chm, args)
-        elif isinstance(chm, Trie):
-            indchm = IndexChoiceMap.new(chm)
-            return self._importance_indchm(key, indchm, args)
-        else:
-            assert isinstance(chm, EmptyChoiceMap)
+        elif isinstance(chm, EmptyChoiceMap):
             return self._importance_empty(key, chm, args)
+        else:
+            # Fallback: try to convert to an index choice map.
+            indchm = IndexChoiceMap.convert(chm)
+            return self._importance_indchm(key, indchm, args)
 
     # The choice map passed in here is a vector choice map.
     def _update_vcm(
