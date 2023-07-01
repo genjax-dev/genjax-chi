@@ -125,12 +125,24 @@ class MapCombinator(GenerativeFunction):
         return MapCombinator(in_axes, repeats, kernel)
 
     def _static_broadcast_dim_length(self, args):
-        if self.repeats is not None:
-            return self.repeats
+        def find_axis_size(axis, x):
+            if axis is not None:
+                leaves = jax.tree_util.tree_leaves(x)
+                if leaves:
+                    return leaves[0].shape[axis]
+            return ()
+
+        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
+        axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
+        if self.repeats is None and len(axis_sizes) == 1:
+            (d_axis_size,) = axis_sizes
+        elif len(axis_sizes) > 1:
+            raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
+        elif self.repeats is None:
+            raise ValueError("repeats should be specified manually.")
         else:
-            for (in_axis_flag, arg) in zip(self.in_axes, args):
-                if in_axis_flag == 0:
-                    return len(arg)
+            d_axis_size = self.repeats
+        return d_axis_size
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
