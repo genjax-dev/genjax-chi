@@ -188,9 +188,9 @@ class Diff(Pytree):
         return (self.primal, self.tangent), ()
 
     @classmethod
-    def new(cls, primal):
+    def new(cls, primal, tangent):
         assert not isinstance(primal, Diff)
-        return Diff(primal, UnknownChange)
+        return Diff(primal, tangent)
 
     def get_primal(self):
         return self.primal
