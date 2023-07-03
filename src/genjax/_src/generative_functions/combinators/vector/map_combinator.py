@@ -131,7 +131,7 @@ class MapCombinator(GenerativeFunction):
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         kernel_tt = self.kernel.get_trace_type(*args)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
@@ -142,7 +142,7 @@ class MapCombinator(GenerativeFunction):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         assert len(args) == len(self.in_axes)
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(
             sub_keys, args
@@ -164,7 +164,7 @@ class MapCombinator(GenerativeFunction):
         def _switch(key, flag, chm, args):
             return concrete_cond(flag, _importance, _simulate, key, chm, args)
 
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         key, sub_keys = slash(key, broadcast_dim_length)
 
         if chm.masks is None:
@@ -185,7 +185,7 @@ class MapCombinator(GenerativeFunction):
 
     # Implementation specialized to `IndexChoiceMap`.
     def _importance_indchm(self, key, chm, args):
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         index_array = jnp.arange(0, broadcast_dim_length)
         flag_array = (index_array[:, None] == chm.indices).sum(axis=-1)
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -255,7 +255,7 @@ class MapCombinator(GenerativeFunction):
 
         # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
@@ -284,7 +284,7 @@ class MapCombinator(GenerativeFunction):
         )
         # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
@@ -343,7 +343,7 @@ class MapCombinator(GenerativeFunction):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         assert len(args) == len(self.in_axes)
-        broadcast_dim_length = static_check_broadcast_dim_length(args)
+        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.count_nonzero(indices - chm.get_index()) == 0
 

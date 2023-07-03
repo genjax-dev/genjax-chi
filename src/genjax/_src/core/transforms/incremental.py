@@ -164,7 +164,18 @@ class IntChange(ChangeTangent):
     dv: IntArray
 
     def flatten(self):
-        return (self.tangent,), ()
+        return (self.dv,), ()
+
+    def should_flatten(self):
+        return True
+
+
+@dataclasses.dataclass
+class StaticIntChange(ChangeTangent):
+    dv: IntArray
+
+    def flatten(self):
+        return (), (self.dv,)
 
     def should_flatten(self):
         return True
