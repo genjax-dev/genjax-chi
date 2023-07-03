@@ -24,6 +24,7 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import mask
@@ -36,7 +37,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.vector.vector_utilities import (
-    static_check_broadcast_dim_length,
+    static_check_leaf_length,
 )
 
 
@@ -91,10 +92,18 @@ class VectorTrace(Trace):
                 )
             else:
                 return jnp.sum(self.inner.project(selection.inner))
+        elif isinstance(selection, IndexSelection) or isinstance(
+            selection, ComplementIndexSelection
+        ):
+            # TODO: fill in.
+            assert False
         elif isinstance(selection, AllSelection):
             return self.score
-        else:
+        elif isinstance(selection, NoneSelection):
             return 0.0
+        else:
+            selection = IndexSelection.convert(selection)
+            return self.project(selection)
 
 
 #####
@@ -124,7 +133,7 @@ class VectorChoiceMap(ChoiceMap):
             assert masks
             masks = jnp.array(masks)
             masks_len = len(masks)
-            inner_len = static_check_broadcast_dim_length(inner)
+            inner_len = static_check_leaf_length(inner)
             # indices must have same length as leaves of the inner choice map.
             assert masks_len == inner_len
             return VectorChoiceMap(masks, inner)
@@ -242,7 +251,7 @@ class IndexChoiceMap(ChoiceMap):
 
         # Verify that dimensions are consistent before creating an
         # `IndexChoiceMap`.
-        _ = static_check_broadcast_dim_length((inner, indices))
+        _ = static_check_leaf_length((inner, indices))
 
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
@@ -292,27 +301,43 @@ class IndexSelection(Selection):
             self.inner,
         ), ()
 
-    @classmethod
-    def new(cls, indices, inner):
-        pass
-
     def filter(self, tree):
-        pass
+        filtered = self.inner.filter(tree)
+        flags = jnp.logical_and(
+            self.indices >= 0,
+            self.indices < static_check_leaf_length(tree),
+        )
+
+        def _take(v):
+            return jnp.take(v, self.indices, mode="clip")
+
+        return mask(flags, jtu.tree_map(_take, filtered))
 
     def complement(self):
-        pass
+        return ComplementIndexSelection(self)
 
-    def has_subtree(self, addr):
-        pass
 
-    def get_subtree(self, addr):
-        pass
+@dataclass
+class ComplementIndexSelection(Selection):
+    index_selection: Selection
 
-    def get_subtrees_shallow(self):
-        pass
+    def flatten(self):
+        return (self.index_selection,), ()
 
-    def merge(self, other):
-        pass
+    def filter(self, tree):
+        filtered = self.inner.filter(tree)
+        flags = jnp.logical_and(
+            self.indices >= 0,
+            self.indices < static_check_leaf_length(tree),
+        )
+
+        def _take(v):
+            return jnp.take(v, self.indices, mode="clip")
+
+        return mask(flags, jtu.tree_map(_take, filtered))
+
+    def complement(self):
+        return self.index_selection
 
 
 ##############
