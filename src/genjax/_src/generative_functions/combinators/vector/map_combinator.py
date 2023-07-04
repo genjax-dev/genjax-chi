@@ -35,6 +35,7 @@ from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     DeferredGenerativeFunctionCall,
@@ -153,7 +154,14 @@ class MapCombinator(GenerativeFunction):
         return key, map_tr
 
     # Implementation specialized to `VectorChoiceMap`.
-    def _importance_vcm(self, key, chm, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: VectorChoiceMap,
+        args: Tuple,
+        **_,
+    ):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -184,7 +192,14 @@ class MapCombinator(GenerativeFunction):
         return key, (w, map_tr)
 
     # Implementation specialized to `IndexChoiceMap`.
-    def _importance_indchm(self, key, chm, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: IndexChoiceMap,
+        args: Tuple,
+        **_,
+    ):
         broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
         index_array = jnp.arange(0, broadcast_dim_length)
         flag_array = (index_array[:, None] == chm.indices).sum(axis=-1)
@@ -212,37 +227,38 @@ class MapCombinator(GenerativeFunction):
         map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (w, map_tr)
 
-    def _importance_empty(self, key, _, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: EmptyChoiceMap,
+        args: Tuple,
+        **_,
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
         key, map_tr = self.simulate(key, args)
         w = 0.0
         return key, (w, map_tr)
 
-    @typecheck
+    # Fallback implementation if a generic Trie is passed in.
+    @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: Union[EmptyChoiceMap, Trie, IndexChoiceMap, VectorChoiceMap],
+        chm: Trie,
         args: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(args) == len(self.in_axes)
-        # Note: these branches are resolved at tracing time.
-        if isinstance(chm, VectorChoiceMap):
-            return self._importance_vcm(key, chm, args)
-        if isinstance(chm, IndexChoiceMap):
-            return self._importance_indchm(key, chm, args)
-        elif isinstance(chm, EmptyChoiceMap):
-            return self._importance_empty(key, chm, args)
-        else:
-            # Fallback: try to convert to an index choice map.
-            indchm = IndexChoiceMap.convert(chm)
-            return self._importance_indchm(key, indchm, args)
+        indchm = IndexChoiceMap.convert(chm)
+        return self.importance(key, indchm, args)
 
     # The choice map passed in here is a vector choice map.
-    def _update_vcm(
-        self, key: PRNGKey, prev: VectorTrace, chm: VectorChoiceMap, argdiffs: Tuple
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: VectorChoiceMap,
+        argdiffs: Tuple,
     ):
         def _update(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(key, prev, chm, argdiffs)
@@ -272,7 +288,14 @@ class MapCombinator(GenerativeFunction):
 
     # The choice map passed in here is empty, but perhaps
     # the arguments have changed.
-    def _update_empty(self, key, prev, chm, argdiffs):
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: EmptyChoiceMap,
+        argdiffs: Tuple,
+    ):
         def _fallback(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(
                 key, prev, EmptyChoiceMap(), argdiffs
@@ -293,26 +316,6 @@ class MapCombinator(GenerativeFunction):
         retval = tr.get_retval()
         map_tr = VectorTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        prev: VectorTrace,
-        chm: Union[EmptyChoiceMap, VectorChoiceMap],
-        argdiffs: Tuple,
-        **_,
-    ):
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(argdiffs) == len(self.in_axes)
-        # Branches here implement certain optimizations when more
-        # information about the passed in choice map is available.
-        if isinstance(chm, VectorChoiceMap):
-            return self._update_vcm(key, prev, chm, argdiffs)
-        else:
-            assert isinstance(chm, EmptyChoiceMap)
-            return self._update_empty(key, prev, chm, argdiffs)
 
     # TODO: I've had so many issues with getting this to work correctly
     # and not throw - and I'm not sure why it's been so finicky.
