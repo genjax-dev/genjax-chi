@@ -27,7 +27,6 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.transforms import adev
 from genjax._src.core.transforms import incremental
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import DiffTrace
@@ -480,113 +479,5 @@ def assess_transform(source_fn, **kwargs):
         retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
         key, score = statefuls
         return key, (retvals, score)
-
-    return wrapper
-
-
-###################
-# ADEV and fusion #
-###################
-
-#####
-# Probabilistic computation transform
-#####
-
-
-@dataclasses.dataclass
-class ADEVConvertContext(BuiltinInterfaceContext):
-    key: PRNGKey
-
-    def flatten(self):
-        return (self.key,), ()
-
-    def yield_state(self):
-        return (self.key,)
-
-    @classmethod
-    def new(cls, key):
-        return ADEVConvertContext(
-            key,
-        )
-
-    def handle_trace(self, _, *tracers, **params):
-        in_tree = params.get("in_tree")
-        num_consts = params.get("num_consts")
-        passed_in_tracers = tracers[num_consts:]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
-        args = tuple(args)
-        adev_term = adev.lang(gen_fn)
-        self.key, v = adev.sample(adev_term, self.key, args)
-        return jtu.tree_leaves(v)
-
-    def handle_cache(self, _, *tracers, **params):
-        in_tree = params.get("in_tree")
-        fn, args = jtu.tree_unflatten(in_tree, tracers)
-        retval = fn(*args)
-        return jtu.tree_leaves(retval)
-
-
-def adev_conversion_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
-    @functools.wraps(source_fn)
-    def wrapper(key, args):
-        ctx = ADEVConvertContext.new(key)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
-        (key,) = statefuls
-        return key, retvals
-
-    return wrapper
-
-
-#####
-# Fuse canonicalize transform
-#####
-
-
-@dataclasses.dataclass
-class FuseContext(BuiltinInterfaceContext):
-    key: PRNGKey
-    choice_state: Trie
-
-    def flatten(self):
-        return (
-            self.key,
-            self.choice_state,
-        ), ()
-
-    def yield_state(self):
-        return (self.key, self.choice_state)
-
-    @classmethod
-    def new(cls, key):
-        choice_state = Trie.new()
-        return FuseContext(key, choice_state)
-
-    def handle_trace(self, _, *tracers, **params):
-        addr = params.get("addr")
-        in_tree = params.get("in_tree")
-        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
-        args = tuple(args)
-        self.key, (v, chm) = gen_fn.prepare_fuse(self.key, *args)
-        self.choice_state[addr] = chm
-        return jtu.tree_leaves(v)
-
-    def handle_cache(self, _, *tracers, **params):
-        in_tree = params.get("in_tree")
-        fn, args = jtu.tree_unflatten(in_tree, tracers)
-        retval = fn(*args)
-        return jtu.tree_leaves(retval)
-
-
-def fuse_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
-    @functools.wraps(source_fn)
-    def wrapper(key, args):
-        ctx = FuseContext.new(key)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
-        key, choices = statefuls
-        return key, (retvals, choices)
 
     return wrapper

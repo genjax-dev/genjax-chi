@@ -33,7 +33,6 @@ from genjax._src.core.datatypes.masks import BooleanMask
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
-from genjax._src.core.transforms import adev
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import NoChange
 from genjax._src.core.transforms.incremental import UnknownChange
@@ -293,26 +292,6 @@ class Distribution(GenerativeFunction):
         v = evaluation_point.get_leaf_value()
         key, score = self.estimate_logpdf(key, v, *args)
         return key, (v, score)
-
-    ########
-    # ADEV #
-    ########
-
-    @typecheck
-    def prepare_fuse(self, key: PRNGKey, args: Tuple):
-        prob_prim = adev.ADEVPrimitive(self)
-        key, v = adev.sample(prob_prim, key, args)
-        return key, (v, ValueChoiceMap(v))
-
-    @typecheck
-    def fuse(self, proposal: "Distribution") -> adev.ADEVProgram:
-        def wrapper(key, p_args, q_args):
-            key, (v, _) = proposal.prepare_fuse(key, q_args)
-            key, qw = proposal.estimate_logpdf(key, v, *q_args)
-            key, pw = self.estimate_logpdf(key, v, *p_args)
-            return key, pw - qw
-
-        return adev.ADEVProgram(wrapper)
 
 
 #####

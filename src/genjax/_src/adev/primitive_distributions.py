@@ -19,10 +19,10 @@ import dataclasses
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.transforms.adev import ADEVPrimitive
-from genjax._src.core.transforms.adev import SupportsMVD
-from genjax._src.core.transforms.adev import SupportsREINFORCE
-from genjax._src.core.transforms.adev import register
+from genjax._src.adev.lang import ADEVPrimitive
+from genjax._src.adev.lang import SupportsMVD
+from genjax._src.adev.lang import SupportsREINFORCE
+from genjax._src.adev.lang import register
 from genjax._src.generative_functions.distributions.scipy.bernoulli import Bernoulli
 from genjax._src.generative_functions.distributions.scipy.bernoulli import bernoulli
 from genjax._src.generative_functions.distributions.scipy.normal import Normal
