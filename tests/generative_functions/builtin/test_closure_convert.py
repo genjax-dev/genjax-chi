@@ -13,14 +13,18 @@
 # limitations under the License.
 
 import jax
+import jax.tree_util as jtu
 import jax.numpy as jnp
+import functools
+from dataclasses import dataclass
 
 import genjax
-
+from genjax.typing import Callable, Any
 
 def emits_cc_gen_fn(v):
     @genjax.gen
-    def model():
+    @genjax.dynamic_closure(v)
+    def model(v):
         x = genjax.normal(jnp.sum(v), 1.0) @ "x"
         return x
 
@@ -36,8 +40,7 @@ def model():
 
 
 class TestClosureConvert:
-    pass
-    #def test_closure_convert(self):
-    #    key = jax.random.PRNGKey(314159)
-    #    key, _ = jax.jit(genjax.simulate(model))(key, ())
-    #    assert True
+    def test_closure_convert(self):
+        key = jax.random.PRNGKey(314159)
+        key, _ = jax.jit(genjax.simulate(model))(key, ())
+        assert True
