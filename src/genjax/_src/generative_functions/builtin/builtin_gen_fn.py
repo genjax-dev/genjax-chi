@@ -22,7 +22,6 @@ from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import PytreeClosure
 from genjax._src.core.pytree import closure_convert
-from genjax._src.core.transforms import adev
 from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -40,11 +39,7 @@ from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
     trace_type_transform,
 )
-from genjax._src.generative_functions.builtin.builtin_transforms import (
-    adev_conversion_transform,
-)
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
-from genjax._src.generative_functions.builtin.builtin_transforms import fuse_transform
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     importance_transform,
 )
@@ -199,30 +194,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         key, (retval, score) = assess_transform(self.source, **kwargs)(key, chm, args)
         return key, (retval, score)
-
-    ########
-    # ADEV #
-    ########
-
-    @typecheck
-    def adev_simulate(self, key: PRNGKey, args: Tuple, **kwargs):
-        key, v = adev_conversion_transform(self.source, **kwargs)(key, args)
-        return key, v
-
-    @typecheck
-    def fuse_canonicalize(self, key: PRNGKey, args: Tuple, **kwargs):
-        key, (retvals, choices) = fuse_transform(self.source, **kwargs)(key, args)
-        return key, (retvals, choices)
-
-    @typecheck
-    def fuse(self, proposal: "BuiltinGenerativeFunction") -> adev.ADEVProgram:
-        def wrapper(key, p_args, q_args):
-            key, (_, chm) = proposal.fuse_canonicalize(key, *q_args)
-            key, (_, qw) = proposal.assess(key, chm, q_args)
-            key, (_, pw) = self.assess(key, chm, p_args)
-            return key, pw - qw
-
-        return adev.ADEVProgram(wrapper)
 
     def inline(self, *args):
         return _inline(self, *args)

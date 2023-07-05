@@ -44,6 +44,7 @@ from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Type
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
 
@@ -483,6 +484,11 @@ class ADEVProgram(ADEVTerm):
         return grad_estimate_transform(self.source, kont)(key, primals, tangents)
 
 
+@dispatch
+def adev_convert(gen_fn: GenerativeFunction):
+    raise NotImplementedError
+
+
 @typecheck
 def lang(gen_fn: GenerativeFunction):
     """Convert a `GenerativeFunction` to an `ADEVProgram`."""
@@ -491,7 +497,7 @@ def lang(gen_fn: GenerativeFunction):
         # `GenerativeFunction.adev_simulate` is an interface which expresses
         # forward sampling from a generative function in terms of
         # ADEV language primitives.
-        return ADEVProgram(gen_fn.adev_simulate)
+        return ADEVProgram(adev_convert(gen_fn))
     else:
         return prim()
 
