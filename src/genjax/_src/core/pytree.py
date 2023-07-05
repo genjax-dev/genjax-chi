@@ -34,6 +34,7 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
 from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import static_check_supports_grad
@@ -288,6 +289,34 @@ class Pytree(metaclass=abc.ABCMeta):
 
     def __rich_repr__(self):
         yield self
+
+
+#####
+# Dynamic closure
+#####
+
+
+@dataclass
+class DynamicClosure(Pytree):
+    fn: Callable
+    dyn_args: Tuple
+
+    def flatten(self):
+        return (self.dyn_args,), (self.fn,)
+
+    @classmethod
+    def new(cls, callable, *dyn_args):
+        if isinstance(callable, DynamicClosure):
+            return DynamicClosure(callable.fn, (*callable.dyn_args, *dyn_args))
+        else:
+            return DynamicClosure(callable, dyn_args)
+
+    def __call__(self, *args):
+        return self.fn(*self.dyn_args, *args)
+
+
+def dynamic_closure(*args):
+    return lambda fn: DynamicClosure.new(fn, *args)
 
 
 #####
