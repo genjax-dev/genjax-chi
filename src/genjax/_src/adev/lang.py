@@ -486,6 +486,12 @@ class ADEVProgram(ADEVTerm):
 
 @dispatch
 def adev_convert(gen_fn: GenerativeFunction):
+    """
+    Overload for custom generative functions to support a conversion
+    transformation to an ADEVProgram. Typically not invoked directly by a user, but is instead invoked by the `lang` decorator.
+
+    Should return a `Callable`, which gets wrapped in `ADEVProgram` by `lang`.
+    """
     raise NotImplementedError
 
 
@@ -494,9 +500,6 @@ def lang(gen_fn: GenerativeFunction):
     """Convert a `GenerativeFunction` to an `ADEVProgram`."""
     prim = registry.get(type(gen_fn))
     if prim is None:
-        # `GenerativeFunction.adev_simulate` is an interface which expresses
-        # forward sampling from a generative function in terms of
-        # ADEV language primitives.
         return ADEVProgram(adev_convert(gen_fn))
     else:
         return prim()
