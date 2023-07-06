@@ -13,34 +13,24 @@
 # limitations under the License.
 
 import jax
-import jax.tree_util as jtu
-import jax.numpy as jnp
-import functools
-from dataclasses import dataclass
-
 import genjax
-from genjax.typing import Callable, Any
 
-def emits_cc_gen_fn(v):
+def make_gen_fn():
     @genjax.gen
-    @genjax.dynamic_closure(v)
-    def model(v):
-        x = genjax.normal(jnp.sum(v), 1.0) @ "x"
+    def proposal(x):
+        x = outlier(x) @ "x"
         return x
 
-    return model
+    @genjax.gen
+    def outlier(prob):
+        is_outlier = genjax.bernoulli(prob) @ "is_outlier"
+        return is_outlier
 
+    return proposal
 
-@genjax.gen
-def model():
-    x = jnp.ones(5)
-    gen_fn = emits_cc_gen_fn(x)
-    v = gen_fn() @ "x"
-    return (v, gen_fn)
-
-
-class TestClosureConvert:
-    def test_closure_convert(self):
+class TestForwardRef:
+    def test_forward_ref(self):
         key = jax.random.PRNGKey(314159)
-        key, _ = jax.jit(genjax.simulate(model))(key, ())
+        proposal = make_gen_fn()
+        key, tr = proposal.simulate(key, (0.3, ))
         assert True

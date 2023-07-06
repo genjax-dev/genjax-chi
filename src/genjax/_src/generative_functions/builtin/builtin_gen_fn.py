@@ -19,9 +19,8 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.pytree import PytreeClosure
-from genjax._src.core.pytree import closure_convert
 from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -120,16 +119,18 @@ class DeferredGenerativeFunctionCall(Pytree):
 
 @dataclass
 class BuiltinGenerativeFunction(GenerativeFunction):
-    source: PytreeClosure
+    source: Callable
 
     def flatten(self):
-        return (self.source,), ()
+        if isinstance(self.source, DynamicClosure):
+            return (self.source,), ()
+        else:
+            return (), (self.source,)
 
     @typecheck
     @classmethod
     def new(cls, source: Callable):
-        converted = closure_convert(source)
-        return BuiltinGenerativeFunction(converted)
+        return BuiltinGenerativeFunction(source)
 
     # This overloads the call functionality for this generative function
     # and allows usage of shorthand notation in the builtin DSL.

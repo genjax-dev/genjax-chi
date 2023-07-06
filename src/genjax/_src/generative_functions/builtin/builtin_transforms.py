@@ -123,6 +123,8 @@ class InlineContext(context.Context):
     # bind calls.
     def process_inline(self, *args, **params):
         in_tree = params.get("in_tree")
+        num_consts = params.get("num_consts")
+        args = args[num_consts:]
         gen_fn, *call_args = jtu.tree_unflatten(in_tree, args)
         retvals = inline_transform(gen_fn.source)(*call_args)
         return jtu.tree_leaves(retvals)
