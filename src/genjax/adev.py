@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.transforms.adev import ADEVPrimitive
-from genjax._src.core.transforms.adev import ADEVProgram
-from genjax._src.core.transforms.adev import ADEVTerm
-from genjax._src.core.transforms.adev import GradStratEnum
-from genjax._src.core.transforms.adev import GradStratMVD
-from genjax._src.core.transforms.adev import GradStratREINFORCE
-from genjax._src.core.transforms.adev import lang
-from genjax._src.core.transforms.adev import sample
-from genjax._src.core.transforms.adev import strat
-from genjax._src.generative_functions.distributions.adev_registry import (
-    ADEVPrimBernoulli,
-)
-from genjax._src.generative_functions.distributions.adev_registry import ADEVPrimNormal
-from genjax._src.generative_functions.distributions.adev_registry import ADEVPrimPoisson
+from genjax._src.adev import ADEVPrimBernoulli
+from genjax._src.adev import ADEVPrimitive
+from genjax._src.adev import ADEVPrimNormal
+from genjax._src.adev import ADEVPrimPoisson
+from genjax._src.adev import ADEVProgram
+from genjax._src.adev import ADEVTerm
+from genjax._src.adev import GradStratEnum
+from genjax._src.adev import GradStratMVD
+from genjax._src.adev import GradStratREINFORCE
+from genjax._src.adev import lang
+from genjax._src.adev import sample
+from genjax._src.adev import strat
 
 
 poisson = ADEVPrimPoisson()

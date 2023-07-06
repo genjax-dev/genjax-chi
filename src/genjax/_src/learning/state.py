@@ -17,11 +17,12 @@ exposing primitives which allow users to sow functions with state."""
 import dataclasses
 import functools
 
+import jax.tree_util as jtu
+
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.pytree import PytreeClosure
-from genjax._src.core.pytree import closure_convert
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import String
 
@@ -39,7 +40,7 @@ param = functools.partial(harvest.sow, tag=NAMESPACE, mode="clobber")
 @dataclasses.dataclass
 class Module(Pytree):
     params: Dict[String, Any]
-    apply: PytreeClosure
+    apply: Callable
 
     def flatten(self):
         return (self.params, self.apply), ()
@@ -55,8 +56,8 @@ class Module(Pytree):
         def wrapped(*args):
             _, params = collect(apply)(*args)
             params = harvest.unreap(params)
-            pytree_closure = closure_convert(apply)
-            return Module(params, inject(pytree_closure))
+            jax_partial = jtu.Partial(apply)
+            return Module(params, inject(jax_partial))
 
         return wrapped
 
