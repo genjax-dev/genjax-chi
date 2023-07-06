@@ -86,6 +86,7 @@ class SwitchChoiceMap(ChoiceMap):
             filter(lambda v: not isinstance(v, EmptyChoiceMap), submaps)
         )
         indexer = index_map[self.index]
+
         def chooser(*trees):
             shapediff = len(trees[0].shape) - len(indexer.shape)
             reshaped = indexer.reshape(indexer.shape + (1,) * shapediff)
