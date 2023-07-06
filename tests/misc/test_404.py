@@ -17,30 +17,31 @@ import jax.tree_util as jtu
 import jax.numpy as jnp
 import functools
 from dataclasses import dataclass
+import numpy as np
+import pytest
 
 import genjax
 from genjax.typing import Callable, Any
 
-def emits_cc_gen_fn(v):
-    @genjax.gen
-    @genjax.dynamic_closure(v)
-    def model(v):
-        x = genjax.normal(jnp.sum(v), 1.0) @ "x"
-        return x
-
-    return model
-
+_global = jnp.arange(3)
 
 @genjax.gen
-def model():
-    x = jnp.ones(5)
-    gen_fn = emits_cc_gen_fn(x)
-    v = gen_fn() @ "x"
-    return (v, gen_fn)
+def localization_kernel(x):
+    y = genjax.normal(jnp.sum(_global), 1.0) @ "x"
+    return x + y
 
+def wrap(fn):
+    @genjax.gen
+    def inner(carry, *static_args):
+        idx, state = carry
+        newstate = fn.inline(state, *static_args)
+        return idx + 1, newstate
+    
+    return inner
 
-class TestClosureConvert:
-    def test_closure_convert(self):
+class TestIssue404:
+    def test_issue_404(self):
         key = jax.random.PRNGKey(314159)
-        key, _ = jax.jit(genjax.simulate(model))(key, ())
+        localization_chain = genjax.Unfold(wrap(localization_kernel), max_length = 3)
+        _, trace = genjax.simulate(localization_chain)(key, (2, (0, 0.0)))
         assert True

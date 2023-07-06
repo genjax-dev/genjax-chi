@@ -35,7 +35,9 @@ from genjax._src.core.datatypes.tracetypes import RealInterval
 from genjax._src.core.datatypes.tracetypes import Reals
 from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.datatypes.tree import Tree
+from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import dynamic_closure
 
 
 __all__ = [
@@ -66,6 +68,8 @@ __all__ = [
     "Bottom",
     # Pytree meta.
     "Pytree",
+    "DynamicClosure",
+    "dynamic_closure",
     "Tree",
     "Leaf",
 ]

@@ -33,9 +33,7 @@ import numpy as np
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
-from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import is_concrete
-from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
@@ -294,59 +292,31 @@ class Pytree(metaclass=abc.ABCMeta):
 
 
 #####
-# Pytree closure
+# Dynamic closure
 #####
 
-# TODO: investigate if `inspect` can provide better APIs
-# for the functionality implemented in this class.
+
 @dataclass
-class PytreeClosure(Pytree, gpp.CustomPretty):
-    callable: Callable
-    static: Any
-    dynamic: Any
+class DynamicClosure(Pytree):
+    fn: Callable
+    dyn_args: Tuple
 
     def flatten(self):
-        return (self.dynamic,), (self.callable, self.static)
+        return (self.dyn_args,), (self.fn,)
 
     @classmethod
-    def new(cls, callable):
-        if callable.__closure__ is None:
-            return PytreeClosure(callable, None, None)
+    def new(cls, callable, *dyn_args):
+        if isinstance(callable, DynamicClosure):
+            return DynamicClosure(callable.fn, (*callable.dyn_args, *dyn_args))
         else:
-            captured = []
-            for cell in callable.__closure__:
-                captured.append(cell.cell_contents)
-                cell.cell_contents = None
-            static = jtu.tree_map(lambda v: v if is_concrete(v) else None, captured)
-            dynamic = jtu.tree_map(lambda v: None if is_concrete(v) else v, captured)
-            return PytreeClosure(callable, static, dynamic)
+            return DynamicClosure(callable, dyn_args)
 
     def __call__(self, *args):
-        if self.callable.__closure__ is None:
-            return self.callable(*args)
-        else:
-            environment = jtu.tree_map(
-                lambda v1, v2: v1 if v1 is not None else v2,
-                self.static,
-                self.dynamic,
-                is_leaf=lambda v: v is None,
-            )
-            for (cell, v) in zip(self.callable.__closure__, environment):
-                cell.cell_contents = v
-            ret = self.callable(*args)
-            for cell in self.callable.__closure__:
-                cell.cell_contents = None
-            return ret
-
-    def __hash__(self):
-        avals = list(map(get_shaped_aval, self.environment))
-        return hash((self.callable, *avals))
-
-    def pformat_tree(self, **kwargs):
-        return f"[b]PytreeClosure[/b]({self.callable})"
+        return self.fn(*self.dyn_args, *args)
 
 
-closure_convert = PytreeClosure.new
+def dynamic_closure(*args):
+    return lambda fn: DynamicClosure.new(fn, *args)
 
 
 #####
