@@ -85,12 +85,14 @@ class SwitchChoiceMap(ChoiceMap):
         non_empty_submaps = list(
             filter(lambda v: not isinstance(v, EmptyChoiceMap), submaps)
         )
+        indexer = index_map[self.index]
+        def chooser(*trees):
+            shapediff = len(trees[0].shape) - len(indexer.shape)
+            reshaped = indexer.reshape(indexer.shape + (1,) * shapediff)
+            return jnp.choose(reshaped, trees, mode="wrap")
+
         return jtu.tree_map(
-            lambda *v: jnp.choose(
-                index_map[self.index],
-                v,
-                mode="wrap",
-            ),
+            chooser,
             *non_empty_submaps,
         )
 
