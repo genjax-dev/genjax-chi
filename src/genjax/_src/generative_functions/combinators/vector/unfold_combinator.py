@@ -383,7 +383,12 @@ class UnfoldCombinator(GenerativeFunction):
         ) = jax.lax.scan(_inner, (0, key, state), (prev, chm), length=self.max_length)
 
         unfold_tr = VectorTrace(
-            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
+            self,
+            indices,
+            tr,
+            args,
+            tree_diff_primal(retdiff),
+            jnp.sum(score),
         )
 
         w = jnp.sum(w)
