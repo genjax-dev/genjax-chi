@@ -31,6 +31,7 @@ from jax import linear_util as lu
 from jax import util as jax_util
 
 from genjax._src.core.interpreters import staging
+from genjax._src.core.interpreters import is_concrete
 from genjax._src.core.interpreters.context import Context
 from genjax._src.core.interpreters.context import ContextualTrace
 from genjax._src.core.interpreters.context import Fwd
@@ -177,6 +178,11 @@ class StaticIntChange(ChangeTangent):
     def flatten(self):
         return (), (self.dv,)
 
+    @classmethod
+    def new(cls, dv):
+        assert is_concrete(dv)
+        return StaticIntChange(dv)
+
     def should_flatten(self):
         return True
 
@@ -212,6 +218,9 @@ class Diff(Pytree):
         if not isinstance(trace, DiffTrace):
             return self.primal
         return DiffTracer(trace, self.primal, self.tangent)
+
+    def unpack(self):
+        return self.primal, self.tangent
 
     @typecheck
     @classmethod
