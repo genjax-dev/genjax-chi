@@ -296,7 +296,7 @@ def jvp(f, ctx: Context):
     def wrapped(*diffs, **kwargs):
         with jc.new_main(DiffTrace) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
-            primals = jax_util.safe_map(lambda d: d.get_primal(), diffs)
+            primals = jax_util.safe_map(lambda d: tree_diff_primal(d), diffs)
             _, primal_tree = jtu.tree_flatten(primals)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
             flat_fun = _jvp(flat_fun, main, ctx)
