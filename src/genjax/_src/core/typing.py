@@ -97,5 +97,6 @@ __all__ = [
     "Type",
     "static_check_is_array",
     "static_check_supports_grad",
+    "typecheck",
     "dispatch",
 ]
