@@ -95,14 +95,16 @@ class VectorTrace(Trace):
         elif isinstance(selection, IndexSelection) or isinstance(
             selection, ComplementIndexSelection
         ):
-            # TODO: fill in.
-            assert False
+            inner_project = self.inner.project(selection.inner)
+            return jnp.sum(
+                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+            )
         elif isinstance(selection, AllSelection):
             return self.score
         elif isinstance(selection, NoneSelection):
             return 0.0
         else:
-            selection = IndexSelection.convert(selection)
+            selection = VectorSelection.new(selection)
             return self.project(selection)
 
 
@@ -301,6 +303,18 @@ class IndexSelection(Selection):
             self.inner,
         ), ()
 
+    def has_subtree(self, addr):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    def get_subtree(self, addr):
+        raise NotImplementedError
+
+    def get_subtrees_shallow(self):
+        raise NotImplementedError
+
     def filter(self, tree):
         filtered = self.inner.filter(tree)
         flags = jnp.logical_and(
@@ -323,6 +337,12 @@ class ComplementIndexSelection(Selection):
 
     def flatten(self):
         return (self.index_selection,), ()
+
+    def get_subtree(self, addr):
+        raise NotImplementedError
+
+    def get_subtrees_shallow(self):
+        raise NotImplementedError
 
     def filter(self, tree):
         filtered = self.inner.filter(tree)
