@@ -37,6 +37,7 @@ from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import NoChange
 from genjax._src.core.transforms.incremental import UnknownChange
 from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -206,6 +207,7 @@ class Distribution(GenerativeFunction):
         **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
         assert isinstance(constraints, Leaf)
+        static_check_tree_leaves_diff(argdiffs)
         maybe_discard = mask(False, prev.get_choices())
 
         # Incremental optimization - if nothing has changed,
