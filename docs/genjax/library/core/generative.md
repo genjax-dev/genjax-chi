@@ -16,9 +16,10 @@ Below, we document the abstract base class, and illustrate example usage using c
     options:
       members: 
         - simulate
+        - propose
         - importance
-        - update
         - assess
+        - update
 
 ## Traces
 
