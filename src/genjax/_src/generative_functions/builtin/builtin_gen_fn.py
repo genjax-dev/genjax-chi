@@ -171,7 +171,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         argdiffs: Tuple,
         **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
-        assert all(map(static_check_is_diff, argdiffs))
         (
             key,
             (
