@@ -384,12 +384,6 @@ class UnfoldCombinator(GenerativeFunction):
         state: Any,
         *static_args: Any,
     ):
-        if length_tangent.dv > 0:
-            retval = prev.get_retval()
-
-            def _importance(key, chm, state):
-                return self.kernel.importance(key, chm, state)
-
         raise NotImplementedError
 
     @dispatch
