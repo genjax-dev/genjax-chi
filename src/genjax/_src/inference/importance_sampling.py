@@ -76,7 +76,7 @@ class ImportanceSampling(Pytree):
         observations: ChoiceMap,
         model_args: Tuple,
         proposal_args: Tuple,
-                            ):
+    ):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
@@ -165,12 +165,14 @@ class SamplingImportanceResampling(Pytree):
         tr = jax.tree_util.tree_map(lambda v: v[ind], trs)
         lnw = log_normalized_weights[ind]
         return key, (tr, lnw, log_ml_estimate)
-    def _proposal_importance_resampling(self,
+
+    def _proposal_importance_resampling(
+        self,
         key: PRNGKey,
         observations: ChoiceMap,
-        model_args: Tuple, 
-        proposal_args: Tuple
-                            ):
+        model_args: Tuple,
+        proposal_args: Tuple,
+    ):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
