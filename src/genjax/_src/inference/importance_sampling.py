@@ -166,6 +166,41 @@ class SamplingImportanceResampling(Pytree):
         lnw = log_normalized_weights[ind]
         return key, (tr, lnw, log_ml_estimate)
 
+    def _proposal_importance_resampling(
+        self,
+        key: PRNGKey,
+        observations: ChoiceMap,
+        model_args: Tuple,
+        proposal_args: Tuple,
+    ):
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
+        _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
+            sub_keys,
+            observations,
+            proposal_args,
+        )
+        observations = jax.tree_util.map(
+            lambda v: jnp.repeats(v, self.num_particles), observations
+        )
+        chm = p_trs.get_choices().merge(observations)
+        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
+        sub_keys = jnp.array(sub_keys)
+        _, (lws, m_trs) = jax.vmap(self.model.importance, in_axes=(0, 0, None))(
+            sub_keys,
+            chm,
+            model_args,
+        )
+        lws = lws - p_trs.get_score()
+        log_total_weight = jax.scipy.special.logsumexp(lws)
+        log_normalized_weights = lws - log_total_weight
+        log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
+        key, sub_key = jax.random.split(key)
+        ind = jax.random.categorical(sub_key, log_normalized_weights)
+        tr = jax.tree_util.tree_map(lambda v: v[ind], p_trs)
+        lnw = log_normalized_weights[ind]
+        return key, (tr, lnw, log_ml_estimate)
+
     def apply(self, key: PRNGKey, choice_map: ChoiceMap, *args):
         # Importance resampling with custom proposal branch.
         if len(args) == 2:
