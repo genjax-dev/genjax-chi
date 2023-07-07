@@ -397,7 +397,7 @@ class UnfoldCombinator(GenerativeFunction):
         argdiffs: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, VectorTrace, ChoiceMap]]:
-        length = argdiffs[0].get_val()
+        length = jtu.tree_leaves(argdiffs[0])
 
         # Unwrap the previous trace at this address
         # we should get a `VectorChoiceMap`.
