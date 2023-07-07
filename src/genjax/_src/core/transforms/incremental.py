@@ -266,7 +266,7 @@ def tree_diff_get_tracers(v, trace):
 @lu.transformation
 def _jvp(main: jc.MainTrace, ctx: Context, diffs: Iterable[Diff]):
     trace = DiffTrace(main, jc.cur_sublevel())
-    in_tracers = tree_diff_get_tracers(diffs, trace)
+    in_tracers = jtu.tree_leaves(tree_diff_get_tracers(diffs, trace))
     with staging.new_dynamic_context(main, ctx):
         # Give ctx main so that we can new up
         # tracers at the correct level when required.
