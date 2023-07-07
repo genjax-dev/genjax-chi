@@ -70,9 +70,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_select,
 )
-from genjax._src.generative_functions.combinators.vector.vector_utilities import (
-    static_check_broadcast_dim_length,
-)
 
 
 __all__ = [
@@ -90,5 +87,4 @@ __all__ = [
     "index_choice_map",
     "IndexSelection",
     "index_select",
-    "static_check_broadcast_dim_length",
 ]

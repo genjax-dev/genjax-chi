@@ -52,9 +52,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
 )
-from genjax._src.generative_functions.combinators.vector.vector_utilities import (
-    static_check_broadcast_dim_length,
-)
 from genjax._src.utilities import slash
 
 
@@ -130,9 +127,34 @@ class MapCombinator(GenerativeFunction):
             assert repeats is not None
         return MapCombinator(in_axes, repeats, kernel)
 
+    def _static_check_broadcastable(self, args):
+        # Argument broadcast semantics must be fully specified
+        # in `in_axes` or via `self.repeats`.
+        assert self.repeats or (len(args) == len(self.in_axes))
+
+    def _static_broadcast_dim_length(self, args):
+        def find_axis_size(axis, x):
+            if axis is not None:
+                leaves = jax.tree_util.tree_leaves(x)
+                if leaves:
+                    return leaves[0].shape[axis]
+            return ()
+
+        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
+        axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
+        if self.repeats is None and len(axis_sizes) == 1:
+            (d_axis_size,) = axis_sizes
+        elif len(axis_sizes) > 1:
+            raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
+        elif self.repeats is None:
+            raise ValueError("repeats should be specified manually.")
+        else:
+            d_axis_size = self.repeats
+        return d_axis_size
+
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         kernel_tt = self.kernel.get_trace_type(*args)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
@@ -140,10 +162,8 @@ class MapCombinator(GenerativeFunction):
     def simulate(
         self, key: PRNGKey, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, VectorTrace]:
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(args) == len(self.in_axes)
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(
             sub_keys, args
@@ -172,7 +192,8 @@ class MapCombinator(GenerativeFunction):
         def _switch(key, flag, chm, args):
             return concrete_cond(flag, _importance, _simulate, key, chm, args)
 
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
 
         if chm.masks is None:
@@ -200,7 +221,8 @@ class MapCombinator(GenerativeFunction):
         args: Tuple,
         **_,
     ):
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
         flag_array = (index_array[:, None] == chm.indices).sum(axis=-1)
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -269,9 +291,9 @@ class MapCombinator(GenerativeFunction):
             masked = mask(check, chm.inner)
             return _update(key, prev, masked, argdiffs)
 
-        # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
@@ -305,9 +327,9 @@ class MapCombinator(GenerativeFunction):
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
@@ -343,10 +365,8 @@ class MapCombinator(GenerativeFunction):
     def assess(
         self, key: PRNGKey, chm: VectorChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(args) == len(self.in_axes)
-        broadcast_dim_length = static_check_broadcast_dim_length(self.in_axes, args)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.count_nonzero(indices - chm.get_index()) == 0
 
