@@ -31,10 +31,10 @@ from jax import linear_util as lu
 from jax import util as jax_util
 
 from genjax._src.core.interpreters import staging
-from genjax._src.core.interpreters import is_concrete
 from genjax._src.core.interpreters.context import Context
 from genjax._src.core.interpreters.context import ContextualTrace
 from genjax._src.core.interpreters.context import Fwd
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
