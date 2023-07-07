@@ -190,10 +190,14 @@ class Diff(Pytree):
     @classmethod
     def new(cls, primal, tangent):
         assert not isinstance(primal, Diff)
+        static_check_is_change_tangent(tangent)
         return Diff(primal, tangent)
 
     def get_primal(self):
         return self.primal
+
+    def get_tangent(self):
+        return self.tangent
 
     def get_tracers(self, trace):
         # If we're not in a `DiffTrace` context -
@@ -248,6 +252,16 @@ def tree_diff_primal(v):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
+def tree_diff_tangent(v):
+    def _inner(v):
+        if static_check_is_diff(v):
+            return v.get_tangent()
+        else:
+            return v
+
+    return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
+
+
 def tree_diff_get_tracers(v, trace):
     def _inner(v):
         if static_check_is_diff(v):
@@ -256,6 +270,20 @@ def tree_diff_get_tracers(v, trace):
             return v
 
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
+
+
+def static_check_tree_leaves_diff(v):
+    def _inner(v):
+        if static_check_is_diff(v):
+            return True
+        else:
+            return False
+
+    return all(
+        jtu.tree_leaves(
+            jtu.tree_map(_inner, v, is_leaf=static_check_is_diff),
+        )
+    )
 
 
 #################################
