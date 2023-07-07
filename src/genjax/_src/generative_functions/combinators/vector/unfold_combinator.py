@@ -345,6 +345,7 @@ class UnfoldCombinator(GenerativeFunction):
         state = argdiffs[1]
         static_args = argdiffs[2:]
         args = tree_diff_primal(argdiffs)
+        length = args[0]
 
         def _inner(carry, slice):
             count, key, state = carry
