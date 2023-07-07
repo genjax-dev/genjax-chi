@@ -12,8 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.transforms import harvest
-from genjax._src.core.transforms import incremental
+from genjax._src.core.transforms.incremental import Diff
+from genjax._src.core.transforms.incremental import NoChange
+from genjax._src.core.transforms.incremental import UnknownChange
+from genjax._src.core.transforms.incremental import diff
+from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 
 
-__all__ = ["harvest", "incremental"]
+__all__ = [
+    "diff",
+    "Diff",
+    "NoChange",
+    "UnknownChange",
+    "static_check_tree_leaves_diff",
+]
