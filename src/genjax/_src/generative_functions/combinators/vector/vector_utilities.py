@@ -17,22 +17,6 @@ import jax.tree_util as jtu
 from genjax._src.core.typing import static_check_is_array
 
 
-def static_check_broadcast_dim_length(in_axes, args):
-    def find_axis_size(axis, x):
-        if axis is not None:
-            leaves = jtu.tree_leaves(x)
-            if leaves:
-                return leaves[0].shape[axis]
-        return ()
-
-    axis_sizes = jtu.tree_map(find_axis_size, in_axes, args)
-    axis_sizes = set(jtu.tree_leaves(axis_sizes))
-    if len(axis_sizes) != 1:
-        raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
-    (d_axis_size,) = axis_sizes
-    return d_axis_size
-
-
 def static_check_leaf_length(tree):
     def _inner(v):
         if static_check_is_array(v):
