@@ -21,7 +21,6 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
