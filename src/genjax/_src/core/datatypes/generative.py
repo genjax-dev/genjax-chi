@@ -460,6 +460,62 @@ class GenerativeFunction(Pytree):
             ```
         """
 
+    def propose(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Tuple[PRNGKey, Trace]:
+        """> Given a `PRNGKey` and arguments, execute the generative function,
+        returning a new `PRNGKey` and a tuple containing the return value from the generative function call, the score of the choice map assignment, and the choice map.
+
+        The default implementation just calls `simulate`, and then extracts the data from the `Trace` returned by `simulate`. Custom generative functions can overload the implementation for their own uses (e.g. if they don't have an associated `Trace` datatype, but can be uses as a proposal).
+
+        Arguments:
+            key: A `PRNGKey`.
+            args: Arguments to the generative function.
+
+        Returns:
+            key: A new (deterministically evolved) `PRNGKey`.
+            tup: A tuple `(retval, w, chm)` where `retval` is the return value from the generative function invocation, `w` is the log joint density (or an importance weight estimate, in the case where there is untraced randomness), and `chm` is the choice map assignment from the invocation.
+
+        Examples:
+
+            Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, (r, w, chm) = genjax.normal.propose(key, (0.0, 1.0))
+            print(console.render(chm))
+            ```
+
+            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                y = genjax.normal(x, 1.0) @ "y"
+                return y
+
+            key = jax.random.PRNGKey(314159)
+            key, (r, w, chm) = model.propose(key, ())
+            print(console.render(chm))
+            ```
+        """
+        key, tr = self.simulate(key, args)
+        chm = tr.get_choices()
+        score = tr.get_score()
+        retval = tr.get_retval()
+        return key, (retval, score, chm)
+
     @abc.abstractmethod
     def importance(
         self,
