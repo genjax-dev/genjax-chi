@@ -486,9 +486,9 @@ class ADEVProgram(ADEVTerm):
 
 @dispatch
 def adev_convert(gen_fn: GenerativeFunction):
-    """
-    Overload for custom generative functions to support a conversion
-    transformation to an ADEVProgram. Typically not invoked directly by a user, but is instead invoked by the `lang` decorator.
+    """Overload for custom generative functions to support a conversion
+    transformation to an ADEVProgram. Typically not invoked directly by a user,
+    but is instead invoked by the `lang` decorator.
 
     Should return a `Callable`, which gets wrapped in `ADEVProgram` by `lang`.
     """
