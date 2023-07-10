@@ -298,8 +298,9 @@ class UnfoldCombinator(GenerativeFunction):
                 return key, (0.0, tr)
 
             check = count == chm.get_index()
+            check_count = jnp.less(count, length + 1)
             key, (w, tr) = concrete_cond(
-                check,
+                jnp.logical_and(check, check_count),
                 _importance,
                 _simulate,
                 key,
@@ -307,9 +308,8 @@ class UnfoldCombinator(GenerativeFunction):
                 state,
             )
 
-            check = jnp.less(count, length + 1)
             index = concrete_cond(
-                check,
+                check_count,
                 lambda *args: count,
                 lambda *args: -1,
             )

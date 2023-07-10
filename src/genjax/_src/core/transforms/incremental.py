@@ -95,11 +95,11 @@ class DiffTrace(ContextualTrace):
         if not primitive.multiple_results:
             outvals = [outvals]
         out_tracers = jax_util.safe_map(self.full_raise, outvals)
-        if primitive.multiple_results:
-            return out_tracers
         if not check:
             for tracer in out_tracers:
                 tracer.tangent = UnknownChange
+        if primitive.multiple_results:
+            return out_tracers
         return out_tracers[0]
 
     def post_process_call(self, call_primitive, out_tracers, params):
