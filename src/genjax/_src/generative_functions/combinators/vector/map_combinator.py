@@ -37,9 +37,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -58,7 +56,7 @@ from genjax._src.utilities import slash
 
 
 @dataclass
-class MapCombinator(GenerativeFunction):
+class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
@@ -94,11 +92,6 @@ class MapCombinator(GenerativeFunction):
 
     def flatten(self):
         return (self.kernel,), (self.in_axes, self.repeats)
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
     @classmethod

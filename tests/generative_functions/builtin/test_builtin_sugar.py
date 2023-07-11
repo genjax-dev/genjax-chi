@@ -12,6 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datatypes import *
-from .hashabledict import *
-from .incremental import *
+import jax
+import pytest
+
+import genjax
+
+
+
+class TestBuiltinSugar:
+    def test_builtin_sugar(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, tr = simple_normal.simulate(key, ())
+
+        key = jax.random.PRNGKey(314159)
+        key, v = simple_normal(key, ())
+        assert tr.get_retval() == v

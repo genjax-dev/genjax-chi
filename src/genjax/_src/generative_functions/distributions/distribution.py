@@ -45,9 +45,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 
 
 #####
@@ -99,14 +97,9 @@ class DistributionTrace(Trace, Leaf):
 
 
 @dataclass
-class Distribution(GenerativeFunction):
+class Distribution(GenerativeFunction, SupportsBuiltinSugar):
     def flatten(self):
         return (), ()
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     # Syntactical overload to define `Product` of distributions.
     # C.f. below.
