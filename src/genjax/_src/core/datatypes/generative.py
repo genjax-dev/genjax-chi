@@ -46,7 +46,7 @@ from genjax._src.core.typing import PRNGKey
 class ChoiceMap(Tree):
     @abc.abstractmethod
     def get_selection(self):
-        pass
+        """Convert a `ChoiceMap` to a `Selection`."""
 
     def get_choices(self):
         return self
@@ -88,6 +88,14 @@ class ChoiceMap(Tree):
         else:
             return choice
 
+    def __setitem__(self, key, value):
+        raise Exception(
+            "ChoiceMap of type {type(self)} does not implement __setitem__."
+        )
+
+    def __add__(self, other):
+        return self.merge(other)
+
 
 #####
 # Trace
@@ -95,14 +103,66 @@ class ChoiceMap(Tree):
 
 
 @dataclasses.dataclass
-class Trace(ChoiceMap, Tree, Pickleable):
+class Trace(ChoiceMap, Tree):
+    """> Abstract base class for traces of generative functions.
+
+    A `Trace` is a data structure used to represent sampled executions
+    of generative functions.
+
+    Traces track metadata associated with log probabilities of choices,
+    as well as other data associated with the invocation of a generative
+    function, including the arguments it was invoked with, its return
+    value, and the identity of the generative function itself.
+    """
+
     @abc.abstractmethod
     def get_retval(self) -> Any:
-        pass
+        """Returns the return value from the generative function invocation
+        which created the `Trace`.
+
+        Examples:
+
+            Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            retval = tr.get_retval()
+            chm = tr.get_choices()
+            v = chm.get_leaf_value()
+            print(console.render((retval, v)))
+            ```
+        """
 
     @abc.abstractmethod
     def get_score(self) -> FloatArray:
-        pass
+        """Return the joint log score of the `Trace`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            score = tr.get_score()
+            x_score = bernoulli.logpdf(tr["x"], 0.3)
+            y_score = bernoulli.logpdf(tr["y"], 0.3)
+            print(console.render((score, x_score + y_score)))
+            ```
+        """
 
     @abc.abstractmethod
     def get_args(self) -> Tuple:
@@ -110,15 +170,74 @@ class Trace(ChoiceMap, Tree, Pickleable):
 
     @abc.abstractmethod
     def get_choices(self) -> ChoiceMap:
-        pass
+        """Return a `ChoiceMap` representation of the set of traced random
+        choices sampled during the execution of the generative function to
+        produce the `Trace`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            chm = tr.get_choices()
+            print(console.render(chm))
+            ```
+        """
 
     @abc.abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
-        pass
+        """Returns the generative function whose invocation created the
+        `Trace`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            gen_fn = tr.get_gen_fn()
+            print(console.render(gen_fn))
+            ```
+        """
 
     @abc.abstractmethod
     def project(self, selection: "Selection") -> FloatArray:
-        pass
+        """Given a `Selection`, return the total contribution to the joint log
+        score of the addresses contained within the `Selection`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            selection = genjax.select("x")
+            x_score = tr.project(selection)
+            x_score_t = genjax.bernoulli.logpdf(tr["x"], 0.3)
+            print(console.render((x_score_t, x_score)))
+            ```
+        """
 
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
@@ -136,13 +255,27 @@ class Trace(ChoiceMap, Tree, Pickleable):
         choices = self.get_choices()
         return choices.get_subtrees_shallow()
 
-    def merge(self, other) -> ChoiceMap:
-        return self.get_choices().merge(other.get_choices())
-
     def get_selection(self):
         return self.get_choices().get_selection()
 
     def strip(self):
+        """Remove all `Trace` metadata, and return a choice map.
+
+        `ChoiceMap` instances produced by `tr.get_choices()` will preserve `Trace` instances. `strip` recursively calls `get_choices` to remove `Trace` instances.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            chm = tr.strip()
+            print(console.render(chm))
+            ```
+        """
+
         def _check(v):
             return isinstance(v, Trace)
 
@@ -180,11 +313,57 @@ class Trace(ChoiceMap, Tree, Pickleable):
 class Selection(Tree):
     @abc.abstractmethod
     def filter(self, chm: ChoiceMap) -> ChoiceMap:
-        pass
+        """Filter the addresses in a choice map, returning a new choice map.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            chm = tr.strip()
+            selection = genjax.select("x")
+            filtered = selection.filter(chm)
+            print(console.render(filtered))
+            ```
+        """
 
     @abc.abstractmethod
     def complement(self) -> "Selection":
-        pass
+        """Return a `Selection` which filters addresses to the complement set
+        of the provided `Selection`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            chm = tr.strip()
+            selection = genjax.select("x")
+            complement = selection.complement()
+            filtered = complement.filter(chm)
+            print(console.render(filtered))
+            ```
+        """
 
     def get_selection(self):
         return self
@@ -201,21 +380,18 @@ class Selection(Tree):
 
 @dataclasses.dataclass
 class GenerativeFunction(Pytree):
-    """Abstract class which provides an inheritance base for user-defined
-    implementations of the generative function interface methods e.g. the
-    `BuiltinGenerativeFunction` and `Distribution` languages both implement a
-    class inheritor of `GenerativeFunction`.
+    """> Abstract base class for generative functions.
 
-    Any implementation will interact with the JAX tracing machinery,
-    however, so there are specific API requirements above the requirements
-    enforced in other languages (unlike Gen in Julia, for example).
+    !!! info "Interaction with JAX"
 
-    The user *must* match the interface signatures of the native JAX
-    implementation. This is not statically checked - but failure to do so
+        Concrete implementations of `GenerativeFunction` will likely interact with the JAX tracing machinery if used with the languages exposed by `genjax`. Hence, there are specific implementation requirements which are more stringent than the requirements
+        enforced in other Gen implementations (e.g. Gen in Julia).
+
+        * For broad compatibility, the implementation of the interfaces *should* be compatible with JAX tracing.
+        * If a user wishes to implement a generative function which is not compatible with JAX tracing, that generative function may invoke other JAX compat generative functions, but likely cannot be invoked inside of JAX compat generative functions.
+
+    Aside from JAX compatibility, an implementor *should* match the interface signatures documented below. This is not statically checked - but failure to do so
     will lead to unintended behavior or errors.
-
-    To support argument and choice gradients via JAX, the user must
-    provide a differentiable `importance` implementation.
     """
 
     # This is used to support tracing -- the user is not required to provide
@@ -237,7 +413,111 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[PRNGKey, Trace]:
-        pass
+        """> Given a `PRNGKey` and arguments, execute the generative function,
+        returning a new `PRNGKey` and a trace.
+
+        `simulate` can be informally thought of as forward sampling: given `key: PRNGKey` and arguments `args: Tuple`, the generative function should sample a choice map $c \sim p(\cdot; \\text{args})$, as well as any untraced randomness $r \sim p(\cdot; \\text{args}, c)$.
+
+        The implementation of `simulate` should then create a trace holding the choice map, as well as the score $\log \\frac{p(c; \\text{args})}{q(r; \\text{args}, c)}$.
+
+        Arguments:
+            key: A `PRNGKey`.
+            args: Arguments to the generative function.
+
+        Returns:
+            key: A new (deterministically evolved) `PRNGKey`.
+            tr: A trace capturing the data and inference data associated with the generative function invocation.
+
+        Examples:
+
+            Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            print(console.render(tr))
+            ```
+
+            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                y = genjax.normal(x, 1.0) @ "y"
+                return y
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = model.simulate(key, ())
+            print(console.render(tr))
+            ```
+        """
+
+    def propose(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Tuple[PRNGKey, Trace]:
+        """> Given a `PRNGKey` and arguments, execute the generative function,
+        returning a new `PRNGKey` and a tuple containing the return value from
+        the generative function call, the score of the choice map assignment,
+        and the choice map.
+
+        The default implementation just calls `simulate`, and then extracts the data from the `Trace` returned by `simulate`. Custom generative functions can overload the implementation for their own uses (e.g. if they don't have an associated `Trace` datatype, but can be uses as a proposal).
+
+        Arguments:
+            key: A `PRNGKey`.
+            args: Arguments to the generative function.
+
+        Returns:
+            key: A new (deterministically evolved) `PRNGKey`.
+            tup: A tuple `(retval, w, chm)` where `retval` is the return value from the generative function invocation, `w` is the log joint density (or an importance weight estimate, in the case where there is untraced randomness), and `chm` is the choice map assignment from the invocation.
+
+        Examples:
+
+            Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, (r, w, chm) = genjax.normal.propose(key, (0.0, 1.0))
+            print(console.render(chm))
+            ```
+
+            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                y = genjax.normal(x, 1.0) @ "y"
+                return y
+
+            key = jax.random.PRNGKey(314159)
+            key, (r, w, chm) = model.propose(key, ())
+            print(console.render(chm))
+            ```
+        """
+        key, tr = self.simulate(key, args)
+        chm = tr.get_choices()
+        score = tr.get_score()
+        retval = tr.get_retval()
+        return key, (retval, score, chm)
 
     @abc.abstractmethod
     def importance(
@@ -246,13 +526,26 @@ class GenerativeFunction(Pytree):
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, Trace]]:
-        pass
+        """> Given a `PRNGKey`, a choice map (constraints), and arguments,
+        execute the generative function, returning a new `PRNGKey`, a single-
+        sample importance weight estimate of the conditional density evaluated
+        at the non-constrained choices, and a trace whose choice map is
+        consistent with the constraints.
+
+        Arguments:
+            key: A `PRNGKey`.
+            args: Arguments to the generative function.
+
+        Returns:
+            key: A new (deterministically evolved) `PRNGKey`.
+            tup: A tuple `(w, tr)` where `w` is an importance weight estimate of the conditional density, and `tr` is a trace capturing the data and inference data associated with the generative function invocation.
+        """
 
     @abc.abstractmethod
     def update(
         self,
         key: PRNGKey,
-        original: Trace,
+        trace: Trace,
         new: ChoiceMap,
         diffs: Tuple,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
@@ -262,7 +555,7 @@ class GenerativeFunction(Pytree):
     def assess(
         self,
         key: PRNGKey,
-        evaluation_point: ChoiceMap,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         pass
@@ -296,33 +589,13 @@ class GenerativeFunction(Pytree):
     # but provides convenient access to first-order gradients.
     def choice_grad(self, key, trace, selection):
         fixed = selection.complement().filter(trace.strip())
-        evaluation_point = selection.filter(trace.strip())
+        chm = selection.filter(trace.strip())
         key, scorer, _ = self.unzip(key, fixed)
         grad, nograd = tree_grad_split(
-            (evaluation_point, trace.get_args()),
+            (chm, trace.get_args()),
         )
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return key, choice_gradient_tree
-
-    ###################
-    # ADEV and fusion #
-    ###################
-
-    def adev_simulate(self, key: PRNGKey, args: Tuple) -> Tuple[PRNGKey, Any]:
-        """An opt-in method which expresses forward sampling from the
-        generative function in terms of primitives which are compatible with
-        ADEV's language."""
-        raise NotImplementedError
-
-    def prepare_fuse(self, key: PRNGKey, args: Tuple):
-        """Convert a generative function to a canonical form with ADEV
-        primitives for proposal fusion."""
-        raise NotImplementedError
-
-    def fuse(self, _: "GenerativeFunction"):
-        """Fuse a generative function and a proposal to produce a probabilistic
-        computation that returns an ELBO estimate."""
-        raise NotImplementedError
 
 
 #####

@@ -26,10 +26,10 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.prox.prox_distribution import (
-    ProxDistribution,
+from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
+    GenSPDistribution,
 )
-from genjax._src.generative_functions.distributions.prox.target import Target
+from genjax._src.generative_functions.distributions.gensp.target import Target
 
 
 @dataclasses.dataclass
@@ -37,7 +37,7 @@ class EntropyEstimatorsViaInference(Pytree):
     n_lower_bound: Int
     n_upper_bound: Int
     model: GenerativeFunction
-    proposal: ProxDistribution
+    proposal: GenSPDistribution
     targets: Selection
 
     def flatten(self):
@@ -51,7 +51,7 @@ class EntropyEstimatorsViaInference(Pytree):
     def new(
         cls,
         model: GenerativeFunction,
-        proposal: ProxDistribution,
+        proposal: GenSPDistribution,
         targets: Selection,
         n_lower_bound: Int,
         n_upper_bound: Int,

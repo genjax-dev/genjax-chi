@@ -19,12 +19,9 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.trie import TrieChoiceMap
+from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.pytree import PytreeClosure
-from genjax._src.core.pytree import closure_convert
-from genjax._src.core.transforms import adev
-from genjax._src.core.transforms.incremental import static_check_is_diff
+from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -32,7 +29,9 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import _inline
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
@@ -40,11 +39,7 @@ from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
     trace_type_transform,
 )
-from genjax._src.generative_functions.builtin.builtin_transforms import (
-    adev_conversion_transform,
-)
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
-from genjax._src.generative_functions.builtin.builtin_transforms import fuse_transform
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     importance_transform,
 )
@@ -55,7 +50,7 @@ from genjax._src.generative_functions.builtin.builtin_transforms import update_t
 
 
 #####
-# Language syntactic sugar
+# Builtin language syntactic sugar
 #####
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
@@ -118,28 +113,39 @@ class DeferredGenerativeFunctionCall(Pytree):
             return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
 
+# This mixin overloads the call functionality for this generative function
+# and allows usage of shorthand notation in the builtin DSL.
+class SupportsBuiltinSugar:
+    @dispatch
+    def __call__(self, *args: Any, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
+
+    @dispatch
+    def __call__(self, key: PRNGKey, args: Tuple) -> Any:
+        key, tr = self.simulate(key, args)
+        retval = tr.get_retval()
+        return key, retval
+
+
 #####
 # Generative function
 #####
 
 
 @dataclass
-class BuiltinGenerativeFunction(GenerativeFunction):
-    source: PytreeClosure
+class BuiltinGenerativeFunction(GenerativeFunction, SupportsBuiltinSugar):
+    source: Callable
 
     def flatten(self):
-        return (self.source,), ()
+        if isinstance(self.source, DynamicClosure):
+            return (self.source,), ()
+        else:
+            return (), (self.source,)
 
     @typecheck
     @classmethod
     def new(cls, source: Callable):
-        converted = closure_convert(source)
-        return BuiltinGenerativeFunction(converted)
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
+        return BuiltinGenerativeFunction(source)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
@@ -175,7 +181,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
         argdiffs: Tuple,
         **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
-        assert all(map(static_check_is_diff, argdiffs))
+        assert static_check_tree_leaves_diff(argdiffs)
         (
             key,
             (
@@ -190,7 +196,7 @@ class BuiltinGenerativeFunction(GenerativeFunction):
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
-            TrieChoiceMap(discard),
+            BuiltinChoiceMap(discard),
         )
 
     @typecheck
@@ -199,30 +205,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         key, (retval, score) = assess_transform(self.source, **kwargs)(key, chm, args)
         return key, (retval, score)
-
-    ########
-    # ADEV #
-    ########
-
-    @typecheck
-    def adev_simulate(self, key: PRNGKey, args: Tuple, **kwargs):
-        key, v = adev_conversion_transform(self.source, **kwargs)(key, args)
-        return key, v
-
-    @typecheck
-    def fuse_canonicalize(self, key: PRNGKey, args: Tuple, **kwargs):
-        key, (retvals, choices) = fuse_transform(self.source, **kwargs)(key, args)
-        return key, (retvals, choices)
-
-    @typecheck
-    def fuse(self, proposal: "BuiltinGenerativeFunction") -> adev.ADEVProgram:
-        def wrapper(key, p_args, q_args):
-            key, (_, chm) = proposal.fuse_canonicalize(key, *q_args)
-            key, (_, qw) = proposal.assess(key, chm, q_args)
-            key, (_, pw) = self.assess(key, chm, p_args)
-            return key, pw - qw
-
-        return adev.ADEVProgram(wrapper)
 
     def inline(self, *args):
         return _inline(self, *args)

@@ -21,10 +21,8 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import all_select
-from genjax._src.core.datatypes.generative import emp_chm
 from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import none_select
-from genjax._src.core.datatypes.generative import val_chm
 from genjax._src.core.datatypes.generative import value_choice_map
 from genjax._src.core.datatypes.masks import BooleanMask
 from genjax._src.core.datatypes.masks import mask
@@ -35,13 +33,11 @@ from genjax._src.core.datatypes.tracetypes import Naturals
 from genjax._src.core.datatypes.tracetypes import PositiveReals
 from genjax._src.core.datatypes.tracetypes import RealInterval
 from genjax._src.core.datatypes.tracetypes import Reals
-from genjax._src.core.datatypes.trie import TrieChoiceMap
-from genjax._src.core.datatypes.trie import TrieSelection
-from genjax._src.core.datatypes.trie import chm
-from genjax._src.core.datatypes.trie import choice_map
-from genjax._src.core.datatypes.trie import sel
-from genjax._src.core.datatypes.trie import select
+from genjax._src.core.datatypes.tree import Leaf
+from genjax._src.core.datatypes.tree import Tree
+from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import dynamic_closure
 
 
 __all__ = [
@@ -49,10 +45,8 @@ __all__ = [
     "ChoiceMap",
     "EmptyChoiceMap",
     "empty_choice_map",
-    "emp_chm",
     "ValueChoiceMap",
     "value_choice_map",
-    "val_chm",
     "Trace",
     "Selection",
     "AllSelection",
@@ -60,12 +54,6 @@ __all__ = [
     "NoneSelection",
     "none_select",
     "GenerativeFunction",
-    "TrieChoiceMap",
-    "TrieSelection",
-    "choice_map",
-    "chm",
-    "select",
-    "sel",
     # Mask types.
     "BooleanMask",
     "mask",
@@ -80,4 +68,8 @@ __all__ = [
     "Bottom",
     # Pytree meta.
     "Pytree",
+    "DynamicClosure",
+    "dynamic_closure",
+    "Tree",
+    "Leaf",
 ]

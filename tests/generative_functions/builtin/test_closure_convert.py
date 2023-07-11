@@ -13,14 +13,18 @@
 # limitations under the License.
 
 import jax
+import jax.tree_util as jtu
 import jax.numpy as jnp
+import functools
+from dataclasses import dataclass
 
 import genjax
-
+from genjax.typing import Callable, Any
 
 def emits_cc_gen_fn(v):
     @genjax.gen
-    def model():
+    @genjax.dynamic_closure(v)
+    def model(v):
         x = genjax.normal(jnp.sum(v), 1.0) @ "x"
         return x
 
@@ -31,7 +35,7 @@ def emits_cc_gen_fn(v):
 def model():
     x = jnp.ones(5)
     gen_fn = emits_cc_gen_fn(x)
-    v = gen_fn.inline()
+    v = gen_fn() @ "x"
     return (v, gen_fn)
 
 

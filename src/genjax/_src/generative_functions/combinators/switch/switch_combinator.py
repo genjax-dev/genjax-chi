@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module implements a generative function combinator which allows
 branching control flow for combinations of generative functions which can
 return different shaped choice maps.
@@ -46,11 +45,9 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
-    TaggedChoiceMap,
+    SwitchChoiceMap,
 )
 from genjax._src.generative_functions.combinators.switch.switch_tracetypes import (
     SumTraceType,
@@ -65,7 +62,7 @@ from genjax._src.generative_functions.combinators.switch.switch_tracetypes impor
 @dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    chm: TaggedChoiceMap
+    chm: SwitchChoiceMap
     args: Tuple
     retval: Any
     score: FloatArray
@@ -111,42 +108,41 @@ class SwitchTrace(Trace):
 
 
 @dataclass
-class SwitchCombinator(GenerativeFunction):
-    """`SwitchCombinator` accepts a set of generative functions as input
-    configuration and implements `GenerativeFunction` interface semantics that
-    support branching control flow patterns, including control flow patterns
-    which branch on other stochastic choices.
+class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
+    """> `SwitchCombinator` accepts multiple generative functions as input and
+    implements `GenerativeFunction` interface semantics that support branching
+    control flow patterns, including control flow patterns which branch on
+    other stochastic choices.
 
-    This combinator provides a "sum" `Trace` type which allows the internal generative functions to have different choice maps.
+    !!! info "Existence uncertainty"
 
-    This pattern allows `GenJAX` to express existence
-    uncertainty over random choices -- as different generative
-    function branches need not share addresses.
+        This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
-    Example
-    -------
+    Examples:
 
-    .. jupyter-execute::
-
+        ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
         console = genjax.pretty()
 
         @genjax.gen
         def branch_1():
-            x = genjax.trace("x1", genjax.Normal)(0.0, 1.0)
+            x = genjax.normal(0.0, 1.0) @ "x1"
 
         @genjax.gen
         def branch_2():
-            x = genjax.trace("x2", genjax.Bernoulli)(0.3)
+            x = genjax.bernoulli(0.3) @ "x2"
 
-        switch = genjax.SwitchCombinator([branch_1, branch_2])
+        # Creating a `SwitchCombinator` via the preferred `new` class method.
+        switch = genjax.SwitchCombinator.new(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(genjax.simulate(switch))
         key, _ = jitted(key, (0, ))
         key, tr = jitted(key, (1, ))
-        console.print(tr)
+
+        print(console.render(tr))
+        ```
     """
 
     branches: List[GenerativeFunction]
@@ -156,13 +152,17 @@ class SwitchCombinator(GenerativeFunction):
 
     @typecheck
     @classmethod
-    def new(cls, *args: GenerativeFunction):
-        return SwitchCombinator([*args])
+    def new(cls, *args: GenerativeFunction) -> "SwitchCombinator":
+        """The preferred constructor for `SwitchCombinator` generative function
+        instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
 
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
+        Arguments:
+            *args: Generative functions which will act as branch callees for the invocation of branching control flow.
+
+        Returns:
+            instance: A `SwitchCombinator` instance.
+        """
+        return SwitchCombinator([*args])
 
     def get_trace_type(self, *args):
         subtypes = []
@@ -185,7 +185,7 @@ class SwitchCombinator(GenerativeFunction):
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
-        choice_map = TaggedChoiceMap(branch_index, choices)
+        choice_map = SwitchChoiceMap(branch_index, choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
@@ -206,7 +206,7 @@ class SwitchCombinator(GenerativeFunction):
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
-        choice_map = TaggedChoiceMap(branch_index, choices)
+        choice_map = SwitchChoiceMap(branch_index, choices)
         score = tr.get_score()
         args = tr.get_args()
         retval = tr.get_retval()
@@ -247,7 +247,7 @@ class SwitchCombinator(GenerativeFunction):
         args = jtu.tree_map(tree_diff_primal, argdiffs, is_leaf=static_check_is_diff)
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
-        choice_map = TaggedChoiceMap(concrete_branch_index, choices)
+        choice_map = SwitchChoiceMap(concrete_branch_index, choices)
 
         # Merge the skeleton discard with the actual one.
         actual_discard = maybe_discard.merge(actual_discard)

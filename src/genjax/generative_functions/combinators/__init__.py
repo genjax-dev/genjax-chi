@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module holds a set of generative function implementations called
 generative function combinators.
 
@@ -47,8 +46,24 @@ from genjax._src.generative_functions.combinators.vector.unfold_combinator impor
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
     UnfoldCombinator,
 )
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import vec_chm
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import vec_sel
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexChoiceMap,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexSelection,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    VectorChoiceMap,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    VectorSelection,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    index_choice_map,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    index_select,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
 )
@@ -64,8 +79,12 @@ __all__ = [
     "Unfold",
     "SwitchCombinator",
     "Switch",
+    "VectorChoiceMap",
     "vector_choice_map",
-    "vec_chm",
+    "VectorSelection",
     "vector_select",
-    "vec_sel",
+    "IndexChoiceMap",
+    "index_choice_map",
+    "IndexSelection",
+    "index_select",
 ]

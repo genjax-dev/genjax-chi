@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains the `Distribution` abstract base class."""
 
 import abc
@@ -34,11 +33,11 @@ from genjax._src.core.datatypes.masks import BooleanMask
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
-from genjax._src.core.transforms import adev
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import NoChange
 from genjax._src.core.transforms.incremental import UnknownChange
 from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -46,9 +45,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 
 
 #####
@@ -100,14 +97,9 @@ class DistributionTrace(Trace, Leaf):
 
 
 @dataclass
-class Distribution(GenerativeFunction):
+class Distribution(GenerativeFunction, SupportsBuiltinSugar):
     def flatten(self):
         return (), ()
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     # Syntactical overload to define `Product` of distributions.
     # C.f. below.
@@ -208,13 +200,14 @@ class Distribution(GenerativeFunction):
         **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
         assert isinstance(constraints, Leaf)
+        static_check_tree_leaves_diff(argdiffs)
         maybe_discard = mask(False, prev.get_choices())
 
         # Incremental optimization - if nothing has changed,
         # just return the previous trace.
         if isinstance(constraints, EmptyChoiceMap) and static_check_no_change(argdiffs):
             v = prev.get_retval()
-            retval_diff = Diff(v, NoChange)
+            retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), v)
             return key, (retval_diff, 0.0, prev, maybe_discard)
 
         # Otherwise, we consider the cases.
@@ -278,7 +271,7 @@ class Distribution(GenerativeFunction):
             )
 
             discard = mask(active_chm, ValueChoiceMap(prev.get_leaf_value()))
-            retval_diff = Diff(v, UnknownChange)
+            retval_diff = jtu.tree_map(lambda v: Diff(v, UnknownChange), v)
 
         return key, (
             retval_diff,
@@ -295,26 +288,6 @@ class Distribution(GenerativeFunction):
         key, score = self.estimate_logpdf(key, v, *args)
         return key, (v, score)
 
-    ########
-    # ADEV #
-    ########
-
-    @typecheck
-    def prepare_fuse(self, key: PRNGKey, args: Tuple):
-        prob_prim = adev.ADEVPrimitive(self)
-        key, v = adev.sample(prob_prim, key, args)
-        return key, (v, ValueChoiceMap(v))
-
-    @typecheck
-    def fuse(self, proposal: "Distribution") -> adev.ADEVProgram:
-        def wrapper(key, p_args, q_args):
-            key, (v, _) = proposal.prepare_fuse(key, q_args)
-            key, qw = proposal.estimate_logpdf(key, v, *q_args)
-            key, pw = self.estimate_logpdf(key, v, *p_args)
-            return key, pw - qw
-
-        return adev.ADEVProgram(wrapper)
-
 
 #####
 # ExactDensity
@@ -323,13 +296,66 @@ class Distribution(GenerativeFunction):
 
 @dataclass
 class ExactDensity(Distribution):
+    """> Abstract base class which extends Distribution and assumes that the
+    implementor provides an exact logpdf method (compared to one which returns
+    _an estimate of the logpdf_).
+
+    All of the standard distributions inherit from `ExactDensity`, and
+    if you are looking to implement your own distribution, you should
+    likely use this class.
+
+    !!! info "`Distribution` implementors are `Pytree` implementors"
+
+    As `Distribution` extends `Pytree`, if you use this class, you must
+    implement `flatten` as part of your class declaration.
+    """
+
     @abc.abstractmethod
-    def sample(self, key, *args, **kwargs):
-        pass
+    def sample(self, key: PRNGKey, *args, **kwargs) -> Any:
+        """> Sample from the distribution, returning a value from the event
+        space.
+
+        Arguments:
+            key: A `PRNGKey`.
+            *args: The arguments to the distribution invocation.
+
+        Returns:
+            v: A value from the event space of the distribution.
+
+        !!! info "Implementations need not return a new `PRNGKey`"
+
+            Note that `sample` does not return a new evolved `PRNGKey`. This is for convenience - `ExactDensity` is used often, and the interface for `sample` is simple. `sample` is called by `random_weighted` in the generative function interface implementations, and always gets a fresh `PRNGKey` - `sample` as a callee need not return a new evolved key.
+
+        Examples:
+            `genjax.normal` is a distribution with an exact density, which supports the `sample` interface. Here's an example of invoking `sample`.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            v = genjax.normal.sample(key, 0.0, 1.0)
+            print(console.render(v))
+            ```
+
+            Note that you often do want or need to invoke `sample` directly - you'll likely want to use the generative function interface methods instead:
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            console = genjax.pretty()
+
+            key = jax.random.PRNGKey(314159)
+            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            print(console.render(tr))
+            ```
+        """
 
     @abc.abstractmethod
     def logpdf(self, v, *args, **kwargs):
-        pass
+        """> Given a value from the event space, compute the log probability of
+        that value under the distribution."""
 
     def random_weighted(self, key, *args, **kwargs):
         key, sub_key = jax.random.split(key)

@@ -15,7 +15,6 @@
 from dataclasses import dataclass
 
 import jax
-import objexplore
 import rich
 import rich.traceback as traceback
 from rich.console import Console
@@ -50,6 +49,17 @@ class GenJAXConsole:
             overflow="ellipsis",
         )
 
+    def render(self, obj):
+        console = Console(soft_wrap=True, record=True)
+        with console.capture() as _:
+            console.print(
+                obj,
+                soft_wrap=True,
+                overflow="ellipsis",
+            )
+        str_output = console.export_text()
+        return f"```raw\n{str_output}```"
+
     def inspect(self, obj, **kwargs):
         rich.inspect(obj, console=self.rich_console, **kwargs)
 
@@ -63,12 +73,6 @@ class GenJAXConsole:
             private=False,
             dunder=False,
         )
-
-    def explore(self, module):
-        if is_notebook():
-            raise Exception("Interactive explore only works in terminal.")
-        else:
-            objexplore.explore(module)
 
 
 def pretty(

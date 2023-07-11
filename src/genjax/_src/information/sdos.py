@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains an implementation of (Symmetric divergence over
 datasets) from Domke, 2021."""
 
@@ -29,10 +28,10 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.prox.prox_distribution import (
-    ProxDistribution,
+from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
+    GenSPDistribution,
 )
-from genjax._src.generative_functions.distributions.prox.target import Target
+from genjax._src.generative_functions.distributions.gensp.target import Target
 
 
 @dataclasses.dataclass
@@ -40,7 +39,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
     num_meta_p: Int
     num_meta_q: Int
     p: GenerativeFunction
-    q: ProxDistribution
+    q: GenSPDistribution
     inf_selection: Selection
 
     def flatten(self):
@@ -54,7 +53,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
     def new(
         cls,
         p: GenerativeFunction,
-        q: ProxDistribution,
+        q: GenSPDistribution,
         inf_selection: Selection,
         num_meta_p: Int,
         num_meta_q: Int,

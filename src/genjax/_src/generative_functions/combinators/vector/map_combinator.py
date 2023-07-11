@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module implements a generative function combinator which allows
 broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
@@ -28,7 +27,7 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.trie import TrieChoiceMap
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -38,9 +37,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -59,35 +56,13 @@ from genjax._src.utilities import slash
 
 
 @dataclass
-class MapCombinator(GenerativeFunction):
-    """`MapCombinator` accepts a single generative function as input and
-    provides `vmap`-based implementations of the generative function interface
-    methods. `MapCombinator` also accepts `in_axes` as an argument to specify
-    exactly which axes of the `(key, *args)` should be broadcasted over.
+class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
+    """> `MapCombinator` accepts a generative function as input and provides
+    `vmap`-based implementations of the generative function interface methods.
 
-    Parameters
-    ----------
+    Examples:
 
-    gen_fn: `GenerativeFunction`
-        A single `GenerativeFunction` instance.
-
-    in_args: `Tuple[Int, ...]`
-        A tuple specifying which `(key, *args)` to broadcast
-        over.
-
-    Returns
-    -------
-
-    `MapCombinator`
-        A single `MapCombinator` generative function which
-        implements `vmap` support for each generative function
-        interface method.
-
-    Example
-    -------
-
-    .. jupyter-execute::
-
+        ```python exec="yes" source="tabbed-left"
         import jax
         import jax.numpy as jnp
         import genjax
@@ -95,21 +70,20 @@ class MapCombinator(GenerativeFunction):
 
         @genjax.gen
         def add_normal_noise(x):
-            noise1 = genjax.trace("noise1", genjax.Normal)(
-                    0.0, 1.0
-            )
-            noise2 = genjax.trace("noise2", genjax.Normal)(
-                    0.0, 1.0
-            )
-            return (key, x + noise1 + noise2)
+            noise1 = genjax.normal(0.0, 1.0) @ "noise1"
+            noise2 = genjax.normal(0.0, 1.0) @ "noise2"
+            return x + noise1 + noise2
 
 
+        # Creating a `MapCombinator` via the preferred `new` class method.
         mapped = genjax.MapCombinator.new(add_normal_noise, in_axes=(0,))
 
-        arr = jnp.ones(100)
         key = jax.random.PRNGKey(314159)
+        arr = jnp.ones(100)
         key, tr = jax.jit(genjax.simulate(mapped))(key, (arr, ))
-        console.print(tr)
+
+        print(console.render(tr))
+        ```
     """
 
     in_axes: Tuple
@@ -119,11 +93,6 @@ class MapCombinator(GenerativeFunction):
     def flatten(self):
         return (self.kernel,), (self.in_axes, self.repeats)
 
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
-
     @typecheck
     @classmethod
     def new(
@@ -132,18 +101,41 @@ class MapCombinator(GenerativeFunction):
         in_axes: Union[None, Tuple] = None,
         repeats: Union[None, IntArray] = None,
     ) -> "MapCombinator":
+        """The preferred constructor for `MapCombinator` generative function
+        instances. The shorthand symbol is `Map = MapCombinator.new`.
+
+        Arguments:
+            kernel: A single `GenerativeFunction` instance.
+            in_axes: A tuple specifying which `args` to broadcast over.
+            repeats: An integer specifying the length of repetitions (ignored if `in_axes` is specified, if `in_axes` is not specified - required).
+
+        Returns:
+            instance: A `MapCombinator` instance.
+        """
         assert isinstance(kernel, GenerativeFunction)
         if in_axes is None or all(map(lambda v: v is None, in_axes)):
             assert repeats is not None
         return MapCombinator(in_axes, repeats, kernel)
 
     def _static_broadcast_dim_length(self, args):
-        if self.repeats is not None:
-            return self.repeats
+        def find_axis_size(axis, x):
+            if axis is not None:
+                leaves = jax.tree_util.tree_leaves(x)
+                if leaves:
+                    return leaves[0].shape[axis]
+            return ()
+
+        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
+        axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
+        if self.repeats is None and len(axis_sizes) == 1:
+            (d_axis_size,) = axis_sizes
+        elif len(axis_sizes) > 1:
+            raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
+        elif self.repeats is None:
+            raise ValueError("repeats should be specified manually.")
         else:
-            for (in_axis_flag, arg) in zip(self.in_axes, args):
-                if in_axis_flag == 0:
-                    return len(arg)
+            d_axis_size = self.repeats
+        return d_axis_size
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
@@ -184,21 +176,7 @@ class MapCombinator(GenerativeFunction):
         assert len(fixed_len) == 1
         return ret, fixed_len.pop()
 
-    # This pads the leaves of a choice map up to
-    # `key_len` -- so that we can vmap
-    # over the leading axes of the leaves.
-    def _padder(self, v, key_len):
-        ndim = len(v.shape)
-        pad_axes = list(
-            (0, key_len - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
-        )
-        return (
-            np.pad(v, pad_axes) if isinstance(v, np.ndarray) else jnp.pad(v, pad_axes)
-        )
-
-    def _static_check_trie_index_compatible(
-        self, chm: TrieChoiceMap, broadcast_dim_length: Int
-    ):
+    def _static_check_trie_index_compatible(self, chm: Trie, broadcast_dim_length: Int):
         for (k, _) in chm.get_subtrees_shallow():
             assert isinstance(k, int)
             # TODO: pull outside loop, just check the last address.
@@ -228,13 +206,13 @@ class MapCombinator(GenerativeFunction):
         map_tr = VectorTrace(self, indices, tr, args, retval, scores)
         return key, (w, map_tr)
 
-    # Implements a conversion from `TrieChoiceMap`.
+    # Implements a conversion from `Trie`.
     def _importance_tchm(self, key, chm, args):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         self._static_check_trie_index_compatible(chm, broadcast_dim_length)
 
-        # Okay, so the TrieChoiceMap has an address hierarchy which is compatible with the index structure of the MapCombinator choices.
-        # Let's coerce TrieChoiceMap into VectorChoiceMap and then just call `_importance_vcm`.
+        # Okay, so the Trie has an address hierarchy which is compatible with the index structure of the MapCombinator choices.
+        # Let's coerce Trie into VectorChoiceMap and then just call `_importance_vcm`.
         vector_chm = self._coerce_to_vector_chm(chm)
         return self._importance_vcm(key, vector_chm, args)
 
@@ -247,7 +225,7 @@ class MapCombinator(GenerativeFunction):
     def importance(
         self,
         key: PRNGKey,
-        chm: Union[EmptyChoiceMap, TrieChoiceMap, VectorChoiceMap],
+        chm: Union[EmptyChoiceMap, Trie, VectorChoiceMap],
         args: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
@@ -257,7 +235,7 @@ class MapCombinator(GenerativeFunction):
         # Note: these branches are resolved at tracing time.
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
-        elif isinstance(chm, TrieChoiceMap):
+        elif isinstance(chm, Trie):
             return self._importance_tchm(key, chm, args)
         else:
             assert isinstance(chm, EmptyChoiceMap)

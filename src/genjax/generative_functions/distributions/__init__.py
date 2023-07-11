@@ -12,12 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    DiscreteHMM,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    DiscreteHMMConfiguration,
-)
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.scipy.bernoulli import bernoulli
@@ -73,6 +67,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_logit_normal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_mixture,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_moyal,
@@ -150,6 +147,7 @@ __all__ = [
     "tfp_weibull",
     "tfp_zipf",
     "TFPMixture",
+    "tfp_mixture",
     "Distribution",
     "ExactDensity",
     "beta",
@@ -157,8 +155,6 @@ __all__ = [
     "cauchy",
     "categorical",
     "dirichlet",
-    "DiscreteHMM",
-    "DiscreteHMMConfiguration",
     "exponential",
     "gamma",
     "laplace",

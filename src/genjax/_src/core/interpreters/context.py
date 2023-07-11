@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains a transformation infrastructure based on interpreters
 with stateful contexts and custom primitive handling lookups."""
 
@@ -23,7 +22,6 @@ from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
-from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax import util as jax_util
@@ -53,7 +51,7 @@ class ContextualTracer(jc.Tracer):
 
     @property
     def aval(self):
-        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+        return jc.raise_to_shaped(jc.get_aval(self.val))
 
     def full_lower(self):
         return self
@@ -138,9 +136,11 @@ class ContextualTrace(jc.Trace):
 
     post_process_map = post_process_call
 
-    def process_custom_jvp_call(self, primitive, fun, jvp, tracers):
+    def process_custom_jvp_call(self, primitive, fun, jvp, tracers, *, symbolic_zeros):
         context = staging.get_dynamic_context(self)
-        return context.process_custom_jvp_call(self, primitive, fun, jvp, tracers)
+        return context.process_custom_jvp_call(
+            self, primitive, fun, jvp, tracers, symbolic_zeros=symbolic_zeros
+        )
 
     def post_process_custom_jvp_call(self, out_tracers, jvp_was_run):
         context = staging.get_dynamic_context(self)
@@ -195,8 +195,12 @@ class Context(Pytree):
     ):
         raise NotImplementedError
 
-    def process_custom_jvp_call(self, trace, primitive, fun, jvp, tracers):
-        raise NotImplementedError
+    # TODO: got this impl from the partial evaluation interpreter,
+    # is it correct?
+    def process_custom_jvp_call(
+        self, trace, primitive, fun, jvp, tracers, *, symbolic_zeros
+    ):
+        return fun.call_wrapped(*tracers)
 
     def post_process_custom_jvp_call(self, trace, out_tracers, jvp_was_run):
         raise NotImplementedError

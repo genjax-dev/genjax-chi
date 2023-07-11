@@ -2,57 +2,192 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://probcomp.github.io/genjax/index.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/codeofconduct.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/contributing.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/homepage.html</loc>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/license.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/diff_jl.html</loc>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/genjax/language_aperitifs.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/genjax/notebooks.html</loc>
-         <lastmod>2023-03-08</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://probcomp.github.io/genjax/genjax/concepts/diff_jl.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://probcomp.github.io/genjax/genjax/concepts/generative_functions.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://probcomp.github.io/genjax/genjax/library/core.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <loc>https://probcomp.github.io/genjax/genjax/library/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <loc>https://probcomp.github.io/genjax/genjax/library/core/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://probcomp.github.io/genjax/genjax/library/inference.html</loc>
-         <lastmod>2023-03-08</lastmod>
+         <loc>https://probcomp.github.io/genjax/genjax/library/core/datatypes.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/core/generative.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/core/interpreters.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/core/transforms.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/diff_prog/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/diff_prog/adev.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/diff_prog/state.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/extensions/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/extensions/blackjax.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/extensions/tinygp.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/builtin.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/combinators/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/combinators/map.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/combinators/switch.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/combinators/unfold.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/coryx.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/gensp.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/scipy.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/tfd.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/generative_functions/distributions/custom/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/inference/index.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/inference/is.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/inference/mcmc.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/inference/smc.html</loc>
+         <lastmod>2023-07-07</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://probcomp.github.io/genjax/genjax/library/inference/vi.html</loc>
+         <lastmod>2023-07-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>

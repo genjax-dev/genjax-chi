@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module implements a generative function combinator which allows
 statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
@@ -23,7 +22,6 @@ import jax
 import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
@@ -40,9 +38,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -60,57 +56,36 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 
 @dataclass
-class UnfoldCombinator(GenerativeFunction):
-    """`UnfoldCombinator` accepts a single kernel generative function as input
-    and a static unroll length which specifies how many iterations to run the
-    chain for.
+class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
+    """> `UnfoldCombinator` accepts a kernel generative function, as well as a
+    static maximum unroll length, and provides a scan-like pattern of
+    generative computation.
 
-    A kernel generative function is one which accepts and returns
-    the same signature of arguments. Under the hood, `UnfoldCombinator`
-    is implemented using `jax.lax.scan` - which has the same
-    requirements.
+    !!! info "Kernel generative functions"
+        A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `UnfoldCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
 
-    Parameters
-    ----------
+    Examples:
 
-    gen_fn: `GenerativeFunction`
-        A single *kernel* `GenerativeFunction` instance.
-
-    length: `Int`
-        An integer specifying the unroll length of the chain of applications.
-
-    Returns
-    -------
-    `UnfoldCombinator`
-        A single `UnfoldCombinator` generative function which
-        implements the generative function interface using a scan-like
-        pattern. This generative function will perform a dependent-for
-        iteration (passing the return value of generative function application)
-        to the next iteration for `length` number of steps.
-        The programmer must provide an initial value to start the chain of
-        iterations off.
-
-    Example
-    -------
-
-    .. jupyter-execute::
-
+        ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
         console = genjax.pretty()
 
-
+        # A kernel generative function.
         @genjax.gen
         def random_walk(prev):
-            x = genjax.trace("x", genjax.Normal)(prev, 1.0)
+            x = genjax.normal(prev, 1.0) @ "x"
             return x
 
+        # Creating a `SwitchCombinator` via the preferred `new` class method.
+        unfold = genjax.UnfoldCombinator.new(random_walk, 1000)
 
-        unfold = genjax.Unfold(random_walk, 1000)
         init = 0.5
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(unfold))(key, (999, init))
-        console.print(tr)
+
+        print(console.render(tr))
+        ```
     """
 
     max_length: IntArray
@@ -121,13 +96,18 @@ class UnfoldCombinator(GenerativeFunction):
 
     @typecheck
     @classmethod
-    def new(cls, kernel: GenerativeFunction, max_length: Int):
-        return UnfoldCombinator(max_length, kernel)
+    def new(cls, kernel: GenerativeFunction, max_length: Int) -> "UnfoldCombinator":
+        """The preferred constructor for `UnfoldCombinator` generative function
+        instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.
 
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
+        Arguments:
+            kernel: A kernel `GenerativeFunction` instance.
+            max_length: A static maximum possible unroll length.
+
+        Returns:
+            instance: An `UnfoldCombinator` instance.
+        """
+        return UnfoldCombinator(max_length, kernel)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
@@ -224,18 +204,6 @@ class UnfoldCombinator(GenerativeFunction):
         assert len(fixed_len) == 1
         return ret, fixed_len.pop()
 
-    # This pads the leaves of a choice map up to
-    # `self.max_length` -- so that we can scan
-    # over the leading axes of the leaves.
-    def _static_padder(self, v):
-        ndim = len(v.shape)
-        pad_axes = list(
-            (0, self.max_length - len(v)) if k == 0 else (0, 0) for k in range(0, ndim)
-        )
-        return (
-            np.pad(v, pad_axes) if isinstance(v, np.ndarray) else jnp.pad(v, pad_axes)
-        )
-
     def _importance_indexed(self, key, chm, args):
         length = args[0]
         state = args[1]
@@ -298,8 +266,9 @@ class UnfoldCombinator(GenerativeFunction):
                 return key, (0.0, tr)
 
             check = count == chm.get_index()
+            check_count = jnp.less(count, length + 1)
             key, (w, tr) = concrete_cond(
-                check,
+                jnp.logical_and(check, check_count),
                 _importance,
                 _simulate,
                 key,
@@ -307,9 +276,8 @@ class UnfoldCombinator(GenerativeFunction):
                 state,
             )
 
-            check = jnp.less(count, length + 1)
             index = concrete_cond(
-                check,
+                check_count,
                 lambda *args: count,
                 lambda *args: -1,
             )
@@ -337,76 +305,9 @@ class UnfoldCombinator(GenerativeFunction):
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    def _importance_fallback(self, key, chm, args):
-        length = args[0]
-        state = args[1]
-        static_args = args[2:]
-
-        # Check incoming choice map, and coerce to `VectorChoiceMap`
-        # before passing into scan calls.
-        chm, fixed_len = self._static_bounds_check(chm)
-        chm = jtu.tree_map(
-            self._static_padder,
-            chm,
-        )
-        if not isinstance(chm, VectorChoiceMap):
-            indices = np.array(
-                [ind if ind < fixed_len else -1 for ind in range(0, self.max_length)]
-            )
-            chm = VectorChoiceMap(
-                indices,
-                chm,
-            )
-
-        def _inner(carry, slice):
-            count, key, state = carry
-            chm = slice
-
-            def _importance(key, chm, state):
-                return self.kernel.importance(key, chm, (state, *static_args))
-
-            def _simulate(key, chm, state):
-                key, tr = self.kernel.simulate(key, (state, *static_args))
-                return key, (0.0, tr)
-
-            check = count == chm.get_index()
-            key, (w, tr) = concrete_cond(
-                check,
-                _importance,
-                _simulate,
-                key,
-                chm,
-                state,
-            )
-
-            check = jnp.less(count, length + 1)
-            index = concrete_cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
-            count, state, score, weight = concrete_cond(
-                check,
-                lambda *args: (
-                    count + 1,
-                    tr.get_retval(),
-                    tr.get_score(),
-                    w,
-                ),
-                lambda *args: (count, state, 0.0, 0.0),
-            )
-            return (count, key, state), (w, score, tr, index, state)
-
-        (count, key, state), (w, score, tr, indices, retval) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            chm,
-            length=self.max_length,
-        )
-
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
-
-        w = jnp.sum(w)
+    def _importance_empty(self, key, _, args):
+        key, unfold_tr = self.simulate(key, args)
+        w = 0.0
         return key, (w, unfold_tr)
 
     @typecheck
@@ -428,7 +329,8 @@ class UnfoldCombinator(GenerativeFunction):
         if isinstance(chm, VectorChoiceMap):
             return self._importance_vcm(key, chm, args)
         else:
-            return self._importance_fallback(key, chm, args)
+            assert isinstance(chm, EmptyChoiceMap)
+            return self._importance_empty(key, chm, args)
 
     # The choice map is a vector choice map.
     def _update_vcm(self, key, prev, chm, argdiffs):
@@ -436,6 +338,7 @@ class UnfoldCombinator(GenerativeFunction):
         state = argdiffs[1]
         static_args = argdiffs[2:]
         args = tree_diff_primal(argdiffs)
+        length = args[0]
 
         def _inner(carry, slice):
             count, key, state = carry
@@ -473,66 +376,12 @@ class UnfoldCombinator(GenerativeFunction):
         ) = jax.lax.scan(_inner, (0, key, state), (prev, chm), length=self.max_length)
 
         unfold_tr = VectorTrace(
-            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
-        )
-
-        w = jnp.sum(w)
-        return key, (retdiff, w, unfold_tr, discard)
-
-    # The choice map doesn't carry optimization info.
-    def _update_fallback(self, key, prev, chm, argdiffs):
-        length = argdiffs[0]
-        state = argdiffs[1]
-        static_args = argdiffs[2:]
-        args = tuple(map(lambda v: v.get_val(), argdiffs))
-
-        # Check incoming choice map, and coerce to `VectorChoiceMap`
-        # before passing into scan calls.
-        self._static_bounds_check(chm)
-        chm = jtu.tree_map(
-            self._static_padder,
-            chm,
-        )
-        chm = VectorChoiceMap(
-            np.array([ind for ind in range(0, self.max_length)]),
-            chm,
-        )
-
-        # The actual semantics of update are carried out by a scan
-        # call.
-
-        def _inner(carry, slice):
-            count, key, state = carry
-            (prev, chm) = slice
-
-            def _update(key, prev, chm, state):
-                return self.kernel.update(key, prev, chm, (state, *static_args))
-
-            def _fallthrough(key, prev, chm, state):
-                return self.kernel.update(
-                    key, prev, EmptyChoiceMap(), (state, *static_args)
-                )
-
-            check = count == chm.get_index()
-            key, (retdiff, w, tr, discard) = concrete_cond(
-                check, _update, _fallthrough, key, prev, chm, state
-            )
-
-            check = jnp.less(count, length + 1)
-            index = concrete_cond(check, lambda *args: count, lambda *args: -1)
-            count, state, score, weight = concrete_cond(
-                check,
-                lambda *args: (count + 1, retdiff, tr.get_score(), w),
-                lambda *args: (count, state, 0.0, 0.0),
-            )
-            return (count, key, state), (state, score, w, tr, discard, index)
-
-        (_, key, _), (retdiff, score, w, tr, discard, indices) = jax.lax.scan(
-            _inner, (0, key, state), (prev, chm), length=self.max_length
-        )
-
-        unfold_tr = VectorTrace(
-            self, indices, tr, args, retdiff.get_val(), jnp.sum(score)
+            self,
+            indices,
+            tr,
+            args,
+            tree_diff_primal(retdiff),
+            jnp.sum(score),
         )
 
         w = jnp.sum(w)
@@ -547,7 +396,7 @@ class UnfoldCombinator(GenerativeFunction):
         argdiffs: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, VectorTrace, ChoiceMap]]:
-        length = argdiffs[0].get_val()
+        length = jtu.tree_leaves(argdiffs[0])[0]
 
         # Unwrap the previous trace at this address
         # we should get a `VectorChoiceMap`.
@@ -565,25 +414,21 @@ class UnfoldCombinator(GenerativeFunction):
             lambda *args: None,
         )
 
-        # Branches here implement certain optimizations when more
-        # information about the passed in choice map is available.
-        #
-        # The fallback just inflates a choice map to the right shape
-        # and runs a generic update.
         if isinstance(chm, VectorChoiceMap):
             return self._update_vcm(key, prev, chm, argdiffs)
         else:
             return self._update_empty(key, prev, chm, argdiffs)
 
-    def _throw_index_check_host_exception(self, index: IntArray):
-        def _inner(count, transforms):
+    def _throw_index_check_host_exception(self, count: IntArray, index: IntArray):
+        def _inner(pair, transforms):
+            (count, index) = pair
             raise Exception(
-                f"\nUnfoldCombinator {self} received a choice map with mismatched indices (at index {index}) in assess."
+                f"\nUnfoldCombinator {self} received a choice map with mismatched indices (count {count}, at index {index}) in assess."
             )
 
         hcb.id_tap(
             lambda *args: _inner(*args),
-            index,
+            (count, index),
             result=None,
         )
         return None
@@ -615,17 +460,18 @@ class UnfoldCombinator(GenerativeFunction):
 
             check = count == chm.get_index()
 
+            # TODO: the below doesn't work when `vmap` is used.
             # This inserts a host callback check for bounds checking.
             # If there is an index failure, `assess` must fail
             # because we must provide a constraint for every generative
             # function call.
-            concrete_cond(
-                check,
-                lambda *args: self._throw_index_check_host_exception(
-                    index,
-                ),
-                lambda *args: None,
-            )
+            # jax.lax.cond(
+            #    check,
+            #    lambda *args: None,
+            #    lambda *args: self._throw_index_check_host_exception(*args),
+            #    count,
+            #    chm.get_index(),
+            # )
 
             key, (retval, score) = self.kernel.assess(key, chm, (state, *static_args))
 

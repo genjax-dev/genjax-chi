@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains a set of types and type aliases which are used
 throughout the codebase.
 
@@ -28,6 +27,7 @@ import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf
 from beartype import beartype
+from plum import dispatch
 
 
 conf = BeartypeConf(is_color=False)
@@ -97,4 +97,6 @@ __all__ = [
     "Type",
     "static_check_is_array",
     "static_check_supports_grad",
+    "typecheck",
+    "dispatch",
 ]
