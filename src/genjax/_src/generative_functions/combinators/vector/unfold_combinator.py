@@ -38,9 +38,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -58,7 +56,7 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 
 @dataclass
-class UnfoldCombinator(GenerativeFunction):
+class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     """> `UnfoldCombinator` accepts a kernel generative function, as well as a
     static maximum unroll length, and provides a scan-like pattern of
     generative computation.
@@ -110,11 +108,6 @@ class UnfoldCombinator(GenerativeFunction):
             instance: An `UnfoldCombinator` instance.
         """
         return UnfoldCombinator(max_length, kernel)
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
