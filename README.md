@@ -11,18 +11,17 @@
 
 <div align="center">
 
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://probcomp.github.io/genjax/)
 [![][jax_badge]](https://github.com/google/jax)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+[![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
 
-|          **Build Status**          |
-| :--------------------------------: |
-| [![][build_action_badge]][actions] |
+| **Documentation** |          **Build Status**          |
+| :---------------: | :--------------------------------: |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][build_action_badge]][actions] |
 
 </div>
 
-[build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg
+[build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square
 [actions]: https://github.com/probcomp/genjax/actions
 
 <div align="center">
@@ -45,26 +44,83 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 ## Development environment
 
-This project uses [poetry](https://python-poetry.org/) for dependency management, [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building, and [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial documentation.
+This project uses:
 
-Make sure these are installed and on path with a Python environment `^3.10.0`. Running `nox` will evaluate the full test/linting/build/docs suite.
+- [poetry](https://python-poetry.org/) for dependency management
+- [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
+- [mkdocs](https://www.mkdocs.org/) to generate static documentation.
+- [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
-### Environment setup script
+### (Option 1): Development environment setup with `poetry`
 
-Here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute the notebooks, etc.
+#### Step 1: Setting up the environment with `poetry`
+
+[First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
+
+Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute tests, build and serve the documentation, etc. 
 
 ```bash
 conda create --name genjax-py311 python=3.11 --channel=conda-forge
 conda activate genjax-py311
-pip install poetry
 pip install nox
 pip install nox-poetry
 git clone https://github.com/probcomp/genjax
 cd genjax
-poetry lock
 poetry install
 poetry run jupyter-lab
 ```
+
+You can test your environment with:
+
+```bash
+nox -r
+```
+
+#### Step 2: Choose a `jaxlib`
+
+GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
+
+[For further information, see this discussion.](https://github.com/google/jax/discussions/16380)
+
+[You can likely install CUDA compatible versions by following environment setup above with a `pip` installation of the CUDA-enabled JAX.](https://github.com/google/jax#pip-installation-gpu-cuda-installed-via-pip-easier)
+
+### (Option 2): Self-managed development environment with `requirements.txt` 
+
+#### Using `requirements.txt`
+
+> **This is not the recommended way to develop on `genjax`**, but may be required if you want to avoid environment collisions with `genjax` installing specific versions of `jax` and `jaxlib`.
+
+`genjax` includes a `requirements.txt` file which is exported from the `pyproject.toml` dependency requirements -- but with `jax` and `jaxlib` removed.
+
+If you wish to setup a usable environment this way, you must ensure that you have `jax` and `jaxlib` installed in your environment, then:
+
+```bash
+pip install -r requirements.txt
+```
+
+This should install a working environment - subject to the conditions that your version of `jax` and `jaxlib` resolve with the versions of packages in the `requirements.txt`
+
+### Documentation environment setup
+
+If you want you deploy the documentation and Jupyter notebooks to static HTML, you'll need [quarto](https://quarto.org/docs/get-started/).
+
+In addition, you'll need `mkdocs`:
+
+```bash
+pip install mkdocs
+```
+
+GenJAX builds documentation using an insiders-only version of [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). GenJAX will attempt to fetch this repository during the documentation build step.
+
+With these dependencies installed (`mkdocs` into your active Python environment) and on path, you can fully build the documentation:
+
+```bash
+nox -r -s docs-build
+```
+
+This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory. 
+
+Pushing the resulting changes to the `main` branch will trigger a CI job to deploy to the GitHub Pages branch `gh-pages`, from which the documentation is hosted.
 
 ## References
 
@@ -73,15 +129,15 @@ Many bits of knowledge have gone into this project -- [you can find many of thes
 - [Marco Cusumano-Towner's thesis on Gen][marco_thesis]
 - [The main Gen.jl repository][gen_jl]
 - (Trace types) [(Lew et al) trace types][trace_types]
-- (Prox) [(Lew et al) recursive auxiliary-variable inference (RAVI)][ravi]
-- (GenProx) [Alex Lew's Gen.jl implementation of Prox][gen_prox]
+- (RAVI) [(Lew et al) Recursive auxiliary-variable inference][ravi]
+- (GenSP) [Alex Lew's Gen.jl implementation of GenSP][gen_sp]
 - (ADEV) [(Lew & Huot, et al) Automatic differentiation of expected values of probabilistic programs][adev]
 
 ### JAX influences
 
 This project has several JAX-based influences. Here's an abbreviated list:
 
-- [This notebook on static dispatch (author unknown)][effect_handling_interp]
+- [This notebook on static dispatch (Dan Piponi)][effect_handling_interp]
 - [Equinox (Patrick Kidger's work on neural networks via callable Pytrees)][equinox]
 - [Oryx (interpreters and interpreter design)][oryx]
 
@@ -100,7 +156,7 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 [trace_types]: https://dl.acm.org/doi/10.1145/3371087
 [adev]: https://arxiv.org/abs/2212.06386
 [ravi]: https://arxiv.org/abs/2203.02836
-[gen_prox]: https://github.com/probcomp/GenProx.jl
+[gen_sp]: https://github.com/probcomp/GenSP.jl
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox
 [oryx]: https://github.com/jax-ml/oryx

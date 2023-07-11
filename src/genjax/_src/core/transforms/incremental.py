@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module supports incremental computation using generalized tangents
 (e.g. `ChangeTangent` below).
 
@@ -27,7 +26,6 @@ import functools
 
 import jax.core as jc
 import jax.tree_util as jtu
-from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax import util as jax_util
@@ -63,7 +61,7 @@ class DiffTracer(jc.Tracer):
 
     @property
     def aval(self):
-        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+        return jc.raise_to_shaped(jc.get_aval(self.val))
 
     def full_lower(self):
         return self
@@ -96,11 +94,11 @@ class DiffTrace(ContextualTrace):
         if not primitive.multiple_results:
             outvals = [outvals]
         out_tracers = jax_util.safe_map(self.full_raise, outvals)
-        if primitive.multiple_results:
-            return out_tracers
         if not check:
             for tracer in out_tracers:
                 tracer.tangent = UnknownChange
+        if primitive.multiple_results:
+            return out_tracers
         return out_tracers[0]
 
     def post_process_call(self, call_primitive, out_tracers, params):
@@ -190,12 +188,16 @@ class Diff(Pytree):
         return (self.primal, self.tangent), ()
 
     @classmethod
-    def new(cls, primal):
+    def new(cls, primal, tangent):
         assert not isinstance(primal, Diff)
-        return Diff(primal, UnknownChange)
+        static_check_is_change_tangent(tangent)
+        return Diff(primal, tangent)
 
     def get_primal(self):
         return self.primal
+
+    def get_tangent(self):
+        return self.tangent
 
     def get_tracers(self, trace):
         # If we're not in a `DiffTrace` context -
@@ -218,6 +220,10 @@ class Diff(Pytree):
         """Create an instance of `type(tree)` with the same structure as tree,
         but with all values replaced with `change_tangent`"""
         return jtu.tree_map(lambda _: change_tangent, tree)
+
+    @classmethod
+    def no_change(cls, tree):
+        return jtu.tree_map(lambda v: Diff.new(v, NoChange), tree)
 
 
 def static_check_is_diff(v):
@@ -246,6 +252,16 @@ def tree_diff_primal(v):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
+def tree_diff_tangent(v):
+    def _inner(v):
+        if static_check_is_diff(v):
+            return v.get_tangent()
+        else:
+            return v
+
+    return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
+
+
 def tree_diff_get_tracers(v, trace):
     def _inner(v):
         if static_check_is_diff(v):
@@ -256,6 +272,20 @@ def tree_diff_get_tracers(v, trace):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
+def static_check_tree_leaves_diff(v):
+    def _inner(v):
+        if static_check_is_diff(v):
+            return True
+        else:
+            return False
+
+    return all(
+        jtu.tree_leaves(
+            jtu.tree_map(_inner, v, is_leaf=static_check_is_diff),
+        )
+    )
+
+
 #################################
 # Generalized tangent transform #
 #################################
@@ -264,7 +294,7 @@ def tree_diff_get_tracers(v, trace):
 @lu.transformation
 def _jvp(main: jc.MainTrace, ctx: Context, diffs: Iterable[Diff]):
     trace = DiffTrace(main, jc.cur_sublevel())
-    in_tracers = jtu.tree_leaves([d.get_tracers(trace) for d in diffs])
+    in_tracers = jtu.tree_leaves(tree_diff_get_tracers(diffs, trace))
     with staging.new_dynamic_context(main, ctx):
         # Give ctx main so that we can new up
         # tracers at the correct level when required.
@@ -294,7 +324,7 @@ def jvp(f, ctx: Context):
     def wrapped(*diffs, **kwargs):
         with jc.new_main(DiffTrace) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
-            primals = jax_util.safe_map(lambda d: d.get_primal(), diffs)
+            primals = jax_util.safe_map(lambda d: tree_diff_primal(d), diffs)
             _, primal_tree = jtu.tree_flatten(primals)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
             flat_fun = _jvp(flat_fun, main, ctx)

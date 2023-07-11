@@ -37,8 +37,8 @@ from typing import Union
 from jax import core as jax_core
 from jax import linear_util as lu
 from jax import tree_util as jtu
+from jax.experimental import pjit
 from jax.interpreters import partial_eval as pe
-from jax.interpreters import xla
 
 from genjax._src.core.interpreters.staging import extract_call_jaxpr
 from genjax._src.core.pytree import Pytree
@@ -510,7 +510,7 @@ def call_rule(prim, incells, outcells, **params):
 
 
 default_call_rules = {}
-default_call_rules[xla.xla_call_p] = functools.partial(call_rule, xla.xla_call_p)
+default_call_rules[pjit.pjit_p] = functools.partial(call_rule, pjit.pjit_p)
 default_call_rules[jax_core.call_p] = functools.partial(call_rule, jax_core.call_p)
 
 default_propagation_rules = PropagationRules(None, default_call_rules)

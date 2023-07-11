@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Core logic for the inverse transformation."""
 
 import functools
@@ -19,12 +18,11 @@ from typing import Iterable
 
 import jax
 import jax.numpy as np
-from jax import abstract_arrays
 from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
+from jax.experimental import pjit
 from jax.interpreters import pxla
-from jax.interpreters import xla
 
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters import propagate
@@ -142,7 +140,7 @@ class InverseAndILDJ(Cell):
     def new(cls, val):
         val = np.array(val)
         aval = jax_core.get_aval(val)
-        aval = abstract_arrays.raise_to_shaped(aval)
+        aval = jax_core.raise_to_shaped(aval)
         ndslice = NDSlice.new(val, np.zeros_like(val))
         return InverseAndILDJ(aval, frozenset([ndslice]))
 
@@ -338,7 +336,7 @@ def map_ildj(prim, incells, outcells, **params):
     f, incells = incells[0], incells[1:]
 
     def slice_aval(aval):
-        return abstract_arrays.ShapedArray(aval.shape[1:], aval.dtype, aval.weak_type)
+        return jax_core.ShapedArray(aval.shape[1:], aval.dtype, aval.weak_type)
 
     def add_slice(cell, old_cell):
         new_slices = [
@@ -386,9 +384,7 @@ def map_ildj(prim, incells, outcells, **params):
 
 
 ildj_registry_rules[pxla.xla_pmap_p] = functools.partial(map_ildj, pxla.xla_pmap_p)
-ildj_registry_rules[xla.xla_call_p] = functools.partial(
-    propagate.call_rule, xla.xla_call_p
-)
+ildj_registry_rules[pjit.pjit_p] = functools.partial(propagate.call_rule, pjit.pjit_p)
 ildj_registry_rules[jax_core.call_p] = functools.partial(
     propagate.call_rule, jax_core.call_p
 )

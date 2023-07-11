@@ -1,12 +1,14 @@
 # Language apéritifs
 
+> This page assumes that the reader has familiarity with trace-based probabilistic programming systems.
+
 The implementation of GenJAX adhers to commonly accepted JAX idioms (1) and modern functional programming patterns (2).
 { .annotate }
 
 1.  One example: _everything_ is a [Pytree](https://github.com/patrick-kidger/equinox). Implies another: everything is JAX traceable by default.
 2.  _Modern_ here meaning patterns concerning the composition of effectful computations via effect handling abstractions.
 
-GenJAX consists of a **set of languages** based around transforming pure functions to apply semantic transformations. In this page, we'll provide a taste of some of these languages.
+GenJAX consists of a **set of languages** based around transforming pure functions to apply semantic transformations. On this page, we'll provide a taste of some of these languages.
 
 ## The builtin language
 
@@ -64,7 +66,7 @@ This defines a `MapCombinator` generative function - a generative function whose
 ```python
 @functools.partial(genjax.Unfold, max_length = 10)
 @genjax.gen
-def kernel(prev, static_args):
+def scanner(prev, static_args):
   sigma, = static_args
   new = normal(prev, sigma) @ "z"
   return new
@@ -103,18 +105,3 @@ def top_model(p):
 ```
 
 Now we're describing a broadcastable generative function whose internal choices include a chain-like generative structure with dynamic truncation using padding. And we could go on!
-
-## Approximation of marginal densities
-
-GenJAX also features an implementation of a framework for pseudomarginalization and approximate normalization called `Prox`. `Prox` allows construction of _approximate distributions_, distributions whose sample and density interfaces are replaced with unbiased estimators.
-
-## Automatic differentiation of expected values
-
-JAX is a state-of-the-art framework for AD. Not to be outdone, GenJAX features a state-of-the-art framework for constructing unbiased gradient estimators for loss functions defined as expected values (1).
-{ .annotate }
-
-1.  [Lew & Huot et al, 2022, _ADEV: Sound Automatic Differentiation of Expected Values of Probabilistic Programs_](https://arxiv.org/pdf/2212.06386.pdf)
-
-$$
-L(\theta) = E_{v \sim P(\cdot \ ; \ \theta)}[f(v, \theta)]
-$$

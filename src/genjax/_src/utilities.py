@@ -15,12 +15,11 @@
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 
 
 # Convenient evolution to get multiple keys.
-def slash(key: PRNGKey, num_pieces: IntArray):
+def slash(key: PRNGKey, num_pieces):
     key, *sub_keys = jax.random.split(key, num_pieces + 1)
     sub_keys = jnp.array(sub_keys)
     return key, sub_keys

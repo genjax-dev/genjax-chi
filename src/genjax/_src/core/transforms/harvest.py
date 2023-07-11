@@ -18,7 +18,6 @@ import functools
 import jax.core as jc
 import jax.tree_util as jtu
 import jax.util as jax_util
-from jax import abstract_arrays
 from jax import api_util
 from jax import linear_util as lu
 from jax._src import effects
@@ -211,7 +210,7 @@ class HarvestTracer(context.ContextualTracer):
 
     @property
     def aval(self):
-        return abstract_arrays.raise_to_shaped(jc.get_aval(self.val))
+        return jc.raise_to_shaped(jc.get_aval(self.val))
 
     def full_lower(self):
         return self
@@ -386,6 +385,19 @@ class Reap(Pytree):
         return Reap(metadata, value)
 
 
+def unreap(v):
+    def _unwrap(v):
+        if isinstance(v, Reap):
+            return v.value
+        else:
+            return v
+
+    def _check(v):
+        return isinstance(v, Reap)
+
+    return jtu.tree_map(_unwrap, v, is_leaf=_check)
+
+
 @dataclasses.dataclass
 class ReapContext(HarvestContext):
     settings: HarvestSettings
@@ -405,16 +417,20 @@ class ReapContext(HarvestContext):
     def handle_sow(self, *values, name, tag, tree, mode):
         """Stores a sow in the reaps dictionary."""
         del tag
-        if name in self.reaps:
+        if name in self.reaps and mode == "clobber":
+            values, _ = jtu.tree_flatten(unreap(self.reaps[name]))
+        elif name in self.reaps:
             raise ValueError(f"Variable has already been reaped: {name}")
-        avals = jtu.tree_unflatten(
-            tree,
-            [abstract_arrays.raise_to_shaped(jc.get_aval(v)) for v in values],
-        )
-        self.reaps[name] = Reap.new(
-            jtu.tree_unflatten(tree, values),
-            dict(mode=mode, aval=avals),
-        )
+        else:
+            avals = jtu.tree_unflatten(
+                tree,
+                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
+            )
+            self.reaps[name] = Reap.new(
+                jtu.tree_unflatten(tree, values),
+                dict(mode=mode, aval=avals),
+            )
+
         return values
 
     def process_nest(self, trace, f, *tracers, scope, name, **params):
@@ -479,7 +495,7 @@ class PlantContext(HarvestContext):
 
     def handle_sow(self, *values, name, tag, tree, mode):
         """Returns the value stored in the plants dictionary."""
-        if name in self._already_planted:
+        if name in self._already_planted and mode != "clobber":
             raise ValueError(f"Variable has already been planted: {name}")
         if name in self.plants:
             self._already_planted.add(name)

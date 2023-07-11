@@ -27,7 +27,6 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.transforms import adev
 from genjax._src.core.transforms import incremental
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import DiffTrace
@@ -123,7 +122,9 @@ class InlineContext(context.Context):
     # Recursively inline - eliminate all `inline_p` primitive
     # bind calls.
     def process_inline(self, *args, **params):
-        in_tree = params["in_tree"]
+        in_tree = params.get("in_tree")
+        num_consts = params.get("num_consts")
+        args = args[num_consts:]
         gen_fn, *call_args = jtu.tree_unflatten(in_tree, args)
         retvals = inline_transform(gen_fn.source)(*call_args)
         return jtu.tree_leaves(retvals)
@@ -186,11 +187,13 @@ class SimulateContext(BuiltinInterfaceContext):
     def yield_state(self):
         return (self.key, self.choice_state, self.cache_state, self.score)
 
-    def handle_trace(self, _, *args, **params):
+    def handle_trace(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
+        num_consts = params.get("num_consts")
         self.trace_visitor.visit(addr)
-        gen_fn, *call_args = jtu.tree_unflatten(in_tree, args)
+        passed_in_tracers = tracers[num_consts:]
+        gen_fn, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         call_args = tuple(call_args)
         self.key, tr = gen_fn.simulate(self.key, call_args)
         score = tr.get_score()
@@ -254,9 +257,11 @@ class ImportanceContext(BuiltinInterfaceContext):
         )
 
     def handle_trace(self, _, *tracers, **params):
-        addr = params["addr"]
-        in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
+        addr = params.get("addr")
+        in_tree = params.get("in_tree")
+        num_consts = params.get("num_consts")
+        passed_in_tracers = tracers[num_consts:]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         sub_map = self.constraints.get_subtree(addr)
         args = tuple(args)
         self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
@@ -267,8 +272,8 @@ class ImportanceContext(BuiltinInterfaceContext):
         return jtu.tree_leaves(v)
 
     def handle_cache(self, _, *tracers, **params):
-        addr = params["addr"]
-        in_tree = params["in_tree"]
+        addr = params.get("addr")
+        in_tree = params.get("in_tree")
         fn, args = jtu.tree_unflatten(in_tree, *tracers)
         retval = fn(*args)
         self.cache_state[addr] = retval
@@ -350,9 +355,11 @@ class UpdateContext(BuiltinInterfaceContext):
         )
 
     def handle_trace(self, _, *tracers, **params):
-        addr = params["addr"]
-        in_tree = params["in_tree"]
-        gen_fn, *tracer_argdiffs = jtu.tree_unflatten(in_tree, tracers)
+        addr = params.get("addr")
+        in_tree = params.get("in_tree")
+        num_consts = params.get("num_consts")
+        passed_in_tracers = tracers[num_consts:]
+        gen_fn, *tracer_argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
         argdiffs = tuple(jax_util.safe_map(Diff.from_tracer, tracer_argdiffs))
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
@@ -371,8 +378,8 @@ class UpdateContext(BuiltinInterfaceContext):
 
     # TODO: fix -- add Diff/tracer return.
     def handle_cache(self, _, *tracers, **params):
-        addr = params["addr"]
-        in_tree = params["in_tree"]
+        addr = params.get("addr")
+        in_tree = params.get("in_tree")
         fn, args = jtu.tree_unflatten(in_tree, tracers)
         has_value = self.previous_trace.has_cached_value(addr)
 
@@ -447,9 +454,11 @@ class AssessContext(BuiltinInterfaceContext):
         return AssessContext(key, score, constraints)
 
     def handle_trace(self, _, *tracers, **params):
-        addr = params["addr"]
-        in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
+        addr = params.get("addr")
+        in_tree = params.get("in_tree")
+        num_consts = params.get("num_consts")
+        passed_in_tracers = tracers[num_consts:]
+        gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         args = tuple(args)
         submap = self.constraints.get_subtree(addr)
         self.key, (v, score) = gen_fn.assess(self.key, submap, args)
@@ -457,7 +466,7 @@ class AssessContext(BuiltinInterfaceContext):
         return jtu.tree_leaves(v)
 
     def handle_cache(self, _, *tracers, **params):
-        in_tree = params["in_tree"]
+        in_tree = params.get("in_tree")
         fn, *args = jtu.tree_unflatten(in_tree, tracers)
         retval = fn(*args)
         return jtu.tree_leaves(retval)
@@ -472,111 +481,5 @@ def assess_transform(source_fn, **kwargs):
         retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
         key, score = statefuls
         return key, (retvals, score)
-
-    return wrapper
-
-
-###################
-# ADEV and fusion #
-###################
-
-#####
-# Probabilistic computation transform
-#####
-
-
-@dataclasses.dataclass
-class ADEVConvertContext(BuiltinInterfaceContext):
-    key: PRNGKey
-
-    def flatten(self):
-        return (self.key,), ()
-
-    def yield_state(self):
-        return (self.key,)
-
-    @classmethod
-    def new(cls, key):
-        return ADEVConvertContext(
-            key,
-        )
-
-    def handle_trace(self, _, *tracers, **params):
-        in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
-        args = tuple(args)
-        adev_term = adev.lang(gen_fn)
-        self.key, v = adev.sample(adev_term, self.key, args)
-        return jtu.tree_leaves(v)
-
-    def handle_cache(self, _, *tracers, **params):
-        in_tree = params["in_tree"]
-        fn, args = jtu.tree_unflatten(in_tree, tracers)
-        retval = fn(*args)
-        return jtu.tree_leaves(retval)
-
-
-def adev_conversion_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
-    @functools.wraps(source_fn)
-    def wrapper(key, args):
-        ctx = ADEVConvertContext.new(key)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
-        (key,) = statefuls
-        return key, retvals
-
-    return wrapper
-
-
-#####
-# Fuse canonicalize transform
-#####
-
-
-@dataclasses.dataclass
-class FuseContext(BuiltinInterfaceContext):
-    key: PRNGKey
-    choice_state: Trie
-
-    def flatten(self):
-        return (
-            self.key,
-            self.choice_state,
-        ), ()
-
-    def yield_state(self):
-        return (self.key, self.choice_state)
-
-    @classmethod
-    def new(cls, key):
-        choice_state = Trie.new()
-        return FuseContext(key, choice_state)
-
-    def handle_trace(self, _, *tracers, **params):
-        addr = params["addr"]
-        in_tree = params["in_tree"]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, tracers)
-        args = tuple(args)
-        self.key, (v, chm) = gen_fn.prepare_fuse(self.key, *args)
-        self.choice_state[addr] = chm
-        return jtu.tree_leaves(v)
-
-    def handle_cache(self, _, *tracers, **params):
-        in_tree = params["in_tree"]
-        fn, args = jtu.tree_unflatten(in_tree, tracers)
-        retval = fn(*args)
-        return jtu.tree_leaves(retval)
-
-
-def fuse_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
-    @functools.wraps(source_fn)
-    def wrapper(key, args):
-        ctx = FuseContext.new(key)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
-        key, choices = statefuls
-        return key, (retvals, choices)
 
     return wrapper

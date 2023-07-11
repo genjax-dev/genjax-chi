@@ -26,12 +26,11 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.trie import TrieChoiceMap
-from genjax._src.core.datatypes.trie import TrieSelection
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 
@@ -82,9 +81,9 @@ class VectorTrace(Trace):
         return self.score
 
     def project(self, selection: Selection) -> FloatArray:
-        if isinstance(selection, TrieSelection):
-            return self.inner.project(selection)
-        elif isinstance(selection, AllSelection):
+        if isinstance(selection, VectorSelection):
+            return self.inner.project(selection.inner)[selection.indices]
+        if isinstance(selection, AllSelection):
             return self.score
         else:
             return 0.0
@@ -115,10 +114,11 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
+    def new(cls, indices, inner: ChoiceMap) -> ChoiceMap:
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
+
         # convert list to array.
         if isinstance(indices, list):
             # indices can't be empty.
@@ -133,7 +133,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def convert(cls, choice_map: TrieChoiceMap):
+    def convert(cls, choice_map: Trie):
         indices = []
         subtrees = []
         for (ind, subtree) in choice_map.get_subtrees_shallow():
@@ -147,7 +147,7 @@ class VectorChoiceMap(ChoiceMap):
 
     def get_selection(self):
         subselection = self.inner.get_selection()
-        return VectorSelection.new(self.indices, subselection)
+        return VectorSelection.new(subselection)
 
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
@@ -189,28 +189,23 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class VectorSelection(Selection):
-    indices: IntArray
+    indices: Any
     inner: Selection
 
     def flatten(self):
-        return (self.indices, self.inner), ()
+        return (self.inner,), (self.indices,)
 
-    @typecheck
     @classmethod
-    def new(cls, indices: Union[List, IntArray], inner: Selection):
-        if isinstance(indices, list):
-            indices = jnp.array(indices)
+    def new(cls, indices, inner):
         return VectorSelection(indices, inner)
 
     def filter(self, tree):
+        assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
         filtered = self.inner.filter(tree)
-        if isinstance(tree, VectorTrace) or isinstance(tree, VectorChoiceMap):
-            return jtu.tree_map(lambda v: v[self.indices], filtered)
-        else:
-            return filtered
+        return VectorChoiceMap(tree.indices, filtered)
 
     def complement(self):
-        raise Exception("VectorSelection doesn't currently support complement.")
+        return VectorSelection(self.inner.complement())
 
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
@@ -222,7 +217,106 @@ class VectorSelection(Selection):
         return self.inner.get_subtrees_shallow()
 
     def merge(self, other):
+        assert isinstance(other, VectorSelection)
         return self.inner.merge(other)
+
+
+#####
+# IndexChoiceMap
+#####
+
+
+@dataclass
+class IndexChoiceMap(ChoiceMap):
+    index: Int
+    inner: ChoiceMap
+
+    def flatten(self):
+        return (self.index, self.inner), ()
+
+    @typecheck
+    @classmethod
+    def new(cls, index, inner: ChoiceMap) -> ChoiceMap:
+        # if you try to wrap around an EmptyChoiceMap, do nothing.
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
+
+        return IndexChoiceMap(index, inner)
+
+    def get_selection(self):
+        subselection = self.inner.get_selection()
+        return IndexSelection.new(subselection)
+
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        return self.inner.get_subtree(addr)
+
+    def get_subtrees_shallow(self):
+        return self.inner.get_subtrees_shallow()
+
+    # TODO: This currently provides poor support for merging
+    # two vector choices maps with different index arrays.
+    def merge(self, other):
+        if isinstance(other, VectorChoiceMap):
+            return VectorChoiceMap(other.indices, self.inner.merge(other.inner))
+        else:
+            return VectorChoiceMap(self.indices, self.inner.merge(other))
+
+    def __hash__(self):
+        return hash(self.inner)
+
+    def get_index(self):
+        return self.indices
+
+    def _tree_console_overload(self):
+        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
+        subt = self.inner._build_rich_tree()
+        subk = Tree("[blue]indices")
+        subk.add(gpp.tree_pformat(self.indices))
+        tree.add(subk)
+        tree.add(subt)
+        return tree
+
+
+#####
+# IndexSelection
+#####
+
+
+@dataclass
+class IndexSelection(Selection):
+    index: Int
+    inner: Selection
+
+    def flatten(self):
+        return (
+            self.index,
+            self.inner,
+        ), ()
+
+    @classmethod
+    def new(cls, indices, inner):
+        pass
+
+    def filter(self, tree):
+        pass
+
+    def complement(self):
+        pass
+
+    def has_subtree(self, addr):
+        pass
+
+    def get_subtree(self, addr):
+        pass
+
+    def get_subtrees_shallow(self):
+        pass
+
+    def merge(self, other):
+        pass
 
 
 ##############
@@ -230,6 +324,6 @@ class VectorSelection(Selection):
 ##############
 
 vector_choice_map = VectorChoiceMap.new
-vec_chm = vector_choice_map
 vector_select = VectorSelection.new
-vec_sel = vector_select
+index_choice_map = IndexChoiceMap.new
+index_select = IndexSelection.new

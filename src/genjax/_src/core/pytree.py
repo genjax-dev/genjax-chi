@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """This module contains a utility class for defining new `jax.Pytree`
 implementors.
 
@@ -34,11 +33,10 @@ import numpy as np
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
-from genjax._src.core.interpreters.staging import get_shaped_aval
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Sequence
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import static_check_supports_grad
 
 
@@ -95,18 +93,6 @@ def tree_unstack(tree):
     return new_trees
 
 
-def tree_squeeze(tree):
-    def _inner(v):
-        if isinstance(v, np.ndarray):
-            return np.squeeze(v)
-        elif isinstance(v, jnp.ndarray):
-            return jnp.squeeze(v)
-        else:
-            return v
-
-    return jtu.tree_map(_inner, tree)
-
-
 def tree_grad_split(tree):
     def _grad_filter(v):
         if static_check_supports_grad(v):
@@ -145,6 +131,16 @@ def tree_zipper(grad, nograd):
 
 
 class Pytree(metaclass=abc.ABCMeta):
+    """> Abstract base class which registers a class with JAX's `Pytree`
+    system.
+
+    Users who mixin this ABC for class definitions are required to
+    implement `flatten` below. In turn, instances of the class gain
+    access to a large set of utility functions for working with `Pytree`
+    data, as well as the ability to use `jax.tree_util` Pytree
+    functionality.
+    """
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         jtu.register_pytree_node(
@@ -154,11 +150,103 @@ class Pytree(metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    def flatten(self):
-        pass
+    def flatten(self) -> Tuple[Tuple, Tuple]:
+        """`flatten` must be implemented when a user mixes `Pytree` into the
+        declaration of a new class or dataclass.
+
+        The implementation of `flatten` assumes the following contract:
+
+        * must return a 2-tuple of tuples.
+        * the first tuple is "dynamic" data - things that JAX tracers are allowed to population.
+        * the second tuple is "static" data - things which are known at JAX tracing time. Static data is also used by JAX for `Pytree` equality comparison.
+
+        For more information, consider [JAX's documentation on Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
+
+        Returns:
+
+            dynamic: Dynamic data which supports JAX tracer values.
+            static: Static data which is JAX trace time constant.
+
+        Examples:
+
+            Let's assume that you are implementing a new dataclass. Here's how you would define the dataclass using the `Pytree` mixin.
+
+            ```python
+            @dataclass
+            class MyFoo(Pytree):
+                static_field: Any
+                dynamic_field: Any
+
+                # Implementing `flatten`
+                def flatten(self):
+                    return (self.dynamic_field, ), (self.static_field, )
+            ```
+
+            !!! info "Ordering fields in `Pytree` declarations"
+
+                Note that the ordering in the dataclass declaration **does matter** - you should put static fields first. The automatically defined `unflatten` method (c.f. below) assumes this ordering.
+
+            Now, given the declaration, you can use `jax.tree_util` flattening/unflatten functionality.
+
+            ```python exec="yes" source="tabbed-left"
+            import genjax
+            import jax.tree_util as jtu
+            from genjax.core import Pytree
+            from dataclasses import dataclass
+            console = genjax.pretty()
+
+            @dataclass
+            class MyFoo(Pytree):
+                static_field: Any
+                dynamic_field: Any
+
+                # Implementing `flatten`
+                def flatten(self):
+                    return (self.dynamic_field, ), (self.static_field, )
+
+            f = MyFoo(0, 1.0)
+            leaves, form = jtu.tree_flatten(f)
+
+            print(console.render(leaves))
+            new = jtu.tree_unflatten(form, leaves)
+            print(console.render(new))
+            ```
+        """
 
     @classmethod
     def unflatten(cls, data, xs):
+        """Given an implementation of `flatten` (c.f. above), `unflatten` is
+        automatically defined and registered with JAX's `Pytree` system.
+
+        `unflatten` allows usage of `jtu.tree_unflatten` to create instances of a declared class that mixes `Pytree` from a `PyTreeDef` for that class and leaf data.
+
+        Examples:
+
+            Our example from `flatten` above also applies here - where we use `jtu.tree_unflatten` to create a new instance of `MyFoo` from a `PyTreeDef` and leaf data.
+
+            ```python exec="yes" source="tabbed-left"
+            import genjax
+            import jax.tree_util as jtu
+            from genjax.core import Pytree
+            from dataclasses import dataclass
+            console = genjax.pretty()
+
+            @dataclass
+            class MyFoo(Pytree):
+                static_field: Any
+                dynamic_field: Any
+
+                # Implementing `flatten`
+                def flatten(self):
+                    return (self.dynamic_field, ), (self.static_field, )
+
+            f = MyFoo(0, 1.0)
+            leaves, form = jtu.tree_flatten(f)
+
+            new = jtu.tree_unflatten(form, leaves)
+            print(console.render(new))
+            ```
+        """
         return cls(*data, *xs)
 
     @classmethod
@@ -168,17 +256,27 @@ class Pytree(metaclass=abc.ABCMeta):
     # This exposes slicing the struct-of-array representation,
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
-    def slice(self, index_or_range):
-        return jtu.tree_map(lambda v: v[index_or_range], self)
+    def slice(self, index_or_index_array):
+        """> Utility available to any class which mixes `Pytree` base. This
+        method supports indexing/slicing on indices when leaves are arrays.
+
+        `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
+
+        Arguments:
+
+            index_or_index_array: An `Int` index or an array of indices which will be used to index into the leaf arrays of the `Pytree` instance.
+
+        Returns:
+
+            new_instance: A `Pytree` instance of the same type, whose leaf values are the results of indexing into the leaf arrays with `index_or_index_array`.
+        """
+        return jtu.tree_map(lambda v: v[index_or_index_array], self)
 
     def stack(self, *trees):
         return tree_stack([self, *trees])
 
     def unstack(self):
         return tree_unstack(self)
-
-    def squeeze(self):
-        return tree_squeeze
 
     # Lift multiple trees into a sum type.
     def sum(self, *trees):
@@ -194,44 +292,31 @@ class Pytree(metaclass=abc.ABCMeta):
 
 
 #####
-# Pytree closure
+# Dynamic closure
 #####
 
-# TODO: investigate if `inspect` can provide better APIs
-# for the functionality implemented in this class.
+
 @dataclass
-class PytreeClosure(Pytree):
-    callable: Callable
-    environment: List
+class DynamicClosure(Pytree):
+    fn: Callable
+    dyn_args: Tuple
 
     def flatten(self):
-        return (self.environment,), (self.callable,)
+        return (self.dyn_args,), (self.fn,)
+
+    @classmethod
+    def new(cls, callable, *dyn_args):
+        if isinstance(callable, DynamicClosure):
+            return DynamicClosure(callable.fn, (*callable.dyn_args, *dyn_args))
+        else:
+            return DynamicClosure(callable, dyn_args)
 
     def __call__(self, *args):
-        if self.callable.__closure__ is None:
-            return self.callable(*args)
-        else:
-            for (cell, v) in zip(self.callable.__closure__, self.environment):
-                cell.cell_contents = v
-            ret = self.callable(*args)
-            for cell in self.callable.__closure__:
-                cell.cell_contents = None
-            return ret
-
-    def __hash__(self):
-        avals = list(map(get_shaped_aval, self.environment))
-        return hash((self.callable, *avals))
+        return self.fn(*self.dyn_args, *args)
 
 
-def closure_convert(callable):
-    captured = []
-    if callable.__closure__ is None:
-        return PytreeClosure(callable, captured)
-    else:
-        for cell in callable.__closure__:
-            captured.append(cell.cell_contents)
-            cell.cell_contents = None
-        return PytreeClosure(callable, captured)
+def dynamic_closure(*args):
+    return lambda fn: DynamicClosure.new(fn, *args)
 
 
 #####

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 from genjax._src.learning.state import Module
-from genjax._src.learning.state import module
+from genjax._src.learning.state import init
 from genjax._src.learning.state import param
 
 
-__all__ = ["module", "param", "Module"]
+__all__ = ["init", "param", "Module"]

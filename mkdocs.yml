@@ -18,20 +18,50 @@ repo_url: https://github.com/probcomp/genjax
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
-  - Home: 
-      - index.md
-      - Gen's concepts: genjax/concepts/generative_functions.md
-      - Diff against Gen.jl: genjax/diff_jl.md
+  #  - Home: 
+  #      - index.md
+  #      - Comparisons to Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
-  - Language apéritifs: genjax/language_aperitifs.md
-  - Public API reference:
-      - Core: genjax/library/core.md
-      - Generative functions: genjax/library/generative_functions.md
-      - Inference: genjax/library/inference.md
+  - Library reference:
+      - genjax/library/index.md
+      - Core: 
+          - genjax/library/core/index.md
+          - Core datatypes: genjax/library/core/datatypes.md
+          - Generative datatypes: genjax/library/core/generative.md
+          - Interpreters: genjax/library/core/interpreters.md
+      - Generative function languages: 
+          - genjax/library/generative_functions/index.md
+          - Distributions: 
+              - genjax/library/generative_functions/distributions/index.md
+              - SciPy: genjax/library/generative_functions/distributions/scipy.md
+              - TensorFlow Distributions: genjax/library/generative_functions/distributions/tfd.md
+              - Custom: genjax/library/generative_functions/distributions/custom/index.md
+        #              - Coryx: genjax/library/generative_functions/distributions/coryx.md
+        #              - GenSP: genjax/library/generative_functions/distributions/gensp.md
+          - Builtin language: genjax/library/generative_functions/builtin.md
+          - Combinators: 
+              - genjax/library/generative_functions/combinators/index.md
+              - Map combinator: genjax/library/generative_functions/combinators/map.md
+              - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
+              - Switch combinator: genjax/library/generative_functions/combinators/switch.md
+      - Extension modules: 
+          - genjax/library/extensions/index.md
+          - Gaussian processes: genjax/library/extensions/tinygp.md
+          - HMC/NUTS: genjax/library/extensions/blackjax.md
+    #      - Inference: 
+    #          - genjax/library/inference/index.md
+    #          - Importance sampling: genjax/library/inference/is.md
+    #          - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
+    #          - Variational inference: genjax/library/inference/vi.md
+    #      - Differentiable programming:
+    #          - genjax/library/diff_prog/index.md
+    #          - Differentiable state: genjax/library/diff_prog/state.md
+    #          - Automatic differentiation of expected values: genjax/library/diff_prog/adev.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
       - License: license.md
+
 theme:
   name: material
   logo: assets/img/gen-logo.png
@@ -47,6 +77,7 @@ theme:
     - content.action.view
     - content.code.annotate
     - content.code.copy
+    - content.code.select
     - content.tooltips
     - content.tabs.link
     - navigation.footer
@@ -115,8 +146,12 @@ markdown_extensions:
   - md_in_html
   - admonition
   - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid

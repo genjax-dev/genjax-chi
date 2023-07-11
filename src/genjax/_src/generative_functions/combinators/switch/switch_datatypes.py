@@ -35,7 +35,7 @@ from genjax._src.core.typing import IntArray
 ###############################
 
 #####
-# TaggedChoiceMap
+# SwitchChoiceMap
 #####
 
 # Note that the abstract/concrete semantics of `jnp.choose`
@@ -48,7 +48,7 @@ from genjax._src.core.typing import IntArray
 
 
 @dataclass
-class TaggedChoiceMap(ChoiceMap):
+class SwitchChoiceMap(ChoiceMap):
     index: IntArray
     submaps: Sequence[Union[ChoiceMap, Trace]]
 
@@ -85,12 +85,15 @@ class TaggedChoiceMap(ChoiceMap):
         non_empty_submaps = list(
             filter(lambda v: not isinstance(v, EmptyChoiceMap), submaps)
         )
+        indexer = index_map[self.index]
+
+        def chooser(*trees):
+            shapediff = len(trees[0].shape) - len(indexer.shape)
+            reshaped = indexer.reshape(indexer.shape + (1,) * shapediff)
+            return jnp.choose(reshaped, trees, mode="wrap")
+
         return jtu.tree_map(
-            lambda *v: jnp.choose(
-                index_map[self.index],
-                v,
-                mode="wrap",
-            ),
+            chooser,
             *non_empty_submaps,
         )
 
@@ -110,11 +113,11 @@ class TaggedChoiceMap(ChoiceMap):
 
     def get_selection(self):
         subselections = list(map(lambda v: v.get_selection(), self.submaps))
-        return TaggedSelection.new(self.index, subselections)
+        return SwitchSelection.new(self.index, subselections)
 
     def merge(self, other):
         new_submaps = list(map(lambda v: v.merge(other), self.submaps))
-        return TaggedChoiceMap.new(self.index, new_submaps)
+        return SwitchChoiceMap.new(self.index, new_submaps)
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
@@ -128,11 +131,11 @@ class TaggedChoiceMap(ChoiceMap):
 
 
 #####
-# TaggedSelection
+# SwitchSelection
 #####
 
 
 @dataclass
-class TaggedSelection(Selection):
+class SwitchSelection(Selection):
     index: IntArray
     subselections: Sequence[Selection]
