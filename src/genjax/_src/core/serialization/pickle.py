@@ -12,27 +12,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dill as pickle
 from dataclasses import dataclass
+
+import dill as pickle
+
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.serialization.backend import SerializationBackend
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
 
-@typecheck
-def to_tuple(obj: Pytree):
-    return (obj.__class__, obj.flatten())
-
 @dataclass
-class Pickleable(Pytree):
-    def pickle_serialize(self):
+class Pickle(SerializationBackend):
+    @typecheck
+    def _to_tuple(obj: Pytree):
+        return (obj.__class__, obj.flatten())
+
+    def pickle_serialize(self, obj: Pytree):
         """Serializes an object using pickle."""
-        return pickle.dumps(to_tuple(self))
+        return pickle.dumps(self._to_tuple(obj))
 
-    def pickle_dump(self, path):
-        pickle.dump(path, to_tuple(self))
+    def serialize(self, path, obj):
+        pickle.dump(path, self._to_tuple(obj))
 
-    @classmethod
-    def pickle_deserialize(cls, serialized_obj):
+    def deserialize(self, serialized_obj):
         """Deserializes an object using pickle."""
         cls, (xs, data) = pickle.loads(serialized_obj)
         return cls.unflatten(xs, data)
+
+
+#####
+# Mixin
+#####
+
+# This should be implemented for traces.
+class SupportsPickleSerialization:
+    @dispatch
+    def serialize(self, path, backend: Pickle):
+        backend.serialize(path, self)
+
+
+# This should be implemented for generative functions.
+class SupportsPickleDeserialization:
+    @dispatch
+    def deserialize(self, path, backend: Pickle):
+        tr = backend.deserialize(path)
+        return tr
