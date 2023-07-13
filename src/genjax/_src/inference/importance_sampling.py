@@ -79,15 +79,14 @@ class ImportanceSampling(Pytree):
     ):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
+        _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys,
-            observations,
-            proposal_args,
+            (observations, *proposal_args),
         )
         observations = jax.tree_util.map(
             lambda v: jnp.repeats(v, self.num_particles), observations
         )
-        chm = p_trs.get_choices().merge(observations)
+        chm = p_trs.strip().merge(observations)
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
         _, (lws, m_trs) = jax.vmap(self.model.importance, in_axes=(0, 0, None))(
