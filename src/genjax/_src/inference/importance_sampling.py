@@ -18,6 +18,7 @@ from typing import Union
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -83,7 +84,7 @@ class ImportanceSampling(Pytree):
             sub_keys,
             (observations, *proposal_args),
         )
-        observations = jax.tree_util.map(
+        observations = jtu.tree_map(
             lambda v: jnp.repeats(v, self.num_particles), observations
         )
         chm = p_trs.strip().merge(observations)
@@ -161,7 +162,7 @@ class SamplingImportanceResampling(Pytree):
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
         key, sub_key = jax.random.split(key)
         ind = jax.random.categorical(sub_key, log_normalized_weights)
-        tr = jax.tree_util.tree_map(lambda v: v[ind], trs)
+        tr = jtu.tree_map(lambda v: v[ind], trs)
         lnw = log_normalized_weights[ind]
         return key, (tr, lnw, log_ml_estimate)
 
@@ -179,7 +180,7 @@ class SamplingImportanceResampling(Pytree):
             observations,
             proposal_args,
         )
-        observations = jax.tree_util.map(
+        observations = jtu.map(
             lambda v: jnp.repeats(v, self.num_particles), observations
         )
         chm = p_trs.get_choices().merge(observations)
@@ -196,7 +197,7 @@ class SamplingImportanceResampling(Pytree):
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
         key, sub_key = jax.random.split(key)
         ind = jax.random.categorical(sub_key, log_normalized_weights)
-        tr = jax.tree_util.tree_map(lambda v: v[ind], p_trs)
+        tr = jtu.tree_map(lambda v: v[ind], p_trs)
         lnw = log_normalized_weights[ind]
         return key, (tr, lnw, log_ml_estimate)
 
