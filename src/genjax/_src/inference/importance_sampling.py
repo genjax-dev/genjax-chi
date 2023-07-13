@@ -84,16 +84,20 @@ class ImportanceSampling(Pytree):
             sub_keys,
             (observations, *proposal_args),
         )
-        observations = jtu.tree_map(
-            lambda v: jnp.repeat(v, self.num_particles), observations
-        )
-        chm = p_trs.strip().merge(observations)
+
+        def _inner(key, proposal_chm, model_args):
+            chm = proposal_chm.merge(observations)
+            key, (w, m_tr) = self.model.importance(
+                key,
+                chm,
+                model_args,
+            )
+            return key, (w, m_tr)
+
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, (lws, m_trs) = jax.vmap(self.model.importance, in_axes=(0, 0, None))(
-            sub_keys,
-            chm,
-            model_args,
+        _, (lws, m_trs) = jax.vmap(_inner, in_axes=(0, 0, None))(
+            sub_keys, p_trs.strip(), model_args
         )
         lws = lws - p_trs.get_score()
         log_total_weight = jax.scipy.special.logsumexp(lws)
