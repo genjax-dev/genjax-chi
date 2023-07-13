@@ -85,7 +85,7 @@ class ImportanceSampling(Pytree):
             (observations, *proposal_args),
         )
         observations = jtu.tree_map(
-            lambda v: jnp.repeats(v, self.num_particles), observations
+            lambda v: jnp.repeat(v, self.num_particles), observations
         )
         chm = p_trs.strip().merge(observations)
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
@@ -181,7 +181,7 @@ class SamplingImportanceResampling(Pytree):
             proposal_args,
         )
         observations = jtu.map(
-            lambda v: jnp.repeats(v, self.num_particles), observations
+            lambda v: jnp.repeat(v, self.num_particles), observations
         )
         chm = p_trs.get_choices().merge(observations)
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
