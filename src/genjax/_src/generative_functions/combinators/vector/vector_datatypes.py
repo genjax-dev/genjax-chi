@@ -32,9 +32,11 @@ from genjax._src.core.pytree import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.vector.vector_utilities import (
     static_check_leaf_length,
@@ -267,7 +269,8 @@ class IndexChoiceMap(ChoiceMap):
         (idx, addr) = addr
         return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
 
-    def get_subtree(self, addr):
+    @dispatch
+    def get_subtree(self, addr: Tuple):
         if not isinstance(addr, Tuple) and len(addr) == 1:
             return EmptyChoiceMap()
         (idx, addr) = addr
@@ -278,6 +281,12 @@ class IndexChoiceMap(ChoiceMap):
             (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
             subtree = jtu.tree_map(lambda v: v[slice_index], subtree)
             return mask(idx in self.indices, subtree)
+
+    @dispatch
+    def get_subtree(self, idx: Int):
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        subtree = jtu.tree_map(lambda v: v[slice_index], self.inner)
+        return mask(idx in self.indices, subtree)
 
     def get_selection(self):
         inner_selection = self.inner.get_selection()

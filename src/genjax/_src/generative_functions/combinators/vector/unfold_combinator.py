@@ -29,7 +29,8 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import StaticIntChange
+from genjax._src.core.transforms.incremental import NoChange
+from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
@@ -361,12 +362,51 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         prev: VectorTrace,
         chm: IndexChoiceMap,
-        length_primal: IntArray,
-        length_tangent: StaticIntChange,
+        length: Diff,
         state: Any,
         *static_args: Any,
     ):
-        raise NotImplementedError
+        active_upper = self._find_active_upper(prev)
+        new_upper, _ = length.unwrap()
+        dv = new_upper - active_upper
+        start_lower = jnp.min(chm.indices)
+        new_upper = active_upper + dv
+        state_diff = jtu.tree_map(
+            lambda v: diff(v[start_lower], NoChange),
+            prev.get_retval(),
+        )
+        prev_inner_trace = prev.inner
+
+        def _inner(index, state):
+            (key, w, state_diff, prev) = state
+            sub_chm = chm.get_subtree(index)
+            key, (state_diff, idx_w, new_tr, _) = self.kernel.update(
+                key, prev, sub_chm, (state_diff, *static_args)
+            )
+
+            def _mutate(prev, new):
+                new = prev.at[index].set(new)
+                return new
+
+            # TODO: also handle discard.
+            prev = jtu.tree_map(_mutate, prev, new_tr)
+            w = w + idx_w
+
+            return (key, w, state_diff, prev)
+
+        # TODO: add discard.
+        (key, state_diff, w, new_inner_trace) = jax.lax.fori(
+            start_lower,
+            new_upper,
+            _inner,
+            (key, state_diff, 0.0, prev_inner_trace),
+        )
+        retval = new_inner_trace.get_retval()
+        scores = new_inner_trace.get_score()
+        args = (state, *static_args)
+
+        new_tr = VectorTrace(self, new_inner_trace, args, retval, jnp.sum(scores))
+        return key, (state_diff, w, new_tr, EmptyChoiceMap())
 
     @dispatch
     def _update_specialized(
@@ -374,8 +414,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         prev: VectorTrace,
         chm: VectorChoiceMap,
-        length_primal: IntArray,
-        length_tangent: StaticIntChange,
+        length: Diff,
         state: Any,
         *static_args: Any,
     ):
