@@ -29,7 +29,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import NoChange
+from genjax._src.core.transforms.incremental import UnknownChange
 from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
@@ -280,7 +280,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 key, tr = self.kernel.simulate(key, (state, *static_args))
                 return key, (0.0, tr)
 
-            check = count == chm.get_index()
+            check = chm.check_mask()
             check_count = jnp.less(count, length + 1)
             key, (w, tr) = concrete_cond(
                 jnp.logical_and(check, check_count),
@@ -366,13 +366,12 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         state: Any,
         *static_args: Any,
     ):
-        active_upper = self._find_active_upper(prev)
-        new_upper, _ = length.unwrap()
-        dv = new_upper - active_upper
+        new_upper, _ = length.unpack()
         start_lower = jnp.min(chm.indices)
-        new_upper = active_upper + dv
+        # TODO: `UnknownChange` is used here
+        # to preserve the Pytree structure across the loop.
         state_diff = jtu.tree_map(
-            lambda v: diff(v[start_lower], NoChange),
+            lambda v: diff(v[start_lower], UnknownChange),
             prev.get_retval(),
         )
         prev_inner_trace = prev.inner
@@ -380,8 +379,9 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         def _inner(index, state):
             (key, w, state_diff, prev) = state
             sub_chm = chm.get_subtree(index)
+            prev_slice = jtu.tree_map(lambda v: v[index], prev)
             key, (state_diff, idx_w, new_tr, _) = self.kernel.update(
-                key, prev, sub_chm, (state_diff, *static_args)
+                key, prev_slice, sub_chm, (state_diff, *static_args)
             )
 
             def _mutate(prev, new):
@@ -395,11 +395,11 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
-        (key, state_diff, w, new_inner_trace) = jax.lax.fori(
+        (key, w, state_diff, new_inner_trace) = jax.lax.fori_loop(
             start_lower,
             new_upper,
             _inner,
-            (key, state_diff, 0.0, prev_inner_trace),
+            (key, 0.0, state_diff, prev_inner_trace),
         )
         retval = new_inner_trace.get_retval()
         scores = new_inner_trace.get_score()
@@ -436,14 +436,11 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         length_primal, length_tangent = length.unpack()
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
-            static_args, _ = static_args.unpack()
-            state, _ = state.unpack()
             return self._update_specialized(
                 key,
                 prev,
                 chm,
-                length_primal,
-                length_tangent,
+                length,
                 state,
                 *static_args,
             )

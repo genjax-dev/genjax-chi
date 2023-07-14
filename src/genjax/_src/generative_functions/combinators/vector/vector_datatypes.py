@@ -32,7 +32,6 @@ from genjax._src.core.pytree import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
@@ -143,6 +142,12 @@ class VectorChoiceMap(ChoiceMap):
             return VectorChoiceMap(masks, inner)
 
         return VectorChoiceMap(None, inner)
+
+    def check_mask(self):
+        if self.masks is None:
+            return True
+        else:
+            return self.masks
 
     def get_selection(self):
         subselection = self.inner.get_selection()
@@ -283,10 +288,11 @@ class IndexChoiceMap(ChoiceMap):
             return mask(idx in self.indices, subtree)
 
     @dispatch
-    def get_subtree(self, idx: Int):
+    def get_subtree(self, idx: IntArray):
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = slice_index[0]
         subtree = jtu.tree_map(lambda v: v[slice_index], self.inner)
-        return mask(idx in self.indices, subtree)
+        return mask(jnp.isin(idx, self.indices), subtree)
 
     def get_selection(self):
         inner_selection = self.inner.get_selection()
