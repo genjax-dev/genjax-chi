@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datatypes import *
-from .hashabledict import *
-from .incremental import *
+import genjax
+import jax.tree_util as jtu
+
+
+class TestHashableDict:
+    def test_sorting(self):
+        # Test construction.
+        h = genjax.core.HashableDict({1 : 5, "1" : 10})
+        values, tree_def = jtu.tree_flatten(h)
+        new_h = jtu.tree_unflatten(tree_def, values)
+        assert h == new_h

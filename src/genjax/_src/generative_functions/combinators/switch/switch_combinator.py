@@ -45,9 +45,7 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
 )
@@ -110,7 +108,7 @@ class SwitchTrace(Trace):
 
 
 @dataclass
-class SwitchCombinator(GenerativeFunction):
+class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching
     control flow patterns, including control flow patterns which branch on
@@ -165,11 +163,6 @@ class SwitchCombinator(GenerativeFunction):
             instance: A `SwitchCombinator` instance.
         """
         return SwitchCombinator([*args])
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     def get_trace_type(self, *args):
         subtypes = []

@@ -140,8 +140,7 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def get_score(self) -> FloatArray:
-        """
-        Return the joint log score of the `Trace`.
+        """Return the joint log score of the `Trace`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -171,8 +170,9 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def get_choices(self) -> ChoiceMap:
-        """
-        Return a `ChoiceMap` representation of the set of traced random choices sampled during the execution of the generative function to produce the `Trace`.
+        """Return a `ChoiceMap` representation of the set of traced random
+        choices sampled during the execution of the generative function to
+        produce the `Trace`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -214,7 +214,8 @@ class Trace(ChoiceMap, Tree):
 
     @abc.abstractmethod
     def project(self, selection: "Selection") -> FloatArray:
-        """Given a `Selection`, return the total contribution to the joint log score of the addresses contained within the `Selection`.
+        """Given a `Selection`, return the total contribution to the joint log
+        score of the addresses contained within the `Selection`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -338,8 +339,8 @@ class Selection(Tree):
 
     @abc.abstractmethod
     def complement(self) -> "Selection":
-        """
-        Return a `Selection` which filters addresses to the complement set of the provided `Selection`.
+        """Return a `Selection` which filters addresses to the complement set
+        of the provided `Selection`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -466,7 +467,9 @@ class GenerativeFunction(Pytree):
         args: Tuple,
     ) -> Tuple[PRNGKey, Trace]:
         """> Given a `PRNGKey` and arguments, execute the generative function,
-        returning a new `PRNGKey` and a tuple containing the return value from the generative function call, the score of the choice map assignment, and the choice map.
+        returning a new `PRNGKey` and a tuple containing the return value from
+        the generative function call, the score of the choice map assignment,
+        and the choice map.
 
         The default implementation just calls `simulate`, and then extracts the data from the `Trace` returned by `simulate`. Custom generative functions can overload the implementation for their own uses (e.g. if they don't have an associated `Trace` datatype, but can be uses as a proposal).
 
