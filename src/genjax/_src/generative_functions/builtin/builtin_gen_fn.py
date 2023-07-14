@@ -29,6 +29,7 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
@@ -49,7 +50,7 @@ from genjax._src.generative_functions.builtin.builtin_transforms import update_t
 
 
 #####
-# Language syntactic sugar
+# Builtin language syntactic sugar
 #####
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
@@ -112,13 +113,27 @@ class DeferredGenerativeFunctionCall(Pytree):
             return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
 
+# This mixin overloads the call functionality for this generative function
+# and allows usage of shorthand notation in the builtin DSL.
+class SupportsBuiltinSugar:
+    @dispatch
+    def __call__(self, *args: Any, **kwargs) -> DeferredGenerativeFunctionCall:
+        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
+
+    @dispatch
+    def __call__(self, key: PRNGKey, args: Tuple) -> Any:
+        key, tr = self.simulate(key, args)
+        retval = tr.get_retval()
+        return key, retval
+
+
 #####
 # Generative function
 #####
 
 
 @dataclass
-class BuiltinGenerativeFunction(GenerativeFunction):
+class BuiltinGenerativeFunction(GenerativeFunction, SupportsBuiltinSugar):
     source: Callable
 
     def flatten(self):
@@ -131,11 +146,6 @@ class BuiltinGenerativeFunction(GenerativeFunction):
     @classmethod
     def new(cls, source: Callable):
         return BuiltinGenerativeFunction(source)
-
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:

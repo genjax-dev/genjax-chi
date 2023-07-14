@@ -40,9 +40,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    DeferredGenerativeFunctionCall,
-)
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
 )
@@ -63,7 +61,7 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 
 @dataclass
-class UnfoldCombinator(GenerativeFunction):
+class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     """> `UnfoldCombinator` accepts a kernel generative function, as well as a
     static maximum unroll length, and provides a scan-like pattern of
     generative computation.
@@ -116,28 +114,12 @@ class UnfoldCombinator(GenerativeFunction):
         """
         return UnfoldCombinator(max_length, kernel)
 
-    # This overloads the call functionality for this generative function
-    # and allows usage of shorthand notation in the builtin DSL.
-    def __call__(self, *args, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
-
-    # This checks the leaves of a choice map,
-    # to determine if it is "out of bounds" for
-    # the max static length of this combinator.
-    def _static_check_bounds(self, v):
-        lengths = []
-
-        def _inner(v):
-            if v.shape[-1] > self.max_length:
-                raise Exception("Length of leaf longer than max length.")
-            else:
-                lengths.append(v.shape[-1])
-                return v
-
-        ret = jtu.tree_map(_inner, v)
-        fixed_len = set(lengths)
-        assert len(fixed_len) == 1
-        return ret, fixed_len.pop()
+    @typecheck
+    def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
+        _ = args[0]
+        args = args[1:]
+        inner_type = self.kernel.get_trace_type(*args, **kwargs)
+        return VectorTraceType(inner_type, self.max_length)
 
     def _runtime_throw_bounds_exception(self, count: int):
         def _inner(count, _):
