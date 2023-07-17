@@ -26,9 +26,12 @@ import jax.tree_util as jtu
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
+from genjax._src.core.transforms.incremental import Diff
+from genjax._src.core.transforms.incremental import UnknownChange
+from genjax._src.core.transforms.incremental import diff
+from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -36,9 +39,12 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexChoiceMap,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -116,7 +122,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         inner_type = self.kernel.get_trace_type(*args, **kwargs)
         return VectorTraceType(inner_type, self.max_length)
 
-    def _throw_bounds_host_exception(self, count: int):
+    def _runtime_throw_bounds_exception(self, count: int):
         def _inner(count, _):
             raise Exception(
                 f"\nUnfoldCombinator {self} received a length argument ({count}) longer than specified max length ({self.max_length})"
@@ -129,19 +135,32 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         )
         return None
 
-    @typecheck
-    def simulate(self, key: PRNGKey, args: Tuple, **_) -> Tuple[PRNGKey, VectorTrace]:
+    def _runtime_check_bounds(self, args):
         length = args[0]
-        state = args[1]
-        static_args = args[2:]
 
         # This inserts a host callback check for bounds checking.
+        # At runtime, if the bounds are exceeded -- an error
+        # will be emitted.
         check = jnp.less(self.max_length, length + 1)
         concrete_cond(
             check,
-            lambda *_: self._throw_bounds_host_exception(length + 1),
-            lambda *_: None,
+            lambda *args: self._runtime_throw_bounds_exception(length + 1),
+            lambda *args: None,
         )
+
+    @typecheck
+    def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
+        _ = args[0]
+        args = args[1:]
+        inner_type = self.kernel.get_trace_type(*args, **kwargs)
+        return VectorTraceType(inner_type, self.max_length)
+
+    @typecheck
+    def simulate(self, key: PRNGKey, args: Tuple, **_) -> Tuple[PRNGKey, VectorTrace]:
+        self._runtime_check_bounds(args)
+        length = args[0]
+        state = args[1]
+        static_args = args[2:]
 
         zero_trace = make_zero_trace(
             self.kernel,
@@ -182,74 +201,57 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
+        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
 
         return key, unfold_tr
 
-    # This checks the leaves of a choice map,
-    # to determine if it is "out of bounds" for
-    # the max static length of this combinator.
-    def _static_bounds_check(self, v):
-        lengths = []
-
-        def _inner(v):
-            if v.shape[-1] > self.max_length:
-                raise Exception("Length of leaf longer than max length.")
-            else:
-                lengths.append(v.shape[-1])
-                return v
-
-        ret = jtu.tree_map(_inner, v)
-        fixed_len = set(lengths)
-        assert len(fixed_len) == 1
-        return ret, fixed_len.pop()
-
-    def _importance_indexed(self, key, chm, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: IndexChoiceMap,
+        args: Tuple,
+    ):
+        self._runtime_check_bounds(args)
         length = args[0]
         state = args[1]
         static_args = args[2:]
 
-        # Unwrap the index mask.
-        inner_choice_map = chm.inner
-        target_index = chm.get_index()
-
-        # Complicated - refactor in future.
         def _inner(carry, _):
             count, key, state = carry
+            sub_choice_map = chm.get_subtree(count)
+            key, (w, tr) = self.kernel.importance(
+                key, sub_choice_map, (state, *static_args)
+            )
 
-            def _importance(key, state):
-                return self.kernel.importance(
-                    key, inner_choice_map, (state, *static_args)
-                )
-
-            def _simulate(key, state):
-                key, tr = self.kernel.simulate(key, (state, *static_args))
-                return key, (0.0, tr)
-
-            check = count == target_index
-            key, (w, tr) = concrete_cond(check, _importance, _simulate, key, state)
             check = jnp.less(count, length + 1)
-            index = concrete_cond(check, lambda *_: count, lambda *_: -1)
             count, state, score, w = concrete_cond(
                 check,
                 lambda *args: (count + 1, tr.get_retval(), tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
-            return (count, key, state), (w, score, tr, index, state)
+            return (count, key, state), (w, score, tr, state)
 
-        (count, key, state), (w, score, tr, indices, retval) = jax.lax.scan(
+        (count, key, state), (w, score, tr, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             None,
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
+        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    def _importance_vcm(self, key, chm, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: VectorChoiceMap,
+        args: Tuple,
+    ):
+        self._runtime_check_bounds(args)
         length = args[0]
         state = args[1]
         static_args = args[2:]
@@ -265,10 +267,9 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 key, tr = self.kernel.simulate(key, (state, *static_args))
                 return key, (0.0, tr)
 
-            check = count == chm.get_index()
             check_count = jnp.less(count, length + 1)
             key, (w, tr) = concrete_cond(
-                jnp.logical_and(check, check_count),
+                check_count,
                 _importance,
                 _simulate,
                 key,
@@ -276,13 +277,8 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 state,
             )
 
-            index = concrete_cond(
-                check_count,
-                lambda *args: count,
-                lambda *args: -1,
-            )
             count, state, score, w = concrete_cond(
-                check,
+                check_count,
                 lambda *args: (
                     count + 1,
                     tr.get_retval(),
@@ -291,95 +287,80 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 ),
                 lambda *args: (count, state, 0.0, 0.0),
             )
-            return (count, key, state), (w, score, tr, index, state)
+            return (count, key, state), (w, score, tr, state)
 
-        (count, key, state), (w, score, tr, indices, retval) = jax.lax.scan(
+        (_, key, state), (w, score, tr, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             chm,
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(score))
+        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
 
-    def _importance_empty(self, key, _, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        _: EmptyChoiceMap,
+        args: Tuple,
+    ):
+        self._runtime_check_bounds(args)
         key, unfold_tr = self.simulate(key, args)
         w = 0.0
         return key, (w, unfold_tr)
 
-    @typecheck
-    def importance(
-        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
-        length = args[0]
+    @dispatch
+    def _update_fallback(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: IndexChoiceMap,
+        length: Diff,
+        state: Diff,
+        *static_args: Diff,
+    ):
+        raise NotImplementedError
 
-        # This inserts a host callback check for bounds checking.
-        # At runtime, if the bounds are exceeded -- an error
-        # will be emitted.
-        check = jnp.less(self.max_length, length + 1)
-        concrete_cond(
-            check,
-            lambda *args: self._throw_bounds_host_exception(length + 1),
-            lambda *args: None,
-        )
-
-        if isinstance(chm, VectorChoiceMap):
-            return self._importance_vcm(key, chm, args)
-        else:
-            assert isinstance(chm, EmptyChoiceMap)
-            return self._importance_empty(key, chm, args)
-
-    # The choice map is a vector choice map.
-    def _update_vcm(self, key, prev, chm, argdiffs):
-        length = argdiffs[0]
-        state = argdiffs[1]
-        static_args = argdiffs[2:]
-        args = tree_diff_primal(argdiffs)
-        length = args[0]
+    @dispatch
+    def _update_fallback(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: VectorChoiceMap,
+        length: Diff,
+        state: Diff,
+        *static_args: Diff,
+    ):
+        length, state, static_args = tree_diff_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
             (prev, chm) = slice
 
-            def _update(key, prev, chm, state):
-                return self.kernel.update(key, prev, chm, (state, *static_args))
-
-            def _fallthrough(key, prev, chm, state):
-                return self.kernel.update(
-                    key, prev, EmptyChoiceMap(), (state, *static_args)
-                )
-
-            check = count == chm.get_index()
-            key, (retdiff, w, tr, discard) = concrete_cond(
-                check, _update, _fallthrough, key, prev, chm, state
+            key, (retdiff, w, tr, discard) = self.kernel.update(
+                key, prev, chm, (state, *static_args)
             )
 
             check = jnp.less(count, length + 1)
-            index = concrete_cond(check, lambda *args: count, lambda *args: -1)
             count, state, score, weight = concrete_cond(
                 check,
                 lambda *args: (count + 1, retdiff, tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
-            return (count, key, state), (state, score, w, tr, discard, index)
+            return (count, key, state), (state, score, weight, tr, discard)
 
-        (count, key, state), (
-            retdiff,
-            score,
-            w,
-            tr,
-            discard,
-            indices,
-        ) = jax.lax.scan(_inner, (0, key, state), (prev, chm), length=self.max_length)
+        (count, key, state), (retdiff, score, w, tr, discard) = jax.lax.scan(
+            _inner, (0, key, state), (prev, chm), length=self.max_length
+        )
 
         unfold_tr = VectorTrace(
             self,
-            indices,
             tr,
-            args,
+            (length, state, *static_args),
             tree_diff_primal(retdiff),
             jnp.sum(score),
         )
@@ -387,69 +368,123 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         return key, (retdiff, w, unfold_tr, discard)
 
-    @typecheck
+    @dispatch
+    def _update_specialized(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: IndexChoiceMap,
+        length: Diff,
+        state: Any,
+        *static_args: Any,
+    ):
+        new_upper, _ = length.unpack()
+        start_lower = jnp.min(chm.indices)
+
+        # TODO: `UnknownChange` is used here
+        # to preserve the Pytree structure across the loop.
+        state_diff = jtu.tree_map(
+            lambda v: diff(v[start_lower], UnknownChange),
+            prev.get_retval(),
+        )
+        prev_inner_trace = prev.inner
+
+        def _inner(index, state):
+            (key, w, state_diff, prev) = state
+            sub_chm = chm.get_subtree(index)
+            prev_slice = jtu.tree_map(lambda v: v[index], prev)
+            key, (state_diff, idx_w, new_tr, _) = self.kernel.update(
+                key, prev_slice, sub_chm, (state_diff, *static_args)
+            )
+
+            def _mutate(prev, new):
+                new = prev.at[index].set(new)
+                return new
+
+            # TODO: also handle discard.
+            prev = jtu.tree_map(_mutate, prev, new_tr)
+            w = w + idx_w
+
+            # TODO: c.f. message above on `UnknownChange`.
+            # Preserve the diff type across the loop
+            # iterations.
+            primal_state, _ = state_diff.unpack()
+            state_diff = jtu.tree_map(
+                lambda v: diff(v, UnknownChange),
+                primal_state,
+            )
+
+            return (key, w, state_diff, prev)
+
+        # TODO: add discard.
+        (key, w, state_diff, new_inner_trace) = jax.lax.fori_loop(
+            start_lower,
+            new_upper,
+            _inner,
+            (key, 0.0, state_diff, prev_inner_trace),
+        )
+        retval = new_inner_trace.get_retval()
+        scores = new_inner_trace.get_score()
+        args = tree_diff_primal((length, state, *static_args))
+
+        new_tr = VectorTrace(self, new_inner_trace, args, retval, jnp.sum(scores))
+        return key, (state_diff, w, new_tr, EmptyChoiceMap())
+
+    @dispatch
+    def _update_specialized(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: VectorChoiceMap,
+        length: Diff,
+        state: Any,
+        *static_args: Any,
+    ):
+        raise NotImplementedError
+
+    @dispatch
     def update(
         self,
         key: PRNGKey,
-        prev: Trace,
-        chm: Union[EmptyChoiceMap, VectorChoiceMap],
+        prev: VectorTrace,
+        chm: ChoiceMap,
         argdiffs: Tuple,
-        **_,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, VectorTrace, ChoiceMap]]:
-        length = jtu.tree_leaves(argdiffs[0])[0]
-
-        # Unwrap the previous trace at this address
-        # we should get a `VectorChoiceMap`.
-        # We don't need the index indicators from the trace,
-        # so we can just unwrap it.
-        prev = prev.inner
-
-        # This inserts a host callback check for bounds checking.
-        # If we go out of bounds on device, it throws to the
-        # Python runtime -- which will raise.
-        check = jnp.less(self.max_length, length + 1)
-        concrete_cond(
-            check,
-            lambda *args: self._throw_bounds_host_exception(length + 1),
-            lambda *args: None,
-        )
-
-        if isinstance(chm, VectorChoiceMap):
-            return self._update_vcm(key, prev, chm, argdiffs)
+    ):
+        length = argdiffs[0]
+        state = argdiffs[1]
+        static_args = argdiffs[2:]
+        args = tree_diff_primal(argdiffs)
+        self._runtime_check_bounds(args)
+        length_primal, length_tangent = length.unpack()
+        check_state_static_no_change = static_check_no_change((state, static_args))
+        if check_state_static_no_change:
+            return self._update_specialized(
+                key,
+                prev,
+                chm,
+                length,
+                state,
+                *static_args,
+            )
         else:
-            return self._update_empty(key, prev, chm, argdiffs)
-
-    def _throw_index_check_host_exception(self, count: IntArray, index: IntArray):
-        def _inner(pair, transforms):
-            (count, index) = pair
-            raise Exception(
-                f"\nUnfoldCombinator {self} received a choice map with mismatched indices (count {count}, at index {index}) in assess."
+            return self._update_fallback(
+                key,
+                prev,
+                chm,
+                length,
+                state,
+                *static_args,
             )
 
-        hcb.id_tap(
-            lambda *args: _inner(*args),
-            (count, index),
-            result=None,
-        )
-        return None
-
-    @typecheck
+    @dispatch
     def assess(
-        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+        self,
+        key: PRNGKey,
+        chm: VectorChoiceMap,
+        args: Tuple,
+        **kwargs,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
-        assert isinstance(chm, VectorChoiceMap)
-        length = args[0]
-
-        # This inserts a host callback check for bounds checking.
-        # At runtime, if the bounds are exceeded -- an error
-        # will be emitted.
-        check = jnp.less(self.max_length, length + 1)
-        concrete_cond(
-            check,
-            lambda *args: self._throw_bounds_host_exception(length + 1),
-            lambda *args: None,
-        )
-
+        self._runtime_check_bounds(args)
         length = args[0]
         state = args[1]
         static_args = args[2:]
@@ -459,19 +494,6 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             chm = slice
 
             check = count == chm.get_index()
-
-            # TODO: the below doesn't work when `vmap` is used.
-            # This inserts a host callback check for bounds checking.
-            # If there is an index failure, `assess` must fail
-            # because we must provide a constraint for every generative
-            # function call.
-            # jax.lax.cond(
-            #    check,
-            #    lambda *args: None,
-            #    lambda *args: self._throw_index_check_host_exception(*args),
-            #    count,
-            #    chm.get_index(),
-            # )
 
             key, (retval, score) = self.kernel.assess(key, chm, (state, *static_args))
 

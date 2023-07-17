@@ -31,13 +31,16 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexChoiceMap,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -117,6 +120,11 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
             assert repeats is not None
         return MapCombinator(in_axes, repeats, kernel)
 
+    def _static_check_broadcastable(self, args):
+        # Argument broadcast semantics must be fully specified
+        # in `in_axes` or via `self.repeats`.
+        assert self.repeats or (len(args) == len(self.in_axes))
+
     def _static_broadcast_dim_length(self, args):
         def find_axis_size(axis, x):
             if axis is not None:
@@ -147,42 +155,26 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def simulate(
         self, key: PRNGKey, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, VectorTrace]:
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(args) == len(self.in_axes)
+        self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        indices = np.array([i for i in range(0, broadcast_dim_length)])
         key, sub_keys = slash(key, broadcast_dim_length)
         _, tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(
             sub_keys, args
         )
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, map_tr
 
-    def _bounds_checker(self, v, key_len):
-        lengths = []
-
-        def _inner(v):
-            if v.shape[-1] > key_len:
-                raise Exception("Length of leaf longer than max length.")
-            else:
-                lengths.append(v.shape[-1])
-                return v
-
-        ret = jtu.tree_map(_inner, v)
-        fixed_len = set(lengths)
-        assert len(fixed_len) == 1
-        return ret, fixed_len.pop()
-
-    def _static_check_trie_index_compatible(self, chm: Trie, broadcast_dim_length: Int):
-        for (k, _) in chm.get_subtrees_shallow():
-            assert isinstance(k, int)
-            # TODO: pull outside loop, just check the last address.
-            assert k < broadcast_dim_length
-
-    def _importance_vcm(self, key, chm, args):
+    # Implementation specialized to `VectorChoiceMap`.
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: VectorChoiceMap,
+        args: Tuple,
+        **_,
+    ):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -190,60 +182,93 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
             key, tr = self.kernel.simulate(key, args)
             return key, (0.0, tr)
 
-        def _inner(key, index, chm, args):
-            check = index == chm.get_index()
-            return concrete_cond(check, _importance, _simulate, key, chm, args)
+        def _switch(key, flag, chm, args):
+            return concrete_cond(flag, _importance, _simulate, key, chm, args)
 
+        self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        indices = np.array([i for i in range(0, broadcast_dim_length)])
         key, sub_keys = slash(key, broadcast_dim_length)
-        _, (w, tr) = jax.vmap(_inner, in_axes=(0, 0, 0, self.in_axes))(
-            sub_keys, indices, chm, args
+
+        inner = chm.inner
+        _, (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
+            sub_keys, inner, args
+        )
+
+        w = jnp.sum(w)
+        retval = tr.get_retval()
+        scores = tr.get_score()
+        map_tr = VectorTrace(self, tr, args, retval, scores)
+        return key, (w, map_tr)
+
+    # Implementation specialized to `IndexChoiceMap`.
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: IndexChoiceMap,
+        args: Tuple,
+        **_,
+    ):
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        index_array = jnp.arange(0, broadcast_dim_length)
+        flag_array = (index_array[:, None] == chm.indices).sum(axis=-1)
+        key, sub_keys = slash(key, broadcast_dim_length)
+
+        def _simulate(key, index, chm, args):
+            key, tr = self.kernel.simulate(key, args)
+            return key, (0.0, tr)
+
+        def _importance(key, index, chm, args):
+            (slice_index,) = jnp.nonzero(index == chm, size=1)
+            slice_index = slice_index[0]
+            inner_chm = chm.inner.slice(slice_index)
+            return self.kernel.importance(key, inner_chm, args)
+
+        def _switch(key, flag, index, chm, args):
+            return concrete_cond(flag, _importance, _simulate, key, index, chm, args)
+
+        _, (w, tr) = jax.vmap(_switch, in_axes=(0, 0, 0, None, self.in_axes))(
+            sub_keys, flag_array, index_array, chm, args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, indices, tr, args, retval, scores)
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (w, map_tr)
 
-    # Implements a conversion from `Trie`.
-    def _importance_tchm(self, key, chm, args):
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        self._static_check_trie_index_compatible(chm, broadcast_dim_length)
-
-        # Okay, so the Trie has an address hierarchy which is compatible with the index structure of the MapCombinator choices.
-        # Let's coerce Trie into VectorChoiceMap and then just call `_importance_vcm`.
-        vector_chm = self._coerce_to_vector_chm(chm)
-        return self._importance_vcm(key, vector_chm, args)
-
-    def _importance_empty(self, key, _, args):
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: EmptyChoiceMap,
+        args: Tuple,
+        **_,
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
         key, map_tr = self.simulate(key, args)
         w = 0.0
         return key, (w, map_tr)
 
-    @typecheck
+    # Fallback implementation if a generic Trie is passed in.
+    @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: Union[EmptyChoiceMap, Trie, VectorChoiceMap],
+        chm: Trie,
         args: Tuple,
         **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(args) == len(self.in_axes)
-        # Note: these branches are resolved at tracing time.
-        if isinstance(chm, VectorChoiceMap):
-            return self._importance_vcm(key, chm, args)
-        elif isinstance(chm, Trie):
-            return self._importance_tchm(key, chm, args)
-        else:
-            assert isinstance(chm, EmptyChoiceMap)
-            return self._importance_empty(key, chm, args)
+        indchm = IndexChoiceMap.convert(chm)
+        return self.importance(key, indchm, args)
 
     # The choice map passed in here is a vector choice map.
-    def _update_vcm(
-        self, key: PRNGKey, prev: VectorTrace, chm: VectorChoiceMap, argdiffs: Tuple
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: VectorChoiceMap,
+        argdiffs: Tuple,
     ):
         def _update(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(key, prev, chm, argdiffs)
@@ -254,8 +279,8 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
             masked = mask(check, chm.inner)
             return _update(key, prev, masked, argdiffs)
 
-        # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
+        self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
@@ -268,12 +293,19 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, indices, tr, args, retval, jnp.sum(scores))
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
     # the arguments have changed.
-    def _update_empty(self, key, prev, chm, argdiffs):
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: VectorTrace,
+        chm: EmptyChoiceMap,
+        argdiffs: Tuple,
+    ):
         def _fallback(key, prev, chm, argdiffs):
             key, (retdiff, w, tr, d) = self.kernel.update(
                 key, prev, EmptyChoiceMap(), argdiffs
@@ -283,37 +315,17 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        # Just to determine the broadcast length.
         args = jtu.tree_leaves(argdiffs)
+        self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         _, (retdiff, w, tr, discard) = jax.vmap(
             _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
         )(sub_keys, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
-        indices = jnp.array([i for i in range(0, broadcast_dim_length)])
-        map_tr = VectorTrace(self, indices, tr, jnp.sum(tr.get_score()))
+        retval = tr.get_retval()
+        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        prev: VectorTrace,
-        chm: Union[EmptyChoiceMap, VectorChoiceMap],
-        argdiffs: Tuple,
-        **_,
-    ):
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(argdiffs) == len(self.in_axes)
-        # Branches here implement certain optimizations when more
-        # information about the passed in choice map is available.
-        if isinstance(chm, VectorChoiceMap):
-            return self._update_vcm(key, prev, chm, argdiffs)
-        else:
-            assert isinstance(chm, EmptyChoiceMap)
-            return self._update_empty(key, prev, chm, argdiffs)
 
     # TODO: I've had so many issues with getting this to work correctly
     # and not throw - and I'm not sure why it's been so finicky.
@@ -341,9 +353,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def assess(
         self, key: PRNGKey, chm: VectorChoiceMap, args: Tuple, **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
-        # Argument broadcast semantics must be fully specified
-        # in `in_axes`.
-        assert len(args) == len(self.in_axes)
+        self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.count_nonzero(indices - chm.get_index()) == 0
