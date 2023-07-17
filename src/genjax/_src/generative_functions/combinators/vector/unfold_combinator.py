@@ -341,40 +341,24 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             count, key, state = carry
             (prev, chm) = slice
 
-            def _update(key, prev, chm, state):
-                return self.kernel.update(key, prev, chm, (state, *static_args))
-
-            def _fallthrough(key, prev, chm, state):
-                return self.kernel.update(
-                    key, prev, EmptyChoiceMap(), (state, *static_args)
-                )
-
-            check = count == chm.get_index()
-            key, (retdiff, w, tr, discard) = concrete_cond(
-                check, _update, _fallthrough, key, prev, chm, state
+            key, (retdiff, w, tr, discard) = self.kernel.update(
+                key, prev, chm, (state, *static_args)
             )
 
             check = jnp.less(count, length + 1)
-            index = concrete_cond(check, lambda *args: count, lambda *args: -1)
             count, state, score, weight = concrete_cond(
                 check,
                 lambda *args: (count + 1, retdiff, tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
-            return (count, key, state), (state, score, w, tr, discard, index)
+            return (count, key, state), (state, score, weight, tr, discard)
 
-        (count, key, state), (
-            retdiff,
-            score,
-            w,
-            tr,
-            discard,
-            indices,
-        ) = jax.lax.scan(_inner, (0, key, state), (prev, chm), length=self.max_length)
+        (count, key, state), (retdiff, score, w, tr, discard) = jax.lax.scan(
+            _inner, (0, key, state), (prev, chm), length=self.max_length
+        )
 
         unfold_tr = VectorTrace(
             self,
-            indices,
             tr,
             (length, state, *static_args),
             tree_diff_primal(retdiff),
