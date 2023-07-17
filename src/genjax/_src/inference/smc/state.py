@@ -14,6 +14,9 @@
 
 from dataclasses import dataclass
 
+import jax.numpy as jnp
+from jax.scipy.special import logsumexp
+
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import BoolArray
@@ -42,3 +45,10 @@ class SMCState(Pytree):
 
     def get_num_particles(self):
         return self.n_particles
+
+    def get_log_weights(self):
+        return self.log_weights
+
+    def current_lml_est(self):
+        n_particles = self.get_num_particles()
+        return self.log_ml_est + logsumexp(self.log_weights) - jnp.log(n_particles)
