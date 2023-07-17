@@ -275,10 +275,10 @@ class IndexChoiceMap(ChoiceMap):
 
     def get_selection(self):
         inner_selection = self.inner.get_selection()
-        return IndexSelection.new(inner_selection, self.indices)
+        return IndexSelection.new(self.indices, inner_selection)
 
     def get_subtrees_shallow(self):
-        pass
+        raise NotImplementedError
 
 
 #####
