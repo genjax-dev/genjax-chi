@@ -214,17 +214,14 @@ class CustomProposalSamplingImportanceResampling(Pytree):
             observations,
             proposal_args,
         )
-        observations = jtu.map(
-            lambda v: jnp.repeat(v, self.num_particles), observations
-        )
-        chm = p_trs.get_choices().merge(observations)
-        key, *sub_keys = jax.random.split(key, self.num_particles + 1)
-        sub_keys = jnp.array(sub_keys)
-        _, (lws, _) = jax.vmap(self.model.importance, in_axes=(0, 0, None))(
-            sub_keys,
-            chm,
-            model_args,
-        )
+
+        def _inner(key, proposal):
+            constraints = observations.merge(proposal)
+            _, (lws, _) = self.model.importance(key, constraints, model_args)
+            return lws
+
+        key, sub_keys = slash(key, self.num_particles)
+        lws = jax.vmap(_inner)(sub_keys, p_trs.strip())
         lws = lws - p_trs.get_score()
         log_total_weight = jax.scipy.special.logsumexp(lws)
         log_normalized_weights = lws - log_total_weight
