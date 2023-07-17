@@ -33,7 +33,7 @@ def smc_update(
 ) -> Tuple[PRNGKey, SMCState]:
     target_model = state.get_target_gen_fn()
     particles = state.get_particles()
-    n_particles = state.get_n_particles()
+    n_particles = state.get_num_particles()
     key, sub_keys = slash(key, n_particles)
     _, (_, log_weights, particles, discard) = jax.vmap(
         target_model.update, in_axes=(0, 0, None, None)

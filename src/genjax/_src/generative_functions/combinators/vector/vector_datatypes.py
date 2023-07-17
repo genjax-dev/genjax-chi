@@ -31,6 +31,7 @@ from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.pytree import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
@@ -269,7 +270,7 @@ class IndexChoiceMap(ChoiceMap):
     def get_subtree(self, idx: IntArray):
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
         slice_index = slice_index[0]
-        subtree = jtu.tree_map(lambda v: v[slice_index], self.inner)
+        subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         return mask(jnp.isin(idx, self.indices), subtree)
 
     def get_selection(self):
@@ -295,6 +296,18 @@ class IndexSelection(Selection):
             self.indices,
             self.inner,
         ), ()
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, IntArray]):
+        idxs = jnp.array(idx)
+        return IndexSelection(idxs, AllSelection())
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, List[Int], IntArray], inner: Selection):
+        idxs = jnp.array(idx)
+        return IndexSelection(idxs, inner)
 
     def has_subtree(self, addr):
         if not isinstance(addr, Tuple) and len(addr) == 1:

@@ -13,5 +13,6 @@
 # limitations under the License.
 
 
+# TODO: implement: check if the choice map is empty of valid choices.
 def dynamic_check_empty(choice_map):
-    pass
+    return True

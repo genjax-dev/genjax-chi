@@ -36,3 +36,9 @@ class SMCState(Pytree):
 
     def get_target_gen_fn(self):
         return self.particles.get_gen_fn()
+
+    def get_particles(self):
+        return self.particles
+
+    def get_num_particles(self):
+        return self.n_particles
