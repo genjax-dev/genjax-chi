@@ -23,22 +23,21 @@ from genjax import trace
 from genjax import gen
 
 
-@gen
-def normalModel(mu):
-    x = trace("x", normal)(mu, 1.0)
-    return x
-
-
-@gen
-def proposal(nowAt, d):
-    current = nowAt["x"]
-    x = trace("x", tfp_uniform)(current - d, current + d)
-    return x
-
 class TestMetropolisHastings:
     def test_simple_inf(self):
+        @gen
+        def normalModel(mu):
+            x = trace("x", normal)(mu, 1.0)
+            return x
+
+        @gen
+        def proposal(nowAt, d):
+            current = nowAt["x"]
+            x = trace("x", tfp_uniform)(current - d, current + d)
+            return x
+
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(normalModel.simulate)(key, (0.3, ))
+        key, tr = jax.jit(normalModel.simulate)(key, (0.3,))
         mh = MetropolisHastings(proposal)
         for _ in range(0, 10):
             # Repeat the test for stochasticity.
