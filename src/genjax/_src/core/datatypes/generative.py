@@ -465,7 +465,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Trace]:
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, ChoiceMap]]:
         """> Given a `PRNGKey` and arguments, execute the generative function,
         returning a new `PRNGKey` and a tuple containing the return value from
         the generative function call, the score of the choice map assignment,

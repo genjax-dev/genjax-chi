@@ -12,11 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+from genjax._src.inference.mcmc.kernel import MCMCKernel
+from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import (
+    MetropolisAdjustedLangevinAlgorithm,
+)
+from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import mala
+from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings
+from genjax._src.inference.mcmc.metropolis_hastings import mh
 
-from genjax._src.core.datatypes.generative import GenerativeFunction
 
-
-@dataclass
-class TraceKernelGenerativeFunction(GenerativeFunction):
-    pass
+__all__ = [
+    "MCMCKernel",
+    "MetropolisAdjustedLangevinAlgorithm",
+    "mala",
+    "MetropolisHastings",
+    "mh",
+]

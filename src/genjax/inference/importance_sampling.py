@@ -17,15 +17,6 @@ from genjax._src.inference.importance_sampling import SamplingImportanceResampli
 from genjax._src.inference.importance_sampling import importance_sampling
 from genjax._src.inference.importance_sampling import sampling_importance_resampling
 from genjax._src.inference.importance_sampling import sir
-from genjax._src.inference.map_update import MapUpdate
-from genjax._src.inference.map_update import map_update
-from genjax._src.inference.mcmc.kernel import MCMCKernel
-from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import (
-    MetropolisAdjustedLangevinAlgorithm,
-)
-from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import mala
-from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings
-from genjax._src.inference.mcmc.metropolis_hastings import mh
 
 
 __all__ = [
@@ -34,11 +25,4 @@ __all__ = [
     "SamplingImportanceResampling",
     "sampling_importance_resampling",
     "sir",
-    "MapUpdate",
-    "map_update",
-    "MCMCKernel",
-    "MetropolisAdjustedLangevinAlgorithm",
-    "mala",
-    "MetropolisHastings",
-    "mh",
 ]

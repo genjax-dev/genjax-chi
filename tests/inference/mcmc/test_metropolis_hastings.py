@@ -16,11 +16,11 @@
 import jax
 
 import genjax
-from genjax import MetropolisHastings
+from genjax.inference.mcmc import MetropolisHastings
 from genjax import normal
 from genjax import tfp_uniform
 from genjax import trace
-from genjax._src.language_decorator import gen
+from genjax import gen
 
 
 @gen
