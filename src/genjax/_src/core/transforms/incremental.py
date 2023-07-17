@@ -34,6 +34,7 @@ from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.context import Context
 from genjax._src.core.interpreters.context import ContextualTrace
 from genjax._src.core.interpreters.context import Fwd
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
@@ -164,7 +165,23 @@ class IntChange(ChangeTangent):
     dv: IntArray
 
     def flatten(self):
-        return (self.tangent,), ()
+        return (self.dv,), ()
+
+    def should_flatten(self):
+        return True
+
+
+@dataclasses.dataclass
+class StaticIntChange(ChangeTangent):
+    dv: IntArray
+
+    def flatten(self):
+        return (), (self.dv,)
+
+    @classmethod
+    def new(cls, dv):
+        assert is_concrete(dv)
+        return StaticIntChange(dv)
 
     def should_flatten(self):
         return True
@@ -205,6 +222,9 @@ class Diff(Pytree):
         if not isinstance(trace, DiffTrace):
             return self.primal
         return DiffTracer(trace, self.primal, self.tangent)
+
+    def unpack(self):
+        return self.primal, self.tangent
 
     @typecheck
     @classmethod
