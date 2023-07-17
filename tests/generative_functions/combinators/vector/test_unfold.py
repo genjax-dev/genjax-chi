@@ -34,6 +34,23 @@ class TestUnfoldSimpleNormal:
             jnp.sum(tr.project(genjax.vector_select(genjax.select("z"))))
             == unfold_score
         )
+    
+    def test_unfold_index_importance(self):
+        @genjax.gen
+        def kernel(x):
+            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            return z
+
+        model = genjax.Unfold(kernel, max_length=10)
+        key = jax.random.PRNGKey(314159)
+        chm = genjax.index_choice_map([3], genjax.choice_map({"z": jnp.array([0.5])}))
+        key, (w, tr) = model.importance(
+            key,
+            chm,
+            (6, 0.1)
+        )
+        sel = genjax.index_select([3], genjax.select("z"))
+        assert True
 
     def test_unfold_index_update(self):
         @genjax.gen
@@ -44,15 +61,13 @@ class TestUnfoldSimpleNormal:
         model = genjax.Unfold(kernel, max_length=10)
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(model))(key, (5, 0.1))
-        chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array([0.5])}), [3])
+        chm = genjax.index_choice_map([3], genjax.choice_map({"z": jnp.array([0.5])}))
         key, (_, w, new_tr, _) = model.update(
             key,
             tr,
             chm,
             (genjax.diff(6, genjax.UnknownChange), genjax.diff(0.1, genjax.NoChange)),
         )
-        print(new_tr.get_score())
-        print(tr.get_score() + w)
         assert new_tr.get_score() == pytest.approx(w + tr.get_score(), 0.001)
 
     def test_off_by_one_issue_415(self):
@@ -68,12 +83,11 @@ class TestUnfoldSimpleNormal:
         true_x = true_tr["x"]
         chm = genjax.vector_choice_map(
             genjax.choice_map({("x"): true_x}),
-            jnp.array([True, False, False, False, False]),
         )
         key, importance_key = jax.random.split(key)
-        _, (_, importance_tr) = model.importance(importance_key, chm, (0, (0.0)))
+        _, (_, importance_tr) = model.importance(importance_key, chm, (4, (0.0)))
         assert importance_tr["x"][0] == true_x[0]
-        assert importance_tr["x"][1] != true_x[1]
-        assert importance_tr["x"][2] != true_x[2]
-        assert importance_tr["x"][3] != true_x[3]
-        assert importance_tr["x"][4] != true_x[4]
+        assert importance_tr["x"][1] == true_x[1]
+        assert importance_tr["x"][2] == true_x[2]
+        assert importance_tr["x"][3] == true_x[3]
+        assert importance_tr["x"][4] == true_x[4]

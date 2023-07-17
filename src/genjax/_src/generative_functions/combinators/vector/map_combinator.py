@@ -189,15 +189,10 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
 
-        if chm.masks is None:
-            inner = chm.inner
-            _, (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
-                sub_keys, inner, args
-            )
-        else:
-            _, (w, tr) = jax.vmap(_switch, in_axes=(0, 0, 0, self.in_axes))(
-                sub_keys, chm.masks, inner, args
-            )
+        inner = chm.inner
+        _, (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
+            sub_keys, inner, args
+        )
 
         w = jnp.sum(w)
         retval = tr.get_retval()

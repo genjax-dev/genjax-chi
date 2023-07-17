@@ -17,6 +17,7 @@ import jax.numpy as jnp
 import pytest
 
 import genjax
+from genjax import BooleanMask
 
 class TestVectorChoiceMap:
     def test_vector_choice_map_construction(self):
@@ -26,22 +27,22 @@ class TestVectorChoiceMap:
 
 class TestIndexChoiceMap:
     def test_index_choice_map_construction(self):
-        chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array([3.0])}), [0])
+        chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array([3.0])}))
         assert chm.has_subtree((0, "z"))
 
         with pytest.raises(Exception):
-            chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array([3.0])}), 0)
+            chm = genjax.index_choice_map(0, genjax.choice_map({"z": jnp.array([3.0])}))
             
         with pytest.raises(Exception):
-            chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array(3.0)}), [0])
+            chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array(3.0)}))
 
     def test_index_choice_map_has_subtree(self):
-            chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array([3.0, 5.0])}), [0, 3])
+            chm = genjax.index_choice_map([0, 3], genjax.choice_map({"z": jnp.array([3.0, 5.0])}))
             assert chm.has_subtree((0, "z"))
             assert chm.has_subtree((3, "z"))
     
     def test_index_choice_map_get_subtree(self):
-            chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array([3.0, 5.0])}), [0, 3])
+            chm = genjax.index_choice_map([0, 3], genjax.choice_map({"z": jnp.array([3.0, 5.0])}))
             st = chm.get_subtree((2, "x"))
             assert st == genjax.EmptyChoiceMap()
             # When index is not available, always returns the first index slice inside of a BooleanMask with a False flag.

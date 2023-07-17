@@ -18,16 +18,14 @@ import jax.numpy as jnp
 import genjax
 
 
-
 class TestMapCombinator:
     def test_map_simple_normal(self):
         key = jax.random.PRNGKey(314159)
-        
+
         @genjax.gen
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
-
 
         model = genjax.Map(kernel, in_axes=(0,))
 
@@ -42,12 +40,11 @@ class TestMapCombinator:
         chm = genjax.vector_choice_map(
             genjax.choice_map({"z": jnp.array([3.0, 2.0, 3.0])})
         )
-        
+
         @genjax.gen
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
-
 
         model = genjax.Map(kernel, in_axes=(0,))
 
@@ -58,23 +55,25 @@ class TestMapCombinator:
 
     def test_map_index_choice_map_importance(self):
         key = jax.random.PRNGKey(314159)
-        
+
         @genjax.gen
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
-
         model = genjax.Map(kernel, in_axes=(0,))
 
         map_over = jnp.arange(0, 3)
-        chm = genjax.index_choice_map(genjax.choice_map({"z": jnp.array([3.0])}), [0])
+        chm = genjax.index_choice_map(
+            [0],
+            genjax.choice_map({"z": jnp.array([3.0])}),
+        )
         key, (w, _) = jax.jit(model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.logpdf(3.0, 0.0, 1.0)
 
     def test_map_vmap_pytree(self):
         key = jax.random.PRNGKey(314159)
-        
+
         @genjax.gen
         def foo(y, args):
             loc, scale = args
@@ -87,9 +86,11 @@ class TestMapCombinator:
 
     def test_map_repeats(self):
         key = jax.random.PRNGKey(314159)
+
         @genjax.gen
         def model():
-            x = genjax.normal(0., 1.) @ 'x'
+            x = genjax.normal(0.0, 1.0) @ "x"
             return x
+
         _, _ = genjax.simulate(genjax.Map(model, repeats=10))(key, ())
         assert True
