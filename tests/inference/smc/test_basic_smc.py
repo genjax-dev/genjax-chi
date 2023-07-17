@@ -70,7 +70,7 @@ class TestSimpleSMC:
             choice_map({"x": jnp.array([1.0, 2.0, 3.0, 4.0])}),
         )
 
-        def simple_smc(key, obs, init_state):
+        def extend_smc_no_resampling(key, obs, init_state):
             index_sel = index_select(0)
             obs_slice = index_sel.filter(obs)
             key, smc_state = smc.smc_initialize(key, chain, (0, init_state), obs_slice, 100)
@@ -96,6 +96,6 @@ class TestSimpleSMC:
             return key, stacked
 
         key = jax.random.PRNGKey(314159)
-        key, smc_state = simple_smc(key, obs, 0.0)
+        key, smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
 
         assert True
