@@ -217,35 +217,22 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         state = args[1]
         static_args = args[2:]
 
-        # Unwrap the index mask.
-        inner_choice_map = chm.inner
-        target_index = chm.get_index()
-
-        # TODO: Complicated - refactor in future.
         def _inner(carry, _):
             count, key, state = carry
+            sub_choice_map = chm.get_subtree(count)
+            key, (w, tr) = self.kernel.importance(
+                key, sub_choice_map, (state, *static_args)
+            )
 
-            def _importance(key, state):
-                return self.kernel.importance(
-                    key, inner_choice_map, (state, *static_args)
-                )
-
-            def _simulate(key, state):
-                key, tr = self.kernel.simulate(key, (state, *static_args))
-                return key, (0.0, tr)
-
-            check = count == target_index
-            key, (w, tr) = concrete_cond(check, _importance, _simulate, key, state)
             check = jnp.less(count, length + 1)
-            index = concrete_cond(check, lambda *_: count, lambda *_: -1)
             count, state, score, w = concrete_cond(
                 check,
                 lambda *args: (count + 1, tr.get_retval(), tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
-            return (count, key, state), (w, score, tr, index, state)
+            return (count, key, state), (w, score, tr, state)
 
-        (count, key, state), (w, score, tr, indices, retval) = jax.lax.scan(
+        (count, key, state), (w, score, tr, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             None,
@@ -280,10 +267,9 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 key, tr = self.kernel.simulate(key, (state, *static_args))
                 return key, (0.0, tr)
 
-            check = chm.check_mask()
             check_count = jnp.less(count, length + 1)
             key, (w, tr) = concrete_cond(
-                jnp.logical_and(check, check_count),
+                check_count,
                 _importance,
                 _simulate,
                 key,
@@ -291,13 +277,8 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 state,
             )
 
-            index = concrete_cond(
-                check_count,
-                lambda *args: count,
-                lambda *args: -1,
-            )
             count, state, score, w = concrete_cond(
-                check,
+                check_count,
                 lambda *args: (
                     count + 1,
                     tr.get_retval(),
@@ -306,9 +287,9 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 ),
                 lambda *args: (count, state, 0.0, 0.0),
             )
-            return (count, key, state), (w, score, tr, index, state)
+            return (count, key, state), (w, score, tr, state)
 
-        (count, key, state), (w, score, tr, indices, retval) = jax.lax.scan(
+        (_, key, state), (w, score, tr, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
             chm,

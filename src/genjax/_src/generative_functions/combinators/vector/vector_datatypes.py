@@ -30,7 +30,6 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.pytree import tree_stack
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
@@ -87,12 +86,7 @@ class VectorTrace(Trace):
 
     def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, VectorSelection):
-            if selection.masks is not None:
-                return jnp.sum(
-                    jnp.where(selection.masks, self.inner.project(selection.inner), 0.0)
-                )
-            else:
-                return jnp.sum(self.inner.project(selection.inner))
+            return jnp.sum(self.inner.project(selection.inner))
         elif isinstance(selection, IndexSelection) or isinstance(
             selection, ComplementIndexSelection
         ):
@@ -116,38 +110,20 @@ class VectorTrace(Trace):
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
-    masks: Union[None, BoolArray]
     inner: Union[ChoiceMap, Trace]
 
     def flatten(self):
-        return (self.masks, self.inner), ()
+        return (self.inner,), ()
 
     @typecheck
     @classmethod
     def new(
-        cls, inner: ChoiceMap, masks: Union[None, list, BoolArray] = None
+        cls,
+        inner: ChoiceMap,
     ) -> ChoiceMap:
-        # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
             return inner
-
-        if isinstance(masks, list) or isinstance(masks, BoolArray):
-            # indices can't be empty.
-            assert masks
-            masks = jnp.array(masks)
-            masks_len = len(masks)
-            inner_len = static_check_leaf_length(inner)
-            # indices must have same length as leaves of the inner choice map.
-            assert masks_len == inner_len
-            return VectorChoiceMap(masks, inner)
-
-        return VectorChoiceMap(None, inner)
-
-    def check_mask(self):
-        if self.masks is None:
-            return True
-        else:
-            return self.masks
+        return VectorChoiceMap(inner)
 
     def get_selection(self):
         subselection = self.inner.get_selection()
@@ -166,9 +142,9 @@ class VectorChoiceMap(ChoiceMap):
     # two vector choices maps with different index arrays.
     def merge(self, other):
         if isinstance(other, VectorChoiceMap):
-            return VectorChoiceMap(other.masks, self.inner.merge(other.inner))
+            return VectorChoiceMap(self.inner.merge(other.inner))
         else:
-            return VectorChoiceMap(self.masks, self.inner.merge(other))
+            return VectorChoiceMap(self.inner.merge(other))
 
     def __hash__(self):
         return hash(self.inner)
@@ -190,20 +166,19 @@ class VectorChoiceMap(ChoiceMap):
 
 @dataclass
 class VectorSelection(Selection):
-    masks: Union[None, BoolArray]
     inner: Selection
 
     def flatten(self):
-        return (self.masks, self.inner), ()
+        return (self.inner,), ()
 
     @classmethod
-    def new(cls, inner, masks=None):
-        return VectorSelection(masks, inner)
+    def new(cls, inner):
+        return VectorSelection(inner)
 
     def filter(self, tree):
         assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
         filtered = self.inner.filter(tree)
-        return VectorChoiceMap(tree.masks, filtered)
+        return VectorChoiceMap(filtered)
 
     def complement(self):
         return VectorSelection(self.inner.complement())
@@ -254,7 +229,7 @@ class IndexChoiceMap(ChoiceMap):
 
     @typecheck
     @classmethod
-    def new(cls, inner: ChoiceMap, indices: Union[List, IntArray]) -> ChoiceMap:
+    def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
         if isinstance(indices, List):
             indices = jnp.array(indices)
 
@@ -267,6 +242,9 @@ class IndexChoiceMap(ChoiceMap):
             return inner
 
         return IndexChoiceMap(indices, inner)
+
+    def get_index(self):
+        return self.indices
 
     def has_subtree(self, addr):
         if not isinstance(addr, Tuple) and len(addr) == 1:
