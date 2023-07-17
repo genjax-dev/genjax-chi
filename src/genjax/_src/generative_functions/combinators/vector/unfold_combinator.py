@@ -396,6 +396,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     ):
         new_upper, _ = length.unpack()
         start_lower = jnp.min(chm.indices)
+
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
         state_diff = jtu.tree_map(
@@ -420,6 +421,15 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             prev = jtu.tree_map(_mutate, prev, new_tr)
             w = w + idx_w
 
+            # TODO: c.f. message above on `UnknownChange`.
+            # Preserve the diff type across the loop
+            # iterations.
+            primal_state, _ = state_diff.unpack()
+            state_diff = jtu.tree_map(
+                lambda v: diff(v, UnknownChange),
+                primal_state,
+            )
+
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
@@ -431,7 +441,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         )
         retval = new_inner_trace.get_retval()
         scores = new_inner_trace.get_score()
-        args = (state, *static_args)
+        args = tree_diff_primal((length, state, *static_args))
 
         new_tr = VectorTrace(self, new_inner_trace, args, retval, jnp.sum(scores))
         return key, (state_diff, w, new_tr, EmptyChoiceMap())
