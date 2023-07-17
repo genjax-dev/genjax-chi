@@ -395,7 +395,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             self,
             indices,
             tr,
-            args,
+            (length, state, *static_args),
             tree_diff_primal(retdiff),
             jnp.sum(score),
         )
