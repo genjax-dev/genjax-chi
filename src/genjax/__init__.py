@@ -17,6 +17,7 @@
 # For the internals, see _src.
 
 # Closed modules.
+from genjax import inference
 from genjax import typing
 from genjax.core import interpreters
 from genjax.generative_functions.distributions import coryx
