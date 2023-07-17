@@ -72,7 +72,8 @@ class TestSimpleSMC:
 
         def simple_smc(key, obs, init_state):
             index_sel = index_select(0)
-            key, smc_state = smc.smc_initialize(key, chain, (0, init_state), obs, 100)
+            obs_slice = index_sel.filter(obs)
+            key, smc_state = smc.smc_initialize(key, chain, (0, init_state), obs_slice, 100)
             obs = jtu.tree_map(lambda v: v[1:], obs)
 
             def _inner(carry, xs):
