@@ -17,7 +17,6 @@ import abc
 from dataclasses import dataclass
 
 import jax
-import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import AllSelection
@@ -36,6 +35,7 @@ from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import NoChange
 from genjax._src.core.transforms.incremental import UnknownChange
+from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.transforms.incremental import tree_diff_primal
@@ -44,6 +44,7 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 
@@ -178,107 +179,71 @@ class Distribution(GenerativeFunction, SupportsBuiltinSugar):
             DistributionTrace(self, args, v, score),
         )
 
-    # NOTE: Here's an interesting note about `update`...
-    # (really, any of the GFI methods for any generative function)
-    # - they should return homogeneous types for any return
-    # branch leading out of the call.
-    # Because these methods may be invoked in `jax.lax.switch` calls
-    # it's important that callers have some knowledge about the
-    # consistency of invoking a callee -- most generative function
-    # languages ensure this is true by default e.g. if they defer
-    # some of their behavior to callees.
-    # For `Distribution` this is not true by default - we have to be
-    # careful when defining the methods, and this is most true of update
-    # below.
-    @typecheck
+    @dispatch
     def update(
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: ChoiceMap,
+        constraints: EmptyChoiceMap,
         argdiffs: Tuple,
         **kwargs
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
-        assert isinstance(constraints, Leaf)
         static_check_tree_leaves_diff(argdiffs)
-        maybe_discard = mask(False, prev.get_choices())
+        v = prev.get_retval()
+        retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), v)
+        discard = mask(False, prev.get_choices())
 
-        # Incremental optimization - if nothing has changed,
-        # just return the previous trace.
-        if isinstance(constraints, EmptyChoiceMap) and static_check_no_change(argdiffs):
-            v = prev.get_retval()
-            retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), v)
-            return key, (retval_diff, 0.0, prev, maybe_discard)
+        # If no change to arguments, no need to update.
+        if static_check_no_change(argdiffs):
+            return key, (retval_diff, 0.0, prev, discard)
 
-        # Otherwise, we consider the cases.
-        args = tree_diff_primal(argdiffs)
-
-        # First, we have to check if the trace provided
-        # is masked or not. It's possible that a trace
-        # with a mask is updated.
-        prev_v = prev.get_retval()
-        active = True
-        if isinstance(prev_v, BooleanMask):
-            active = prev_v.mask
-            prev_v = prev_v.unmask()
-
-        # Case 1: the new choice map is empty here.
-        if isinstance(constraints, EmptyChoiceMap):
-            prev_score = prev.get_score()
-            v = prev_v
-
-            # If the value is active, we compute any weight
-            # corrections from changing arguments.
-            def _active(key, v, *args):
-                key, fwd = self.estimate_logpdf(key, v, *args)
-                return key, fwd - prev_score
-
-            # If the value is inactive, we do nothing.
-            def _inactive(key, v, *args):
-                return key, prev_score
-
-            key, w = concrete_cond(active, _active, _inactive, key, v, *args)
-            discard = maybe_discard
-            retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), prev_v)
-
-        # Case 2: the new choice map is not empty here.
+        # Otherwise, we must compute an incremental weight.
         else:
-            prev_score = prev.get_score()
-            v = constraints.get_leaf_value()
-
-            # Now, we must check if the choice map has a masked
-            # leaf value, and dispatch accordingly.
-            active_chm = True
-            if isinstance(v, BooleanMask):
-                active_chm = v.mask
-                v = v.unmask()
-
-            # The only time this flag is on is when both leaf values
-            # are concrete, or they are both masked with true mask
-            # values.
-            active = jnp.all(jnp.logical_and(active_chm, active))
-
+            args = tree_diff_primal(argdiffs)
             key, fwd = self.estimate_logpdf(key, v, *args)
+            bwd = prev.get_score()
+            return key, (retval_diff, fwd - bwd, prev, discard)
 
-            def _constraints_active(key, v, *args):
-                return key, v, fwd - prev_score
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: DistributionTrace,
+        constraints: ValueChoiceMap,
+        argdiffs: Tuple,
+        **kwargs
+    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
+        static_check_tree_leaves_diff(argdiffs)
+        args = tree_diff_primal(argdiffs)
+        v = constraints.get_leaf_value()
+        if isinstance(v, BooleanMask):
+            check, value = v.mask, v.value
 
-            def _constraints_inactive(key, v, *args):
-                return key, prev_v, 0.0
+            def _fallback(key):
+                key, (retdiff, w, new_tr, discard) = self.update(
+                    key, prev, EmptyChoiceMap(), argdiffs
+                )
+                primal = tree_diff_primal(retdiff)
+                # Because we are pushing the update to depend dynamically on a mask flag value,
+                # we have to ensure that all branches return the same types of Pytree.
+                coerce_to_unknown = jtu.tree_map(
+                    lambda v: diff(v, UnknownChange), primal
+                )
+                return key, (coerce_to_unknown, w, new_tr, discard)
 
-            key, v, w = concrete_cond(
-                active_chm, _constraints_active, _constraints_inactive, key, v, *args
-            )
+            def _active(key):
+                return self.update(key, prev, ValueChoiceMap(value), argdiffs)
 
-            discard = mask(active_chm, ValueChoiceMap(prev.get_leaf_value()))
-            retval_diff = jtu.tree_map(lambda v: Diff(v, UnknownChange), v)
+            return concrete_cond(check, _active, _fallback, key)
+        else:
+            key, fwd = self.estimate_logpdf(key, v, *args)
+            bwd = prev.get_score()
+            w = fwd - bwd
+            new_tr = DistributionTrace(self, args, v, fwd)
+            discard = mask(True, prev.get_choices())
+            retval_diff = jtu.tree_map(lambda x: diff(x, UnknownChange), v)
 
-        return key, (
-            retval_diff,
-            w,
-            DistributionTrace(self, args, v, w),
-            discard,
-        )
+            return key, (retval_diff, w, new_tr, discard)
 
     @typecheck
     def assess(

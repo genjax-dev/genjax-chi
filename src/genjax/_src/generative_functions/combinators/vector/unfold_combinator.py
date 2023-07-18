@@ -380,12 +380,23 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     ):
         new_upper = tree_diff_primal(length)
         start_lower = jnp.min(chm.indices)
+        state = tree_diff_primal(state)
+        static_args = Diff.no_change(static_args)
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
         state_diff = jtu.tree_map(
-            lambda v: diff(v[start_lower], UnknownChange),
-            prev.get_retval(),
+            lambda v: diff(v, UnknownChange),
+            concrete_cond(
+                start_lower
+                == 0,  # if the starting index is 0, we need to grab the state argument.
+                lambda *args: state,
+                # Else, we use the retval from the previous iteration in the trace.
+                lambda *args: jtu.tree_map(
+                    lambda v: v[start_lower - 1],
+                    prev.get_retval(),
+                ),
+            ),
         )
         prev_inner_trace = prev.inner
 
@@ -403,7 +414,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
 
             # TODO: also handle discard.
             prev = jtu.tree_map(_mutate, prev, new_tr)
-            w = w + idx_w
+            w += idx_w
 
             # TODO: c.f. message above on `UnknownChange`.
             # Preserve the diff type across the loop
@@ -419,15 +430,22 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         # TODO: add discard.
         (key, w, state_diff, new_inner_trace) = jax.lax.fori_loop(
             start_lower,
-            new_upper,
+            new_upper + 1,  # the bound semantics follow Python range semantics.
             _inner,
             (key, 0.0, state_diff, prev_inner_trace),
         )
-        retval = new_inner_trace.get_retval()
-        scores = new_inner_trace.get_score()
+
+        # Select the new return values.
+        retval = jtu.tree_map(
+            lambda v1, v2: jnp.where(
+                jnp.arange(0, self.max_length) < new_upper + 1, v1, v2
+            ),
+            new_inner_trace.get_retval(),
+            prev.get_retval(),
+        )
         args = tree_diff_primal((length, state, *static_args))
 
-        new_tr = VectorTrace(self, new_inner_trace, args, retval, jnp.sum(scores))
+        new_tr = VectorTrace(self, new_inner_trace, args, retval, prev.get_score() + w)
         return key, (state_diff, w, new_tr, EmptyChoiceMap())
 
     @dispatch

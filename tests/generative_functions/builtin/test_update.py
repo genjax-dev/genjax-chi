@@ -18,15 +18,14 @@ import pytest
 import genjax
 
 
-@genjax.gen
-def simple_normal():
-    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
-    return y1 + y2
-
-
 class TestUpdateSimpleNormal:
     def test_simple_normal_update(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_normal))
@@ -65,17 +64,14 @@ class TestUpdateSimpleNormal:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-
-@genjax.gen
-def simple_linked_normal():
-    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
-    y3 = genjax.trace("y3", genjax.normal)(y1 + y2, 1.0)
-    return y1 + y2 + y3
-
-
-class TestUpdateSimpleLinkedNormal:
     def test_simple_linked_normal_update(self):
+        @genjax.gen
+        def simple_linked_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
+            y3 = genjax.trace("y3", genjax.normal)(y1 + y2, 1.0)
+            return y1 + y2 + y3
+
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_linked_normal))
@@ -96,23 +92,19 @@ class TestUpdateSimpleLinkedNormal:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-
-@genjax.gen
-def _inner(x):
-    y1 = genjax.trace("y1", genjax.normal)(x, 1.0)
-    return y1
-
-
-@genjax.gen
-def simple_hierarchical_normal():
-    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", _inner)(y1)
-    y3 = genjax.trace("y3", _inner)(y1 + y2)
-    return y1 + y2 + y3
-
-
-class TestUpdateSimpleHierarchicalNormal:
     def test_simple_hierarchical_normal(self):
+        @genjax.gen
+        def _inner(x):
+            y1 = genjax.trace("y1", genjax.normal)(x, 1.0)
+            return y1
+
+        @genjax.gen
+        def simple_hierarchical_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", _inner)(y1)
+            y3 = genjax.trace("y3", _inner)(y1 + y2)
+            return y1 + y2 + y3
+
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(genjax.simulate(simple_hierarchical_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_hierarchical_normal))
@@ -135,3 +127,22 @@ class TestUpdateSimpleHierarchicalNormal:
         assert original_chm[("y1",)] == discard[("y1",)]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
+    
+    def test_update_weight_correctness(self):
+        @genjax.gen
+        def simple_linked_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
+            y3 = genjax.trace("y3", genjax.normal)(y1 + y2, 1.0)
+            return y1 + y2 + y3
+
+        key = jax.random.PRNGKey(314159)
+        key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
+        jitted = jax.jit(genjax.update(simple_linked_normal))
+
+        new = genjax.choice_map({("y1",): 2.0})
+        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        sel = genjax.select("y1")
+        assert updated["y1"] == 2.0
+        assert updated.project(sel) == genjax.normal.logpdf(2.0, 0.0, 1.0)
+        #assert w == updated.project(sel) - tr.project(sel)

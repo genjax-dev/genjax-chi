@@ -86,3 +86,27 @@ class TestVectorTrace:
         sel = genjax.index_select(jnp.array([1]), genjax.select("z"))
         score = genjax.normal.logpdf(vec_tr.get_choices()["z"][1], 1.0, 1.0)
         assert score == vec_tr.project(sel)
+        
+        @genjax.gen(genjax.Unfold, max_length = 10)
+        def chain(x):
+            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            return z
+        
+        key, vec_tr = jax.jit(genjax.simulate(chain))(key, (5, 0.0))
+        sel = genjax.index_select([0], genjax.select("z"))
+        proj_score = vec_tr.project(sel)
+        latent_z_0 = sel.filter(vec_tr.strip())["z"]
+        z_score = genjax.normal.logpdf(latent_z_0, 0.0, 1.0)
+        assert proj_score == z_score
+        
+        sel = genjax.index_select([1], genjax.select("z"))
+        proj_score = vec_tr.project(sel)
+        latent_z_1 = sel.filter(vec_tr.strip())["z"]
+        z_score = genjax.normal.logpdf(latent_z_1, latent_z_0, 1.0)
+        assert proj_score == z_score
+        
+        sel = genjax.index_select([2], genjax.select("z"))
+        proj_score = vec_tr.project(sel)
+        latent_z_2 = sel.filter(vec_tr.strip())["z"]
+        z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
+        assert proj_score == z_score
