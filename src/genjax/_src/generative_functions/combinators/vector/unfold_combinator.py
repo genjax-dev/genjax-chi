@@ -378,7 +378,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         state: Any,
         *static_args: Any,
     ):
-        new_upper, _ = length.unpack()
+        new_upper = tree_diff_primal(length)
         start_lower = jnp.min(chm.indices)
 
         # TODO: `UnknownChange` is used here
@@ -408,7 +408,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             # TODO: c.f. message above on `UnknownChange`.
             # Preserve the diff type across the loop
             # iterations.
-            primal_state, _ = state_diff.unpack()
+            primal_state = tree_diff_primal(state_diff)
             state_diff = jtu.tree_map(
                 lambda v: diff(v, UnknownChange),
                 primal_state,
@@ -455,7 +455,6 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         static_args = argdiffs[2:]
         args = tree_diff_primal(argdiffs)
         self._runtime_check_bounds(args)
-        length_primal, length_tangent = length.unpack()
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
             return self._update_specialized(

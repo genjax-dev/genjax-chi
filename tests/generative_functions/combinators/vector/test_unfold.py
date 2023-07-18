@@ -14,9 +14,11 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 import genjax
+from genjax import diff, NoChange, UnknownChange
 
 
 class TestUnfoldSimpleNormal:
@@ -34,7 +36,7 @@ class TestUnfoldSimpleNormal:
             jnp.sum(tr.project(genjax.vector_select(genjax.select("z"))))
             == unfold_score
         )
-    
+
     def test_unfold_index_importance(self):
         @genjax.gen
         def kernel(x):
@@ -44,11 +46,7 @@ class TestUnfoldSimpleNormal:
         model = genjax.Unfold(kernel, max_length=10)
         key = jax.random.PRNGKey(314159)
         chm = genjax.index_choice_map([3], genjax.choice_map({"z": jnp.array([0.5])}))
-        key, (w, tr) = model.importance(
-            key,
-            chm,
-            (6, 0.1)
-        )
+        key, (w, tr) = model.importance(key, chm, (6, 0.1))
         sel = genjax.index_select([3], genjax.select("z"))
         assert True
 
@@ -91,3 +89,62 @@ class TestUnfoldSimpleNormal:
         assert importance_tr["x"][2] == true_x[2]
         assert importance_tr["x"][3] == true_x[3]
         assert importance_tr["x"][4] == true_x[4]
+
+    def test_update_pytree_state(self):
+        @genjax.gen
+        def next_step(state):
+            (x_prev, z_prev) = state
+            x = genjax.normal(_phi * x_prev, _q) @ "x"
+            z = _beta * z_prev + x
+            y = genjax.normal(z, _r) @ "y"
+
+            return (x, z)
+
+        key = jax.random.PRNGKey(314159)
+        max_T = 20
+        model = genjax.Unfold(next_step, max_length=max_T)
+        model_args = (0.0, 0.0)
+
+        def obs_chm(y, t):
+            return genjax.index_choice_map(
+                [t], genjax.choice_map({"y": jnp.expand_dims(y[t], 0)})
+            )
+
+        _phi, _q, _beta, _r = (0.9, 1, 0.5, 1)
+        _y = jnp.array(
+            [
+                -0.2902139981058265,
+                1.3737349808892283,
+                0.18008812825243414,
+                -4.916120119596394,
+                -4.4309304370236084,
+                -8.079005724974689,
+                -6.690313781416586,
+                -3.2570512312033895,
+                -2.518358148235886,
+                -1.6024395810401404,
+                -2.9326810854675287,
+                -2.1934524121301915,
+                -3.1139481129728765,
+                -4.297384806279307,
+                -4.838146951278021,
+                -4.3374767962853396,
+                -4.922057827696929,
+                -2.174534838472549,
+                -0.9382616295106063,
+                1.056841769960211,
+            ]
+        )
+
+        key, init_key, update_key = jax.random.split(key, 3)
+        _, (init_weight, init_tr) = model.importance(
+            init_key, obs_chm(_y, 0), (0, model_args)
+        )
+
+        diffs = (
+            diff(1, UnknownChange),
+            jtu.tree_map(lambda v: diff(v, NoChange), model_args),
+        )
+
+        _ = model.update(update_key, init_tr, obs_chm(_y, 1), diffs)
+        assert True
