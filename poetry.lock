@@ -1059,13 +1059,13 @@ gitdb = ">=4.0.1,<5"
 
 [[package]]
 name = "griffe"
-version = "0.32.0"
+version = "0.32.3"
 description = "Signatures for entire Python programs. Extract the structure, the frame, the skeleton of your project, to generate API documentation or find breaking changes in your API."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "griffe-0.32.0-py3-none-any.whl", hash = "sha256:9ae294d9cfe897ce87a33f7c3808d5a7118023778e397c6a3ea24f2f92156bce"},
-    {file = "griffe-0.32.0.tar.gz", hash = "sha256:a7d15fac426703e492242bf982092ec36cf9990defa1b68be3db839b10843a93"},
+    {file = "griffe-0.32.3-py3-none-any.whl", hash = "sha256:d9471934225818bf8f309822f70451cc6abb4b24e59e0bb27402a45f9412510f"},
+    {file = "griffe-0.32.3.tar.gz", hash = "sha256:14983896ad581f59d5ad7b6c9261ff12bdaa905acccc1129341d13e545da8521"},
 ]
 
 [package.dependencies]
