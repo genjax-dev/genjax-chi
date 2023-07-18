@@ -141,10 +141,53 @@ class TestUnfoldSimpleNormal:
             init_key, obs_chm(_y, 0), (0, model_args)
         )
 
+        # Checks updates.
         diffs = (
             diff(1, UnknownChange),
             jtu.tree_map(lambda v: diff(v, NoChange), model_args),
         )
 
-        _ = model.update(update_key, init_tr, obs_chm(_y, 1), diffs)
-        assert True
+        key, (_, w, new_tr, _) = model.update(
+            update_key, init_tr, obs_chm(_y, 1), diffs
+        )
+        assert init_tr.get_score() + w == new_tr.get_score()
+
+        diffs = (
+            diff(2, UnknownChange),
+            jtu.tree_map(lambda v: diff(v, NoChange), model_args),
+        )
+
+        key, (_, w, new_new_tr, _) = model.update(
+            update_key, new_tr, obs_chm(_y, 2), diffs
+        )
+        assert new_tr.get_score() + w == new_new_tr.get_score()
+
+    def test_check_weight_computations(self):
+        @genjax.gen(genjax.Unfold, max_length=10)
+        def chain(z_prev):
+            z = genjax.normal(z_prev, 1.0) @ "z"
+            x = genjax.normal(z, 1.0) @ "x"
+            return z
+
+        key = jax.random.PRNGKey(314159)
+        key, tr = chain.simulate(key, (5, 0.0))
+
+        #####
+        # Check specific weight computations.
+        #####
+
+        # Ensure that update is computed correctly.
+        for t in range(0, 5):
+            obs = genjax.index_choice_map(
+                [t],
+                genjax.choice_map({"x": jnp.array([1.0])}),
+            )
+            diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
+            key, (_, w, new_tr, _) = chain.update(key, tr, obs, diffs)
+            sel = genjax.index_select([t], genjax.select("z"))
+            z = sel.filter(new_tr.strip())["z"]
+            x_sel = genjax.index_select([t], genjax.select("x"))
+            assert new_tr.project(x_sel) == pytest.approx(
+                genjax.normal.logpdf(1.0, z, 1.0), 0.0001
+            )
+            assert w == pytest.approx(new_tr.project(x_sel) - tr.project(x_sel), 0.0001)

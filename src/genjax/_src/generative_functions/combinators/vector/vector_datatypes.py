@@ -321,7 +321,8 @@ class IndexSelection(Selection):
     def get_subtrees_shallow(self):
         raise NotImplementedError
 
-    def filter(self, tree):
+    @typecheck
+    def filter(self, tree: ChoiceMap):
         filtered = self.inner.filter(tree)
         flags = jnp.logical_and(
             self.indices >= 0,

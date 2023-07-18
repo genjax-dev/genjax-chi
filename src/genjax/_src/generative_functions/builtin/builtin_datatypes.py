@@ -28,126 +28,8 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-
-
-#####
-# Trace
-#####
-
-
-@dataclass
-class BuiltinTrace(Trace):
-    gen_fn: GenerativeFunction
-    args: Tuple
-    retval: Any
-    choices: Trie
-    cache: Trie
-    score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.args,
-            self.retval,
-            self.choices,
-            self.cache,
-            self.score,
-        ), ()
-
-    def get_gen_fn(self):
-        return self.gen_fn
-
-    def get_choices(self):
-        return BuiltinChoiceMap(self.choices)
-
-    def get_retval(self):
-        return self.retval
-
-    def get_score(self):
-        return self.score
-
-    def get_args(self):
-        return self.args
-
-    def project(self, selection: Selection):
-        weight = 0.0
-        for (k, v) in self.choices.get_subtrees_shallow():
-            if selection.has_subtree(k):
-                weight += v.project(selection[k])
-        return weight
-
-    def has_cached_value(self, addr):
-        return self.cache.has_subtree(addr)
-
-    def get_cached_value(self, addr):
-        return self.cache.get_subtree(addr)
-
-
-##############
-# Choice map #
-##############
-
-
-@dataclass
-class BuiltinChoiceMap(ChoiceMap):
-    trie: Trie
-
-    def flatten(self):
-        return (self.trie,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, constraints: Dict):
-        assert isinstance(constraints, Dict)
-        trie = Trie.new()
-        for (k, v) in constraints.items():
-            v = (
-                ValueChoiceMap(v)
-                if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-                else v
-            )
-            trie.trie_insert(k, v)
-        return BuiltinChoiceMap(trie)
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return EmptyChoiceMap()
-        else:
-            return value.get_choices()
-
-    def get_subtrees_shallow(self):
-        return map(
-            lambda v: (v[0], v[1].get_choices()),
-            self.trie.get_subtrees_shallow(),
-        )
-
-    def get_selection(self):
-        trie = Trie.new()
-        for (k, v) in self.get_subtrees_shallow():
-            trie[k] = v.get_selection()
-        return BuiltinSelection(trie)
-
-    # TODO: test this.
-    def merge(self, other: "BuiltinChoiceMap"):
-        assert isinstance(other, BuiltinChoiceMap)
-        new_inner = self.trie.merge(other.trie)
-        return BuiltinChoiceMap(new_inner)
-
-    def __setitem__(self, k, v):
-        v = (
-            ValueChoiceMap(v)
-            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-            else v
-        )
-        self.trie.trie_insert(k, v)
-
-    def __hash__(self):
-        return hash(self.trie)
 
 
 ##############
@@ -267,6 +149,134 @@ class BuiltinComplementSelection(Selection):
 
     def get_subtrees_shallow(self):
         return self.trie.get_subtrees_shallow()
+
+
+#####
+# Trace
+#####
+
+
+@dataclass
+class BuiltinTrace(Trace):
+    gen_fn: GenerativeFunction
+    args: Tuple
+    retval: Any
+    choices: Trie
+    cache: Trie
+    score: FloatArray
+
+    def flatten(self):
+        return (
+            self.gen_fn,
+            self.args,
+            self.retval,
+            self.choices,
+            self.cache,
+            self.score,
+        ), ()
+
+    def get_gen_fn(self):
+        return self.gen_fn
+
+    def get_choices(self):
+        return BuiltinChoiceMap(self.choices)
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+    def get_args(self):
+        return self.args
+
+    @dispatch
+    def project(self, selection: AllSelection):
+        return self.get_score()
+
+    @dispatch
+    def project(self, selection: NoneSelection):
+        return 0.0
+
+    @dispatch
+    def project(self, selection: BuiltinSelection):
+        weight = 0.0
+        for (k, subtrace) in self.choices.get_subtrees_shallow():
+            if selection.has_subtree(k):
+                weight += subtrace.project(selection.get_subtree(k))
+        return weight
+
+    def has_cached_value(self, addr):
+        return self.cache.has_subtree(addr)
+
+    def get_cached_value(self, addr):
+        return self.cache.get_subtree(addr)
+
+
+##############
+# Choice map #
+##############
+
+
+@dataclass
+class BuiltinChoiceMap(ChoiceMap):
+    trie: Trie
+
+    def flatten(self):
+        return (self.trie,), ()
+
+    @typecheck
+    @classmethod
+    def new(cls, constraints: Dict):
+        assert isinstance(constraints, Dict)
+        trie = Trie.new()
+        for (k, v) in constraints.items():
+            v = (
+                ValueChoiceMap(v)
+                if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+                else v
+            )
+            trie.trie_insert(k, v)
+        return BuiltinChoiceMap(trie)
+
+    def has_subtree(self, addr):
+        return self.trie.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        value = self.trie.get_subtree(addr)
+        if value is None:
+            return EmptyChoiceMap()
+        else:
+            return value.get_choices()
+
+    def get_subtrees_shallow(self):
+        return map(
+            lambda v: (v[0], v[1].get_choices()),
+            self.trie.get_subtrees_shallow(),
+        )
+
+    def get_selection(self):
+        trie = Trie.new()
+        for (k, v) in self.get_subtrees_shallow():
+            trie[k] = v.get_selection()
+        return BuiltinSelection(trie)
+
+    # TODO: test this.
+    def merge(self, other: "BuiltinChoiceMap"):
+        assert isinstance(other, BuiltinChoiceMap)
+        new_inner = self.trie.merge(other.trie)
+        return BuiltinChoiceMap(new_inner)
+
+    def __setitem__(self, k, v):
+        v = (
+            ValueChoiceMap(v)
+            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+            else v
+        )
+        self.trie.trie_insert(k, v)
+
+    def __hash__(self):
+        return hash(self.trie)
 
 
 ##############
