@@ -92,7 +92,9 @@ class ContextualTrace(jc.Trace):
         if context.can_process(primitive):
             outvals = context.process_primitive(primitive, *vals, **params)
             return jax_util.safe_map(self.pure, outvals)
-        outvals = primitive.bind(*vals, **params)
+        subfuns, params = primitive.get_bind_params(params)
+        args = subfuns + vals
+        outvals = primitive.bind(*args, **params)
         if not primitive.multiple_results:
             outvals = [outvals]
         out_tracers = jax_util.safe_map(self.full_raise, outvals)

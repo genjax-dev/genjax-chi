@@ -21,7 +21,6 @@ from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Float
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
@@ -50,10 +49,10 @@ def scaled_circulant(N, k, epsilon, delta):
 @dataclass
 class DiscreteHMMConfiguration(Pytree):
     linear_grid_dim: IntArray
-    adjacency_distance_trans: Float
+    adjacency_distance_trans: IntArray
     adjacency_distance_obs: IntArray
-    sigma_trans: Float
-    sigma_obs: Float
+    sigma_trans: FloatArray
+    sigma_obs: FloatArray
     transition_tensor: FloatArray
     observation_tensor: FloatArray
 
@@ -82,10 +81,10 @@ class DiscreteHMMConfiguration(Pytree):
     def new(
         cls,
         linear_grid_dim: IntArray,
-        adjacency_distance_trans: Float,
-        adjacency_distance_obs: Float,
-        sigma_trans: Float,
-        sigma_obs: Float,
+        adjacency_distance_trans: IntArray,
+        adjacency_distance_obs: IntArray,
+        sigma_trans: FloatArray,
+        sigma_obs: FloatArray,
     ):
         transition_tensor = scaled_circulant(
             linear_grid_dim,
@@ -293,4 +292,9 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
         return key, ffs
 
 
+##############
+# Shorthands #
+##############
+
 DiscreteHMM = _DiscreteHMMLatentSequencePosterior()
+discrete_hmm_config = DiscreteHMMConfiguration.new
