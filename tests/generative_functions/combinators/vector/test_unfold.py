@@ -38,17 +38,43 @@ class TestUnfoldSimpleNormal:
         )
 
     def test_unfold_index_importance(self):
-        @genjax.gen
-        def kernel(x):
+        @genjax.gen(genjax.Unfold, max_length=10)
+        def chain(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
-        model = genjax.Unfold(kernel, max_length=10)
         key = jax.random.PRNGKey(314159)
-        chm = genjax.index_choice_map([3], genjax.choice_map({"z": jnp.array([0.5])}))
-        key, (w, tr) = model.importance(key, chm, (6, 0.1))
-        sel = genjax.index_select([3], genjax.select("z"))
-        assert True
+        chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array([0.5])}))
+        for t in range(0, 10):
+            key, (_, tr) = chain.importance(key, chm, (t, 0.3))
+            sel = genjax.vector_select("z")
+            assert tr.get_score() == tr.project(sel)
+
+    def test_unfold_two_layer_index_importance(self):
+        @genjax.gen(genjax.Unfold, max_length=10)
+        def two_layer_chain(x):
+            z1 = genjax.trace("z1", genjax.normal)(x, 1.0)
+            z2 = genjax.trace("z2", genjax.normal)(z1, 1.0)
+            return z2
+
+        key = jax.random.PRNGKey(314159)
+
+        # Partial constraints
+        chm = genjax.index_choice_map(
+            [0],
+            genjax.choice_map({"z": jnp.array([0.5])}),
+        )
+        for t in range(0, 10):
+            key, (_, tr) = two_layer_chain.importance(key, chm, (t, 0.3))
+            sel = genjax.vector_select("z1", "z2")
+            assert tr.get_score() == tr.project(sel)
+
+        # No constraints
+        chm = genjax.EmptyChoiceMap()
+        for t in range(0, 10):
+            key, (_, tr) = two_layer_chain.importance(key, chm, (t, 0.3))
+            sel = genjax.vector_select("z1", "z2")
+            assert tr.get_score() == tr.project(sel)
 
     def test_unfold_index_update(self):
         @genjax.gen
@@ -139,6 +165,7 @@ class TestUnfoldSimpleNormal:
 
         for t in range(1, 10):
             y_sel = genjax.index_select([t], genjax.select("y"))
+            x_sel = genjax.index_select([t], genjax.select("x"))
             diffs = (
                 diff(t, UnknownChange),
                 jtu.tree_map(lambda v: diff(v, NoChange), model_args),
@@ -149,10 +176,10 @@ class TestUnfoldSimpleNormal:
             assert tr.project(y_sel) == 0.0
 
             key, (_, w, tr, _) = model.update(key, tr, obs_chm(_y, t), diffs)
-            print(tr.inner.get_score())
 
-            # The weight should be equal to the new score.
-            assert w == tr.project(y_sel)
+            # The weight should be equal to the new score
+            # plus any newly sampled choices.
+            assert w == tr.project(y_sel) + tr.project(x_sel)
 
     def test_update_check_weight_computations(self):
         @genjax.gen(genjax.Unfold, max_length=10)
@@ -295,7 +322,7 @@ class TestUnfoldSimpleNormal:
         assert tr.project(sel) == pytest.approx(full_score, 0.0001)
 
         # Re-run the above process (importance followed by update).
-        # Check that, if we only generate length < max_length, 
+        # Check that, if we only generate length < max_length,
         # the projected score is equal to the returned score.
         chm = genjax.index_choice_map(
             [0], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
@@ -310,6 +337,28 @@ class TestUnfoldSimpleNormal:
             key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
 
         sel = genjax.vector_select("x", "z")
+        assert tr.project(sel) == tr.get_score()
+        sel = genjax.index_select([0, 1, 2], genjax.select("x", "z"))
+        assert tr.project(sel) == tr.get_score()
+        sel = genjax.index_select([0, 1, 2, 3, 4], genjax.select("x", "z"))
+        assert tr.project(sel) == tr.get_score()
+
+        # Re-run the above process (importance followed by update)
+        # but without constraints on `z`.
+        # Check that, if we only generate length < max_length,
+        # the projected score is equal to the returned score.
+        sel = genjax.vector_select("x", "z")
+        chm = genjax.index_choice_map([0], genjax.choice_map({"x": jnp.array([0.0])}))
+        key, (_, tr) = chain.importance(key, chm, (0, 0.0))
+        assert tr.project(sel) == tr.get_score()
+        for t in range(1, 3):
+            chm = genjax.index_choice_map(
+                [t], genjax.choice_map({"x": jnp.array([0.0])})
+            )
+            diffs = (diff(t, UnknownChange), diff(0.0, NoChange))
+
+            key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
+
         assert tr.project(sel) == tr.get_score()
         sel = genjax.index_select([0, 1, 2], genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()

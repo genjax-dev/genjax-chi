@@ -22,14 +22,10 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.pytree import tree_stack
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
@@ -51,59 +47,48 @@ from genjax._src.generative_functions.combinators.vector.vector_utilities import
 # The data types in this section are used in `Map` and `Unfold`, currently.
 
 #####
-# VectorTrace
+# VectorSelection
 #####
 
 
 @dataclass
-class VectorTrace(Trace):
-    gen_fn: GenerativeFunction
-    inner: Trace
-    args: Tuple
-    retval: Any
-    score: FloatArray
+class VectorSelection(Selection):
+    inner: Selection
 
     def flatten(self):
-        return (
-            self.gen_fn,
-            self.inner,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
+        return (self.inner,), ()
 
-    def get_args(self):
-        return self.args
+    @classmethod
+    @dispatch
+    def new(cls, inner: Selection):
+        return VectorSelection(inner)
 
-    def get_choices(self):
-        return VectorChoiceMap.new(self.inner)
+    @classmethod
+    @dispatch
+    def new(cls, *args: Union[Tuple, String]):
+        inner = select(*args)
+        return VectorSelection(inner)
 
-    def get_gen_fn(self):
-        return self.gen_fn
+    def filter(self, tree):
+        assert isinstance(tree, VectorChoiceMap)
+        filtered = self.inner.filter(tree)
+        return VectorChoiceMap(filtered)
 
-    def get_retval(self):
-        return self.retval
+    def complement(self):
+        return VectorSelection(self.inner.complement())
 
-    def get_score(self):
-        return self.score
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
 
-    def project(self, selection: Selection) -> FloatArray:
-        if isinstance(selection, VectorSelection):
-            return jnp.sum(self.inner.project(selection.inner))
-        elif isinstance(selection, IndexSelection) or isinstance(
-            selection, ComplementIndexSelection
-        ):
-            inner_project = self.inner.project(selection.inner)
-            return jnp.sum(
-                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
-            )
-        elif isinstance(selection, AllSelection):
-            return self.score
-        elif isinstance(selection, NoneSelection):
-            return 0.0
-        else:
-            selection = VectorSelection.new(selection)
-            return self.project(selection)
+    def get_subtree(self, addr):
+        return self.inner.get_subtree(addr)
+
+    def get_subtrees_shallow(self):
+        return self.inner.get_subtrees_shallow()
+
+    def merge(self, other):
+        assert isinstance(other, VectorSelection)
+        return self.inner.merge(other)
 
 
 #####
@@ -160,51 +145,6 @@ class VectorChoiceMap(ChoiceMap):
         tree.add(subk)
         tree.add(subt)
         return tree
-
-
-#####
-# VectorSelection
-#####
-
-
-@dataclass
-class VectorSelection(Selection):
-    inner: Selection
-
-    def flatten(self):
-        return (self.inner,), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, inner: Selection):
-        return VectorSelection(inner)
-
-    @classmethod
-    @dispatch
-    def new(cls, *args: Union[Tuple, String]):
-        inner = select(*args)
-        return VectorSelection(inner)
-
-    def filter(self, tree):
-        assert isinstance(tree, VectorChoiceMap) or isinstance(tree, VectorTrace)
-        filtered = self.inner.filter(tree)
-        return VectorChoiceMap(filtered)
-
-    def complement(self):
-        return VectorSelection(self.inner.complement())
-
-    def has_subtree(self, addr):
-        return self.inner.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        return self.inner.get_subtree(addr)
-
-    def get_subtrees_shallow(self):
-        return self.inner.get_subtrees_shallow()
-
-    def merge(self, other):
-        assert isinstance(other, VectorSelection)
-        return self.inner.merge(other)
 
 
 #####

@@ -23,9 +23,13 @@ import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import NoneSelection
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
@@ -43,13 +47,19 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    ComplementIndexSelection,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexSelection,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorTrace,
+    VectorSelection,
 )
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
@@ -57,7 +67,88 @@ from genjax._src.generative_functions.combinators.vector.vector_tracetypes impor
 
 
 #####
-# UnfoldCombinator
+# Unfold trace
+#####
+
+
+@dataclass
+class UnfoldTrace(Trace):
+    unfold: GenerativeFunction
+    inner: Trace
+    dynamic_length: IntArray
+    args: Tuple
+    retval: Any
+    score: FloatArray
+
+    def flatten(self):
+        return (
+            self.unfold,
+            self.inner,
+            self.dynamic_length,
+            self.args,
+            self.retval,
+            self.score,
+        ), ()
+
+    def get_args(self):
+        return self.args
+
+    def get_choices(self):
+        return VectorChoiceMap.new(self.inner)
+
+    def get_gen_fn(self):
+        return self.unfold
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+    @dispatch
+    def project(self, selection: VectorSelection) -> FloatArray:
+        return jnp.sum(
+            jnp.where(
+                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
+                self.inner.project(selection.inner),
+                0.0,
+            )
+        )
+
+    @dispatch
+    def project(self, selection: IndexSelection) -> FloatArray:
+        inner_project = self.inner.project(selection.inner)
+        return jnp.sum(
+            jnp.where(
+                selection.indices < self.dynamic_length + 1,
+                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
+                0.0,
+            )
+        )
+
+    @dispatch
+    def project(self, selection: ComplementIndexSelection) -> FloatArray:
+        inner_project = self.inner.project(selection.inner)
+        return jnp.sum(
+            jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+        )
+
+    @dispatch
+    def project(self, selection: AllSelection) -> FloatArray:
+        return self.score
+
+    @dispatch
+    def project(self, selection: NoneSelection) -> FloatArray:
+        return 0.0
+
+    @dispatch
+    def project(self, selection: Selection) -> FloatArray:
+        selection = VectorSelection.new(selection)
+        return self.project(selection)
+
+
+#####
+# Unfold combinator
 #####
 
 
@@ -156,7 +247,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         return VectorTraceType(inner_type, self.max_length)
 
     @typecheck
-    def simulate(self, key: PRNGKey, args: Tuple, **_) -> Tuple[PRNGKey, VectorTrace]:
+    def simulate(self, key: PRNGKey, args: Tuple, **_) -> Tuple[PRNGKey, UnfoldTrace]:
         self._runtime_check_bounds(args)
         length = args[0]
         state = args[1]
@@ -201,7 +292,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
+        unfold_tr = UnfoldTrace(self, tr, length, args, retval, jnp.sum(scores))
 
         return key, unfold_tr
 
@@ -239,7 +330,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(score))
+        unfold_tr = UnfoldTrace(self, tr, length, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -296,7 +387,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             length=self.max_length,
         )
 
-        unfold_tr = VectorTrace(self, tr, args, retval, jnp.sum(score))
+        unfold_tr = UnfoldTrace(self, tr, length, args, retval, jnp.sum(score))
 
         w = jnp.sum(w)
         return key, (w, unfold_tr)
@@ -317,7 +408,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def _update_fallback(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: UnfoldTrace,
         chm: IndexChoiceMap,
         length: Diff,
         state: Diff,
@@ -329,7 +420,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def _update_fallback(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: UnfoldTrace,
         chm: VectorChoiceMap,
         length: Diff,
         state: Diff,
@@ -357,9 +448,10 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             _inner, (0, key, state), (prev, chm), length=self.max_length
         )
 
-        unfold_tr = VectorTrace(
+        unfold_tr = UnfoldTrace(
             self,
             tr,
+            length,
             (length, state, *static_args),
             tree_diff_primal(retdiff),
             jnp.sum(score),
@@ -372,7 +464,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def _update_specialized(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: UnfoldTrace,
         chm: IndexChoiceMap,
         length: Diff,
         state: Any,
@@ -415,6 +507,10 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                 retdiff = jtu.tree_map(
                     lambda v: diff(v, UnknownChange), new_tr.get_retval()
                 )
+
+                # This is a brand new extension, which means the
+                # weight change is the entire score of the new trace.
+                w = new_tr.get_score()
 
                 return key, (retdiff, w, new_tr)
 
@@ -468,14 +564,16 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         )
         args = tree_diff_primal((length, state, *static_args))
 
-        new_tr = VectorTrace(self, new_inner_trace, args, retval, prev.get_score() + w)
+        new_tr = UnfoldTrace(
+            self, new_inner_trace, new_upper, args, retval, prev.get_score() + w
+        )
         return key, (state_diff, w, new_tr, EmptyChoiceMap())
 
     @dispatch
     def _update_specialized(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: UnfoldTrace,
         chm: VectorChoiceMap,
         length: Diff,
         state: Any,
@@ -487,7 +585,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def update(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: UnfoldTrace,
         chm: ChoiceMap,
         argdiffs: Tuple,
     ):
