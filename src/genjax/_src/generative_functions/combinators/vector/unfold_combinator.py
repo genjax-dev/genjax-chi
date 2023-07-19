@@ -508,10 +508,6 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
                     lambda v: diff(v, UnknownChange), new_tr.get_retval()
                 )
 
-                # This is a brand new extension, which means the
-                # weight change is the entire score of the new trace.
-                w = new_tr.get_score()
-
                 return key, (retdiff, w, new_tr)
 
             # Updating an existing index.
@@ -564,9 +560,16 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         )
         args = tree_diff_primal((length, state, *static_args))
 
-        new_tr = UnfoldTrace(
-            self, new_inner_trace, new_upper, args, retval, prev.get_score() + w
+        # TODO: is there a faster way to do this with the information I already have?
+        new_score = jnp.sum(
+            jnp.where(
+                jnp.arange(0, len(new_inner_trace.get_score())) < new_upper + 1,
+                new_inner_trace.get_score(),
+                0.0,
+            )
         )
+
+        new_tr = UnfoldTrace(self, new_inner_trace, new_upper, args, retval, new_score)
         return key, (state_diff, w, new_tr, EmptyChoiceMap())
 
     @dispatch
