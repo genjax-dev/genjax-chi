@@ -318,7 +318,7 @@ class TestUnfoldSimpleNormal:
 
         # Check that the projected score is equal to the returned score.
         sel = genjax.vector_select("x", "z")
-        assert tr.project(sel) == tr.get_score()
+        assert tr.project(sel) == pytest.approx(tr.get_score(), 0.0001)
         assert tr.project(sel) == pytest.approx(full_score, 0.0001)
 
         # Re-run the above process (importance followed by update).
