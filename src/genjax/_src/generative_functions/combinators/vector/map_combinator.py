@@ -23,8 +23,12 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
+from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import NoneSelection
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.trie import Trie
@@ -39,13 +43,19 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    ComplementIndexSelection,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexSelection,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorTrace,
+    VectorSelection,
 )
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
@@ -54,7 +64,63 @@ from genjax._src.utilities import slash
 
 
 #####
-# MapCombinator
+# Map trace
+#####
+
+
+@dataclass
+class MapTrace(Trace):
+    gen_fn: GenerativeFunction
+    inner: Trace
+    args: Tuple
+    retval: Any
+    score: FloatArray
+
+    def flatten(self):
+        return (
+            self.gen_fn,
+            self.inner,
+            self.args,
+            self.retval,
+            self.score,
+        ), ()
+
+    def get_args(self):
+        return self.args
+
+    def get_choices(self):
+        return VectorChoiceMap.new(self.inner)
+
+    def get_gen_fn(self):
+        return self.gen_fn
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+    def project(self, selection: Selection) -> FloatArray:
+        if isinstance(selection, VectorSelection):
+            return jnp.sum(self.inner.project(selection.inner))
+        elif isinstance(selection, IndexSelection) or isinstance(
+            selection, ComplementIndexSelection
+        ):
+            inner_project = self.inner.project(selection.inner)
+            return jnp.sum(
+                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+            )
+        elif isinstance(selection, AllSelection):
+            return self.score
+        elif isinstance(selection, NoneSelection):
+            return 0.0
+        else:
+            selection = VectorSelection.new(selection)
+            return self.project(selection)
+
+
+#####
+# Map
 #####
 
 
@@ -152,9 +218,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
     @typecheck
-    def simulate(
-        self, key: PRNGKey, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, VectorTrace]:
+    def simulate(self, key: PRNGKey, args: Tuple, **kwargs) -> Tuple[PRNGKey, MapTrace]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -163,7 +227,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         )
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return key, map_tr
 
     # Implementation specialized to `VectorChoiceMap`.
@@ -197,7 +261,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, tr, args, retval, scores)
+        map_tr = MapTrace(self, tr, args, retval, scores)
         return key, (w, map_tr)
 
     # Implementation specialized to `IndexChoiceMap`.
@@ -234,7 +298,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (w, map_tr)
 
     @dispatch
@@ -244,7 +308,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         chm: EmptyChoiceMap,
         args: Tuple,
         **_,
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
         key, map_tr = self.simulate(key, args)
         w = 0.0
         return key, (w, map_tr)
@@ -257,7 +321,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         chm: Trie,
         args: Tuple,
         **_,
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, VectorTrace]]:
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
         indchm = IndexChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
@@ -266,7 +330,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def update(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: MapTrace,
         chm: VectorChoiceMap,
         argdiffs: Tuple,
     ):
@@ -293,7 +357,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
@@ -302,7 +366,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
     def update(
         self,
         key: PRNGKey,
-        prev: VectorTrace,
+        prev: MapTrace,
         chm: EmptyChoiceMap,
         argdiffs: Tuple,
     ):
@@ -324,7 +388,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         )(sub_keys, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
-        map_tr = VectorTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
+        map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return key, (retdiff, w, map_tr, discard)
 
     # TODO: I've had so many issues with getting this to work correctly
