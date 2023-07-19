@@ -154,7 +154,7 @@ class TestUnfoldSimpleNormal:
             # The weight should be equal to the new score.
             assert w == tr.project(y_sel)
 
-    def test_check_weight_computations(self):
+    def test_update_check_weight_computations(self):
         @genjax.gen(genjax.Unfold, max_length=10)
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
@@ -236,3 +236,39 @@ class TestUnfoldSimpleNormal:
         # Check the scores and weights.
         new_score = new_tr.project(vzsel) + new_tr.project(xsel)
         assert w == pytest.approx(new_score - old_score, 0.0001)
+
+    def test_update_check_score_correctness(self):
+        @genjax.gen(genjax.Unfold, max_length=5)
+        def chain(z_prev):
+            z = genjax.normal(z_prev, 1.0) @ "z"
+            _ = genjax.normal(z, 1.0) @ "x"
+            return z
+
+        key = jax.random.PRNGKey(314159)
+
+        # Run importance to get a fully constrained trace.
+        full_chm = genjax.index_choice_map(
+            [0, 1, 2, 3, 4],
+            genjax.choice_map(
+                {
+                    "x": jnp.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+                    "z": jnp.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+                }
+            ),
+        )
+
+        key, (w, tr) = chain.importance(key, full_chm, (4, 0.0))
+        assert w == tr.get_score()
+        full_score = tr.get_score()
+
+        # Run update to incrementally constraint a trace.
+        key, tr = chain.simulate(key, (4, 0.0))
+        for t in range(0, 5):
+            chm = genjax.index_choice_map(
+                [t], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
+            )
+            diffs = (diff(4, NoChange), diff(0.0, NoChange))
+
+            key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
+
+        assert tr.get_score() == pytest.approx(full_score, 0.0001)
