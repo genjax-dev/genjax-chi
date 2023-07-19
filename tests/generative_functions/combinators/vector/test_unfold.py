@@ -179,7 +179,7 @@ class TestUnfoldSimpleNormal:
         # Ensure that update is computed correctly.
         new_tr = tr
         for t in range(0, 5):
-            sel = genjax.index_select([t], genjax.select("z"))
+            z_sel = genjax.index_select([t], genjax.select("z"))
             x_sel = genjax.index_select([t], genjax.select("x"))
             obs = genjax.index_choice_map(
                 [t],
@@ -187,12 +187,19 @@ class TestUnfoldSimpleNormal:
             )
             diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
             old_score = new_tr.project(x_sel)
+            old_x = x_sel.filter(new_tr.strip())["x"]
+            old_z = z_sel.filter(new_tr.strip())["z"]
             key, (_, w, new_tr, _) = chain.update(key, new_tr, obs, diffs)
-            z = sel.filter(new_tr.strip())["z"]
+            new_z = z_sel.filter(new_tr.strip())["z"]
+            assert old_z == new_z
             assert new_tr.project(x_sel) == pytest.approx(
-                genjax.normal.logpdf(1.0, z, 1.0), 0.0001
+                genjax.normal.logpdf(1.0, new_z, 1.0), 0.0001
             )
-            assert w == pytest.approx(new_tr.project(x_sel) - old_score, 0.0001)
+            assert w == pytest.approx(
+                genjax.normal.logpdf(1.0, old_z, 1.0)
+                - genjax.normal.logpdf(old_x, old_z, 1.0),
+                0.0001,
+            )
 
         # Check that all prior updates are preserved
         # over subsequent calls.
