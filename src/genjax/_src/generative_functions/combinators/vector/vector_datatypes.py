@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Union
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -34,9 +33,12 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
+from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_datatypes import select
 from genjax._src.generative_functions.combinators.vector.vector_utilities import (
     static_check_leaf_length,
 )
@@ -173,7 +175,14 @@ class VectorSelection(Selection):
         return (self.inner,), ()
 
     @classmethod
-    def new(cls, inner):
+    @dispatch
+    def new(cls, inner: Selection):
+        return VectorSelection(inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, *args: Union[Tuple, String]):
+        inner = select(*args)
         return VectorSelection(inner)
 
     def filter(self, tree):
