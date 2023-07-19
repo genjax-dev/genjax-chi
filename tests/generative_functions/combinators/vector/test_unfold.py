@@ -261,13 +261,29 @@ class TestUnfoldSimpleNormal:
         assert w == tr.get_score()
         full_score = tr.get_score()
 
-        # Run update to incrementally constraint a trace.
+        # Run update to incrementally constrain a trace
+        # (already extended).
         key, tr = chain.simulate(key, (4, 0.0))
         for t in range(0, 5):
             chm = genjax.index_choice_map(
                 [t], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
             )
             diffs = (diff(4, NoChange), diff(0.0, NoChange))
+
+            key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
+
+        assert tr.get_score() == pytest.approx(full_score, 0.0001)
+
+        # Run update to incrementally extend and constrain a trace.
+        chm = genjax.index_choice_map(
+            [0], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
+        )
+        key, (_, tr) = chain.importance(key, chm, (0, 0.0))
+        for t in range(1, 5):
+            chm = genjax.index_choice_map(
+                [t], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
+            )
+            diffs = (diff(t, UnknownChange), diff(0.0, NoChange))
 
             key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
 
