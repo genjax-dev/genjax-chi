@@ -202,7 +202,8 @@ class Distribution(GenerativeFunction, SupportsBuiltinSugar):
             args = tree_diff_primal(argdiffs)
             key, fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
-            return key, (retval_diff, fwd - bwd, prev, discard)
+            new_tr = DistributionTrace(self, args, v, fwd)
+            return key, (retval_diff, fwd - bwd, new_tr, discard)
 
     @dispatch
     def update(
