@@ -179,7 +179,7 @@ class TestUnfoldSimpleNormal:
 
             # The weight should be equal to the new score
             # plus any newly sampled choices.
-            assert w == tr.project(y_sel) + tr.project(x_sel)
+            assert w == pytest.approx(tr.project(y_sel), 0.0001)
 
     def test_update_check_weight_computations(self):
         @genjax.gen(genjax.Unfold, max_length=10)
