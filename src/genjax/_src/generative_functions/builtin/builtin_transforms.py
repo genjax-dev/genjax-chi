@@ -364,6 +364,7 @@ class UpdateContext(BuiltinInterfaceContext):
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
         argdiffs = tuple(argdiffs)
+
         self.key, (retval_diff, w, tr, discard) = gen_fn.update(
             self.key, subtrace, subconstraints, argdiffs
         )

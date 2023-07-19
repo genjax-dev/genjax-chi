@@ -127,7 +127,7 @@ class TestUpdateSimpleNormal:
         assert original_chm[("y1",)] == discard[("y1",)]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
-    
+
     def test_update_weight_correctness(self):
         @genjax.gen
         def simple_linked_normal():
@@ -140,9 +140,46 @@ class TestUpdateSimpleNormal:
         key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
         jitted = jax.jit(genjax.update(simple_linked_normal))
 
-        new = genjax.choice_map({("y1",): 2.0})
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        old_y1 = tr["y1"]
+        old_y2 = tr["y2"]
+        old_y3 = tr["y3"]
+        new_y1 = 2.0
+        new = genjax.choice_map({("y1",): new_y1})
+        key, (_, w, updated, _) = jitted(key, tr, new, ())
+
+        # Test new scores.
+        assert updated["y1"] == new_y1
         sel = genjax.select("y1")
-        assert updated["y1"] == 2.0
-        assert updated.project(sel) == genjax.normal.logpdf(2.0, 0.0, 1.0)
-        #assert w == updated.project(sel) - tr.project(sel)
+        assert updated.project(sel) == genjax.normal.logpdf(new_y1, 0.0, 1.0)
+        assert updated["y2"] == old_y2
+        sel = genjax.select("y2")
+        assert updated.project(sel) == pytest.approx(
+            genjax.normal.logpdf(old_y2, new_y1, 1.0), 0.0001
+        )
+        assert updated["y3"] == old_y3
+        sel = genjax.select("y3")
+        assert updated.project(sel) == pytest.approx(
+            genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0), 0.0001
+        )
+
+        # Test weight correctness.
+        δ_y3 = genjax.normal.logpdf(
+            old_y3, new_y1 + old_y2, 1.0
+        ) - genjax.normal.logpdf(old_y3, old_y1 + old_y2, 1.0)
+        δ_y2 = genjax.normal.logpdf(old_y2, new_y1, 1.0) - genjax.normal.logpdf(
+            old_y2, old_y1, 1.0
+        )
+        δ_y1 = genjax.normal.logpdf(new_y1, 0.0, 1.0) - genjax.normal.logpdf(
+            old_y1, 0.0, 1.0
+        )
+        assert w == pytest.approx((δ_y3 + δ_y2 + δ_y1), 0.0001)
+
+        # Test composition of update calls.
+        new_y3 = 2.0
+        new = genjax.choice_map({("y3",): new_y3})
+        key, (_, w, updated, _) = jitted(key, updated, new, ())
+        assert updated["y3"] == 2.0
+        correct_w = genjax.normal.logpdf(
+            new_y3, new_y1 + old_y2, 1.0
+        ) - genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0)
+        assert w == pytest.approx(correct_w, 0.0001)

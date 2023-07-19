@@ -166,7 +166,7 @@ class TestUnfoldSimpleNormal:
         @genjax.gen(genjax.Unfold, max_length=10)
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
-            x = genjax.normal(z, 1.0) @ "x"
+            _ = genjax.normal(z, 1.0) @ "x"
             return z
 
         key = jax.random.PRNGKey(314159)
@@ -177,17 +177,63 @@ class TestUnfoldSimpleNormal:
         #####
 
         # Ensure that update is computed correctly.
+        new_tr = tr
         for t in range(0, 5):
+            sel = genjax.index_select([t], genjax.select("z"))
+            x_sel = genjax.index_select([t], genjax.select("x"))
             obs = genjax.index_choice_map(
                 [t],
                 genjax.choice_map({"x": jnp.array([1.0])}),
             )
             diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
-            key, (_, w, new_tr, _) = chain.update(key, tr, obs, diffs)
-            sel = genjax.index_select([t], genjax.select("z"))
+            old_score = new_tr.project(x_sel)
+            key, (_, w, new_tr, _) = chain.update(key, new_tr, obs, diffs)
             z = sel.filter(new_tr.strip())["z"]
-            x_sel = genjax.index_select([t], genjax.select("x"))
             assert new_tr.project(x_sel) == pytest.approx(
                 genjax.normal.logpdf(1.0, z, 1.0), 0.0001
             )
-            assert w == pytest.approx(new_tr.project(x_sel) - tr.project(x_sel), 0.0001)
+            assert w == pytest.approx(new_tr.project(x_sel) - old_score, 0.0001)
+
+        # Check that all prior updates are preserved
+        # over subsequent calls.
+        for t in range(0, 5):
+            x_sel = genjax.index_select([t], genjax.select("x"))
+            assert x_sel.filter(new_tr.strip())["x"] == 1.0
+
+        # Now, update `z`.
+        obs = genjax.index_choice_map(
+            [0],
+            genjax.choice_map({"z": jnp.array([1.0])}),
+        )
+        diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
+
+        # This should be the Markov blanket of the update.
+        vzsel = genjax.index_select([0, 1], genjax.select("z"))
+        xsel = genjax.index_select([0], genjax.select("x"))
+        old_score = new_tr.project(vzsel) + new_tr.project(xsel)
+
+        # Update just `z`
+        key, (_, w, new_tr, _) = chain.update(key, new_tr, obs, diffs)
+
+        # Check that all prior updates are preserved.
+        for t in range(0, 5):
+            x_sel = genjax.index_select([t], genjax.select("x"))
+            assert x_sel.filter(new_tr.strip())["x"] == 1.0
+
+        # Check that update succeeded.
+        zsel = genjax.index_select([0], genjax.select("z"))
+        assert zsel.filter(new_tr.strip())["z"] == 1.0
+        assert new_tr.project(zsel) == pytest.approx(
+            genjax.normal.logpdf(1.0, 0.0, 1.0), 0.0001
+        )
+
+        # Check new score at (0, "x")
+        xsel = genjax.index_select([0], genjax.select("x"))
+        assert xsel.filter(new_tr.strip())["x"] == 1.0
+        assert new_tr.project(xsel) == pytest.approx(
+            genjax.normal.logpdf(1.0, 1.0, 1.0), 0.0001
+        )  # the mean (z) should be 1.0
+
+        # Check the scores and weights.
+        new_score = new_tr.project(vzsel) + new_tr.project(xsel)
+        assert w == pytest.approx(new_score - old_score, 0.0001)
