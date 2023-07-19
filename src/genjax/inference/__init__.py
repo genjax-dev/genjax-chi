@@ -16,6 +16,7 @@ from genjax.inference import importance_sampling
 from genjax.inference import map_opt
 from genjax.inference import mcmc
 from genjax.inference import smc
+from genjax.inference import testbed
 
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "importance_sampling",
     "map_opt",
     "smc",
+    "testbed",
 ]

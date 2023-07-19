@@ -14,6 +14,10 @@
 """A module containing a test suite for inference based on exact inference in
 hidden Markov models (HMMs)."""
 
+import jax
+import jax.numpy as jnp
+
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
@@ -34,6 +38,38 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_categorical,
 )
 from genjax._src.language_decorator import gen
+
+
+class DiscreteHMMInferenceProblem(Pytree):
+    initial_state: IntArray
+    log_posterior: FloatArray
+    log_data_marginal: FloatArray
+    latent_sequence: IntArray
+    observation_sequence: IntArray
+
+    def flatten(self):
+        return (
+            self.initial_state,
+            self.log_posterior,
+            self.log_data_marginal,
+            self.latent_sequence,
+            self.observation_sequence,
+        ), ()
+
+    def get_initial_state(self):
+        return self.initial_state
+
+    def get_latents(self):
+        return self.latent_sequence
+
+    def get_observations(self):
+        return self.observation_sequence
+
+    def get_log_posterior(self):
+        return self.log_posterior
+
+    def get_log_data_marginal(self):
+        return self.log_data_marginal
 
 
 def build_inference_test_generator(
@@ -60,7 +96,11 @@ def build_inference_test_generator(
         _ = tfp_categorical(observation[z, :]) @ "x"
         return z
 
-    def inference_test_generator(key: PRNGKey, initial_state: IntArray):
+    def inference_test_generator(key: PRNGKey):
+        key, sub_key = jax.random.split(key)
+        initial_state = tfp_categorical.sample(
+            sub_key, jnp.ones(config.linear_grid_dim)
+        )
         key, tr = markov_chain.simulate(key, (max_length - 1, initial_state, config))
         z_sel = vector_select("z")
         x_sel = vector_select("x")
@@ -71,7 +111,8 @@ def build_inference_test_generator(
         key, (log_posterior, _) = DiscreteHMM.estimate_logpdf(
             key, latent_sequence, config, observation_sequence
         )
-        return key, (
+        return key, DiscreteHMMInferenceProblem(
+            initial_state,
             log_posterior,
             log_data_marginal,
             latent_sequence,
@@ -79,3 +120,9 @@ def build_inference_test_generator(
         )
 
     return inference_test_generator
+
+
+default_problem_config = (10, 10, 1, 1, 0.3, 0.3)
+default_problem_generator = build_inference_test_generator(
+    *default_problem_config,
+)
