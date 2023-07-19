@@ -382,6 +382,7 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         start_lower = jnp.min(chm.indices)
         state = tree_diff_primal(state)
         static_args = Diff.no_change(static_args)
+        prev_length, _ = prev.get_args()
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
@@ -404,8 +405,39 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             (key, w, state_diff, prev) = state
             sub_chm = chm.get_subtree(index)
             prev_slice = jtu.tree_map(lambda v: v[index], prev)
-            key, (state_diff, idx_w, new_tr, _) = self.kernel.update(
-                key, prev_slice, sub_chm, (state_diff, *static_args)
+            state_primal = tree_diff_primal(state_diff)
+
+            # Extending to an index greater than the previous length.
+            def _importance(key):
+                key, (w, new_tr) = self.kernel.importance(
+                    key, sub_chm, (state_primal, *static_args)
+                )
+                retdiff = jtu.tree_map(
+                    lambda v: diff(v, UnknownChange), new_tr.get_retval()
+                )
+
+                return key, (retdiff, w, new_tr)
+
+            # Updating an existing index.
+            def _update(key):
+                key, (retdiff, w, new_tr, _) = self.kernel.update(
+                    key, prev_slice, sub_chm, (state_diff, *static_args)
+                )
+
+                # TODO: c.f. message above on `UnknownChange`.
+                # Preserve the diff type across the loop
+                # iterations.
+                primal_state = tree_diff_primal(retdiff)
+                retdiff = jtu.tree_map(
+                    lambda v: diff(v, UnknownChange),
+                    primal_state,
+                )
+                return key, (retdiff, w, new_tr)
+
+            check = prev_length < index
+
+            key, (state_diff, idx_w, new_tr) = concrete_cond(
+                check, _importance, _update, key
             )
 
             def _mutate(prev, new):
@@ -415,15 +447,6 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
             # TODO: also handle discard.
             prev = jtu.tree_map(_mutate, prev, new_tr)
             w += idx_w
-
-            # TODO: c.f. message above on `UnknownChange`.
-            # Preserve the diff type across the loop
-            # iterations.
-            primal_state = tree_diff_primal(state_diff)
-            state_diff = jtu.tree_map(
-                lambda v: diff(v, UnknownChange),
-                primal_state,
-            )
 
             return (key, w, state_diff, prev)
 
