@@ -14,6 +14,8 @@
 """A module containing a test suite for inference based on exact inference in
 hidden Markov models (HMMs)."""
 
+from dataclasses import dataclass
+
 import jax
 import jax.numpy as jnp
 
@@ -40,6 +42,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.language_decorator import gen
 
 
+@dataclass
 class DiscreteHMMInferenceProblem(Pytree):
     initial_state: IntArray
     log_posterior: FloatArray
