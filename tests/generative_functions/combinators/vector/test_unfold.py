@@ -96,8 +96,7 @@ class TestUnfoldSimpleNormal:
             (x_prev, z_prev) = state
             x = genjax.normal(_phi * x_prev, _q) @ "x"
             z = _beta * z_prev + x
-            y = genjax.normal(z, _r) @ "y"
-
+            _ = genjax.normal(z, _r) @ "y"
             return (x, z)
 
         key = jax.random.PRNGKey(314159)
@@ -136,31 +135,24 @@ class TestUnfoldSimpleNormal:
             ]
         )
 
-        key, init_key, update_key = jax.random.split(key, 3)
-        _, (init_weight, init_tr) = model.importance(
-            init_key, obs_chm(_y, 0), (0, model_args)
-        )
+        key, (_, tr) = model.importance(key, obs_chm(_y, 0), (0, model_args))
 
-        # Checks updates.
-        diffs = (
-            diff(1, UnknownChange),
-            jtu.tree_map(lambda v: diff(v, NoChange), model_args),
-        )
+        for t in range(1, 10):
+            y_sel = genjax.index_select([t], genjax.select("y"))
+            diffs = (
+                diff(t, UnknownChange),
+                jtu.tree_map(lambda v: diff(v, NoChange), model_args),
+            )
 
-        key, (_, w, new_tr, _) = model.update(
-            update_key, init_tr, obs_chm(_y, 1), diffs
-        )
-        assert init_tr.get_score() + w == new_tr.get_score()
+            # Score underneath the selection should be 0.0
+            # before the extension.
+            assert tr.project(y_sel) == 0.0
 
-        diffs = (
-            diff(2, UnknownChange),
-            jtu.tree_map(lambda v: diff(v, NoChange), model_args),
-        )
+            key, (_, w, tr, _) = model.update(key, tr, obs_chm(_y, t), diffs)
+            print(tr.inner.get_score())
 
-        key, (_, w, new_new_tr, _) = model.update(
-            update_key, new_tr, obs_chm(_y, 2), diffs
-        )
-        assert new_tr.get_score() + w == new_new_tr.get_score()
+            # The weight should be equal to the new score.
+            assert w == tr.project(y_sel)
 
     def test_check_weight_computations(self):
         @genjax.gen(genjax.Unfold, max_length=10)
