@@ -288,3 +288,30 @@ class TestUnfoldSimpleNormal:
             key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
 
         assert tr.get_score() == pytest.approx(full_score, 0.0001)
+
+        # Check that the projected score is equal to the returned score.
+        sel = genjax.vector_select("x", "z")
+        assert tr.project(sel) == tr.get_score()
+        assert tr.project(sel) == pytest.approx(full_score, 0.0001)
+
+        # Re-run the above process (importance followed by update).
+        # Check that, if we only generate length < max_length, 
+        # the projected score is equal to the returned score.
+        chm = genjax.index_choice_map(
+            [0], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
+        )
+        key, (_, tr) = chain.importance(key, chm, (0, 0.0))
+        for t in range(1, 3):
+            chm = genjax.index_choice_map(
+                [t], genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])})
+            )
+            diffs = (diff(t, UnknownChange), diff(0.0, NoChange))
+
+            key, (_, w, tr, _) = chain.update(key, tr, chm, diffs)
+
+        sel = genjax.vector_select("x", "z")
+        assert tr.project(sel) == tr.get_score()
+        sel = genjax.index_select([0, 1, 2], genjax.select("x", "z"))
+        assert tr.project(sel) == tr.get_score()
+        sel = genjax.index_select([0, 1, 2, 3, 4], genjax.select("x", "z"))
+        assert tr.project(sel) == tr.get_score()
