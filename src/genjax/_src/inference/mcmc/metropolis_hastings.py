@@ -43,7 +43,7 @@ class MetropolisHastings(MCMCKernel):
         fwd_weight = proposal_tr.get_score()
         diffs = Diff.no_change(model_args)
         key, (_, weight, new, discard) = model.update(
-            key, trace, proposal_tr.get_choices(), diffs
+            key, trace, proposal_tr.strip(), diffs
         )
         proposal_args_bwd = (new, *proposal_args)
         key, (bwd_weight, _) = self.proposal.importance(key, discard, proposal_args_bwd)
