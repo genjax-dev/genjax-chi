@@ -29,10 +29,10 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import concrete_cond
+from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -334,30 +334,22 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         chm: VectorChoiceMap,
         argdiffs: Tuple,
     ):
-        def _update(key, prev, chm, argdiffs):
-            key, (retdiff, w, tr, d) = self.kernel.update(key, prev, chm, argdiffs)
-            return key, (retdiff, w, tr, d)
-
-        def _inner(key, index, prev, chm, argdiffs):
-            check = index == chm.get_index()
-            masked = mask(check, chm.inner)
-            return _update(key, prev, masked, argdiffs)
-
-        args = jtu.tree_leaves(argdiffs)
+        args = tree_diff_primal(argdiffs)
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        indices = np.array([i for i in range(0, broadcast_dim_length)])
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
         key, sub_keys = slash(key, broadcast_dim_length)
+
         _, (retdiff, w, tr, discard) = jax.vmap(
-            _inner, in_axes=(0, 0, prev_inaxes_tree, 0, self.in_axes)
-        )(sub_keys, indices, prev.inner, chm, argdiffs)
+            self.kernel.update, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
+        )(sub_keys, prev.inner, chm.inner, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
+        discard = VectorChoiceMap(discard)
         return key, (retdiff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
