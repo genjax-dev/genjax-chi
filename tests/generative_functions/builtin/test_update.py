@@ -16,10 +16,14 @@ import jax
 import pytest
 
 import genjax
+from genjax._src.core.datatypes.masks import BooleanMask
 
+identity = lambda x: x
+add_true_mask = lambda x: BooleanMask.new(True, x)
 
 class TestUpdateSimpleNormal:
-    def test_simple_normal_update(self):
+    @pytest.mark.parametrize("transform_fn", [identity, add_true_mask])
+    def test_simple_normal_update(self, transform_fn):
         @genjax.gen
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
@@ -33,7 +37,7 @@ class TestUpdateSimpleNormal:
         new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        key, (_, w, updated, discard) = jitted(key, transform_fn(tr), new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -50,7 +54,7 @@ class TestUpdateSimpleNormal:
 
         new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        key, (_, w, updated, discard) = jitted(key, transform_fn(tr), new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]

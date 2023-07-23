@@ -15,6 +15,7 @@
 import jax
 
 import genjax
+from genjax import diff, NoChange, UnknownChange
 
 
 @genjax.gen
@@ -70,3 +71,17 @@ class TestSimulate:
         score = tr.get_score()
         assert score == genjax.bernoulli.logpdf(flip, 0.3)
         assert w == score
+
+    def test_switch_update_single_branch_no_change(self):
+        key = jax.random.PRNGKey(314159)
+        switch = genjax.SwitchCombinator([simple_normal])
+        key, tr = jax.jit(switch.simulate)(key, (0,))
+        v1 = tr["y1"]
+        v2 = tr["y2"]
+        score = tr.get_score()
+        key, (_, _, tr, _) = jax.jit(switch.update)(
+            key, tr, genjax.empty_choice_map(), (diff(0, NoChange),))
+        assert score == tr.get_score()
+        assert v1 == tr["y1"]
+        assert v2 == tr["y2"]
+        
