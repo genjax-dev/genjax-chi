@@ -29,77 +29,26 @@ can have different shape/dtype choices. The resulting `SwitchTrace` will efficie
 from dataclasses import dataclass
 
 import jax
-import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
 from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
-from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
 )
+from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
+    SwitchTrace,
+)
 from genjax._src.generative_functions.combinators.switch.switch_tracetypes import (
     SumTraceType,
 )
-
-
-#####
-# SwitchTrace
-#####
-
-
-@dataclass
-class SwitchTrace(Trace):
-    gen_fn: GenerativeFunction
-    chm: SwitchChoiceMap
-    args: Tuple
-    retval: Any
-    score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.chm,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
-
-    def get_args(self):
-        return self.args
-
-    def get_choices(self):
-        return self.chm
-
-    def get_gen_fn(self):
-        return self.gen_fn
-
-    def get_retval(self):
-        return self.retval
-
-    def get_score(self):
-        return self.score
-
-    def project(self, selection: Selection) -> FloatArray:
-        weights = list(map(lambda v: v.project(selection), self.chm.submaps))
-        return jnp.choose(self.chm.index, weights, mode="wrap")
-
-    def mask_submap(self, concrete_index, argument_index):
-        indexed_chm = self.get_choices()
-        check = concrete_index == argument_index
-        submap = indexed_chm.submaps[concrete_index]
-        return BooleanMask.new(check, submap)
 
 
 #####
@@ -225,21 +174,12 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
 
     def _update(self, branch_gen_fn, key, prev, new, argdiffs):
         # Create a skeleton discard instance.
-        discard_option = BooleanMask.new(False, prev.strip())
+        discard_option = mask(False, prev.strip())
         concrete_branch_index = self.branches.index(branch_gen_fn)
-        argument_index = tree_diff_primal(argdiffs[0])
-        maybe_discard = discard_option.submaps[concrete_branch_index]
 
-        # We have to mask the submap at the concrete_branch_index
-        # which we are updating. Why? Because it's possible that the
-        # argument_index != concrete_branch_index - meaning we
-        # shouldn't perform any inference computations using the submap
-        # choices.
-        prev = prev.mask_submap(concrete_branch_index, argument_index)
-
-        # Actually perform the update.
-        key, (retval_diff, w, tr, actual_discard) = branch_gen_fn.update(
-            key, prev, new, argdiffs[1:]
+        prev_subtrace = prev.get_subtrace(concrete_branch_index)
+        key, (retval_diff, w, tr, maybe_discard) = branch_gen_fn.update(
+            key, prev_subtrace, new, argdiffs[1:]
         )
 
         # Here, we create a Sumtree -- and we place the real trace
@@ -250,8 +190,7 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
         choice_map = SwitchChoiceMap(concrete_branch_index, choices)
 
         # Merge the skeleton discard with the actual one.
-        actual_discard = maybe_discard.merge(actual_discard)
-        discard_option.submaps[concrete_branch_index] = actual_discard
+        discard_option.submaps[concrete_branch_index] = maybe_discard
 
         # Get all the metadata for update from the trace.
         score = tr.get_score()
