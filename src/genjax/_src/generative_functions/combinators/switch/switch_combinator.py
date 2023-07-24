@@ -136,7 +136,6 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
         branch_index = args[0]
         choice_map = SwitchChoiceMap(branch_index, choices)
         score = tr.get_score()
-        args = tr.get_args()
         retval = tr.get_retval()
         trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, trace
@@ -157,7 +156,6 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
         branch_index = args[0]
         choice_map = SwitchChoiceMap(branch_index, choices)
         score = tr.get_score()
-        args = tr.get_args()
         retval = tr.get_retval()
         trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, (w, trace)
@@ -194,7 +192,6 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
 
         # Get all the metadata for update from the trace.
         score = tr.get_score()
-        args = tr.get_args()
         retval = tr.get_retval()
         trace = SwitchTrace(self, choice_map, args, retval, score)
         return key, (retval_diff, w, trace, discard_option)
