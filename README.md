@@ -30,7 +30,7 @@
 
 ## 🔎 What is it?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/introduction/intro_to_genjax/intro_to_genjax.html#what-is-a-generative-function).
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/concepts/introduction/intro_to_genjax.html#what-is-a-generative-function).
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
 
@@ -57,7 +57,7 @@ This project uses:
 
 [First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
 
-Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute tests, build and serve the documentation, etc. 
+Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute tests, build and serve the documentation, etc.
 
 ```bash
 conda create --name genjax-py311 python=3.11 --channel=conda-forge
@@ -84,7 +84,7 @@ GenJAX does not manage the version of `jaxlib` that you use in your execution en
 
 [You can likely install CUDA compatible versions by following environment setup above with a `pip` installation of the CUDA-enabled JAX.](https://github.com/google/jax#pip-installation-gpu-cuda-installed-via-pip-easier)
 
-### (Option 2): Self-managed development environment with `requirements.txt` 
+### (Option 2): Self-managed development environment with `requirements.txt`
 
 #### Using `requirements.txt`
 
@@ -118,7 +118,7 @@ With these dependencies installed (`mkdocs` into your active Python environment)
 nox -r -s docs-build
 ```
 
-This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory. 
+This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory.
 
 Pushing the resulting changes to the `main` branch will trigger a CI job to deploy to the GitHub Pages branch `gh-pages`, from which the documentation is hosted.
 
