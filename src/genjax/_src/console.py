@@ -15,6 +15,7 @@
 from dataclasses import dataclass
 
 import jax
+import plum
 import rich
 import rich.traceback as traceback
 from rich.console import Console
@@ -79,7 +80,7 @@ def pretty(
     overflow="ellipsis",
     show_locals=False,
     max_frames=30,
-    suppress=[jax],
+    suppress=[jax, plum],
     **kwargs,
 ):
     rich.pretty.install(overflow=overflow)
