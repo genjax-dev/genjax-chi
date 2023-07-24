@@ -43,10 +43,12 @@ class TestSimulate:
         assert score == genjax.normal.logpdf(v1, 0.0, 1.0) + genjax.normal.logpdf(
             v2, 0.0, 1.0
         )
+        assert tr.get_args() == (0,)
         key, tr = jitted(key, (1,))
         flip = tr["y3"]
         score = tr.get_score()
         assert score == genjax.bernoulli.logpdf(flip, 0.3)
+        assert tr.get_args() == (1,)
 
     def test_switch_importance(self):
         key = jax.random.PRNGKey(314159)
