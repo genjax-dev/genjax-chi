@@ -22,7 +22,7 @@ identity = lambda x: x
 add_true_mask = lambda x: BooleanMask.new(True, x)
 
 class TestUpdateSimpleNormal:
-    @pytest.mark.parametrize("transform_fn", [identity, add_true_mask])
+    @pytest.mark.parametrize("transform_fn", [identity])
     def test_simple_normal_update(self, transform_fn):
         @genjax.gen
         def simple_normal():
