@@ -31,13 +31,20 @@ from dataclasses import dataclass
 import jax
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
+from genjax._src.core.transforms.incremental import UnknownChange
+from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_is_diff
+from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import List
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
@@ -170,52 +177,117 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
 
         return jax.lax.switch(switch, branch_functions, key, chm, *args)
 
-    def _update(self, branch_gen_fn, key, prev, new, argdiffs):
-        # Create a skeleton discard instance.
-        discard_option = mask(False, prev.strip())
-        concrete_branch_index = self.branches.index(branch_gen_fn)
+    def _update_fallback(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        new: ChoiceMap,
+        argdiffs: Tuple,
+    ):
+        def _inner_update(br, key, prev, new, argdiffs):
+            # Create a skeleton discard instance.
+            discard_option = mask(False, prev.strip())
+            concrete_branch_index = self.branches.index(br)
 
-        prev_subtrace = prev.get_subtrace(concrete_branch_index)
-        key, (retval_diff, w, tr, maybe_discard) = branch_gen_fn.update(
-            key, prev_subtrace, new, argdiffs[1:]
-        )
+            prev_subtrace = prev.get_subtrace(concrete_branch_index)
+            key, (retval_diff, w, tr, maybe_discard) = br.update(
+                key, prev_subtrace, new, argdiffs[1:]
+            )
 
-        # Here, we create a Sumtree -- and we place the real trace
-        # data inside of it.
-        args = jtu.tree_map(tree_diff_primal, argdiffs, is_leaf=static_check_is_diff)
-        sum_pytree = self._create_sum_pytree(key, tr, args[1:])
-        choices = list(sum_pytree.materialize_iterator())
-        choice_map = SwitchChoiceMap(concrete_branch_index, choices)
+            # Here, we create a Sumtree -- and we place the real trace
+            # data inside of it.
+            args = jtu.tree_map(
+                tree_diff_primal, argdiffs, is_leaf=static_check_is_diff
+            )
+            sum_pytree = self._create_sum_pytree(key, tr, args[1:])
+            choices = list(sum_pytree.materialize_iterator())
+            choice_map = SwitchChoiceMap(concrete_branch_index, choices)
 
-        # Merge the skeleton discard with the actual one.
-        discard_option.submaps[concrete_branch_index] = maybe_discard
+            # Merge the skeleton discard with the actual one.
+            discard_option.submaps[concrete_branch_index] = maybe_discard
 
-        # Get all the metadata for update from the trace.
-        score = tr.get_score()
-        retval = tr.get_retval()
-        trace = SwitchTrace(self, choice_map, args, retval, score)
-        return key, (retval_diff, w, trace, discard_option)
-
-    def update(self, key, prev, new, argdiffs):
-        switch = tree_diff_primal(argdiffs[0])
+            # Get all the metadata for update from the trace.
+            score = tr.get_score()
+            retval = tr.get_retval()
+            trace = SwitchTrace(self, choice_map, args, retval, score)
+            return key, (retval_diff, w, trace, discard_option)
 
         def _inner(br):
-            return lambda key, prev, new, argdiffs: self._update(
+            return lambda key, prev, new, argdiffs: _inner_update(
                 br, key, prev, new, argdiffs
             )
 
         branch_functions = list(map(_inner, self.branches))
+        switch = tree_diff_primal(argdiffs[0])
 
-        return jax.lax.switch(switch, branch_functions, key, prev, new, argdiffs)
+        return jax.lax.switch(
+            switch,
+            branch_functions,
+            key,
+            prev,
+            new,
+            argdiffs,
+        )
 
-    def _assess(self, branch_gen_fn, key, chm, args):
-        return branch_gen_fn.assess(key, chm, args[1:])
+    def _update_branch_switch(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        new: ChoiceMap,
+        argdiffs: Tuple,
+    ):
+        def _inner_importance(br, key, prev, new, argdiffs):
+            concrete_branch_index = self.branches.index(br)
+            new = prev.strip().merge(new)
+            args = tree_diff_primal(argdiffs)
+            key, (w, tr) = br.importance(key, new, args[1:])
+            update_weight = w - prev.get_score()
+            discard = mask(True, prev.strip())
+            retval = tr.get_retval()
+            retdiff = diff(retval, UnknownChange)
+
+            sum_pytree = self._create_sum_pytree(key, tr, args[1:])
+            choices = list(sum_pytree.materialize_iterator())
+            choice_map = SwitchChoiceMap(concrete_branch_index, choices)
+
+            # Get all the metadata for update from the trace.
+            score = tr.get_score()
+            trace = SwitchTrace(self, choice_map, args, retval, score)
+            return key, (retdiff, update_weight, trace, discard)
+
+        def _inner(br):
+            return lambda key, prev, new, argdiffs: _inner_importance(
+                br, key, prev, new, argdiffs
+            )
+
+        branch_functions = list(map(_inner, self.branches))
+        switch = tree_diff_primal(argdiffs[0])
+
+        return jax.lax.switch(
+            switch,
+            branch_functions,
+            key,
+            prev,
+            new,
+            argdiffs,
+        )
+
+    def update(self, key, prev, new, argdiffs):
+        index_argdiff = argdiffs[0]
+
+        if static_check_no_change(index_argdiff):
+            return self._update_fallback(key, prev, new, argdiffs)
+        else:
+            return self._update_branch_switch(key, prev, new, argdiffs)
 
     def assess(self, key, chm, args):
         switch = args[0]
 
+        def _assess(branch_gen_fn, key, chm, args):
+            return branch_gen_fn.assess(key, chm, args[1:])
+
         def _inner(br):
-            return lambda key, chm, *args: self._assess(br, key, chm, args)
+            return lambda key, chm, *args: _assess(br, key, chm, args)
 
         branch_functions = list(map(_inner, self.branches))
 

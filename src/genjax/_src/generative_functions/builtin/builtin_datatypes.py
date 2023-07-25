@@ -261,11 +261,14 @@ class BuiltinChoiceMap(ChoiceMap):
             trie[k] = v.get_selection()
         return BuiltinSelection(trie)
 
-    # TODO: test this.
+    @dispatch
     def merge(self, other: "BuiltinChoiceMap"):
-        assert isinstance(other, BuiltinChoiceMap)
         new_inner = self.trie.merge(other.trie)
         return BuiltinChoiceMap(new_inner)
+
+    @dispatch
+    def merge(self, other: EmptyChoiceMap):
+        return self
 
     def __setitem__(self, k, v):
         v = (
