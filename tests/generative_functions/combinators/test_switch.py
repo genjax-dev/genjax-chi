@@ -82,7 +82,8 @@ class TestSimulate:
         v2 = tr["y2"]
         score = tr.get_score()
         key, (_, _, tr, _) = jax.jit(switch.update)(
-            key, tr, genjax.empty_choice_map(), (diff(0, NoChange),))
+            key, tr, genjax.empty_choice_map(), (diff(0, NoChange),)
+        )
         assert score == tr.get_score()
         assert v1 == tr["y1"]
         assert v2 == tr["y2"]
@@ -90,35 +91,40 @@ class TestSimulate:
     def test_switch_update_updates_score(self):
         key = jax.random.PRNGKey(314159)
 
-        regular_stddev = 1.
-        outlier_stddev = 10.
-        sample_value = 2.
+        regular_stddev = 1.0
+        outlier_stddev = 10.0
+        sample_value = 2.0
 
         @genjax.gen
         def regular():
-            x = genjax.normal(0., regular_stddev) @ 'x'
+            x = genjax.tfp_normal(0.0, regular_stddev) @ "x"
             return x
 
         @genjax.gen
         def outlier():
-            x = genjax.normal(0., outlier_stddev) @ 'x'
+            x = genjax.tfp_normal(0.0, outlier_stddev) @ "x"
             return x
 
         switch = genjax.SwitchCombinator([regular, outlier])
         key, importance_key = jax.random.split(key)
-            
+
         _, (wt, tr) = switch.importance(
-            importance_key, genjax.choice_map({"x": sample_value}), (0,))
+            importance_key, genjax.choice_map({"x": sample_value}), (0,)
+        )
         assert tr.chm.index == 0
-        assert tr.get_score() == genjax.normal.logpdf(
-            sample_value, 0., regular_stddev)
+        assert tr.get_score() == genjax.tfp_normal.logpdf(sample_value, 0.0, regular_stddev)
         assert wt == tr.get_score()
 
         key, update_key = jax.random.split(key)
         _, (_, new_wt, new_tr, _) = switch.update(
-            update_key, tr, genjax.empty_choice_map(), (1,))
+            update_key,
+            tr,
+            genjax.empty_choice_map(),
+            (diff(1, UnknownChange),),
+        )
         assert new_tr.chm.index == 1
         # These both fail:
         assert new_tr.get_score() != tr.get_score()
-        assert new_tr.get_score() == genjax.normal.logpdf(
-            sample_value, 0., outlier_stddev)
+        assert new_tr.get_score() == genjax.tfp_normal.logpdf(
+            sample_value, 0.0, outlier_stddev
+        )
