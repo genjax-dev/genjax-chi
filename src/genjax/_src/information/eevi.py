@@ -73,8 +73,8 @@ class EntropyEstimatorsViaInference(Pytree):
         (chm,) = tr_q.get_retval()
         chm_axes = jtu.tree_map(lambda v: 0, chm)
         observations_axes = jtu.tree_map(lambda v: None, observations)
-        choices = observations.merge(chm)
-        choices_axes = observations_axes.merge(chm_axes)
+        choices = observations.safe_merge(chm)
+        choices_axes = observations_axes.safe_merge(chm_axes)
         key, *sub_keys = jax.random.split(key, self.n_lower_bound + 1)
         sub_keys = jnp.array(sub_keys)
         _, (log_p, _) = jax.vmap(

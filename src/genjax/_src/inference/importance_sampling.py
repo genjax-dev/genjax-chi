@@ -111,7 +111,7 @@ class CustomProposalImportanceSampling(Pytree):
         )
 
         def _inner(key, proposal_chm, model_args):
-            chm = proposal_chm.merge(observations)
+            chm = proposal_chm.safe_merge(observations)
             key, (w, m_tr) = self.model.importance(
                 key,
                 chm,
@@ -216,7 +216,7 @@ class CustomProposalSamplingImportanceResampling(Pytree):
         )
 
         def _inner(key, proposal):
-            constraints = observations.merge(proposal)
+            constraints = observations.safe_merge(proposal)
             _, (lws, _) = self.model.importance(key, constraints, model_args)
             return lws
 
