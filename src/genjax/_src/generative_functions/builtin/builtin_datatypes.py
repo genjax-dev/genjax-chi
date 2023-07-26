@@ -239,6 +239,9 @@ class BuiltinChoiceMap(ChoiceMap):
             trie.trie_insert(k, v)
         return BuiltinChoiceMap(trie)
 
+    def is_empty(self):
+        return self.trie.is_empty()
+
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
 
@@ -263,18 +266,22 @@ class BuiltinChoiceMap(ChoiceMap):
 
     @dispatch
     def merge(self, other: "BuiltinChoiceMap"):
-        new_inner = self.trie.merge(other.trie)
-        return BuiltinChoiceMap(new_inner)
+        new_inner, discard = self.trie.merge(other.trie)
+        return BuiltinChoiceMap(new_inner), BuiltinChoiceMap(discard)
 
     @dispatch
     def merge(self, other: EmptyChoiceMap):
-        return self
+        return self, EmptyChoiceMap()
 
     @dispatch
     def merge(self, other: ChoiceMap):
         raise Exception(
             f"Merging with choice map type {type(other)} not supported.",
         )
+
+    ###########
+    # Dunders #
+    ###########
 
     def __setitem__(self, k, v):
         v = (

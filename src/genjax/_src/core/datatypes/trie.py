@@ -20,7 +20,6 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
-from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pretty_printing import CustomPretty
 
 
@@ -40,11 +39,11 @@ class Trie(ChoiceMap, CustomPretty):
     def new(cls):
         return Trie(hashabledict())
 
+    def is_empty(self):
+        return bool(self.inner)
+
     def get_selection(self):
         raise Exception("Trie doesn't provide conversion to Selection.")
-
-    def get_choices(self):
-        return self
 
     def trie_insert(self, addr, value):
         if isinstance(addr, tuple) and len(addr) > 1:
@@ -95,18 +94,21 @@ class Trie(ChoiceMap, CustomPretty):
 
     def merge(self, other):
         new = hashabledict()
+        discard = hashabledict()
         for (k, v) in self.get_subtrees_shallow():
             if other.has_subtree(k):
                 sub = other.get_subtree(k)
-                if isinstance(v, Leaf) or isinstance(sub, Leaf):
-                    raise Exception(f"Both tries have a leaf at {k}.")
-                new[k] = v.merge(sub)
+                new[k], discard[k] = v.merge(sub)
             else:
                 new[k] = v
         for (k, v) in other.get_subtrees_shallow():
             if not self.has_subtree(k):
                 new[k] = v
-        return Trie(new)
+        return Trie(new), Trie(discard)
+
+    ###########
+    # Dunders #
+    ###########
 
     def __setitem__(self, k, v):
         self.trie_insert(k, v)
@@ -120,6 +122,10 @@ class Trie(ChoiceMap, CustomPretty):
     def __hash__(self):
         return hash(self.inner)
 
+    ###################
+    # Pretty printing #
+    ###################
+
     def pformat_tree(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         for (k, v) in self.inner.items():
@@ -127,19 +133,3 @@ class Trie(ChoiceMap, CustomPretty):
             subtree = gpp._pformat(v, **kwargs)
             subk.add(subtree)
         return tree
-
-
-###################
-# TrieConvertable #
-###################
-
-# A mixin: denotes that a choice map can be converted to a Trie
-
-
-@dataclass
-class TrieConvertable:
-    def convert(self) -> Trie:
-        new = Trie.new()
-        for (k, v) in self.get_submaps_shallow():
-            pass
-        return new
