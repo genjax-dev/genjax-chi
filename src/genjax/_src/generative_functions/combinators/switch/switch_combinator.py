@@ -238,7 +238,7 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
     ):
         def _inner_importance(br, key, prev, new, argdiffs):
             concrete_branch_index = self.branches.index(br)
-            new = prev.strip().merge(new)
+            new = prev.strip().unsafe_merge(new)
             args = tree_diff_primal(argdiffs)
             key, (w, tr) = br.importance(key, new, args[1:])
             update_weight = w - prev.get_score()

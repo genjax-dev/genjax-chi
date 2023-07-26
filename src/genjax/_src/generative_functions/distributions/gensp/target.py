@@ -50,7 +50,7 @@ class Target(UnnormalizedMeasure):
         return latents
 
     def importance(self, key, chm: ChoiceMap, _: Tuple):
-        merged = self.constraints.merge(chm)
+        merged = self.constraints.safe_merge(chm)
         return self.p.importance(key, merged, self.args)
 
 

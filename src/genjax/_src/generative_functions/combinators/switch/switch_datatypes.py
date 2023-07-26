@@ -14,8 +14,6 @@
 
 import itertools
 from dataclasses import dataclass
-from typing import Sequence
-from typing import Union
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -31,7 +29,10 @@ from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 
 
 ###############################
@@ -58,6 +59,10 @@ class SwitchChoiceMap(ChoiceMap):
 
     def flatten(self):
         return (self.index, self.submaps), ()
+
+    def is_empty(self):
+        flags = jnp.array([sm.is_empty() for sm in self.submaps])
+        return flags[self.index]
 
     def has_subtree(self, addr):
         checks = list(map(lambda v: v.has_subtree(addr), self.submaps))
@@ -124,9 +129,18 @@ class SwitchChoiceMap(ChoiceMap):
         subselections = list(map(lambda v: v.get_selection(), self.submaps))
         return SwitchSelection.new(self.index, subselections)
 
-    def merge(self, other):
-        new_submaps = list(map(lambda v: v.merge(other), self.submaps))
-        return SwitchChoiceMap.new(self.index, new_submaps)
+    @dispatch
+    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        new_submaps, new_discard = list(
+            zip(*map(lambda v: v.merge(other), self.submaps))
+        )
+        return SwitchChoiceMap.new(self.index, new_submaps), SwitchChoiceMap.new(
+            self.index, new_discard
+        )
+
+    ###################
+    # Pretty printing #
+    ###################
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")

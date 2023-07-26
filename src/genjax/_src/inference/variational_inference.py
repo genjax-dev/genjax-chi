@@ -92,7 +92,7 @@ class VariationalInference(Pytree):
 
         def _assess(key, var_trace):
             var_choices = var_trace.strip()
-            constraints = observations.merge(var_choices)
+            constraints = observations.safe_merge(var_choices)
             key, (_, model_weight) = self.model.assess(key, constraints, model_args)
             return key, model_weight
 

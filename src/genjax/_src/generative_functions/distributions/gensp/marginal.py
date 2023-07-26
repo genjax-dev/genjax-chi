@@ -60,7 +60,7 @@ class Marginal(GenSPDistribution):
         key, tr = self.q.simulate(key, (target,))
         q_w = tr.get_score()
         choices = tr.get_choices()
-        choices = choices.merge(chm)
+        choices = choices.safe_merge(chm)
         key, (p_w, _) = self.p.importance(key, choices, args)
         return key, p_w - q_w
 

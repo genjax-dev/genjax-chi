@@ -75,7 +75,7 @@ class Importance(GenSPDistribution):
         _, particles = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys, (target,)
         )
-        constraints = target.constraints.merge(particles.get_retval())
+        constraints = target.constraints.safe_merge(particles.get_retval())
         _, (lws, _) = jax.vmap(target.p.importance, in_axes=(0, None, None))(
             sub_keys, constraints, target.args
         )
@@ -97,7 +97,7 @@ class Importance(GenSPDistribution):
         _, (lws, tr) = jax.vmap(target.p.importance, in_axes=(0, None, None))(
             sub_keys, target.constraints, target.args
         )
-        merged = chm.merge(target.constraints)
+        merged = chm.safe_merge(target.constraints)
         key, retained_tr = target.p.importance(key, merged, target.args)
         constrained = target.constraints.get_selection()
         retained_w = retained_tr.project(constrained)
@@ -113,7 +113,7 @@ class Importance(GenSPDistribution):
         key, (retained_bwd, retained_tr) = self.proposal.importance(
             key, ValueChoiceMap.new(chm), (target,)
         )
-        merged = target.constraints.merge(unchosen.get_retval())
+        merged = target.constraints.safe_merge(unchosen.get_retval())
         key, sub_keys = jax.random.split(key, self.num_particles)
         sub_keys = jnp.array(sub_keys)
         _, (unchosen_fwd_lws, _) = jax.vmap(
