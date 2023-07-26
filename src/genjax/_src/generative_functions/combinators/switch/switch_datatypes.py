@@ -101,7 +101,11 @@ class SwitchChoiceMap(ChoiceMap):
             reshaped = indexer.reshape(indexer.shape + (1,) * shapediff)
             return jnp.choose(reshaped, trees, mode="wrap")
 
-        flags = jnp.arange(len(non_empty_submaps)) == indexer
+        # TODO: A bit of broadcast wizardry, would be good
+        # to make this understandable.
+        flags = (jnp.arange(len(non_empty_submaps))[:, None] == indexer).sum(
+            axis=-1, dtype=bool
+        )
 
         return mask(
             flags[indexer],
