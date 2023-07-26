@@ -193,9 +193,6 @@ class IndexChoiceMap(ChoiceMap):
 
         return IndexChoiceMap(indices, inner)
 
-    def get_index(self):
-        return self.indices
-
     def has_subtree(self, addr):
         if not isinstance(addr, Tuple) and len(addr) == 1:
             return False
@@ -228,6 +225,9 @@ class IndexChoiceMap(ChoiceMap):
 
     def get_subtrees_shallow(self):
         raise NotImplementedError
+
+    def get_index(self):
+        return self.indices
 
 
 #####

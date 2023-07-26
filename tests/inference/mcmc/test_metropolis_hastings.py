@@ -17,11 +17,11 @@ import jax
 import jax.numpy as jnp
 
 import genjax
-from genjax.inference.mcmc import MetropolisHastings
+from genjax import gen
 from genjax import normal
 from genjax import tfp_uniform
 from genjax import trace
-from genjax import gen
+from genjax.inference.mcmc import MetropolisHastings
 
 
 class TestMetropolisHastings:
@@ -47,21 +47,23 @@ class TestMetropolisHastings:
                 assert tr.get_score() != new.get_score()
             else:
                 assert tr.get_score() == new.get_score()
-    
+
     def test_map_combinator(self):
         @genjax.gen
         def model():
-            loc = genjax.normal(0., 1.) @ 'loc'
-            xs = genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ 'xs'
+            loc = genjax.normal(0.0, 1.0) @ "loc"
+            xs = (
+                genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ "xs"
+            )
             return xs
-
 
         @genjax.gen
         def proposal(choices):
-            loc = choices['loc']
-            xs = genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ 'xs'
+            loc = choices["loc"]
+            xs = (
+                genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ "xs"
+            )
             return xs
-
 
         key = jax.random.PRNGKey(314159)
         key, trace = genjax.simulate(model)(key, ())

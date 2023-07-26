@@ -27,7 +27,7 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -96,16 +96,21 @@ class SwitchChoiceMap(ChoiceMap):
             reshaped = indexer.reshape(indexer.shape + (1,) * shapediff)
             return jnp.choose(reshaped, trees, mode="wrap")
 
-        return jtu.tree_map(
-            chooser,
-            *non_empty_submaps,
+        flags = jnp.arange(len(non_empty_submaps)) == indexer
+
+        return mask(
+            flags[indexer],
+            jtu.tree_map(
+                chooser,
+                *non_empty_submaps,
+            ),
         )
 
     def get_subtrees_shallow(self):
         def _inner(index, submap):
             check = index == self.index
             return map(
-                lambda v: (v[0], BooleanMask.new(check, v[1])),
+                lambda v: (v[0], mask(check, v[1])),
                 submap.get_subtrees_shallow(),
             )
 

@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import jax
+
 import genjax
+
 
 def make_gen_fn():
     @genjax.gen
@@ -28,9 +30,10 @@ def make_gen_fn():
 
     return proposal
 
+
 class TestForwardRef:
     def test_forward_ref(self):
         key = jax.random.PRNGKey(314159)
         proposal = make_gen_fn()
-        key, tr = proposal.simulate(key, (0.3, ))
+        key, tr = proposal.simulate(key, (0.3,))
         assert True

@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import jax
-import jax.tree_util as jtu
 import jax.numpy as jnp
-import functools
-from dataclasses import dataclass
 
 import genjax
-from genjax.typing import Callable, Any
+
 
 def emits_cc_gen_fn(v):
     @genjax.gen

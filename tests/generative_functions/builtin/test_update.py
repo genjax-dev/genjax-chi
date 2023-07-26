@@ -18,8 +18,10 @@ import pytest
 import genjax
 from genjax._src.core.datatypes.masks import BooleanMask
 
+
 identity = lambda x: x
 add_true_mask = lambda x: BooleanMask.new(True, x)
+
 
 class TestUpdateSimpleNormal:
     @pytest.mark.parametrize("transform_fn", [identity])
