@@ -143,6 +143,14 @@ def lint(session: Session) -> None:
     )
     session.run("flake8", "src")
     
+    # Tests
+    session.run("isort", "tests")
+    session.run("black", "tests")
+    session.run(
+        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "tests"
+    )
+    session.run("flake8", "tests")
+    
     # Notebooks
     session.run("isort", "notebooks")
     session.run("black", "notebooks")

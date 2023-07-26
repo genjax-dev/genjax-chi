@@ -18,14 +18,15 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 import genjax
-from genjax import normal
-from genjax import tfp_uniform
-from genjax import trace
+from genjax import NoChange
+from genjax import UnknownChange
+from genjax import choice_map
+from genjax import diff
 from genjax import gen
-from genjax.inference import smc
-from genjax import index_choice_map, choice_map
-from genjax import diff, NoChange, UnknownChange
+from genjax import index_choice_map
 from genjax import index_select
+from genjax import normal
+from genjax.inference import smc
 
 
 class TestSimpleSMC:

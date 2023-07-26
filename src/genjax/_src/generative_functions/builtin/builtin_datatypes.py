@@ -270,6 +270,12 @@ class BuiltinChoiceMap(ChoiceMap):
     def merge(self, other: EmptyChoiceMap):
         return self
 
+    @dispatch
+    def merge(self, other: ChoiceMap):
+        raise Exception(
+            f"Merging with choice map type {type(other)} not supported.",
+        )
+
     def __setitem__(self, k, v):
         v = (
             ValueChoiceMap(v)
