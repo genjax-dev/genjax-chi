@@ -14,10 +14,6 @@
 
 import abc
 import dataclasses
-from typing import Any
-from typing import Callable
-from typing import Tuple
-from typing import Union
 
 import jax
 import jax.tree_util as jtu
@@ -32,9 +28,14 @@ from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import tree_grad_split
 from genjax._src.core.pytree import tree_zipper
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
+from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 
 
 #####
@@ -45,8 +46,27 @@ from genjax._src.core.typing import PRNGKey
 @dataclasses.dataclass
 class ChoiceMap(Tree):
     @abc.abstractmethod
-    def get_selection(self):
+    def is_empty(self) -> BoolArray:
+        pass
+
+    @abc.abstractmethod
+    def merge(self, other: "ChoiceMap") -> Tuple["ChoiceMap", "ChoiceMap"]:
+        pass
+
+    def get_selection(self) -> "Selection":
         """Convert a `ChoiceMap` to a `Selection`."""
+        raise Exception(
+            f"`get_selection` is not implemented for choice map of type {type(self)}",
+        )
+
+    def safe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
+        new, discard = self.merge(other)
+        assert discard.is_empty()
+        return new
+
+    def unsafe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
+        new, discard = self.merge(other)
+        return new
 
     def get_choices(self):
         return self
@@ -62,6 +82,10 @@ class ChoiceMap(Tree):
                 return v
 
         return jtu.tree_map(_inner, self, is_leaf=_check)
+
+    ###########
+    # Dunders #
+    ###########
 
     def __eq__(self, other):
         return self.flatten() == other.flatten()
@@ -88,13 +112,14 @@ class ChoiceMap(Tree):
         else:
             return choice
 
+    # Optional: mutable setter.
     def __setitem__(self, key, value):
         raise Exception(
-            "ChoiceMap of type {type(self)} does not implement __setitem__."
+            f"ChoiceMap of type {type(self)} does not implement __setitem__.",
         )
 
     def __add__(self, other):
-        return self.merge(other)
+        return self.safe_merge(other)
 
 
 #####
@@ -243,6 +268,16 @@ class Trace(ChoiceMap, Tree):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
 
+    #################################
+    # Default choice map interfaces #
+    #################################
+
+    def is_empty(self):
+        return self.strip().is_empty()
+
+    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        return self.strip().merge(other.strip())
+
     def has_subtree(self, addr) -> BoolArray:
         choices = self.get_choices()
         return choices.has_subtree(addr)
@@ -256,7 +291,7 @@ class Trace(ChoiceMap, Tree):
         return choices.get_subtrees_shallow()
 
     def get_selection(self):
-        return self.get_choices().get_selection()
+        return self.strip().get_selection()
 
     def strip(self):
         """Remove all `Trace` metadata, and return a choice map.
@@ -573,13 +608,13 @@ class GenerativeFunction(Pytree):
 
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
-            merged = fixed.merge(provided)
+            merged = fixed.safe_merge(provided)
             _, (_, score) = self.assess(sub_key, merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
             provided, args = tree_zipper(differentiable, nondifferentiable)
-            merged = fixed.merge(provided)
+            merged = fixed.safe_merge(provided)
             _, (retval, _) = self.assess(sub_key, merged, args)
             return retval
 
@@ -608,8 +643,9 @@ class EmptyChoiceMap(ChoiceMap, Leaf):
     def flatten(self):
         return (), ()
 
-    # Overload Leaf: matches Gen.jl - getting a subtree from
-    # empty returns empty.
+    def is_empty(self):
+        return True
+
     def get_subtree(self, addr):
         return self
 
@@ -621,6 +657,9 @@ class EmptyChoiceMap(ChoiceMap, Leaf):
 
     def get_selection(self):
         return NoneSelection()
+
+    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        return other, self
 
 
 @dataclasses.dataclass
@@ -637,6 +676,9 @@ class ValueChoiceMap(ChoiceMap, Leaf):
         else:
             return ValueChoiceMap(v)
 
+    def is_empty(self):
+        return False
+
     def get_leaf_value(self):
         return self.value
 
@@ -645,6 +687,14 @@ class ValueChoiceMap(ChoiceMap, Leaf):
 
     def get_selection(self):
         return AllSelection()
+
+    @dispatch
+    def merge(self, other: "ValueChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:
+        return other, self
+
+    ###########
+    # Dunders #
+    ###########
 
     def __hash__(self):
         if isinstance(self.value, np.ndarray):

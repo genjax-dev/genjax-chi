@@ -113,6 +113,9 @@ class VectorChoiceMap(ChoiceMap):
             return inner
         return VectorChoiceMap(inner)
 
+    def is_empty(self):
+        return self.inner.is_empty()
+
     def get_selection(self):
         subselection = self.inner.get_selection()
         return VectorSelection.new(subselection)
@@ -126,16 +129,25 @@ class VectorChoiceMap(ChoiceMap):
     def get_subtrees_shallow(self):
         return self.inner.get_subtrees_shallow()
 
-    # TODO: This currently provides poor support for merging
-    # two vector choices maps with different index arrays.
-    def merge(self, other):
-        if isinstance(other, VectorChoiceMap):
-            return VectorChoiceMap(self.inner.merge(other.inner))
-        else:
-            return VectorChoiceMap(self.inner.merge(other))
+    @dispatch
+    def merge(self, other: "VectorChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:
+        new, discard = self.inner.merge(other.inner)
+        return VectorChoiceMap(new), VectorChoiceMap(discard)
+
+    @dispatch
+    def merge(self, other: EmptyChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        return self, other
+
+    ###########
+    # Dunders #
+    ###########
 
     def __hash__(self):
         return hash(self.inner)
+
+    ###################
+    # Pretty printing #
+    ###################
 
     def _tree_console_overload(self):
         tree = Tree(f"[b]{self.__class__.__name__}[/b]")
@@ -193,6 +205,9 @@ class IndexChoiceMap(ChoiceMap):
 
         return IndexChoiceMap(indices, inner)
 
+    def is_empty(self):
+        return self.inner.is_empty()
+
     def has_subtree(self, addr):
         if not isinstance(addr, Tuple) and len(addr) == 1:
             return False
@@ -225,6 +240,9 @@ class IndexChoiceMap(ChoiceMap):
 
     def get_subtrees_shallow(self):
         raise NotImplementedError
+
+    def merge(self, other: ChoiceMap):
+        raise Exception("TODO: can't merge IndexChoiceMaps")
 
     def get_index(self):
         return self.indices

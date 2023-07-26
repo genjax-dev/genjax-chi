@@ -18,6 +18,7 @@ import abc
 from dataclasses import dataclass
 
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.typing import BoolArray
 
 
 @dataclass
@@ -32,7 +33,7 @@ class Tree(Pytree):
     """
 
     @abc.abstractmethod
-    def has_subtree(self, addr) -> bool:
+    def has_subtree(self, addr) -> BoolArray:
         pass
 
     @abc.abstractmethod
@@ -70,6 +71,3 @@ class Leaf(Tree):
 
     def get_subtrees_shallow(self):
         raise Exception(f"{type(self)} is a Leaf: it does not have any subtrees.")
-
-    def merge(self, other):
-        raise Exception(f"{type(self)} is a Leaf: can't merge.")
