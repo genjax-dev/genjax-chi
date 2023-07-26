@@ -189,7 +189,7 @@ class SMCExtendPropagator(SMCPropagator):
 
     def propagate_target(self, target: Target, new_args: Tuple, new_choices: ChoiceMap):
         old_constraints = target.constraints
-        new_constraints = old_constraints.merge(new_choices)
+        new_constraints = old_constraints.safe_merge(new_choices)
         return Target(
             target.p,
             target.choice_map_coercion,
@@ -296,7 +296,7 @@ class SMCExtendPropagator(SMCPropagator):
             new_args,
             new_constraints,
         )
-        merged = new_target.constraints.merge(retained)
+        merged = new_target.constraints.safe_merge(retained)
         key, (_, new_retained_trace) = new_target.p.importance(
             key, merged, new_target.args
         )
@@ -343,7 +343,7 @@ class SMCChangeTargetPropagator(SMCPropagator):
         old_target_latents = old_target_latents_selection.filter(state.get_particles())
 
         def _importance(key, latents):
-            merged = self.new_target.constraints.merge(latents)
+            merged = self.new_target.constraints.safe_merge(latents)
             key, (_, new_particle) = self.new_target.p.importance(
                 key, merged, self.new_target.args
             )
