@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
-import pytest
 
-from genjax import ValueChoiceMap, diff, NoChange, UnknownChange, EmptyChoiceMap, mask
+import genjax
+from genjax import EmptyChoiceMap
+from genjax import NoChange
+from genjax import UnknownChange
+from genjax import ValueChoiceMap
+from genjax import diff
+from genjax import mask
 
 
 class TestDistributions:

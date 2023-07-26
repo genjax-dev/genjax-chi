@@ -24,10 +24,14 @@ from rich.tree import Tree
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import Tuple
 
 
 ###############################
@@ -92,16 +96,21 @@ class SwitchChoiceMap(ChoiceMap):
             reshaped = indexer.reshape(indexer.shape + (1,) * shapediff)
             return jnp.choose(reshaped, trees, mode="wrap")
 
-        return jtu.tree_map(
-            chooser,
-            *non_empty_submaps,
+        flags = jnp.arange(len(non_empty_submaps)) == indexer
+
+        return mask(
+            flags[indexer],
+            jtu.tree_map(
+                chooser,
+                *non_empty_submaps,
+            ),
         )
 
     def get_subtrees_shallow(self):
         def _inner(index, submap):
             check = index == self.index
             return map(
-                lambda v: (v[0], BooleanMask.new(check, v[1])),
+                lambda v: (v[0], mask(check, v[1])),
                 submap.get_subtrees_shallow(),
             )
 
@@ -139,3 +148,50 @@ class SwitchChoiceMap(ChoiceMap):
 class SwitchSelection(Selection):
     index: IntArray
     subselections: Sequence[Selection]
+
+
+#####
+# SwitchTrace
+#####
+
+
+@dataclass
+class SwitchTrace(Trace):
+    gen_fn: GenerativeFunction
+    chm: SwitchChoiceMap
+    args: Tuple
+    retval: Any
+    score: FloatArray
+
+    def flatten(self):
+        return (
+            self.gen_fn,
+            self.chm,
+            self.args,
+            self.retval,
+            self.score,
+        ), ()
+
+    def get_args(self):
+        return self.args
+
+    def get_choices(self):
+        return self.chm
+
+    def get_gen_fn(self):
+        return self.gen_fn
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+    def project(self, selection: Selection) -> FloatArray:
+        weights = list(map(lambda v: v.project(selection), self.chm.submaps))
+        return jnp.choose(self.chm.index, weights, mode="wrap")
+
+    def get_subtrace(self, concrete_index):
+        switch_chm = self.get_choices()
+        subtrace = switch_chm.submaps[concrete_index]
+        return subtrace
