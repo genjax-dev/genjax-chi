@@ -115,7 +115,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
 
         # Compute estimate of log p(z', x)
         key, sub_keys = jax.random.split(key)
-        merged = obs_chm.merge(inf_chm)
+        merged = obs_chm.safe_merge(inf_chm)
         sub_keys = jnp.array(sub_keys)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
             sub_key, key_indices_p, merged, p_args
