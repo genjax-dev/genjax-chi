@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import jax
-import pytest
 import jax.numpy as jnp
+import pytest
 
 import genjax
 
@@ -22,7 +22,7 @@ import genjax
 @genjax.gen
 def model(μ):
     x = genjax.normal(μ, 1.0) @ "x"
-    return (x - μ)**2
+    return (x - μ) ** 2
 
 
 class TestVarianceNormal:
@@ -34,7 +34,9 @@ class TestVarianceNormal:
         key = jax.random.PRNGKey(314159)
         key, sub_keys = genjax.slash(key, 1000)
         adev_prog = genjax.adev.lang(model)
-        _, (v,), (tangents, ) = jax.vmap(adev_prog.grad_estimate, in_axes = (0, None, None))(sub_keys, (3.0,), (1.0, ))
+        _, (v,), (tangents,) = jax.vmap(
+            adev_prog.grad_estimate, in_axes=(0, None, None)
+        )(sub_keys, (3.0,), (1.0,))
         assert jnp.mean(tangents) == pytest.approx(0.0, 0.01)
         assert jnp.mean(v) == pytest.approx(1.0, 0.05)
 

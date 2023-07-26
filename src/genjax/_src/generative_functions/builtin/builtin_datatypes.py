@@ -261,11 +261,20 @@ class BuiltinChoiceMap(ChoiceMap):
             trie[k] = v.get_selection()
         return BuiltinSelection(trie)
 
-    # TODO: test this.
+    @dispatch
     def merge(self, other: "BuiltinChoiceMap"):
-        assert isinstance(other, BuiltinChoiceMap)
         new_inner = self.trie.merge(other.trie)
         return BuiltinChoiceMap(new_inner)
+
+    @dispatch
+    def merge(self, other: EmptyChoiceMap):
+        return self
+
+    @dispatch
+    def merge(self, other: ChoiceMap):
+        raise Exception(
+            f"Merging with choice map type {type(other)} not supported.",
+        )
 
     def __setitem__(self, k, v):
         v = (

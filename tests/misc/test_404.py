@@ -12,23 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import jax
-import jax.tree_util as jtu
 import jax.numpy as jnp
-import functools
-from dataclasses import dataclass
-import numpy as np
-import pytest
 
 import genjax
-from genjax.typing import Callable, Any
+
 
 _global = jnp.arange(3)
+
 
 @genjax.gen
 def localization_kernel(x):
     y = genjax.normal(jnp.sum(_global), 1.0) @ "x"
     return x + y
+
 
 def wrap(fn):
     @genjax.gen
@@ -36,12 +34,13 @@ def wrap(fn):
         idx, state = carry
         newstate = fn.inline(state, *static_args)
         return idx + 1, newstate
-    
+
     return inner
+
 
 class TestIssue404:
     def test_issue_404(self):
         key = jax.random.PRNGKey(314159)
-        localization_chain = genjax.Unfold(wrap(localization_kernel), max_length = 3)
+        localization_chain = genjax.Unfold(wrap(localization_kernel), max_length=3)
         _, trace = genjax.simulate(localization_chain)(key, (2, (0, 0.0)))
         assert True

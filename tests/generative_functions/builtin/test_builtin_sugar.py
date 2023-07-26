@@ -13,10 +13,8 @@
 # limitations under the License.
 
 import jax
-import pytest
 
 import genjax
-
 
 
 class TestBuiltinSugar:

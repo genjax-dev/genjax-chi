@@ -18,7 +18,9 @@ import jax.tree_util as jtu
 import pytest
 
 import genjax
-from genjax import diff, NoChange, UnknownChange
+from genjax import NoChange
+from genjax import UnknownChange
+from genjax import diff
 
 
 class TestUnfoldSimpleNormal:

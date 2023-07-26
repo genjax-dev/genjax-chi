@@ -80,7 +80,7 @@ class TestImportance:
         test_score = score_1 + score_2
         assert tr.get_score() == pytest.approx(test_score, 0.0001)
         assert w == pytest.approx(score_2, 0.0001)
-        
+
         # No constraints.
         chm = genjax.EmptyChoiceMap()
         key, (w, tr) = simple_normal.importance(key, chm, ())
