@@ -31,3 +31,4 @@ Makefile
 cmake_install.cmake
 scratch
 docs/_build
+notebooks/hidden
