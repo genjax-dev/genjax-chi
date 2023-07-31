@@ -71,6 +71,11 @@ class TestMapCombinator:
         key, (w, _) = jax.jit(model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.logpdf(3.0, 0.0, 1.0)
 
+        zv = jnp.array([3.0, -1.0, 2.0])
+        chm = genjax.index_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
+        key, (_, tr) = model.importance(key, chm, (map_over,))
+        assert all(tr["z"] == zv)
+
     def test_map_vmap_pytree(self):
         key = jax.random.PRNGKey(314159)
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import jax
+from jax import numpy as jnp
 
 import genjax
 from genjax import BooleanMask
@@ -185,3 +186,21 @@ class TestSimulate:
         assert new_tr.get_score() == genjax.tfp_normal.logpdf(
             sample_value, 0.0, outlier_stddev
         )
+
+    def test_switch_vectorized_access(self):
+        @genjax.gen
+        def f1():
+            return genjax.tfp_normal(0.0, 1.0) @ "y"
+
+        @genjax.gen
+        def f2():
+            return genjax.tfp_normal(0.0, 2.0) @ "y"
+
+        s = genjax.SwitchCombinator([f1, f2])
+
+        keys = jax.random.split(jax.random.PRNGKey(17), 3)
+        # Just select 0 in all branches for simplicity:
+        _, tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0,))
+        y = tr["y"]
+        assert y.value.shape == (3,)
+        assert (y.mask == jnp.array([True, True, True])).all()
