@@ -24,7 +24,6 @@ from genjax._src.generative_functions.builtin.builtin_datatypes import select_wi
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     BuiltinGenerativeFunction,
 )
-from genjax._src.generative_functions.builtin.builtin_gen_fn import inline
 from genjax._src.generative_functions.builtin.builtin_gen_fn import lang
 from genjax._src.generative_functions.builtin.builtin_gen_fn import partial
 from genjax._src.generative_functions.builtin.builtin_gen_fn import save
@@ -44,7 +43,6 @@ __all__ = [
     "trace",
     "cache",
     "save",
-    "inline",
     "partial",
     "lang",
 ]

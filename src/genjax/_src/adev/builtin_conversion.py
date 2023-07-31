@@ -29,7 +29,6 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import (
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     BuiltinInterfaceContext,
 )
-from genjax._src.generative_functions.builtin.builtin_transforms import inline_transform
 
 
 #####
@@ -71,12 +70,10 @@ class ADEVConvertContext(BuiltinInterfaceContext):
 
 
 def adev_conversion_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
     @functools.wraps(source_fn)
     def wrapper(key, args):
         ctx = ADEVConvertContext.new(key)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
         (key,) = statefuls
         return key, retvals
 
