@@ -284,7 +284,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
             return key, (0.0, tr)
 
         def _importance(key, index, chm, args):
-            (slice_index,) = jnp.nonzero(index == chm, size=1)
+            (slice_index,) = jnp.nonzero(index == chm.indices, size=1)
             slice_index = slice_index[0]
             inner_chm = chm.inner.slice(slice_index)
             return self.kernel.importance(key, inner_chm, args)
