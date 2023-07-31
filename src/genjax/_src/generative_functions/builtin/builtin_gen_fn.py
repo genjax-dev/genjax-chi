@@ -146,6 +146,11 @@ class BuiltinGenerativeFunction(GenerativeFunction, SupportsBuiltinSugar):
     def new(cls, source: Callable):
         return BuiltinGenerativeFunction(source)
 
+    # To get the type of return value, just invoke
+    # the source (with abstract tracer arguments).
+    def __abstract_call__(self, *args) -> Any:
+        return self.source(*args)
+
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
         return trace_type_transform(self.source, **kwargs)(*args)
