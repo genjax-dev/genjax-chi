@@ -32,8 +32,6 @@ trace_p = primitives.InitialStylePrimitive("trace")
 # Cache intrinsic.
 cache_p = primitives.InitialStylePrimitive("cache")
 
-# Inline intrinsic.
-inline_p = primitives.InitialStylePrimitive("inline")
 
 #####
 # Static address checks
@@ -92,14 +90,3 @@ def cache(addr: Any, fn: Callable, *args: Any, **kwargs):
     assert not isinstance(fn, GenerativeFunction)
     static_address_type_check(addr)
     return lambda *args: _cache(fn, addr, *args, **kwargs)
-
-
-#################################################################
-# Inline call (denotes inlining of another generative function) #
-#################################################################
-
-
-def _inline(gen_fn, *args, **kwargs):
-    return primitives.initial_style_bind(inline_p)(_abstract_gen_fn_call)(
-        gen_fn, *args, **kwargs
-    )
