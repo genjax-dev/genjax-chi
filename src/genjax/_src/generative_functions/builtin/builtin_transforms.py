@@ -37,7 +37,6 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
-from genjax._src.generative_functions.builtin.builtin_primitives import inline_p
 from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
 
 
@@ -104,52 +103,6 @@ class BuiltinInterfaceContext(context.Context):
 
 
 #####
-# Inlining
-#####
-
-
-@dataclasses.dataclass
-class InlineContext(context.Context):
-    def flatten(self):
-        return (), ()
-
-    def yield_state(self):
-        return ()
-
-    def can_process(self, primitive):
-        return primitive is inline_p
-
-    # Recursively inline - eliminate all `inline_p` primitive
-    # bind calls.
-    def process_inline(self, *args, **params):
-        in_tree = params.get("in_tree")
-        num_consts = params.get("num_consts")
-        args = args[num_consts:]
-        gen_fn, *call_args = jtu.tree_unflatten(in_tree, args)
-        retvals = inline_transform(gen_fn.source)(*call_args)
-        return jtu.tree_leaves(retvals)
-
-    def process_primitive(self, primitive, *args, **params):
-        if primitive is inline_p:
-            return self.process_inline(*args, **params)
-        else:
-            raise NotImplementedError
-
-    def get_custom_rule(self, primitive):
-        return None
-
-
-def inline_transform(source_fn, **kwargs):
-    @functools.wraps(source_fn)
-    def wrapper(*args):
-        ctx = InlineContext.new()
-        retvals, _ = context.transform(source_fn, ctx)(*args, **kwargs)
-        return retvals
-
-    return wrapper
-
-
-#####
 # Simulate
 #####
 
@@ -207,12 +160,10 @@ class SimulateContext(BuiltinInterfaceContext):
 
 
 def simulate_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
     @functools.wraps(source_fn)
     def wrapper(key, args):
         ctx = SimulateContext.new(key)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
         key, constraints, cache, score = statefuls
         return key, (source_fn, args, retvals, constraints, score), cache
 
@@ -281,12 +232,10 @@ class ImportanceContext(BuiltinInterfaceContext):
 
 
 def importance_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
     @functools.wraps(source_fn)
     def wrapper(key, constraints, args):
         ctx = ImportanceContext.new(key, constraints)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
         key, score, weight, choices, cache = statefuls
         return key, (weight, (source_fn, args, retvals, choices, score)), cache
 
@@ -399,12 +348,12 @@ class UpdateContext(BuiltinInterfaceContext):
 
 
 def update_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
     @functools.wraps(source_fn)
     def wrapper(key, previous_trace, constraints, diffs):
         ctx = UpdateContext.new(key, previous_trace, constraints)
-        retval_diffs, statefuls = incremental.transform(inlined, ctx)(*diffs, **kwargs)
+        retval_diffs, statefuls = incremental.transform(source_fn, ctx)(
+            *diffs, **kwargs
+        )
         retval_primals = tree_diff_primal(retval_diffs)
         arg_primals = tree_diff_primal(diffs)
         key, weight, choices, cache, discard = statefuls
@@ -474,12 +423,10 @@ class AssessContext(BuiltinInterfaceContext):
 
 
 def assess_transform(source_fn, **kwargs):
-    inlined = inline_transform(source_fn, **kwargs)
-
     @functools.wraps(source_fn)
     def wrapper(key, constraints, args):
         ctx = AssessContext.new(key, constraints)
-        retvals, statefuls = context.transform(inlined, ctx)(*args, **kwargs)
+        retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
         key, score = statefuls
         return key, (retvals, score)
 
