@@ -206,12 +206,20 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
         """
         return UnfoldCombinator(max_length, kernel)
 
-    @typecheck
-    def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
-        _ = args[0]
-        args = args[1:]
-        inner_type = self.kernel.get_trace_type(*args, **kwargs)
-        return VectorTraceType(inner_type, self.max_length)
+    # To get the type of return value, just invoke
+    # the scanned over source (with abstract tracer arguments).
+    def __abstract_call__(self, *args) -> Any:
+        state = args[1]
+        static_args = args[2:]
+
+        def _inner(carry, xs):
+            (state,) = carry
+            v = self.kernel.__abstract_call__(state, *static_args)
+            return v, v
+
+        _, stacked = jax.lax.scan(_inner, state, None, length=self.max_length)
+
+        return stacked
 
     def _runtime_throw_bounds_exception(self, count: int):
         def _inner(count, _):

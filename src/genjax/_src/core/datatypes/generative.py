@@ -430,7 +430,7 @@ class GenerativeFunction(Pytree):
     """
 
     # This is used to support tracing.
-    # It is given a default method, but other GenerativeFunctions
+    # Below, a default implementation: GenerativeFunctions
     # may customize this to improve compilation time.
     def __abstract_call__(self, *args) -> Any:
         # This should occur only during abstract evaluation,
