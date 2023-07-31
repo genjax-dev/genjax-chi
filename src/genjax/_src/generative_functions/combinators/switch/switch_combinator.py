@@ -120,11 +120,9 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
         """
         return SwitchCombinator([*args])
 
-    def get_trace_type(self, *args):
-        subtypes = []
-        for gen_fn in self.branches:
-            subtypes.append(gen_fn.get_trace_type(*args[1:]))
-        return SumTraceType(subtypes)
+    def __abstract_call__(self, *args):
+        first_branch = self.branches[0]
+        return first_branch.__abstract_call__(*args)
 
     # Method is used to create a branch-agnostic type
     # which is acceptable for JAX's typing across `lax.switch`
@@ -135,6 +133,12 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
             trace_shape = get_trace_data_shape(gen_fn, key, args)
             covers.append(trace_shape)
         return Sumtree.new(choices, covers)
+
+    def get_trace_type(self, *args):
+        subtypes = []
+        for gen_fn in self.branches:
+            subtypes.append(gen_fn.get_trace_type(*args[1:]))
+        return SumTraceType(subtypes)
 
     def _simulate(self, branch_gen_fn, key, args):
         key, tr = branch_gen_fn.simulate(key, args[1:])
