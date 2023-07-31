@@ -429,10 +429,12 @@ class GenerativeFunction(Pytree):
     will lead to unintended behavior or errors.
     """
 
-    # This is used to support tracing -- the user is not required to provide
-    # a PRNGKey, because the value of the key is not important, only
-    # the fact that the value has type PRNGKey.
-    def __abstract_call__(self, *args) -> Tuple[PRNGKey, Any]:
+    # This is used to support tracing.
+    # Below, a default implementation: GenerativeFunctions
+    # may customize this to improve compilation time.
+    def __abstract_call__(self, *args) -> Any:
+        # This should occur only during abstract evaluation,
+        # the fact that the value has type PRNGKey is all that matters.
         key = jax.random.PRNGKey(0)
         _, tr = self.simulate(key, args)
         retval = tr.get_retval()

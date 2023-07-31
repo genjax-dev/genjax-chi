@@ -102,13 +102,11 @@ class Distribution(GenerativeFunction, SupportsBuiltinSugar):
     def flatten(self):
         return (), ()
 
-    # Syntactical overload to define `Product` of distributions.
-    # C.f. below.
-    def __mul__(self, other):
-        p = Product([])
-        p.append(self)
-        p.append(other)
-        return p
+    def __abstract_call__(self, *args):
+        # Abstract evaluation: value here doesn't matter, only the type.
+        key = jax.random.PRNGKey(0)
+        _, (_, v) = self.random_weighted(key, *args)
+        return v
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:

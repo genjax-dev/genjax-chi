@@ -33,7 +33,6 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
-from genjax._src.generative_functions.builtin.builtin_primitives import _inline
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_tracetype import (
@@ -108,7 +107,7 @@ class DeferredGenerativeFunctionCall(Pytree):
             # To use inlining, the generative function must be a
             # `BuiltinGenerativeFunction`.
             assert isinstance(self.gen_fn, BuiltinGenerativeFunction)
-            return _inline(self.gen_fn, *self.args, **self.kwargs)
+            return self.gen_fn.inline(*self.args)
         else:
             return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
@@ -146,6 +145,11 @@ class BuiltinGenerativeFunction(GenerativeFunction, SupportsBuiltinSugar):
     @classmethod
     def new(cls, source: Callable):
         return BuiltinGenerativeFunction(source)
+
+    # To get the type of return value, just invoke
+    # the source (with abstract tracer arguments).
+    def __abstract_call__(self, *args) -> Any:
+        return self.source(*args)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
@@ -207,7 +211,7 @@ class BuiltinGenerativeFunction(GenerativeFunction, SupportsBuiltinSugar):
         return key, (retval, score)
 
     def inline(self, *args):
-        return _inline(self, *args)
+        return self.source(*args)
 
 
 #####
