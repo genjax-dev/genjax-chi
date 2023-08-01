@@ -29,6 +29,36 @@ class TestDistributions:
         key, tr = genjax.normal.simulate(key, (0.0, 1.0))
         assert tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
 
+    def test_importance(self):
+        key = jax.random.PRNGKey(314159)
+
+        # No constraint.
+        key, (w, tr) = genjax.tfp_normal.importance(key, EmptyChoiceMap(), (0.0, 1.0))
+        assert w == 0.0
+
+        # Constraint, no mask.
+        key, (w, tr) = genjax.tfp_normal.importance(
+            key, ValueChoiceMap(1.0), (0.0, 1.0)
+        )
+        v = tr.strip().get_leaf_value()
+        assert w == genjax.tfp_normal.logpdf(v, 0.0, 1.0)
+
+        # Constraint, mask with True flag.
+        key, (w, tr) = genjax.tfp_normal.importance(
+            key, mask(True, ValueChoiceMap(1.0)), (0.0, 1.0)
+        )
+        v = tr.strip().get_leaf_value()
+        assert v == 1.0
+        assert w == genjax.tfp_normal.logpdf(v, 0.0, 1.0)
+
+        # Constraint, mask with False flag.
+        key, (w, tr) = genjax.tfp_normal.importance(
+            key, mask(False, ValueChoiceMap(1.0)), (0.0, 1.0)
+        )
+        v = tr.strip().get_leaf_value()
+        assert v != 1.0
+        assert w == 0.0
+
     def test_update(self):
         key = jax.random.PRNGKey(314159)
         key, tr = genjax.normal.simulate(key, (0.0, 1.0))
