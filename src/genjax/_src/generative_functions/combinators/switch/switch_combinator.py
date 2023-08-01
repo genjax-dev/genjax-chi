@@ -32,7 +32,7 @@ import jax
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masks import mask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
@@ -64,7 +64,7 @@ from genjax._src.generative_functions.combinators.switch.switch_tracetypes impor
 
 
 @dataclass
-class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
+class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching
     control flow patterns, including control flow patterns which branch on
@@ -101,19 +101,19 @@ class SwitchCombinator(GenerativeFunction, SupportsBuiltinSugar):
         ```
     """
 
-    branches: List[GenerativeFunction]
+    branches: List[JAXGenerativeFunction]
 
     def flatten(self):
         return (self.branches,), ()
 
     @typecheck
     @classmethod
-    def new(cls, *args: GenerativeFunction) -> "SwitchCombinator":
+    def new(cls, *args: JAXGenerativeFunction) -> "SwitchCombinator":
         """The preferred constructor for `SwitchCombinator` generative function
         instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
 
         Arguments:
-            *args: Generative functions which will act as branch callees for the invocation of branching control flow.
+            *args: JAX generative functions which will act as branch callees for the invocation of branching control flow.
 
         Returns:
             instance: A `SwitchCombinator` instance.

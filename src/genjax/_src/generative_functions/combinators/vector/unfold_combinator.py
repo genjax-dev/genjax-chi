@@ -27,6 +27,7 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
@@ -153,7 +154,7 @@ class UnfoldTrace(Trace):
 
 
 @dataclass
-class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
+class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     """> `UnfoldCombinator` accepts a kernel generative function, as well as a
     static maximum unroll length, and provides a scan-like pattern of
     generative computation.
@@ -186,19 +187,19 @@ class UnfoldCombinator(GenerativeFunction, SupportsBuiltinSugar):
     """
 
     max_length: IntArray
-    kernel: GenerativeFunction
+    kernel: JAXGenerativeFunction
 
     def flatten(self):
         return (self.kernel,), (self.max_length,)
 
     @typecheck
     @classmethod
-    def new(cls, kernel: GenerativeFunction, max_length: Int) -> "UnfoldCombinator":
+    def new(cls, kernel: JAXGenerativeFunction, max_length: Int) -> "UnfoldCombinator":
         """The preferred constructor for `UnfoldCombinator` generative function
         instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.
 
         Arguments:
-            kernel: A kernel `GenerativeFunction` instance.
+            kernel: A kernel `JAXGenerativeFunction` instance.
             max_length: A static maximum possible unroll length.
 
         Returns:
