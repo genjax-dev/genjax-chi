@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.pytree import DynamicClosure
@@ -31,6 +32,7 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions import gentle
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
@@ -108,8 +110,10 @@ class DeferredGenerativeFunctionCall(Pytree):
             # `BuiltinGenerativeFunction`.
             assert isinstance(self.gen_fn, BuiltinGenerativeFunction)
             return self.gen_fn.inline(*self.args)
-        else:
+        elif isinstance(self.gen_fn, JAXGenerativeFunction):
             return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
+        else:
+            return gentle.trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
 
 # This mixin overloads the call functionality for this generative function
@@ -132,7 +136,7 @@ class SupportsBuiltinSugar:
 
 
 @dataclass
-class BuiltinGenerativeFunction(GenerativeFunction, SupportsBuiltinSugar):
+class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
     source: Callable
 
     def flatten(self):
