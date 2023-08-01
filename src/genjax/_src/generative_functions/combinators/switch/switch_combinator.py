@@ -120,7 +120,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         """
         return SwitchCombinator([*args])
 
-    def __abstract_call__(self, *args):
+    # Optimized abstract call for tracing.
+    def __abstract_call__(self, branch, *args):
         first_branch = self.branches[0]
         return first_branch.__abstract_call__(*args)
 
