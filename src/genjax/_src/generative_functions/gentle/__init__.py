@@ -45,9 +45,12 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
 
+# Our main idiom to express non-standard interpretation is an
+# (effect handler)-inspired dispatch stack.
 _GENTLE_STACK = []
 
-
+# When `handle` is invoked, it dispatches the information in `msg`
+# to the handler at the top of the stack (end of list).
 def handle(msg):
     assert _GENTLE_STACK
     handler = _GENTLE_STACK[-1]
@@ -55,6 +58,8 @@ def handle(msg):
     return v
 
 
+# A `Handler` implements Python's context manager protocol.
+# It must also provide an implementation for `process_message`.
 class Handler(object):
     def __enter__(self):
         _GENTLE_STACK.append(self)
@@ -75,6 +80,9 @@ class Handler(object):
         pass
 
 
+# A primitive used in our language to denote invoking another generative function.
+# It's behavior depends on the handler which is at the top of the stack
+# when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction, *args: Any) -> Any:
     # Must be handled.
     assert _GENTLE_STACK
@@ -86,10 +94,11 @@ def trace(addr: Any, gen_fn: GenerativeFunction, *args: Any) -> Any:
         "args": args,
     }
 
+    # Defer the behavior of this call to the handler.
     return handle(initial_msg)
 
 
-# Usage: checks for duplicate addresses.
+# Usage: checks for duplicate addresses, which violates Gen's rules.
 @dataclass
 class AddressVisitor:
     visited: List
@@ -136,6 +145,14 @@ class SimulateHandler(Handler):
         self.choice_state[addr] = tr
         self.score += tr.get_score()
         return retval
+
+
+######
+# Generative datatypes
+######
+
+# Auxiliary datatypes which deal with selection, trace representation,
+# choice map representation.
 
 
 @dataclass
@@ -353,6 +370,8 @@ class GentleTrace(Trace):
         return 0.0
 
 
+# Our generative function type - simply wraps a `source: Callable`
+# which can invoke our `trace` primitive.
 @dataclass
 class GentleGenerativeFunction(GenerativeFunction):
     source: Callable
@@ -365,6 +384,7 @@ class GentleGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ) -> GentleTrace:
+        # Handle trace with the `SimulateHandler`.
         with SimulateHandler.new(key) as handler:
             retval = self.source(*args)
             score = handler.score
@@ -397,6 +417,7 @@ class GentleGenerativeFunction(GenerativeFunction):
         pass
 
 
+# A decorator to pipe callables into our generative function.
 @typecheck
 def gen(source: Callable):
     return GentleGenerativeFunction(source)
