@@ -23,6 +23,22 @@ from genjax import diff
 
 
 class TestSimulate:
+    def test_switch_simulate_in_gen_fn(self):
+        @genjax.gen
+        def f():
+            x = genjax.tfp_normal(0., 1.) @ 'x'
+            return x
+
+        @genjax.gen
+        def model():
+            b = genjax.bernoulli(.5) @ 'b'
+            s = genjax.Switch(f, f)(jnp.int32(b)) @ 's'  
+            return s
+
+        key = jax.random.PRNGKey(314159)
+        # This crashes.
+        _, tr = genjax.simulate(model)(key, ())
+        
     def test_switch_simulate(self):
         @genjax.gen
         def simple_normal():
