@@ -57,6 +57,21 @@ def pv_like(x, abstract=True):
         return pe.PartialVal((None, x))  # pytype: disable=wrong-arg-types
 
 
+@lu.cache
+def cached_stage_dynamic(flat_fun, in_avals):
+    jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, in_avals)
+    typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
+    return typed_jaxpr
+
+
+@lu.cache
+def cached_stage_partial(flat_fun, in_avals):
+    pvals = [pe.PartialVal.unknown(aval) for aval in in_avals]
+    jaxpr, _, consts = pe.trace_to_jaxpr(flat_fun, pvals, instantiate=True)
+    typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
+    return typed_jaxpr
+
+
 def stage(f, dynamic=True):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
@@ -66,11 +81,9 @@ def stage(f, dynamic=True):
         flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)
         if dynamic:
-            jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, flat_avals)
+            typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
         else:
-            pvals = [pe.PartialVal.unknown(aval) for aval in flat_avals]
-            jaxpr, _, consts = pe.trace_to_jaxpr(flat_fun, pvals, instantiate=True)
-        typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
+            typed_jaxpr = cached_stage_partial(flat_fun, tuple(flat_avals))
         return typed_jaxpr, (flat_args, in_tree, out_tree())
 
     return wrapped
