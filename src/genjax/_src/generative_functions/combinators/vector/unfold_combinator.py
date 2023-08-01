@@ -214,7 +214,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         static_args = args[2:]
 
         def _inner(carry, xs):
-            (state,) = carry
+            state = carry
             v = self.kernel.__abstract_call__(state, *static_args)
             return v, v
 
