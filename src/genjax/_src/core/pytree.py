@@ -29,6 +29,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
+from jax import api_util
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashabledict import HashableDict
@@ -313,6 +314,10 @@ class DynamicClosure(Pytree):
 
     def __call__(self, *args):
         return self.fn(*self.dyn_args, *args)
+
+    def __hash__(self):
+        avals = tuple(api_util.shaped_abstractify(i) for i in self.dyn_args)
+        return hash((self.fn, *avals))
 
 
 def dynamic_closure(*args):
