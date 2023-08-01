@@ -26,6 +26,7 @@ import numpy as np
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
@@ -125,7 +126,7 @@ class MapTrace(Trace):
 
 
 @dataclass
-class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
+class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
@@ -157,7 +158,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
 
     in_axes: Tuple
     repeats: Union[None, IntArray]
-    kernel: GenerativeFunction
+    kernel: JAXGenerativeFunction
 
     def flatten(self):
         return (self.kernel,), (self.in_axes, self.repeats)
@@ -166,7 +167,7 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
     @classmethod
     def new(
         cls,
-        kernel: GenerativeFunction,
+        kernel: JAXGenerativeFunction,
         in_axes: Union[None, Tuple] = None,
         repeats: Union[None, IntArray] = None,
     ) -> "MapCombinator":
@@ -174,14 +175,13 @@ class MapCombinator(GenerativeFunction, SupportsBuiltinSugar):
         instances. The shorthand symbol is `Map = MapCombinator.new`.
 
         Arguments:
-            kernel: A single `GenerativeFunction` instance.
+            kernel: A single `JAXGenerativeFunction` instance.
             in_axes: A tuple specifying which `args` to broadcast over.
             repeats: An integer specifying the length of repetitions (ignored if `in_axes` is specified, if `in_axes` is not specified - required).
 
         Returns:
             instance: A `MapCombinator` instance.
         """
-        assert isinstance(kernel, GenerativeFunction)
         if in_axes is None or all(map(lambda v: v is None, in_axes)):
             assert repeats is not None
         return MapCombinator(in_axes, repeats, kernel)

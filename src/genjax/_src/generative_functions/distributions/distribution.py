@@ -23,6 +23,7 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Leaf
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
@@ -98,7 +99,7 @@ class DistributionTrace(Trace, Leaf):
 
 
 @dataclass
-class Distribution(GenerativeFunction, SupportsBuiltinSugar):
+class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
     def flatten(self):
         return (), ()
 
