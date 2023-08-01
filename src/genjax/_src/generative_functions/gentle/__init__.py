@@ -15,7 +15,8 @@
 language which exposes a less restrictive set of program constructs, based on
 normal Python.
 
-The downside of the `genjax.gentle` language is that you cannot invoke  its generative functions in JAX generative function code.
+The downside of the `genjax.gentle` language is that you cannot invoked
+its generative functions in JAX generative function code.
 """
 
 import abc
