@@ -276,7 +276,9 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
-        flag_array = (index_array[:, None] == chm.indices).sum(axis=-1)
+        flag_array = (index_array[:, None] == chm.indices.flatten()).sum(
+            axis=-1, dtype=bool
+        )
         key, sub_keys = slash(key, broadcast_dim_length)
 
         def _simulate(key, index, chm, args):
@@ -284,10 +286,8 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             return key, (0.0, tr)
 
         def _importance(key, index, chm, args):
-            (slice_index,) = jnp.nonzero(index == chm.indices, size=1)
-            slice_index = slice_index[0]
-            inner_chm = chm.inner.slice(slice_index)
-            return self.kernel.importance(key, inner_chm, args)
+            submap = chm.get_subtree(index)
+            return self.kernel.importance(key, submap, args)
 
         def _switch(key, flag, index, chm, args):
             return concrete_cond(flag, _importance, _simulate, key, index, chm, args)
