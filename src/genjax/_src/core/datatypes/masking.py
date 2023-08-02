@@ -16,7 +16,9 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from rich.tree import Tree
 
+import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
@@ -87,6 +89,24 @@ class Mask(Pytree):
         hash1 = hash(self.value)
         hash2 = hash(self.mask)
         return hash((hash1, hash2))
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.mask, short_arrays=True)
+        val = gpp._pformat_array(self.value, short_arrays=True)
+        sub_tree = Tree(f"[bold](Mask, {doc})")
+        sub_tree.add(Tree(f"{val}"))
+        tree.add(sub_tree)
+        return tree
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
 
 
 ##############

@@ -725,9 +725,12 @@ class ValueChoiceMap(ChoiceMap, Leaf):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = gpp.tree_pformat(self.value)
-        tree.add(sub_tree)
-        return tree
+        if isinstance(self.value, Pytree):
+            return self.value.__rich_tree__(tree)
+        else:
+            sub_tree = gpp.tree_pformat(self.value)
+            tree.add(sub_tree)
+            return tree
 
 
 @dataclasses.dataclass
