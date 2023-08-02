@@ -240,10 +240,10 @@ class TestUnfoldSimpleNormal:
             )
             diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
             old_score = new_tr.project(x_sel)
-            old_x = x_sel.filter(new_tr.strip())["x"]
-            old_z = z_sel.filter(new_tr.strip())["z"]
+            old_x = x_sel.filter(new_tr.strip())["x"].unmask()
+            old_z = z_sel.filter(new_tr.strip())["z"].unmask()
             key, (_, w, new_tr, _) = chain.update(key, new_tr, obs, diffs)
-            new_z = z_sel.filter(new_tr.strip())["z"]
+            new_z = z_sel.filter(new_tr.strip())["z"].unmask()
             assert old_z == new_z
             assert new_tr.project(x_sel) == pytest.approx(
                 genjax.normal.logpdf(1.0, new_z, 1.0), 0.0001

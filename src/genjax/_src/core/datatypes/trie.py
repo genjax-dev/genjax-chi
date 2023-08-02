@@ -17,9 +17,9 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
+from genjax._src.core.datatypes.tree import Tree
 from genjax._src.core.pretty_printing import CustomPretty
 
 
@@ -29,7 +29,7 @@ from genjax._src.core.pretty_printing import CustomPretty
 
 
 @dataclass
-class Trie(ChoiceMap, CustomPretty):
+class Trie(Tree, CustomPretty):
     inner: HashableDict
 
     def flatten(self):
@@ -92,6 +92,9 @@ class Trie(ChoiceMap, CustomPretty):
     def get_subtrees_shallow(self):
         return self.inner.items()
 
+    def get_choices(self):
+        return self
+
     def merge(self, other):
         new = hashabledict()
         discard = hashabledict()
@@ -125,6 +128,12 @@ class Trie(ChoiceMap, CustomPretty):
     ###################
     # Pretty printing #
     ###################
+
+    def __rich_tree__(self, tree):
+        for (k, v) in self.get_subtrees_shallow():
+            subk = tree.add(f"[bold]:{k}")
+            _ = v.__rich_tree__(subk)
+        return tree
 
     def pformat_tree(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")

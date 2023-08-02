@@ -34,7 +34,7 @@ import jax.tree_util as jtu
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
 from genjax._src.core.transforms.incremental import UnknownChange

@@ -28,8 +28,8 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import ValueChoiceMap
-from genjax._src.core.datatypes.masks import BooleanMask
-from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.masking import Mask
+from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.transforms.incremental import Diff
@@ -159,7 +159,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         # and then unwrap it - and use the active flag to determine
         # what to do at runtime.
         v = chm.get_leaf_value()
-        if isinstance(v, BooleanMask):
+        if isinstance(v, Mask):
             active = v.mask
             v = v.unmask()
 
@@ -224,7 +224,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primal(argdiffs)
         v = constraints.get_leaf_value()
-        if isinstance(v, BooleanMask):
+        if isinstance(v, Mask):
             check, value = v.mask, v.value
 
             def _fallback(key):

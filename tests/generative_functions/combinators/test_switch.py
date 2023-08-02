@@ -16,7 +16,7 @@ import jax
 from jax import numpy as jnp
 
 import genjax
-from genjax import BooleanMask
+from genjax import Mask
 from genjax import NoChange
 from genjax import UnknownChange
 from genjax import diff
@@ -106,9 +106,9 @@ class TestSimulate:
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
         key, tr = jitted(key, (0,))
-        assert isinstance(tr["y1"], BooleanMask)
-        assert isinstance(tr["y2"], BooleanMask)
-        assert isinstance(tr["y3"], BooleanMask)
+        assert isinstance(tr["y1"], Mask)
+        assert isinstance(tr["y2"], Mask)
+        assert isinstance(tr["y3"], Mask)
 
     def test_switch_importance(self):
         @genjax.gen

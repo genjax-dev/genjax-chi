@@ -14,9 +14,6 @@
 
 from dataclasses import dataclass
 
-from rich.tree import Tree
-
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.tracetypes import TraceType
 
 
@@ -60,12 +57,3 @@ class VectorTraceType(TraceType):
 
     def get_rettype(self):
         return self.inner.get_rettype()
-
-    def _tree_console_overload(self):
-        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
-        subk = Tree("[blue]length")
-        subk.add(gpp.tree_pformat(self.length))
-        subt = self.inner._build_rich_tree()
-        tree.add(subk)
-        tree.add(subt)
-        return tree

@@ -24,8 +24,11 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.generative import choice_map
+from genjax._src.core.datatypes.generative import select
+from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.pytree import tree_stack
+from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
@@ -34,7 +37,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import select
 from genjax._src.generative_functions.combinators.vector.vector_utilities import (
     static_check_leaf_length,
 )
@@ -103,8 +105,8 @@ class VectorChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.inner,), ()
 
-    @typecheck
     @classmethod
+    @dispatch
     def new(
         cls,
         inner: ChoiceMap,
@@ -112,6 +114,15 @@ class VectorChoiceMap(ChoiceMap):
         if isinstance(inner, EmptyChoiceMap):
             return inner
         return VectorChoiceMap(inner)
+
+    @classmethod
+    @dispatch
+    def new(
+        cls,
+        inner: Dict,
+    ) -> ChoiceMap:
+        chm = choice_map(inner)
+        return VectorChoiceMap.new(chm)
 
     def is_empty(self):
         return self.inner.is_empty()
@@ -149,13 +160,10 @@ class VectorChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def _tree_console_overload(self):
-        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
-        subt = self.inner._build_rich_tree()
-        subk = Tree("[blue]indices")
-        subk.add(gpp.tree_pformat(self.indices))
-        tree.add(subk)
-        tree.add(subt)
+    def __rich_tree__(self, tree):
+        sub_tree = Tree("[bold](Vector)")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
         return tree
 
 
@@ -189,11 +197,29 @@ class IndexChoiceMap(ChoiceMap):
         indices = jnp.array(indices)
         return IndexChoiceMap.new(inner, indices)
 
-    @typecheck
     @classmethod
+    @dispatch
     def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
         if isinstance(indices, List):
             indices = jnp.array(indices)
+
+        # Verify that dimensions are consistent before creating an
+        # `IndexChoiceMap`.
+        _ = static_check_leaf_length((inner, indices))
+
+        # if you try to wrap around an EmptyChoiceMap, do nothing.
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
+
+        return IndexChoiceMap(indices, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: Union[List, IntArray], inner: dict) -> ChoiceMap:
+        if isinstance(indices, List):
+            indices = jnp.array(indices)
+
+        inner = choice_map(inner)
 
         # Verify that dimensions are consistent before creating an
         # `IndexChoiceMap`.
@@ -246,6 +272,17 @@ class IndexChoiceMap(ChoiceMap):
 
     def get_index(self):
         return self.indices
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        sub_tree = Tree(f"[bold](Index,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
 
 
 #####

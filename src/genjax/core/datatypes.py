@@ -16,16 +16,21 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import HierarchicalComplementSelection
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import all_select
+from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import none_select
+from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.generative import value_choice_map
-from genjax._src.core.datatypes.masks import BooleanMask
-from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.masking import Mask
+from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.datatypes.tracetypes import Bottom
 from genjax._src.core.datatypes.tracetypes import Finite
 from genjax._src.core.datatypes.tracetypes import Integers
@@ -47,15 +52,20 @@ __all__ = [
     "empty_choice_map",
     "ValueChoiceMap",
     "value_choice_map",
+    "HierarchicalChoiceMap",
+    "choice_map",
     "Trace",
     "Selection",
     "AllSelection",
     "all_select",
     "NoneSelection",
     "none_select",
+    "HierarchicalSelection",
+    "select",
+    "HierarchicalComplementSelection",
     "GenerativeFunction",
-    # Mask types.
-    "BooleanMask",
+    # Masking.
+    "Mask",
     "mask",
     # Trace types.
     "Bottom",

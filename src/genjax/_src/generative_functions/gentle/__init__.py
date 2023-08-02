@@ -35,6 +35,9 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.transforms.incremental import UnknownChange
+from genjax._src.core.transforms.incremental import diff
+from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -120,20 +123,25 @@ class AddressVisitor:
             new.visit(addr)
 
 
+#####################################
+# Generative semantics via handlers #
+#####################################
+
+
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
+    score: FloatArray
     choice_state: Trie
     trace_visitor: AddressVisitor
-    score: FloatArray
 
     @classmethod
     def new(cls, key: PRNGKey):
         return SimulateHandler(
             key,
+            0.0,
             Trie.new(),
             AddressVisitor.new(),
-            0.0,
         )
 
     def process_message(self, msg):
@@ -148,9 +156,108 @@ class SimulateHandler(Handler):
         return retval
 
 
-######
-# Generative datatypes
-######
+@dataclass
+class ImportanceHandler(Handler):
+    key: PRNGKey
+    score: FloatArray
+    weight: FloatArray
+    constraints: ChoiceMap
+    choice_state: Trie
+    trace_visitor: AddressVisitor
+
+    @classmethod
+    def new(cls, key: PRNGKey, constraints: ChoiceMap):
+        return ImportanceHandler(
+            key,
+            0.0,
+            0.0,
+            constraints,
+            Trie.new(),
+            AddressVisitor.new(),
+        )
+
+    def process_message(self, msg):
+        gen_fn = msg["gen_fn"]
+        args = msg["args"]
+        addr = msg["addr"]
+        self.trace_visitor.visit(addr)
+        sub_map = self.constraints.get_subtree(addr)
+        self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
+        retval = tr.get_retval()
+        self.choice_state[addr] = tr
+        self.score += tr.get_score()
+        self.weight += w
+        return retval
+
+
+@dataclass
+class UpdateHandler(Handler):
+    key: PRNGKey
+    weight: FloatArray
+    previous_trace: Trace
+    constraints: ChoiceMap
+    discard: ChoiceMap
+    choice_state: Trie
+    trace_visitor: AddressVisitor
+
+    @classmethod
+    def new(cls, key: PRNGKey, previous_trace: Trace, constraints: ChoiceMap):
+        return ImportanceHandler(
+            key,
+            0.0,
+            previous_trace,
+            constraints,
+            Trie.new(),
+            Trie.new(),
+            AddressVisitor.new(),
+        )
+
+    def process_message(self, msg):
+        gen_fn = msg["gen_fn"]
+        args = msg["args"]
+        addr = msg["addr"]
+        self.trace_visitor.visit(addr)
+        sub_map = self.constraints.get_subtree(addr)
+        sub_trace = self.previous_trace.choices.get_subtree(addr)
+        argdiffs = diff(args, UnknownChange)
+        self.key, (rd, w, tr, d) = gen_fn.update(self.key, sub_trace, sub_map, argdiffs)
+        retval = tr.get_retval()
+        self.weight += w
+        self.choice_state[addr] = tr
+        self.discard[addr] = d
+        return retval
+
+
+@dataclass
+class AssessHandler(Handler):
+    key: PRNGKey
+    score: FloatArray
+    constraints: ChoiceMap
+    trace_visitor: AddressVisitor
+
+    @classmethod
+    def new(cls, key: PRNGKey, constraints: ChoiceMap):
+        return ImportanceHandler(
+            key,
+            0.0,
+            constraints,
+            AddressVisitor.new(),
+        )
+
+    def process_message(self, msg):
+        gen_fn = msg["gen_fn"]
+        args = msg["args"]
+        addr = msg["addr"]
+        self.trace_visitor.visit(addr)
+        sub_map = self.constraints.get_subtree(addr)
+        self.key, (retval, score) = gen_fn.assess(self.key, sub_map, args)
+        self.score += score
+        return retval
+
+
+########################
+# Generative datatypes #
+########################
 
 # Auxiliary datatypes which deal with selection, trace representation,
 # choice map representation.
@@ -398,16 +505,34 @@ class GentleGenerativeFunction(GenerativeFunction):
         choice_map: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, GentleTrace]:
-        pass
+        with ImportanceHandler.new(key, choice_map) as handler:
+            retval = self.source(*args)
+            score = handler.score
+            choices = handler.choice_state
+            weight = handler.weight
+            return key, (weight, GentleTrace(self, args, retval, choices, score))
 
     def update(
         self,
         key: PRNGKey,
-        prev: GentleTrace,
+        prev_trace: GentleTrace,
         choice_map: ChoiceMap,
-        args: Tuple,
+        argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, GentleTrace, ChoiceMap]:
-        pass
+        with UpdateHandler.new(key, prev_trace, choice_map) as handler:
+            args = tree_diff_primal(argdiffs)
+            retval = self.source(*args)
+            choices = handler.choice_state
+            weight = handler.weight
+            discard = handler.discard
+            retdiff = diff(retval, UnknownChange)
+            score = prev_trace.get_score() + weight
+            return key, (
+                retdiff,
+                weight,
+                GentleTrace(self, args, retval, choices, score),
+                discard,
+            )
 
     def assess(
         self,
@@ -415,7 +540,10 @@ class GentleGenerativeFunction(GenerativeFunction):
         choice_map: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        pass
+        with AssessHandler.new(key, choice_map) as handler:
+            retval = self.source(*args)
+            score = handler.score
+            return key, (retval, score)
 
 
 # A decorator to pipe callables into our generative function.
