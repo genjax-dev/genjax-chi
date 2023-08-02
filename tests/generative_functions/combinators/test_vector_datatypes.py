@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -36,6 +37,16 @@ class TestIndexChoiceMap:
 
         with pytest.raises(Exception):
             chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array(3.0)}))
+
+    def test_nested_index_choice_map_construction(self):
+        inner = genjax.index_choice_map(
+            jnp.arange(5),
+            genjax.choice_map({"x": jnp.ones((5,))}),
+        )
+        outer = genjax.index_choice_map(
+            [1], jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), inner)
+        )
+        assert jnp.all(outer[1].inner["x"] == inner.inner["x"])
 
     def test_index_choice_map_has_subtree(self):
         chm = genjax.index_choice_map(
