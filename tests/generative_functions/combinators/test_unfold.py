@@ -52,6 +52,38 @@ class TestUnfoldSimpleNormal:
             sel = genjax.vector_select("z")
             assert tr.get_score() == tr.project(sel)
 
+        @genjax.gen
+        def f(x):
+            x = genjax.tfp_normal(x, 1.0) @ "x"
+            return x
+
+        model = genjax.Unfold(f, max_length=10)
+
+        def obs_chm(x, t):
+            return genjax.index_choice_map(
+                [t], genjax.choice_map({"x": jnp.expand_dims(x[t], 0)})
+            )
+
+        obs = jnp.array(
+            [
+                0.0,
+                1.0,
+                2.0,
+                3.0,
+                4.0,
+                5.0,
+                6.0,
+                7.0,
+                8.0,
+                9.0,
+            ]
+        )
+
+        key, (wt, tr) = model.importance(key, obs_chm(obs, 9), (9, 0.0))
+        for i in range(0, 9):
+            assert tr["x"][i] != 9
+        assert tr["x"][9] == 9
+
     def test_unfold_two_layer_index_importance(self):
         @genjax.gen(genjax.Unfold, max_length=10)
         def two_layer_chain(x):
