@@ -76,6 +76,25 @@ class TestMapCombinator:
         key, (_, tr) = model.importance(key, chm, (map_over,))
         assert all(tr["z"] == zv)
 
+    def test_map_nested_index_choice_map_importance(self):
+        key = jax.random.PRNGKey(314159)
+
+        @genjax.gen(genjax.Map, in_axes=(0,))
+        def model(x):
+            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            return z
+
+        @genjax.gen(genjax.Map, in_axes=(0,))
+        def higher_model(x):
+            return model(x) @ "outer"
+
+        map_over = jnp.ones((3, 3))
+        chm = genjax.index_choice_map(
+            [0], {"outer": genjax.index_choice_map([1], {"z": jnp.array([[1.0]])})}
+        )
+        key, (w, _) = jax.jit(higher_model.importance)(key, chm, (map_over,))
+        assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)
+
     def test_map_vmap_pytree(self):
         key = jax.random.PRNGKey(314159)
 
