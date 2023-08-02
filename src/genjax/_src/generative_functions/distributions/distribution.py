@@ -20,7 +20,6 @@ import jax
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
@@ -135,17 +134,25 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         tr = DistributionTrace(self, args, v, w)
         return key, tr
 
-    @typecheck
+    @dispatch
     def importance(
-        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
+        self,
+        key: PRNGKey,
+        chm: EmptyChoiceMap,
+        args: Tuple,
+        **kwargs,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, DistributionTrace]]:
-        assert isinstance(chm, Leaf)
+        key, tr = self.simulate(key, args, **kwargs)
+        return key, (0.0, tr)
 
-        # If the choice map is empty, we just simulate
-        # and return 0.0 for the log weight.
-        if isinstance(chm, EmptyChoiceMap):
-            key, tr = self.simulate(key, args, **kwargs)
-            return key, (0.0, tr)
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: ValueChoiceMap,
+        args: Tuple,
+        **kwargs,
+    ) -> Tuple[PRNGKey, Tuple[FloatArray, DistributionTrace]]:
 
         # If it's not empty, we should check if it is a mask.
         # If it is a mask, we need to see if it is active or not,
@@ -162,6 +169,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
 
             def _inactive(key, v, _):
                 w = 0.0
+                key, (_, v) = self.random_weighted(key, *args)
                 return key, v, w
 
             key, v, w = concrete_cond(active, _active, _inactive, key, v, args)
@@ -185,7 +193,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: DistributionTrace,
         constraints: EmptyChoiceMap,
         argdiffs: Tuple,
-        **kwargs
+        **kwargs,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
@@ -211,7 +219,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: DistributionTrace,
         constraints: ValueChoiceMap,
         argdiffs: Tuple,
-        **kwargs
+        **kwargs,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primal(argdiffs)

@@ -103,7 +103,7 @@ class SwitchChoiceMap(ChoiceMap):
 
         # TODO: A bit of broadcast wizardry, would be good
         # to make this understandable.
-        flags = (jnp.arange(len(non_empty_submaps))[:, None] == indexer).sum(
+        flags = (jnp.arange(len(non_empty_submaps))[:, None] == indexer.flatten()).sum(
             axis=-1, dtype=bool
         )
 
