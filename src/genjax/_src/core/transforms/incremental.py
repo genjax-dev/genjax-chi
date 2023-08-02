@@ -306,6 +306,10 @@ def static_check_tree_leaves_diff(v):
     )
 
 
+def tree_diff(tree, change_tangent):
+    return jtu.tree_map(lambda v: diff(v, change_tangent), tree)
+
+
 #################################
 # Generalized tangent transform #
 #################################

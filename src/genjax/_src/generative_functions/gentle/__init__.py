@@ -36,7 +36,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import diff
+from genjax._src.core.transforms.incremental import tree_diff
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -202,7 +202,7 @@ class UpdateHandler(Handler):
 
     @classmethod
     def new(cls, key: PRNGKey, previous_trace: Trace, constraints: ChoiceMap):
-        return ImportanceHandler(
+        return UpdateHandler(
             key,
             0.0,
             previous_trace,
@@ -219,7 +219,7 @@ class UpdateHandler(Handler):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_subtree(addr)
         sub_trace = self.previous_trace.choices.get_subtree(addr)
-        argdiffs = diff(args, UnknownChange)
+        argdiffs = tree_diff(args, UnknownChange)
         self.key, (rd, w, tr, d) = gen_fn.update(self.key, sub_trace, sub_map, argdiffs)
         retval = tr.get_retval()
         self.weight += w
@@ -237,7 +237,7 @@ class AssessHandler(Handler):
 
     @classmethod
     def new(cls, key: PRNGKey, constraints: ChoiceMap):
-        return ImportanceHandler(
+        return AssessHandler(
             key,
             0.0,
             constraints,
@@ -447,6 +447,16 @@ class GentleChoiceMap(ChoiceMap):
     def __hash__(self):
         return hash(self.trie)
 
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        for (k, v) in self.get_subtrees_shallow():
+            subk = tree.add(f"[bold]:{k}")
+            _ = v.__rich_tree__(subk)
+        return tree
+
 
 @dataclass
 class GentleTrace(Trace):
@@ -525,13 +535,13 @@ class GentleGenerativeFunction(GenerativeFunction):
             choices = handler.choice_state
             weight = handler.weight
             discard = handler.discard
-            retdiff = diff(retval, UnknownChange)
+            retdiff = tree_diff(retval, UnknownChange)
             score = prev_trace.get_score() + weight
             return key, (
                 retdiff,
                 weight,
                 GentleTrace(self, args, retval, choices, score),
-                discard,
+                GentleChoiceMap(discard),
             )
 
     def assess(
