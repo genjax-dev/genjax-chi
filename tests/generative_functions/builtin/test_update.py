@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
+
 import jax
 import pytest
 
 import genjax
-from genjax._src.core.datatypes.masking import Mask
-
-
-identity = lambda x: x
-add_true_mask = lambda x: Mask.new(True, x)
+from genjax._src.core.typing import FloatArray
 
 
 class TestUpdateSimpleNormal:
-    @pytest.mark.parametrize("transform_fn", [identity])
-    def test_simple_normal_update(self, transform_fn):
+    def test_simple_normal_update(self):
         @genjax.gen
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
@@ -39,7 +36,7 @@ class TestUpdateSimpleNormal:
         new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, transform_fn(tr), new, ())
+        key, (_, w, updated, discard) = jitted(key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -56,7 +53,7 @@ class TestUpdateSimpleNormal:
 
         new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, transform_fn(tr), new, ())
+        key, (_, w, updated, discard) = jitted(key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -189,3 +186,41 @@ class TestUpdateSimpleNormal:
             new_y3, new_y1 + old_y2, 1.0
         ) - genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0)
         assert w == pytest.approx(correct_w, 0.0001)
+
+    def test_update_pytree_argument(self):
+        @dataclass
+        class SomePytree(genjax.Pytree):
+            x: FloatArray
+            y: FloatArray
+
+            def flatten(self):
+                return (self.x, self.y), ()
+
+        @genjax.gen
+        def simple_linked_normal_with_tree_argument(tree):
+            y1 = genjax.trace("y1", genjax.normal)(tree.x, tree.y)
+            return y1
+
+        key = jax.random.PRNGKey(314159)
+        init_tree = SomePytree(0.0, 1.0)
+        key, tr = jax.jit(genjax.simulate(simple_linked_normal_with_tree_argument))(
+            key, (init_tree,)
+        )
+        jitted = jax.jit(genjax.update(simple_linked_normal_with_tree_argument))
+        new_y1 = 2.0
+        constraints = genjax.choice_map({("y1",): new_y1})
+        key, (_, w, updated, _) = jitted(
+            key,
+            tr,
+            constraints,
+            (genjax.tree_diff(init_tree, genjax.NoChange),),
+        )
+        assert updated["y1"] == new_y1
+        new_tree = SomePytree(1.0, 2.0)
+        key, (_, w, updated, _) = jitted(
+            key,
+            tr,
+            constraints,
+            (genjax.tree_diff(new_tree, genjax.UnknownChange),),
+        )
+        assert updated["y1"] == new_y1

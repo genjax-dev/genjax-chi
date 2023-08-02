@@ -292,6 +292,20 @@ def tree_diff_get_tracers(v, trace):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
+def static_check_is_diff_tracer(v):
+    return isinstance(v, DiffTracer)
+
+
+def tree_diff_from_tracer(tree):
+    def _inner(v):
+        if static_check_is_diff_tracer(v):
+            return Diff.from_tracer(v)
+        else:
+            return v
+
+    return jtu.tree_map(lambda v: _inner(v), tree)
+
+
 def static_check_tree_leaves_diff(v):
     def _inner(v):
         if static_check_is_diff(v):
