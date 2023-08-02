@@ -218,7 +218,12 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
     @typecheck
-    def simulate(self, key: PRNGKey, args: Tuple, **kwargs) -> Tuple[PRNGKey, MapTrace]:
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+        **kwargs,
+    ) -> Tuple[PRNGKey, MapTrace]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -241,13 +246,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     ):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
-
-        def _simulate(key, _, args):
-            key, tr = self.kernel.simulate(key, args)
-            return key, (0.0, tr)
-
-        def _switch(key, flag, chm, args):
-            return concrete_cond(flag, _importance, _simulate, key, chm, args)
 
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -371,7 +369,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        args = jtu.tree_leaves(argdiffs)
+        args = tree_diff_primal(argdiffs)
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
@@ -407,7 +405,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     @typecheck
     def assess(
-        self, key: PRNGKey, chm: VectorChoiceMap, args: Tuple, **kwargs
+        self,
+        key: PRNGKey,
+        chm: VectorChoiceMap,
+        args: Tuple,
+        **kwargs,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
