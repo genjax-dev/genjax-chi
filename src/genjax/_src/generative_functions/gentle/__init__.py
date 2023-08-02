@@ -30,6 +30,7 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
@@ -259,204 +260,6 @@ class AssessHandler(Handler):
 # Generative datatypes #
 ########################
 
-# Auxiliary datatypes which deal with selection, trace representation,
-# choice map representation.
-
-
-@dataclass
-class GentleSelection(Selection):
-    trie: Trie
-
-    def flatten(self):
-        return (self.trie,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, *addrs):
-        trie = Trie.new()
-        for addr in addrs:
-            trie[addr] = AllSelection()
-        return GentleSelection(trie)
-
-    @typecheck
-    @classmethod
-    def with_selections(cls, selections: Dict):
-        assert isinstance(selections, Dict)
-        trie = Trie.new()
-        for (k, v) in selections.items():
-            assert isinstance(v, Selection)
-            trie.trie_insert(k, v)
-        return GentleSelection(trie)
-
-    def filter(self, tree):
-        def _inner(k, v):
-            sub = self.trie[k]
-            if sub is None:
-                sub = NoneSelection()
-
-            # Handles hierarchical in Trie.
-            elif isinstance(sub, Trie):
-                sub = GentleSelection(sub)
-
-            under = sub.filter(v)
-            return k, under
-
-        trie = Trie.new()
-        iter = tree.get_subtrees_shallow()
-        for (k, v) in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoiceMap):
-                trie[k] = v
-
-        return GentleChoiceMap(trie)
-
-    def complement(self):
-        return GentleComplementSelection(self.trie)
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return NoneSelection()
-        else:
-            return value
-
-    def get_subtrees_shallow(self):
-        return self.trie.get_subtrees_shallow()
-
-
-@dataclass
-class GentleComplementSelection(Selection):
-    trie: Trie
-
-    def flatten(self):
-        return (self.selection,), ()
-
-    def filter(self, chm):
-        def _inner(k, v):
-            sub = self.trie[k]
-            if sub is None:
-                sub = NoneSelection()
-
-            # Handles hierarchical in Trie.
-            elif isinstance(sub, Trie):
-                sub = GentleSelection(sub)
-
-            under = sub.complement().filter(v)
-            return k, under
-
-        trie = Trie.new()
-        iter = chm.get_subtrees_shallow()
-        for (k, v) in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoiceMap):
-                trie[k] = v
-
-        return GentleChoiceMap(trie)
-
-    def complement(self):
-        return GentleSelection(self.trie)
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return NoneSelection()
-        else:
-            return value
-
-    def get_subtrees_shallow(self):
-        return self.trie.get_subtrees_shallow()
-
-
-@dataclass
-class GentleChoiceMap(ChoiceMap):
-    trie: Trie
-
-    def flatten(self):
-        return (self.trie,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, constraints: Dict):
-        assert isinstance(constraints, Dict)
-        trie = Trie.new()
-        for (k, v) in constraints.items():
-            v = (
-                ValueChoiceMap(v)
-                if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-                else v
-            )
-            trie.trie_insert(k, v)
-        return GentleChoiceMap(trie)
-
-    def is_empty(self):
-        return self.trie.is_empty()
-
-    def has_subtree(self, addr):
-        return self.trie.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
-        if value is None:
-            return EmptyChoiceMap()
-        else:
-            return value.get_choices()
-
-    def get_subtrees_shallow(self):
-        return map(
-            lambda v: (v[0], v[1].get_choices()),
-            self.trie.get_subtrees_shallow(),
-        )
-
-    def get_selection(self):
-        trie = Trie.new()
-        for (k, v) in self.get_subtrees_shallow():
-            trie[k] = v.get_selection()
-        return GentleSelection(trie)
-
-    @dispatch
-    def merge(self, other: "GentleChoiceMap"):
-        new_inner, discard = self.trie.merge(other.trie)
-        return GentleChoiceMap(new_inner), GentleChoiceMap(discard)
-
-    @dispatch
-    def merge(self, other: EmptyChoiceMap):
-        return self, EmptyChoiceMap()
-
-    @dispatch
-    def merge(self, other: ChoiceMap):
-        raise Exception(
-            f"Merging with choice map type {type(other)} not supported.",
-        )
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __setitem__(self, k, v):
-        v = (
-            ValueChoiceMap(v)
-            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-            else v
-        )
-        self.trie.trie_insert(k, v)
-
-    def __hash__(self):
-        return hash(self.trie)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        for (k, v) in self.get_subtrees_shallow():
-            subk = tree.add(f"[bold]:{k}")
-            _ = v.__rich_tree__(subk)
-        return tree
-
 
 @dataclass
 class GentleTrace(Trace):
@@ -473,7 +276,7 @@ class GentleTrace(Trace):
         return self.gen_fn
 
     def get_choices(self):
-        return GentleChoiceMap(self.choices)
+        return HierarchicalChoiceMap(self.choices)
 
     def get_retval(self):
         return self.retval
@@ -541,7 +344,7 @@ class GentleGenerativeFunction(GenerativeFunction):
                 retdiff,
                 weight,
                 GentleTrace(self, args, retval, choices, score),
-                GentleChoiceMap(discard),
+                HierarchicalChoiceMap(discard),
             )
 
     def assess(
