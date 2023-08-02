@@ -20,33 +20,24 @@ its generative functions in JAX generative function code.
 """
 
 import abc
-import functools
 import itertools
 from dataclasses import dataclass
 
-import jax.random as jr
-
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.transforms.incremental import UnknownChange
 from genjax._src.core.transforms.incremental import tree_diff
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
 
