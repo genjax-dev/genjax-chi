@@ -326,7 +326,10 @@ class UpdateContext(BuiltinInterfaceContext):
         self.trace_visitor.visit(addr)
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *tracer_argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        # Convert DiffTracers into Diff values.
         argdiffs = tuple(tree_diff_from_tracer(tracer_argdiffs))
+
+        # Run the update step.
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
         argdiffs = tuple(argdiffs)
@@ -334,10 +337,10 @@ class UpdateContext(BuiltinInterfaceContext):
         self.key, (retval_diff, w, tr, discard) = gen_fn.update(
             self.key, subtrace, subconstraints, argdiffs
         )
-
         self.weight += w
         self.choice_state[addr] = tr
         self.discard[addr] = discard
+
         # We have to convert the Diff back to tracers to return
         # from the primitive.
         out_tracers = self.get_tracers(retval_diff)

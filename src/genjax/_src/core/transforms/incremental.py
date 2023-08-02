@@ -342,7 +342,7 @@ def _jvp(main: jc.MainTrace, ctx: Context, diffs: Iterable[Diff]):
         stateful_tracers = jtu.tree_map(trace.full_raise, ctx.yield_state())
         del main
     stateful_values = jtu.tree_map(lambda x: x.val, stateful_tracers)
-    out_diffs = jtu.tree_map(Diff.from_tracer, out_tracers)
+    out_diffs = tree_diff_from_tracer(out_tracers)
     yield out_diffs, stateful_values
 
 
@@ -362,7 +362,7 @@ def jvp(f, ctx: Context):
     def wrapped(*diffs, **kwargs):
         with jc.new_main(DiffTrace) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
-            primals = jax_util.safe_map(lambda d: tree_diff_primal(d), diffs)
+            primals = tree_diff_primal(diffs)
             _, primal_tree = jtu.tree_flatten(primals)
             flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
             flat_fun = _jvp(flat_fun, main, ctx)
