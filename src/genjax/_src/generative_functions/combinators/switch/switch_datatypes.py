@@ -17,15 +17,13 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from rich.tree import Tree
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masks import mask
+from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -141,20 +139,6 @@ class SwitchChoiceMap(ChoiceMap):
         return SwitchChoiceMap.new(self.index, new_submaps), SwitchChoiceMap.new(
             self.index, new_discard
         )
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def _tree_console_overload(self):
-        tree = Tree(f"[b]{self.__class__.__name__}[/b]")
-        subts = list(map(lambda v: v._build_rich_tree(), self.submaps))
-        subk = Tree("[blue]index")
-        subk.add(gpp.tree_pformat(self.index))
-        tree.add(subk)
-        for subt in subts:
-            tree.add(subt)
-        return tree
 
 
 #####

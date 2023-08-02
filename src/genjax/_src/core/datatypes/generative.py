@@ -18,12 +18,15 @@ import dataclasses
 import jax
 import jax.tree_util as jtu
 import numpy as np
+import rich
 
-from genjax._src.core.datatypes.masks import BooleanMask
+import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.tracetypes import Bottom
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.datatypes.tree import Tree
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import tree_grad_split
@@ -31,12 +34,18 @@ from genjax._src.core.pytree import tree_zipper
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 
+
+#################################
+# Abstract generative datatypes #
+#################################
 
 #####
 # ChoiceMap
@@ -94,21 +103,7 @@ class ChoiceMap(Tree):
         choice = self.get_subtree(addr)
         if isinstance(choice, Leaf):
             v = choice.get_leaf_value()
-
-            # If the choice is a Leaf, it might participate in masking.
-            # Here, we check if the value is masked.
-            # Then, we either unwrap the mask - or return it,
-            # depending on the concreteness of the mask value.
-            if isinstance(v, BooleanMask):
-                if is_concrete(v.mask):
-                    if v.mask:
-                        return v.unmask()
-                    else:
-                        return EmptyChoiceMap()
-                else:
-                    return v
-            else:
-                return v
+            return v
         else:
             return choice
 
@@ -120,6 +115,16 @@ class ChoiceMap(Tree):
 
     def __add__(self, other):
         return self.safe_merge(other)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = rich.tree.Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
 
 
 #####
@@ -325,7 +330,7 @@ class Trace(ChoiceMap, Tree):
     def __getitem__(self, addr):
         choices = self.get_choices()
         choice = choices.get_subtree(addr)
-        if isinstance(choice, BooleanMask):
+        if isinstance(choice, Mask):
             if is_concrete(choice.mask):
                 if choice.mask:
                     return choice.unmask()
@@ -468,7 +473,7 @@ class GenerativeFunction(Pytree):
             print(console.render(tr))
             ```
 
-            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+            Here's a slightly more complicated example using the `Hierarchical` generative function language. You can find more examples on the `Hierarchical` language page.
 
             ```python exec="yes" source="tabbed-left"
             import jax
@@ -521,7 +526,7 @@ class GenerativeFunction(Pytree):
             print(console.render(chm))
             ```
 
-            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+            Here's a slightly more complicated example using the `Hierarchical` generative function language. You can find more examples on the `Hierarchical` language page.
 
             ```python exec="yes" source="tabbed-left"
             import jax
@@ -638,9 +643,9 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         return key, choice_gradient_tree
 
 
-#####
-# Concrete choice maps
-#####
+########################
+# Concrete choice maps #
+########################
 
 
 @dataclasses.dataclass
@@ -665,6 +670,14 @@ class EmptyChoiceMap(ChoiceMap, Leaf):
 
     def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         return other, self
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        tree = rich.tree.Tree("[bold](Empty)")
+        return tree
 
 
 @dataclasses.dataclass
@@ -707,10 +720,106 @@ class ValueChoiceMap(ChoiceMap, Leaf):
         else:
             return hash(self.value)
 
+    ###################
+    # Pretty printing #
+    ###################
 
-#####
-# Concrete selections
-#####
+    def __rich_tree__(self, tree):
+        sub_tree = gpp.tree_pformat(self.value)
+        tree.add(sub_tree)
+        return tree
+
+
+@dataclasses.dataclass
+class HierarchicalChoiceMap(ChoiceMap):
+    trie: Trie
+
+    def flatten(self):
+        return (self.trie,), ()
+
+    @typecheck
+    @classmethod
+    def new(cls, constraints: Dict):
+        assert isinstance(constraints, Dict)
+        trie = Trie.new()
+        for (k, v) in constraints.items():
+            v = (
+                ValueChoiceMap(v)
+                if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+                else v
+            )
+            trie.trie_insert(k, v)
+        return HierarchicalChoiceMap(trie)
+
+    def is_empty(self):
+        return self.trie.is_empty()
+
+    def has_subtree(self, addr):
+        return self.trie.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        value = self.trie.get_subtree(addr)
+        if value is None:
+            return EmptyChoiceMap()
+        else:
+            return value.get_choices()
+
+    def get_subtrees_shallow(self):
+        return map(
+            lambda v: (v[0], v[1].get_choices()),
+            self.trie.get_subtrees_shallow(),
+        )
+
+    def get_selection(self):
+        trie = Trie.new()
+        for (k, v) in self.get_subtrees_shallow():
+            trie[k] = v.get_selection()
+        return HierarchicalSelection(trie)
+
+    @dispatch
+    def merge(self, other: "HierarchicalChoiceMap"):
+        new_inner, discard = self.trie.merge(other.trie)
+        return HierarchicalChoiceMap(new_inner), HierarchicalChoiceMap(discard)
+
+    @dispatch
+    def merge(self, other: EmptyChoiceMap):
+        return self, EmptyChoiceMap()
+
+    @dispatch
+    def merge(self, other: ChoiceMap):
+        raise Exception(
+            f"Merging with choice map type {type(other)} not supported.",
+        )
+
+    ###########
+    # Dunders #
+    ###########
+
+    def __setitem__(self, k, v):
+        v = (
+            ValueChoiceMap(v)
+            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+            else v
+        )
+        self.trie.trie_insert(k, v)
+
+    def __hash__(self):
+        return hash(self.trie)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        for (k, v) in self.get_subtrees_shallow():
+            subk = tree.add(f"[bold]:{k}")
+            _ = v.__rich_tree__(subk)
+        return tree
+
+
+#######################
+# Concrete selections #
+#######################
 
 
 @dataclasses.dataclass
@@ -757,6 +866,120 @@ class AllSelection(Selection, Leaf):
         )
 
 
+@dataclasses.dataclass
+class HierarchicalSelection(Selection):
+    trie: Trie
+
+    def flatten(self):
+        return (self.trie,), ()
+
+    @typecheck
+    @classmethod
+    def new(cls, *addrs):
+        trie = Trie.new()
+        for addr in addrs:
+            trie[addr] = AllSelection()
+        return HierarchicalSelection(trie)
+
+    @typecheck
+    @classmethod
+    def with_selections(cls, selections: Dict):
+        assert isinstance(selections, Dict)
+        trie = Trie.new()
+        for (k, v) in selections.items():
+            assert isinstance(v, Selection)
+            trie.trie_insert(k, v)
+        return HierarchicalSelection(trie)
+
+    def filter(self, tree):
+        def _inner(k, v):
+            sub = self.trie[k]
+            if sub is None:
+                sub = NoneSelection()
+
+            # Handles hierarchical in Trie.
+            elif isinstance(sub, Trie):
+                sub = HierarchicalSelection(sub)
+
+            under = sub.filter(v)
+            return k, under
+
+        trie = Trie.new()
+        iter = tree.get_subtrees_shallow()
+        for (k, v) in map(lambda args: _inner(*args), iter):
+            if not isinstance(v, EmptyChoiceMap):
+                trie[k] = v
+
+        if isinstance(tree, TraceType):
+            return type(tree)(trie, tree.get_rettype())
+        else:
+            return HierarchicalChoiceMap(trie)
+
+    def complement(self):
+        return HierarchicalComplementSelection(self.trie)
+
+    def has_subtree(self, addr):
+        return self.trie.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        value = self.trie.get_subtree(addr)
+        if value is None:
+            return NoneSelection()
+        else:
+            return value
+
+    def get_subtrees_shallow(self):
+        return self.trie.get_subtrees_shallow()
+
+
+@dataclasses.dataclass
+class HierarchicalComplementSelection(Selection):
+    trie: Trie
+
+    def flatten(self):
+        return (self.selection,), ()
+
+    def filter(self, chm):
+        def _inner(k, v):
+            sub = self.trie[k]
+            if sub is None:
+                sub = NoneSelection()
+
+            # Handles hierarchical in Trie.
+            elif isinstance(sub, Trie):
+                sub = HierarchicalSelection(sub)
+
+            under = sub.complement().filter(v)
+            return k, under
+
+        trie = Trie.new()
+        iter = chm.get_subtrees_shallow()
+        for (k, v) in map(lambda args: _inner(*args), iter):
+            if not isinstance(v, EmptyChoiceMap):
+                trie[k] = v
+
+        if isinstance(chm, TraceType):
+            return type(chm)(trie, chm.get_rettype())
+        else:
+            return HierarchicalChoiceMap(trie)
+
+    def complement(self):
+        return HierarchicalSelection(self.trie)
+
+    def has_subtree(self, addr):
+        return self.trie.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        value = self.trie.get_subtree(addr)
+        if value is None:
+            return NoneSelection()
+        else:
+            return value
+
+    def get_subtrees_shallow(self):
+        return self.trie.get_subtrees_shallow()
+
+
 ##############
 # Shorthands #
 ##############
@@ -769,3 +992,5 @@ all_select = AllSelection.new
 all_sel = all_select
 none_select = NoneSelection.new
 none_sel = none_select
+choice_map = HierarchicalChoiceMap.new
+select = HierarchicalSelection.new

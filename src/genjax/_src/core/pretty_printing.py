@@ -192,31 +192,7 @@ def tree_pformat(
     short_arrays: bool = True,
     follow_wrapped: bool = True,
     truncate_leaf: Callable[[PrettyPrintable], bool] = _false,
-) -> str:
-    """Pretty-formats a Pytree as a string, whilst abbreviating JAX arrays.
-
-    (This is the function used in `__repr__` of [`equinox.Module`][].)
-
-    All JAX arrays in the Pytree are condensed down to a short string representation
-    of their dtype and shape.
-
-    !!! example
-
-        A 32-bit floating-point JAX array of shape `(3, 4)` is printed as `f32[3,4]`.
-
-    **Arguments:**
-
-    - `pytree`: The Pytree to pretty-format.
-    - `short_arrays`: Toggles the abbreviation of JAX arrays.
-    - `follow_wrapped`: Whether to unwrap `functools.partial` and `functools.wraps`.
-    - `truncate_leaf`: A function `Any -> bool`. Applied to all nodes in the Pytree;
-        all truthy nodes will be truncated to just `f"{type(node).__name__}(...)"`.
-
-    **Returns:**
-
-    A string.
-    """
-
+) -> Tree:
     return _pformat(
         pytree,
         short_arrays=short_arrays,

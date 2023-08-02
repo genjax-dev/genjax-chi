@@ -16,11 +16,11 @@ import jax
 import pytest
 
 import genjax
-from genjax._src.core.datatypes.masks import BooleanMask
+from genjax._src.core.datatypes.masking import Mask
 
 
 identity = lambda x: x
-add_true_mask = lambda x: BooleanMask.new(True, x)
+add_true_mask = lambda x: Mask.new(True, x)
 
 
 class TestUpdateSimpleNormal:

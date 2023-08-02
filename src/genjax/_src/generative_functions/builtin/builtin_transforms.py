@@ -183,6 +183,8 @@ class ImportanceContext(BuiltinInterfaceContext):
     constraints: ChoiceMap
     choice_state: Trie
     cache_state: Trie
+    trace_visitor: AddressVisitor
+    cache_visitor: AddressVisitor
 
     def flatten(self):
         return (
@@ -203,14 +205,24 @@ class ImportanceContext(BuiltinInterfaceContext):
         weight = 0.0
         choice_state = Trie.new()
         cache_state = Trie.new()
+        trace_visitor = AddressVisitor.new()
+        cache_visitor = AddressVisitor.new()
         return ImportanceContext(
-            key, score, weight, constraints, choice_state, cache_state
+            key,
+            score,
+            weight,
+            constraints,
+            choice_state,
+            cache_state,
+            trace_visitor,
+            cache_visitor,
         )
 
     def handle_trace(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
+        self.trace_visitor.visit(addr)
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         sub_map = self.constraints.get_subtree(addr)
@@ -225,6 +237,7 @@ class ImportanceContext(BuiltinInterfaceContext):
     def handle_cache(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
+        self.cache_visitor.visit(addr)
         fn, args = jtu.tree_unflatten(in_tree, *tracers)
         retval = fn(*args)
         self.cache_state[addr] = retval
@@ -250,24 +263,26 @@ def importance_transform(source_fn, **kwargs):
 @dataclasses.dataclass
 class UpdateContext(BuiltinInterfaceContext):
     key: PRNGKey
-    score: FloatArray
     weight: FloatArray
     previous_trace: Trace
     constraints: ChoiceMap
     discard: Trie
     choice_state: Trie
     cache_state: Trie
+    trace_visitor: AddressVisitor
+    cache_visitor: AddressVisitor
 
     def flatten(self):
         return (
             self.key,
-            self.score,
             self.weight,
             self.previous_trace,
             self.constraints,
             self.discard,
             self.choice_state,
             self.cache_state,
+            self.trace_visitor,
+            self.cache_visitor,
         ), ()
 
     def yield_state(self):
@@ -287,26 +302,29 @@ class UpdateContext(BuiltinInterfaceContext):
 
     @classmethod
     def new(cls, key, previous_trace, constraints):
-        score = 0.0
         weight = 0.0
         choice_state = Trie.new()
         cache_state = Trie.new()
         discard = Trie.new()
+        trace_visitor = AddressVisitor.new()
+        cache_visitor = AddressVisitor.new()
         return UpdateContext(
             key,
-            score,
             weight,
             previous_trace,
             constraints,
             discard,
             choice_state,
             cache_state,
+            trace_visitor,
+            cache_visitor,
         )
 
     def handle_trace(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
+        self.trace_visitor.visit(addr)
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *tracer_argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
         argdiffs = tuple(jax_util.safe_map(Diff.from_tracer, tracer_argdiffs))
@@ -330,6 +348,7 @@ class UpdateContext(BuiltinInterfaceContext):
     def handle_cache(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
+        self.cache_visitor.visit(addr)
         fn, args = jtu.tree_unflatten(in_tree, tracers)
         has_value = self.previous_trace.has_cached_value(addr)
 
@@ -387,12 +406,16 @@ class AssessContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
     constraints: ChoiceMap
+    trace_visitor: AddressVisitor
+    cache_visitor: AddressVisitor
 
     def flatten(self):
         return (
             self.key,
             self.score,
             self.constraints,
+            self.trace_visitor,
+            self.cache_visitor,
         ), ()
 
     def yield_state(self):
@@ -401,12 +424,15 @@ class AssessContext(BuiltinInterfaceContext):
     @classmethod
     def new(cls, key, constraints):
         score = 0.0
-        return AssessContext(key, score, constraints)
+        trace_visitor = AddressVisitor.new()
+        cache_visitor = AddressVisitor.new()
+        return AssessContext(key, score, constraints, trace_visitor, cache_visitor)
 
     def handle_trace(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
+        self.trace_visitor.visit(addr)
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         args = tuple(args)

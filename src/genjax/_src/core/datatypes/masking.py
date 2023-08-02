@@ -12,19 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
 from dataclasses import dataclass
 
+import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
+from genjax._src.core.typing import dispatch
 
 
 @dataclass
 class Mask(Pytree):
+    mask: Bool
+    value: Any
+
+    def flatten(self):
+        return (self.mask, self.value), ()
+
     @classmethod
     def new(cls, mask, inner):
         if isinstance(inner, cls):
@@ -32,30 +39,13 @@ class Mask(Pytree):
         else:
             return cls(mask, inner).leaf_push()
 
-    @abc.abstractmethod
-    def leaf_push(self):
-        pass
-
-    @abc.abstractmethod
-    def unmask(self):
-        pass
-
-
-@dataclass
-class BooleanMask(Mask):
-    mask: Bool
-    value: Any
-
-    def flatten(self):
-        return (self.mask, self.value), ()
-
     def unmask(self):
         return self.value
 
     def leaf_push(self):
         def _inner(v):
-            if isinstance(v, BooleanMask):
-                return BooleanMask.new(self.mask, v.unmask())
+            if isinstance(v, Mask):
+                return Mask.new(self.mask, v.unmask())
 
             # `Leaf` inheritors have a method `set_leaf_value`
             # to participate in masking.
@@ -63,17 +53,35 @@ class BooleanMask(Mask):
             # being provided with a masked value.
             elif isinstance(v, Leaf):
                 leaf_value = v.get_leaf_value()
-                if isinstance(leaf_value, BooleanMask):
-                    return v.set_leaf_value(BooleanMask(self.mask, leaf_value.unmask()))
+                if isinstance(leaf_value, Mask):
+                    return v.set_leaf_value(Mask(self.mask, leaf_value.unmask()))
                 else:
-                    return v.set_leaf_value(BooleanMask(self.mask, leaf_value))
+                    return v.set_leaf_value(Mask(self.mask, leaf_value))
             else:
                 return v
 
         def _check(v):
-            return isinstance(v, BooleanMask) or isinstance(v, Leaf)
+            return isinstance(v, Mask) or isinstance(v, Leaf)
 
         return jtu.tree_map(_inner, self.value, is_leaf=_check)
+
+    ###########
+    # Dunders #
+    ###########
+
+    @dispatch
+    def __eq__(self, other: "Mask"):
+        return jnp.logical_and(
+            jnp.logical_and(self.mask, other.mask),
+            self.value == other.value,
+        )
+
+    @dispatch
+    def __eq__(self, other: Any):
+        return jnp.logical_and(
+            self.mask,
+            self.value == other,
+        )
 
     def __hash__(self):
         hash1 = hash(self.value)
@@ -85,4 +93,4 @@ class BooleanMask(Mask):
 # Shorthands #
 ##############
 
-mask = BooleanMask.new
+mask = Mask.new

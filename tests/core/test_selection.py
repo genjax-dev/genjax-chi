@@ -17,16 +17,9 @@ import jax
 import genjax
 
 
-@genjax.gen
-def simple_normal():
-    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
-    return y1 + y2
-
-
-class TestBuiltinSelection:
-    def test_builtin_selection(self):
-        new = genjax.BuiltinSelection.new("x", ("z", "y"))
+class TestSelections:
+    def test_hierarchical_selection(self):
+        new = genjax.select("x", ("z", "y"))
         assert new.has_subtree("z")
         assert new.has_subtree("x")
         v = new["x"]
@@ -34,9 +27,15 @@ class TestBuiltinSelection:
         v = new["z", "y"]
         assert isinstance(v, genjax.AllSelection)
 
-    def test_builtin_selection_filter(self):
+    def test_hierarchical_selection_filter(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
         key = jax.random.PRNGKey(314159)
         key, tr = jax.jit(simple_normal.simulate)(key, ())
-        selection = genjax.BuiltinSelection.new("y1")
+        selection = genjax.select("y1")
         chm = selection.filter(tr)
         assert chm["y1"] == tr["y1"]

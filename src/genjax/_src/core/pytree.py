@@ -283,6 +283,12 @@ class Pytree(metaclass=abc.ABCMeta):
     def sum(self, *trees):
         return Sumtree.new(self, trees)
 
+    # Can be customized by Pytree mixers.
+    def __rich_tree__(self, tree):
+        sub_tree = gpp.tree_pformat(self)
+        tree.add(sub_tree)
+        return tree
+
     # Defines default pretty printing.
     def __rich_console__(self, console, options):
         tree = gpp.tree_pformat(self)

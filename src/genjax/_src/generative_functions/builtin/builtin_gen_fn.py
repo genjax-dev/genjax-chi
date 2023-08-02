@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
@@ -33,7 +34,6 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions import gentle
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinChoiceMap
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
@@ -204,7 +204,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
-            BuiltinChoiceMap(discard),
+            HierarchicalChoiceMap(discard),
         )
 
     @typecheck
