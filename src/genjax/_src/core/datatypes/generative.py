@@ -765,7 +765,11 @@ class HierarchicalChoiceMap(ChoiceMap):
         if value is None:
             return EmptyChoiceMap()
         else:
-            return value.get_choices()
+            submap = value.get_choices()
+            if isinstance(submap, Trie):
+                return HierarchicalChoiceMap(submap)
+            else:
+                return submap
 
     def get_subtrees_shallow(self):
         return map(
