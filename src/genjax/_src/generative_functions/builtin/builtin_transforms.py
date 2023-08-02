@@ -19,7 +19,6 @@ import itertools
 
 import jax.core as jc
 import jax.tree_util as jtu
-from jax import util as jax_util
 
 import genjax._src.core.interpreters.context as context
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -28,9 +27,9 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms import incremental
-from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import DiffTrace
 from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import tree_diff_from_tracer
 from genjax._src.core.transforms.incremental import tree_diff_get_tracers
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import FloatArray
@@ -327,7 +326,7 @@ class UpdateContext(BuiltinInterfaceContext):
         self.trace_visitor.visit(addr)
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *tracer_argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
-        argdiffs = tuple(jax_util.safe_map(Diff.from_tracer, tracer_argdiffs))
+        argdiffs = tuple(tree_diff_from_tracer(tracer_argdiffs))
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
         argdiffs = tuple(argdiffs)
