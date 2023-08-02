@@ -483,7 +483,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         start_lower = jnp.min(chm.indices)
         state = tree_diff_primal(state)
         static_args = Diff.no_change(static_args)
-        prev_length, _ = prev.get_args()
+        prev_length = prev.get_args()[0]
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
