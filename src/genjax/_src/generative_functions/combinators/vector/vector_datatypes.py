@@ -23,6 +23,7 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import select
@@ -49,48 +50,76 @@ from genjax._src.generative_functions.combinators.vector.vector_utilities import
 # The data types in this section are used in `Map` and `Unfold`, currently.
 
 #####
-# VectorSelection
+# IndexSelection
 #####
 
 
 @dataclass
-class VectorSelection(Selection):
+class IndexSelection(Selection):
+    indices: IntArray
     inner: Selection
 
     def flatten(self):
-        return (self.inner,), ()
+        return (
+            self.indices,
+            self.inner,
+        ), ()
 
     @classmethod
     @dispatch
-    def new(cls, inner: Selection):
-        return VectorSelection(inner)
+    def new(cls, idx: Union[Int, IntArray]):
+        idxs = jnp.array(idx)
+        return IndexSelection(idxs, AllSelection())
 
     @classmethod
     @dispatch
-    def new(cls, *args: Union[Tuple, String]):
-        inner = select(*args)
-        return VectorSelection(inner)
+    def new(cls, idx: Union[Int, List[Int], IntArray], inner: Selection):
+        idxs = jnp.array(idx)
+        return IndexSelection(idxs, inner)
 
-    def filter(self, tree):
-        assert isinstance(tree, VectorChoiceMap)
-        filtered = self.inner.filter(tree)
-        return VectorChoiceMap(filtered)
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        return jnp.isin(addr, self.indices)
 
-    def complement(self):
-        return VectorSelection(self.inner.complement())
-
-    def has_subtree(self, addr):
-        return self.inner.has_subtree(addr)
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
 
     def get_subtree(self, addr):
-        return self.inner.get_subtree(addr)
+        raise NotImplementedError
 
-    def get_subtrees_shallow(self):
-        return self.inner.get_subtrees_shallow()
+    def complement(self):
+        return ComplementIndexSelection(self)
 
-    def merge(self, other):
-        assert isinstance(other, VectorSelection)
-        return self.inner.merge(other)
+
+@dataclass
+class ComplementIndexSelection(IndexSelection):
+    index_selection: Selection
+
+    def flatten(self):
+        return (self.index_selection,), ()
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        return jnp.logical_not(jnp.isin(addr, self.indices))
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_not(
+            jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+        )
+
+    def get_subtree(self, addr):
+        raise NotImplementedError
+
+    def complement(self):
+        return self.index_selection
 
 
 #####
@@ -127,9 +156,50 @@ class VectorChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
+    @dispatch
+    def filter(
+        self,
+        selection: HierarchicalSelection,
+    ) -> ChoiceMap:
+        return VectorChoiceMap.new(self.inner.filter(selection))
+
+    @dispatch
+    def filter(
+        self,
+        selection: IndexSelection,
+    ) -> ChoiceMap:
+        filtered = self.inner.filter(selection.inner)
+        flags = jnp.logical_and(
+            selection.indices >= 0,
+            selection.indices < static_check_leaf_length(self.inner),
+        )
+
+        def _take(v):
+            return jnp.take(v, selection.indices, mode="clip")
+
+        return mask(flags, jtu.tree_map(_take, filtered))
+
+    @dispatch
+    def filter(
+        self,
+        selection: ComplementIndexSelection,
+    ) -> ChoiceMap:
+        filtered = self.inner.filter(selection.inner.complement())
+        flags = jnp.logical_not(
+            jnp.logical_and(
+                selection.indices >= 0,
+                selection.indices < static_check_leaf_length(self.inner),
+            )
+        )
+
+        def _take(v):
+            return jnp.take(v, selection.indices, mode="clip")
+
+        return mask(flags, jtu.tree_map(_take, filtered))
+
     def get_selection(self):
         subselection = self.inner.get_selection()
-        return VectorSelection.new(subselection)
+        return subselection
 
     def has_subtree(self, addr):
         return self.inner.has_subtree(addr)
@@ -285,97 +355,10 @@ class IndexChoiceMap(ChoiceMap):
         return tree
 
 
-#####
-# IndexSelection
-#####
-
-
-@dataclass
-class IndexSelection(Selection):
-    indices: IntArray
-    inner: Selection
-
-    def flatten(self):
-        return (
-            self.indices,
-            self.inner,
-        ), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, idx: Union[Int, IntArray]):
-        idxs = jnp.array(idx)
-        return IndexSelection(idxs, AllSelection())
-
-    @classmethod
-    @dispatch
-    def new(cls, idx: Union[Int, List[Int], IntArray], inner: Selection):
-        idxs = jnp.array(idx)
-        return IndexSelection(idxs, inner)
-
-    def has_subtree(self, addr):
-        if not isinstance(addr, Tuple) and len(addr) == 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
-
-    def get_subtree(self, addr):
-        raise NotImplementedError
-
-    def get_subtrees_shallow(self):
-        raise NotImplementedError
-
-    @typecheck
-    def filter(self, tree: ChoiceMap):
-        filtered = self.inner.filter(tree)
-        flags = jnp.logical_and(
-            self.indices >= 0,
-            self.indices < static_check_leaf_length(tree),
-        )
-
-        def _take(v):
-            return jnp.take(v, self.indices, mode="clip")
-
-        return mask(flags, jtu.tree_map(_take, filtered))
-
-    def complement(self):
-        return ComplementIndexSelection(self)
-
-
-@dataclass
-class ComplementIndexSelection(Selection):
-    index_selection: Selection
-
-    def flatten(self):
-        return (self.index_selection,), ()
-
-    def get_subtree(self, addr):
-        raise NotImplementedError
-
-    def get_subtrees_shallow(self):
-        raise NotImplementedError
-
-    def filter(self, tree):
-        filtered = self.inner.filter(tree)
-        flags = jnp.logical_and(
-            self.indices >= 0,
-            self.indices < static_check_leaf_length(tree),
-        )
-
-        def _take(v):
-            return jnp.take(v, self.indices, mode="clip")
-
-        return mask(flags, jtu.tree_map(_take, filtered))
-
-    def complement(self):
-        return self.index_selection
-
-
 ##############
 # Shorthands #
 ##############
 
 vector_choice_map = VectorChoiceMap.new
-vector_select = VectorSelection.new
 index_choice_map = IndexChoiceMap.new
 index_select = IndexSelection.new
