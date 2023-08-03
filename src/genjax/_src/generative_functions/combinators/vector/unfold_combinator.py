@@ -600,10 +600,10 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         )
 
         # Select the new return values.
+        checks = jnp.arange(0, self.max_length) < new_upper + 1
+        negates = jnp.logical_not(checks)
         retval = jtu.tree_map(
-            lambda v1, v2: jnp.where(
-                jnp.arange(0, self.max_length) < new_upper + 1, v1, v2
-            ),
+            lambda v1, v2: jnp.select([checks, negates], [v1, v2]),
             new_inner_trace.get_retval(),
             prev.get_retval(),
         )
