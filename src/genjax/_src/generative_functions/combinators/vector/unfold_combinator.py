@@ -561,9 +561,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 (w, new_tr) = self.kernel.importance(
                     key, sub_chm, (state_primal, *static_args)
                 )
-                retdiff = jtu.tree_map(
-                    lambda v: diff(v, UnknownChange), new_tr.get_retval()
-                )
+                primal_state = new_tr.get_retval()
+                retdiff = tree_diff_unknown_change(primal_state)
 
                 return (retdiff, w, new_tr)
 
