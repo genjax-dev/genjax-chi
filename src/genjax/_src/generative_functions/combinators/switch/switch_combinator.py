@@ -257,7 +257,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             update_weight = w - prev.get_score()
             discard = mask(True, prev.strip())
             retval = tr.get_retval()
-            retdiff = tree_diff_unknown_change(retval)
+            retval_diff = tree_diff_unknown_change(retval)
 
             sum_pytree = self._create_sum_pytree(key, tr, args[1:])
             choices = list(sum_pytree.materialize_iterator())
@@ -266,7 +266,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             # Get all the metadata for update from the trace.
             score = tr.get_score()
             trace = SwitchTrace(self, choice_map, args, retval, score)
-            return (retdiff, update_weight, trace, discard)
+            return (retval_diff, update_weight, trace, discard)
 
         def _inner(br):
             return lambda key, prev, new, argdiffs: _inner_importance(
