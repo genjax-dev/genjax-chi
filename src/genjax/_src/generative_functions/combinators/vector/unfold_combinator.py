@@ -526,8 +526,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state: Any,
         *static_args: Any,
     ):
-        new_upper = tree_diff_primal(length)
         start_lower = jnp.min(chm.indices)
+        new_upper = tree_diff_primal(length)
         state = tree_diff_primal(state)
         static_args = tree_diff_primal(static_args)
         prev_length = prev.get_args()[0]
@@ -553,11 +553,11 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             (key, w, state_diff, prev) = state
             sub_chm = chm.get_subtree(index)
             prev_slice = jtu.tree_map(lambda v: v[index], prev)
-            state_primal = tree_diff_primal(state_diff)
             key, sub_key = jax.random.split(key)
 
             # Extending to an index greater than the previous length.
             def _importance(key):
+                state_primal = tree_diff_primal(state_diff)
                 (w, new_tr) = self.kernel.importance(
                     key, sub_chm, (state_primal, *static_args)
                 )
