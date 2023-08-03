@@ -26,13 +26,12 @@ import numpy as np
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -212,7 +211,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return d_axis_size
 
     @typecheck
-    def get_trace_type(self, *args, **kwargs) -> TraceType:
+    def get_trace_type(
+        self,
+        *args,
+    ) -> TraceType:
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         kernel_tt = self.kernel.get_trace_type(*args)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
@@ -222,7 +224,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         args: Tuple,
-        **kwargs,
     ) -> Tuple[PRNGKey, MapTrace]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -235,14 +236,12 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return key, map_tr
 
-    # Implementation specialized to `VectorChoiceMap`.
     @dispatch
     def importance(
         self,
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-        **_,
     ):
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
@@ -262,36 +261,24 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         map_tr = MapTrace(self, tr, args, retval, scores)
         return key, (w, map_tr)
 
-    # Implementation specialized to `IndexChoiceMap`.
     @dispatch
     def importance(
         self,
         key: PRNGKey,
         chm: IndexChoiceMap,
         args: Tuple,
-        **_,
     ):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
-        flag_array = (index_array[:, None] == chm.indices.flatten()).sum(
-            axis=-1, dtype=bool
-        )
         key, sub_keys = slash(key, broadcast_dim_length)
-
-        def _simulate(key, index, chm, args):
-            key, tr = self.kernel.simulate(key, args)
-            return key, (0.0, tr)
 
         def _importance(key, index, chm, args):
             submap = chm.get_subtree(index)
             return self.kernel.importance(key, submap, args)
 
-        def _switch(key, flag, index, chm, args):
-            return concrete_cond(flag, _importance, _simulate, key, index, chm, args)
-
-        _, (w, tr) = jax.vmap(_switch, in_axes=(0, 0, 0, None, self.in_axes))(
-            sub_keys, flag_array, index_array, chm, args
+        _, (w, tr) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
+            sub_keys, index_array, chm, args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
@@ -305,25 +292,49 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: EmptyChoiceMap,
         args: Tuple,
-        **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
         key, map_tr = self.simulate(key, args)
         w = 0.0
         return key, (w, map_tr)
 
-    # Fallback implementation if a generic Trie is passed in.
     @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: Trie,
+        chm: HierarchicalChoiceMap,
         args: Tuple,
-        **_,
     ) -> Tuple[PRNGKey, Tuple[FloatArray, MapTrace]]:
         indchm = IndexChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
-    # The choice map passed in here is a vector choice map.
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: MapTrace,
+        chm: IndexChoiceMap,
+        args: Tuple,
+    ):
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        index_array = jnp.arange(0, broadcast_dim_length)
+        key, sub_keys = slash(key, broadcast_dim_length)
+
+        def _update(key, index, prev, chm, args):
+            submap = chm.get_subtree(index)
+            return self.kernel.update(key, prev, submap, args)
+
+        inner_trace = prev.inner
+        _, (rd, w, tr, d) = jax.vmap(_update, in_axes=(0, 0, 0, None, self.in_axes))(
+            sub_keys, index_array, inner_trace, chm, args
+        )
+        w = jnp.sum(w)
+        retval = tr.get_retval()
+        scores = tr.get_score()
+        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
+        discard = VectorChoiceMap(d)
+        return key, (rd, w, map_tr, discard)
+
     @dispatch
     def update(
         self,
@@ -409,7 +420,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-        **kwargs,
     ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)

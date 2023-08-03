@@ -267,7 +267,7 @@ class IndexChoiceMap(ChoiceMap):
     def get_subtrees_shallow(self):
         raise NotImplementedError
 
-    def merge(self, other: ChoiceMap):
+    def merge(self, _: ChoiceMap):
         raise Exception("TODO: can't merge IndexChoiceMaps")
 
     def get_index(self):
