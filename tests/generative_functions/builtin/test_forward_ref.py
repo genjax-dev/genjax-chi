@@ -17,23 +17,22 @@ import jax
 import genjax
 
 
-def make_gen_fn():
-    @genjax.gen
-    def proposal(x):
-        x = outlier(x) @ "x"
-        return x
-
-    @genjax.gen
-    def outlier(prob):
-        is_outlier = genjax.bernoulli(prob) @ "is_outlier"
-        return is_outlier
-
-    return proposal
-
-
 class TestForwardRef:
     def test_forward_ref(self):
+        def make_gen_fn():
+            @genjax.gen
+            def proposal(x):
+                x = outlier(x) @ "x"
+                return x
+
+            @genjax.gen
+            def outlier(prob):
+                is_outlier = genjax.bernoulli(prob) @ "is_outlier"
+                return is_outlier
+
+            return proposal
+
         key = jax.random.PRNGKey(314159)
         proposal = make_gen_fn()
-        key, tr = proposal.simulate(key, (0.3,))
+        tr = proposal.simulate(key, (0.3,))
         assert True

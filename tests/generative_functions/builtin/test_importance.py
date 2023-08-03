@@ -29,16 +29,13 @@ class TestImportance:
         key = jax.random.PRNGKey(314159)
         fn = genjax.importance(simple_normal)
         chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
-        key, (_, tr) = fn(key, chm, ())
+        key, sub_key = jax.random.split(key)
+        (_, tr) = fn(sub_key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
-        _, (score_1, _) = genjax.normal.importance(
-            key, chm.get_subtree("y1"), (0.0, 1.0)
-        )
-        _, (score_2, _) = genjax.normal.importance(
-            key, chm.get_subtree("y2"), (0.0, 1.0)
-        )
+        (score_1, _) = genjax.normal.importance(key, chm.get_subtree("y1"), (0.0, 1.0))
+        (score_2, _) = genjax.normal.importance(key, chm.get_subtree("y2"), (0.0, 1.0))
         test_score = score_1 + score_2
         assert y1 == out[("y1",)]
         assert y2 == out[("y2",)]
@@ -54,24 +51,20 @@ class TestImportance:
         # Full constraints.
         key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
-        key, (w, tr) = simple_normal.importance(key, chm, ())
+        (w, tr) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         assert y1 == 0.5
         assert y2 == 0.5
-        _, (score_1, _) = genjax.normal.importance(
-            key, chm.get_subtree("y1"), (0.0, 1.0)
-        )
-        _, (score_2, _) = genjax.normal.importance(
-            key, chm.get_subtree("y2"), (0.0, 1.0)
-        )
+        (score_1, _) = genjax.normal.importance(key, chm.get_subtree("y1"), (0.0, 1.0))
+        (score_2, _) = genjax.normal.importance(key, chm.get_subtree("y2"), (0.0, 1.0))
         test_score = score_1 + score_2
         assert tr.get_score() == pytest.approx(test_score, 0.0001)
         assert w == pytest.approx(test_score, 0.0001)
 
         # Partial constraints.
         chm = genjax.choice_map({("y2",): 0.5})
-        key, (w, tr) = simple_normal.importance(key, chm, ())
+        (w, tr) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         assert y2 == 0.5
@@ -83,7 +76,7 @@ class TestImportance:
 
         # No constraints.
         chm = genjax.EmptyChoiceMap()
-        key, (w, tr) = simple_normal.importance(key, chm, ())
+        (w, tr) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)

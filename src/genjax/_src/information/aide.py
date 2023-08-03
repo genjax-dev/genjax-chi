@@ -57,18 +57,19 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
         # Keys are folded in, for working memory.
         def _inner_p(key, index, chm, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = self.p.importance(new_key, chm, args)
+            (w, _) = self.p.importance(new_key, chm, args)
             return w
 
         def _inner_q(key, index, chm, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = self.q.importance(new_key, chm, args)
+            (w, _) = self.q.importance(new_key, chm, args)
             return w
 
         key_indices_p = jnp.arange(0, self.num_meta_p + 1)
         key_indices_q = jnp.arange(0, self.num_meta_q + 1)
 
-        key, tr = self.p.simulate(key, p_args)
+        key, sub_key = jax.random.split(key)
+        tr = self.p.simulate(sub_key, p_args)
         chm = tr.get_choices().strip()
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
@@ -80,7 +81,7 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(self.num_meta_p)
         bwd_weight = logsumexp(bwd_weights) - jnp.log(self.num_meta_q)
-        return key, fwd_weight - bwd_weight
+        return fwd_weight - bwd_weight
 
     def estimate(
         self,
@@ -88,13 +89,14 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
         p_args: Tuple,
         q_args: Tuple,
     ):
-        key, logpq = self._estimate_log_ratio(
+        key, sub_key = jax.random.split(key)
+        logpq = self._estimate_log_ratio(
             self.p, self.q, self.num_meta_p, self.num_meta_q
-        )(key, p_args, q_args)
-        key, logqp = self._estimate_log_ratio(
+        )(sub_key, p_args, q_args)
+        logqp = self._estimate_log_ratio(
             self.q, self.p, self.num_meta_q, self.num_meta_p
         )(key, q_args, p_args)
-        return key, logpq + logqp, (logpq, logqp)
+        return logpq + logqp, (logpq, logqp)
 
     def __call__(
         self,

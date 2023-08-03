@@ -34,9 +34,9 @@ class TestVarianceNormal:
         key = jax.random.PRNGKey(314159)
         key, sub_keys = genjax.slash(key, 1000)
         adev_prog = genjax.adev.lang(model)
-        _, (v,), (tangents,) = jax.vmap(
-            adev_prog.grad_estimate, in_axes=(0, None, None)
-        )(sub_keys, (3.0,), (1.0,))
+        v, tangents = jax.vmap(adev_prog.grad_estimate, in_axes=(0, None, None))(
+            sub_keys, (3.0,), (1.0,)
+        )
         assert jnp.mean(tangents) == pytest.approx(0.0, 0.01)
         assert jnp.mean(v) == pytest.approx(1.0, 0.05)
 
@@ -51,6 +51,3 @@ class TestFlipCond:
     def test_transform(self):
         adev_prog = genjax.adev.lang(flip_cond)
         assert isinstance(adev_prog, genjax.adev.ADEVProgram)
-
-    def test_expected_grad(self):
-        pass

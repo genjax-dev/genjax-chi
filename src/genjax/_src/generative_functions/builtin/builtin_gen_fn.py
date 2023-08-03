@@ -125,9 +125,9 @@ class SupportsBuiltinSugar:
 
     @dispatch
     def __call__(self, key: PRNGKey, args: Tuple) -> Any:
-        key, tr = self.simulate(key, args)
+        tr = self.simulate(key, args)
         retval = tr.get_retval()
-        return key, retval
+        return retval
 
 
 #####
@@ -161,24 +161,27 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     @typecheck
     def simulate(
-        self, key: PRNGKey, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, BuiltinTrace]:
-        key, (f, args, r, chm, score), cache = simulate_transform(
-            self.source, **kwargs
-        )(key, args)
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> BuiltinTrace:
+        (f, args, r, chm, score), cache = simulate_transform(self.source)(key, args)
         # `chm` is a `Trie` here.
         if not chm.inner:
             chm = EmptyChoiceMap()
-        return key, BuiltinTrace(self, args, r, chm, cache, score)
+        return BuiltinTrace(self, args, r, chm, cache, score)
 
     @typecheck
     def importance(
-        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, BuiltinTrace]]:
-        key, (w, (f, args, r, chm, score)), cache = importance_transform(
-            self.source, **kwargs
-        )(key, chm, args)
-        return key, (w, BuiltinTrace(self, args, r, chm, cache, score))
+        self,
+        key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[FloatArray, BuiltinTrace]:
+        (w, (f, args, r, chm, score)), cache = importance_transform(self.source)(
+            key, chm, args
+        )
+        return (w, BuiltinTrace(self, args, r, chm, cache, score))
 
     @typecheck
     def update(
@@ -187,11 +190,9 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: Trace,
         constraints: ChoiceMap,
         argdiffs: Tuple,
-        **kwargs
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
+    ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
         assert static_check_tree_leaves_diff(argdiffs)
         (
-            key,
             (
                 retval_diffs,
                 w,
@@ -199,8 +200,8 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
                 discard,
             ),
             cache,
-        ) = update_transform(self.source, **kwargs)(key, prev, constraints, argdiffs)
-        return key, (
+        ) = update_transform(self.source)(key, prev, constraints, argdiffs)
+        return (
             retval_diffs,
             w,
             BuiltinTrace(self, args, r, chm, cache, score),
@@ -209,10 +210,13 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     @typecheck
     def assess(
-        self, key: PRNGKey, chm: ChoiceMap, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
-        key, (retval, score) = assess_transform(self.source, **kwargs)(key, chm, args)
-        return key, (retval, score)
+        self,
+        key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[Any, FloatArray]:
+        (retval, score) = assess_transform(self.source)(key, chm, args)
+        return (retval, score)
 
     def inline(self, *args):
         return self.source(*args)

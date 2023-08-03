@@ -38,11 +38,13 @@ class TestMetropolisHastings:
             return x
 
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(normalModel.simulate)(key, (0.3,))
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(normalModel.simulate)(sub_key, (0.3,))
         mh = MetropolisHastings(proposal)
         for _ in range(0, 10):
             # Repeat the test for stochasticity.
-            key, (new, check) = mh.apply(key, tr, (0.25,))
+            key, sub_key = jax.random.split(key)
+            (new, check) = mh.apply(sub_key, tr, (0.25,))
             if check:
                 assert tr.get_score() != new.get_score()
             else:
@@ -66,6 +68,7 @@ class TestMetropolisHastings:
             return xs
 
         key = jax.random.PRNGKey(314159)
-        key, trace = genjax.simulate(model)(key, ())
-        genjax.inference.mcmc.mh(proposal).apply(key, trace, ())
+        trace = genjax.simulate(model)(key, ())
+        key, sub_key = jax.random.split(key)
+        genjax.inference.mcmc.mh(proposal).apply(sub_key, trace, ())
         assert True

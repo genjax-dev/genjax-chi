@@ -17,6 +17,7 @@ import dataclasses
 import functools
 import itertools
 
+import jax
 import jax.core as jc
 import jax.tree_util as jtu
 
@@ -133,11 +134,20 @@ class SimulateContext(BuiltinInterfaceContext):
         trace_visitor = AddressVisitor.new()
         cache_visitor = AddressVisitor.new()
         return SimulateContext(
-            key, score, choice_state, cache_state, trace_visitor, cache_visitor
+            key,
+            score,
+            choice_state,
+            cache_state,
+            trace_visitor,
+            cache_visitor,
         )
 
     def yield_state(self):
-        return (self.key, self.choice_state, self.cache_state, self.score)
+        return (
+            self.choice_state,
+            self.cache_state,
+            self.score,
+        )
 
     def handle_trace(self, _, *tracers, **params):
         addr = params.get("addr")
@@ -147,7 +157,8 @@ class SimulateContext(BuiltinInterfaceContext):
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         call_args = tuple(call_args)
-        self.key, tr = gen_fn.simulate(self.key, call_args)
+        self.key, sub_key = jax.random.split(self.key)
+        tr = gen_fn.simulate(sub_key, call_args)
         score = tr.get_score()
         self.choice_state[addr] = tr
         self.score += score
@@ -163,8 +174,8 @@ def simulate_transform(source_fn, **kwargs):
     def wrapper(key, args):
         ctx = SimulateContext.new(key)
         retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        key, constraints, cache, score = statefuls
-        return key, (source_fn, args, retvals, constraints, score), cache
+        constraints, cache, score = statefuls
+        return (source_fn, args, retvals, constraints, score), cache
 
     return wrapper
 
@@ -196,7 +207,12 @@ class ImportanceContext(BuiltinInterfaceContext):
         ), ()
 
     def yield_state(self):
-        return (self.key, self.score, self.weight, self.choice_state, self.cache_state)
+        return (
+            self.score,
+            self.weight,
+            self.choice_state,
+            self.cache_state,
+        )
 
     @classmethod
     def new(cls, key, constraints):
@@ -226,7 +242,8 @@ class ImportanceContext(BuiltinInterfaceContext):
         gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         sub_map = self.constraints.get_subtree(addr)
         args = tuple(args)
-        self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
+        self.key, sub_key = jax.random.split(self.key)
+        (w, tr) = gen_fn.importance(sub_key, sub_map, args)
         self.choice_state[addr] = tr
         self.score += tr.get_score()
         self.weight += w
@@ -248,8 +265,8 @@ def importance_transform(source_fn, **kwargs):
     def wrapper(key, constraints, args):
         ctx = ImportanceContext.new(key, constraints)
         retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        key, score, weight, choices, cache = statefuls
-        return key, (weight, (source_fn, args, retvals, choices, score)), cache
+        score, weight, choices, cache = statefuls
+        return (weight, (source_fn, args, retvals, choices, score)), cache
 
     return wrapper
 
@@ -286,7 +303,6 @@ class UpdateContext(BuiltinInterfaceContext):
 
     def yield_state(self):
         return (
-            self.key,
             self.weight,
             self.choice_state,
             self.cache_state,
@@ -333,9 +349,9 @@ class UpdateContext(BuiltinInterfaceContext):
         subtrace = self.previous_trace.choices.get_subtree(addr)
         subconstraints = self.constraints.get_subtree(addr)
         argdiffs = tuple(argdiffs)
-
-        self.key, (retval_diff, w, tr, discard) = gen_fn.update(
-            self.key, subtrace, subconstraints, argdiffs
+        self.key, sub_key = jax.random.split(self.key)
+        (retval_diff, w, tr, discard) = gen_fn.update(
+            sub_key, subtrace, subconstraints, argdiffs
         )
         self.weight += w
         self.choice_state[addr] = tr
@@ -377,9 +393,8 @@ def update_transform(source_fn, **kwargs):
         )
         retval_primals = tree_diff_primal(retval_diffs)
         arg_primals = tree_diff_primal(diffs)
-        key, weight, choices, cache, discard = statefuls
+        weight, choices, cache, discard = statefuls
         return (
-            key,
             (
                 retval_diffs,
                 weight,
@@ -421,7 +436,7 @@ class AssessContext(BuiltinInterfaceContext):
         ), ()
 
     def yield_state(self):
-        return (self.key, self.score)
+        return (self.score,)
 
     @classmethod
     def new(cls, key, constraints):
@@ -439,7 +454,8 @@ class AssessContext(BuiltinInterfaceContext):
         gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         args = tuple(args)
         submap = self.constraints.get_subtree(addr)
-        self.key, (v, score) = gen_fn.assess(self.key, submap, args)
+        self.key, sub_key = jax.random.split(self.key)
+        (v, score) = gen_fn.assess(sub_key, submap, args)
         self.score += score
         return jtu.tree_leaves(v)
 
@@ -455,7 +471,7 @@ def assess_transform(source_fn, **kwargs):
     def wrapper(key, constraints, args):
         ctx = AssessContext.new(key, constraints)
         retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        key, score = statefuls
-        return key, (retvals, score)
+        (score,) = statefuls
+        return (retvals, score)
 
     return wrapper

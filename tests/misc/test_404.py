@@ -42,5 +42,5 @@ class TestIssue404:
     def test_issue_404(self):
         key = jax.random.PRNGKey(314159)
         localization_chain = genjax.Unfold(wrap(localization_kernel), max_length=3)
-        _, trace = genjax.simulate(localization_chain)(key, (2, (0, 0.0)))
+        trace = genjax.simulate(localization_chain)(key, (2, (0, 0.0)))
         assert True

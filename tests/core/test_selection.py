@@ -35,7 +35,7 @@ class TestSelections:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(simple_normal.simulate)(key, ())
+        tr = jax.jit(simple_normal.simulate)(key, ())
         selection = genjax.select("y1")
         chm = selection.filter(tr)
         assert chm["y1"] == tr["y1"]
