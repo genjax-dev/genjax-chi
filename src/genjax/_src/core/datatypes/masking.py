@@ -22,43 +22,55 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.tree import Leaf
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import Bool
+from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import dispatch
 
 
 @dataclass
 class Mask(Pytree):
-    mask: Bool
+    mask: BoolArray
     value: Any
 
     def flatten(self):
         return (self.mask, self.value), ()
 
     @classmethod
-    def new(cls, mask, inner):
+    def new(cls, mask: BoolArray, inner):
         if isinstance(inner, cls):
-            return cls.new(mask, inner.unmask())
+            return Mask(
+                jnp.logical_and(mask, inner.mask),
+                inner.unmask(),
+            )
         else:
             return cls(mask, inner).leaf_push()
 
     def unmask(self):
         return self.value
 
+    def _set_leaf(self, v: Leaf):
+        leaf_value = v.get_leaf_value()
+        if isinstance(leaf_value, Mask):
+            leaf_mask = leaf_value.mask
+            return v.set_leaf_value(
+                Mask(
+                    jnp.logical_and(self.mask, leaf_mask),
+                    leaf_value.unmask(),
+                )
+            )
+        else:
+            return v.set_leaf_value(Mask(self.mask, leaf_value))
+
     def leaf_push(self):
         def _inner(v):
             if isinstance(v, Mask):
-                return Mask.new(self.mask, v.unmask())
+                return Mask.new(self.mask, v.value())
 
             # `Leaf` inheritors have a method `set_leaf_value`
             # to participate in masking.
             # They can choose how to construct themselves after
             # being provided with a masked value.
             elif isinstance(v, Leaf):
-                leaf_value = v.get_leaf_value()
-                if isinstance(leaf_value, Mask):
-                    return v.set_leaf_value(Mask(self.mask, leaf_value.unmask()))
-                else:
-                    return v.set_leaf_value(Mask(self.mask, leaf_value))
+                return self._set_leaf(v)
             else:
                 return v
 
