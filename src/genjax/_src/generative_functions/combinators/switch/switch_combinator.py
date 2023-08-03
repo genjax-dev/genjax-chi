@@ -42,6 +42,8 @@ from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -94,8 +96,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(genjax.simulate(switch))
-        key, _ = jitted(key, (0, ))
-        key, tr = jitted(key, (1, ))
+        _ = jitted(key, (0, ))
+        tr = jitted(key, (1, ))
 
         print(console.render(tr))
         ```
@@ -142,7 +144,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return SumTraceType(subtypes)
 
     def _simulate(self, branch_gen_fn, key, args):
-        key, tr = branch_gen_fn.simulate(key, args[1:])
+        tr = branch_gen_fn.simulate(key, args[1:])
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
@@ -150,9 +152,14 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         score = tr.get_score()
         retval = tr.get_retval()
         trace = SwitchTrace(self, choice_map, args, retval, score)
-        return key, trace
+        return trace
 
-    def simulate(self, key, args):
+    @typecheck
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> SwitchTrace:
         switch = args[0]
 
         def _inner(br):
@@ -162,7 +169,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return jax.lax.switch(switch, branch_functions, key, *args)
 
     def _importance(self, branch_gen_fn, key, chm, args):
-        key, (w, tr) = branch_gen_fn.importance(key, chm, args[1:])
+        (w, tr) = branch_gen_fn.importance(key, chm, args[1:])
         sum_pytree = self._create_sum_pytree(key, tr, args[1:])
         choices = list(sum_pytree.materialize_iterator())
         branch_index = args[0]
@@ -170,9 +177,15 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         score = tr.get_score()
         retval = tr.get_retval()
         trace = SwitchTrace(self, choice_map, args, retval, score)
-        return key, (w, trace)
+        return (w, trace)
 
-    def importance(self, key, chm, args):
+    @typecheck
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[FloatArray, SwitchTrace]:
         switch = args[0]
 
         def _inner(br):
@@ -195,7 +208,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             concrete_branch_index = self.branches.index(br)
 
             prev_subtrace = prev.get_subtrace(concrete_branch_index)
-            key, (retval_diff, w, tr, maybe_discard) = br.update(
+            (retval_diff, w, tr, maybe_discard) = br.update(
                 key, prev_subtrace, new, argdiffs[1:]
             )
 
@@ -215,7 +228,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             score = tr.get_score()
             retval = tr.get_retval()
             trace = SwitchTrace(self, choice_map, args, retval, score)
-            return key, (retval_diff, w, trace, discard_option)
+            return (retval_diff, w, trace, discard_option)
 
         def _inner(br):
             return lambda key, prev, new, argdiffs: _inner_update(
@@ -245,7 +258,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             concrete_branch_index = self.branches.index(br)
             new = prev.strip().unsafe_merge(new)
             args = tree_diff_primal(argdiffs)
-            key, (w, tr) = br.importance(key, new, args[1:])
+            (w, tr) = br.importance(key, new, args[1:])
             update_weight = w - prev.get_score()
             discard = mask(True, prev.strip())
             retval = tr.get_retval()
@@ -258,7 +271,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             # Get all the metadata for update from the trace.
             score = tr.get_score()
             trace = SwitchTrace(self, choice_map, args, retval, score)
-            return key, (retdiff, update_weight, trace, discard)
+            return (retdiff, update_weight, trace, discard)
 
         def _inner(br):
             return lambda key, prev, new, argdiffs: _inner_importance(
@@ -277,7 +290,14 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             argdiffs,
         )
 
-    def update(self, key, prev, new, argdiffs):
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        prev: SwitchTrace,
+        new: ChoiceMap,
+        argdiffs: Tuple,
+    ) -> Tuple[Any, FloatArray, SwitchTrace, ChoiceMap]:
         index_argdiff = argdiffs[0]
 
         if static_check_no_change(index_argdiff):
@@ -285,7 +305,13 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         else:
             return self._update_branch_switch(key, prev, new, argdiffs)
 
-    def assess(self, key, chm, args):
+    @typecheck
+    def assess(
+        self,
+        key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[Any, FloatArray]:
         switch = args[0]
 
         def _assess(branch_gen_fn, key, chm, args):

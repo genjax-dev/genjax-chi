@@ -26,8 +26,8 @@ class TestBuiltinSugar:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        key, tr = simple_normal.simulate(key, ())
+        tr = simple_normal.simulate(key, ())
 
         key = jax.random.PRNGKey(314159)
-        key, v = simple_normal(key, ())
+        v = simple_normal(key, ())
         assert tr.get_retval() == v

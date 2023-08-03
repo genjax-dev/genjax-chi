@@ -20,8 +20,6 @@ import jax.tree_util as jtu
 import genjax._src.core.interpreters.context as context
 from genjax._src.adev.lang import lang as adev_lang
 from genjax._src.adev.lang import sample as adev_sample
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     BuiltinGenerativeFunction,
@@ -38,19 +36,15 @@ from genjax._src.generative_functions.builtin.builtin_transforms import (
 
 @dataclasses.dataclass
 class ADEVConvertContext(BuiltinInterfaceContext):
-    key: PRNGKey
-
     def flatten(self):
-        return (self.key,), ()
+        return (), ()
 
     def yield_state(self):
-        return (self.key,)
+        return ()
 
     @classmethod
-    def new(cls, key):
-        return ADEVConvertContext(
-            key,
-        )
+    def new(cls):
+        return ADEVConvertContext()
 
     def handle_trace(self, _, *tracers, **params):
         in_tree = params.get("in_tree")
@@ -59,7 +53,7 @@ class ADEVConvertContext(BuiltinInterfaceContext):
         gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         args = tuple(args)
         adev_term = adev_lang(gen_fn)
-        self.key, v = adev_sample(adev_term, self.key, args)
+        v = adev_sample(adev_term, args)
         return jtu.tree_leaves(v)
 
     def handle_cache(self, _, *tracers, **params):
@@ -71,19 +65,18 @@ class ADEVConvertContext(BuiltinInterfaceContext):
 
 def adev_conversion_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
-    def wrapper(key, args):
-        ctx = ADEVConvertContext.new(key)
-        retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        (key,) = statefuls
-        return key, retvals
+    def wrapper(*args):
+        ctx = ADEVConvertContext.new()
+        retvals, _ = context.transform(source_fn, ctx)(*args, **kwargs)
+        return retvals
 
     return wrapper
 
 
 @dispatch
 def adev_convert(gen_fn: BuiltinGenerativeFunction):
-    def adev_simulate(key: PRNGKey, args: Tuple, **kwargs):
-        key, v = adev_conversion_transform(gen_fn.source, **kwargs)(key, args)
-        return key, v
+    def adev_simulate(*args, **kwargs):
+        v = adev_conversion_transform(gen_fn.source, **kwargs)(*args)
+        return v
 
     return adev_simulate

@@ -20,65 +20,60 @@ import genjax
 
 class TestMapCombinator:
     def test_map_simple_normal(self):
-        key = jax.random.PRNGKey(314159)
-
         @genjax.gen
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
+        key = jax.random.PRNGKey(314159)
         model = genjax.Map(kernel, in_axes=(0,))
-
         map_over = jnp.arange(0, 50)
-        key, tr = jax.jit(genjax.simulate(model))(key, (map_over,))
+        tr = jax.jit(genjax.simulate(model))(key, (map_over,))
         map_score = tr.get_score()
         assert map_score == jnp.sum(tr.inner.get_score())
 
     def test_map_vector_choice_map_importance(self):
+        @genjax.gen
+        def kernel(x):
+            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            return z
+
         key = jax.random.PRNGKey(314159)
+        model = genjax.Map(kernel, in_axes=(0,))
         map_over = jnp.arange(0, 3)
         chm = genjax.vector_choice_map(
             genjax.choice_map({"z": jnp.array([3.0, 2.0, 3.0])})
         )
 
-        @genjax.gen
-        def kernel(x):
-            z = genjax.trace("z", genjax.normal)(x, 1.0)
-            return z
-
-        model = genjax.Map(kernel, in_axes=(0,))
-
-        key, (w, tr) = jax.jit(model.importance)(key, chm, (map_over,))
+        (w, tr) = jax.jit(model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.logpdf(3.0, 0.0, 1.0) + genjax.normal.logpdf(
             2.0, 1.0, 1.0
         ) + genjax.normal.logpdf(3.0, 2.0, 1.0)
 
     def test_map_index_choice_map_importance(self):
-        key = jax.random.PRNGKey(314159)
-
         @genjax.gen
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
+        key = jax.random.PRNGKey(314159)
         model = genjax.Map(kernel, in_axes=(0,))
-
         map_over = jnp.arange(0, 3)
         chm = genjax.index_choice_map(
             [0],
             genjax.choice_map({"z": jnp.array([3.0])}),
         )
-        key, (w, _) = jax.jit(model.importance)(key, chm, (map_over,))
+        key, sub_key = jax.random.split(key)
+        (w, _) = jax.jit(model.importance)(sub_key, chm, (map_over,))
         assert w == genjax.normal.logpdf(3.0, 0.0, 1.0)
 
+        key, sub_key = jax.random.split(key)
         zv = jnp.array([3.0, -1.0, 2.0])
         chm = genjax.index_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
-        key, (_, tr) = model.importance(key, chm, (map_over,))
+        (_, tr) = model.importance(sub_key, chm, (map_over,))
         assert all(tr["z"] == zv)
 
     def test_map_nested_index_choice_map_importance(self):
-        key = jax.random.PRNGKey(314159)
-
         @genjax.gen(genjax.Map, in_axes=(0,))
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
@@ -88,33 +83,32 @@ class TestMapCombinator:
         def higher_model(x):
             return model(x) @ "outer"
 
+        key = jax.random.PRNGKey(314159)
         map_over = jnp.ones((3, 3))
         chm = genjax.index_choice_map(
             [0], {"outer": genjax.index_choice_map([1], {"z": jnp.array([[1.0]])})}
         )
-        key, (w, _) = jax.jit(higher_model.importance)(key, chm, (map_over,))
+        (w, _) = jax.jit(higher_model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)
 
     def test_map_vmap_pytree(self):
-        key = jax.random.PRNGKey(314159)
-
         @genjax.gen
         def foo(y, args):
             loc, scale = args
             x = genjax.normal(loc, scale) @ "x"
             return x + y
 
-        _, _ = genjax.simulate(genjax.Map(foo, in_axes=(None, (0, None))))(
+        key = jax.random.PRNGKey(314159)
+        _ = genjax.simulate(genjax.Map(foo, in_axes=(None, (0, None))))(
             key, (10.0, (jnp.arange(3.0), 1.0))
         )
 
     def test_map_repeats(self):
-        key = jax.random.PRNGKey(314159)
-
         @genjax.gen
         def model():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        _, _ = genjax.simulate(genjax.Map(model, repeats=10))(key, ())
+        key = jax.random.PRNGKey(314159)
+        _ = genjax.simulate(genjax.Map(model, repeats=10))(key, ())
         assert True

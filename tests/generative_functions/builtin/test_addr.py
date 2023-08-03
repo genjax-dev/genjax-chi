@@ -18,27 +18,25 @@ import pytest
 import genjax
 
 
-@genjax.gen
-def simple_normal_addr_dup():
-    y1 = genjax.normal(0.0, 1.0) @ "y1"
-    y2 = genjax.normal(0.0, 1.0) @ "y1"
-    return y1 + y2
-
-
-@genjax.gen
-def simple_normal_addr_tracer():
-    y1 = genjax.normal(0.0, 1.0) @ "y1"
-    y2 = genjax.normal(0.0, 1.0) @ y1
-    return y1 + y2
-
-
 class TestStaticAddressChecks:
     def test_simple_normal_addr_dup(self):
+        @genjax.gen
+        def simple_normal_addr_dup():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y1"
+            return y1 + y2
+
         key = jax.random.PRNGKey(314159)
         with pytest.raises(Exception):
-            key, _ = genjax.simulate(simple_normal_addr_dup)(key, ())
+            _ = genjax.simulate(simple_normal_addr_dup)(key, ())
 
     def test_simple_normal_addr_tracer(self):
+        @genjax.gen
+        def simple_normal_addr_tracer():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ y1
+            return y1 + y2
+
         key = jax.random.PRNGKey(314159)
         with pytest.raises(Exception):
-            key, _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
+            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())

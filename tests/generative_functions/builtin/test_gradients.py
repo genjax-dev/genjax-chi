@@ -17,18 +17,17 @@ import jax
 import genjax
 
 
-@genjax.gen
-def simple_normal():
-    y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-    y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
-    return y1 + y2
-
-
 class TestAssessSimpleNormal:
     def test_simple_normal_assess(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        tr = jax.jit(genjax.simulate(simple_normal))(key, ())
         jitted = jax.jit(genjax.assess(simple_normal))
         chm = tr.get_choices().strip()
-        key, (_, score) = jitted(key, chm, ())
+        (_, score) = jitted(key, chm, ())
         assert score == tr.get_score()
