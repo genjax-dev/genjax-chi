@@ -39,6 +39,7 @@ from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
@@ -508,6 +509,18 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
+        chm: EmptyChoiceMap,
+        length: Diff,
+        state: Any,
+        *static_args: Any,
+    ):
+        raise NotImplementedError
+
+    @dispatch
+    def _update_specialized(
+        self,
+        key: PRNGKey,
+        prev: UnfoldTrace,
         chm: IndexChoiceMap,
         length: Diff,
         state: Any,
@@ -565,10 +578,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 # Preserve the diff type across the loop
                 # iterations.
                 primal_state = tree_diff_primal(retdiff)
-                retdiff = jtu.tree_map(
-                    lambda v: diff(v, UnknownChange),
-                    primal_state,
-                )
+                retdiff = tree_diff_unknown_change(primal_state)
                 return (retdiff, w, new_tr)
 
             check = prev_length < index
