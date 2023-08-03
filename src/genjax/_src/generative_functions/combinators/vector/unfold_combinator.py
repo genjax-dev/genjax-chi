@@ -592,7 +592,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
-        (_, w, state_diff, new_inner_trace) = jax.lax.fori_loop(
+        (_, w, _, new_inner_trace) = jax.lax.fori_loop(
             start_lower,
             new_upper + 1,  # the bound semantics follow Python range semantics.
             _inner,
@@ -612,6 +612,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             new_inner_trace.get_retval(),
             prev.get_retval(),
         )
+        retval_diff = tree_diff_unknown_change(retval)
         args = tree_diff_primal((length, state, *static_args))
 
         # TODO: is there a faster way to do this with the information I already have?
@@ -631,7 +632,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             retval,
             new_score,
         )
-        return (state_diff, w, new_tr, EmptyChoiceMap())
+        return (retval_diff, w, new_tr, EmptyChoiceMap())
 
     @dispatch
     def _update_specialized(
