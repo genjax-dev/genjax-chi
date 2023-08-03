@@ -21,7 +21,6 @@ import jax.tree_util as jtu
 
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.inference.smc.state import SMCState
 
@@ -40,17 +39,16 @@ def smc_resample(
     key: PRNGKey,
     state: SMCState,
     method: MultinomialResampling,
-) -> Tuple[PRNGKey, SMCState]:
+) -> SMCState:
     lml_est = state.current_lml_est()
     lws = state.get_log_weights()
     particles = state.get_particles()
     n_particles = state.get_num_particles()
     log_total_weight = jax.scipy.special.logsumexp(lws)
     log_normalized_weights = lws - log_total_weight
-    key, sub_key = jax.random.split(key)
-    idxs = jax.random.categorical(sub_key, log_normalized_weights, shape=(n_particles,))
+    idxs = jax.random.categorical(key, log_normalized_weights, shape=(n_particles,))
     resampled_particles = jtu.tree_map(lambda v: v[idxs], particles)
     new_state = SMCState(
         n_particles, resampled_particles, jnp.zeros_like(lws), lml_est, True
     )
-    return key, new_state
+    return new_state

@@ -44,15 +44,15 @@ class TestSimpleSMC:
             [0],
             choice_map({"x": jnp.array([1.0])}),
         )
-        key, smc_state = smc.smc_initialize(
-            key, chain, (init_len, init_state), obs, 100
-        )
+        key, sub_key = jax.random.split(key)
+        smc_state = smc.smc_initialize(sub_key, chain, (init_len, init_state), obs, 100)
         obs = index_choice_map(
             [1],
             choice_map({"x": jnp.array([1.0])}),
         )
-        key, smc_state = smc.smc_update(
-            key,
+        key, sub_key = jax.random.split(key)
+        smc_state = smc.smc_update(
+            sub_key,
             smc_state,
             (diff(1, UnknownChange), diff(init_state, NoChange)),
             obs,
@@ -75,8 +75,9 @@ class TestSimpleSMC:
         def extend_smc_no_resampling(key, obs, init_state):
             index_sel = index_select(0)
             obs_slice = index_sel.filter(obs)
-            key, smc_state = smc.smc_initialize(
-                key, chain, (0, init_state), obs_slice, 100
+            key, sub_key = jax.random.split(key)
+            smc_state = smc.smc_initialize(
+                sub_key, chain, (0, init_state), obs_slice, 100
             )
             obs = jtu.tree_map(lambda v: v[1:], obs)
 
@@ -84,24 +85,24 @@ class TestSimpleSMC:
                 key, smc_state, t = carry
                 obs_slice = xs
                 t = t + 1
-                key, smc_state = smc.smc_update(
-                    key,
+                key, sub_key = jax.random.split(key)
+                smc_state = smc.smc_update(
+                    sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
                 return (key, smc_state, t), (smc_state,)
 
-            (key, smc_state, _), (stacked,) = jax.lax.scan(
+            (_, smc_state, _), (stacked,) = jax.lax.scan(
                 _inner,
                 (key, smc_state, 0),
                 obs,
             )
-            return key, stacked
+            return stacked
 
         key = jax.random.PRNGKey(314159)
-        key, smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
-
+        smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
         assert True
 
     def test_smoke_smc_with_scan(self):
@@ -119,8 +120,9 @@ class TestSimpleSMC:
         def extending_smc(key, obs, init_state):
             index_sel = index_select(0)
             obs_slice = index_sel.filter(obs)
-            key, smc_state = smc.smc_initialize(
-                key, chain, (0, init_state), obs_slice, 100
+            key, sub_key = jax.random.split(key)
+            smc_state = smc.smc_initialize(
+                sub_key, chain, (0, init_state), obs_slice, 100
             )
             obs = jtu.tree_map(lambda v: v[1:], obs)
 
@@ -128,14 +130,16 @@ class TestSimpleSMC:
                 key, smc_state, t = carry
                 obs_slice = xs
                 t = t + 1
-                key, smc_state = smc.smc_update(
-                    key,
+                key, sub_key = jax.random.split(key)
+                smc_state = smc.smc_update(
+                    sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
-                key, smc_state = smc.smc_resample(
-                    key, smc_state, smc.multinomial_resampling
+                key, sub_key = jax.random.split(key)
+                smc_state = smc.smc_resample(
+                    sub_key, smc_state, smc.multinomial_resampling
                 )
                 return (key, smc_state, t), (smc_state,)
 
@@ -144,9 +148,8 @@ class TestSimpleSMC:
                 (key, smc_state, 0),
                 obs,
             )
-            return key, stacked
+            return stacked
 
         key = jax.random.PRNGKey(314159)
-        key, smc_state = jax.jit(extending_smc)(key, obs, 0.0)
-
+        smc_state = jax.jit(extending_smc)(key, obs, 0.0)
         assert True

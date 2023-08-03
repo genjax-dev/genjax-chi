@@ -102,8 +102,8 @@ class ADEVTerm(Pytree):
 
     @simulate.defjvp
     def simulate_jvp(self, key, primals, tangents):
-        key, primals, tangents = self.grad_estimate(key, primals, tangents)
-        return (key, primals), tangents
+        primals, tangents = self.grad_estimate(key, primals, tangents)
+        return primals, tangents
 
     def __call__(self, key, *args):
         return self.simulate(key, args)
@@ -191,24 +191,26 @@ def strat(strategy: GradientStrategy, addr):
 sample_p = primitives.InitialStylePrimitive("sample")
 
 
-def _abstract_adev_term_call(adev_term, key, strategy, *args):
+def _abstract_adev_term_call(adev_term, strategy, *args):
+    # Only the type matters here.
+    key = jax.random.PRNGKey(0)
     return adev_term.simulate(key, args)
 
 
-def _sample(adev_term, key, strategy, args, **kwargs):
+def _sample(adev_term, strategy, args, **kwargs):
     return primitives.initial_style_bind(sample_p)(_abstract_adev_term_call)(
-        adev_term, key, strategy, *args, **kwargs
+        adev_term, strategy, *args, **kwargs
     )
 
 
 @typecheck
-def sample(adev_term: ADEVTerm, key: PRNGKey, args: Tuple, **kwargs):
+def sample(adev_term: ADEVTerm, args: Tuple, **kwargs):
     # Default strategy is REINFORCE.
     strategy = GradStratREINFORCE()
     if isinstance(adev_term, ADEVPrimitive):
         # Embed using sow.
         strategy = strat(strategy, "sample")
-    return _sample(adev_term, key, strategy, args, **kwargs)
+    return _sample(adev_term, strategy, args, **kwargs)
 
 
 ##############
@@ -242,28 +244,31 @@ class ADEVContext(Context):
 
 @dataclasses.dataclass
 class SimulateContext(ADEVContext):
+    key: PRNGKey
+
     def flatten(self):
-        return (), ()
+        return (self.key,), ()
 
     @classmethod
-    def new(cls):
-        return SimulateContext()
+    def new(cls, key: PRNGKey):
+        return SimulateContext(key)
 
     def yield_state(self):
         return ()
 
     def handle_sample(self, _, *tracers, **params):
         in_tree = params.get("in_tree")
-        adev_term, key, _, *args = jtu.tree_unflatten(in_tree, tracers)
+        adev_term, _, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
-        key, v = adev_term.simulate(key, args)
-        return jtu.tree_leaves((key, v))
+        self.key, sub_key = jax.random.split(self.key)
+        v = adev_term.simulate(sub_key, args)
+        return jtu.tree_leaves(v)
 
 
 def simulate_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
-    def wrapper(*args):
-        context = SimulateContext.new()
+    def wrapper(key, *args):
+        context = SimulateContext.new(key)
         retvals, _ = ctx.transform(source_fn, context)(*args, **kwargs)
         return retvals
 
@@ -290,12 +295,8 @@ class ADEVTrace(JVPTrace):
             assert custom_rule is not None
             # TODO: Pull key out of tracer.
             # Try and fix this in the interpreter somehow.
-            key, *tracers = tracers
-            key_primal = key.primal
-            key, primals, tangents = custom_rule(self, key_primal, *tracers, **params)
-            outvals = jtu.tree_leaves(
-                (key, [JVPTracer(self, x, t) for x, t in zip(primals, tangents)])
-            )
+            primals, tangents = custom_rule(self, *tracers, **params)
+            outvals = [JVPTracer(self, x, t) for x, t in zip(primals, tangents)]
             return outvals
         return self.default_process_primitive(primitive, tracers, params)
 
@@ -360,21 +361,20 @@ class ADEVTrace(JVPTrace):
 def _cps_jvp(
     main: jc.MainTrace,
     context: Context,
-    key: PRNGKey,
     primals: Iterable[Any],
     tangents: Iterable[Any],
 ):
     """A context transformation that returns stateful context values."""
     trace = ADEVTrace(main, jc.cur_sublevel())
-    in_tracers = [key] + [JVPTracer(trace, x, t) for x, t in zip(primals, tangents)]
+    in_tracers = [JVPTracer(trace, x, t) for x, t in zip(primals, tangents)]
     with staging.new_dynamic_context(main, context):
         context.trace = trace
-        key, *out_tracers = yield in_tracers, {}
+        out_tracers = yield in_tracers, {}
         out_tracers = jax_util.safe_map(trace.full_raise, out_tracers)
         del main
     out_values = jtu.tree_map(lambda x: x.primal, out_tracers)
     out_tangents = jtu.tree_map(lambda x: x.tangent, out_tracers)
-    yield (key, out_values, out_tangents), ()
+    yield (out_values, out_tangents), ()
 
 
 # Designed to support ADEV - here, we enforce that primals and tangents
@@ -387,34 +387,35 @@ def cps_jvp(f, ctx: Context):
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
-    def wrapped(key, primals, tangents, kont, **kwargs):
+    def wrapped(primals, tangents, kont, **kwargs):
         with jc.new_main(ADEVTrace) as main:
             fun = lu.wrap_init(functools.partial(_run_interpreter, main, kont), kwargs)
             flat_primals, primal_tree = jtu.tree_flatten(primals)
             flat_tangents, tangent_tree = jtu.tree_flatten(tangents)
             assert primal_tree == tangent_tree
-            _, args_tree = jtu.tree_flatten((key, primals))
-            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, args_tree)
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
             flat_fun = _cps_jvp(flat_fun, main, ctx)
-            (key, out_primals, out_tangents), _ = flat_fun.call_wrapped(
-                key, flat_primals, flat_tangents
+            (out_primals, out_tangents), _ = flat_fun.call_wrapped(
+                flat_primals, flat_tangents
             )
             del main
-            _, out_primals = jtu.tree_unflatten(out_tree(), (key, out_primals))
-            _, out_tangents = jtu.tree_unflatten(out_tree(), (key, out_tangents))
-        return (key, out_primals, out_tangents), ()
+            out_primals = jtu.tree_unflatten(out_tree(), out_primals)
+            out_tangents = jtu.tree_unflatten(out_tree(), out_tangents)
+        return (out_primals, out_tangents), ()
 
     return wrapped
 
 
 @dataclasses.dataclass
 class GradEstimateContext(ADEVContext):
+    key: PRNGKey
+
     def flatten(self):
-        return (), ()
+        return (self.key,), ()
 
     @classmethod
-    def new(cls):
-        return GradEstimateContext()
+    def new(cls, key: PRNGKey):
+        return GradEstimateContext(key)
 
     def yield_state(self):
         return ()
@@ -422,45 +423,47 @@ class GradEstimateContext(ADEVContext):
     def handle_sample(self, _, *tracers, **params):
         in_tree = params["in_tree"]
         kont = params["kont"]
-        adev_term, key, strategy, *tracers = jtu.tree_unflatten(in_tree, tracers)
+        adev_term, strategy, *tracers = jtu.tree_unflatten(in_tree, tracers)
 
         # TODO: generalize to Pytrees.
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in tracers)
+        self.key, sub_key = jax.random.split(self.key)
 
         # Check if the term is an `ADEVProgram`, then use
         # `grad_estimate` to propagate dual numbers.
         if isinstance(adev_term, ADEVProgram):
-            key, primals, tangents = adev_term.grad_estimate(
-                key, primals, tangents, kont
+            primals, tangents = adev_term.grad_estimate(
+                sub_key, primals, tangents, kont
             )
-            return key, primals, tangents
+            return primals, tangents
 
         # We're dealing with an `ADEVPrimitive` - we defer propagating
         # dual numbers to the gradient strategy.
         else:
 
-            def lift_kont(key, primals, tangents):
+            def lift_kont(primals, tangents):
                 new_tracers = [
                     JVPTracer(self.trace, x, t) for x, t in zip(primals, tangents)
                 ]
-                key, retdual = kont(key, *new_tracers)
-                return key, retdual.primal, retdual.tangent
+                # Loss must be a scalar, only a single retdual.
+                (retdual,) = kont(*new_tracers)
+                return retdual.primal, retdual.tangent
 
-            key, primals, tangents = strategy.apply(
-                adev_term, key, primals, tangents, lift_kont
+            primals, tangents = strategy.apply(
+                adev_term, sub_key, primals, tangents, lift_kont
             )
-            return key, primals, tangents
+            return primals, tangents
 
 
 def grad_estimate_transform(source_fn, kont, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, primals, tangents):
-        ctx = GradEstimateContext.new()
-        (key, out_primals, out_tangents), _ = cps_jvp(source_fn, ctx)(
-            key, primals, tangents, kont, **kwargs
+        ctx = GradEstimateContext.new(key)
+        (out_primals, out_tangents), _ = cps_jvp(source_fn, ctx)(
+            primals, tangents, kont, **kwargs
         )
         # TODO: why is `tuple` conversion necessary here?
-        return key, tuple(out_primals), tuple(out_tangents)
+        return out_primals, out_tangents
 
     return wrapper
 

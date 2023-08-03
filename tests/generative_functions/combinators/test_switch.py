@@ -22,7 +22,7 @@ from genjax import UnknownChange
 from genjax import diff
 
 
-class TestSimulate:
+class TestSwitch:
     def test_switch_simulate_in_gen_fn(self):
         @genjax.gen
         def f():
@@ -36,8 +36,9 @@ class TestSimulate:
             return s
 
         key = jax.random.PRNGKey(314159)
-        # This crashes.
-        _, tr = genjax.simulate(model)(key, ())
+        key, sub_key = jax.random.split(key)
+        tr = genjax.simulate(model)(sub_key, ())
+        assert True
 
     def test_switch_simulate(self):
         @genjax.gen
@@ -53,23 +54,28 @@ class TestSimulate:
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
-        key, tr = jitted(key, (0,))
+        key, sub_key = jax.random.split(key)
+        tr = jitted(sub_key, (0,))
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        key, (v1_score, _) = genjax.normal.importance(
-            key, genjax.value_choice_map(v1), (0.0, 1.0)
+        key, sub_key = jax.random.split(key)
+        (v1_score, _) = genjax.normal.importance(
+            sub_key, genjax.value_choice_map(v1), (0.0, 1.0)
         )
-        key, (v2_score, _) = genjax.normal.importance(
-            key, genjax.value_choice_map(v2), (0.0, 1.0)
+        key, sub_key = jax.random.split(key)
+        (v2_score, _) = genjax.normal.importance(
+            sub_key, genjax.value_choice_map(v2), (0.0, 1.0)
         )
         assert score == v1_score + v2_score
         assert tr.get_args() == (0,)
-        key, tr = jitted(key, (1,))
+        key, sub_key = jax.random.split(key)
+        tr = jitted(sub_key, (1,))
         flip = tr["y3"]
         score = tr.get_score()
-        key, (flip_score, _) = genjax.bernoulli.importance(
-            key, genjax.value_choice_map(flip), (0.3,)
+        key, sub_key = jax.random.split(key)
+        (flip_score, _) = genjax.bernoulli.importance(
+            sub_key, genjax.value_choice_map(flip), (0.3,)
         )
         assert score == flip_score
         assert tr.get_args() == (1,)
@@ -87,8 +93,7 @@ class TestSimulate:
             return s
 
         key = jax.random.PRNGKey(314159)
-        # This crashes.
-        _, tr = genjax.simulate(model)(key, ())
+        tr = genjax.simulate(model)(key, ())
         assert True
 
     def test_switch_choice_map_behavior(self):
@@ -105,7 +110,7 @@ class TestSimulate:
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
-        key, tr = jitted(key, (0,))
+        tr = jitted(key, (0,))
         assert isinstance(tr["y1"], Mask)
         assert isinstance(tr["y2"], Mask)
         assert isinstance(tr["y3"], Mask)
@@ -125,36 +130,43 @@ class TestSimulate:
         key = jax.random.PRNGKey(314159)
         chm = genjax.EmptyChoiceMap()
         jitted = jax.jit(switch.importance)
-        key, (w, tr) = jitted(key, chm, (0,))
+        key, sub_key = jax.random.split(key)
+        (w, tr) = jitted(sub_key, chm, (0,))
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        key, (v1_score, _) = genjax.normal.importance(
-            key,
+        key, sub_key = jax.random.split(key)
+        (v1_score, _) = genjax.normal.importance(
+            sub_key,
             genjax.value_choice_map(v1),
             (0.0, 1.0),
         )
-        key, (v2_score, _) = genjax.normal.importance(
-            key,
+        key, sub_key = jax.random.split(key)
+        (v2_score, _) = genjax.normal.importance(
+            sub_key,
             genjax.value_choice_map(v2),
             (0.0, 1.0),
         )
         assert score == v1_score + v2_score
         assert w == 0.0
-        key, (w, tr) = jitted(key, chm, (1,))
+        key, sub_key = jax.random.split(key)
+        (w, tr) = jitted(sub_key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()
-        key, (flip_score, _) = genjax.bernoulli.importance(
-            key, genjax.value_choice_map(flip), (0.3,)
+        key, sub_key = jax.random.split(key)
+        (flip_score, _) = genjax.bernoulli.importance(
+            sub_key, genjax.value_choice_map(flip), (0.3,)
         )
         assert score == flip_score
         assert w == 0.0
         chm = genjax.choice_map({"y3": True})
-        key, (w, tr) = jitted(key, chm, (1,))
+        key, sub_key = jax.random.split(key)
+        (w, tr) = jitted(sub_key, chm, (1,))
         flip = tr["y3"]
         score = tr.get_score()
-        key, (flip_score, _) = genjax.bernoulli.importance(
-            key, genjax.value_choice_map(flip), (0.3,)
+        key, sub_key = jax.random.split(key)
+        (flip_score, _) = genjax.bernoulli.importance(
+            sub_key, genjax.value_choice_map(flip), (0.3,)
         )
         assert score == flip_score
         assert w == score
@@ -167,19 +179,20 @@ class TestSimulate:
 
         switch = genjax.SwitchCombinator([simple_normal])
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(switch.simulate)(key, (0,))
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(switch.simulate)(sub_key, (0,))
         v1 = tr["y1"]
         v2 = tr["y2"]
         score = tr.get_score()
-        key, (_, _, tr, _) = jax.jit(switch.update)(
-            key, tr, genjax.empty_choice_map(), (diff(0, NoChange),)
+        key, sub_key = jax.random.split(key)
+        (_, _, tr, _) = jax.jit(switch.update)(
+            sub_key, tr, genjax.empty_choice_map(), (diff(0, NoChange),)
         )
         assert score == tr.get_score()
         assert v1 == tr["y1"]
         assert v2 == tr["y2"]
 
     def test_switch_update_updates_score(self):
-        key = jax.random.PRNGKey(314159)
 
         regular_stddev = 1.0
         outlier_stddev = 10.0
@@ -195,10 +208,11 @@ class TestSimulate:
             x = genjax.tfp_normal(0.0, outlier_stddev) @ "x"
             return x
 
+        key = jax.random.PRNGKey(314159)
         switch = genjax.SwitchCombinator([regular, outlier])
         key, importance_key = jax.random.split(key)
 
-        _, (wt, tr) = switch.importance(
+        (wt, tr) = switch.importance(
             importance_key, genjax.choice_map({"x": sample_value}), (0,)
         )
         assert tr.chm.index == 0
@@ -208,7 +222,7 @@ class TestSimulate:
         assert wt == tr.get_score()
 
         key, update_key = jax.random.split(key)
-        _, (_, new_wt, new_tr, _) = switch.update(
+        (_, new_wt, new_tr, _) = switch.update(
             update_key,
             tr,
             genjax.empty_choice_map(),
@@ -233,7 +247,7 @@ class TestSimulate:
 
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
-        _, tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0,))
+        tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0,))
         y = tr["y"]
         assert y.value.shape == (3,)
         assert (y.mask == jnp.array([True, True, True])).all()

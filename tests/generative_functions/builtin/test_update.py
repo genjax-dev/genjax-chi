@@ -30,20 +30,22 @@ class TestUpdateSimpleNormal:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_normal))(sub_key, ())
         jitted = jax.jit(genjax.update(simple_normal))
 
         new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
-        _, (score1, _) = genjax.normal.importance(
+        (score1, _) = genjax.normal.importance(
             key, updated_chm.get_subtree("y1").get_choices(), (0.0, 1.0)
         )
-        _, (score2, _) = genjax.normal.importance(
+        (score2, _) = genjax.normal.importance(
             key, updated_chm.get_subtree("y2").get_choices(), (0.0, 1.0)
         )
         test_score = score1 + score2
@@ -53,14 +55,15 @@ class TestUpdateSimpleNormal:
 
         new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
-        _, (score1, _) = genjax.normal.importance(
+        (score1, _) = genjax.normal.importance(
             key, updated_chm.get_subtree("y1").get_choices(), (0.0, 1.0)
         )
-        _, (score2, _) = genjax.normal.importance(
+        (score2, _) = genjax.normal.importance(
             key, updated_chm.get_subtree("y2").get_choices(), (0.0, 1.0)
         )
         test_score = score1 + score2
@@ -76,13 +79,15 @@ class TestUpdateSimpleNormal:
             return y1 + y2 + y3
 
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_linked_normal))(sub_key, ())
         jitted = jax.jit(genjax.update(simple_linked_normal))
 
         new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2"]
@@ -109,13 +114,15 @@ class TestUpdateSimpleNormal:
             return y1 + y2 + y3
 
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(simple_hierarchical_normal))(key, ())
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_hierarchical_normal))(sub_key, ())
         jitted = jax.jit(genjax.update(simple_hierarchical_normal))
 
         new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
-        key, (_, w, updated, discard) = jitted(key, tr, new, ())
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2", "y1"]
@@ -140,7 +147,8 @@ class TestUpdateSimpleNormal:
             return y1 + y2 + y3
 
         key = jax.random.PRNGKey(314159)
-        key, tr = jax.jit(genjax.simulate(simple_linked_normal))(key, ())
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_linked_normal))(sub_key, ())
         jitted = jax.jit(genjax.update(simple_linked_normal))
 
         old_y1 = tr["y1"]
@@ -148,7 +156,8 @@ class TestUpdateSimpleNormal:
         old_y3 = tr["y3"]
         new_y1 = 2.0
         new = genjax.choice_map({("y1",): new_y1})
-        key, (_, w, updated, _) = jitted(key, tr, new, ())
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, _) = jitted(sub_key, tr, new, ())
 
         # Test new scores.
         assert updated["y1"] == new_y1
@@ -180,7 +189,8 @@ class TestUpdateSimpleNormal:
         # Test composition of update calls.
         new_y3 = 2.0
         new = genjax.choice_map({("y3",): new_y3})
-        key, (_, w, updated, _) = jitted(key, updated, new, ())
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, _) = jitted(sub_key, updated, new, ())
         assert updated["y3"] == 2.0
         correct_w = genjax.normal.logpdf(
             new_y3, new_y1 + old_y2, 1.0
@@ -203,22 +213,25 @@ class TestUpdateSimpleNormal:
 
         key = jax.random.PRNGKey(314159)
         init_tree = SomePytree(0.0, 1.0)
-        key, tr = jax.jit(genjax.simulate(simple_linked_normal_with_tree_argument))(
-            key, (init_tree,)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_linked_normal_with_tree_argument))(
+            sub_key, (init_tree,)
         )
         jitted = jax.jit(genjax.update(simple_linked_normal_with_tree_argument))
         new_y1 = 2.0
         constraints = genjax.choice_map({("y1",): new_y1})
-        key, (_, w, updated, _) = jitted(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, _) = jitted(
+            sub_key,
             tr,
             constraints,
             (genjax.tree_diff(init_tree, genjax.NoChange),),
         )
         assert updated["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
-        key, (_, w, updated, _) = jitted(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, updated, _) = jitted(
+            sub_key,
             tr,
             constraints,
             (genjax.tree_diff(new_tree, genjax.UnknownChange),),

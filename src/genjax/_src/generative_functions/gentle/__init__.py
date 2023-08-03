@@ -23,6 +23,8 @@ import abc
 import itertools
 from dataclasses import dataclass
 
+import jax
+
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
@@ -141,7 +143,8 @@ class SimulateHandler(Handler):
         args = msg["args"]
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
-        self.key, tr = gen_fn.simulate(self.key, args)
+        self.key, sub_key = jax.random.split(self.key)
+        tr = gen_fn.simulate(sub_key, args)
         retval = tr.get_retval()
         self.choice_state[addr] = tr
         self.score += tr.get_score()
@@ -174,7 +177,8 @@ class ImportanceHandler(Handler):
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_subtree(addr)
-        self.key, (w, tr) = gen_fn.importance(self.key, sub_map, args)
+        self.key, sub_key = jax.random.split(self.key)
+        (w, tr) = gen_fn.importance(sub_key, sub_map, args)
         retval = tr.get_retval()
         self.choice_state[addr] = tr
         self.score += tr.get_score()
@@ -212,7 +216,8 @@ class UpdateHandler(Handler):
         sub_map = self.constraints.get_subtree(addr)
         sub_trace = self.previous_trace.choices.get_subtree(addr)
         argdiffs = tree_diff(args, UnknownChange)
-        self.key, (rd, w, tr, d) = gen_fn.update(self.key, sub_trace, sub_map, argdiffs)
+        self.key, sub_key = jax.random.split(self.key)
+        (rd, w, tr, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
         retval = tr.get_retval()
         self.weight += w
         self.choice_state[addr] = tr
@@ -242,7 +247,8 @@ class AssessHandler(Handler):
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_subtree(addr)
-        self.key, (retval, score) = gen_fn.assess(self.key, sub_map, args)
+        self.key, sub_key = jax.random.split(self.key)
+        (retval, score) = gen_fn.assess(sub_key, sub_map, args)
         self.score += score
         return retval
 

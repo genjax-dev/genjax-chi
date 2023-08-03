@@ -26,34 +26,40 @@ from genjax import mask
 class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
-        key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+        tr = genjax.normal.simulate(key, (0.0, 1.0))
         assert tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        key, (w, tr) = genjax.tfp_normal.importance(key, EmptyChoiceMap(), (0.0, 1.0))
+        (w, tr) = genjax.tfp_normal.importance(key, EmptyChoiceMap(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.
-        key, (w, tr) = genjax.tfp_normal.importance(
-            key, ValueChoiceMap(1.0), (0.0, 1.0)
+        (w, tr) = genjax.tfp_normal.importance(
+            key,
+            ValueChoiceMap(1.0),
+            (0.0, 1.0),
         )
         v = tr.strip().get_leaf_value()
         assert w == genjax.tfp_normal.logpdf(v, 0.0, 1.0)
 
         # Constraint, mask with True flag.
-        key, (w, tr) = genjax.tfp_normal.importance(
-            key, mask(True, ValueChoiceMap(1.0)), (0.0, 1.0)
+        (w, tr) = genjax.tfp_normal.importance(
+            key,
+            mask(True, ValueChoiceMap(1.0)),
+            (0.0, 1.0),
         )
         v = tr.strip().get_leaf_value()
         assert v == 1.0
         assert w == genjax.tfp_normal.logpdf(v, 0.0, 1.0)
 
         # Constraint, mask with False flag.
-        key, (w, tr) = genjax.tfp_normal.importance(
-            key, mask(False, ValueChoiceMap(1.0)), (0.0, 1.0)
+        (w, tr) = genjax.tfp_normal.importance(
+            key,
+            mask(False, ValueChoiceMap(1.0)),
+            (0.0, 1.0),
         )
         v = tr.strip().get_leaf_value()
         assert v != 1.0
@@ -61,11 +67,12 @@ class TestDistributions:
 
     def test_update(self):
         key = jax.random.PRNGKey(314159)
-        key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+        key, sub_key = jax.random.split(key)
+        tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
 
         # No constraint, no change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             EmptyChoiceMap(),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
@@ -75,8 +82,9 @@ class TestDistributions:
         assert w == 0.0
 
         # Constraint, no change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             ValueChoiceMap(1.0),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
@@ -88,8 +96,9 @@ class TestDistributions:
         )
 
         # No constraint, change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             EmptyChoiceMap(),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
@@ -101,8 +110,9 @@ class TestDistributions:
         ) - genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
 
         # Constraint, change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             ValueChoiceMap(1.0),
             (diff(1.0, UnknownChange), diff(2.0, UnknownChange)),
@@ -114,8 +124,9 @@ class TestDistributions:
         )
 
         # Constraint is masked (True), no change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             mask(True, ValueChoiceMap(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
@@ -127,8 +138,9 @@ class TestDistributions:
         )
 
         # Constraint is masked (True), change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             mask(True, ValueChoiceMap(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
@@ -140,8 +152,9 @@ class TestDistributions:
         )
 
         # Constraint is masked (False), no change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             mask(False, ValueChoiceMap(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
@@ -151,8 +164,9 @@ class TestDistributions:
         assert w == 0.0
 
         # Constraint is masked (False), change to arguments.
-        key, (_, w, new_tr, _) = genjax.normal.update(
-            key,
+        key, sub_key = jax.random.split(key)
+        (_, w, new_tr, _) = genjax.normal.update(
+            sub_key,
             tr,
             mask(False, ValueChoiceMap(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
