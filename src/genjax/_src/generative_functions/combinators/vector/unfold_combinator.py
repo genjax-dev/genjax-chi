@@ -37,6 +37,7 @@ from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import UnknownChange
 from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -447,7 +448,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: IndexChoiceMap,
+        chm: ChoiceMap,
         length: Diff,
         state: Diff,
         *static_args: Diff,
@@ -515,7 +516,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         new_upper = tree_diff_primal(length)
         start_lower = jnp.min(chm.indices)
         state = tree_diff_primal(state)
-        static_args = Diff.no_change(static_args)
+        static_args = tree_diff_primal(static_args)
         prev_length = prev.get_args()[0]
 
         # TODO: `UnknownChange` is used here
@@ -555,8 +556,9 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
             # Updating an existing index.
             def _update(key):
+                static_argdiffs = tree_diff_no_change(static_args)
                 (retdiff, w, new_tr, _) = self.kernel.update(
-                    key, prev_slice, sub_chm, (state_diff, *static_args)
+                    key, prev_slice, sub_chm, (state_diff, *static_argdiffs)
                 )
 
                 # TODO: c.f. message above on `UnknownChange`.
