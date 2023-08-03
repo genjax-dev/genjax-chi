@@ -34,8 +34,6 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
@@ -528,14 +526,11 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     ):
         start_lower = jnp.min(chm.indices)
         new_upper = tree_diff_primal(length)
-        state = tree_diff_primal(state)
-        static_args = tree_diff_primal(static_args)
         prev_length = prev.get_args()[0]
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
-        state_diff = jtu.tree_map(
-            lambda v: diff(v, UnknownChange),
+        state_diff = tree_diff_unknown_change(
             concrete_cond(
                 start_lower
                 == 0,  # if the starting index is 0, we need to grab the state argument.
@@ -545,7 +540,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                     lambda v: v[start_lower - 1],
                     prev.get_retval(),
                 ),
-            ),
+            )
         )
         prev_inner_trace = prev.inner
 
@@ -660,6 +655,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._runtime_check_bounds(args)
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
+            state = tree_diff_primal(state)
+            static_args = tree_diff_primal(static_args)
             return self._update_specialized(
                 key,
                 prev,
