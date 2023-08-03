@@ -104,17 +104,17 @@ def build_inference_test_generator(
         initial_state = tfp_categorical.sample(
             sub_key, jnp.ones(config.linear_grid_dim)
         )
-        key, tr = markov_chain.simulate(key, (max_length - 1, initial_state, config))
+        tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
         z_sel = vector_select("z")
         x_sel = vector_select("x")
         latent_sequence = z_sel.filter(tr.strip())["z"]
         observation_sequence = x_sel.filter(tr.strip())["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)
         # This actually doesn't use any randomness.
-        key, (log_posterior, _) = DiscreteHMM.estimate_logpdf(
+        (log_posterior, _) = DiscreteHMM.estimate_logpdf(
             key, latent_sequence, config, observation_sequence
         )
-        return key, DiscreteHMMInferenceProblem(
+        return DiscreteHMMInferenceProblem(
             initial_state,
             log_posterior,
             log_data_marginal,

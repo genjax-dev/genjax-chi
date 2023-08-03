@@ -105,30 +105,30 @@ class CustomProposalImportanceSampling(Pytree):
     ):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
+        p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys,
             (observations, *proposal_args),
         )
 
         def _inner(key, proposal_chm, model_args):
             chm = proposal_chm.safe_merge(observations)
-            key, (w, m_tr) = self.model.importance(
+            (w, m_tr) = self.model.importance(
                 key,
                 chm,
                 model_args,
             )
-            return key, (w, m_tr)
+            return (w, m_tr)
 
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, (lws, _) = jax.vmap(_inner, in_axes=(0, 0, None))(
+        (lws, _) = jax.vmap(_inner, in_axes=(0, 0, None))(
             sub_keys, p_trs.strip(), model_args
         )
         lws = lws - p_trs.get_score()
         log_total_weight = jax.scipy.special.logsumexp(lws)
         log_normalized_weights = lws - log_total_weight
         log_ml_estimate = log_total_weight - jnp.log(self.num_particles)
-        return key, (p_trs, log_normalized_weights, log_ml_estimate)
+        return (p_trs, log_normalized_weights, log_ml_estimate)
 
     @typecheck
     def __call__(self, key: PRNGKey, choice_map: ChoiceMap, *args):
@@ -161,7 +161,7 @@ class BootstrapSamplingImportanceResampling(Pytree):
         model_args: Tuple,
     ):
         key, sub_keys = slash(key, self.num_particles)
-        _, (lws, trs) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
+        (lws, trs) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
             sub_keys, obs, model_args
         )
         log_total_weight = jax.scipy.special.logsumexp(lws)
@@ -171,7 +171,7 @@ class BootstrapSamplingImportanceResampling(Pytree):
         ind = jax.random.categorical(sub_key, log_normalized_weights)
         tr = jtu.tree_map(lambda v: v[ind], trs)
         lnw = log_normalized_weights[ind]
-        return key, (tr, lnw, log_ml_estimate)
+        return (tr, lnw, log_ml_estimate)
 
     @typecheck
     def __call__(self, key: PRNGKey, choice_map: ChoiceMap, *args):
@@ -209,7 +209,7 @@ class CustomProposalSamplingImportanceResampling(Pytree):
     ):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
+        p_trs = jax.vmap(self.proposal.simulate, in_axes=(0, None, None))(
             sub_keys,
             observations,
             proposal_args,
@@ -217,7 +217,7 @@ class CustomProposalSamplingImportanceResampling(Pytree):
 
         def _inner(key, proposal):
             constraints = observations.safe_merge(proposal)
-            _, (lws, _) = self.model.importance(key, constraints, model_args)
+            (lws, _) = self.model.importance(key, constraints, model_args)
             return lws
 
         key, sub_keys = slash(key, self.num_particles)
@@ -230,7 +230,7 @@ class CustomProposalSamplingImportanceResampling(Pytree):
         ind = jax.random.categorical(sub_key, log_normalized_weights)
         tr = jtu.tree_map(lambda v: v[ind], p_trs)
         lnw = log_normalized_weights[ind]
-        return key, (tr, lnw, log_ml_estimate)
+        return (tr, lnw, log_ml_estimate)
 
     @typecheck
     def __call__(self, key: PRNGKey, choice_map: ChoiceMap, *args):

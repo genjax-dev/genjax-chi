@@ -22,7 +22,6 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.inference.smc.state import SMCState
-from genjax._src.utilities import slash
 
 
 @dispatch
@@ -32,12 +31,12 @@ def smc_initialize(
     model_args: Tuple,
     obs: ChoiceMap,
     n_particles: Int,
-) -> Tuple[PRNGKey, SMCState]:
-    key, sub_keys = slash(key, n_particles)
-    _, (lws, particles) = jax.vmap(model.importance, in_axes=(0, None, None))(
+) -> SMCState:
+    sub_keys = jax.random.split(key, n_particles)
+    (lws, particles) = jax.vmap(model.importance, in_axes=(0, None, None))(
         sub_keys, obs, model_args
     )
-    return key, SMCState(n_particles, particles, lws, 0.0, True)
+    return SMCState(n_particles, particles, lws, 0.0, True)
 
 
 @dispatch
@@ -50,8 +49,9 @@ def smc_initialize(
     obs: ChoiceMap,
     n_particles: Int,
 ) -> Tuple[PRNGKey, SMCState]:
-    key, sub_keys = slash(key, n_particles)
-    sub_keys, (_, proposal_scores, proposals) = jax.vmap(
+    key, sub_key = jax.random.split(key)
+    sub_keys = jax.random.split(sub_key, n_particles)
+    (_, proposal_scores, proposals) = jax.vmap(
         proposal.propose, in_axes=(0, None, None)
     )(sub_keys, obs, proposal_args)
 
@@ -60,7 +60,7 @@ def smc_initialize(
         _, (model_score, particle) = model.importance(key, constraints, model_args)
         return model_score, particle
 
+    sub_keys = jax.random.split(key, n_particles)
     model_scores, particles = jax.vmap(_inner)(sub_keys, proposals)
     lws = model_scores - proposal_scores
-
-    return key, SMCState(n_particles, particles, lws, 0.0, True)
+    return SMCState(n_particles, particles, lws, 0.0, True)

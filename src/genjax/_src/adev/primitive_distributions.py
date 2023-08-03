@@ -41,9 +41,9 @@ identity = lambda v: v
 @dataclasses.dataclass
 class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
     def simulate(self, key, args):
-        key, tr = normal.simulate(key, args)
+        tr = normal.simulate(key, args)
         v = tr.get_retval()
-        return key, v
+        return v
 
     def grad_estimate(self, key, primals, tangents):
         return self.reinforce_estimate(self, key, primals, tangents, identity)
@@ -54,8 +54,8 @@ class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
         key, sub_key = jax.random.split(key)
         v = normal.sample(sub_key, μ, σ)
         lp = normal.logpdf(v, μ, σ)
-        key, r_primal, r_tangent = kont(key, [v], [1.0])
-        return key, [r_primal], [r_tangent * lp]
+        r_primal, r_tangent = kont([v], [1.0])
+        return [r_primal], [r_tangent * lp]
 
     def mvd_estimate(self, key, duals, kont):
         raise NotImplementedError
@@ -71,9 +71,9 @@ register(Normal, ADEVPrimNormal)
 @dataclasses.dataclass
 class ADEVPrimBernoulli(ADEVPrimitive, SupportsREINFORCE):
     def simulate(self, key, args):
-        key, tr = bernoulli.simulate(key, args)
+        tr = bernoulli.simulate(key, args)
         v = tr.get_retval()
-        return key, v
+        return v
 
     def grad_estimate(self, key, primals, tangents):
         return self.reinforce_estimate(self, key, primals, tangents, identity)
@@ -81,8 +81,7 @@ class ADEVPrimBernoulli(ADEVPrimitive, SupportsREINFORCE):
     def reinforce_estimate(self, key, primals, tangents, kont):
         (p,) = primals
         (p_tangent,) = tangents
-        key, sub_key = jax.random.split(key)
-        key, b = bernoulli.sample(sub_key, p)
+        b = bernoulli.sample(key, p)
         retdual = kont(b)
         l_primal, l_tangent = retdual.primal, retdual.tangent
         dlp = jax.lax.switch(
@@ -90,7 +89,7 @@ class ADEVPrimBernoulli(ADEVPrimitive, SupportsREINFORCE):
             lambda *_: jnp.log(p_tangent),
             lambda *_: jnp.log(1 - p_tangent),
         )
-        return key, (l_primal, l_tangent + l_primal * dlp.tangent)
+        return (l_primal, l_tangent + l_primal * dlp.tangent)
 
 
 register(Bernoulli, ADEVPrimBernoulli)
@@ -108,15 +107,20 @@ class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
         return key, v
 
     def grad_estimate(self, key, primals, tangents):
-        return self.reinforce_estimate(self, key, primals, tangents, identity)
+        return self.reinforce_estimate(
+            self,
+            key,
+            primals,
+            tangents,
+            identity,
+        )
 
     def reinforce_estimate(self, key, primals, tangents, kont):
         pass
 
     def mvd_estimate(self, key, primals, _, kont):
         (θ,) = primals
-        key, sub_key = jax.random.split(key)
-        key, x_minus = poisson.sample(sub_key, θ)
+        x_minus = poisson.sample(key, θ)
         x_plus = x_minus + 1
         y_plus = kont(x_plus)
         y_minus = kont(x_minus)

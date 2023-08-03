@@ -39,25 +39,24 @@ class MetropolisHastings(MCMCKernel):
         model = trace.get_gen_fn()
         model_args = trace.get_args()
         proposal_args_fwd = (trace.get_choices(), *proposal_args)
-        key, proposal_tr = self.proposal.simulate(key, proposal_args_fwd)
+        key, sub_key = jax.random.split(key)
+        proposal_tr = self.proposal.simulate(sub_key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
         diffs = Diff.no_change(model_args)
-        key, (_, weight, new, discard) = model.update(
-            key, trace, proposal_tr.strip(), diffs
+        key, sub_key = jax.random.split(key)
+        (_, weight, new, discard) = model.update(
+            sub_key, trace, proposal_tr.strip(), diffs
         )
         proposal_args_bwd = (new, *proposal_args)
-        key, (bwd_weight, _) = self.proposal.importance(key, discard, proposal_args_bwd)
-        alpha = weight - fwd_weight + bwd_weight
         key, sub_key = jax.random.split(key)
+        (bwd_weight, _) = self.proposal.importance(sub_key, discard, proposal_args_bwd)
+        alpha = weight - fwd_weight + bwd_weight
         check = jnp.log(random.uniform(sub_key)) < alpha
-        return (
-            key,
-            # TODO: Use WHERE here (not COND).
-            jax.lax.cond(
-                check,
-                lambda *args: (new, True),
-                lambda *args: (trace, False),
-            ),
+        # TODO: Use WHERE here (not COND).
+        return jax.lax.cond(
+            check,
+            lambda *args: (new, True),
+            lambda *args: (trace, False),
         )
 
     def reversal(self):

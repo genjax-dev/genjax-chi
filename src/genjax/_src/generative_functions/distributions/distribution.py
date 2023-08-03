@@ -41,7 +41,6 @@ from genjax._src.core.transforms.incremental import static_check_tree_leaves_dif
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
@@ -105,15 +104,15 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
     def __abstract_call__(self, *args):
         # Abstract evaluation: value here doesn't matter, only the type.
         key = jax.random.PRNGKey(0)
-        _, (_, v) = self.random_weighted(key, *args)
+        (_, v) = self.random_weighted(key, *args)
         return v
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> TraceType:
         # `get_trace_type` is compile time - the key value
         # doesn't matter, just the type.
-        key = jax.random.PRNGKey(1)
-        _, (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
+        key = jax.random.PRNGKey(0)
+        (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
             key, *args
         )
         return tt_lift(ttype)
@@ -128,11 +127,13 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     @typecheck
     def simulate(
-        self, key: PRNGKey, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, DistributionTrace]:
-        key, (w, v) = self.random_weighted(key, *args, **kwargs)
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> DistributionTrace:
+        (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
-        return key, tr
+        return tr
 
     @dispatch
     def importance(
@@ -140,10 +141,9 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: EmptyChoiceMap,
         args: Tuple,
-        **kwargs,
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, DistributionTrace]]:
-        key, tr = self.simulate(key, args, **kwargs)
-        return key, (0.0, tr)
+    ) -> Tuple[FloatArray, DistributionTrace]:
+        tr = self.simulate(key, args)
+        return (0.0, tr)
 
     @dispatch
     def importance(
@@ -151,8 +151,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: ValueChoiceMap,
         args: Tuple,
-        **kwargs,
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, DistributionTrace]]:
+    ) -> Tuple[FloatArray, DistributionTrace]:
 
         # If it's not empty, we should check if it is a mask.
         # If it is a mask, we need to see if it is active or not,
@@ -164,27 +163,24 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             v = v.unmask()
 
             def _active(key, v, args):
-                key, w = self.estimate_logpdf(key, v, *args)
-                return key, v, w
+                w = self.estimate_logpdf(key, v, *args)
+                return v, w
 
             def _inactive(key, v, _):
                 w = 0.0
-                key, (_, v) = self.random_weighted(key, *args)
-                return key, v, w
+                (_, v) = self.random_weighted(key, *args)
+                return v, w
 
-            key, v, w = concrete_cond(active, _active, _inactive, key, v, args)
+            v, w = concrete_cond(active, _active, _inactive, key, v, args)
             score = w
 
         # Otherwise, we just estimate the logpdf of the value
         # we got out of the choice map.
         else:
-            key, w = self.estimate_logpdf(key, v, *args)
+            w = self.estimate_logpdf(key, v, *args)
             score = w
 
-        return key, (
-            w,
-            DistributionTrace(self, args, v, score),
-        )
+        return (w, DistributionTrace(self, args, v, score))
 
     @dispatch
     def update(
@@ -193,8 +189,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: DistributionTrace,
         constraints: EmptyChoiceMap,
         argdiffs: Tuple,
-        **kwargs,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
+    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
         retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), v)
@@ -202,15 +197,15 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         # If no change to arguments, no need to update.
         if static_check_no_change(argdiffs):
-            return key, (retval_diff, 0.0, prev, discard)
+            return (retval_diff, 0.0, prev, discard)
 
         # Otherwise, we must compute an incremental weight.
         else:
             args = tree_diff_primal(argdiffs)
-            key, fwd = self.estimate_logpdf(key, v, *args)
+            fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
-            return key, (retval_diff, fwd - bwd, new_tr, discard)
+            return (retval_diff, fwd - bwd, new_tr, discard)
 
     @dispatch
     def update(
@@ -219,8 +214,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: DistributionTrace,
         constraints: ValueChoiceMap,
         argdiffs: Tuple,
-        **kwargs,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, DistributionTrace, Any]]:
+    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primal(argdiffs)
         v = constraints.get_leaf_value()
@@ -228,7 +222,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             check, value = v.mask, v.value
 
             def _fallback(key):
-                key, (retdiff, w, new_tr, discard) = self.update(
+                (retdiff, w, new_tr, discard) = self.update(
                     key, prev, EmptyChoiceMap(), argdiffs
                 )
                 primal = tree_diff_primal(retdiff)
@@ -237,29 +231,32 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
                 coerce_to_unknown = jtu.tree_map(
                     lambda v: diff(v, UnknownChange), primal
                 )
-                return key, (coerce_to_unknown, w, new_tr, discard)
+                return (coerce_to_unknown, w, new_tr, discard)
 
             def _active(key):
                 return self.update(key, prev, ValueChoiceMap(value), argdiffs)
 
             return concrete_cond(check, _active, _fallback, key)
         else:
-            key, fwd = self.estimate_logpdf(key, v, *args)
+            fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             w = fwd - bwd
             new_tr = DistributionTrace(self, args, v, fwd)
             discard = mask(True, prev.get_choices())
             retval_diff = jtu.tree_map(lambda x: diff(x, UnknownChange), v)
 
-            return key, (retval_diff, w, new_tr, discard)
+            return (retval_diff, w, new_tr, discard)
 
     @typecheck
     def assess(
-        self, key: PRNGKey, evaluation_point: ValueChoiceMap, args: Tuple, **kwargs
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
+        self,
+        key: PRNGKey,
+        evaluation_point: ValueChoiceMap,
+        args: Tuple,
+    ) -> Tuple[Any, FloatArray]:
         v = evaluation_point.get_leaf_value()
-        key, score = self.estimate_logpdf(key, v, *args)
-        return key, (v, score)
+        score = self.estimate_logpdf(key, v, *args)
+        return (v, score)
 
 
 #####
@@ -320,7 +317,7 @@ class ExactDensity(Distribution):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            tr = genjax.normal.simulate(key, (0.0, 1.0))
             print(console.render(tr))
             ```
         """
@@ -331,59 +328,10 @@ class ExactDensity(Distribution):
         that value under the distribution."""
 
     def random_weighted(self, key, *args, **kwargs):
-        key, sub_key = jax.random.split(key)
-        v = self.sample(sub_key, *args, **kwargs)
+        v = self.sample(key, *args, **kwargs)
         w = self.logpdf(v, *args, **kwargs)
-        return key, (w, v)
+        return (w, v)
 
     def estimate_logpdf(self, key, v, *args, **kwargs):
         w = self.logpdf(v, *args, **kwargs)
-        return key, w
-
-
-#####
-# Product
-#####
-
-
-@dataclass
-class Product(Distribution):
-    components: List[Distribution]
-
-    def flatten(self):
-        return (self.components,), ()
-
-    @classmethod
-    def new(cls, *other: Distribution):
-        v = Product([])
-        for sub in other:
-            v.append(sub)
-        return v
-
-    def append(self, other: Distribution):
-        n = Product(self.components)
-        if isinstance(other, Product):
-            for sub in other.components:
-                n.append(sub)
-        else:
-            n.components.append(other)
-        return n
-
-    @typecheck
-    def random_weighted(self, key: PRNGKey, *args):
-        assert len(args) == len(self.components)
-        tw, ret = 0.0, []
-        for (op_args, op) in zip(args, self.components):
-            key, (w, v) = op.random_weighted(key, *op_args)
-            tw += w
-            ret.append(v)
-        return key, (tw, (*ret,))
-
-    @typecheck
-    def estimate_logpdf(self, key: PRNGKey, v: Tuple, *args):
-        assert len(args) == len(self.components)
-        tw = 0.0
-        for (op, op_args, r) in zip(self.components, args, v):
-            key, w = op.estimate_logpdf(key, r, *op_args)
-            tw += w
-        return key, tw
+        return w

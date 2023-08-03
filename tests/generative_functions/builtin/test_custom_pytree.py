@@ -60,12 +60,12 @@ class TestCustomPytree:
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
         fn = jax.jit(genjax.simulate(simple_normal))
-        key, tr = fn(key, (init_tree,))
+        tr = fn(key, (init_tree,))
         chm = tr.get_choices()
-        _, (score1, _) = genjax.normal.importance(
+        (score1, _) = genjax.normal.importance(
             key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
         )
-        _, (score2, _) = genjax.normal.importance(
+        (score2, _) = genjax.normal.importance(
             key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
         )
         test_score = score1 + score2
@@ -75,9 +75,9 @@ class TestCustomPytree:
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
         fn = jax.jit(genjax.simulate(custom_normal))
-        key, tr = fn(key, (init_tree,))
+        tr = fn(key, (init_tree,))
         chm = tr.get_choices()
-        _, (score, _) = genjax.normal.importance(
+        (score, _) = genjax.normal.importance(
             key, chm.get_subtree("y").get_choices(), (init_tree.x, init_tree.y)
         )
         test_score = score
@@ -88,12 +88,12 @@ class TestCustomPytree:
         init_tree = CustomTree(3.0, 5.0)
         chm = genjax.choice_map({"y1": 5.0})
         fn = jax.jit(genjax.importance(simple_normal))
-        key, (w, tr) = fn(key, chm, (init_tree,))
+        (w, tr) = fn(key, chm, (init_tree,))
         chm = tr.get_choices()
-        _, (score1, _) = genjax.normal.importance(
+        (score1, _) = genjax.normal.importance(
             key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
         )
-        _, (score2, _) = genjax.normal.importance(
+        (score2, _) = genjax.normal.importance(
             key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
         )
         test_score = score1 + score2

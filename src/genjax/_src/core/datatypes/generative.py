@@ -160,7 +160,7 @@ class Trace(ChoiceMap, Tree):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            tr = genjax.normal.simulate(key, (0.0, 1.0))
             retval = tr.get_retval()
             chm = tr.get_choices()
             v = chm.get_leaf_value()
@@ -186,7 +186,7 @@ class Trace(ChoiceMap, Tree):
                 return x
 
             key = jax.random.PRNGKey(314159)
-            key, tr = model.simulate(key, ())
+            tr = model.simulate(key, ())
             score = tr.get_score()
             x_score = bernoulli.logpdf(tr["x"], 0.3)
             y_score = bernoulli.logpdf(tr["y"], 0.3)
@@ -218,7 +218,7 @@ class Trace(ChoiceMap, Tree):
                 return x
 
             key = jax.random.PRNGKey(314159)
-            key, tr = model.simulate(key, ())
+            tr = model.simulate(key, ())
             chm = tr.get_choices()
             print(console.render(chm))
             ```
@@ -236,7 +236,7 @@ class Trace(ChoiceMap, Tree):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            tr = genjax.normal.simulate(key, (0.0, 1.0))
             gen_fn = tr.get_gen_fn()
             print(console.render(gen_fn))
             ```
@@ -261,7 +261,7 @@ class Trace(ChoiceMap, Tree):
                 return x
 
             key = jax.random.PRNGKey(314159)
-            key, tr = model.simulate(key, ())
+            tr = model.simulate(key, ())
             selection = genjax.select("x")
             x_score = tr.project(selection)
             x_score_t = genjax.bernoulli.logpdf(tr["x"], 0.3)
@@ -310,7 +310,7 @@ class Trace(ChoiceMap, Tree):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            tr = genjax.normal.simulate(key, (0.0, 1.0))
             chm = tr.strip()
             print(console.render(chm))
             ```
@@ -369,7 +369,7 @@ class Selection(Tree):
                 return x
 
             key = jax.random.PRNGKey(314159)
-            key, tr = model.simulate(key, ())
+            tr = model.simulate(key, ())
             chm = tr.strip()
             selection = genjax.select("x")
             filtered = selection.filter(chm)
@@ -396,7 +396,7 @@ class Selection(Tree):
                 return x
 
             key = jax.random.PRNGKey(314159)
-            key, tr = model.simulate(key, ())
+            tr = model.simulate(key, ())
             chm = tr.strip()
             selection = genjax.select("x")
             complement = selection.complement()
@@ -443,7 +443,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Trace]:
+    ) -> Trace:
         """> Given a `PRNGKey` and arguments, execute the generative function,
         returning a new `PRNGKey` and a trace.
 
@@ -456,7 +456,6 @@ class GenerativeFunction(Pytree):
             args: Arguments to the generative function.
 
         Returns:
-            key: A new (deterministically evolved) `PRNGKey`.
             tr: A trace capturing the data and inference data associated with the generative function invocation.
 
         Examples:
@@ -469,7 +468,7 @@ class GenerativeFunction(Pytree):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            key, tr = genjax.normal.simulate(key, (0.0, 1.0))
+            tr = genjax.normal.simulate(key, (0.0, 1.0))
             print(console.render(tr))
             ```
 
@@ -487,7 +486,7 @@ class GenerativeFunction(Pytree):
                 return y
 
             key = jax.random.PRNGKey(314159)
-            key, tr = model.simulate(key, ())
+            tr = model.simulate(key, ())
             print(console.render(tr))
             ```
         """
@@ -509,7 +508,6 @@ class GenerativeFunction(Pytree):
             args: Arguments to the generative function.
 
         Returns:
-            key: A new (deterministically evolved) `PRNGKey`.
             tup: A tuple `(retval, w, chm)` where `retval` is the return value from the generative function invocation, `w` is the log joint density (or an importance weight estimate, in the case where there is untraced randomness), and `chm` is the choice map assignment from the invocation.
 
         Examples:
@@ -544,11 +542,11 @@ class GenerativeFunction(Pytree):
             print(console.render(chm))
             ```
         """
-        key, tr = self.simulate(key, args)
+        tr = self.simulate(key, args)
         chm = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
-        return key, (retval, score, chm)
+        return (retval, score, chm)
 
     @abc.abstractmethod
     def importance(
@@ -556,7 +554,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[FloatArray, Trace]]:
+    ) -> Tuple[FloatArray, Trace]:
         """> Given a `PRNGKey`, a choice map (constraints), and arguments,
         execute the generative function, returning a new `PRNGKey`, a single-
         sample importance weight estimate of the conditional density evaluated
@@ -579,7 +577,7 @@ class GenerativeFunction(Pytree):
         trace: Trace,
         new: ChoiceMap,
         diffs: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, Trace, ChoiceMap]]:
+    ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
         pass
 
     @abc.abstractmethod
@@ -588,7 +586,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray]]:
+    ) -> Tuple[Any, FloatArray]:
         pass
 
 
@@ -601,7 +599,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         # This should occur only during abstract evaluation,
         # the fact that the value has type PRNGKey is all that matters.
         key = jax.random.PRNGKey(0)
-        _, tr = self.simulate(key, args)
+        tr = self.simulate(key, args)
         retval = tr.get_retval()
         return retval
 
@@ -610,37 +608,34 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         key: PRNGKey,
         fixed: ChoiceMap,
     ) -> Tuple[
-        PRNGKey,
         Callable[[ChoiceMap, Tuple], FloatArray],
         Callable[[ChoiceMap, Tuple], Any],
     ]:
-        key, sub_key = jax.random.split(key)
-
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            _, (_, score) = self.assess(sub_key, merged, args)
+            _, (_, score) = self.assess(key, merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            _, (retval, _) = self.assess(sub_key, merged, args)
+            _, (retval, _) = self.assess(key, merged, args)
             return retval
 
-        return key, score, retval
+        return score, retval
 
     # A higher-level gradient API - it relies upon `unzip`,
     # but provides convenient access to first-order gradients.
     def choice_grad(self, key, trace, selection):
         fixed = selection.complement().filter(trace.strip())
         chm = selection.filter(trace.strip())
-        key, scorer, _ = self.unzip(key, fixed)
+        scorer, _ = self.unzip(key, fixed)
         grad, nograd = tree_grad_split(
             (chm, trace.get_args()),
         )
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
-        return key, choice_gradient_tree
+        return choice_gradient_tree
 
 
 ########################

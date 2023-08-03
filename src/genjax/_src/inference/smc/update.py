@@ -21,7 +21,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.inference.smc.state import SMCState
 from genjax._src.inference.smc.utils import dynamic_check_empty
-from genjax._src.utilities import slash
 
 
 @dispatch
@@ -30,12 +29,12 @@ def smc_update(
     state: SMCState,
     new_argdiffs: Tuple,
     obs: ChoiceMap,
-) -> Tuple[PRNGKey, SMCState]:
+) -> SMCState:
     target_model = state.get_target_gen_fn()
     particles = state.get_particles()
     n_particles = state.get_num_particles()
-    key, sub_keys = slash(key, n_particles)
-    _, (_, log_weights, particles, discard) = jax.vmap(
+    sub_keys = jax.random.split(key, n_particles)
+    (_, log_weights, particles, discard) = jax.vmap(
         target_model.update, in_axes=(0, 0, None, None)
     )(sub_keys, particles, obs, new_argdiffs)
     dynamic_check_empty(discard)
@@ -46,4 +45,4 @@ def smc_update(
         0.0,
         dynamic_check_empty(discard),
     )
-    return key, new_state
+    return new_state
