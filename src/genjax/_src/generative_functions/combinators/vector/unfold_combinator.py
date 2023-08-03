@@ -471,19 +471,19 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             (prev, chm) = slice
             key, sub_key = jax.random.split(key)
 
-            (retdiff, w, tr, discard) = self.kernel.update(
+            (retval_diff, w, tr, discard) = self.kernel.update(
                 sub_key, prev, chm, (state, *static_args)
             )
 
             check = jnp.less(count, length + 1)
             count, state, score, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, retdiff, tr.get_score(), w),
+                lambda *args: (count + 1, retval_diff, tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
             return (count, key, state), (state, score, weight, tr, discard)
 
-        (_, _, state), (retdiff, score, w, tr, discard) = jax.lax.scan(
+        (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev, chm),
@@ -495,12 +495,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primal(retdiff),
+            tree_diff_primal(retval_diff),
             jnp.sum(score),
         )
 
         w = jnp.sum(w)
-        return (retdiff, w, unfold_tr, discard)
+        return (retval_diff, w, unfold_tr, discard)
 
     @dispatch
     def _update_specialized(
@@ -557,23 +557,23 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                     key, sub_chm, (state_primal, *static_args)
                 )
                 primal_state = new_tr.get_retval()
-                retdiff = tree_diff_unknown_change(primal_state)
+                retval_diff = tree_diff_unknown_change(primal_state)
 
-                return (retdiff, w, new_tr)
+                return (retval_diff, w, new_tr)
 
             # Updating an existing index.
             def _update(key):
                 static_argdiffs = tree_diff_no_change(static_args)
-                (retdiff, w, new_tr, _) = self.kernel.update(
+                (retval_diff, w, new_tr, _) = self.kernel.update(
                     key, prev_slice, sub_chm, (state_diff, *static_argdiffs)
                 )
 
                 # TODO: c.f. message above on `UnknownChange`.
                 # Preserve the diff type across the loop
                 # iterations.
-                primal_state = tree_diff_primal(retdiff)
-                retdiff = tree_diff_unknown_change(primal_state)
-                return (retdiff, w, new_tr)
+                primal_state = tree_diff_primal(retval_diff)
+                retval_diff = tree_diff_unknown_change(primal_state)
+                return (retval_diff, w, new_tr)
 
             check = prev_length < index
 
