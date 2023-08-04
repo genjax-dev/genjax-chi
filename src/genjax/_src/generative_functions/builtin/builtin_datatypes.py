@@ -50,14 +50,6 @@ class BuiltinTrace(Trace):
             self.cache,
             self.score,
         ), ()
-    
-    def flatten_aux(self):
-        return (self.cache, )
-
-    def unflatten_aux(cls, interface_data: Tuple, aux_data: Tuple):
-        (gen_fn, args, retval, score, choices) = interface_data
-        (cache, ) = aux_data
-        return BuiltinTrace(gen_fn, args, retval, choices, cache, score)
 
     def get_gen_fn(self):
         return self.gen_fn
