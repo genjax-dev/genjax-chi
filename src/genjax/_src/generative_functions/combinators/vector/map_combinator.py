@@ -312,27 +312,28 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         prev: MapTrace,
         chm: IndexChoiceMap,
-        args: Tuple,
+        argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+        args = tree_diff_primal(argdiffs)
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
         key, sub_keys = slash(key, broadcast_dim_length)
 
-        def _update(key, index, prev, chm, args):
+        def _update(key, index, prev, chm, argdiffs):
             submap = chm.get_subtree(index)
-            return self.kernel.update(key, prev, submap, args)
+            return self.kernel.update(key, prev, submap, argdiffs)
 
         inner_trace = prev.inner
-        (rd, w, tr, d) = jax.vmap(_update, in_axes=(0, 0, 0, None, self.in_axes))(
-            sub_keys, index_array, inner_trace, chm, args
-        )
+        (retval_diff, w, tr, discard) = jax.vmap(
+            _update, in_axes=(0, 0, 0, None, self.in_axes)
+        )(sub_keys, index_array, inner_trace, chm, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        discard = VectorChoiceMap(d)
-        return (rd, w, map_tr, discard)
+        discard = VectorChoiceMap(discard)
+        return (retval_diff, w, map_tr, discard)
 
     @dispatch
     def update(
@@ -350,7 +351,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         )
         key, sub_keys = slash(key, broadcast_dim_length)
 
-        (retdiff, w, tr, discard) = jax.vmap(
+        (retval_diff, w, tr, discard) = jax.vmap(
             self.kernel.update, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
         )(sub_keys, prev.inner, chm.inner, argdiffs)
         w = jnp.sum(w)
@@ -358,7 +359,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         discard = VectorChoiceMap(discard)
-        return (retdiff, w, map_tr, discard)
+        return (retval_diff, w, map_tr, discard)
 
     # The choice map passed in here is empty, but perhaps
     # the arguments have changed.
@@ -371,10 +372,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
         def _fallback(key, prev, chm, argdiffs):
-            (retdiff, w, tr, d) = self.kernel.update(
+            (retval_diff, w, tr, d) = self.kernel.update(
                 key, prev, EmptyChoiceMap(), argdiffs
             )
-            return (retdiff, w, tr, d)
+            return (retval_diff, w, tr, d)
 
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
@@ -383,13 +384,13 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
-        (retdiff, w, tr, discard) = jax.vmap(
+        (retval_diff, w, tr, discard) = jax.vmap(
             _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
         )(sub_keys, prev.inner, chm, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
-        return (retdiff, w, map_tr, discard)
+        return (retval_diff, w, map_tr, discard)
 
     # TODO: I've had so many issues with getting this to work correctly
     # and not throw - and I'm not sure why it's been so finicky.

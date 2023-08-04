@@ -29,7 +29,6 @@ can have different shape/dtype choices. The resulting `SwitchTrace` will efficie
 from dataclasses import dataclass
 
 import jax
-import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
@@ -37,11 +36,9 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Sumtree
-from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import diff
-from genjax._src.core.transforms.incremental import static_check_is_diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -214,9 +211,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
             # Here, we create a Sumtree -- and we place the real trace
             # data inside of it.
-            args = jtu.tree_map(
-                tree_diff_primal, argdiffs, is_leaf=static_check_is_diff
-            )
+            args = tree_diff_primal(argdiffs)
             sum_pytree = self._create_sum_pytree(key, tr, args[1:])
             choices = list(sum_pytree.materialize_iterator())
             choice_map = SwitchChoiceMap(concrete_branch_index, choices)
@@ -262,7 +257,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             update_weight = w - prev.get_score()
             discard = mask(True, prev.strip())
             retval = tr.get_retval()
-            retdiff = diff(retval, UnknownChange)
+            retval_diff = tree_diff_unknown_change(retval)
 
             sum_pytree = self._create_sum_pytree(key, tr, args[1:])
             choices = list(sum_pytree.materialize_iterator())
@@ -271,7 +266,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             # Get all the metadata for update from the trace.
             score = tr.get_score()
             trace = SwitchTrace(self, choice_map, args, retval, score)
-            return (retdiff, update_weight, trace, discard)
+            return (retval_diff, update_weight, trace, discard)
 
         def _inner(br):
             return lambda key, prev, new, argdiffs: _inner_importance(
