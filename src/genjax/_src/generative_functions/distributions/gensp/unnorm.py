@@ -127,7 +127,7 @@ class UnnormalizedMeasureFunction(UnnormalizedMeasure):
         return AllSelection()
 
     def get_latents(self, v):
-        return self.latent_selection().filter(v.strip())
+        return v.strip().filter(self.latent_selection())
 
     def importance(self, key: PRNGKey, chm: ChoiceMap, args: Tuple):
         importance_fn = self.gen_fn.importance
