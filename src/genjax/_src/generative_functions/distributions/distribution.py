@@ -17,7 +17,6 @@ import abc
 from dataclasses import dataclass
 
 import jax
-import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
@@ -32,13 +31,11 @@ from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
-from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import NoChange
-from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
+from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
@@ -192,7 +189,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
     ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
-        retval_diff = jtu.tree_map(lambda v: Diff(v, NoChange), v)
+        retval_diff = tree_diff_no_change(v)
         discard = mask(False, prev.get_choices())
 
         # If no change to arguments, no need to update.
@@ -226,12 +223,11 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
                     key, prev, EmptyChoiceMap(), argdiffs
                 )
                 primal = tree_diff_primal(retdiff)
+
                 # Because we are pushing the update to depend dynamically on a mask flag value,
                 # we have to ensure that all branches return the same types of Pytree.
-                coerce_to_unknown = jtu.tree_map(
-                    lambda v: diff(v, UnknownChange), primal
-                )
-                return (coerce_to_unknown, w, new_tr, discard)
+                retdiff = tree_diff_unknown_change(primal)
+                return (retdiff, w, new_tr, discard)
 
             def _active(key):
                 return self.update(key, prev, ValueChoiceMap(value), argdiffs)
@@ -243,8 +239,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             w = fwd - bwd
             new_tr = DistributionTrace(self, args, v, fwd)
             discard = mask(True, prev.get_choices())
-            retval_diff = jtu.tree_map(lambda x: diff(x, UnknownChange), v)
-
+            retval_diff = tree_diff_unknown_change(v)
             return (retval_diff, w, new_tr, discard)
 
     @typecheck

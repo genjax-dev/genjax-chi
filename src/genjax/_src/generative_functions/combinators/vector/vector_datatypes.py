@@ -29,6 +29,7 @@ from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.pytree import tree_stack
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
@@ -269,9 +270,11 @@ class IndexChoiceMap(ChoiceMap):
 
     @classmethod
     @dispatch
-    def new(cls, indices: Union[List, IntArray], inner: ChoiceMap) -> ChoiceMap:
-        if isinstance(indices, List):
-            indices = jnp.array(indices)
+    def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
+        # Promote raw integers (or scalars) to non-null leading dim.
+        indices = jnp.array(indices)
+        if not indices.shape:
+            indices = indices[:, None]
 
         # Verify that dimensions are consistent before creating an
         # `IndexChoiceMap`.
@@ -285,21 +288,15 @@ class IndexChoiceMap(ChoiceMap):
 
     @classmethod
     @dispatch
-    def new(cls, indices: Union[List, IntArray], inner: dict) -> ChoiceMap:
-        if isinstance(indices, List):
-            indices = jnp.array(indices)
+    def new(cls, indices: List, inner: ChoiceMap) -> ChoiceMap:
+        indices = jnp.array(indices)
+        return IndexChoiceMap.new(indices, inner)
 
+    @classmethod
+    @dispatch
+    def new(cls, indices: Any, inner: Dict) -> ChoiceMap:
         inner = choice_map(inner)
-
-        # Verify that dimensions are consistent before creating an
-        # `IndexChoiceMap`.
-        _ = static_check_leaf_length((inner, indices))
-
-        # if you try to wrap around an EmptyChoiceMap, do nothing.
-        if isinstance(inner, EmptyChoiceMap):
-            return inner
-
-        return IndexChoiceMap(indices, inner)
+        return IndexChoiceMap.new(indices, inner)
 
     def is_empty(self):
         return self.inner.is_empty()
