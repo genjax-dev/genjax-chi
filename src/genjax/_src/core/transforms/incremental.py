@@ -324,6 +324,14 @@ def tree_diff(tree, change_tangent):
     return jtu.tree_map(lambda v: diff(v, change_tangent), tree)
 
 
+def tree_diff_no_change(tree):
+    return tree_diff(tree, NoChange)
+
+
+def tree_diff_unknown_change(tree):
+    return tree_diff(tree, UnknownChange)
+
+
 #################################
 # Generalized tangent transform #
 #################################
