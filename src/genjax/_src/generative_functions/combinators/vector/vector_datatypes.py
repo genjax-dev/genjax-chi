@@ -22,11 +22,10 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import HierarchicalSelection
+from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import choice_map
-from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.pytree import tree_stack
 from genjax._src.core.typing import Any
@@ -34,11 +33,9 @@ from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
-from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.vector.vector_utilities import (
     static_check_leaf_length,
 )
@@ -90,7 +87,7 @@ class IndexSelection(Selection):
         return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
 
     def get_subtree(self, addr):
-        raise NotImplementedError
+        return self.slice_selection.get_subtree(addr)
 
     def complement(self):
         return ComplementIndexSelection(self)
@@ -98,10 +95,10 @@ class IndexSelection(Selection):
 
 @dataclass
 class ComplementIndexSelection(IndexSelection):
-    index_selection: Selection
+    slice_selection: Selection
 
     def flatten(self):
-        return (self.index_selection,), ()
+        return (self.slice_selection,), ()
 
     @dispatch
     def has_subtree(self, addr: IntArray):
@@ -117,10 +114,10 @@ class ComplementIndexSelection(IndexSelection):
         )
 
     def get_subtree(self, addr):
-        raise NotImplementedError
+        return self.slice_selection.get_subtree(addr).complement()
 
     def complement(self):
-        return self.index_selection
+        return self.slice_selection
 
 
 #####
@@ -301,6 +298,29 @@ class IndexChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
+    @dispatch
+    def filter(
+        self,
+        selection: HierarchicalSelection,
+    ) -> ChoiceMap:
+        return IndexChoiceMap(self.indices, self.inner.filter(selection))
+
+    def has_subtree(self, addr):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    @dispatch
+    def filter(
+        self,
+        selection: IndexSelection,
+    ) -> ChoiceMap:
+        flags = jnp.isin(selection.indices, self.indices)
+        filtered_inner = self.inner.filter(selection.inner)
+        masked = mask(flags, filtered_inner)
+        return IndexChoiceMap(self.indices, masked)
+
     def has_subtree(self, addr):
         if not isinstance(addr, Tuple) and len(addr) == 1:
             return False
@@ -328,8 +348,7 @@ class IndexChoiceMap(ChoiceMap):
         return mask(jnp.isin(idx, self.indices), subtree)
 
     def get_selection(self):
-        inner_selection = self.inner.get_selection()
-        return IndexSelection.new(self.indices, inner_selection)
+        return self.inner.get_selection()
 
     def get_subtrees_shallow(self):
         raise NotImplementedError

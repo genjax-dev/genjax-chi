@@ -14,10 +14,10 @@
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import ComplementHierarchicalSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import HierarchicalComplementSelection
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
@@ -62,7 +62,7 @@ __all__ = [
     "none_select",
     "HierarchicalSelection",
     "select",
-    "HierarchicalComplementSelection",
+    "ComplementHierarchicalSelection",
     "GenerativeFunction",
     # Masking.
     "Mask",

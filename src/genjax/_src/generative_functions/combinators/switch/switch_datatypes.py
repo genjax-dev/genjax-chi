@@ -23,6 +23,7 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masking import mask
@@ -31,7 +32,6 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 
 
@@ -55,7 +55,7 @@ from genjax._src.core.typing import dispatch
 @dataclass
 class SwitchChoiceMap(ChoiceMap):
     index: IntArray
-    submaps: Sequence[Union[ChoiceMap, Trace]]
+    submaps: Sequence[ChoiceMap]
 
     def flatten(self):
         return (self.index, self.submaps), ()
@@ -63,6 +63,13 @@ class SwitchChoiceMap(ChoiceMap):
     def is_empty(self):
         flags = jnp.array([sm.is_empty() for sm in self.submaps])
         return flags[self.index]
+
+    def filter(
+        self,
+        selection: HierarchicalSelection,
+    ) -> ChoiceMap:
+        filtered_submaps = map(lambda chm: chm.filter(selection), self.submaps)
+        return SwitchChoiceMap(self.index, filtered_submaps)
 
     def has_subtree(self, addr):
         checks = list(map(lambda v: v.has_subtree(addr), self.submaps))
@@ -130,8 +137,7 @@ class SwitchChoiceMap(ChoiceMap):
         return itertools.chain(*sub_iterators)
 
     def get_selection(self):
-        subselections = list(map(lambda v: v.get_selection(), self.submaps))
-        return SwitchSelection.new(self.index, subselections)
+        raise NotImplementedError
 
     @dispatch
     def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
@@ -155,17 +161,6 @@ class SwitchChoiceMap(ChoiceMap):
             sub_tree.add(submap_tree)
         tree.add(sub_tree)
         return tree
-
-
-#####
-# SwitchSelection
-#####
-
-
-@dataclass
-class SwitchSelection(Selection):
-    index: IntArray
-    subselections: Sequence[Selection]
 
 
 #####
