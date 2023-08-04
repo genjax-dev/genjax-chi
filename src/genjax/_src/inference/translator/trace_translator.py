@@ -14,14 +14,14 @@
 
 from dataclasses import dataclass
 
-import jax
-
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import typecheck
-from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import Tuple
-from genjax._src.core.datatypes.generative import GenerativeFunction, ChoiceMap, Trace
+from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 from genjax._src.inference.translator.trace_kernel import TraceKernel
+
 
 ####################
 # Trace translator #
