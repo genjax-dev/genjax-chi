@@ -423,6 +423,9 @@ class Trace(ChoiceMap, Tree):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
 
+    def get_aux(self) -> Tuple:
+        raise NotImplementedError
+
     #################################
     # Default choice map interfaces #
     #################################
@@ -675,6 +678,13 @@ class GenerativeFunction(Pytree):
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
         pass
+
+    def restore_with_aux(
+        self,
+        interface_data: Tuple,
+        aux: Tuple,
+    ) -> Trace:
+        raise NotImplementedError
 
 
 @dataclasses.dataclass
