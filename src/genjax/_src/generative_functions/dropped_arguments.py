@@ -13,12 +13,14 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from genjax._src.core.datatypes.generative import (
-    Trace,
-    GenerativeFunction,
-    ChoiceMap,
-)
-from genjax._src.core.typing import Tuple, Any, FloatArray, PRNGKey
+
+from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
 
 
 @dataclass
@@ -37,6 +39,32 @@ class DroppedArgumentsTrace(Trace):
             self.inner_choice_map,
             self.aux,
         ), ()
+
+    def get_gen_fn(self):
+        return self.gen_fn
+
+    def get_args(self):
+        return ()
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+    def get_choices(self):
+        return self.inner_choice_map
+
+    def restore(self, original_arguments: Tuple):
+        interface_data = (
+            original_arguments,
+            self.get_retval(),
+            self.get_score(),
+            self.get_choices(),
+        )
+        aux = self.get_aux()
+        restored = self.gen_fn.restore_with_aux(interface_data, aux)
+        return restored
 
 
 @dataclass

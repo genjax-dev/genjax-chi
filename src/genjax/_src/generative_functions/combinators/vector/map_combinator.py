@@ -61,6 +61,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
 )
+from genjax._src.generative_functions.dropped_arguments import DroppedArgumentsTrace
 from genjax._src.utilities import slash
 
 
@@ -307,6 +308,29 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return self.importance(key, indchm, args)
 
     @dispatch
+    def maybe_restore_arguments_kernel_update(
+        self,
+        key: PRNGKey,
+        prev: DroppedArgumentsTrace,
+        submap: ChoiceMap,
+        original_arguments: Tuple,
+        argdiffs: Tuple,
+    ):
+        restored = prev.restore(original_arguments)
+        return self.kernel.update(key, restored, submap, argdiffs)
+
+    @dispatch
+    def maybe_restore_arguments_kernel_update(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        submap: ChoiceMap,
+        original_arguments: Tuple,
+        argdiffs: Tuple,
+    ):
+        return self.kernel.update(key, prev, submap, argdiffs)
+
+    @dispatch
     def update(
         self,
         key: PRNGKey,
@@ -315,19 +339,16 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
+        original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
         key, sub_keys = slash(key, broadcast_dim_length)
-
-        def _update(key, index, prev, chm, argdiffs):
-            submap = chm.get_subtree(index)
-            return self.kernel.update(key, prev, submap, argdiffs)
-
         inner_trace = prev.inner
         (retval_diff, w, tr, discard) = jax.vmap(
-            _update, in_axes=(0, 0, 0, None, self.in_axes)
-        )(sub_keys, index_array, inner_trace, chm, argdiffs)
+            self.maybe_restore_arguments_kernel_update,
+            in_axes=(0, 0, 0, None, self.in_axes, self.in_axes),
+        )(sub_keys, index_array, inner_trace, chm, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
@@ -344,6 +365,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
+        original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         prev_inaxes_tree = jtu.tree_map(
@@ -352,8 +374,9 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key, sub_keys = slash(key, broadcast_dim_length)
 
         (retval_diff, w, tr, discard) = jax.vmap(
-            self.kernel.update, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
-        )(sub_keys, prev.inner, chm.inner, argdiffs)
+            self.maybe_restore_arguments_kernel_update,
+            in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
+        )(sub_keys, prev.inner, chm.inner, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
@@ -371,22 +394,18 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: EmptyChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
-        def _fallback(key, prev, chm, argdiffs):
-            (retval_diff, w, tr, d) = self.kernel.update(
-                key, prev, EmptyChoiceMap(), argdiffs
-            )
-            return (retval_diff, w, tr, d)
-
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
         args = tree_diff_primal(argdiffs)
+        original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         key, sub_keys = slash(key, broadcast_dim_length)
         (retval_diff, w, tr, discard) = jax.vmap(
-            _fallback, in_axes=(0, prev_inaxes_tree, 0, self.in_axes)
-        )(sub_keys, prev.inner, chm, argdiffs)
+            self.maybe_restore_arguments_kernel_update,
+            in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
+        )(sub_keys, prev.inner, chm, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
