@@ -12,7 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datatypes import *
-from .hashabledict import *
-from .incremental import *
-from .serialization import *
+import abc
+from dataclasses import dataclass
+
+from genjax._src.core.datatypes.generative import Trace
+
+
+@dataclass
+class SerializationBackend:
+    @abc.abstractmethod
+    def serialize(self, path, tr: Trace):
+        pass
+
+    @abc.abstractmethod
+    def deserialize(self, path):
+        pass
