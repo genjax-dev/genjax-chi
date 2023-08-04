@@ -13,92 +13,77 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from genjax._src.core.datatypes.generative import Trace, GenerativeFunction, ChoiceMap
+from genjax._src.core.datatypes.generative import (
+    Trace,
+    GenerativeFunction,
+    ChoiceMap,
+)
 from genjax._src.core.typing import Tuple, Any, FloatArray, PRNGKey
 
 
 @dataclass
-class DroppedArgsTrace(Trace):
+class DroppedArgumentsTrace(Trace):
     gen_fn: GenerativeFunction
-    args: Tuple
     retval: Any
     score: FloatArray
     inner_choice_map: ChoiceMap
+    aux: Tuple
 
     def flatten(self):
         return (
             self.gen_fn,
-            self.args,
             self.retval,
             self.score,
             self.inner_choice_map,
+            self.aux,
         ), ()
 
 
 @dataclass
-class DroppedArgsGenerativeFunction(GenerativeFunction):
+class DroppedArgumentsGenerativeFunction(GenerativeFunction):
     gen_fn: GenerativeFunction
-    keep: Tuple
 
     def flatten(self):
-        return (self.gen_fn, self.keep), ()
+        return (self.gen_fn,), ()
 
     def simulate(
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> DroppedArgsTrace:
+    ) -> DroppedArgumentsTrace:
         tr = self.gen_fn.simulate(key, args)
-        inner_args = tr.get_args()
         inner_retval = tr.get_retval()
         inner_chm = tr.get_choices()
         inner_score = tr.get_score()
-        kept_args = inner_args[self.keep]
-        return DroppedArgsTrace(self, kept_args, inner_retval, inner_chm, inner_score)
+        aux = tr.get_aux()
+        return DroppedArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
 
     def importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DroppedArgsTrace]:
+    ) -> Tuple[FloatArray, DroppedArgumentsTrace]:
         w, tr = self.gen_fn.importance(key, choice_map, args)
-        inner_args = tr.get_args()
         inner_retval = tr.get_retval()
         inner_chm = tr.get_choices()
         inner_score = tr.get_score()
-        kept_args = inner_args[self.keep]
-        return w, DroppedArgsTrace(
-            self, kept_args, inner_retval, inner_chm, inner_score
-        )
+        aux = tr.get_aux()
+        return w, DroppedArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
 
-    # This is where the tricky Gen-breaking stuff happens.
     def update(
         self,
         key: PRNGKey,
-        prev: DroppedArgsTrace,
+        prev: DroppedArgumentsTrace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DroppedArgsTrace, ChoiceMap]:
-        (retval_diff, w, tr, discard) = self.gen_fn.update(
-            key, prev, choice_map, argdiffs
-        )
-        inner_args = tr.get_args()
-        inner_retval = tr.get_retval()
-        inner_chm = tr.get_choices()
-        inner_score = tr.get_score()
-        kept_args = inner_args[self.keep]
-        return (
-            retval_diff,
-            w,
-            DroppedArgsTrace(self, kept_args, inner_retval, inner_chm, inner_score),
-            discard,
-        )
+    ) -> Tuple[Any, FloatArray, DroppedArgumentsTrace, ChoiceMap]:
+        raise NotImplementedError
 
     def assess(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DroppedArgsTrace]:
+    ) -> Tuple[FloatArray, DroppedArgumentsTrace]:
         return self.gen_fn.assess(key, choice_map, args)

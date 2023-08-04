@@ -60,13 +60,6 @@ class DistributionTrace(Trace, Leaf):
     def flatten(self):
         return (self.gen_fn, self.args, self.value, self.score), ()
 
-    def flatten_aux(self):
-        return ()
-
-    def unflatten_aux(cls, interface_data: Tuple, aux_data: Tuple):
-        (gen_fn, args, retval, score, choice_map) = interface_data
-        return DistributionTrace(gen_fn, args, retval, score)
-
     def get_gen_fn(self):
         return self.gen_fn
 

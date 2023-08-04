@@ -269,14 +269,12 @@ class Trace(ChoiceMap, Tree):
             ```
         """
 
-    def get_aux(
-        self,
-    ) -> Tuple:
-        raise NotImplementedError
-
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
+
+    def get_aux(self) -> Tuple:
+        raise NotImplementedError
 
     #################################
     # Default choice map interfaces #
@@ -443,13 +441,6 @@ class GenerativeFunction(Pytree):
         shape = kwargs.get("shape", ())
         return Bottom(shape)
 
-    def get_trace_class(self):
-        raise NotImplementedError
-
-    def unflatten_aux(self, interface_data: Tuple, aux_data: Tuple):
-        trace_class = self.get_trace_class()
-        return trace_class.unflatten_aux(interface_data, aux_data)
-
     @abc.abstractmethod
     def simulate(
         self,
@@ -600,6 +591,13 @@ class GenerativeFunction(Pytree):
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
         pass
+
+    def restore_with_aux(
+        self,
+        interface_data: Tuple,
+        aux: Tuple,
+    ) -> Trace:
+        raise NotImplementedError
 
 
 @dataclasses.dataclass
