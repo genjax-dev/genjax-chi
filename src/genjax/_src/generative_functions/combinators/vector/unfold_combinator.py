@@ -34,10 +34,10 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_no_change
+from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
@@ -447,7 +447,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: IndexChoiceMap,
+        chm: ChoiceMap,
         length: Diff,
         state: Diff,
         *static_args: Diff,
@@ -471,19 +471,19 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             (prev, chm) = slice
             key, sub_key = jax.random.split(key)
 
-            (retdiff, w, tr, discard) = self.kernel.update(
+            (retval_diff, w, tr, discard) = self.kernel.update(
                 sub_key, prev, chm, (state, *static_args)
             )
 
             check = jnp.less(count, length + 1)
             count, state, score, weight = concrete_cond(
                 check,
-                lambda *args: (count + 1, retdiff, tr.get_score(), w),
+                lambda *args: (count + 1, retval_diff, tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
             )
             return (count, key, state), (state, score, weight, tr, discard)
 
-        (_, _, state), (retdiff, score, w, tr, discard) = jax.lax.scan(
+        (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev, chm),
@@ -495,12 +495,24 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primal(retdiff),
+            tree_diff_primal(retval_diff),
             jnp.sum(score),
         )
 
         w = jnp.sum(w)
-        return (retdiff, w, unfold_tr, discard)
+        return (retval_diff, w, unfold_tr, discard)
+
+    @dispatch
+    def _update_specialized(
+        self,
+        key: PRNGKey,
+        prev: UnfoldTrace,
+        chm: EmptyChoiceMap,
+        length: Diff,
+        state: Any,
+        *static_args: Any,
+    ):
+        raise NotImplementedError
 
     @dispatch
     def _update_specialized(
@@ -512,16 +524,13 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state: Any,
         *static_args: Any,
     ):
-        new_upper = tree_diff_primal(length)
         start_lower = jnp.min(chm.indices)
-        state = tree_diff_primal(state)
-        static_args = Diff.no_change(static_args)
+        new_upper = tree_diff_primal(length)
         prev_length = prev.get_args()[0]
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
-        state_diff = jtu.tree_map(
-            lambda v: diff(v, UnknownChange),
+        state_diff = tree_diff_unknown_change(
             concrete_cond(
                 start_lower
                 == 0,  # if the starting index is 0, we need to grab the state argument.
@@ -531,7 +540,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                     lambda v: v[start_lower - 1],
                     prev.get_retval(),
                 ),
-            ),
+            )
         )
         prev_inner_trace = prev.inner
 
@@ -539,35 +548,32 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             (key, w, state_diff, prev) = state
             sub_chm = chm.get_subtree(index)
             prev_slice = jtu.tree_map(lambda v: v[index], prev)
-            state_primal = tree_diff_primal(state_diff)
             key, sub_key = jax.random.split(key)
 
             # Extending to an index greater than the previous length.
             def _importance(key):
+                state_primal = tree_diff_primal(state_diff)
                 (w, new_tr) = self.kernel.importance(
                     key, sub_chm, (state_primal, *static_args)
                 )
-                retdiff = jtu.tree_map(
-                    lambda v: diff(v, UnknownChange), new_tr.get_retval()
-                )
+                primal_state = new_tr.get_retval()
+                retval_diff = tree_diff_unknown_change(primal_state)
 
-                return (retdiff, w, new_tr)
+                return (retval_diff, w, new_tr)
 
             # Updating an existing index.
             def _update(key):
-                (retdiff, w, new_tr, _) = self.kernel.update(
-                    key, prev_slice, sub_chm, (state_diff, *static_args)
+                static_argdiffs = tree_diff_no_change(static_args)
+                (retval_diff, w, new_tr, _) = self.kernel.update(
+                    key, prev_slice, sub_chm, (state_diff, *static_argdiffs)
                 )
 
                 # TODO: c.f. message above on `UnknownChange`.
                 # Preserve the diff type across the loop
                 # iterations.
-                primal_state = tree_diff_primal(retdiff)
-                retdiff = jtu.tree_map(
-                    lambda v: diff(v, UnknownChange),
-                    primal_state,
-                )
-                return (retdiff, w, new_tr)
+                primal_state = tree_diff_primal(retval_diff)
+                retval_diff = tree_diff_unknown_change(primal_state)
+                return (retval_diff, w, new_tr)
 
             check = prev_length < index
 
@@ -586,7 +592,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
-        (_, w, state_diff, new_inner_trace) = jax.lax.fori_loop(
+        (_, w, _, new_inner_trace) = jax.lax.fori_loop(
             start_lower,
             new_upper + 1,  # the bound semantics follow Python range semantics.
             _inner,
@@ -594,13 +600,19 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         )
 
         # Select the new return values.
+        checks = jnp.arange(0, self.max_length) < new_upper + 1
+
+        def _where(v1, v2):
+            extension = len(v1.shape) - 1
+            new_checks = checks.reshape(checks.shape + (1,) * extension)
+            return jnp.where(new_checks, v1, v2)
+
         retval = jtu.tree_map(
-            lambda v1, v2: jnp.where(
-                jnp.arange(0, self.max_length) < new_upper + 1, v1, v2
-            ),
+            _where,
             new_inner_trace.get_retval(),
             prev.get_retval(),
         )
+        retval_diff = tree_diff_unknown_change(retval)
         args = tree_diff_primal((length, state, *static_args))
 
         # TODO: is there a faster way to do this with the information I already have?
@@ -620,7 +632,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             retval,
             new_score,
         )
-        return (state_diff, w, new_tr, EmptyChoiceMap())
+        return (retval_diff, w, new_tr, EmptyChoiceMap())
 
     @dispatch
     def _update_specialized(
@@ -649,6 +661,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._runtime_check_bounds(args)
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
+            state = tree_diff_primal(state)
+            static_args = tree_diff_primal(static_args)
             return self._update_specialized(
                 key,
                 prev,
