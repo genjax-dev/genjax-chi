@@ -23,13 +23,11 @@ import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import NoneSelection
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import make_zero_trace
@@ -48,9 +46,6 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    ComplementIndexSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -58,9 +53,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorSelection,
 )
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
@@ -107,17 +99,10 @@ class UnfoldTrace(Trace):
         return self.score
 
     @dispatch
-    def project(self, selection: VectorSelection) -> FloatArray:
-        return jnp.sum(
-            jnp.where(
-                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
-                self.inner.project(selection.inner),
-                0.0,
-            )
-        )
-
-    @dispatch
-    def project(self, selection: IndexSelection) -> FloatArray:
+    def project(
+        self,
+        selection: IndexSelection,
+    ) -> FloatArray:
         inner_project = self.inner.project(selection.inner)
         return jnp.sum(
             jnp.where(
@@ -128,24 +113,17 @@ class UnfoldTrace(Trace):
         )
 
     @dispatch
-    def project(self, selection: ComplementIndexSelection) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
+    def project(
+        self,
+        selection: HierarchicalSelection,
+    ) -> FloatArray:
         return jnp.sum(
-            jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+            jnp.where(
+                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
+                self.inner.project(selection),
+                0.0,
+            )
         )
-
-    @dispatch
-    def project(self, selection: AllSelection) -> FloatArray:
-        return self.score
-
-    @dispatch
-    def project(self, selection: NoneSelection) -> FloatArray:
-        return 0.0
-
-    @dispatch
-    def project(self, selection: Selection) -> FloatArray:
-        selection = VectorSelection.new(selection)
-        return self.project(selection)
 
 
 #####

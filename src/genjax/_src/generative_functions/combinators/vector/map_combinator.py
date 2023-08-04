@@ -23,14 +23,12 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import NoneSelection
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.tracetypes import TraceType
 from genjax._src.core.transforms.incremental import tree_diff_primal
@@ -44,9 +42,6 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    ComplementIndexSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -54,9 +49,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorSelection,
 )
 from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
@@ -101,23 +93,23 @@ class MapTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project(self, selection: Selection) -> FloatArray:
-        if isinstance(selection, VectorSelection):
-            return jnp.sum(self.inner.project(selection.inner))
-        elif isinstance(selection, IndexSelection) or isinstance(
-            selection, ComplementIndexSelection
-        ):
-            inner_project = self.inner.project(selection.inner)
-            return jnp.sum(
-                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
-            )
-        elif isinstance(selection, AllSelection):
-            return self.score
-        elif isinstance(selection, NoneSelection):
-            return 0.0
-        else:
-            selection = VectorSelection.new(selection)
-            return self.project(selection)
+    @dispatch
+    def project(
+        self,
+        selection: IndexSelection,
+    ) -> FloatArray:
+        inner_project = self.inner.project(selection.inner)
+        return jnp.sum(
+            jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+        )
+
+    @dispatch
+    def project(
+        self,
+        selection: HierarchicalSelection,
+    ) -> FloatArray:
+        inner_project = self.inner.project(selection)
+        return jnp.sum(inner_project)
 
 
 #####

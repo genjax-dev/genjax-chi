@@ -16,8 +16,8 @@ import abc
 import dataclasses
 
 import jax
-import jax.tree_util as jtu
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import numpy as np
 import rich
 
@@ -39,7 +39,6 @@ from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
@@ -378,7 +377,21 @@ class Trace(ChoiceMap, Tree):
             ```
         """
 
-    @abc.abstractmethod
+    @dispatch
+    def project(
+        self,
+        selection: NoneSelection,
+    ) -> FloatArray:
+        return 0.0
+
+    @dispatch
+    def project(
+        self,
+        selection: AllSelection,
+    ) -> FloatArray:
+        return self.get_score()
+
+    @dispatch
     def project(self, selection: "Selection") -> FloatArray:
         """Given a `Selection`, return the total contribution to the joint log
         score of the addresses contained within the `Selection`.
@@ -404,6 +417,7 @@ class Trace(ChoiceMap, Tree):
             print(console.render((x_score_t, x_score)))
             ```
         """
+        raise NotImplementedError
 
     def update(self, key, choices, argdiffs):
         gen_fn = self.get_gen_fn()
@@ -415,6 +429,12 @@ class Trace(ChoiceMap, Tree):
 
     def is_empty(self):
         return self.strip().is_empty()
+
+    def filter(
+        self,
+        selection: Selection,
+    ) -> ChoiceMap:
+        return self.strip().filter(selection)
 
     def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         return self.strip().merge(other.strip())

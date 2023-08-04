@@ -62,9 +62,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     index_choice_map,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -72,9 +69,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    vector_select,
 )
 
 
@@ -89,8 +83,6 @@ __all__ = [
     "Switch",
     "VectorChoiceMap",
     "vector_choice_map",
-    "VectorSelection",
-    "vector_select",
     "IndexChoiceMap",
     "index_choice_map",
     "IndexSelection",

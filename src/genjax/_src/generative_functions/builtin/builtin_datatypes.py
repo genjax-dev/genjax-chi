@@ -14,11 +14,9 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
@@ -67,15 +65,10 @@ class BuiltinTrace(Trace):
         return self.args
 
     @dispatch
-    def project(self, selection: AllSelection):
-        return self.get_score()
-
-    @dispatch
-    def project(self, selection: NoneSelection):
-        return 0.0
-
-    @dispatch
-    def project(self, selection: HierarchicalSelection):
+    def project(
+        self,
+        selection: HierarchicalSelection,
+    ) -> FloatArray:
         weight = 0.0
         for (k, subtrace) in self.choices.get_subtrees_shallow():
             if selection.has_subtree(k):
