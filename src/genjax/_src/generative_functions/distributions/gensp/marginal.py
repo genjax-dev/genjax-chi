@@ -39,7 +39,7 @@ class Marginal(GenSPDistribution):
     def get_trace_type(self, *args):
         inner_type = self.p.get_trace_type(*args)
         selection = HierarchicalSelection.new([self.addr])
-        trace_type = selection.filter(inner_type)
+        trace_type = inner_type.filter(selection)
         return trace_type
 
     def random_weighted(self, key, *args):
@@ -48,7 +48,7 @@ class Marginal(GenSPDistribution):
         choices = tr.get_choices()
         val = choices[self.addr]
         selection = HierarchicalSelection.new([self.addr]).complement()
-        other_choices = selection.filter(choices)
+        other_choices = choices.filter(selection)
         target = Target.new(self.p, args, HierarchicalChoiceMap.new({self.addr: val}))
         key, (q_weight, _) = self.q.importance(
             key, ValueChoiceMap.new(other_choices), (target,)
