@@ -20,7 +20,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
@@ -37,15 +37,15 @@ from genjax._src.generative_functions import gentle
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
-from genjax._src.generative_functions.builtin.builtin_tracetype import (
-    trace_type_transform,
-)
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     importance_transform,
 )
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     simulate_transform,
+)
+from genjax._src.generative_functions.builtin.builtin_transforms import (
+    trace_type_transform,
 )
 from genjax._src.generative_functions.builtin.builtin_transforms import update_transform
 

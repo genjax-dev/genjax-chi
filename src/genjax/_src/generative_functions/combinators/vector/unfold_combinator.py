@@ -54,7 +54,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorTraceType,
 )
 
