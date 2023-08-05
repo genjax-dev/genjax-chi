@@ -53,7 +53,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorTraceType,
 )
-from genjax._src.generative_functions.dropped_arguments import DroppedArgumentsTrace
+from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.utilities import slash
 
 
@@ -303,7 +303,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     def maybe_restore_arguments_kernel_update(
         self,
         key: PRNGKey,
-        prev: DroppedArgumentsTrace,
+        prev: DropArgumentsTrace,
         submap: ChoiceMap,
         original_arguments: Tuple,
         argdiffs: Tuple,
