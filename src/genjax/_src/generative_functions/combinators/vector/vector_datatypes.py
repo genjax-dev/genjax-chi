@@ -87,18 +87,32 @@ class IndexSelection(Selection):
         return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
 
     def get_subtree(self, addr):
-        return self.slice_selection.get_subtree(addr)
+        return self.index_selection.get_subtree(addr)
 
     def complement(self):
         return ComplementIndexSelection(self)
 
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        sub_tree = Tree(f"[bold](Index,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
 
 @dataclass
 class ComplementIndexSelection(IndexSelection):
-    slice_selection: Selection
+    index_selection: Selection
+
+    def __init__(self, index_selection):
+        self.index_selection = index_selection
 
     def flatten(self):
-        return (self.slice_selection,), ()
+        return (self.index_selection,), ()
 
     @dispatch
     def has_subtree(self, addr: IntArray):
@@ -114,10 +128,20 @@ class ComplementIndexSelection(IndexSelection):
         )
 
     def get_subtree(self, addr):
-        return self.slice_selection.get_subtree(addr).complement()
+        return self.index_selection.get_subtree(addr).complement()
 
     def complement(self):
-        return self.slice_selection
+        return self.index_selection
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = Tree("[bold](Complement)")
+        self.index_selection.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
 
 
 #####
