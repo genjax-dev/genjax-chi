@@ -47,13 +47,13 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
+    SumTraceType,
+)
+from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchTrace,
-)
-from genjax._src.generative_functions.combinators.switch.switch_tracetypes import (
-    SumTraceType,
 )
 
 

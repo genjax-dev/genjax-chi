@@ -14,6 +14,7 @@
 
 import itertools
 from dataclasses import dataclass
+from typing import Sequence
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -26,6 +27,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -208,3 +210,44 @@ class SwitchTrace(Trace):
         switch_chm = self.get_choices()
         subtrace = switch_chm.submaps[concrete_index]
         return subtrace
+
+
+#####
+# SumTraceType
+#####
+
+
+@dataclass
+class SumTraceType(TraceType):
+    summands: Sequence[TraceType]
+
+    def flatten(self):
+        return (), (self.summands,)
+
+    def is_leaf(self):
+        return all(map(lambda v: v.is_leaf(), self.summands))
+
+    def get_leaf_value(self):
+        pass
+
+    def has_subtree(self, addr):
+        return any(map(lambda v: v.has_subtree(addr), self.summands))
+
+    def get_subtree(self, addr):
+        pass
+
+    def get_subtrees_shallow(self):
+        sub_iterators = map(
+            lambda v: v.get_subtrees_shallow(),
+            self.summands,
+        )
+        return itertools.chain(*sub_iterators)
+
+    def merge(self, other):
+        raise Exception("Not implemented.")
+
+    def __subseteq__(self, other):
+        return False
+
+    def get_rettype(self):
+        return self.summands[0].get_rettype()

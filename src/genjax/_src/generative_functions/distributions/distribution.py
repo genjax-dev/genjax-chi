@@ -27,9 +27,9 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff

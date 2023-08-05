@@ -30,7 +30,7 @@ from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -50,7 +50,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorTraceType,
 )
 from genjax._src.generative_functions.dropped_arguments import DroppedArgumentsTrace

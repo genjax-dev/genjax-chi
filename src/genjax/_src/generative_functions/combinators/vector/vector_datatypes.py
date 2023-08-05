@@ -25,6 +25,7 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.pytree import tree_stack
@@ -393,6 +394,48 @@ class IndexChoiceMap(ChoiceMap):
         self.inner.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
+
+
+#####
+# VectorTraceType
+#####
+
+
+@dataclass
+class VectorTraceType(TraceType):
+    inner: TraceType
+    length: int
+
+    def flatten(self):
+        return (), (self.inner, self.length)
+
+    def is_leaf(self):
+        return self.inner.is_leaf()
+
+    def get_leaf_value(self):
+        return self.inner.get_leaf_value()
+
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        v = self.inner.get_subtree(addr)
+        return VectorTraceType(v, self.length)
+
+    def get_subtrees_shallow(self):
+        def _inner(k, v):
+            return (k, VectorTraceType(v, self.length))
+
+        return map(lambda args: _inner(*args), self.inner.get_subtrees_shallow())
+
+    def merge(self, other):
+        raise Exception("Not implemented.")
+
+    def __subseteq__(self, other):
+        return False
+
+    def get_rettype(self):
+        return self.inner.get_rettype()
 
 
 ##############
