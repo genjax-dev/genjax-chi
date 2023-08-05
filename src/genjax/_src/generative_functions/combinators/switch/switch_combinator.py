@@ -325,3 +325,9 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 ##############
 
 Switch = SwitchCombinator.new
+
+
+def switch_combinator(
+    *gen_fn: JAXGenerativeFunction,
+):
+    return Switch(*gen_fn)

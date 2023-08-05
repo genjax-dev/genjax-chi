@@ -30,6 +30,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import static_check_no_change
@@ -719,3 +720,15 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 ##############
 
 Unfold = UnfoldCombinator.new
+
+
+@dispatch
+def unfold_combinator(max_length: IntArray):
+    assert is_concrete(max_length)
+    return lambda gen_fn: Unfold(gen_fn, max_length)
+
+
+@dispatch
+def unfold_combinator(gen_fn: GenerativeFunction, max_length: IntArray):
+    assert is_concrete(max_length)
+    return Unfold(gen_fn, max_length)

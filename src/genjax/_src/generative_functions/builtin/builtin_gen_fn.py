@@ -237,4 +237,4 @@ def partial(gen_fn, *static_args):
 # Shorthands #
 ##############
 
-lang = BuiltinGenerativeFunction.new
+builtin_generative_function = BuiltinGenerativeFunction.new
