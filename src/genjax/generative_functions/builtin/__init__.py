@@ -16,7 +16,9 @@ from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTr
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     BuiltinGenerativeFunction,
 )
-from genjax._src.generative_functions.builtin.builtin_gen_fn import lang
+from genjax._src.generative_functions.builtin.builtin_gen_fn import (
+    builtin_generative_function,
+)
 from genjax._src.generative_functions.builtin.builtin_gen_fn import partial
 from genjax._src.generative_functions.builtin.builtin_gen_fn import save
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
@@ -25,10 +27,10 @@ from genjax._src.generative_functions.builtin.builtin_primitives import trace
 
 __all__ = [
     "BuiltinGenerativeFunction",
+    "builtin_generative_function",
     "BuiltinTrace",
     "trace",
     "cache",
     "save",
     "partial",
-    "lang",
 ]

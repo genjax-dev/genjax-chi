@@ -456,3 +456,18 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 ##############
 
 Map = MapCombinator.new
+
+
+@dispatch
+def map_combinator(
+    in_axes: Tuple[int, ...],
+):
+    return lambda gen_fn: Map(gen_fn, in_axes)
+
+
+@dispatch
+def map_combinator(
+    gen_fn: JAXGenerativeFunction,
+    in_axes: Tuple[int, ...],
+):
+    return Map(gen_fn, in_axes)
