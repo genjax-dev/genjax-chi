@@ -87,12 +87,22 @@ class Selection(Tree):
 
     def get_subtrees_shallow(self):
         raise Exception(
-            "Selection types do not expose get_subtrees_shallow.",
+            f"Selection of type {type(self)} does not implement get_subtrees_shallow.",
         )
 
     def __getitem__(self, addr):
         subselection = self.get_subtree(addr)
         return subselection
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = rich.tree.Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
 
 
 ############################
@@ -118,6 +128,14 @@ class NoneSelection(Selection, Leaf):
             "NoneSelection is a Selection: it does not provide a leaf choice value."
         )
 
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        tree = tree.add("[bold](None)")
+        return tree
+
 
 @dataclasses.dataclass
 class AllSelection(Selection, Leaf):
@@ -136,6 +154,14 @@ class AllSelection(Selection, Leaf):
         raise Exception(
             "AllSelection is a Selection: it does not provide a leaf choice value."
         )
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        tree = tree.add("[bold](All)")
+        return tree
 
 
 #####
@@ -773,6 +799,22 @@ class HierarchicalSelection(Selection):
         else:
             return value
 
+    def get_subtrees_shallow(self):
+        return map(
+            lambda v: (v[0], v[1].get_selection()),
+            self.trie.get_subtrees_shallow(),
+        )
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        for (k, v) in self.get_subtrees_shallow():
+            subk = tree.add(f"[bold]:{k}")
+            _ = v.__rich_tree__(subk)
+        return tree
+
 
 @dataclasses.dataclass
 class ComplementHierarchicalSelection(HierarchicalSelection):
@@ -793,6 +835,18 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
             return AllSelection()
         else:
             return value
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = Tree("[bold](Complement)")
+        for (k, v) in self.get_subtrees_shallow():
+            subk = sub_tree.add(f"[bold]:{k}")
+            _ = v.__rich_tree__(subk)
+        tree.add(sub_tree)
+        return tree
 
 
 ########################

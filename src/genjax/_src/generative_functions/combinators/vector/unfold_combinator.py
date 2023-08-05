@@ -315,19 +315,22 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 sub_choice_map = chm.get_subtree(count)
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
-                    sub_key, sub_choice_map, (state, *static_args))
+                    sub_key, sub_choice_map, (state, *static_args)
+                )
                 return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
 
             def _with_empty_choicemap(key, count, state):
                 sub_choice_map = EmptyChoiceMap()
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
-                    sub_key, sub_choice_map, (state, *static_args))
-                return key, count, tr, state, 0., 0.
-            
+                    sub_key, sub_choice_map, (state, *static_args)
+                )
+                return key, count, tr, state, 0.0, 0.0
+
             check = jnp.less(count, length + 1)
             key, count, tr, state, score, w = concrete_cond(
-                check, _with_choicemap, _with_empty_choicemap, key, count, state)
+                check, _with_choicemap, _with_empty_choicemap, key, count, state
+            )
 
             return (count, key, state), (w, score, tr, state)
 
