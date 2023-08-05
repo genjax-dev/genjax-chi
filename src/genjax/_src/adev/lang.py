@@ -383,7 +383,9 @@ def cps_jvp(f, ctx: Context):
     # Runs the interpreter.
     def _run_interpreter(main, kont, *args, **kwargs):
         with Cont.new() as interpreter:
-            return interpreter(ADEVTrace, main, kont, f, *args, **kwargs)
+            return interpreter.run_interpreter(
+                ADEVTrace, main, kont, f, *args, **kwargs
+            )
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)

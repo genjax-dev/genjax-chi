@@ -301,7 +301,7 @@ class ForwardInterpreter(Pytree):
             jax_util.safe_map(env.write, eqn.outvars, outvals)
         return jax_util.safe_map(env.read, jaxpr.outvars)
 
-    def __call__(self, trace_type, main, fn, *args, **kwargs):
+    def run_interpreter(self, trace_type, main, fn, *args, **kwargs):
         closed_jaxpr, (flat_args, _, out_tree) = staging.stage(fn)(*args, **kwargs)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr(trace_type, main, jaxpr, consts, flat_args)
@@ -372,7 +372,7 @@ class CPSInterpreter(Pytree):
 
         return eval_jaxpr_recurse(jaxpr.eqns, env, jaxpr.invars, args)
 
-    def __call__(self, trace_type, main, kont, fn, *args, **kwargs):
+    def run_interpreter(self, trace_type, main, kont, fn, *args, **kwargs):
         def _inner(*args, **kwargs):
             return kont(fn(*args, **kwargs))
 
@@ -435,7 +435,7 @@ def transform(f, ctx: Context, trace_type: Type[jc.Trace] = ContextualTrace):
     # Runs the interpreter.
     def _run_interpreter(main, *args, **kwargs):
         with Fwd.new() as interpreter:
-            return interpreter(trace_type, main, f, *args, **kwargs)
+            return interpreter.run_interpreter(trace_type, main, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)
@@ -461,7 +461,9 @@ def cps_transform(f, ctx: Context, trace_type: Type[jc.Trace] = ContextualTrace)
     # Runs the interpreter.
     def _run_interpreter(main, kont, *args, **kwargs):
         with Cont.new() as interpreter:
-            return interpreter(trace_type, main, kont, f, *args, **kwargs)
+            return interpreter.run_interpreter(
+                trace_type, main, kont, f, *args, **kwargs
+            )
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)

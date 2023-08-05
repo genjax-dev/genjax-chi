@@ -22,13 +22,13 @@ from genjax._src.core.typing import BoolArray
 
 
 @dataclass
-class Tree(Pytree):
-    """> The `Tree` class is used to define abstract classes for tree-shaped
-    datatypes. These classes are used to implement trace, choice map, and
-    selection types.
+class AddressTree(Pytree):
+    """> The `AddressTree` class is used to define abstract classes for tree-
+    shaped datatypes. These classes are used to implement trace, choice map,
+    and selection types.
 
-    One should think of `Tree` as providing a convenient base class for
-    many of the generative datatypes declared in GenJAX. `Tree` mixes in
+    One should think of `AddressTree` as providing a convenient base class for
+    many of the generative datatypes declared in GenJAX. `AddressTree` mixes in
     `Pytree` automatically.
     """
 
@@ -46,11 +46,11 @@ class Tree(Pytree):
 
 
 @dataclass
-class Leaf(Tree):
-    """> The `Leaf` class specializes `Tree` to classes without any internal
-    subtrees.
+class AddressLeaf(AddressTree):
+    """> The `AddressLeaf` class specializes `AddressTree` to classes without
+    any internal subtrees.
 
-    `Leaf` is a convenient base for generative datatypes which don't keep reference to other `Tree` instances - things like `ValueChoiceMap` (whose only choice value is a single value, not a dictionary or other tree-like object). `Leaf` extends `Tree` with a special extension method `get_leaf_value`.
+    `AddressLeaf` is a convenient base for generative datatypes which don't keep reference to other `AddressTree` instances - things like `ValueChoiceMap` (whose only choice value is a single value, not a dictionary or other tree-like object). `AddressLeaf` extends `AddressTree` with a special extension method `get_leaf_value`.
     """
 
     @abc.abstractmethod
@@ -66,8 +66,10 @@ class Leaf(Tree):
 
     def get_subtree(self, addr):
         raise Exception(
-            f"{type(self)} is a Leaf: it does not address any internal choices."
+            f"{type(self)} is a AddressLeaf: it does not address any internal choices."
         )
 
     def get_subtrees_shallow(self):
-        raise Exception(f"{type(self)} is a Leaf: it does not have any subtrees.")
+        raise Exception(
+            f"{type(self)} is a AddressLeaf: it does not have any subtrees."
+        )

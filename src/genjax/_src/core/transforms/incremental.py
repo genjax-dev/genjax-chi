@@ -363,7 +363,7 @@ def jvp(f, ctx: Context):
     # Runs the interpreter.
     def _run_interpreter(main, *args, **kwargs):
         with Fwd.new() as interpreter:
-            return interpreter(DiffTrace, main, f, *args, **kwargs)
+            return interpreter.run_interpreter(DiffTrace, main, f, *args, **kwargs)
 
     # Propagates tracer values through running the interpreter.
     @functools.wraps(f)

@@ -22,11 +22,11 @@ import numpy as np
 import rich
 
 import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.datatypes.address_tree import AddressLeaf
+from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.tracetypes import Bottom
 from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.tree import Leaf
-from genjax._src.core.datatypes.tree import Tree
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree import Pytree
@@ -53,7 +53,7 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclasses.dataclass
-class Selection(Tree):
+class Selection(AddressTree):
     @abc.abstractmethod
     def complement(self) -> "Selection":
         """Return a `Selection` which filters addresses to the complement set
@@ -111,7 +111,7 @@ class Selection(Tree):
 
 
 @dataclasses.dataclass
-class NoneSelection(Selection, Leaf):
+class NoneSelection(Selection, AddressLeaf):
     def flatten(self):
         return (), ()
 
@@ -138,7 +138,7 @@ class NoneSelection(Selection, Leaf):
 
 
 @dataclasses.dataclass
-class AllSelection(Selection, Leaf):
+class AllSelection(Selection, AddressLeaf):
     def flatten(self):
         return (), ()
 
@@ -170,13 +170,16 @@ class AllSelection(Selection, Leaf):
 
 
 @dataclasses.dataclass
-class ChoiceMap(Tree):
+class ChoiceMap(AddressTree):
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
         pass
 
     @abc.abstractmethod
-    def merge(self, other: "ChoiceMap") -> Tuple["ChoiceMap", "ChoiceMap"]:
+    def merge(
+        self,
+        other: "ChoiceMap",
+    ) -> Tuple["ChoiceMap", "ChoiceMap"]:
         pass
 
     @dispatch
@@ -262,7 +265,7 @@ class ChoiceMap(Tree):
 
     def __getitem__(self, addr):
         choice = self.get_subtree(addr)
-        if isinstance(choice, Leaf):
+        if isinstance(choice, AddressLeaf):
             v = choice.get_leaf_value()
             return v
         else:
@@ -283,7 +286,7 @@ class ChoiceMap(Tree):
 
     # Defines custom pretty printing.
     def __rich_console__(self, console, options):
-        tree = rich.tree.Tree("")
+        tree = rich.tree.AddressTree("")
         tree = self.__rich_tree__(tree)
         yield tree
 
@@ -294,7 +297,7 @@ class ChoiceMap(Tree):
 
 
 @dataclasses.dataclass
-class Trace(ChoiceMap, Tree):
+class Trace(ChoiceMap, AddressTree):
     """> Abstract base class for traces of generative functions.
 
     A `Trace` is a data structure used to represent sampled executions
@@ -523,7 +526,7 @@ class Trace(ChoiceMap, Tree):
                     return EmptyChoiceMap()
             else:
                 return choice
-        elif isinstance(choice, Leaf):
+        elif isinstance(choice, AddressLeaf):
             return choice.get_leaf_value()
         else:
             return choice
@@ -841,7 +844,7 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = Tree("[bold](Complement)")
+        sub_tree = AddressTree("[bold](Complement)")
         for (k, v) in self.get_subtrees_shallow():
             subk = sub_tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
@@ -855,7 +858,7 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
 
 
 @dataclasses.dataclass
-class EmptyChoiceMap(ChoiceMap, Leaf):
+class EmptyChoiceMap(ChoiceMap, AddressLeaf):
     def flatten(self):
         return (), ()
 
@@ -887,7 +890,7 @@ class EmptyChoiceMap(ChoiceMap, Leaf):
 
 
 @dataclasses.dataclass
-class ValueChoiceMap(ChoiceMap, Leaf):
+class ValueChoiceMap(ChoiceMap, AddressLeaf):
     value: Any
 
     def flatten(self):
