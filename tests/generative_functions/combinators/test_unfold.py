@@ -44,7 +44,15 @@ class TestUnfoldSimpleNormal:
             return z
 
         key = jax.random.PRNGKey(314159)
-        chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array([0.5])}))
+        special = 0.579
+        chm = genjax.index_choice_map([0], genjax.choice_map(
+            {"z": jnp.array([special])}))
+        
+        t = -1
+        key, sub_key = jax.random.split(key)
+        (_, tr) = chain.importance(sub_key, chm, (t, 0.3))
+        assert tr['z'][0] != special
+                                   
         for t in range(0, 10):
             key, sub_key = jax.random.split(key)
             (_, tr) = chain.importance(sub_key, chm, (t, 0.3))
