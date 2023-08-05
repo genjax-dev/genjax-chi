@@ -16,15 +16,16 @@ support data allocation optimizations for special `GenerativeFunction` types
 which support a notion of calling another `GenerativeFunction`. Examples of
 this type include `MapCombinator`.
 
-The `DroppedArgumentsGenerativeFunction` exposes GFI methods which eliminate stored arguments in its returned trace. This is only valid if a caller `GenerativeFunction` which invokes a `DroppedArgumentsGenerativeFunction` provides arguments ("restores" the arguments) when it invokes `DroppedArgumentsGenerativeFunction` methods.
+The `DropArgumentsGenerativeFunction` exposes GFI methods which eliminate stored arguments in its returned trace. This is only valid if a caller `GenerativeFunction` which invokes a `DropArgumentsGenerativeFunction` provides arguments ("restores" the arguments) when it invokes `DropArgumentsGenerativeFunction` methods.
 
-This is useful to avoid unnecessary allocations in e.g. `MapCombinator` which uses `jax.vmap` as part of its implementation, causing the arguments stored in its callee's trace to be expanded and stored (unnecessarily). `DroppedArgumentsGenerativeFunction` eliminates the stored arguments in the callee's trace -- and allows us to retain a single copy of the arguments in the `MapCombinator` caller's `MapTrace`.
+This is useful to avoid unnecessary allocations in e.g. `MapCombinator` which uses `jax.vmap` as part of its implementation, causing the arguments stored in its callee's trace to be expanded and stored (unnecessarily). `DropArgumentsGenerativeFunction` eliminates the stored arguments in the callee's trace -- and allows us to retain a single copy of the arguments in the `MapCombinator` caller's `MapTrace`.
 """
 
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -33,7 +34,7 @@ from genjax._src.core.typing import Tuple
 
 
 @dataclass
-class DroppedArgumentsTrace(Trace):
+class DropArgumentsTrace(Trace):
     gen_fn: GenerativeFunction
     retval: Any
     score: FloatArray
@@ -77,7 +78,7 @@ class DroppedArgumentsTrace(Trace):
 
 
 @dataclass
-class DroppedArgumentsGenerativeFunction(GenerativeFunction):
+class DropArgumentsGenerativeFunction(GenerativeFunction):
     gen_fn: GenerativeFunction
 
     def flatten(self):
@@ -87,34 +88,34 @@ class DroppedArgumentsGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> DroppedArgumentsTrace:
+    ) -> DropArgumentsTrace:
         tr = self.gen_fn.simulate(key, args)
         inner_retval = tr.get_retval()
         inner_chm = tr.get_choices()
         inner_score = tr.get_score()
         aux = tr.get_aux()
-        return DroppedArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
+        return DropArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
 
     def importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DroppedArgumentsTrace]:
+    ) -> Tuple[FloatArray, DropArgumentsTrace]:
         w, tr = self.gen_fn.importance(key, choice_map, args)
         inner_retval = tr.get_retval()
         inner_chm = tr.get_choices()
         inner_score = tr.get_score()
         aux = tr.get_aux()
-        return w, DroppedArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
+        return w, DropArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
 
     def update(
         self,
         key: PRNGKey,
-        prev: DroppedArgumentsTrace,
+        prev: DropArgumentsTrace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DroppedArgumentsTrace, ChoiceMap]:
+    ) -> Tuple[Any, FloatArray, DropArgumentsTrace, ChoiceMap]:
         raise NotImplementedError
 
     def assess(
@@ -122,5 +123,16 @@ class DroppedArgumentsGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DroppedArgumentsTrace]:
+    ) -> Tuple[FloatArray, DropArgumentsTrace]:
         return self.gen_fn.assess(key, choice_map, args)
+
+
+##############
+# Shorthands #
+##############
+
+DropArguments = DropArgumentsGenerativeFunction.new
+
+
+def drop_arguments(gen_fn: JAXGenerativeFunction):
+    return DropArguments(gen_fn)
