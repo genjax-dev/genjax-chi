@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.core.datatypes.address_tree import AddressLeaf
+from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ComplementHierarchicalSelection
@@ -38,8 +40,6 @@ from genjax._src.core.datatypes.tracetypes import Naturals
 from genjax._src.core.datatypes.tracetypes import PositiveReals
 from genjax._src.core.datatypes.tracetypes import RealInterval
 from genjax._src.core.datatypes.tracetypes import Reals
-from genjax._src.core.datatypes.tree import Leaf
-from genjax._src.core.datatypes.tree import Tree
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import dynamic_closure
@@ -80,6 +80,6 @@ __all__ = [
     "Pytree",
     "DynamicClosure",
     "dynamic_closure",
-    "Tree",
-    "Leaf",
+    "AddressTree",
+    "AddressLeaf",
 ]

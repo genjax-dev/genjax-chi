@@ -18,11 +18,11 @@ from dataclasses import dataclass
 
 import jax
 
+from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Leaf
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
@@ -51,7 +51,7 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuil
 
 
 @dataclass
-class DistributionTrace(Trace, Leaf):
+class DistributionTrace(Trace, AddressLeaf):
     gen_fn: GenerativeFunction
     args: Tuple
     value: Any

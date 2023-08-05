@@ -19,7 +19,7 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.tree import Leaf
+from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
@@ -47,7 +47,7 @@ class Mask(Pytree):
     def unmask(self):
         return self.value
 
-    def _set_leaf(self, v: Leaf):
+    def _set_leaf(self, v: AddressLeaf):
         leaf_value = v.get_leaf_value()
         if isinstance(leaf_value, Mask):
             leaf_mask = leaf_value.mask
@@ -65,17 +65,17 @@ class Mask(Pytree):
             if isinstance(v, Mask):
                 return Mask.new(self.mask, v.value())
 
-            # `Leaf` inheritors have a method `set_leaf_value`
+            # `AddressLeaf` inheritors have a method `set_leaf_value`
             # to participate in masking.
             # They can choose how to construct themselves after
             # being provided with a masked value.
-            elif isinstance(v, Leaf):
+            elif isinstance(v, AddressLeaf):
                 return self._set_leaf(v)
             else:
                 return v
 
         def _check(v):
-            return isinstance(v, Mask) or isinstance(v, Leaf)
+            return isinstance(v, Mask) or isinstance(v, AddressLeaf)
 
         return jtu.tree_map(_inner, self.value, is_leaf=_check)
 

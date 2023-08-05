@@ -23,8 +23,8 @@ import jax.core as jc
 import jax.numpy as jnp
 import rich
 
-from genjax._src.core.datatypes.tree import Leaf
-from genjax._src.core.datatypes.tree import Tree
+from genjax._src.core.datatypes.address_tree import AddressLeaf
+from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import IntArray
@@ -32,7 +32,7 @@ from genjax._src.core.typing import static_check_is_array
 
 
 @dataclass
-class TraceType(Tree):
+class TraceType(AddressTree):
     def on_support(self, other):
         assert isinstance(other, TraceType)
         check = self.__check__(other)
@@ -63,7 +63,7 @@ BaseMeasure = Enum("BaseMeasure", ["Counting", "Lebesgue", "Bottom"])
 
 
 @dataclass
-class LeafTraceType(TraceType, Leaf):
+class AddressLeafTraceType(TraceType, AddressLeaf):
     shape: Tuple
 
     def flatten(self):
@@ -105,17 +105,17 @@ class LeafTraceType(TraceType, Leaf):
             return check, (self, other)
 
     def get_leaf_value(self):
-        raise Exception("LeafTraceType doesn't keep a leaf value.")
+        raise Exception("AddressLeafTraceType doesn't keep a leaf value.")
 
     def set_leaf_value(self):
-        raise Exception("LeafTraceType doesn't allow setting a leaf value.")
+        raise Exception("AddressLeafTraceType doesn't allow setting a leaf value.")
 
     def get_rettype(self):
         return self
 
 
 @dataclass
-class Reals(LeafTraceType, CustomPretty):
+class Reals(AddressLeafTraceType, CustomPretty):
     def get_base_measure(self) -> BaseMeasure:
         return BaseMeasure.Lebesgue
 
@@ -129,7 +129,7 @@ class Reals(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class PositiveReals(LeafTraceType, CustomPretty):
+class PositiveReals(AddressLeafTraceType, CustomPretty):
     def get_base_measure(self):
         return BaseMeasure.Lebesgue
 
@@ -147,7 +147,7 @@ class PositiveReals(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class RealInterval(LeafTraceType, CustomPretty):
+class RealInterval(AddressLeafTraceType, CustomPretty):
     lower_bound: Any
     upper_bound: Any
 
@@ -175,7 +175,7 @@ class RealInterval(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class Integers(LeafTraceType, CustomPretty):
+class Integers(AddressLeafTraceType, CustomPretty):
     def flatten(self):
         return (), (self.shape,)
 
@@ -196,7 +196,7 @@ class Integers(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class Naturals(LeafTraceType, CustomPretty):
+class Naturals(AddressLeafTraceType, CustomPretty):
     def get_base_measure(self):
         return BaseMeasure.Counting
 
@@ -216,7 +216,7 @@ class Naturals(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class Finite(LeafTraceType, CustomPretty):
+class Finite(AddressLeafTraceType, CustomPretty):
     limit: IntArray
 
     def get_base_measure(self):
@@ -238,7 +238,7 @@ class Finite(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class Bottom(LeafTraceType, CustomPretty):
+class Bottom(AddressLeafTraceType, CustomPretty):
     def __init__(self):
         super().__init__(())
 
@@ -255,7 +255,7 @@ class Bottom(LeafTraceType, CustomPretty):
 
 
 @dataclass
-class Empty(LeafTraceType, CustomPretty):
+class Empty(AddressLeafTraceType, CustomPretty):
     def __init__(self):
         super().__init__(())
 

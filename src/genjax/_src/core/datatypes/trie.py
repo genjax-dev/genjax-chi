@@ -17,9 +17,9 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.hashabledict import HashableDict
 from genjax._src.core.datatypes.hashabledict import hashabledict
-from genjax._src.core.datatypes.tree import Tree
 from genjax._src.core.pretty_printing import CustomPretty
 
 
@@ -29,7 +29,7 @@ from genjax._src.core.pretty_printing import CustomPretty
 
 
 @dataclass
-class Trie(Tree, CustomPretty):
+class Trie(AddressTree, CustomPretty):
     inner: HashableDict
 
     def flatten(self):
