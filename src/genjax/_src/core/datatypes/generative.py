@@ -207,11 +207,22 @@ class HierarchicalSelection(Selection):
         if value is None:
             return NoneSelection()
         else:
-            return value
+            subselect = value.get_selection()
+            if isinstance(subselect, Trie):
+                return HierarchicalSelection(subselect)
+            else:
+                return subselect
 
     def get_subtrees_shallow(self):
+        def _inner(v):
+            addr = v[0]
+            subtree = v[1].get_selection()
+            if isinstance(subtree, Trie):
+                subtree = HierarchicalSelection(subtree)
+            return (addr, subtree)
+
         return map(
-            lambda v: (v[0], v[1].get_selection()),
+            _inner,
             self.trie.get_subtrees_shallow(),
         )
 
@@ -244,14 +255,18 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
         if value is None:
             return AllSelection()
         else:
-            return value
+            subselect = value.get_selection()
+            if isinstance(subselect, Trie):
+                return HierarchicalSelection(subselect).complement()
+            else:
+                return subselect.complement()
 
     ###################
     # Pretty printing #
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = AddressTree("[bold](Complement)")
+        sub_tree = rich.tree.Tree("[bold](Complement)")
         for (k, v) in self.get_subtrees_shallow():
             subk = sub_tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
@@ -317,6 +332,55 @@ class ChoiceMap(AddressTree):
             selection = genjax.select("x")
             filtered = chm.filter(selection)
             print(console.render(filtered))
+            ```
+        """
+        raise NotImplementedError
+
+    @dispatch
+    def replace(
+        self,
+        selection: AllSelection,
+        replacement: "ChoiceMap",
+    ) -> "ChoiceMap":
+        return replacement
+
+    @dispatch
+    def replace(
+        self,
+        selection: NoneSelection,
+        replacement: "ChoiceMap",
+    ) -> "ChoiceMap":
+        return self
+
+    @dispatch
+    def replace(
+        self,
+        selection: Selection,
+        replacement: "ChoiceMap",
+    ) -> "ChoiceMap":
+        """Replace the submaps selected by `selection` with `replacement`,
+        returning a new choice map.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            tr = model.simulate(key, ())
+            chm = tr.strip()
+            replacement = genjax.choice_map({"z": 5.0})
+            selection = genjax.select("x")
+            replaced = chm.replace(selection, replacement)
+            print(console.render(replaced))
             ```
         """
         raise NotImplementedError
@@ -1310,25 +1374,20 @@ class HierarchicalChoiceMap(ChoiceMap):
             if not isinstance(v, EmptyChoiceMap):
                 trie[k] = v
 
-        return HierarchicalChoiceMap(trie)
+        new = HierarchicalChoiceMap(trie)
+        if new.is_empty():
+            return EmptyChoiceMap()
+        else:
+            return new
 
     @dispatch
-    def filter(
+    def replace(
         self,
-        selection: ComplementHierarchicalSelection,
+        selection: HierarchicalSelection,
+        replacement: ChoiceMap,
     ) -> ChoiceMap:
-        def _inner(k, v):
-            sub = selection.get_subtree(k)
-            under = v.filter(sub.complement())
-            return k, under
-
-        trie = Trie.new()
-        iter = self.get_subtrees_shallow()
-        for (k, v) in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoiceMap):
-                trie[k] = v
-
-        return HierarchicalChoiceMap(trie)
+        complement = self.filter(selection.complement())
+        return complement.unsafe_merge(replacement)
 
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
@@ -1345,8 +1404,15 @@ class HierarchicalChoiceMap(ChoiceMap):
                 return submap
 
     def get_subtrees_shallow(self):
+        def _inner(v):
+            addr = v[0]
+            subtree = v[1].get_choices()
+            if isinstance(subtree, Trie):
+                subtree = HierarchicalChoiceMap(subtree)
+            return (addr, subtree)
+
         return map(
-            lambda v: (v[0], v[1].get_choices()),
+            _inner,
             self.trie.get_subtrees_shallow(),
         )
 

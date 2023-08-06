@@ -40,7 +40,7 @@ class Trie(AddressTree, CustomPretty):
         return Trie(hashabledict())
 
     def is_empty(self):
-        return bool(self.inner)
+        return not bool(self.inner)
 
     def get_selection(self):
         raise Exception("Trie doesn't provide conversion to Selection.")
@@ -92,7 +92,12 @@ class Trie(AddressTree, CustomPretty):
     def get_subtrees_shallow(self):
         return self.inner.items()
 
+    # This is provided for compatibility with the ChoiceMap interface.
     def get_choices(self):
+        return self
+
+    # This is provided for compatibility with the Selection interface.
+    def get_selection(self):
         return self
 
     def merge(self, other):
