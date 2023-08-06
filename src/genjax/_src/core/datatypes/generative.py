@@ -381,7 +381,7 @@ class ChoiceMap(AddressTree):
 
     # Defines custom pretty printing.
     def __rich_console__(self, console, options):
-        tree = rich.tree.AddressTree("")
+        tree = rich.tree.Tree("")
         tree = self.__rich_tree__(tree)
         yield tree
 

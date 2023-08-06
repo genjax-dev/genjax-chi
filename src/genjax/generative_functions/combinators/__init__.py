@@ -42,6 +42,9 @@ from genjax._src.generative_functions.combinators.vector.map_combinator import M
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
     MapCombinator,
 )
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    map_combinator,
+)
 from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
     StateSpace,
 )
@@ -51,6 +54,9 @@ from genjax._src.generative_functions.combinators.vector.state_space_combinator 
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
     UnfoldCombinator,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    unfold_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
@@ -75,8 +81,10 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 __all__ = [
     "MapCombinator",
     "Map",
+    "map_combinator",
     "UnfoldCombinator",
     "Unfold",
+    "unfold_combinator",
     "StateSpaceCombinator",
     "StateSpace",
     "SwitchCombinator",

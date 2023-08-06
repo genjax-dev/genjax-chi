@@ -23,6 +23,7 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 
 
 #########
@@ -48,6 +49,19 @@ class BuiltinTrace(Trace):
             self.cache,
             self.score,
         ), ()
+
+    @typecheck
+    @classmethod
+    def new(
+        cls,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+        retval: Any,
+        choices: Trie,
+        cache: Trie,
+        score: FloatArray,
+    ):
+        return BuiltinTrace(gen_fn, args, retval, choices, cache, score)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -80,3 +94,6 @@ class BuiltinTrace(Trace):
 
     def get_cached_value(self, addr):
         return self.cache.get_subtree(addr)
+
+    def get_aux(self):
+        return (self.cache,)
