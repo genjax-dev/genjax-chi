@@ -385,6 +385,55 @@ class ChoiceMap(AddressTree):
         """
         raise NotImplementedError
 
+    @dispatch
+    def insert(
+        self,
+        selection: AllSelection,
+        extension: "ChoiceMap",
+    ) -> "ChoiceMap":
+        return extension
+
+    @dispatch
+    def insert(
+        self,
+        selection: NoneSelection,
+        extension: "ChoiceMap",
+    ) -> "ChoiceMap":
+        return self
+
+    @dispatch
+    def insert(
+        self,
+        selection: Selection,
+        extension: "ChoiceMap",
+    ) -> "ChoiceMap":
+        """Extend the submap selected by `selection` with `extension`,
+        returning a new choice map.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            console = genjax.pretty()
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+            key = jax.random.PRNGKey(314159)
+            tr = model.simulate(key, ())
+            chm = tr.strip()
+            extension = genjax.choice_map({"z": 5.0})
+            selection = genjax.select("x")
+            extended = chm.insert(selection, extension)
+            print(console.render(extended))
+            ```
+        """
+        raise NotImplementedError
+
     def get_selection(self) -> "Selection":
         """Convert a `ChoiceMap` to a `Selection`."""
         raise Exception(
@@ -1389,6 +1438,14 @@ class HierarchicalChoiceMap(ChoiceMap):
         complement = self.filter(selection.complement())
         return complement.unsafe_merge(replacement)
 
+    @dispatch
+    def insert(
+        self,
+        selection: HierarchicalSelection,
+        extension: ChoiceMap,
+    ) -> ChoiceMap:
+        raise NotImplementedError
+
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
 
@@ -1430,6 +1487,10 @@ class HierarchicalChoiceMap(ChoiceMap):
     @dispatch
     def merge(self, other: EmptyChoiceMap):
         return self, EmptyChoiceMap()
+
+    @dispatch
+    def merge(self, other: ValueChoiceMap):
+        return other, self
 
     @dispatch
     def merge(self, other: ChoiceMap):
