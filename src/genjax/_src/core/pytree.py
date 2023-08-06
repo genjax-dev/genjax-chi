@@ -32,8 +32,8 @@ import numpy as np
 from jax import api_util
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.hashabledict import HashableDict
-from genjax._src.core.datatypes.hashabledict import hashabledict
+from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Sequence
@@ -349,9 +349,9 @@ def get_call_fallback(d, k, fn, fallback):
 
 
 def minimum_covering_leaves(pytrees: Sequence):
-    leaf_schema = hashabledict()
+    leaf_schema = hashable_dict()
     for tree in pytrees:
-        local = hashabledict()
+        local = hashable_dict()
         jtu.tree_map(
             lambda v: get_call_fallback(local, v, lambda v: v + 1, 1),
             tree,
@@ -368,7 +368,7 @@ def shape_dtype_struct(x):
 
 def set_payload(leaf_schema, pytree):
     leaves = jtu.tree_leaves(pytree)
-    payload = hashabledict()
+    payload = hashable_dict()
     for k in leaves:
         aval = shape_dtype_struct(jax.core.get_aval(k))
         if aval in payload:
@@ -395,7 +395,7 @@ def get_visitation(pytree):
 
 
 def build_from_payload(visitation, form, payload):
-    counter = hashabledict()
+    counter = hashable_dict()
 
     def _check_counter_get(k):
         index = counter.get(k, 0)

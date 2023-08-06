@@ -178,22 +178,22 @@ class HierarchicalSelection(Selection):
     def flatten(self):
         return (self.trie,), ()
 
-    @typecheck
     @classmethod
-    def new(cls, *addrs):
+    @dispatch
+    def new(cls, *addrs: Any):
         trie = Trie.new()
         for addr in addrs:
             trie[addr] = AllSelection()
         return HierarchicalSelection(trie)
 
-    @typecheck
     @classmethod
-    def with_selections(cls, selections: Dict):
+    @dispatch
+    def new(cls, selections: Dict):
         assert isinstance(selections, Dict)
         trie = Trie.new()
         for (k, v) in selections.items():
             assert isinstance(v, Selection)
-            trie = trie.trie_insert(k, v)
+            trie[k] = v
         return HierarchicalSelection(trie)
 
     def complement(self):
@@ -1401,7 +1401,7 @@ class HierarchicalChoiceMap(ChoiceMap):
                 if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
                 else v
             )
-            trie = trie.trie_insert(k, v)
+            trie[k] = v
         return HierarchicalChoiceMap(trie)
 
     def is_empty(self):
@@ -1508,8 +1508,7 @@ class HierarchicalChoiceMap(ChoiceMap):
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
-        new_trie = self.trie.trie_insert(k, v)
-        self.trie = new_trie
+        self.trie[k] = v
 
     def __hash__(self):
         return hash(self.trie)

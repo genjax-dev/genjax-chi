@@ -47,5 +47,5 @@ jtu.register_pytree_node(
 )
 
 
-def hashabledict():
+def hashable_dict():
     return HashableDict({})
