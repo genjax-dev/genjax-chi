@@ -40,6 +40,7 @@ from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.generative import value_choice_map
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import dynamic_closure
@@ -47,6 +48,8 @@ from genjax._src.core.pytree import dynamic_closure
 
 __all__ = [
     # Datatypes.
+    "Trie",
+    # Generative datatypes.
     "ChoiceMap",
     "EmptyChoiceMap",
     "empty_choice_map",
