@@ -337,8 +337,23 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         index_array = jnp.arange(0, broadcast_dim_length)
         key, sub_keys = slash(key, broadcast_dim_length)
         inner_trace = prev.inner
+
+        @typecheck
+        def _update_inner(
+            key: PRNGKey,
+            index: IntArray,
+            prev: Trace,
+            chm: ChoiceMap,
+            original_args: Tuple,
+            argdiffs: Tuple,
+        ):
+            submap = chm.get_subtree(index)
+            return self.maybe_restore_arguments_kernel_update(
+                key, prev, submap, original_args, argdiffs
+            )
+
         (retval_diff, w, tr, discard) = jax.vmap(
-            self.maybe_restore_arguments_kernel_update,
+            _update_inner,
             in_axes=(0, 0, 0, None, self.in_axes, self.in_axes),
         )(sub_keys, index_array, inner_trace, chm, original_args, argdiffs)
         w = jnp.sum(w)
@@ -460,14 +475,16 @@ Map = MapCombinator.new
 
 @dispatch
 def map_combinator(
-    in_axes: Tuple[int, ...],
+    **kwargs,
 ):
+    in_axes = kwargs["in_axes"]
     return lambda gen_fn: Map(gen_fn, in_axes)
 
 
 @dispatch
 def map_combinator(
     gen_fn: JAXGenerativeFunction,
-    in_axes: Tuple[int, ...],
+    **kwargs,
 ):
+    in_axes = kwargs["in_axes"]
     return Map(gen_fn, in_axes)

@@ -31,6 +31,7 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 
 
 @dataclass
@@ -50,6 +51,18 @@ class DropArgumentsTrace(Trace):
             self.aux,
         ), ()
 
+    @typecheck
+    @classmethod
+    def new(
+        cls,
+        gen_fn: GenerativeFunction,
+        retval: Any,
+        score: FloatArray,
+        choice_map: ChoiceMap,
+        aux: Tuple,
+    ):
+        return DropArgumentsTrace(gen_fn, retval, score, choice_map, aux)
+
     def get_gen_fn(self):
         return self.gen_fn
 
@@ -65,6 +78,9 @@ class DropArgumentsTrace(Trace):
     def get_choices(self):
         return self.inner_choice_map
 
+    def get_aux(self):
+        return self.aux
+
     def restore(self, original_arguments: Tuple):
         interface_data = (
             original_arguments,
@@ -78,7 +94,7 @@ class DropArgumentsTrace(Trace):
 
 
 @dataclass
-class DropArgumentsGenerativeFunction(GenerativeFunction):
+class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
     gen_fn: GenerativeFunction
 
     def flatten(self):
@@ -91,10 +107,16 @@ class DropArgumentsGenerativeFunction(GenerativeFunction):
     ) -> DropArgumentsTrace:
         tr = self.gen_fn.simulate(key, args)
         inner_retval = tr.get_retval()
-        inner_chm = tr.get_choices()
         inner_score = tr.get_score()
+        inner_chm = tr.get_choices()
         aux = tr.get_aux()
-        return DropArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
+        return DropArgumentsTrace.new(
+            self,
+            inner_retval,
+            inner_score,
+            inner_chm,
+            aux,
+        )
 
     def importance(
         self,
@@ -104,19 +126,43 @@ class DropArgumentsGenerativeFunction(GenerativeFunction):
     ) -> Tuple[FloatArray, DropArgumentsTrace]:
         w, tr = self.gen_fn.importance(key, choice_map, args)
         inner_retval = tr.get_retval()
-        inner_chm = tr.get_choices()
         inner_score = tr.get_score()
+        inner_chm = tr.get_choices()
         aux = tr.get_aux()
-        return w, DropArgumentsTrace(self, inner_retval, inner_chm, inner_score, aux)
+        return w, DropArgumentsTrace.new(
+            self,
+            inner_retval,
+            inner_score,
+            inner_chm,
+            aux,
+        )
 
     def update(
         self,
         key: PRNGKey,
-        prev: DropArgumentsTrace,
+        prev: Trace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, DropArgumentsTrace, ChoiceMap]:
-        raise NotImplementedError
+        (retval_diff, w, tr, discard) = self.gen_fn.update(
+            key, prev, choice_map, argdiffs
+        )
+        inner_retval = tr.get_retval()
+        inner_score = tr.get_score()
+        inner_chm = tr.get_choices()
+        aux = tr.get_aux()
+        return (
+            retval_diff,
+            w,
+            DropArgumentsTrace.new(
+                self,
+                inner_retval,
+                inner_score,
+                inner_chm,
+                aux,
+            ),
+            discard,
+        )
 
     def assess(
         self,
@@ -125,6 +171,9 @@ class DropArgumentsGenerativeFunction(GenerativeFunction):
         args: Tuple,
     ) -> Tuple[FloatArray, DropArgumentsTrace]:
         return self.gen_fn.assess(key, choice_map, args)
+
+    def restore_with_aux(self, interface_data, aux):
+        return self.gen_fn.restore_with_aux(interface_data, aux)
 
 
 ##############

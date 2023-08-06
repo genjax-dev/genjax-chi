@@ -169,7 +169,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         # `chm` is a `Trie` here.
         if not chm.inner:
             chm = EmptyChoiceMap()
-        return BuiltinTrace(self, args, r, chm, cache, score)
+        return BuiltinTrace.new(self, args, r, chm, cache, score)
 
     @typecheck
     def importance(
@@ -181,7 +181,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         (w, (f, args, r, chm, score)), cache = importance_transform(self.source)(
             key, chm, args
         )
-        return (w, BuiltinTrace(self, args, r, chm, cache, score))
+        return (w, BuiltinTrace.new(self, args, r, chm, cache, score))
 
     @typecheck
     def update(
@@ -204,7 +204,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         return (
             retval_diffs,
             w,
-            BuiltinTrace(self, args, r, chm, cache, score),
+            BuiltinTrace.new(self, args, r, chm, cache, score),
             HierarchicalChoiceMap(discard),
         )
 
@@ -220,6 +220,12 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     def inline(self, *args):
         return self.source(*args)
+
+    def restore_with_aux(self, interface_data, aux):
+        (original_args, retval, score, choices) = interface_data
+        (cache,) = aux
+        trie = choices.trie
+        return BuiltinTrace.new(self, original_args, retval, trie, cache, score)
 
 
 #####
