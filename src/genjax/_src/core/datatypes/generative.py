@@ -193,7 +193,7 @@ class HierarchicalSelection(Selection):
         trie = Trie.new()
         for (k, v) in selections.items():
             assert isinstance(v, Selection)
-            trie.trie_insert(k, v)
+            trie = trie.trie_insert(k, v)
         return HierarchicalSelection(trie)
 
     def complement(self):
@@ -1401,7 +1401,7 @@ class HierarchicalChoiceMap(ChoiceMap):
                 if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
                 else v
             )
-            trie.trie_insert(k, v)
+            trie = trie.trie_insert(k, v)
         return HierarchicalChoiceMap(trie)
 
     def is_empty(self):
@@ -1508,7 +1508,8 @@ class HierarchicalChoiceMap(ChoiceMap):
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
-        self.trie.trie_insert(k, v)
+        new_trie = self.trie.trie_insert(k, v)
+        self.trie = new_trie
 
     def __hash__(self):
         return hash(self.trie)

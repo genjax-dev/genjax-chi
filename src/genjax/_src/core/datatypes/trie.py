@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 from dataclasses import dataclass
 
 import rich
@@ -45,19 +46,24 @@ class Trie(AddressTree, CustomPretty):
     def get_selection(self):
         raise Exception("Trie doesn't provide conversion to Selection.")
 
+    # Returns a new `Trie` with shallow copied inner dictionary.
     def trie_insert(self, addr, value):
+        copied_inner = copy.copy(self.inner)
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
             rest = tuple(rest)
-            if first not in self.inner:
+            if first not in copied_inner:
                 subtree = Trie(hashabledict())
-                self.inner[first] = subtree
-            subtree = self.inner[first]
-            subtree.trie_insert(rest, value)
+            else:
+                subtree = copied_inner[first]
+            new_subtree = subtree.trie_insert(rest, value)
+            copied_inner[first] = new_subtree
+            return Trie(copied_inner)
         else:
             if isinstance(addr, tuple):
                 addr = addr[0]
-            self.inner[addr] = value
+            copied_inner[addr] = value
+            return Trie(copied_inner)
 
     def has_subtree(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
@@ -100,7 +106,7 @@ class Trie(AddressTree, CustomPretty):
     def get_selection(self):
         return self
 
-    def merge(self, other):
+    def merge(self, other: "Trie"):
         new = hashabledict()
         discard = hashabledict()
         for (k, v) in self.get_subtrees_shallow():
@@ -119,7 +125,8 @@ class Trie(AddressTree, CustomPretty):
     ###########
 
     def __setitem__(self, k, v):
-        self.trie_insert(k, v)
+        new_trie = self.trie_insert(k, v)
+        self.inner = new_trie.inner
 
     def __getitem__(self, k):
         return self.get_subtree(k)
