@@ -333,7 +333,7 @@ class ChoiceMap(AddressTree):
         return new
 
     def unsafe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
-        new, discard = self.merge(other)
+        new, _ = self.merge(other)
         return new
 
     def get_choices(self):
