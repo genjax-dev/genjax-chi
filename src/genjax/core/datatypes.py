@@ -24,6 +24,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Integers
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Naturals
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import PositiveReals
@@ -38,17 +39,24 @@ from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.generative import value_choice_map
+from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.datatypes.trie import trie
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import dynamic_closure
 
 
 __all__ = [
-    # Datatypes.
+    # Hashable dictionary type.
+    "HashableDict",
+    "hashable_dict",
+    # Trie type.
     "Trie",
+    "trie",
     # Generative datatypes.
     "ChoiceMap",
     "EmptyChoiceMap",
@@ -67,6 +75,7 @@ __all__ = [
     "select",
     "ComplementHierarchicalSelection",
     "GenerativeFunction",
+    "JAXGenerativeFunction",
     # Masking.
     "Mask",
     "mask",

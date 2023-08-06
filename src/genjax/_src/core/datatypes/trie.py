@@ -19,8 +19,8 @@ import rich
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.hashabledict import HashableDict
-from genjax._src.core.datatypes.hashabledict import hashabledict
+from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.pretty_printing import CustomPretty
 
 
@@ -38,7 +38,7 @@ class Trie(AddressTree, CustomPretty):
 
     @classmethod
     def new(cls):
-        return Trie(hashabledict())
+        return Trie(hashable_dict())
 
     def is_empty(self):
         return not bool(self.inner)
@@ -53,7 +53,7 @@ class Trie(AddressTree, CustomPretty):
             first, *rest = addr
             rest = tuple(rest)
             if first not in copied_inner:
-                subtree = Trie(hashabledict())
+                subtree = Trie(hashable_dict())
             else:
                 subtree = copied_inner[first]
             new_subtree = subtree.trie_insert(rest, value)
@@ -107,8 +107,8 @@ class Trie(AddressTree, CustomPretty):
         return self
 
     def merge(self, other: "Trie"):
-        new = hashabledict()
-        discard = hashabledict()
+        new = hashable_dict()
+        discard = hashable_dict()
         for (k, v) in self.get_subtrees_shallow():
             if other.has_subtree(k):
                 sub = other.get_subtree(k)
@@ -154,3 +154,10 @@ class Trie(AddressTree, CustomPretty):
             subtree = gpp._pformat(v, **kwargs)
             subk.add(subtree)
         return tree
+
+
+##############
+# Shorthands #
+##############
+
+trie = Trie.new
