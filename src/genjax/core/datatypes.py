@@ -12,14 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.core.datatypes.address_tree import AddressLeaf
+from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.generative import AllSelection
+from genjax._src.core.datatypes.generative import Bottom
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import ComplementHierarchicalSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import Finite
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import HierarchicalComplementSelection
 from genjax._src.core.datatypes.generative import HierarchicalSelection
+from genjax._src.core.datatypes.generative import Integers
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import Naturals
 from genjax._src.core.datatypes.generative import NoneSelection
+from genjax._src.core.datatypes.generative import PositiveReals
+from genjax._src.core.datatypes.generative import RealInterval
+from genjax._src.core.datatypes.generative import Reals
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
@@ -29,24 +39,25 @@ from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.generative import value_choice_map
+from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.datatypes.tracetypes import Bottom
-from genjax._src.core.datatypes.tracetypes import Finite
-from genjax._src.core.datatypes.tracetypes import Integers
-from genjax._src.core.datatypes.tracetypes import Naturals
-from genjax._src.core.datatypes.tracetypes import PositiveReals
-from genjax._src.core.datatypes.tracetypes import RealInterval
-from genjax._src.core.datatypes.tracetypes import Reals
-from genjax._src.core.datatypes.tree import Leaf
-from genjax._src.core.datatypes.tree import Tree
+from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.datatypes.trie import trie
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import dynamic_closure
 
 
 __all__ = [
-    # Datatypes.
+    # Hashable dictionary type.
+    "HashableDict",
+    "hashable_dict",
+    # Trie type.
+    "Trie",
+    "trie",
+    # Generative datatypes.
     "ChoiceMap",
     "EmptyChoiceMap",
     "empty_choice_map",
@@ -62,8 +73,9 @@ __all__ = [
     "none_select",
     "HierarchicalSelection",
     "select",
-    "HierarchicalComplementSelection",
+    "ComplementHierarchicalSelection",
     "GenerativeFunction",
+    "JAXGenerativeFunction",
     # Masking.
     "Mask",
     "mask",
@@ -80,6 +92,6 @@ __all__ = [
     "Pytree",
     "DynamicClosure",
     "dynamic_closure",
-    "Tree",
-    "Leaf",
+    "AddressTree",
+    "AddressLeaf",
 ]

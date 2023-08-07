@@ -73,8 +73,7 @@ class TestSimpleSMC:
 
         # This is SIS.
         def extend_smc_no_resampling(key, obs, init_state):
-            index_sel = index_select(0)
-            obs_slice = index_sel.filter(obs)
+            obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
             smc_state = smc.smc_initialize(
                 sub_key, chain, (0, init_state), obs_slice, 100
@@ -119,7 +118,7 @@ class TestSimpleSMC:
 
         def extending_smc(key, obs, init_state):
             index_sel = index_select(0)
-            obs_slice = index_sel.filter(obs)
+            obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
             smc_state = smc.smc_initialize(
                 sub_key, chain, (0, init_state), obs_slice, 100

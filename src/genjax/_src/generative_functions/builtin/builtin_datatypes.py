@@ -14,17 +14,16 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 
 
 #########
@@ -51,6 +50,19 @@ class BuiltinTrace(Trace):
             self.score,
         ), ()
 
+    @typecheck
+    @classmethod
+    def new(
+        cls,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+        retval: Any,
+        choices: Trie,
+        cache: Trie,
+        score: FloatArray,
+    ):
+        return BuiltinTrace(gen_fn, args, retval, choices, cache, score)
+
     def get_gen_fn(self):
         return self.gen_fn
 
@@ -67,15 +79,10 @@ class BuiltinTrace(Trace):
         return self.args
 
     @dispatch
-    def project(self, selection: AllSelection):
-        return self.get_score()
-
-    @dispatch
-    def project(self, selection: NoneSelection):
-        return 0.0
-
-    @dispatch
-    def project(self, selection: HierarchicalSelection):
+    def project(
+        self,
+        selection: HierarchicalSelection,
+    ) -> FloatArray:
         weight = 0.0
         for (k, subtrace) in self.choices.get_subtrees_shallow():
             if selection.has_subtree(k):
@@ -87,3 +94,6 @@ class BuiltinTrace(Trace):
 
     def get_cached_value(self, addr):
         return self.cache.get_subtree(addr)
+
+    def get_aux(self):
+        return (self.cache,)

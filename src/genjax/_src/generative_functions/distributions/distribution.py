@@ -18,18 +18,18 @@ from dataclasses import dataclass
 
 import jax
 
+from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Leaf
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.datatypes.tracetypes import tt_lift
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
@@ -51,7 +51,7 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuil
 
 
 @dataclass
-class DistributionTrace(Trace, Leaf):
+class DistributionTrace(Trace, AddressLeaf):
     gen_fn: GenerativeFunction
     args: Tuple
     value: Any
@@ -157,7 +157,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         v = chm.get_leaf_value()
         if isinstance(v, Mask):
             active = v.mask
-            v = v.unmask()
+            v = v.unsafe_unmask()
 
             def _active(key, v, args):
                 w = self.estimate_logpdf(key, v, *args)

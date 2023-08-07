@@ -78,6 +78,12 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_multinomial,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_mv_normal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_mv_normal_diag,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_negative_binomial,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -138,6 +144,8 @@ __all__ = [
     "tfp_skellam",
     "tfp_student_t",
     "tfp_normal",
+    "tfp_mv_normal_diag",
+    "tfp_mv_normal",
     "tfp_categorical",
     "tfp_truncated_cauchy",
     "tfp_truncated_normal",

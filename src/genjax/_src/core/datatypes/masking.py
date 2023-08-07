@@ -11,19 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""This module contains the `Mask` datatype backing GenJAX's masking system.
+
+Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as constraints in choice maps, and participate in inference computations (like scores, and importance weights or density ratios).
+
+Masks are also used internally by generative function combinators which include uncertainty over structure.
+
+Users are expected to interact with `Mask` instances by unmasking them using the `Mask.unmask` interface. This interface uses JAX's `checkify` transformation to ensure that masked data exposed to a user is used only when valid. If a user chooses to `Mask.unmask` a `Mask` instance, they are also expected to use `jax.experimental.checkify.checkify` to transform their function to one which could return an error.
+
+Read more: [jax.experimental.checkify.checkify](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html)
+"""
 
 from dataclasses import dataclass
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax.experimental import checkify
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.tree import Leaf
+from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import dispatch
+from genjax._src.global_options import global_options
 
 
 @dataclass
@@ -39,15 +51,27 @@ class Mask(Pytree):
         if isinstance(inner, cls):
             return Mask(
                 jnp.logical_and(mask, inner.mask),
-                inner.unmask(),
+                inner.value(),
             )
         else:
             return cls(mask, inner).leaf_push()
 
     def unmask(self):
+        # If a user chooses to `unmask`, require that they
+        # jax.experimental.checkify.checkify their call in transformed
+        # contexts.
+        def _check():
+            check_flag = jnp.all(self.mask)
+            checkify.check(check_flag, "Mask is False, the masked value is invalid.\n")
+
+        global_options.optional_check(_check)
         return self.value
 
-    def _set_leaf(self, v: Leaf):
+    def unsafe_unmask(self):
+        # Unsafe version of unmask -- should only be used internally.
+        return self.value
+
+    def _set_leaf(self, v: AddressLeaf):
         leaf_value = v.get_leaf_value()
         if isinstance(leaf_value, Mask):
             leaf_mask = leaf_value.mask
@@ -65,17 +89,17 @@ class Mask(Pytree):
             if isinstance(v, Mask):
                 return Mask.new(self.mask, v.value())
 
-            # `Leaf` inheritors have a method `set_leaf_value`
+            # `AddressLeaf` inheritors have a method `set_leaf_value`
             # to participate in masking.
             # They can choose how to construct themselves after
             # being provided with a masked value.
-            elif isinstance(v, Leaf):
+            elif isinstance(v, AddressLeaf):
                 return self._set_leaf(v)
             else:
                 return v
 
         def _check(v):
-            return isinstance(v, Mask) or isinstance(v, Leaf)
+            return isinstance(v, Mask) or isinstance(v, AddressLeaf)
 
         return jtu.tree_map(_inner, self.value, is_leaf=_check)
 

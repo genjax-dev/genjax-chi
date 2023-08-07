@@ -1,9 +1,9 @@
 # Core datatypes
 
-GenJAX features a set of core abstract datatypes which build on JAX's `Pytree` interface. These datatypes are used as an abstract base mixin (especially GenJAX's `Pytree` utility abstract base class) for basically all of the dataclasses in GenJAX.
+!!! note "Core datatypes in Gen"
 
-## Pytree
-
+    GenJAX features a set of core abstract datatypes which build on JAX's `Pytree` interface. These datatypes are used as abstract base mixins for many of the key dataclasses in GenJAX.
+    
 ::: genjax.core.Pytree
     options:
       members: 
@@ -13,16 +13,14 @@ GenJAX features a set of core abstract datatypes which build on JAX's `Pytree` i
         - stack
         - unstack
 
-## Abstract base classes which extend `Pytree`
-
-::: genjax.core.Tree
+::: genjax.core.AddressTree
     options:
       members: 
         - has_subtree
         - get_subtree
         - get_subtrees_shallow
 
-::: genjax.core.Leaf
+::: genjax.core.AddressLeaf
     options:
       members: 
         - get_leaf_value

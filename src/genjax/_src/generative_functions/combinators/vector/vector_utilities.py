@@ -17,7 +17,7 @@ import jax.tree_util as jtu
 from genjax._src.core.typing import static_check_is_array
 
 
-def static_check_leaf_length(tree):
+def static_check_leaf_matching_leading_dim(tree):
     def _inner(v):
         if static_check_is_array(v):
             shape = v.shape

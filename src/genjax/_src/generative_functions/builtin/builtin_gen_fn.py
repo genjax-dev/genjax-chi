@@ -20,7 +20,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.tracetypes import TraceType
+from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.pytree import DynamicClosure
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
@@ -37,15 +37,15 @@ from genjax._src.generative_functions import gentle
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
-from genjax._src.generative_functions.builtin.builtin_tracetype import (
-    trace_type_transform,
-)
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     importance_transform,
 )
 from genjax._src.generative_functions.builtin.builtin_transforms import (
     simulate_transform,
+)
+from genjax._src.generative_functions.builtin.builtin_transforms import (
+    trace_type_transform,
 )
 from genjax._src.generative_functions.builtin.builtin_transforms import update_transform
 
@@ -169,7 +169,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         # `chm` is a `Trie` here.
         if not chm.inner:
             chm = EmptyChoiceMap()
-        return BuiltinTrace(self, args, r, chm, cache, score)
+        return BuiltinTrace.new(self, args, r, chm, cache, score)
 
     @typecheck
     def importance(
@@ -181,7 +181,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         (w, (f, args, r, chm, score)), cache = importance_transform(self.source)(
             key, chm, args
         )
-        return (w, BuiltinTrace(self, args, r, chm, cache, score))
+        return (w, BuiltinTrace.new(self, args, r, chm, cache, score))
 
     @typecheck
     def update(
@@ -204,7 +204,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         return (
             retval_diffs,
             w,
-            BuiltinTrace(self, args, r, chm, cache, score),
+            BuiltinTrace.new(self, args, r, chm, cache, score),
             HierarchicalChoiceMap(discard),
         )
 
@@ -220,6 +220,12 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     def inline(self, *args):
         return self.source(*args)
+
+    def restore_with_aux(self, interface_data, aux):
+        (original_args, retval, score, choices) = interface_data
+        (cache,) = aux
+        trie = choices.trie
+        return BuiltinTrace.new(self, original_args, retval, trie, cache, score)
 
 
 #####
@@ -237,4 +243,4 @@ def partial(gen_fn, *static_args):
 # Shorthands #
 ##############
 
-lang = BuiltinGenerativeFunction.new
+builtin_generative_function = BuiltinGenerativeFunction.new

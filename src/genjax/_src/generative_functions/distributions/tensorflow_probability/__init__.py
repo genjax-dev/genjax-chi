@@ -20,8 +20,8 @@ import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.datatypes.tracetypes import TraceType
-from genjax._src.core.datatypes.tracetypes import tt_lift
+from genjax._src.core.datatypes.generative import TraceType
+from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
@@ -66,6 +66,8 @@ tfp_power_spherical = TFPDistribution(tfd.PowerSpherical)
 tfp_skellam = TFPDistribution(tfd.Skellam)
 tfp_student_t = TFPDistribution(tfd.StudentT)
 tfp_normal = TFPDistribution(tfd.Normal)
+tfp_mv_normal_diag = TFPDistribution(tfd.MultivariateNormalDiag)
+tfp_mv_normal = TFPDistribution(tfd.MultivariateNormalFullCovariance)
 tfp_categorical = TFPDistribution(tfd.Categorical)
 tfp_truncated_cauchy = TFPDistribution(tfd.TruncatedCauchy)
 tfp_truncated_normal = TFPDistribution(tfd.TruncatedNormal)

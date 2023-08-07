@@ -45,7 +45,7 @@ class ChoiceMapDistribution(GenSPDistribution):
 
     def get_trace_type(self, *args):
         inner_type = self.p.get_trace_type(*args)
-        trace_type = self.selection.filter(inner_type)
+        trace_type = inner_type.filter(self.selection)
         correct_if_check = trace_type
         if self.custom_q is None:
             return correct_if_check
@@ -57,11 +57,11 @@ class ChoiceMapDistribution(GenSPDistribution):
     def random_weighted(self, key, *args):
         key, tr = self.p.simulate(key, args)
         choices = tr.get_choices()
-        selected_choices = self.selection.filter(choices)
+        selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
             weight = tr.project(self.selection)
         else:
-            unselected = self.selection.complement().filter(choices)
+            unselected = choices.filter(self.selection.complement())
             target = Target.new(self.p, args, selected_choices)
 
             # Perform a compile-time trace type check.

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.generative_functions.drop_arguments import *
+
 from .builtin import *
 from .combinators import *
 from .distributions import *

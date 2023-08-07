@@ -38,7 +38,7 @@ class Target(UnnormalizedMeasure):
     def get_trace_type(self):
         inner_type = self.p.get_trace_type(*self.args)
         latent_selection = self.latent_selection()
-        trace_type = latent_selection.filter(inner_type)
+        trace_type = inner_type.filter(latent_selection)
         return trace_type
 
     def latent_selection(self):
@@ -46,7 +46,7 @@ class Target(UnnormalizedMeasure):
 
     def get_latents(self, v):
         latent_selection = self.latent_selection()
-        latents = latent_selection.filter(v.strip())
+        latents = v.strip().filter(latent_selection)
         return latents
 
     def importance(self, key, chm: ChoiceMap, _: Tuple):

@@ -28,7 +28,8 @@ nav:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
           - Generative datatypes: genjax/library/core/generative.md
-          - Interpreters: genjax/library/core/interpreters.md
+          - The masking system: genjax/library/core/masking.md
+          - (Advanced) Interpreters: genjax/library/core/interpreters.md
       - Generative function languages: 
           - genjax/library/generative_functions/index.md
           - Distributions: 
