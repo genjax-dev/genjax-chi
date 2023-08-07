@@ -20,6 +20,8 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.serialization.backend import SerializationBackend
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Any
 
 
 @dataclass
@@ -28,33 +30,35 @@ class Pickle(SerializationBackend):
     def _to_tuple(obj: Pytree):
         return (obj.__class__, obj.flatten())
 
-    def pickle_serialize(self, obj: Pytree):
+    def dumps(self, obj: Pytree):
         """Serializes an object using pickle."""
         return pickle.dumps(self._to_tuple(obj))
 
-    def serialize(self, path, obj):
-        pickle.dump(path, self._to_tuple(obj))
-
-    def deserialize(self, serialized_obj):
+    def loads(self, serialized_obj):
         """Deserializes an object using pickle."""
         cls, (xs, data) = pickle.loads(serialized_obj)
         return cls.unflatten(xs, data)
+
+    def serialize(self, path, obj):
+        pickle.dump(path, self._to_tuple(obj))
 
 
 #####
 # Mixin
 #####
 
+PickleDataFormat = List[Any]
+
 # This should be implemented for traces.
 class SupportsPickleSerialization:
     @dispatch
-    def serialize(self, path, backend: Pickle):
+    def dumps(self, backend: Pickle) -> PickleDataFormat:
         backend.serialize(path, self)
 
 
 # This should be implemented for generative functions.
 class SupportsPickleDeserialization:
     @dispatch
-    def deserialize(self, path, backend: Pickle):
+    def loads(self, path, backend: Pickle):
         tr = backend.deserialize(path)
         return tr
