@@ -42,9 +42,7 @@ from genjax._src.generative_functions.combinators.vector.map_combinator import M
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
     MapCombinator,
 )
-from genjax._src.generative_functions.combinators.vector.map_combinator import (
-    MapTrace,
-)
+from genjax._src.generative_functions.combinators.vector.map_combinator import MapTrace
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
     map_combinator,
 )
@@ -59,10 +57,10 @@ from genjax._src.generative_functions.combinators.vector.unfold_combinator impor
     UnfoldCombinator,
 )
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    unfold_combinator,
+    UnfoldTrace,
 )
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    UnfoldTrace,
+    unfold_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
