@@ -18,10 +18,10 @@ import dill as pickle
 
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.serialization.backend import SerializationBackend
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import List
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Any
 
 
 @dataclass
@@ -53,7 +53,7 @@ PickleDataFormat = List[Any]
 class SupportsPickleSerialization:
     @dispatch
     def dumps(self, backend: Pickle) -> PickleDataFormat:
-        backend.serialize(path, self)
+        raise NotImplementedError
 
 
 # This should be implemented for generative functions.
