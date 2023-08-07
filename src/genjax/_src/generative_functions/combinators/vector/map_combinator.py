@@ -37,7 +37,6 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
@@ -150,19 +149,17 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     """
 
     in_axes: Tuple
-    repeats: Union[None, IntArray]
     kernel: JAXGenerativeFunction
 
     def flatten(self):
-        return (self.kernel,), (self.in_axes, self.repeats)
+        return (self.kernel,), (self.in_axes,)
 
     @typecheck
     @classmethod
     def new(
         cls,
         kernel: JAXGenerativeFunction,
-        in_axes: Union[None, Tuple] = None,
-        repeats: Union[None, IntArray] = None,
+        in_axes: Tuple,
     ) -> "MapCombinator":
         """The preferred constructor for `MapCombinator` generative function
         instances. The shorthand symbol is `Map = MapCombinator.new`.
@@ -170,19 +167,19 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         Arguments:
             kernel: A single `JAXGenerativeFunction` instance.
             in_axes: A tuple specifying which `args` to broadcast over.
-            repeats: An integer specifying the length of repetitions (ignored if `in_axes` is specified, if `in_axes` is not specified - required).
 
         Returns:
             instance: A `MapCombinator` instance.
         """
-        if in_axes is None or all(map(lambda v: v is None, in_axes)):
-            assert repeats is not None
-        return MapCombinator(in_axes, repeats, kernel)
+        return MapCombinator(in_axes, kernel)
+
+    def __abstract_call__(self, *args) -> Any:
+        return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)
 
     def _static_check_broadcastable(self, args):
         # Argument broadcast semantics must be fully specified
-        # in `in_axes` or via `self.repeats`.
-        assert self.repeats or (len(args) == len(self.in_axes))
+        # in `in_axes`.
+        assert len(args) == len(self.in_axes)
 
     def _static_broadcast_dim_length(self, args):
         def find_axis_size(axis, x):
@@ -194,14 +191,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
         axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
-        if self.repeats is None and len(axis_sizes) == 1:
+        if len(axis_sizes) == 1:
             (d_axis_size,) = axis_sizes
-        elif len(axis_sizes) > 1:
-            raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
-        elif self.repeats is None:
-            raise ValueError("repeats should be specified manually.")
         else:
-            d_axis_size = self.repeats
+            raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
         return d_axis_size
 
     @typecheck
