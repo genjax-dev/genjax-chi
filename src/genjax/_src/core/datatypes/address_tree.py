@@ -44,6 +44,18 @@ class AddressTree(Pytree):
     def get_subtrees_shallow(self):
         pass
 
+    ###########
+    # Dunders #
+    ###########
+
+    def __getitem__(self, addr):
+        subtree = self.get_subtree(addr)
+        if isinstance(subtree, AddressLeaf):
+            v = subtree.get_leaf_value()
+            return v
+        else:
+            return subtree
+
 
 @dataclass
 class AddressLeaf(AddressTree):
