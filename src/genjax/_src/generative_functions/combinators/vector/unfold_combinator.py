@@ -19,19 +19,18 @@ input)."""
 from dataclasses import dataclass
 
 import jax
-import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax.experimental import checkify
 
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import NoneSelection
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import static_check_no_change
@@ -48,9 +47,6 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    ComplementIndexSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -60,11 +56,9 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_tracetypes import (
     VectorTraceType,
 )
+from genjax._src.global_options import global_options
 
 
 #####
@@ -107,17 +101,10 @@ class UnfoldTrace(Trace):
         return self.score
 
     @dispatch
-    def project(self, selection: VectorSelection) -> FloatArray:
-        return jnp.sum(
-            jnp.where(
-                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
-                self.inner.project(selection.inner),
-                0.0,
-            )
-        )
-
-    @dispatch
-    def project(self, selection: IndexSelection) -> FloatArray:
+    def project(
+        self,
+        selection: IndexSelection,
+    ) -> FloatArray:
         inner_project = self.inner.project(selection.inner)
         return jnp.sum(
             jnp.where(
@@ -128,24 +115,17 @@ class UnfoldTrace(Trace):
         )
 
     @dispatch
-    def project(self, selection: ComplementIndexSelection) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
+    def project(
+        self,
+        selection: HierarchicalSelection,
+    ) -> FloatArray:
         return jnp.sum(
-            jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+            jnp.where(
+                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
+                self.inner.project(selection),
+                0.0,
+            )
         )
-
-    @dispatch
-    def project(self, selection: AllSelection) -> FloatArray:
-        return self.score
-
-    @dispatch
-    def project(self, selection: NoneSelection) -> FloatArray:
-        return 0.0
-
-    @dispatch
-    def project(self, selection: Selection) -> FloatArray:
-        selection = VectorSelection.new(selection)
-        return self.project(selection)
 
 
 #####
@@ -222,31 +202,15 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         return stacked
 
-    def _runtime_throw_bounds_exception(self, count: int):
-        def _inner(count, _):
-            raise Exception(
-                f"\nUnfoldCombinator {self} received a length argument ({count}) longer than specified max length ({self.max_length})"
+    def _optional_out_of_bounds_check(self, count: IntArray):
+        def _check():
+            check_flag = jnp.less(self.max_length, count + 1)
+            checkify.check(
+                check_flag,
+                f"\nUnfoldCombinator received a length argument ({count}) longer than specified max length ({self.max_length})",
             )
 
-        hcb.id_tap(
-            lambda *args: _inner(*args),
-            count,
-            result=None,
-        )
-        return None
-
-    def _runtime_check_bounds(self, args):
-        length = args[0]
-
-        # This inserts a host callback check for bounds checking.
-        # At runtime, if the bounds are exceeded -- an error
-        # will be emitted.
-        check = jnp.less(self.max_length, length + 1)
-        concrete_cond(
-            check,
-            lambda *args: self._runtime_throw_bounds_exception(length + 1),
-            lambda *args: None,
-        )
+        global_options.optional_check(_check)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
@@ -261,8 +225,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         args: Tuple,
     ) -> UnfoldTrace:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -325,8 +289,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: IndexChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -337,19 +301,22 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 sub_choice_map = chm.get_subtree(count)
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
-                    sub_key, sub_choice_map, (state, *static_args))
+                    sub_key, sub_choice_map, (state, *static_args)
+                )
                 return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
 
             def _with_empty_choicemap(key, count, state):
                 sub_choice_map = EmptyChoiceMap()
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
-                    sub_key, sub_choice_map, (state, *static_args))
-                return key, count, tr, state, 0., 0.
-            
+                    sub_key, sub_choice_map, (state, *static_args)
+                )
+                return key, count, tr, state, 0.0, 0.0
+
             check = jnp.less(count, length + 1)
             key, count, tr, state, score, w = concrete_cond(
-                check, _with_choicemap, _with_empty_choicemap, key, count, state)
+                check, _with_choicemap, _with_empty_choicemap, key, count, state
+            )
 
             return (count, key, state), (w, score, tr, state)
 
@@ -379,8 +346,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -444,7 +411,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         _: EmptyChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
-        self._runtime_check_bounds(args)
+        length = args[0]
+        self._optional_out_of_bounds_check(length)
         unfold_tr = self.simulate(key, args)
         w = 0.0
         return (w, unfold_tr)
@@ -665,7 +633,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state = argdiffs[1]
         static_args = argdiffs[2:]
         args = tree_diff_primal(argdiffs)
-        self._runtime_check_bounds(args)
+        self._optional_out_of_bounds_check(args[0])  # length
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
             state = tree_diff_primal(state)
@@ -695,8 +663,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -738,3 +706,15 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 ##############
 
 Unfold = UnfoldCombinator.new
+
+
+@dispatch
+def unfold_combinator(max_length: IntArray):
+    assert is_concrete(max_length)
+    return lambda gen_fn: Unfold(gen_fn, max_length)
+
+
+@dispatch
+def unfold_combinator(gen_fn: GenerativeFunction, max_length: IntArray):
+    assert is_concrete(max_length)
+    return Unfold(gen_fn, max_length)

@@ -42,6 +42,12 @@ from genjax._src.generative_functions.combinators.vector.map_combinator import M
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
     MapCombinator,
 )
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    MapTrace,
+)
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    map_combinator,
+)
 from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
     StateSpace,
 )
@@ -51,6 +57,12 @@ from genjax._src.generative_functions.combinators.vector.state_space_combinator 
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
     UnfoldCombinator,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    unfold_combinator,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    UnfoldTrace,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
@@ -62,9 +74,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     index_choice_map,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -73,24 +82,23 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
 )
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    vector_select,
-)
 
 
 __all__ = [
+    "MapTrace",
     "MapCombinator",
     "Map",
+    "map_combinator",
+    "UnfoldTrace",
     "UnfoldCombinator",
     "Unfold",
+    "unfold_combinator",
     "StateSpaceCombinator",
     "StateSpace",
     "SwitchCombinator",
     "Switch",
     "VectorChoiceMap",
     "vector_choice_map",
-    "VectorSelection",
-    "vector_select",
     "IndexChoiceMap",
     "index_choice_map",
     "IndexSelection",

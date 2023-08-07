@@ -19,14 +19,12 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
+from genjax._src.core.datatypes.generative import select
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    vector_select,
-)
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
 )
@@ -105,10 +103,10 @@ def build_inference_test_generator(
             sub_key, jnp.ones(config.linear_grid_dim)
         )
         tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
-        z_sel = vector_select("z")
-        x_sel = vector_select("x")
-        latent_sequence = z_sel.filter(tr.strip())["z"]
-        observation_sequence = x_sel.filter(tr.strip())["x"]
+        z_sel = select("z")
+        x_sel = select("x")
+        latent_sequence = tr.filter(z_sel)["z"]
+        observation_sequence = tr.filter(x_sel)["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)
         # This actually doesn't use any randomness.
         (log_posterior, _) = DiscreteHMM.estimate_logpdf(

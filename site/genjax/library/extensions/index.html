@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../../assets/img/gen-logo.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.15+insiders-4.35.3">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.15+insiders-4.35.3">
     
     
       
@@ -433,6 +433,8 @@
       
         
       
+        
+      
     
     
       
@@ -541,13 +543,39 @@
   
   
     <li class="md-nav__item">
+      <a href="../core/masking.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  
+    The masking system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../core/interpreters.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     
   
-    Interpreters
+    (Advanced) Interpreters
   
 
     
@@ -1154,15 +1182,15 @@
 
 
 <h2 id="genjax.extras.LazyLoader" class="doc doc-heading">
-        <code>genjax.extras.LazyLoader</code>
+          <code>genjax.extras.LazyLoader</code>
 
 
 <a href="#genjax.extras.LazyLoader" class="headerlink" title="Permanent link">&para;</a></h2>
 
 
   <div class="doc doc-contents first">
-      <p class="doc doc-class-bases">
-        Bases: <code>types.<span title="types.ModuleType">ModuleType</span></code></p>
+          <p class="doc doc-class-bases">
+            Bases: <code>types.<span title="types.ModuleType">ModuleType</span></code></p>
 
   
       <blockquote>
@@ -1170,6 +1198,8 @@
 depend on 3rd party dependencies which may be too heavyweight to include as
 required dependencies for <code>genjax</code> proper.</p>
 </blockquote>
+
+
 
 <p><strong>Examples:</strong></p>
     <p>To utilize the system, the <code>LazyLoader</code> expects that you provide a local name for the module, globals, and the source module. Here's example usage for an extension module utilizing <code>tinygp</code> - we give the lazy loaded module the name <code>tinygp</code>, and tell the loader that the module path is <code>genjax._src.extras.tinygp</code>:</p>
@@ -1181,7 +1211,7 @@ required dependencies for <code>genjax</code> proper.</p>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The <code>tinygp</code> and <code>blackjax</code> extension modules rely on this system to implement functionality, while optionally depending on the presence of <code>tinygp</code> and <code>blackjax</code> (both 3rd party dependencies) for usage.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-15--__tabbed_1_1" name="exec-15--__tabbed_1" type="radio" /><input id="exec-15--__tabbed_1_2" name="exec-15--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-15--__tabbed_1_1">Source</label><label for="exec-15--__tabbed_1_2">Result</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-17--__tabbed_1_1" name="exec-17--__tabbed_1" type="radio" /><input id="exec-17--__tabbed_1_2" name="exec-17--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-17--__tabbed_1_1">Source</label><label for="exec-17--__tabbed_1_2">Result</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">jax</span>
@@ -1217,10 +1247,9 @@ required dependencies for <code>genjax</code> proper.</p>
 </div>
 </div>
 
-
-        <details class="quote">
-          <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-27">27</a></span>
+            <details class="quote">
+              <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-27">27</a></span>
 <span class="normal"><a href="#__codelineno-0-28">28</a></span>
 <span class="normal"><a href="#__codelineno-0-29">29</a></span>
 <span class="normal"><a href="#__codelineno-0-30">30</a></span>
@@ -1340,11 +1369,12 @@ required dependencies for <code>genjax</code> proper.</p>
 </span><span id="__span-0-85"><a id="__codelineno-0-85" name="__codelineno-0-85"></a>        <span class="n">module</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">()</span>
 </span><span id="__span-0-86"><a id="__codelineno-0-86" name="__codelineno-0-86"></a>        <span class="k">return</span> <span class="nb">dir</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
-        </details>
+            </details>
 
   
 
   <div class="doc doc-children">
+
 
 
 
@@ -1366,9 +1396,9 @@ required dependencies for <code>genjax</code> proper.</p>
 
   <div class="doc doc-contents ">
 
-      <details class="quote">
-        <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-68">68</a></span>
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-68">68</a></span>
 <span class="normal"><a href="#__codelineno-0-69">69</a></span>
 <span class="normal"><a href="#__codelineno-0-70">70</a></span>
 <span class="normal"><a href="#__codelineno-0-71">71</a></span>
@@ -1390,10 +1420,11 @@ required dependencies for <code>genjax</code> proper.</p>
 </span><span id="__span-0-77"><a id="__codelineno-0-77" name="__codelineno-0-77"></a>        <span class="p">)</span>
 </span><span id="__span-0-78"><a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="k">raise</span> <span class="n">e</span>
 </span></code></pre></div></td></tr></table></div>
-      </details>
+          </details>
   </div>
 
 </div>
+
 
 <div class="doc doc-object doc-function">
 
@@ -1407,18 +1438,19 @@ required dependencies for <code>genjax</code> proper.</p>
 
   <div class="doc doc-contents ">
 
-      <details class="quote">
-        <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-80">80</a></span>
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-80">80</a></span>
 <span class="normal"><a href="#__codelineno-0-81">81</a></span>
 <span class="normal"><a href="#__codelineno-0-82">82</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-80"><a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
 </span><span id="__span-0-81"><a id="__codelineno-0-81" name="__codelineno-0-81"></a>    <span class="n">module</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">()</span>
 </span><span id="__span-0-82"><a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
-      </details>
+          </details>
   </div>
 
 </div>
+
 
 <div class="doc doc-object doc-function">
 
@@ -1432,15 +1464,15 @@ required dependencies for <code>genjax</code> proper.</p>
 
   <div class="doc doc-contents ">
 
-      <details class="quote">
-        <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-84">84</a></span>
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/extras/__init__.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-84">84</a></span>
 <span class="normal"><a href="#__codelineno-0-85">85</a></span>
 <span class="normal"><a href="#__codelineno-0-86">86</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-84"><a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="k">def</span> <span class="fm">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 </span><span id="__span-0-85"><a id="__codelineno-0-85" name="__codelineno-0-85"></a>    <span class="n">module</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load</span><span class="p">()</span>
 </span><span id="__span-0-86"><a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="k">return</span> <span class="nb">dir</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
 </span></code></pre></div></td></tr></table></div>
-      </details>
+          </details>
   </div>
 
 </div>

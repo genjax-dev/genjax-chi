@@ -110,7 +110,7 @@ class TestVectorTrace:
         vec_tr = jax.jit(genjax.simulate(chain))(sub_key, (5, 0.0))
         sel = genjax.index_select([0], genjax.select("z"))
         proj_score = vec_tr.project(sel)
-        latent_z_0 = sel.filter(vec_tr.strip())["z"]
+        latent_z_0 = vec_tr.filter(sel)["z"]
         assert isinstance(latent_z_0, genjax.Mask)
         latent_z_0 = latent_z_0.unmask()
         z_score = genjax.normal.logpdf(latent_z_0, 0.0, 1.0)
@@ -118,7 +118,7 @@ class TestVectorTrace:
 
         sel = genjax.index_select([1], genjax.select("z"))
         proj_score = vec_tr.project(sel)
-        latent_z_1 = sel.filter(vec_tr.strip())["z"]
+        latent_z_1 = vec_tr.filter(sel)["z"]
         assert isinstance(latent_z_1, genjax.Mask)
         latent_z_1 = latent_z_1.unmask()
         z_score = genjax.normal.logpdf(latent_z_1, latent_z_0, 1.0)
@@ -126,7 +126,7 @@ class TestVectorTrace:
 
         sel = genjax.index_select([2], genjax.select("z"))
         proj_score = vec_tr.project(sel)
-        latent_z_2 = sel.filter(vec_tr.strip())["z"].unmask()
+        latent_z_2 = vec_tr.filter(sel)["z"].unmask()
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
         assert proj_score == z_score
 
@@ -140,14 +140,14 @@ class TestVectorTrace:
         vec_tr = jax.jit(genjax.simulate(two_layer_chain))(sub_key, (5, 0.0))
         sel = genjax.index_select([0], genjax.select("z1"))
         proj_score = vec_tr.project(sel)
-        latent_z_1 = sel.filter(vec_tr.strip())["z1"].unmask()
+        latent_z_1 = vec_tr.filter(sel)["z1"].unmask()
         z_score = genjax.normal.logpdf(latent_z_1, 0.0, 1.0)
         assert proj_score == z_score
 
         z1_sel = genjax.index_select([0], genjax.select("z1"))
         z2_sel = genjax.index_select([0], genjax.select("z2"))
         proj_score = vec_tr.project(z2_sel)
-        latent_z_1 = z1_sel.filter(vec_tr.strip())["z1"].unmask()
-        latent_z_2 = z2_sel.filter(vec_tr.strip())["z2"].unmask()
+        latent_z_1 = vec_tr.filter(z1_sel)["z1"].unmask()
+        latent_z_2 = vec_tr.filter(z2_sel)["z2"].unmask()
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
         assert proj_score == z_score

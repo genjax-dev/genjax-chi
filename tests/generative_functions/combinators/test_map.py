@@ -102,13 +102,3 @@ class TestMapCombinator:
         _ = genjax.simulate(genjax.Map(foo, in_axes=(None, (0, None))))(
             key, (10.0, (jnp.arange(3.0), 1.0))
         )
-
-    def test_map_repeats(self):
-        @genjax.gen
-        def model():
-            x = genjax.normal(0.0, 1.0) @ "x"
-            return x
-
-        key = jax.random.PRNGKey(314159)
-        _ = genjax.simulate(genjax.Map(model, repeats=10))(key, ())
-        assert True

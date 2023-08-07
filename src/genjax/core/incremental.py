@@ -18,11 +18,15 @@ from genjax._src.core.transforms.incremental import UnknownChange
 from genjax._src.core.transforms.incremental import diff
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.transforms.incremental import tree_diff
+from genjax._src.core.transforms.incremental import tree_diff_no_change
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 
 
 __all__ = [
     "diff",
     "tree_diff",
+    "tree_diff_no_change",
+    "tree_diff_unknown_change",
     "Diff",
     "NoChange",
     "UnknownChange",
