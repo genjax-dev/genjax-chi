@@ -15,9 +15,9 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
 
-| **Documentation** |          **Build Status**          |
+| **Documentation** |          **Build status**          |
 | :---------------: | :--------------------------------: |
-| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][main_build_action_badge]][actions] [![][nightly_build_action_badge][actions]] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][main_build_action_badge]][actions] [![][nightly_build_action_badge]][actions] |
 
 </div>
 
