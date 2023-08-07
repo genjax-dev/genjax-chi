@@ -57,7 +57,7 @@ import jax
 console = genjax.pretty()
 
 key = jax.random.PRNGKey(314159)
-key, tr = beta_bernoulli_process.simulate(key, (2, ))
+tr = beta_bernoulli_process.simulate(key, (2, ))
 
 print(console.render(tr))
 ```
@@ -72,12 +72,6 @@ The `cache` primitive is designed to expose a space vs. time trade-off for incre
 
 ## Generative datatypes
 
-The builtin language implements a trie-like trace, choice map, and selection.
+The builtin language implements a trie-like trace.
 
 ::: genjax.generative_functions.builtin.BuiltinTrace
-
-::: genjax.generative_functions.builtin.BuiltinChoiceMap
-
-::: genjax.generative_functions.builtin.BuiltinSelection
-
-::: genjax.generative_functions.builtin.BuiltinComplementSelection

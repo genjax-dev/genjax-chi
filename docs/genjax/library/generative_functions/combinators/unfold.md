@@ -30,16 +30,16 @@ To utilize `importance`, `update`, or `assess` with `Unfold`, it suffices to pro
 
 > (This section is also mirrored for `MapCombinator`)
 
-To select from `VectorChoiceMap`, both `VectorSelection` and `IndexSelection` can be used. 
+To `filter` from `VectorChoiceMap`, or `project` from `UnfoldTrace` both `HierarchicalSelection` and `IndexSelection` can be used.
 
-::: genjax.generative_functions.combinators.VectorSelection
+::: genjax.generative_functions.combinators.UnfoldTrace
     options:
       show_root_heading: true
       members:
-        - new
+        - project
 
-::: genjax.generative_functions.combinators.IndexSelection
+::: genjax.generative_functions.combinators.VectorChoiceMap
     options:
       show_root_heading: true
       members:
-        - new
+        - filter

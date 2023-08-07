@@ -43,6 +43,9 @@ from genjax._src.generative_functions.combinators.vector.map_combinator import (
     MapCombinator,
 )
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    MapTrace,
+)
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
     map_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
@@ -57,6 +60,9 @@ from genjax._src.generative_functions.combinators.vector.unfold_combinator impor
 )
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
     unfold_combinator,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    UnfoldTrace,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
@@ -79,9 +85,11 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 
 __all__ = [
+    "MapTrace",
     "MapCombinator",
     "Map",
     "map_combinator",
+    "UnfoldTrace",
     "UnfoldCombinator",
     "Unfold",
     "unfold_combinator",

@@ -248,7 +248,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = MapTrace(self, tr, args, retval, scores)
+        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return (w, map_tr)
 
     @dispatch
