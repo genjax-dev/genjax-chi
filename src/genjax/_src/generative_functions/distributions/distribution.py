@@ -157,7 +157,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         v = chm.get_leaf_value()
         if isinstance(v, Mask):
             active = v.mask
-            v = v.unmask()
+            v = v.unsafe_unmask()
 
             def _active(key, v, args):
                 w = self.estimate_logpdf(key, v, *args)

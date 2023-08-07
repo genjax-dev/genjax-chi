@@ -38,7 +38,7 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.generative_functions.combinators.vector.vector_utilities import (
-    static_check_leaf_length,
+    static_check_leaf_matching_leading_dim,
 )
 
 
@@ -172,7 +172,7 @@ class VectorChoiceMap(ChoiceMap):
         inner: ChoiceMap,
     ) -> ChoiceMap:
         # Static assertion: all leaves must have same first dim size.
-        static_check_leaf_length(inner)
+        static_check_leaf_matching_leading_dim(inner)
         return VectorChoiceMap(inner)
 
     @classmethod
@@ -202,7 +202,7 @@ class VectorChoiceMap(ChoiceMap):
         filtered = self.inner.filter(selection.inner)
         flags = jnp.logical_and(
             selection.indices >= 0,
-            selection.indices < static_check_leaf_length(self.inner),
+            selection.indices < static_check_leaf_matching_leading_dim(self.inner),
         )
 
         def _take(v):
@@ -219,7 +219,7 @@ class VectorChoiceMap(ChoiceMap):
         flags = jnp.logical_not(
             jnp.logical_and(
                 selection.indices >= 0,
-                selection.indices < static_check_leaf_length(self.inner),
+                selection.indices < static_check_leaf_matching_leading_dim(self.inner),
             )
         )
 
@@ -308,7 +308,7 @@ class IndexChoiceMap(ChoiceMap):
 
         # Verify that dimensions are consistent before creating an
         # `IndexChoiceMap`.
-        _ = static_check_leaf_length((inner, indices))
+        _ = static_check_leaf_matching_leading_dim((inner, indices))
 
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):

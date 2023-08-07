@@ -19,9 +19,9 @@ input)."""
 from dataclasses import dataclass
 
 import jax
-import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax.experimental import checkify
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
@@ -58,6 +58,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorTraceType,
 )
+from genjax._src.global_options import global_options
 
 
 #####
@@ -201,31 +202,15 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         return stacked
 
-    def _runtime_throw_bounds_exception(self, count: int):
-        def _inner(count, _):
-            raise Exception(
-                f"\nUnfoldCombinator {self} received a length argument ({count}) longer than specified max length ({self.max_length})"
+    def _optional_out_of_bounds_check(self, count: IntArray):
+        def _check():
+            check_flag = jnp.less(self.max_length, count + 1)
+            checkify.check(
+                check_flag,
+                f"\nUnfoldCombinator received a length argument ({count}) longer than specified max length ({self.max_length})",
             )
 
-        hcb.id_tap(
-            lambda *args: _inner(*args),
-            count,
-            result=None,
-        )
-        return None
-
-    def _runtime_check_bounds(self, args):
-        length = args[0]
-
-        # This inserts a host callback check for bounds checking.
-        # At runtime, if the bounds are exceeded -- an error
-        # will be emitted.
-        check = jnp.less(self.max_length, length + 1)
-        concrete_cond(
-            check,
-            lambda *args: self._runtime_throw_bounds_exception(length + 1),
-            lambda *args: None,
-        )
+        global_options.optional_check(_check)
 
     @typecheck
     def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
@@ -240,8 +225,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         args: Tuple,
     ) -> UnfoldTrace:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -304,8 +289,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: IndexChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -361,8 +346,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
@@ -426,7 +411,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         _: EmptyChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
-        self._runtime_check_bounds(args)
+        length = args[0]
+        self._optional_out_of_bounds_check(length)
         unfold_tr = self.simulate(key, args)
         w = 0.0
         return (w, unfold_tr)
@@ -647,7 +633,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state = argdiffs[1]
         static_args = argdiffs[2:]
         args = tree_diff_primal(argdiffs)
-        self._runtime_check_bounds(args)
+        self._optional_out_of_bounds_check(args[0])  # length
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
             state = tree_diff_primal(state)
@@ -677,8 +663,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        self._runtime_check_bounds(args)
         length = args[0]
+        self._optional_out_of_bounds_check(length)
         state = args[1]
         static_args = args[2:]
 
