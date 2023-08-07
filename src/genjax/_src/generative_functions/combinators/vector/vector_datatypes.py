@@ -161,10 +161,18 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def new(
         cls,
+        inner: EmptyChoiceMap,
+    ) -> EmptyChoiceMap:
+        return inner
+
+    @classmethod
+    @dispatch
+    def new(
+        cls,
         inner: ChoiceMap,
     ) -> ChoiceMap:
-        if isinstance(inner, EmptyChoiceMap):
-            return inner
+        # Static assertion: all leaves must have same first dim size.
+        static_check_leaf_length(inner)
         return VectorChoiceMap(inner)
 
     @classmethod
