@@ -1,4 +1,4 @@
-name: Testing, linting, and building
+name: (main) 
 
 on:
   # Runs on pushes targeting the default branch
