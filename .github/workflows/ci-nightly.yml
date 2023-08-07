@@ -1,0 +1,34 @@
+name: Testing, linting, and building
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches: ["nightly"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  CODECOV_TOKEN: 1abb2fd7-0cb5-433c-b2cc-1596466aeb56
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.0
+
+      - name: Setup Nox
+        uses: daisylb/setup-nox@v2.1.0
+
+      - name: Install poetry/nox-poetry
+        run: pip install poetry nox-poetry
+
+      - name: Run Nox
+        run: nox
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3.1.4
