@@ -17,11 +17,12 @@
 
 | **Documentation** |          **Build Status**          |
 | :---------------: | :--------------------------------: |
-| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][build_action_badge]][actions] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][main_build_action_badge]][actions] [![][nightly_build_action_badge][actions]] |
 
 </div>
 
-[build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square
+[main_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square
+[nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square
 [actions]: https://github.com/probcomp/genjax/actions
 
 <div align="center">
