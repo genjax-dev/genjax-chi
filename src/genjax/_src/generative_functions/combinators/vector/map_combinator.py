@@ -18,10 +18,10 @@ their arguments."""
 from dataclasses import dataclass
 
 import jax
-import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
+from jax.experimental import checkify
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
@@ -33,6 +33,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
@@ -53,6 +54,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
     VectorTraceType,
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
+from genjax._src.global_options import global_options
 from genjax._src.utilities import slash
 
 
@@ -179,7 +181,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     def _static_check_broadcastable(self, args):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
-        assert len(args) == len(self.in_axes)
+        if not len(args) == len(self.in_axes):
+            raise Exception(
+                f"MapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {len(self.in_axes)}"
+            )
 
     def _static_broadcast_dim_length(self, args):
         def find_axis_size(axis, x):
@@ -414,24 +419,19 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     # TODO: I've had so many issues with getting this to work correctly
     # and not throw - and I'm not sure why it's been so finicky.
     # Investigate if it occurs again.
-    def _throw_index_check_host_exception(
-        self, check, truth: IntArray, index: IntArray
+    def _optional_index_check(
+        self,
+        check: BoolArray,
+        truth: IntArray,
+        index: IntArray,
     ):
-        def _inner(args, _):
-            truth = args[0]
-            index = args[1]
-            check = args[2]
-            if not np.all(check):
-                raise Exception(
-                    f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference:\n{truth}\nPassed in:\n{index}"
-                )
+        def _check():
+            checkify.check(
+                not np.all(check),
+                f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference:\n{truth}\nPassed in:\n{index}",
+            )
 
-        hcb.id_tap(
-            _inner,
-            (truth, index, check),
-            result=None,
-        )
-        return None
+        global_options.optional_check(_check)
 
     @typecheck
     def assess(
@@ -445,11 +445,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
         check = jnp.count_nonzero(indices - chm.get_index()) == 0
 
-        # This inserts a host callback check for bounds checking.
+        # This inserts a `checkify.check` for bounds checking.
         # If there is an index failure, `assess` must fail
         # because we must provide a constraint for every generative
         # function call.
-        self._throw_index_check_host_exception(check, indices, chm.get_index())
+        self._optional_index_check(check, indices, chm.get_index())
 
         inner = chm.inner
         key, sub_keys = slash(key, broadcast_dim_length)
