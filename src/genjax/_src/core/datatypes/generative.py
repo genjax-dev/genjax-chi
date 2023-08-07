@@ -1150,7 +1150,7 @@ class GenerativeFunction(Pytree):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            key, (r, w, chm) = genjax.normal.propose(key, (0.0, 1.0))
+            (r, w, chm) = genjax.normal.propose(key, (0.0, 1.0))
             print(console.render(chm))
             ```
 
@@ -1168,7 +1168,7 @@ class GenerativeFunction(Pytree):
                 return y
 
             key = jax.random.PRNGKey(314159)
-            key, (r, w, chm) = model.propose(key, ())
+            (r, w, chm) = model.propose(key, ())
             print(console.render(chm))
             ```
         """
