@@ -29,9 +29,7 @@ import rich
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.pytree import tree_grad_split
@@ -97,9 +95,13 @@ class Selection(AddressTree):
             f"Selection of type {type(self)} does not implement get_subtrees_shallow.",
         )
 
+    ###########
+    # Dunders #
+    ###########
+
     def __getitem__(self, addr):
-        subselection = self.get_subtree(addr)
-        return subselection
+        subtree = self.get_subtree(addr)
+        return subtree
 
     ###################
     # Pretty printing #
@@ -127,7 +129,7 @@ class NoneSelection(Selection, AddressLeaf):
 
     def get_leaf_value(self):
         raise Exception(
-            "NoneSelection is a Selection: it does not provide a leaf choice value."
+            "NoneSelection is a Selection: it does not provide a leaf value."
         )
 
     def set_leaf_value(self):
@@ -154,7 +156,7 @@ class AllSelection(Selection, AddressLeaf):
 
     def get_leaf_value(self):
         raise Exception(
-            "AllSelection is a Selection: it does not provide a leaf choice value."
+            "AllSelection is a Selection: it does not provide a leaf value."
         )
 
     def set_leaf_value(self):
@@ -471,14 +473,6 @@ class ChoiceMap(AddressTree):
     def __eq__(self, other):
         return self.flatten() == other.flatten()
 
-    def __getitem__(self, addr):
-        choice = self.get_subtree(addr)
-        if isinstance(choice, AddressLeaf):
-            v = choice.get_leaf_value()
-            return v
-        else:
-            return choice
-
     # Optional: mutable setter.
     def __setitem__(self, key, value):
         raise Exception(
@@ -723,22 +717,6 @@ class Trace(ChoiceMap, AddressTree):
 
         return jtu.tree_map(_inner, self.get_choices(), is_leaf=_check)
 
-    def __getitem__(self, addr):
-        choices = self.get_choices()
-        choice = choices.get_subtree(addr)
-        if isinstance(choice, Mask):
-            if is_concrete(choice.mask):
-                if choice.mask:
-                    return choice.unmask()
-                else:
-                    return EmptyChoiceMap()
-            else:
-                return choice
-        elif isinstance(choice, AddressLeaf):
-            return choice.get_leaf_value()
-        else:
-            return choice
-
 
 #####
 # Trace types
@@ -768,9 +746,13 @@ class TraceType(AddressTree):
     def get_choices(self):
         return self
 
+    ###########
+    # Dunders #
+    ###########
+
     def __getitem__(self, addr):
-        sub = self.get_subtree(addr)
-        return sub
+        subtree = self.get_subtree(addr)
+        return subtree
 
 
 BaseMeasure = Enum("BaseMeasure", ["Counting", "Lebesgue", "Bottom"])
