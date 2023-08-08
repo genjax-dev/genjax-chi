@@ -227,6 +227,10 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         trie = choices.trie
         return BuiltinTrace.new(self, original_args, retval, trie, cache, score)
 
+    ###################
+    # Deserialization #
+    ###################
+
 
 #####
 # Partial binding / currying
