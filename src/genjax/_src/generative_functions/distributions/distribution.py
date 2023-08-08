@@ -31,6 +31,9 @@ from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.interpreters.staging import concrete_cond
+from genjax._src.core.serialization.pickle import PickleDataFormat
+from genjax._src.core.serialization.pickle import PickleSerializationBackend
+from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.transforms.incremental import tree_diff_no_change
@@ -51,7 +54,11 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuil
 
 
 @dataclass
-class DistributionTrace(Trace, AddressLeaf):
+class DistributionTrace(
+    Trace,
+    AddressLeaf,
+    SupportsPickleSerialization,
+):
     gen_fn: GenerativeFunction
     args: Tuple
     value: Any
@@ -86,6 +93,23 @@ class DistributionTrace(Trace, AddressLeaf):
 
     def set_leaf_value(self, v):
         return DistributionTrace(self.gen_fn, self.args, v, self.score)
+
+    #################
+    # Serialization #
+    #################
+
+    @dispatch
+    def dumps(
+        self,
+        backend: PickleSerializationBackend,
+    ) -> PickleDataFormat:
+        args, value, score = self.args, self.value, self.score
+        payload = [
+            backend.dumps(args),
+            backend.dumps(value),
+            backend.dumps(score),
+        ]
+        return PickleDataFormat(payload)
 
 
 #####
@@ -252,6 +276,19 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         v = evaluation_point.get_leaf_value()
         score = self.estimate_logpdf(key, v, *args)
         return (v, score)
+
+    ###################
+    # Deserialization #
+    ###################
+
+    @dispatch
+    def loads(
+        self,
+        data: PickleDataFormat,
+        backend: PickleSerializationBackend,
+    ) -> DistributionTrace:
+        args, value, score = backend.loads(data.payload)
+        return DistributionTrace(self, args, value, score)
 
 
 #####

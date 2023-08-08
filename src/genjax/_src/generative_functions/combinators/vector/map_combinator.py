@@ -29,6 +29,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.transforms.incremental import tree_diff_primal
@@ -96,11 +97,33 @@ class MapTrace(Trace):
         return self.score
 
     @dispatch
+    def maybe_restore_arguments_project(
+        self,
+        inner: Trace,
+        selection: Selection,
+    ):
+        return inner.project(selection)
+
+    @dispatch
+    def maybe_restore_arguments_project(
+        self,
+        inner: DropArgumentsTrace,
+        selection: Selection,
+    ):
+        original_arguments = self.get_args()
+        # Shape of arguments doesn't matter when we project.
+        restored = inner.restore(original_arguments)
+        return restored.project(selection)
+
+    @dispatch
     def project(
         self,
         selection: IndexSelection,
     ) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
+        inner_project = self.maybe_restore_arguments_project(
+            self.inner,
+            selection.inner,
+        )
         return jnp.sum(
             jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
         )
@@ -110,7 +133,10 @@ class MapTrace(Trace):
         self,
         selection: HierarchicalSelection,
     ) -> FloatArray:
-        inner_project = self.inner.project(selection)
+        inner_project = self.maybe_restore_arguments_project(
+            self.inner,
+            selection,
+        )
         return jnp.sum(inner_project)
 
 
