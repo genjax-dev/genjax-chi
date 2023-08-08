@@ -17,45 +17,45 @@ from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.inference.mcmc.metropolis_hastings import mh
 from genjax._src.inference.smc.state import SMCAlgorithm
 from genjax._src.inference.smc.state import SMCState
-from genjax._src.inference.smc.utils import dynamic_check_empty
 
 
 @dataclass
-class SMCForwardUpdate(SMCAlgorithm):
+class SMCProposalMetropolisHastingsRejuvenate(SMCAlgorithm):
+    proposal: GenerativeFunction
+
     def flatten(self):
-        return (), ()
+        return (self.proposal,), ()
 
     def apply(
         self,
         key: PRNGKey,
         state: SMCState,
-        new_argdiffs: Tuple,
-        obs: ChoiceMap,
+        proposal_args: Tuple,
     ) -> SMCState:
-        target_model = state.get_target_gen_fn()
         particles = state.get_particles()
         n_particles = state.get_num_particles()
-        sub_keys = jax.random.split(key, n_particles)
-        (_, log_weights, particles, discard) = jax.vmap(
-            target_model.update, in_axes=(0, 0, None, None)
-        )(sub_keys, particles, obs, new_argdiffs)
-        dynamic_check_empty(discard)
+        kernel = mh(self.proposal)
+        sub_keys = jax.random.split(key)
+        _, rejuvenated_particles = jax.vmap(kernel.apply, in_axes=(0, 0, None))(
+            sub_keys, particles, proposal_args
+        )
         new_state = SMCState(
             n_particles,
-            particles,
-            state.log_weights + log_weights,
+            rejuvenated_particles,
+            state.log_weights,
             0.0,
-            dynamic_check_empty(discard),
+            True,
         )
         return new_state
 
 
 @dispatch
-def smc_update():
-    return SMCForwardUpdate.new()
+def smc_rejuvenate(proposal: GenerativeFunction):
+    return SMCProposalMetropolisHastingsRejuvenate.new(proposal)

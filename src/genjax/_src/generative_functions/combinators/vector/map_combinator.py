@@ -416,9 +416,17 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return (retval_diff, w, map_tr, discard)
 
-    # TODO: I've had so many issues with getting this to work correctly
-    # and not throw - and I'm not sure why it's been so finicky.
-    # Investigate if it occurs again.
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: MapTrace,
+        chm: ChoiceMap,
+        argdiffs: Tuple,
+    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        return self.update(key, prev, maybe_idx_chm, argdiffs)
+
     def _optional_index_check(
         self,
         check: BoolArray,
