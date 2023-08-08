@@ -132,8 +132,8 @@ class UnnormalizedMeasureFunction(UnnormalizedMeasure):
     def importance(self, key: PRNGKey, chm: ChoiceMap, args: Tuple):
         importance_fn = self.gen_fn.importance
         rescaled = rescale_transform(importance_fn)
-        (key, (w, tr)), energy = rescaled(key, chm, args)
-        return key, (w + energy, tr)
+        (w, tr), energy = rescaled(key, chm, args)
+        return (w + energy, tr)
 
 
 ##############
