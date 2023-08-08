@@ -20,7 +20,7 @@ import jax.random as random
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.transforms.incremental import Diff
+from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
@@ -42,7 +42,7 @@ class MetropolisHastings(MCMCKernel):
         key, sub_key = jax.random.split(key)
         proposal_tr = self.proposal.simulate(sub_key, proposal_args_fwd)
         fwd_weight = proposal_tr.get_score()
-        diffs = Diff.no_change(model_args)
+        diffs = tree_diff_no_change(model_args)
         key, sub_key = jax.random.split(key)
         (_, weight, new, discard) = model.update(
             sub_key, trace, proposal_tr.strip(), diffs
