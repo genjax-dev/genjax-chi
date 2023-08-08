@@ -19,6 +19,9 @@ from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.serialization.pickle import PickleDataFormat
+from genjax._src.core.serialization.pickle import PickleSerializationBackend
+from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Tuple
@@ -32,7 +35,10 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class BuiltinTrace(Trace):
+class BuiltinTrace(
+    Trace,
+    SupportsPickleSerialization,
+):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -97,3 +103,28 @@ class BuiltinTrace(Trace):
 
     def get_aux(self):
         return (self.cache,)
+
+    #################
+    # Serialization #
+    #################
+
+    @dispatch
+    def dumps(
+        self,
+        backend: PickleSerializationBackend,
+    ) -> PickleDataFormat:
+        args, retval, score = self.args, self.retval, self.score
+        choices_payload = []
+        addr_payload = []
+        for (addr, subtrace) in self.choices.get_subtrees_shallow():
+            inner_payload = subtrace.dumps(backend)
+            choices_payload.append(inner_payload)
+            addr_payload.append(addr)
+        payload = [
+            backend.dumps(args),
+            backend.dumps(retval),
+            backend.dumps(score),
+            backend.dumps(addr_payload),
+            backend.dumps(choices_payload),
+        ]
+        return PickleDataFormat(payload)
