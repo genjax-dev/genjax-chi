@@ -296,7 +296,7 @@ class IndexChoiceMap(ChoiceMap):
 
         inner = tree_stack(subtrees)
         indices = jnp.array(indices)
-        return IndexChoiceMap.new(inner, indices)
+        return IndexChoiceMap.new(indices, inner)
 
     @classmethod
     @dispatch

@@ -286,6 +286,16 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     def importance(
         self,
         key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ):
+        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        return self.importance(key, maybe_idx_chm, args)
+
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
         chm: IndexChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
@@ -427,7 +437,10 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state: Diff,
         *static_args: Diff,
     ):
-        raise NotImplementedError
+        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        return self._update_fallback(
+            key, prev, maybe_idx_chm, length, state, *static_args
+        )
 
     @dispatch
     def _update_fallback(
@@ -620,6 +633,21 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         *static_args: Any,
     ):
         raise NotImplementedError
+
+    @dispatch
+    def _update_specialized(
+        self,
+        key: PRNGKey,
+        prev: UnfoldTrace,
+        chm: ChoiceMap,
+        length: Diff,
+        state: Any,
+        *static_args: Any,
+    ):
+        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        return self._update_specialized(
+            key, prev, maybe_idx_chm, length, state, *static_args
+        )
 
     @dispatch
     def update(

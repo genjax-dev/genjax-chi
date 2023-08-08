@@ -422,3 +422,36 @@ class TestUnfoldSimpleNormal:
         assert tr.project(sel) == tr.get_score()
         sel = genjax.index_select([0, 1, 2, 3, 4], genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+
+    def test_builtin_proposals_to_unfold(self):
+        @genjax.gen(genjax.Unfold, max_length=5)
+        def chain(z_prev):
+            z = genjax.tfp_normal(z_prev, 1.0) @ "z"
+            _ = genjax.tfp_normal(z, 1.0) @ "x"
+            return z
+
+        @genjax.gen
+        def builtin_proposer():
+            z = genjax.tfp_normal(0.0, 1.0) @ (1, "z")
+            return z
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = builtin_proposer.simulate(sub_key, ())
+        chm = tr.strip()
+        proposal = chm[1, "z"]
+        _, chain_tr = chain.importance(key, chm, (4, 0.0))
+        assert chain_tr.strip()["z"][1] == proposal
+
+        @genjax.gen
+        def builtin_proposer():
+            z = genjax.tfp_normal(0.0, 1.0) @ (2, "z")
+            return z
+
+        tr = builtin_proposer.simulate(sub_key, ())
+        chm = tr.strip()
+        proposal = chm[2, "z"]
+        _, _, chain_tr, _ = chain.update(
+            key, chain_tr, chm, genjax.tree_diff_no_change((4, 0.0))
+        )
+        assert chain_tr.strip()["z"][2] == proposal

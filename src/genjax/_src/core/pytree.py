@@ -28,13 +28,11 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
 from jax import api_util
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
-from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
@@ -67,10 +65,7 @@ def tree_stack(trees):
         treedef_list.append(treedef)
 
     grouped_leaves = zip(*leaves_list)
-    result_leaves = [
-        np.stack(leaf) if all(map(is_concrete, leaf)) else jnp.stack(leaf)
-        for leaf in grouped_leaves
-    ]
+    result_leaves = [jnp.stack(leaf) for leaf in grouped_leaves]
     return treedef_list[0].unflatten(result_leaves)
 
 
