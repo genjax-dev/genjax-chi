@@ -16,7 +16,7 @@ import abc
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import PRNGKey
 
 

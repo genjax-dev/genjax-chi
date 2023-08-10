@@ -21,8 +21,8 @@ from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.pytree import DynamicClosure
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.closure import DynamicClosure
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable

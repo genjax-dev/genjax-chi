@@ -35,7 +35,7 @@ from genjax._src.core.interpreters.context import Context
 from genjax._src.core.interpreters.context import ContextualTrace
 from genjax._src.core.interpreters.context import Fwd
 from genjax._src.core.interpreters.staging import is_concrete
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import IntArray
