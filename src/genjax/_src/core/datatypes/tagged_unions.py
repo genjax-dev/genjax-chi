@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass
 
-import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.address_tree import AddressLeaf
@@ -59,9 +59,20 @@ class TaggedUnion(Pytree):
 
         return jtu.tree_map(_inner, *self.values, is_leaf=_check)
 
+    def _static_assert_tagged_union_switch_num_callables_is_num_values(self, callables):
+        assert len(callables) == len(self.values)
+
+    def _static_assert_tagged_union_switch_returns_same_type(self, vs):
+        return True
+
     @typecheck
     def switch(self, *callables: Callable):
-        return jax.lax.switch(self.tag, *callables)
+        assert len(callables) == len(self.values)
+        self._static_assert_tagged_union_switch_num_callables_is_num_values(callables)
+        vs = list(map(lambda v: v[0](v[1]), zip(callables, self.values)))
+        self._static_assert_tagged_union_switch_returns_same_type(vs)
+        vs = jnp.array(vs)
+        return vs[self.tag]
 
 
 ##############

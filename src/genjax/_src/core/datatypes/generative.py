@@ -202,7 +202,7 @@ class HierarchicalSelection(Selection):
     def new(cls, selections: Dict):
         assert isinstance(selections, Dict)
         trie = Trie.new()
-        for (k, v) in selections.items():
+        for k, v in selections.items():
             assert isinstance(v, Selection)
             trie[k] = v
         return HierarchicalSelection(trie)
@@ -242,7 +242,7 @@ class HierarchicalSelection(Selection):
     ###################
 
     def __rich_tree__(self, tree):
-        for (k, v) in self.get_subtrees_shallow():
+        for k, v in self.get_subtrees_shallow():
             subk = tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
         return tree
@@ -278,7 +278,7 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
 
     def __rich_tree__(self, tree):
         sub_tree = rich.tree.Tree("[bold](Complement)")
-        for (k, v) in self.get_subtrees_shallow():
+        for k, v in self.get_subtrees_shallow():
             subk = sub_tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
         tree.add(sub_tree)
@@ -1031,7 +1031,7 @@ class HierarchicalTraceType(TraceType):
         else:
             check = True
             trie = Trie.new()
-            for (k, v) in self.get_subtrees_shallow():
+            for k, v in self.get_subtrees_shallow():
                 if k in other.trie:
                     sub = other.trie[k]
                     subcheck, mismatch = v.on_support(sub)
@@ -1041,7 +1041,7 @@ class HierarchicalTraceType(TraceType):
                     check = False
                     trie[k] = (v, None)
 
-            for (k, v) in other.get_subtrees_shallow():
+            for k, v in other.get_subtrees_shallow():
                 if k not in self.trie:
                     check = False
                     trie[k] = (None, v)
@@ -1386,7 +1386,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     def new(cls, constraints: Dict):
         assert isinstance(constraints, Dict)
         trie = Trie.new()
-        for (k, v) in constraints.items():
+        for k, v in constraints.items():
             v = (
                 ValueChoiceMap(v)
                 if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
@@ -1410,7 +1410,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
         trie = Trie.new()
         iter = self.get_subtrees_shallow()
-        for (k, v) in map(lambda args: _inner(*args), iter):
+        for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoiceMap):
                 trie[k] = v
 
@@ -1466,7 +1466,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     def get_selection(self):
         trie = Trie.new()
-        for (k, v) in self.get_subtrees_shallow():
+        for k, v in self.get_subtrees_shallow():
             trie[k] = v.get_selection()
         return HierarchicalSelection(trie)
 
@@ -1509,7 +1509,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     ###################
 
     def __rich_tree__(self, tree):
-        for (k, v) in self.get_subtrees_shallow():
+        for k, v in self.get_subtrees_shallow():
             subk = tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
         return tree
