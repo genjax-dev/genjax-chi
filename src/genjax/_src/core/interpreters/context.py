@@ -27,7 +27,7 @@ from jax import linear_util as lu
 from jax import util as jax_util
 
 from genjax._src.core.interpreters import staging
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Iterable

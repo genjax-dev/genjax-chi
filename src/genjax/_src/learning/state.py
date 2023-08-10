@@ -19,7 +19,7 @@ import functools
 
 import jax.tree_util as jtu
 
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable

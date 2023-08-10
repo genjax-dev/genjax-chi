@@ -28,7 +28,7 @@ from jax.interpreters import mlir
 from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import primitives as prim
 from genjax._src.core.interpreters import staging
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FrozenSet

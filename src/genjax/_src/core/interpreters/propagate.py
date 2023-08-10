@@ -41,7 +41,7 @@ from jax.experimental import pjit
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import extract_call_jaxpr
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 
 
 State = Any

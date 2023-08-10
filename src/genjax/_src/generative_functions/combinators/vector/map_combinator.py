@@ -56,7 +56,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.global_options import global_options
-from genjax._src.utilities import slash
 
 
 #####
@@ -245,7 +244,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     ) -> MapTrace:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
         tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(sub_keys, args)
         retval = tr.get_retval()
         scores = tr.get_score()
@@ -264,7 +263,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
 
         inner = chm.inner
         (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
@@ -287,7 +286,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _importance(key, index, chm, args):
             submap = chm.get_subtree(index)
@@ -359,7 +358,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
         inner_trace = prev.inner
 
         @typecheck
@@ -402,7 +401,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
 
         (retval_diff, w, tr, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
@@ -432,7 +431,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
         (retval_diff, w, tr, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
@@ -486,7 +485,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._optional_index_check(check, indices, chm.get_index())
 
         inner = chm.inner
-        key, sub_keys = slash(key, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
         (retval, score) = jax.vmap(self.kernel.assess, in_axes=(0, 0, self.in_axes))(
             sub_keys, inner, args
         )

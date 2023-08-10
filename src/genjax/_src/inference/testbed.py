@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import select
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey

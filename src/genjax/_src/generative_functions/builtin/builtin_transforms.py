@@ -30,7 +30,7 @@ from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.transforms import incremental
 from genjax._src.core.transforms.incremental import DiffTrace
 from genjax._src.core.transforms.incremental import static_check_no_change

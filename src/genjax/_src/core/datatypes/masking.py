@@ -31,7 +31,7 @@ from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import dispatch

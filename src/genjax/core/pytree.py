@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.utilities import slash
+from genjax._src.core.pytree.closure import DynamicClosure
+from genjax._src.core.pytree.closure import dynamic_closure
+from genjax._src.core.pytree.pytree import Pytree
 
 
-__all__ = ["slash"]
+__all__ = [
+    "DynamicClosure",
+    "dynamic_closure",
+    "Pytree",
+]
