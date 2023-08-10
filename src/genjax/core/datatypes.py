@@ -43,6 +43,8 @@ from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.tagged_unions import TaggedUnion
+from genjax._src.core.datatypes.tagged_unions import tagged_union
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.datatypes.trie import trie
 from genjax._src.core.pytree import DynamicClosure
@@ -79,6 +81,9 @@ __all__ = [
     # Masking.
     "Mask",
     "mask",
+    # Tagged unions.
+    "TaggedUnion",
+    "tagged_union",
     # Trace types.
     "Bottom",
     "Reals",
