@@ -28,7 +28,6 @@ from genjax.generative_functions.distributions import gensp
 from .adev import *
 from .console import *
 from .core import *
-from .debugging import *
 from .experimental import *
 from .extras import *
 from .generative_functions import *

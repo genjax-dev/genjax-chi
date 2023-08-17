@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.debugging import grab
-from genjax._src.debugging import stab
-from genjax._src.debugging import tag
+from genjax._src.core.runtime_debugger import pull
+from genjax._src.core.runtime_debugger import push
+from genjax._src.core.runtime_debugger import tag
 
 
-__all__ = ["tag", "grab", "stab"]
+__all__ = ["tag", "pull", "push"]

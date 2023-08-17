@@ -236,6 +236,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         kernel_tt = self.kernel.get_trace_type(*args)
         return VectorTraceType(kernel_tt, broadcast_dim_length)
 
+    @global_options.optional_runtime_debugger_capture
     @typecheck
     def simulate(
         self,
@@ -386,6 +387,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         discard = VectorChoiceMap(discard)
         return (retval_diff, w, map_tr, discard)
 
+    @global_options.optional_runtime_debugger_capture
     @dispatch
     def update(
         self,
@@ -416,6 +418,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
     # The choice map passed in here is empty, but perhaps
     # the arguments have changed.
+    @global_options.optional_runtime_debugger_capture
     @dispatch
     def update(
         self,
@@ -441,6 +444,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return (retval_diff, w, map_tr, discard)
 
+    @global_options.optional_runtime_debugger_capture
     @dispatch
     def update(
         self,
@@ -466,6 +470,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         global_options.optional_check(_check)
 
+    @global_options.optional_runtime_debugger_capture
     @typecheck
     def assess(
         self,

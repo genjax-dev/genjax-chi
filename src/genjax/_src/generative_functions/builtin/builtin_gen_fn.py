@@ -48,6 +48,7 @@ from genjax._src.generative_functions.builtin.builtin_transforms import (
     trace_type_transform,
 )
 from genjax._src.generative_functions.builtin.builtin_transforms import update_transform
+from genjax._src.global_options import global_options
 
 
 #####
@@ -159,6 +160,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
     def get_trace_type(self, *args, **kwargs) -> TraceType:
         return trace_type_transform(self.source, **kwargs)(*args)
 
+    @global_options.optional_runtime_debugger_capture
     @typecheck
     def simulate(
         self,
@@ -171,6 +173,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
             chm = EmptyChoiceMap()
         return BuiltinTrace.new(self, args, r, chm, cache, score)
 
+    @global_options.optional_runtime_debugger_capture
     @typecheck
     def importance(
         self,
@@ -183,6 +186,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         )
         return (w, BuiltinTrace.new(self, args, r, chm, cache, score))
 
+    @global_options.optional_runtime_debugger_capture
     @typecheck
     def update(
         self,
@@ -208,6 +212,7 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
             HierarchicalChoiceMap(discard),
         )
 
+    @global_options.optional_runtime_debugger_capture
     @typecheck
     def assess(
         self,
