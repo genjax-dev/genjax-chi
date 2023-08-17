@@ -17,14 +17,13 @@ exposing primitives which allow users to sow functions with state."""
 import dataclasses
 import functools
 
+import jax.core as jc
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.transforms import harvest
-from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import String
 
 
 NAMESPACE = "state"
@@ -33,17 +32,61 @@ collect = functools.partial(harvest.reap, tag=NAMESPACE)
 inject = functools.partial(harvest.plant, tag=NAMESPACE)
 
 # "clobber" here means that parameters get shared across sites with
-# the same name and namespace.
-param = functools.partial(harvest.sow, tag=NAMESPACE, mode="clobber")
+# the same name and tag.
+def param(*args, name):
+    f = functools.partial(
+        harvest.sow,
+        tag=NAMESPACE,
+        mode="clobber",
+        name=name,
+    )
+    return f(*args)
+
+
+##############
+# State trie #
+##############
+
+
+@dataclasses.dataclass
+class StateTrie(harvest.ReapState):
+    inner: Trie
+
+    def flatten(self):
+        return (self.inner,), ()
+
+    @classmethod
+    def new(cls):
+        trie = Trie.new()
+        return StateTrie(trie)
+
+    def sow(self, values, tree, name, mode):
+        if name in self.inner:
+            values = jtu.tree_leaves(harvest.tree_unreap(self.inner[name]))
+        else:
+            avals = jtu.tree_unflatten(
+                tree,
+                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
+            )
+            self.inner[name] = harvest.Reap.new(
+                jtu.tree_unflatten(tree, values),
+                dict(aval=avals),
+            )
+
+        return values
 
 
 @dataclasses.dataclass
 class Module(Pytree):
-    params: Dict[String, Any]
     apply: Callable
+    params: StateTrie
 
     def flatten(self):
-        return (self.params, self.apply), ()
+        return (self.params,), (self.apply,)
+
+    @classmethod
+    def new(cls, params, apply):
+        return Module(apply, params)
 
     def get_params(self):
         return self.params
@@ -53,11 +96,18 @@ class Module(Pytree):
 
     @classmethod
     def init(cls, apply):
+        _collect = functools.partial(
+            harvest.reap,
+            state=StateTrie.new(),
+            tag=NAMESPACE,
+            mode="clobber",
+        )
+
         def wrapped(*args):
-            _, params = collect(apply)(*args)
+            _, params = _collect(apply)(*args)
             params = harvest.unreap(params)
             jax_partial = jtu.Partial(apply)
-            return Module(params, inject(jax_partial))
+            return Module.new(params, inject(jax_partial))
 
         return wrapped
 
