@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 import dataclasses
 import functools
 
@@ -23,7 +24,6 @@ from jax.interpreters import ad
 from jax.interpreters import batching
 from jax.interpreters import mlir
 
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import primitives as prim
 from genjax._src.core.interpreters import staging
@@ -323,35 +323,9 @@ def tree_unreap(v):
 
 @dataclasses.dataclass
 class ReapState(Pytree):
-    pass
-
-
-@dataclasses.dataclass
-class ReapsTrie(ReapState):
-    inner: Trie
-
-    def flatten(self):
-        return (self.inner,), ()
-
-    @classmethod
-    def new(cls):
-        trie = Trie.new()
-        return ReapsTrie(trie)
-
-    def sow(self, values, tree, name, tag):
-        if name in self.inner:
-            values = jtu.tree_leaves(tree_unreap(self.inner[name]))
-        else:
-            avals = jtu.tree_unflatten(
-                tree,
-                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
-            )
-            self.inner[name] = Reap.new(
-                jtu.tree_unflatten(tree, values),
-                dict(aval=avals),
-            )
-
-        return values
+    @abc.abstractmethod
+    def sow(self, values, tree, name, tag, mode):
+        pass
 
 
 @dataclasses.dataclass

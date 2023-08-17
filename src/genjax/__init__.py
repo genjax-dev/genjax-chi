@@ -36,7 +36,6 @@ from .inference import *
 from .information import *
 from .interface import *
 from .language_decorator import *
-from .learning import *
 
 
 __version__ = "0.0.1"
