@@ -18,13 +18,12 @@ import functools
 import jax.core as jc
 import jax.tree_util as jtu
 import jax.util as jax_util
-from jax import api_util
-from jax import linear_util as lu
 from jax._src import effects
 from jax.interpreters import ad
 from jax.interpreters import batching
 from jax.interpreters import mlir
 
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters import context
 from genjax._src.core.interpreters import primitives as prim
 from genjax._src.core.interpreters import staging
@@ -123,79 +122,6 @@ def sow(value, *, tag: Hashable, name: String, mode: String = "strict", key=None
     return jtu.tree_unflatten(in_tree, out_flat)
 
 
-##################
-# Nest intrinsic #
-##################
-
-nest_p = jc.CallPrimitive("nest")
-
-
-def _nest_impl(f, *args, **_):
-    with jc.new_sublevel():
-        return f.call_wrapped(*args)
-
-
-nest_p.def_impl(_nest_impl)
-
-
-def _nest_lowering(ctx, *args, name, call_jaxpr, scope, **_):
-    return mlir._xla_call_lower(  # pylint: disable=protected-access
-        ctx,
-        *args,
-        name=jax_util.wrap_name(name, f"nest[{scope}]"),
-        call_jaxpr=call_jaxpr,
-        donated_invars=(False,) * len(args),
-    )
-
-
-mlir.register_lowering(nest_p, _nest_lowering)
-
-
-def _nest_transpose_rule(*args, **kwargs):
-    return ad.call_transpose(nest_p, *args, **kwargs)
-
-
-ad.primitive_transposes[nest_p] = _nest_transpose_rule
-
-
-def nest(f, *, scope: str):
-    """Wraps a function to create a new scope for harvested values.
-
-    Harvested values live in one dynamic name scope (for a particular tag),
-    and in strict mode, values with the same name cannot be collected or injected
-    more than once. `nest(f, scope=[name])` will take all tagged values in `f` and
-    put them into a nested dictionary with key `[name]`. This enables having
-    duplicate names in one namespace provided they are in different scopes. This
-    is different from using a separate tag to namespace, as it enables creating
-    nested/hierarchical structure within a single tag's namespace.
-    Example:
-    ```python
-    def foo(x):
-      return sow(x, tag='test', name='x')
-    harvest(foo, tag='test')({}, 1.)  # (1., {'x': 1.})
-    harvest(nest(foo, scope='a'), tag='test')({}, 1.)  # (1., {'a': {'x': 1.}})
-    ```
-    Args:
-      f: a function to be transformed
-      scope: a string that will act as the parent scope of all values tagged in
-        `f`.
-    Returns:
-      A semantically identical function to `f`, but when harvested, uses nested
-      values according to the input scope.
-    """
-
-    def wrapped(*args, **kwargs):
-        fun = lu.wrap_init(f, kwargs)
-        flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
-        out_flat = nest_p.bind(
-            flat_fun, *flat_args, scope=scope, name=getattr(f, "__name__", "<no name>")
-        )
-        return jtu.tree_unflatten(out_tree(), out_flat)
-
-    return wrapped
-
-
 ##########################
 # Harvest transformation #
 ##########################
@@ -269,8 +195,6 @@ class HarvestTrace(jc.Trace):
         params: Dict[String, Any],
     ):
         context = staging.get_dynamic_context(self)
-        if call_primitive is nest_p:
-            return context.process_nest(self, f, *tracers, **params)
         return context.process_higher_order_primitive(
             self, call_primitive, f, tracers, params, False
         )
@@ -365,9 +289,6 @@ class HarvestContext(context.Context):
     def handle_sow(self, *values, name, tag, mode, tree):
         raise NotImplementedError
 
-    def process_nest(self, trace, f, *tracers, scope, name):
-        raise NotImplementedError
-
 
 ###########
 # Reaping #
@@ -387,7 +308,7 @@ class Reap(Pytree):
         return Reap(metadata, value)
 
 
-def unreap(v):
+def tree_unreap(v):
     def _unwrap(v):
         if isinstance(v, Reap):
             return v.value
@@ -401,58 +322,64 @@ def unreap(v):
 
 
 @dataclasses.dataclass
+class ReapState(Pytree):
+    pass
+
+
+@dataclasses.dataclass
+class ReapsTrie(ReapState):
+    inner: Trie
+
+    def flatten(self):
+        return (self.inner,), ()
+
+    @classmethod
+    def new(cls):
+        trie = Trie.new()
+        return ReapsTrie(trie)
+
+    def sow(self, values, tree, name, tag):
+        if name in self.inner:
+            values = jtu.tree_leaves(tree_unreap(self.inner[name]))
+        else:
+            avals = jtu.tree_unflatten(
+                tree,
+                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
+            )
+            self.inner[name] = Reap.new(
+                jtu.tree_unflatten(tree, values),
+                dict(aval=avals),
+            )
+
+        return values
+
+
+@dataclasses.dataclass
 class ReapContext(HarvestContext):
     settings: HarvestSettings
-    reaps: Dict[String, Any]
+    reaps: ReapState
 
     def flatten(self):
         return (self.settings, self.reaps), ()
 
     @classmethod
-    def new(cls, settings):
-        reaps = dict()
-        return ReapContext(settings, reaps)
+    def new(cls, settings, reap_state):
+        return ReapContext(settings, reap_state)
 
     def yield_state(self):
         return (self.reaps,)
 
     def handle_sow(self, *values, name, tag, tree, mode):
         """Stores a sow in the reaps dictionary."""
+        values = self.reaps.sow(values, tree, name, tag)
         del tag
-        if name in self.reaps and mode == "clobber":
-            values, _ = jtu.tree_flatten(unreap(self.reaps[name]))
-        elif name in self.reaps:
-            raise ValueError(f"Variable has already been reaped: {name}")
-        else:
-            avals = jtu.tree_unflatten(
-                tree,
-                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
-            )
-            self.reaps[name] = Reap.new(
-                jtu.tree_unflatten(tree, values),
-                dict(mode=mode, aval=avals),
-            )
-
         return values
-
-    def process_nest(self, trace, f, *tracers, scope, name, **params):
-        out_tracers, reap_tracers, _ = self.reap_higher_order_primitive(
-            trace, nest_p, f, tracers, dict(params, name=name, scope=scope), False
-        )
-        tag = self.settings.tag
-        if reap_tracers:
-            flat_reap_tracers, reap_tree = jtu.tree_flatten(reap_tracers)
-            trace.process_primitive(
-                sow_p,
-                flat_reap_tracers,
-                dict(name=scope, tag=tag, tree=reap_tree, mode="strict"),
-            )
-        return out_tracers
 
 
 def reap(
     fn,
     *,
+    state: ReapState,
     tag: Hashable,
     allowlist: Optional[Iterable[String]] = None,
     blocklist: Iterable[String] = frozenset(),
@@ -465,7 +392,7 @@ def reap(
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        ctx = ReapContext.new(settings)
+        ctx = ReapContext.new(settings, state)
         retvals, (reaps,) = context.transform(fn, ctx, HarvestTrace)(*args, **kwargs)
         return retvals, reaps
 
