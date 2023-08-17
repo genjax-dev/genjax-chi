@@ -100,12 +100,11 @@ class Module(Pytree):
             harvest.reap,
             state=StateTrie.new(),
             tag=NAMESPACE,
-            mode="clobber",
         )
 
         def wrapped(*args):
             _, params = _collect(apply)(*args)
-            params = harvest.unreap(params)
+            params = harvest.tree_unreap(params)
             jax_partial = jtu.Partial(apply)
             return Module.new(params, inject(jax_partial))
 

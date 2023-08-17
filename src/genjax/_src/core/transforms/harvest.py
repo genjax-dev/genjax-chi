@@ -324,7 +324,7 @@ def tree_unreap(v):
 @dataclasses.dataclass
 class ReapState(Pytree):
     @abc.abstractmethod
-    def sow(self, values, tree, name, tag, mode):
+    def sow(self, values, tree, name, mode):
         pass
 
 
@@ -345,7 +345,7 @@ class ReapContext(HarvestContext):
 
     def handle_sow(self, *values, name, tag, tree, mode):
         """Stores a sow in the reaps dictionary."""
-        values = self.reaps.sow(values, tree, name, tag)
+        values = self.reaps.sow(values, tree, name, mode)
         del tag
         return values
 
