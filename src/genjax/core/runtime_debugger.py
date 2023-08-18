@@ -12,9 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
+
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.runtime_debugger import pull
 from genjax._src.core.runtime_debugger import push
+from genjax._src.core.runtime_debugger import record_call
 from genjax._src.core.runtime_debugger import tag
+from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 
 
-__all__ = ["tag", "pull", "push"]
+####################
+# Debug combinator #
+####################
+
+
+@dataclasses.dataclass
+class DebugCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+    gen_fn: JAXGenerativeFunction
+
+    def flatten(self):
+        return (self.gen_fn,), ()
+
+    def simulate(self, *args):
+        return record_call(self.gen_fn.simulate)(*args)
+
+    def propose(self, *args):
+        return record_call(self.gen_fn.propose)(*args)
+
+    def importance(self, *args):
+        return record_call(self.gen_fn.importance)(*args)
+
+    def update(self, *args):
+        return record_call(self.gen_fn.update)(*args)
+
+    def assess(self, *args):
+        return record_call(self.gen_fn.assess)(*args)
+
+
+@typecheck
+def record(gen_fn: JAXGenerativeFunction):
+    return DebugCombinator.new(gen_fn)
+
+
+__all__ = [
+    "tag",
+    "pull",
+    "push",
+    "record",
+]

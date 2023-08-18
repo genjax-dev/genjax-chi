@@ -219,7 +219,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         inner_type = self.kernel.get_trace_type(*args, **kwargs)
         return VectorTraceType(inner_type, self.max_length)
 
-    @global_options.optional_runtime_debugger_capture
     @typecheck
     def simulate(
         self,
@@ -283,7 +282,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         return unfold_tr
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def importance(
         self,
@@ -294,7 +292,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         maybe_idx_chm = IndexChoiceMap.convert(chm)
         return self.importance(key, maybe_idx_chm, args)
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def importance(
         self,
@@ -352,7 +349,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         return (w, unfold_tr)
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def importance(
         self,
@@ -418,7 +414,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         w = jnp.sum(w)
         return (w, unfold_tr)
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def importance(
         self,
@@ -654,7 +649,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             key, prev, maybe_idx_chm, length, state, *static_args
         )
 
-    @global_options.optional_runtime_debugger_capture
     @typecheck
     def update(
         self,
@@ -690,7 +684,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 *static_args,
             )
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def assess(
         self,

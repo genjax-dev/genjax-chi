@@ -186,6 +186,3 @@ class Pytree(metaclass=abc.ABCMeta):
     def __rich_console__(self, console, options):
         tree = gpp.tree_pformat(self)
         yield tree
-
-    def __rich_repr__(self):
-        yield self
