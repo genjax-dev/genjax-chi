@@ -18,8 +18,10 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.runtime_debugger import pull
 from genjax._src.core.runtime_debugger import push
 from genjax._src.core.runtime_debugger import record_call
+from genjax._src.core.runtime_debugger import record_value
 from genjax._src.core.runtime_debugger import tag
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import dispatch
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
 
 
@@ -51,9 +53,14 @@ class DebugCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return record_call(self.gen_fn.assess)(*args)
 
 
-@typecheck
-def record(gen_fn: JAXGenerativeFunction):
+@dispatch
+def record(gen_fn: JAXGenerativeFunction) -> DebugCombinator:
     return DebugCombinator.new(gen_fn)
+
+
+@dispatch
+def record(v: Any) -> Any:
+    return record_value(v)
 
 
 __all__ = [
