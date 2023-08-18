@@ -246,7 +246,7 @@ class DebuggerRecording(harvest.ReapState):
             }
             yield render_scope(
                 locals,
-                title="ins/outs",
+                title="recorded values",
                 indent_guides=self.render_settings.indent_guides,
                 max_length=self.render_settings.locals_max_length,
                 max_string=self.render_settings.locals_max_string,
