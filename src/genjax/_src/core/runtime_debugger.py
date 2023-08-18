@@ -216,7 +216,7 @@ class DebuggerRecording(harvest.ReapState):
         )
         rendered: ConsoleRenderable = Panel(
             self._render_frames(self.frames, self.recorded),
-            title="[traceback.title]Runtime debugger recording [dim](top record last)",
+            title="[traceback.title]Runtime debugger recording [dim](follows evaluation order)",
             style=background_style,
             border_style="traceback.border",
             expand=True,
