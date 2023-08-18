@@ -44,33 +44,28 @@ from rich.text import Text
 from rich.theme import Theme
 
 import genjax._src.core.typing as typing
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import typecheck
 
 
-NAMESPACE = "debug"
+RECORDING_NAMESPACE = "debug_record"
+TAGGING_NAMESPACE = "debug_tag"
 
 ###########
 # Tagging #
 ###########
 
 
-def tag(*args):
-    stack = inspect.stack()
-    caller_frame_info = stack[1]
+@typecheck
+def tag(
+    name: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
+    *args: typing.Any,
+) -> typing.Any:
     f = functools.partial(
         harvest.sow,
-        tag=NAMESPACE,
-        name=caller_frame_info,
-    )
-    return f(*args)
-
-
-def tag_with_meta(*args, meta):
-    f = functools.partial(
-        harvest.sow,
-        tag=NAMESPACE,
-        name=meta,
+        tag=TAGGING_NAMESPACE,
+        name=name,
     )
     return f(*args)
 
@@ -118,6 +113,45 @@ class RenderSettings:
 
 
 @dataclasses.dataclass
+class DebuggerTags(harvest.ReapState):
+    tagged: Trie
+
+    def flatten(self):
+        return (self.tagged,), ()
+
+    @classmethod
+    def new(cls):
+        trie = Trie.new()
+        return DebuggerTags(trie)
+
+    def sow(self, values, tree, name, _):
+        if name in self.tagged:
+            values = jtu.tree_leaves(harvest.tree_unreap(self.tagged[name]))
+        else:
+            avals = jtu.tree_unflatten(
+                tree,
+                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
+            )
+            self.tagged[name] = harvest.Reap.new(
+                jtu.tree_unflatten(tree, values),
+                dict(aval=avals),
+            )
+
+        return values
+
+    ###########
+    # Dunders #
+    ###########
+
+    def __getitem__(self, addr):
+        v = self.tagged[addr]
+        if v is None:
+            raise KeyError(addr)
+        else:
+            return v
+
+
+@dataclasses.dataclass
 class DebuggerRecording(harvest.ReapState):
     render_settings: RenderSettings
     frames: typing.List[Frame]
@@ -131,7 +165,7 @@ class DebuggerRecording(harvest.ReapState):
         render_settings = RenderSettings.new()
         return DebuggerRecording(render_settings, [], [])
 
-    def sow(self, values, tree, frame, tag):
+    def sow(self, values, tree, frame, _):
         avals = jtu.tree_unflatten(
             tree,
             [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
@@ -155,7 +189,7 @@ class DebuggerRecording(harvest.ReapState):
     def __rich_console__(
         self,
         console: Console,
-        options: ConsoleOptions,
+        _: ConsoleOptions,
     ) -> RenderResult:
         background_style = self.render_settings.theme.get_background_style()
         token_style = self.render_settings.theme.get_style_for_token
@@ -180,10 +214,9 @@ class DebuggerRecording(harvest.ReapState):
             },
             inherit=False,
         )
-
         rendered: ConsoleRenderable = Panel(
             self._render_frames(self.frames, self.recorded),
-            title="Runtime debugger recording (top record last)",
+            title="[traceback.title]Runtime debugger recording [dim](top record last)",
             style=background_style,
             border_style="traceback.border",
             expand=True,
@@ -201,7 +234,6 @@ class DebuggerRecording(harvest.ReapState):
     ) -> RenderResult:
 
         path_highlighter = PathHighlighter()
-        theme = self.render_settings.theme
 
         def render_locals(locals: typing.Any) -> typing.Iterable[ConsoleRenderable]:
             locals = {
@@ -220,8 +252,7 @@ class DebuggerRecording(harvest.ReapState):
                 max_string=self.render_settings.locals_max_string,
             )
 
-        for (frame_index, frame), recorded in zip(enumerate(stack), locals):
-            first = frame_index == 0
+        for frame, recorded in zip(stack, locals):
 
             text = Text.assemble(
                 path_highlighter(Text(frame.filename, style="pygments.string")),
@@ -231,23 +262,28 @@ class DebuggerRecording(harvest.ReapState):
                 (frame.name, "pygments.function"),
                 style="pygments.text",
             )
-            if not frame.filename.startswith("<") and not first:
-                yield ""
             yield text
-            if frame.filename.startswith("<"):
-                yield from render_locals(recorded)
+            yield from render_locals(recorded)
 
 
 def pull(f):
-    _collect = functools.partial(
-        harvest.reap,
-        state=DebuggerRecording.new(),
-        tag=NAMESPACE,
-    )
+    def _collect(f):
+        return harvest.reap(
+            harvest.reap(
+                f,
+                state=DebuggerRecording.new(),
+                tag=RECORDING_NAMESPACE,
+            ),
+            state=DebuggerTags.new(),
+            tag=TAGGING_NAMESPACE,
+        )
 
     def wrapped(*args, **kwargs):
-        v, state = _collect(f)(*args, **kwargs)
-        return v, harvest.tree_unreap(state)
+        (v, recording_state), tagging_state = _collect(f)(*args, **kwargs)
+        return v, (
+            harvest.tree_unreap(recording_state),
+            harvest.tree_unreap(tagging_state),
+        )
 
     return wrapped
 
@@ -256,7 +292,10 @@ def pull(f):
 # Pushing #
 ###########
 
-plant_and_collect = functools.partial(harvest.harvest, tag=NAMESPACE)
+plant_and_collect = functools.partial(
+    harvest.harvest,
+    tag=TAGGING_NAMESPACE,
+)
 
 
 def push(f):
@@ -274,6 +313,16 @@ def push(f):
 
 
 @typecheck
+def tag_with_frame(*args, frame: Frame):
+    f = functools.partial(
+        harvest.sow,
+        tag=RECORDING_NAMESPACE,
+        name=frame,
+    )
+    return f(*args)
+
+
+@typecheck
 def record_call(f: typing.Callable) -> typing.Callable:
     @functools.wraps(f)
     def wrapper(*args):
@@ -288,10 +337,30 @@ def record_call(f: typing.Callable) -> typing.Callable:
             module,
             name,
         )
-        tag_with_meta(
+        tag_with_frame(
             {"args": args, "return": retval},
-            meta=frame,
+            frame=frame,
         )
         return retval
 
     return wrapper
+
+
+@typecheck
+def record_value(value: typing.Any) -> typing.Any:
+    caller_frame_info = inspect.stack()[3]
+    file_name = caller_frame_info.filename
+    source_line = caller_frame_info.lineno
+    name = caller_frame_info.function
+    module = ""
+    frame = Frame(
+        file_name,
+        source_line,
+        module,
+        name,
+    )
+    tag_with_frame(
+        {"value": value},
+        frame=frame,
+    )
+    return value
