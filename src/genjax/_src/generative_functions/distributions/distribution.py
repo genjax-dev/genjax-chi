@@ -46,7 +46,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
-from genjax._src.global_options import global_options
 
 
 #####
@@ -147,7 +146,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
     def estimate_logpdf(self, key, v, *args, **kwargs):
         pass
 
-    @global_options.optional_runtime_debugger_capture
     @typecheck
     def simulate(
         self,
@@ -158,7 +156,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def importance(
         self,
@@ -169,7 +166,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         tr = self.simulate(key, args)
         return (0.0, tr)
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def importance(
         self,
@@ -207,7 +203,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
 
         return (w, DistributionTrace(self, args, v, score))
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def update(
         self,
@@ -233,7 +228,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             new_tr = DistributionTrace(self, args, v, fwd)
             return (retval_diff, fwd - bwd, new_tr, discard)
 
-    @global_options.optional_runtime_debugger_capture
     @dispatch
     def update(
         self,
@@ -272,7 +266,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             retval_diff = tree_diff_unknown_change(v)
             return (retval_diff, w, new_tr, discard)
 
-    @global_options.optional_runtime_debugger_capture
     @typecheck
     def assess(
         self,

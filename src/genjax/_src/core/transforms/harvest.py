@@ -253,7 +253,6 @@ class HarvestSettings:
     """Contains the settings for a HarvestTrace."""
 
     tag: Hashable
-    blocklist: FrozenSet[String]
     allowlist: Union[FrozenSet[String], None]
     exclusive: bool
 
@@ -281,8 +280,6 @@ class HarvestContext(context.Context):
                 return values
             return sow_p.bind(*values, name=name, tag=tag, tree=tree, mode=mode)
         if self.settings.allowlist is not None and name not in self.settings.allowlist:
-            return values
-        if name in self.settings.blocklist:
             return values
         return self.handle_sow(*values, name=name, tag=tag, tree=tree, mode=mode)
 
@@ -356,13 +353,11 @@ def reap(
     state: ReapState,
     tag: Hashable,
     allowlist: Optional[Iterable[String]] = None,
-    blocklist: Iterable[String] = frozenset(),
     exclusive: bool = False,
 ):
-    blocklist = frozenset(blocklist)
     if allowlist is not None:
         allowlist = frozenset(allowlist)
-    settings = HarvestSettings(tag, blocklist, allowlist, exclusive)
+    settings = HarvestSettings(tag, allowlist, exclusive)
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -411,13 +406,11 @@ def plant(
     *,
     tag: Hashable,
     allowlist: Optional[Iterable[String]] = None,
-    blocklist: Iterable[String] = frozenset(),
     exclusive: bool = False,
 ):
-    blocklist = frozenset(blocklist)
     if allowlist is not None:
         allowlist = frozenset(allowlist)
-    settings = HarvestSettings(tag, blocklist, allowlist, exclusive)
+    settings = HarvestSettings(tag, allowlist, exclusive)
 
     @functools.wraps(fn)
     def wrapper(plants, *args, **kwargs):
@@ -438,17 +431,12 @@ def harvest(
     *,
     tag: Hashable,
     allowlist: Optional[Iterable[String]] = None,
-    blocklist: Iterable[String] = frozenset(),
     exclusive: bool = False,
 ):
     @functools.wraps(fn)
     def wrapper(plants, *args, **kwargs):
-        f = plant(
-            fn, tag=tag, allowlist=allowlist, blocklist=blocklist, exclusive=exclusive
-        )
-        f = reap(
-            f, tag=tag, allowlist=allowlist, blocklist=blocklist, exclusive=exclusive
-        )
+        f = plant(fn, tag=tag, allowlist=allowlist, exclusive=exclusive)
+        f = reap(f, tag=tag, allowlist=allowlist, exclusive=exclusive)
         return f(plants, *args, **kwargs)
 
     return wrapper
