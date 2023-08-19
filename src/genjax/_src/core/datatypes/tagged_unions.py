@@ -15,9 +15,9 @@
 from dataclasses import dataclass
 
 import jax.numpy as jnp
-import jax.tree_util as jtu
+from rich.tree import Tree
 
-from genjax._src.core.datatypes.address_tree import AddressLeaf
+import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -36,28 +36,7 @@ class TaggedUnion(Pytree):
 
     @classmethod
     def new(cls, tag: IntArray, values: List[Any]):
-        return cls(tag, values).leaf_push()
-
-    def _set_leafs(self, *vs: AddressLeaf):
-        leaf_values = list(map(lambda v: v.get_leaf_value(), vs))
-        first = vs[0]
-        return first.set_leaf_value(TaggedUnion(self.tag, leaf_values))
-
-    def leaf_push(self):
-        def _inner(*v):
-            # `AddressLeaf` inheritors have a method `set_leaf_value`
-            # to participate in tagging.
-            # They can choose how to construct themselves after
-            # being provided with a tagged value.
-            if all(map(lambda v: isinstance(v, AddressLeaf), v)):
-                return self._set_leafs(*v)
-            else:
-                return list(v)
-
-        def _check(v):
-            return isinstance(v, AddressLeaf)
-
-        return jtu.tree_map(_inner, *self.values, is_leaf=_check)
+        return cls(tag, values)
 
     def _static_assert_tagged_union_switch_num_callables_is_num_values(self, callables):
         assert len(callables) == len(self.values)
@@ -73,6 +52,24 @@ class TaggedUnion(Pytree):
         self._static_assert_tagged_union_switch_returns_same_type(vs)
         vs = jnp.array(vs)
         return vs[self.tag]
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.tag, short_arrays=True)
+        vals_tree = gpp.tree_pformat(self.values, short_arrays=True)
+        sub_tree = Tree(f"[bold](Tagged, {doc})")
+        sub_tree.add(vals_tree)
+        tree.add(sub_tree)
+        return tree
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
 
 
 ##############
