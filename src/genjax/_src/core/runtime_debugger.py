@@ -59,14 +59,14 @@ TAGGING_NAMESPACE = "debug_tag"
 
 @typecheck
 def tag(
-    name: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
+    meta: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
     *args: typing.Any,
 ) -> typing.Any:
     """Tag a value, allowing the debugger to store and return it as state."""
     f = functools.partial(
         harvest.sow,
         tag=TAGGING_NAMESPACE,
-        name=name,
+        meta=meta,
     )
     return f(*args)
 
@@ -125,15 +125,15 @@ class DebuggerTags(harvest.ReapState):
         trie = Trie.new()
         return DebuggerTags(trie)
 
-    def sow(self, values, tree, name, _):
-        if name in self.tagged:
-            values = jtu.tree_leaves(harvest.tree_unreap(self.tagged[name]))
+    def sow(self, values, tree, meta, _):
+        if meta in self.tagged:
+            values = jtu.tree_leaves(harvest.tree_unreap(self.tagged[meta]))
         else:
             avals = jtu.tree_unflatten(
                 tree,
                 [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
             )
-            self.tagged[name] = harvest.Reap.new(
+            self.tagged[meta] = harvest.Reap.new(
                 jtu.tree_unflatten(tree, values),
                 dict(aval=avals),
             )
@@ -270,7 +270,7 @@ class DebuggerRecording(harvest.ReapState):
 @typecheck
 def pull(
     f: typing.Callable,
-) -> typing.Tuple[typing.Any, typing.Tuple[DebuggerRecording, DebuggerTags]]:
+) -> typing.Callable:
     """Transform a function into one which returns a debugger recording and
     debugger tags."""
 
@@ -285,7 +285,10 @@ def pull(
             tag=TAGGING_NAMESPACE,
         )
 
-    def wrapped(*args, **kwargs):
+    def wrapped(
+        *args: typing.Any,
+        **kwargs,
+    ) -> typing.Tuple[typing.Any, typing.Tuple[DebuggerRecording, DebuggerTags]]:
         (v, recording_state), tagging_state = _collect(f)(*args, **kwargs)
         return v, (
             harvest.tree_unreap(recording_state),
@@ -324,7 +327,7 @@ def tag_with_frame(*args, frame: Frame):
     f = functools.partial(
         harvest.sow,
         tag=RECORDING_NAMESPACE,
-        name=frame,
+        meta=frame,
     )
     return f(*args)
 
