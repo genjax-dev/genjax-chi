@@ -62,6 +62,7 @@ def tag(
     name: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
     *args: typing.Any,
 ) -> typing.Any:
+    """Tag a value, allowing the debugger to store and return it as state."""
     f = functools.partial(
         harvest.sow,
         tag=TAGGING_NAMESPACE,
@@ -266,7 +267,13 @@ class DebuggerRecording(harvest.ReapState):
             yield from render_locals(recorded)
 
 
-def pull(f):
+@typecheck
+def pull(
+    f: typing.Callable,
+) -> typing.Tuple[typing.Any, typing.Tuple[DebuggerRecording, DebuggerTags]]:
+    """Transform a function into one which returns a debugger recording and
+    debugger tags."""
+
     def _collect(f):
         return harvest.reap(
             harvest.reap(
@@ -324,6 +331,15 @@ def tag_with_frame(*args, frame: Frame):
 
 @typecheck
 def record_call(f: typing.Callable) -> typing.Callable:
+    """Transform a function into a version which records the arguments to its
+    invocation, as well as the return value.
+
+    The transformed version allows the debugger to store this
+    information in the debug recording, along other debug information,
+    including the definition file, the source line start, the module,
+    and the name of the function.
+    """
+
     @functools.wraps(f)
     def wrapper(*args):
         retval = f(*args)
@@ -348,6 +364,8 @@ def record_call(f: typing.Callable) -> typing.Callable:
 
 @typecheck
 def record_value(value: typing.Any) -> typing.Any:
+    """Record a value, allowing the debugger to store it in the debug
+    recording, along with the caller's frame information."""
     caller_frame_info = inspect.stack()[3]
     file_name = caller_frame_info.filename
     source_line = caller_frame_info.lineno
