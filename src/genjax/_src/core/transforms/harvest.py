@@ -25,16 +25,12 @@ from jax.interpreters import batching
 from jax.interpreters import mlir
 
 from genjax._src.core.interpreters import context
-from genjax._src.core.interpreters import primitives as prim
 from genjax._src.core.interpreters import staging
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
-from genjax._src.core.typing import FrozenSet
 from genjax._src.core.typing import Hashable
-from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
-from genjax._src.core.typing import Optional
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import Value
@@ -95,30 +91,33 @@ batching.primitive_batchers[sow_p] = _sow_batch_rule
 mlir.register_lowering(sow_p, lambda c, *args, **kw: args)
 
 
-def sow(value, *, tag: Hashable, name: String, mode: String = "strict", key=None):
-    """Marks a value with a name and a tag.
+def sow(
+    value: Any,
+    *,
+    tag: Hashable,
+    meta: Any,
+    mode: String = "strict",
+):
+    """Marks a value with a metadata value and a tag.
 
     Args:
-      value: A JAX value to be tagged and named.
+      value: A JAX value to be tagged and metad.
       tag: a string representing the tag of the sown value.
-      name: a string representing the name to sow the value with.
+      meta: a piece of metadata to sow the value with.
       mode: The mode by which to sow the value. There are three options: 1.
-        `'strict'` - if another value is sown with the same name and tag in the
+        `'strict'` - if another value is sown with the same metadata and tag in the
         same context, harvest will throw an error. 2. `'clobber'` - if another is
-        value is sown with the same name and tag, it will replace this value 3.
-        `'append'` - sown values of the same name and tag are appended to a
+        value is sown with the same meta and tag, it will replace this value 3.
+        `'append'` - sown values of the same meta and tag are appended to a
         growing list. Append mode assumes some ordering on the values being sown
         defined by data-dependence.
-      key: an optional JAX value that will be tied into the sown value.
 
     Returns:
       The original `value` that was passed in.
     """
     value = jtu.tree_map(jc.raise_as_much_as_possible, value)
-    if key is not None:
-        value = prim.tie_in(key, value)
     flat_args, in_tree = jtu.tree_flatten(value)
-    out_flat = sow_p.bind(*flat_args, name=name, tag=tag, mode=mode, tree=in_tree)
+    out_flat = sow_p.bind(*flat_args, meta=meta, tag=tag, mode=mode, tree=in_tree)
     return jtu.tree_unflatten(in_tree, out_flat)
 
 
@@ -253,8 +252,6 @@ class HarvestSettings:
     """Contains the settings for a HarvestTrace."""
 
     tag: Hashable
-    allowlist: Union[FrozenSet[String], None]
-    exclusive: bool
 
 
 @dataclasses.dataclass
@@ -271,19 +268,15 @@ class HarvestContext(context.Context):
         else:
             raise NotImplementedError
 
-    def process_sow(self, *values, name, tag, mode, tree):
+    def process_sow(self, *values, meta, tag, mode, tree):
         """Handles a `sow` primitive in a `HarvestTrace`."""
         if mode not in {"strict", "append", "clobber"}:
             raise ValueError(f"Invalid mode: {mode}")
         if tag != self.settings.tag:
-            if self.settings.exclusive:
-                return values
-            return sow_p.bind(*values, name=name, tag=tag, tree=tree, mode=mode)
-        if self.settings.allowlist is not None and name not in self.settings.allowlist:
-            return values
-        return self.handle_sow(*values, name=name, tag=tag, tree=tree, mode=mode)
+            return sow_p.bind(*values, meta=meta, tag=tag, tree=tree, mode=mode)
+        return self.handle_sow(*values, meta=meta, tag=tag, tree=tree, mode=mode)
 
-    def handle_sow(self, *values, name, tag, mode, tree):
+    def handle_sow(self, *values, meta, tag, mode, tree):
         raise NotImplementedError
 
 
@@ -321,7 +314,7 @@ def tree_unreap(v):
 @dataclasses.dataclass
 class ReapState(Pytree):
     @abc.abstractmethod
-    def sow(self, values, tree, name, mode):
+    def sow(self, values, tree, meta, mode):
         pass
 
 
@@ -340,9 +333,9 @@ class ReapContext(HarvestContext):
     def yield_state(self):
         return (self.reaps,)
 
-    def handle_sow(self, *values, name, tag, tree, mode):
+    def handle_sow(self, *values, meta, tag, tree, mode):
         """Stores a sow in the reaps dictionary."""
-        values = self.reaps.sow(values, tree, name, mode)
+        values = self.reaps.sow(values, tree, meta, mode)
         del tag
         return values
 
@@ -352,12 +345,8 @@ def reap(
     *,
     state: ReapState,
     tag: Hashable,
-    allowlist: Optional[Iterable[String]] = None,
-    exclusive: bool = False,
 ):
-    if allowlist is not None:
-        allowlist = frozenset(allowlist)
-    settings = HarvestSettings(tag, allowlist, exclusive)
+    settings = HarvestSettings(tag)
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -391,26 +380,22 @@ class PlantContext(HarvestContext):
     def yield_state(self):
         return ()
 
-    def handle_sow(self, *values, name, tag, tree, mode):
+    def handle_sow(self, *values, meta, tag, tree, mode):
         """Returns the value stored in the plants dictionary."""
-        if name in self._already_planted and mode != "clobber":
-            raise ValueError(f"Variable has already been planted: {name}")
-        if name in self.plants:
-            self._already_planted.add(name)
-            return jtu.tree_leaves(self.plants[name])
-        return sow_p.bind(*values, name=name, tag=tag, mode=mode, tree=tree)
+        if meta in self._already_planted and mode != "clobber":
+            raise ValueError(f"Variable has already been planted: {meta}")
+        if meta in self.plants:
+            self._already_planted.add(meta)
+            return jtu.tree_leaves(self.plants[meta])
+        return sow_p.bind(*values, meta=meta, tag=tag, mode=mode, tree=tree)
 
 
 def plant(
     fn,
     *,
     tag: Hashable,
-    allowlist: Optional[Iterable[String]] = None,
-    exclusive: bool = False,
 ):
-    if allowlist is not None:
-        allowlist = frozenset(allowlist)
-    settings = HarvestSettings(tag, allowlist, exclusive)
+    settings = HarvestSettings(tag)
 
     @functools.wraps(fn)
     def wrapper(plants, *args, **kwargs):
@@ -430,13 +415,11 @@ def harvest(
     fn,
     *,
     tag: Hashable,
-    allowlist: Optional[Iterable[String]] = None,
-    exclusive: bool = False,
 ):
     @functools.wraps(fn)
     def wrapper(plants, *args, **kwargs):
-        f = plant(fn, tag=tag, allowlist=allowlist, exclusive=exclusive)
-        f = reap(f, tag=tag, allowlist=allowlist, exclusive=exclusive)
+        f = plant(fn, tag=tag)
+        f = reap(f, tag=tag)
         return f(plants, *args, **kwargs)
 
     return wrapper

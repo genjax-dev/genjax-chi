@@ -181,7 +181,7 @@ adev_tag = functools.partial(harvest.sow, tag=NAMESPACE)
 
 @typecheck
 def strat(strategy: GradientStrategy, addr):
-    return adev_tag(strategy, name=addr)
+    return adev_tag(strategy, meta=addr)
 
 
 ####################
