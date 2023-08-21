@@ -2734,20 +2734,21 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "plum-dispatch"
-version = "2.1.1"
+version = "2.2.0"
 description = "Multiple dispatch in Python"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "plum_dispatch-2.1.1-py3-none-any.whl", hash = "sha256:7b997ff3d94ac6afa42b8b8c5b3f61b3bbb3917f65883e1fa268c362e8429773"},
-    {file = "plum_dispatch-2.1.1.tar.gz", hash = "sha256:97973464d306d6f547e237a4fc01db0b85e7f3c4bb482a834e770e5a015d2e36"},
+    {file = "plum_dispatch-2.2.0-py3-none-any.whl", hash = "sha256:ab86cd842aff586394985907fb6a9816535400116ce01885dafcda80b258c7d8"},
+    {file = "plum_dispatch-2.2.0.tar.gz", hash = "sha256:528a41c8eeb39dbdfcd7bc3bbe6864e2475a375aa799ad983211fb4301ff72a3"},
 ]
 
 [package.dependencies]
 beartype = "*"
+typing-extensions = {version = "*", markers = "python_version <= \"3.10\""}
 
 [package.extras]
-dev = ["black (==22.10.0)", "build", "coveralls", "ghp-import", "ipython", "jupyter-book", "numpy", "pre-commit", "pytest (>=6)", "pytest-cov", "tox", "wheel"]
+dev = ["black (==22.10.0)", "build", "coveralls", "ghp-import", "ipython", "jupyter-book", "mypy", "numpy", "pre-commit", "pyright", "pytest (>=6)", "pytest-cov", "tox", "wheel"]
 
 [[package]]
 name = "prometheus-client"
