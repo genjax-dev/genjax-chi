@@ -14,7 +14,6 @@
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -139,7 +138,11 @@ class TestUnfoldSimpleNormal:
             chm,
             (genjax.diff(6, genjax.UnknownChange), genjax.diff(0.1, genjax.NoChange)),
         )
-        assert new_tr.get_score() == pytest.approx(w + tr.get_score(), 0.001)
+        newly_introduced_choice = genjax.index_select([6], "z")
+        newly_introduced_score = new_tr.project(newly_introduced_choice)
+        assert new_tr.get_score() == pytest.approx(
+            w + tr.get_score() + newly_introduced_score, 0.001
+        )
 
     def test_off_by_one_issue_415(self):
         @genjax.gen
@@ -215,7 +218,7 @@ class TestUnfoldSimpleNormal:
             y_sel = genjax.index_select([t], genjax.select("y"))
             diffs = (
                 diff(t, UnknownChange),
-                jtu.tree_map(lambda v: diff(v, NoChange), model_args),
+                genjax.tree_diff_no_change(model_args),
             )
 
             # Score underneath the selection should be 0.0
@@ -228,6 +231,14 @@ class TestUnfoldSimpleNormal:
             # The weight should be equal to the new score
             # plus any newly sampled choices.
             assert w == pytest.approx(tr.project(y_sel), 0.0001)
+
+    ###################################################
+    #          Remember: the update weight math
+    #
+    #   log p(r′,t′;x′) + log q(r;x,t) - log p(r,t;x)
+    #       - log q(r′;x′,t′) - q(t′;x′,t+u)
+    #
+    ##################################################
 
     def test_update_check_weight_computations(self):
         @genjax.gen(genjax.Unfold, max_length=10)

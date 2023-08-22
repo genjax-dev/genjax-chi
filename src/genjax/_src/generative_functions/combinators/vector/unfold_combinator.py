@@ -19,7 +19,6 @@ input)."""
 from dataclasses import dataclass
 
 import jax
-import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.experimental import checkify
@@ -503,6 +502,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     ):
         raise NotImplementedError
 
+    # TODO: this does not handle when the new length
+    # is less than the previous!
     @dispatch
     def _update_specialized(
         self,
@@ -514,7 +515,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         *static_args: Any,
     ):
         start_lower = jnp.min(chm.indices)
-        new_upper = tree_diff_primal(length)
         prev_length = prev.get_args()[0]
 
         # TODO: `UnknownChange` is used here
@@ -565,7 +565,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 return (retval_diff, w, new_tr)
 
             check = prev_length < index
-
             (state_diff, idx_w, new_tr) = concrete_cond(
                 check, _importance, _update, sub_key
             )
@@ -581,6 +580,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
+        new_upper = tree_diff_primal(length)
+        new_upper = jnp.where(
+            new_upper >= self.max_length,
+            self.max_length - 1,
+            new_upper,
+        )
         (_, w, _, new_inner_trace) = jax.lax.fori_loop(
             start_lower,
             new_upper + 1,  # the bound semantics follow Python range semantics.
@@ -612,9 +617,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 0.0,
             )
         )
-        hcb.id_print(new_score)
-        hcb.id_print(w)
-        hcb.id_print(prev.get_score())
 
         new_tr = UnfoldTrace(
             self,
