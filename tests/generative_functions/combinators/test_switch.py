@@ -56,27 +56,21 @@ class TestSwitch:
         jitted = jax.jit(switch.simulate)
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (0,))
-        v1 = tr["y1"]
-        v2 = tr["y2"]
+        v1 = tr.get_subtree("y1")
+        v2 = tr.get_subtree("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (v1_score, _) = genjax.normal.importance(
-            sub_key, genjax.value_choice_map(v1), (0.0, 1.0)
-        )
+        (v1_score, _) = genjax.normal.importance(sub_key, v1, (0.0, 1.0))
         key, sub_key = jax.random.split(key)
-        (v2_score, _) = genjax.normal.importance(
-            sub_key, genjax.value_choice_map(v2), (0.0, 1.0)
-        )
+        (v2_score, _) = genjax.normal.importance(sub_key, v2, (0.0, 1.0))
         assert score == v1_score + v2_score
         assert tr.get_args() == (0,)
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (1,))
-        flip = tr["y3"]
+        flip = tr.get_subtree("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (flip_score, _) = genjax.bernoulli.importance(
-            sub_key, genjax.value_choice_map(flip), (0.3,)
-        )
+        (flip_score, _) = genjax.bernoulli.importance(sub_key, flip, (0.3,))
         assert score == flip_score
         assert tr.get_args() == (1,)
 
@@ -132,41 +126,45 @@ class TestSwitch:
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
         (w, tr) = jitted(sub_key, chm, (0,))
-        v1 = tr["y1"]
-        v2 = tr["y2"]
+        v1 = tr.get_subtree("y1")
+        v2 = tr.get_subtree("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (v1_score, _) = genjax.normal.importance(
             sub_key,
-            genjax.value_choice_map(v1),
+            v1,
             (0.0, 1.0),
         )
         key, sub_key = jax.random.split(key)
         (v2_score, _) = genjax.normal.importance(
             sub_key,
-            genjax.value_choice_map(v2),
+            v2,
             (0.0, 1.0),
         )
         assert score == v1_score + v2_score
         assert w == 0.0
         key, sub_key = jax.random.split(key)
         (w, tr) = jitted(sub_key, chm, (1,))
-        flip = tr["y3"]
+        flip = tr.get_subtree("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.bernoulli.importance(
-            sub_key, genjax.value_choice_map(flip), (0.3,)
+            sub_key,
+            flip,
+            (0.3,),
         )
         assert score == flip_score
         assert w == 0.0
         chm = genjax.choice_map({"y3": True})
         key, sub_key = jax.random.split(key)
         (w, tr) = jitted(sub_key, chm, (1,))
-        flip = tr["y3"]
+        flip = tr.get_subtree("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.bernoulli.importance(
-            sub_key, genjax.value_choice_map(flip), (0.3,)
+            sub_key,
+            flip,
+            (0.3,),
         )
         assert score == flip_score
         assert w == score

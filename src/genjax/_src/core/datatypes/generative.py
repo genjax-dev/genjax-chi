@@ -23,14 +23,11 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 import rich
-from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.masking import Mask
-from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.datatypes.tagged_unions import tagged_union
+from genjax._src.core.datatypes.lifted_types import LiftedTypeMeta
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
@@ -43,18 +40,17 @@ from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_array
 from genjax._src.core.typing import typecheck
-from genjax._src.global_options import global_options
 
 
 ########################
 # Generative datatypes #
 ########################
+
 
 #####
 # Selection
@@ -291,7 +287,7 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
 
 
 @dataclasses.dataclass
-class ChoiceMap(AddressTree):
+class ChoiceMap(AddressTree, metaclass=LiftedTypeMeta):
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
         pass
@@ -1077,7 +1073,6 @@ class GenerativeFunction(Pytree):
         shape = kwargs.get("shape", ())
         return Bottom(shape)
 
-    @abc.abstractmethod
     def simulate(
         self,
         key: PRNGKey,
@@ -1129,6 +1124,7 @@ class GenerativeFunction(Pytree):
             print(console.render(tr))
             ```
         """
+        raise NotImplementedError
 
     def propose(
         self,
@@ -1187,7 +1183,6 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return (retval, score, chm)
 
-    @abc.abstractmethod
     def importance(
         self,
         key: PRNGKey,
@@ -1208,8 +1203,8 @@ class GenerativeFunction(Pytree):
             key: A new (deterministically evolved) `PRNGKey`.
             tup: A tuple `(w, tr)` where `w` is an importance weight estimate of the conditional density, and `tr` is a trace capturing the data and inference data associated with the generative function invocation.
         """
+        raise NotImplementedError
 
-    @abc.abstractmethod
     def update(
         self,
         key: PRNGKey,
@@ -1217,16 +1212,15 @@ class GenerativeFunction(Pytree):
         new: ChoiceMap,
         diffs: Tuple,
     ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
-        pass
+        raise NotImplementedError
 
-    @abc.abstractmethod
     def assess(
         self,
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        pass
+        raise NotImplementedError
 
     def restore_with_aux(
         self,
@@ -1515,87 +1509,6 @@ class HierarchicalChoiceMap(ChoiceMap):
         return tree
 
 
-@dataclass
-class DynamicChoiceMap(ChoiceMap):
-    dynamic_indices: List[IntArray]
-    subtrees: List[ChoiceMap]
-
-    def flatten(self):
-        return (self.dynamic_indices, self.subtrees), ()
-
-    @dispatch
-    def get_subtree(self, addr: IntArray):
-        masks = list(map(lambda v: jnp.all(addr == v), self.dynamic_indices))
-        masked_subtrees = list(
-            map(lambda v: mask(v[0], v[1]), zip(masks, self.subtrees))
-        )
-        return DisjointUnionChoiceMap.new(masked_subtrees)
-
-    @dispatch
-    def get_subtree(self, addr: Tuple):
-        (idx, rest) = addr
-        disjoint_union_chm = self.get_subtree(idx)
-        return disjoint_union_chm.get_subtree(rest)
-
-    @dispatch
-    def has_subtree(self, addr: IntArray):
-        equality_checks = jnp.array(map(lambda v: addr == v, self.dynamic_indices))
-        return jnp.any(equality_checks)
-
-    @dispatch
-    def has_subtree(self, addr: Tuple):
-        (idx, rest) = addr
-        disjoint_union_chm = self.get_subtree(idx)
-        return jnp.logical_and(
-            self.has_subtree(idx),
-            disjoint_union_chm.has_subtree(rest),
-        )
-
-
-@dataclass
-class DisjointUnionChoiceMap(ChoiceMap):
-    subtrees: List[ChoiceMap]
-
-    def flatten(self):
-        return (self.subtrees,), ()
-
-    def get_subtree(self, addr):
-        new_subtrees = list(
-            filter(
-                lambda v: not isinstance(v, EmptyChoiceMap),
-                map(lambda v: v.get_subtree(addr), self.subtrees),
-            )
-        )
-        if len(new_subtrees) == 0:
-            return EmptyChoiceMap()
-        elif len(new_subtrees) == 1:
-            return new_subtrees[0]
-        else:
-            if all(map(lambda v: isinstance(v, AddressLeaf), new_subtrees)):
-                leaf_values = map(lambda v: v.get_leaf_value(), new_subtrees)
-                assert all(map(lambda v: isinstance(v, Mask), leaf_values))
-                masks = jnp.array(
-                    list(map(lambda v: v.mask, leaf_values)),
-                )
-
-                def _check():
-                    check_flag = jnp.any(masks)
-                    return checkify.check(
-                        check_flag,
-                        "(DisjointUnionChoiceMap.get_subtree): masked leaf values have no valid data.",
-                    )
-
-                global_options.optional_check(_check)
-
-                tag = jnp.argwhere(masks, size=1)
-                return tagged_union(tag, new_subtrees)
-            else:
-                return DisjointUnionChoiceMap(new_subtrees)
-
-    def has_subtree(self, addr):
-        pass
-
-
 ##############
 # Shorthands #
 ##############
@@ -1610,5 +1523,3 @@ none_select = NoneSelection.new
 none_sel = none_select
 choice_map = HierarchicalChoiceMap.new
 select = HierarchicalSelection.new
-dynamic_choice_map = DynamicChoiceMap.new
-disjoint_union_choice_map = DisjointUnionChoiceMap.new

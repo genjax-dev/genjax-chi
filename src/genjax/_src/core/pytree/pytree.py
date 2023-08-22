@@ -24,7 +24,7 @@ from genjax._src.core.pytree.utilities import tree_unstack
 from genjax._src.core.typing import Tuple
 
 
-class Pytree(metaclass=abc.ABCMeta):
+class Pytree:
     """> Abstract base class which registers a class with JAX's `Pytree`
     system.
 
@@ -36,7 +36,6 @@ class Pytree(metaclass=abc.ABCMeta):
     """
 
     def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
         jtu.register_pytree_node(
             cls,
             cls.flatten,
