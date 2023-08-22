@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -148,7 +149,9 @@ class BuiltinGenerativeFunction(
     @typecheck
     @classmethod
     def new(cls, source: Callable):
-        return BuiltinGenerativeFunction(source)
+        gen_fn = BuiltinGenerativeFunction(source)
+        functools.update_wrapper(gen_fn, source)
+        return gen_fn
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
