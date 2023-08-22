@@ -33,6 +33,7 @@ from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
+from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
@@ -655,8 +656,25 @@ class Trace(ChoiceMap, AddressTree):
         """
         raise NotImplementedError
 
-    def update(self, key, choices, argdiffs):
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        choices: ChoiceMap,
+        argdiffs: Tuple,
+    ):
         gen_fn = self.get_gen_fn()
+        return gen_fn.update(key, self, choices, argdiffs)
+
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        choices: ChoiceMap,
+    ):
+        gen_fn = self.get_gen_fn()
+        args = self.get_args()
+        argdiffs = tree_diff_no_change(args)
         return gen_fn.update(key, self, choices, argdiffs)
 
     def get_aux(self) -> Tuple:
@@ -1057,6 +1075,17 @@ class HierarchicalTraceType(TraceType):
 class GenerativeFunction(Pytree):
     """> Abstract base class for generative functions.
 
+    Generative functions are computational objects which expose convenient interfaces for probabilistic modeling and inference. They consist (often, subsets) of a few ingredients:
+
+    * $p(c, r; x)$: a probability kernel over choice maps ($c$) and untraced randomness ($r$) given arguments ($x$).
+    * $q(r; x, c)$: a probability kernel over untraced randomness ($r$) given arguments ($x$) and choice map assignments ($c$).
+    * $f(x, c, r)$: a deterministic return value function.
+    * $q(u; x, u')$: internal proposal distributions for choice map assignments ($u$) given other assignments ($u'$) and arguments ($x$).
+
+    The interface of methods and associated datatypes which these objects expose is called _the generative function interface_ (GFI). Inference algorithms are written against this interface, providing a layer of abstraction above the implementation.
+
+    Generative functions are allowed to partially implement the interface, with the consequence that partially implemented generative functions may have restricted inference behavior.
+
     !!! info "Interaction with JAX"
 
         Concrete implementations of `GenerativeFunction` will likely interact with the JAX tracing machinery if used with the languages exposed by `genjax`. Hence, there are specific implementation requirements which are more stringent than the requirements
@@ -1078,12 +1107,16 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """> Given a `PRNGKey` and arguments, execute the generative function,
-        returning a new `PRNGKey` and a trace.
+        """> Given a `key: PRNGKey` and arguments `x: Tuple`, the generative
+        function sample a choice map $c \sim p(\cdot; x)$, as well as any
+        untraced randomness $r \sim p(\cdot; x, c)$ to produce a trace $t = (x,
+        c, r)$.
 
-        `simulate` can be informally thought of as forward sampling: given `key: PRNGKey` and arguments `args: Tuple`, the generative function should sample a choice map $c \sim p(\cdot; \\text{args})$, as well as any untraced randomness $r \sim p(\cdot; \\text{args}, c)$.
+        While the types of traces `t` are formally defined by $(x, c, r)$, they will often store additional information - like the _score_ ($s$):
 
-        The implementation of `simulate` should then create a trace holding the choice map, as well as the score $\log \\frac{p(c; \\text{args})}{q(r; \\text{args}, c)}$.
+        $$
+        s = \log \\frac{p(c, r; x)}{q(r; x, c)}
+        $$
 
         Arguments:
             key: A `PRNGKey`.
@@ -1130,20 +1163,22 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[PRNGKey, Tuple[Any, FloatArray, ChoiceMap]]:
-        """> Given a `PRNGKey` and arguments, execute the generative function,
-        returning a new `PRNGKey` and a tuple containing the return value from
-        the generative function call, the score of the choice map assignment,
-        and the choice map.
+    ) -> Tuple[Any, FloatArray, ChoiceMap]:
+        """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
+        function, returning a tuple containing the return value from the
+        generative function call, the score ($s$) of the choice map assignment,
+        and the choice map ($c$).
 
-        The default implementation just calls `simulate`, and then extracts the data from the `Trace` returned by `simulate`. Custom generative functions can overload the implementation for their own uses (e.g. if they don't have an associated `Trace` datatype, but can be uses as a proposal).
+        The default implementation just calls `simulate`, and then extracts the data from the `Trace` returned by `simulate`. Custom generative functions can overload the implementation for their own uses (e.g. if they don't have an associated `Trace` datatype, but can be used as a proposal).
 
         Arguments:
             key: A `PRNGKey`.
             args: Arguments to the generative function.
 
         Returns:
-            tup: A tuple `(retval, w, chm)` where `retval` is the return value from the generative function invocation, `w` is the log joint density (or an importance weight estimate, in the case where there is untraced randomness), and `chm` is the choice map assignment from the invocation.
+            retval: the return value from the generative function invocation
+            s: the score ($s$) of the choice map assignment
+            chm: the choice map assignment ($c$)
 
         Examples:
 
@@ -1189,19 +1224,27 @@ class GenerativeFunction(Pytree):
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Trace]:
-        """> Given a `PRNGKey`, a choice map (constraints), and arguments,
-        execute the generative function, returning a new `PRNGKey`, a single-
-        sample importance weight estimate of the conditional density evaluated
-        at the non-constrained choices, and a trace whose choice map is
-        consistent with the constraints.
+        """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
+        and arguments ($x$), execute the generative function, and return an
+        importance weight estimate of the conditional density evaluated at the
+        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
+        consistent with the constraints ($u$), with unconstrained choices
+        ($u'$) proposed from an internal proposal.
 
         Arguments:
             key: A `PRNGKey`.
-            args: Arguments to the generative function.
+            chm: A choice map indicating constraints ($u$).
+            args: Arguments to the generative function ($x$).
 
         Returns:
-            key: A new (deterministically evolved) `PRNGKey`.
-            tup: A tuple `(w, tr)` where `w` is an importance weight estimate of the conditional density, and `tr` is a trace capturing the data and inference data associated with the generative function invocation.
+            w: An importance weight.
+            tr: A trace capturing the data and inference data associated with the generative function invocation.
+
+        The importance weight `w` is given by:
+
+        $$
+        w = \log \\frac{p(u' ⧺ u, r; x)}{q(u'; u, x)q(r; x, t)}
+        $$
         """
         raise NotImplementedError
 
@@ -1220,6 +1263,26 @@ class GenerativeFunction(Pytree):
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
+        """> Given a `key: PRNGKey`, a complete choice map indicating
+        constraints ($u$) for all choices, and arguments ($x$), execute the
+        generative function, and return the return value of the invocation, and
+        the score of the choice map ($s$).
+
+        Arguments:
+            key: A `PRNGKey`.
+            chm: A complete choice map indicating constraints ($u$) for all choices.
+            args: Arguments to the generative function ($x$).
+
+        Returns:
+            retval: The return value from the generative function invocation.
+            score: The score of the choice map.
+
+        The score ($s$) is given by:
+
+        $$
+        s = \log \\frac{p(c, r; x)}{q(r; x, c)}
+        $$
+        """
         raise NotImplementedError
 
     def restore_with_aux(

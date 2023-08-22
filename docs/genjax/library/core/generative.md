@@ -1,16 +1,24 @@
 # Generative datatypes
 
-!!! note "Key generative datatypes in Gen"
-    
-    This documentation page contains the type and interface documentation for the primary generative datatypes used in Gen. The documentation on this page deals with the abstract base classes for these datatypes. 
-
-    **Any concrete implementor of these abstract classes should be documented with the language which implements it.**
-
 ## Generative functions
 
 The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types. The interface is designed to allow inference layers to abstract over implementations.
 
 Below, we document the abstract base class, and illustrate example usage using concrete implementors. Full descriptions of concrete generative function languages are described in their own documentation module.
+
+!!! info "Logspace for numerical stability"
+
+    In Gen, all relevant inference quantities are given in logspace(1). Most implementations also use logspace, for the same reason. In discussing the math below, we'll often say "the score" or "an importance weight" and drop the $\log$ modifier as implicit.
+    { .annotate }
+
+    1. For more on numerical stability & log probabilities, see [Log probabilities](https://chrispiech.github.io/probabilityForComputerScientists/en/part1/log_probabilities/).
+
+!!! note "Key generative datatypes in Gen"
+    
+    This documentation page contains the type and interface documentation for the primary generative datatypes used in Gen. The documentation on this page deals with the abstract base classes for these datatypes. 
+
+    **Any concrete `GenerativeFunction` implementor should be documented with the language which implements it.** Thus, specific generative function languages are not documented here.
+
 
 ::: genjax.core.GenerativeFunction
     options:
