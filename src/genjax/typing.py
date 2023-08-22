@@ -13,16 +13,20 @@
 # limitations under the License.
 
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
+from genjax._src.core.typing import Float
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
 
@@ -38,5 +42,9 @@ __all__ = [
     "Sequence",
     "Dict",
     "List",
+    "Int",
+    "Bool",
+    "Float",
     "typecheck",
+    "dispatch",
 ]

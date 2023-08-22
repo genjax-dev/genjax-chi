@@ -30,7 +30,6 @@ from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
@@ -173,35 +172,29 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: ValueChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, DistributionTrace]:
-
-        # If it's not empty, we should check if it is a mask.
-        # If it is a mask, we need to see if it is active or not,
-        # and then unwrap it - and use the active flag to determine
-        # what to do at runtime.
         v = chm.get_leaf_value()
-        if isinstance(v, Mask):
-            active = v.mask
-            v = v.unsafe_unmask()
-
-            def _active(key, v, args):
-                w = self.estimate_logpdf(key, v, *args)
-                return v, w
-
-            def _inactive(key, v, _):
-                w = 0.0
-                (_, v) = self.random_weighted(key, *args)
-                return v, w
-
-            v, w = concrete_cond(active, _active, _inactive, key, v, args)
-            score = w
-
-        # Otherwise, we just estimate the logpdf of the value
-        # we got out of the choice map.
-        else:
-            w = self.estimate_logpdf(key, v, *args)
-            score = w
-
+        w = self.estimate_logpdf(key, v, *args)
+        score = w
         return (w, DistributionTrace(self, args, v, score))
+
+    # Precedence means preferred.
+    @dispatch(precedence=1)
+    def importance(
+        self,
+        key: PRNGKey,
+        chm: Mask,
+        args: Tuple,
+    ) -> Tuple[FloatArray, DistributionTrace]:
+        def _inactive():
+            w = 0.0
+            tr = self.simulate(key, args)
+            return w, tr
+
+        def _active(v):
+            w, tr = self.importance(key, v, args)
+            return w, tr
+
+        return chm.match(_inactive, _active)
 
     @dispatch
     def update(
@@ -214,11 +207,10 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
         retval_diff = tree_diff_no_change(v)
-        discard = mask(False, prev.get_choices())
 
         # If no change to arguments, no need to update.
         if static_check_no_change(argdiffs):
-            return (retval_diff, 0.0, prev, discard)
+            return (retval_diff, 0.0, prev, EmptyChoiceMap())
 
         # Otherwise, we must compute an incremental weight.
         else:
@@ -226,7 +218,7 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
-            return (retval_diff, fwd - bwd, new_tr, discard)
+            return (retval_diff, fwd - bwd, new_tr, EmptyChoiceMap())
 
     @dispatch
     def update(
@@ -239,32 +231,39 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primal(argdiffs)
         v = constraints.get_leaf_value()
-        if isinstance(v, Mask):
-            check, value = v.mask, v.value
+        fwd = self.estimate_logpdf(key, v, *args)
+        bwd = prev.get_score()
+        w = fwd - bwd
+        new_tr = DistributionTrace(self, args, v, fwd)
+        discard = prev.get_choices()
+        retval_diff = tree_diff_unknown_change(v)
+        return (retval_diff, w, new_tr, discard)
 
-            def _fallback(key):
-                (retdiff, w, new_tr, discard) = self.update(
-                    key, prev, EmptyChoiceMap(), argdiffs
-                )
-                primal = tree_diff_primal(retdiff)
+    @dispatch(precedence=1)
+    def update(
+        self,
+        key: PRNGKey,
+        prev: DistributionTrace,
+        constraints: Mask,
+        argdiffs: Tuple,
+    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
+        discard_option = prev.strip()
 
-                # Because we are pushing the update to depend dynamically on a mask flag value,
-                # we have to ensure that all branches return the same types of Pytree.
-                retdiff = tree_diff_unknown_change(primal)
-                return (retdiff, w, new_tr, discard)
+        def _none():
+            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoiceMap(), argdiffs)
+            discard = mask(False, discard_option)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (retdiff, w, new_tr, discard)
 
-            def _active(key):
-                return self.update(key, prev, ValueChoiceMap(value), argdiffs)
+        def _some(val_chm):
+            (retdiff, w, new_tr, _) = self.update(key, prev, val_chm, argdiffs)
+            discard = mask(True, discard_option)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (retdiff, w, new_tr, discard)
 
-            return concrete_cond(check, _active, _fallback, key)
-        else:
-            fwd = self.estimate_logpdf(key, v, *args)
-            bwd = prev.get_score()
-            w = fwd - bwd
-            new_tr = DistributionTrace(self, args, v, fwd)
-            discard = mask(True, prev.get_choices())
-            retval_diff = tree_diff_unknown_change(v)
-            return (retval_diff, w, new_tr, discard)
+        return constraints.match(_none, _some)
 
     @typecheck
     def assess(

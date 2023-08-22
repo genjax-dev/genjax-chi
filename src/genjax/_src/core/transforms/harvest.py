@@ -318,6 +318,9 @@ class ReapState(Pytree):
         pass
 
 
+reap_custom_rules = {}
+
+
 @dataclasses.dataclass
 class ReapContext(HarvestContext):
     settings: HarvestSettings
@@ -329,6 +332,9 @@ class ReapContext(HarvestContext):
     @classmethod
     def new(cls, settings, reap_state):
         return ReapContext(settings, reap_state)
+
+    def get_custom_rule(self, primitive):
+        return reap_custom_rules.get(primitive)
 
     def yield_state(self):
         return (self.reaps,)
@@ -360,8 +366,6 @@ def reap(
 ############
 # Planting #
 ############
-
-plant_custom_rules = {}
 
 
 @dataclasses.dataclass

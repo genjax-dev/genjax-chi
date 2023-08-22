@@ -73,10 +73,6 @@ def set_payload(leaf_schema, pytree):
     return payload
 
 
-def get_visitation(pytree):
-    return jtu.tree_flatten(pytree)
-
-
 def build_from_payload(visitation, form, payload):
     counter = hashable_dict()
 
@@ -98,7 +94,7 @@ class StaticCollection(Pytree):
 
 
 @dataclass
-class Sumtree(Pytree):
+class DataSharedSumTree(Pytree):
     visitations: StaticCollection
     forms: StaticCollection
     payload: HashableDict
@@ -112,13 +108,13 @@ class Sumtree(Pytree):
         visitations = []
         forms = []
         for cover in covers:
-            visitation, form = get_visitation(cover)
+            visitation, form = jtu.tree_flatten(cover)
             visitations.append(visitation)
             forms.append(form)
         visitations = StaticCollection(visitations)
         forms = StaticCollection(forms)
         payload = set_payload(leaf_schema, source)
-        return Sumtree(visitations, forms, payload)
+        return DataSharedSumTree(visitations, forms, payload)
 
     def materialize_iterator(self):
         static_visitations = self.visitations.seq

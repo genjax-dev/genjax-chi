@@ -56,6 +56,13 @@ String = str
 Address = Union[String, Int, Tuple["Address"]]
 Value = Any
 
+############
+# Generics #
+############
+
+Generic = btyping.Generic
+TypeVar = btyping.TypeVar
+
 ########################################
 # Static typechecking from annotations #
 ########################################
@@ -104,6 +111,8 @@ __all__ = [
     "Generator",
     "Iterable",
     "Type",
+    "Generic",
+    "TypeVar",
     "static_check_is_array",
     "static_check_supports_grad",
     "typecheck",

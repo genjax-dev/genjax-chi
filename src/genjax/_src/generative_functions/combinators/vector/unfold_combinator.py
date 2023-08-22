@@ -19,6 +19,7 @@ input)."""
 from dataclasses import dataclass
 
 import jax
+import jax.experimental.host_callback as hcb
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.experimental import checkify
@@ -611,6 +612,9 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 0.0,
             )
         )
+        hcb.id_print(new_score)
+        hcb.id_print(w)
+        hcb.id_print(prev.get_score())
 
         new_tr = UnfoldTrace(
             self,

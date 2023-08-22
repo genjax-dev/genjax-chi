@@ -346,12 +346,11 @@ def record_call(f: typing.Callable) -> typing.Callable:
     @functools.wraps(f)
     def wrapper(*args):
         retval = f(*args)
-        file_name = inspect.getfile(f)
         sourceline_start = inspect.getsourcelines(f)[1]
         module = inspect.getmodule(f)
         name = f.__name__
         frame = Frame(
-            file_name,
+            repr(module),
             sourceline_start,
             module,
             name,

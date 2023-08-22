@@ -35,6 +35,7 @@ class TaggedUnion(Pytree):
         return (self.tag, self.values), ()
 
     @classmethod
+    @typecheck
     def new(cls, tag: IntArray, values: List[Any]):
         return cls(tag, values)
 
@@ -45,13 +46,29 @@ class TaggedUnion(Pytree):
         return True
 
     @typecheck
-    def switch(self, *callables: Callable):
+    def match(self, *callables: Callable):
         assert len(callables) == len(self.values)
         self._static_assert_tagged_union_switch_num_callables_is_num_values(callables)
         vs = list(map(lambda v: v[0](v[1]), zip(callables, self.values)))
         self._static_assert_tagged_union_switch_returns_same_type(vs)
         vs = jnp.array(vs)
         return vs[self.tag]
+
+    ###########
+    # Dunders #
+    ###########
+
+    def __getattr__(self, name):
+        subs = list(map(lambda v: getattr(v, name), self.values))
+        if subs and all(map(lambda v: isinstance(v, Callable), subs)):
+
+            def wrapper(*args):
+                vs = [s(*args) for s in subs]
+                return TaggedUnion(self.tag, vs)
+
+            return wrapper
+        else:
+            return TaggedUnion(self.tag, subs)
 
     ###################
     # Pretty printing #
