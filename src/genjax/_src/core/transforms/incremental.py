@@ -14,8 +14,12 @@
 """This module supports incremental computation using generalized tangents
 (e.g. `ChangeTangent` below).
 
-The implementation follows a forward-mode AD approach, with the ability
-to customize the primitive rule registry (c.f. Autodidax).
+By default, `genjax` provides two types of `ChangeTangent`:
+
+* `NoChange` - indicating that a value has not changed.
+* `UnknownChange` - indicating that a value has changed, without further information about the change.
+
+`ChangeTangents` are provided along with primal values into `Diff` instances. The generative function `update` interface expects tuples of `Diff` instances (`argdiffs`).
 """
 
 # TODO: Think about when tangents don't share the same Pytree shape as primals.
