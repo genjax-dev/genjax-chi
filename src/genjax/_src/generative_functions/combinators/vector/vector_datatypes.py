@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from rich.tree import Tree
+import rich
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import AllSelection
@@ -27,8 +27,12 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import choice_map
+from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.pytree import tree_stack
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_leaves_have_matching_leading_dim,
+)
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Int
@@ -37,9 +41,6 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
-from genjax._src.generative_functions.combinators.vector.vector_utilities import (
-    static_check_leaf_matching_leading_dim,
-)
 
 
 ######################################
@@ -47,10 +48,6 @@ from genjax._src.generative_functions.combinators.vector.vector_utilities import
 ######################################
 
 # The data types in this section are used in `Map` and `Unfold`, currently.
-
-#####
-# IndexSelection
-#####
 
 
 @dataclass
@@ -76,6 +73,13 @@ class IndexSelection(Selection):
         idxs = jnp.array(idx)
         return IndexSelection(idxs, inner)
 
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, List[Int], IntArray], *inner: Any):
+        idxs = jnp.array(idx)
+        inner = select(*inner)
+        return IndexSelection(idxs, inner)
+
     @dispatch
     def has_subtree(self, addr: IntArray):
         return jnp.isin(addr, self.indices)
@@ -99,7 +103,7 @@ class IndexSelection(Selection):
 
     def __rich_tree__(self, tree):
         doc = gpp._pformat_array(self.indices, short_arrays=True)
-        sub_tree = Tree(f"[bold](Index,{doc})")
+        sub_tree = rich.tree.Tree(f"[bold](Index,{doc})")
         self.inner.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
@@ -139,138 +143,10 @@ class ComplementIndexSelection(IndexSelection):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = Tree("[bold](Complement)")
+        sub_tree = rich.tree.Tree("[bold](Complement)")
         self.index_selection.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
-
-
-#####
-# VectorChoiceMap
-#####
-
-
-@dataclass
-class VectorChoiceMap(ChoiceMap):
-    inner: Union[ChoiceMap, Trace]
-
-    def flatten(self):
-        return (self.inner,), ()
-
-    @classmethod
-    @dispatch
-    def new(
-        cls,
-        inner: EmptyChoiceMap,
-    ) -> EmptyChoiceMap:
-        return inner
-
-    @classmethod
-    @dispatch
-    def new(
-        cls,
-        inner: ChoiceMap,
-    ) -> ChoiceMap:
-        # Static assertion: all leaves must have same first dim size.
-        static_check_leaf_matching_leading_dim(inner)
-        return VectorChoiceMap(inner)
-
-    @classmethod
-    @dispatch
-    def new(
-        cls,
-        inner: Dict,
-    ) -> ChoiceMap:
-        chm = choice_map(inner)
-        return VectorChoiceMap.new(chm)
-
-    def is_empty(self):
-        return self.inner.is_empty()
-
-    @dispatch
-    def filter(
-        self,
-        selection: HierarchicalSelection,
-    ) -> ChoiceMap:
-        return VectorChoiceMap.new(self.inner.filter(selection))
-
-    @dispatch
-    def filter(
-        self,
-        selection: IndexSelection,
-    ) -> ChoiceMap:
-        filtered = self.inner.filter(selection.inner)
-        flags = jnp.logical_and(
-            selection.indices >= 0,
-            selection.indices < static_check_leaf_matching_leading_dim(self.inner),
-        )
-
-        def _take(v):
-            return jnp.take(v, selection.indices, mode="clip")
-
-        return mask(flags, jtu.tree_map(_take, filtered))
-
-    @dispatch
-    def filter(
-        self,
-        selection: ComplementIndexSelection,
-    ) -> ChoiceMap:
-        filtered = self.inner.filter(selection.inner.complement())
-        flags = jnp.logical_not(
-            jnp.logical_and(
-                selection.indices >= 0,
-                selection.indices < static_check_leaf_matching_leading_dim(self.inner),
-            )
-        )
-
-        def _take(v):
-            return jnp.take(v, selection.indices, mode="clip")
-
-        return mask(flags, jtu.tree_map(_take, filtered))
-
-    def get_selection(self):
-        subselection = self.inner.get_selection()
-        return subselection
-
-    def has_subtree(self, addr):
-        return self.inner.has_subtree(addr)
-
-    def get_subtree(self, addr):
-        return self.inner.get_subtree(addr)
-
-    def get_subtrees_shallow(self):
-        return self.inner.get_subtrees_shallow()
-
-    @dispatch
-    def merge(self, other: "VectorChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:
-        new, discard = self.inner.merge(other.inner)
-        return VectorChoiceMap(new), VectorChoiceMap(discard)
-
-    @dispatch
-    def merge(self, other: EmptyChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
-        return self, other
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __hash__(self):
-        return hash(self.inner)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        sub_tree = Tree("[bold](Vector)")
-        self.inner.__rich_tree__(sub_tree)
-        tree.add(sub_tree)
-        return tree
-
-
-#####
-# IndexChoiceMap
-#####
 
 
 @dataclass
@@ -296,7 +172,7 @@ class IndexChoiceMap(ChoiceMap):
 
         inner = tree_stack(subtrees)
         indices = jnp.array(indices)
-        return IndexChoiceMap.new(inner, indices)
+        return IndexChoiceMap.new(indices, inner)
 
     @classmethod
     @dispatch
@@ -308,7 +184,7 @@ class IndexChoiceMap(ChoiceMap):
 
         # Verify that dimensions are consistent before creating an
         # `IndexChoiceMap`.
-        _ = static_check_leaf_matching_leading_dim((inner, indices))
+        _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
 
         # if you try to wrap around an EmptyChoiceMap, do nothing.
         if isinstance(inner, EmptyChoiceMap):
@@ -398,7 +274,132 @@ class IndexChoiceMap(ChoiceMap):
 
     def __rich_tree__(self, tree):
         doc = gpp._pformat_array(self.indices, short_arrays=True)
-        sub_tree = Tree(f"[bold](Index,{doc})")
+        sub_tree = rich.tree.Tree(f"[bold](Index,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
+#####
+# VectorChoiceMap
+#####
+
+
+@dataclass
+class VectorChoiceMap(ChoiceMap):
+    inner: Union[ChoiceMap, Trace]
+
+    def flatten(self):
+        return (self.inner,), ()
+
+    @classmethod
+    @dispatch
+    def new(
+        cls,
+        inner: EmptyChoiceMap,
+    ) -> EmptyChoiceMap:
+        return inner
+
+    @classmethod
+    @dispatch
+    def new(
+        cls,
+        inner: ChoiceMap,
+    ) -> ChoiceMap:
+        # Static assertion: all leaves must have same first dim size.
+        static_check_tree_leaves_have_matching_leading_dim(inner)
+        return VectorChoiceMap(inner)
+
+    @classmethod
+    @dispatch
+    def new(
+        cls,
+        inner: Dict,
+    ) -> ChoiceMap:
+        chm = choice_map(inner)
+        return VectorChoiceMap.new(chm)
+
+    def is_empty(self):
+        return self.inner.is_empty()
+
+    @dispatch
+    def filter(
+        self,
+        selection: HierarchicalSelection,
+    ) -> ChoiceMap:
+        return VectorChoiceMap.new(self.inner.filter(selection))
+
+    @dispatch
+    def filter(
+        self,
+        selection: IndexSelection,
+    ) -> ChoiceMap:
+        filtered = self.inner.filter(selection.inner)
+        flags = jnp.logical_and(
+            selection.indices >= 0,
+            selection.indices
+            < static_check_tree_leaves_have_matching_leading_dim(self.inner),
+        )
+
+        def _take(v):
+            return jnp.take(v, selection.indices, mode="clip")
+
+        return mask(flags, jtu.tree_map(_take, filtered))
+
+    @dispatch
+    def filter(
+        self,
+        selection: ComplementIndexSelection,
+    ) -> ChoiceMap:
+        filtered = self.inner.filter(selection.inner.complement())
+        flags = jnp.logical_not(
+            jnp.logical_and(
+                selection.indices >= 0,
+                selection.indices
+                < static_check_tree_leaves_have_matching_leading_dim(self.inner),
+            )
+        )
+
+        def _take(v):
+            return jnp.take(v, selection.indices, mode="clip")
+
+        return mask(flags, jtu.tree_map(_take, filtered))
+
+    def get_selection(self):
+        subselection = self.inner.get_selection()
+        return subselection
+
+    def has_subtree(self, addr):
+        return self.inner.has_subtree(addr)
+
+    def get_subtree(self, addr):
+        return self.inner.get_subtree(addr)
+
+    def get_subtrees_shallow(self):
+        return self.inner.get_subtrees_shallow()
+
+    @dispatch
+    def merge(self, other: "VectorChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:
+        new, discard = self.inner.merge(other.inner)
+        return VectorChoiceMap(new), VectorChoiceMap(discard)
+
+    @dispatch
+    def merge(self, other: EmptyChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        return self, other
+
+    ###########
+    # Dunders #
+    ###########
+
+    def __hash__(self):
+        return hash(self.inner)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = rich.tree.Tree("[bold](Vector)")
         self.inner.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
@@ -436,10 +437,10 @@ class VectorTraceType(TraceType):
 
         return map(lambda args: _inner(*args), self.inner.get_subtrees_shallow())
 
-    def merge(self, other):
+    def merge(self, _):
         raise Exception("Not implemented.")
 
-    def __subseteq__(self, other):
+    def __subseteq__(self, _):
         return False
 
     def get_rettype(self):

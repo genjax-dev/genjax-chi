@@ -8,7 +8,12 @@
 }
 
 .md-typeset code {
-  font-family: 'Iosevka';
+  font-family: 'Berkeley Mono';
   font-weight: 800;
   font-variant-ligatures: discretionary-ligatures;
+}
+
+.md-footer,
+.md-source {
+  font-weight: 600;
 }

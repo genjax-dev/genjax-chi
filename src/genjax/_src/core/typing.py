@@ -30,9 +30,6 @@ from beartype import beartype
 from plum import dispatch
 
 
-conf = BeartypeConf(is_color=False)
-typecheck = beartype(conf=conf)
-
 Dataclass = typing.Any
 PrettyPrintable = typing.Any
 PRNGKey = jtyping.UInt[jtyping.Array, "..."]
@@ -58,6 +55,25 @@ Bool = bool
 String = str
 Address = Union[String, Int, Tuple["Address"]]
 Value = Any
+
+############
+# Generics #
+############
+
+Generic = btyping.Generic
+TypeVar = btyping.TypeVar
+
+########################################
+# Static typechecking from annotations #
+########################################
+
+conf = BeartypeConf(is_color=False)
+typecheck = beartype(conf=conf)
+
+
+#################
+# Static checks #
+#################
 
 
 def static_check_is_array(v):
@@ -95,6 +111,8 @@ __all__ = [
     "Generator",
     "Iterable",
     "Type",
+    "Generic",
+    "TypeVar",
     "static_check_is_array",
     "static_check_supports_grad",
     "typecheck",

@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://probcomp.github.io/genjax/genjax/library/core/interpreters.html">
       
       
-        <link rel="prev" href="masking.html">
+        <link rel="prev" href="functional_types.html">
       
       
         <link rel="next" href="../generative_functions/index.html">
@@ -25,7 +25,7 @@
     
     
       
-        <title>(Advanced) Interpreters - Gen ⊗ JAX</title>
+        <title>Interpreters & transforms - Gen ⊗ JAX</title>
       
     
     
@@ -92,10 +92,16 @@
       
     </div>
     
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
     
       
 
-<header class="md-header" data-md-component="header">
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../../.." title="Gen ⊗ JAX" class="md-header__button md-logo" aria-label="Gen ⊗ JAX" data-md-component="logo">
       
@@ -115,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              (Advanced) Interpreters
+              Interpreters & transforms
             
           </span>
         </div>
@@ -200,21 +206,15 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
   </div>
   <div class="md-source__repository">
-    GitHub
+    probcomp/genjax
   </div>
 </a>
       </div>
     
   </nav>
   
-</header>
     
-    <div class="md-container" data-md-component="container">
       
-      
-        
-          
-            
 <nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
@@ -281,7 +281,13 @@
     </ul>
   </div>
 </nav>
-          
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
         
       
       <main class="md-main" data-md-component="main">
@@ -315,7 +321,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
   </div>
   <div class="md-source__repository">
-    GitHub
+    probcomp/genjax
   </div>
 </a>
     </div>
@@ -545,13 +551,13 @@
   
   
     <li class="md-nav__item">
-      <a href="masking.html" class="md-nav__link">
+      <a href="functional_types.html" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     
   
-    The masking system
+    Functional types
   
 
     
@@ -584,7 +590,7 @@
   <span class="md-ellipsis">
     
   
-    (Advanced) Interpreters
+    Interpreters & transforms
   
 
     
@@ -601,7 +607,7 @@
   <span class="md-ellipsis">
     
   
-    (Advanced) Interpreters
+    Interpreters & transforms
   
 
     
@@ -666,6 +672,206 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#incremental-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental computation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        incremental
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="incremental">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.Diff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diff
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diff">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.Diff.inflate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inflate()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_primal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_primal()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_tangent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_tangent()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_no_change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_no_change()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_unknown_change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_unknown_change()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stateful-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stateful computation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.harvest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harvest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="harvest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.harvest.sow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sow()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.harvest.harvest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harvest()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sharp-edges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sharp edges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-sow-and-harvest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using sow and harvest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-reap-and-plant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using reap and plant.
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -771,14 +977,6 @@
           
         
       
-        
-      
-        
-      
-        
-          
-        
-      
     
     
       
@@ -803,8 +1001,6 @@
   
   
 
-      
-        <span class="md-nav__icon md-icon"></span>
       
     </a>
   
@@ -1159,6 +1355,206 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#incremental-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental computation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        incremental
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="incremental">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.Diff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diff
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diff">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.Diff.inflate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inflate()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_primal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_primal()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_tangent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_tangent()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_no_change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_no_change()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.incremental.tree_diff_unknown_change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tree_diff_unknown_change()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stateful-computation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stateful computation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.harvest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harvest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="harvest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.harvest.sow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sow()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genjax._src.core.transforms.harvest.harvest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harvest()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sharp-edges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sharp edges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-sow-and-harvest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using sow and harvest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-reap-and-plant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using reap and plant.
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1222,7 +1618,7 @@
                   
 
   
-    <a href="https://github.com/probcomp/genjax/edit/master/docs/genjax/library/core/interpreters.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/probcomp/genjax/edit/main/docs/genjax/library/core/interpreters.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -1231,21 +1627,25 @@
     
       
     
-    <a href="https://github.com/probcomp/genjax/raw/master/docs/genjax/library/core/interpreters.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/probcomp/genjax/raw/main/docs/genjax/library/core/interpreters.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.15 8.15 0 0 1-1.23-2Z"/></svg>
     </a>
   
 
 
-  <h1>(Advanced) Interpreters</h1>
+  <h1>Interpreters & transforms</h1>
 
 <p>JAX supports transformations of pure, numerical Python programs by staging out interpreters which evaluate <a href="https://jax.readthedocs.io/en/latest/jaxpr.html"><code>Jaxpr</code></a> representations of programs.</p>
 <p>The <code>Core</code> module features interpreter infrastructure, and common transforms designed to facilitate certain types of transformations.</p>
 <h2 id="contextual-interpreter">Contextual interpreter<a class="headerlink" href="#contextual-interpreter" title="Permanent link">&para;</a></h2>
-<p>A common type of interpreter involves overloading desired primitives with context-specific behavior by inheriting from <code>Trace</code> and define the correct methods to process the primitives.</p>
-<p>In this module, we provide an interpreter which mixes initial style (e.g. the Python program is immediately staged, and then an interpreter walks the <code>Jaxpr</code> representation) with custom <code>Trace</code> and <code>Tracer</code> overloads. </p>
-<p>This pattern supports a wide range of program transformations, and allows parametrization over the inner interpreter (e.g. forward evaluation, or CPS).</p>
+<p>A common interpreter idiom in JAX involves overloading desired primitives with context-specific behavior by inheriting from <code>Trace</code> and define the correct methods to process the primitives.</p>
+<p><code>ContextualInterpreter</code> provides this idiom in GenJAX: this interprter mixes initial style (e.g. the Python program is immediately staged, and then an interpreter walks the <code>Jaxpr</code> representation) with custom <code>Trace</code> and <code>Tracer</code> overloads. </p>
+<p>This pattern supports a wide range of program transformations, and allows parametrization over the evaluation order of the inner interpreter (e.g. forward evaluation, or CPS).</p>
+<div class="admonition note">
+<p class="admonition-title">User interaction with <code>ContextualInterpreter</code></p>
+<p>Users are not expected to interact with this functionality, but we document its implementation for advanced users or those interested in implementing program transformations with JAX.</p>
+</div>
 
 
 <div class="doc doc-object doc-module">
@@ -1287,7 +1687,7 @@ with stateful contexts and custom primitive handling lookups.</p>
 
   <div class="doc doc-contents ">
           <p class="doc doc-class-bases">
-            Bases: <code><span title="jax">jc</span>.<span title="jax.Tracer">Tracer</span></code></p>
+            Bases: <code><span title="jax.Tracer">Tracer</span></code></p>
 
   
       <p>A <code>ContextualTracer</code> encapsulates a single value.</p>
@@ -1355,7 +1755,7 @@ with stateful contexts and custom primitive handling lookups.</p>
 
   <div class="doc doc-contents ">
           <p class="doc doc-class-bases">
-            Bases: <code><span title="jax">jc</span>.<span title="jax.Trace">Trace</span></code></p>
+            Bases: <code><span title="jax.Trace">Trace</span></code></p>
 
   
       <p>An evaluating trace that dispatches to a dynamic context.</p>
@@ -1599,7 +1999,867 @@ with stateful contexts and custom primitive handling lookups.</p>
 
   </div>
 
+</div><h2 id="incremental-computation">Incremental computation<a class="headerlink" href="#incremental-computation" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="genjax._src.core.transforms.incremental" class="doc doc-heading">
+            <code>genjax._src.core.transforms.incremental</code>
+
+
+<a href="#genjax._src.core.transforms.incremental" class="headerlink" title="Permanent link">&para;</a></h2>
+
+  <div class="doc doc-contents first">
+  
+      <p>This module supports incremental computation using generalized tangents
+(e.g. <code>ChangeTangent</code> below).</p>
+<p>By default, <code>genjax</code> provides two types of <code>ChangeTangent</code>:</p>
+<ul>
+<li><code>NoChange</code> - indicating that a value has not changed.</li>
+<li><code>UnknownChange</code> - indicating that a value has changed, without further information about the change.</li>
+</ul>
+<p><code>ChangeTangents</code> are provided along with primal values into <code>Diff</code> instances. The generative function <code>update</code> interface expects tuples of <code>Diff</code> instances (<code>argdiffs</code>).</p>
+
+  
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="genjax._src.core.transforms.incremental.Diff" class="doc doc-heading">
+          <code>Diff</code>
+
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#genjax._src.core.transforms.incremental.Diff" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+          <p class="doc doc-class-bases">
+            Bases: <code><a class="autorefs autorefs-internal" title="genjax._src.core.pytree.pytree.Pytree" href="datatypes.html#genjax.core.Pytree">Pytree</a></code></p>
+
+
+            <details class="quote">
+              <summary>Source code in <code>src/genjax/_src/core/transforms/incremental.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#__codelineno-0-205">205</a></span>
+<span class="normal"><a href="#__codelineno-0-206">206</a></span>
+<span class="normal"><a href="#__codelineno-0-207">207</a></span>
+<span class="normal"><a href="#__codelineno-0-208">208</a></span>
+<span class="normal"><a href="#__codelineno-0-209">209</a></span>
+<span class="normal"><a href="#__codelineno-0-210">210</a></span>
+<span class="normal"><a href="#__codelineno-0-211">211</a></span>
+<span class="normal"><a href="#__codelineno-0-212">212</a></span>
+<span class="normal"><a href="#__codelineno-0-213">213</a></span>
+<span class="normal"><a href="#__codelineno-0-214">214</a></span>
+<span class="normal"><a href="#__codelineno-0-215">215</a></span>
+<span class="normal"><a href="#__codelineno-0-216">216</a></span>
+<span class="normal"><a href="#__codelineno-0-217">217</a></span>
+<span class="normal"><a href="#__codelineno-0-218">218</a></span>
+<span class="normal"><a href="#__codelineno-0-219">219</a></span>
+<span class="normal"><a href="#__codelineno-0-220">220</a></span>
+<span class="normal"><a href="#__codelineno-0-221">221</a></span>
+<span class="normal"><a href="#__codelineno-0-222">222</a></span>
+<span class="normal"><a href="#__codelineno-0-223">223</a></span>
+<span class="normal"><a href="#__codelineno-0-224">224</a></span>
+<span class="normal"><a href="#__codelineno-0-225">225</a></span>
+<span class="normal"><a href="#__codelineno-0-226">226</a></span>
+<span class="normal"><a href="#__codelineno-0-227">227</a></span>
+<span class="normal"><a href="#__codelineno-0-228">228</a></span>
+<span class="normal"><a href="#__codelineno-0-229">229</a></span>
+<span class="normal"><a href="#__codelineno-0-230">230</a></span>
+<span class="normal"><a href="#__codelineno-0-231">231</a></span>
+<span class="normal"><a href="#__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#__codelineno-0-240">240</a></span>
+<span class="normal"><a href="#__codelineno-0-241">241</a></span>
+<span class="normal"><a href="#__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#__codelineno-0-245">245</a></span>
+<span class="normal"><a href="#__codelineno-0-246">246</a></span>
+<span class="normal"><a href="#__codelineno-0-247">247</a></span>
+<span class="normal"><a href="#__codelineno-0-248">248</a></span>
+<span class="normal"><a href="#__codelineno-0-249">249</a></span>
+<span class="normal"><a href="#__codelineno-0-250">250</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-203"><a id="__codelineno-0-203" name="__codelineno-0-203"></a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+</span><span id="__span-0-204"><a id="__codelineno-0-204" name="__codelineno-0-204"></a><span class="k">class</span> <span class="nc">Diff</span><span class="p">(</span><span class="n">Pytree</span><span class="p">):</span>
+</span><span id="__span-0-205"><a id="__codelineno-0-205" name="__codelineno-0-205"></a>    <span class="n">primal</span><span class="p">:</span> <span class="n">Any</span>
+</span><span id="__span-0-206"><a id="__codelineno-0-206" name="__codelineno-0-206"></a>    <span class="n">tangent</span><span class="p">:</span> <span class="n">Any</span>
+</span><span id="__span-0-207"><a id="__codelineno-0-207" name="__codelineno-0-207"></a>
+</span><span id="__span-0-208"><a id="__codelineno-0-208" name="__codelineno-0-208"></a>    <span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-0-209"><a id="__codelineno-0-209" name="__codelineno-0-209"></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">primal</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tangent</span><span class="p">),</span> <span class="p">()</span>
+</span><span id="__span-0-210"><a id="__codelineno-0-210" name="__codelineno-0-210"></a>
+</span><span id="__span-0-211"><a id="__codelineno-0-211" name="__codelineno-0-211"></a>    <span class="nd">@classmethod</span>
+</span><span id="__span-0-212"><a id="__codelineno-0-212" name="__codelineno-0-212"></a>    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">primal</span><span class="p">,</span> <span class="n">tangent</span><span class="p">):</span>
+</span><span id="__span-0-213"><a id="__codelineno-0-213" name="__codelineno-0-213"></a>        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">primal</span><span class="p">,</span> <span class="n">Diff</span><span class="p">)</span>
+</span><span id="__span-0-214"><a id="__codelineno-0-214" name="__codelineno-0-214"></a>        <span class="n">static_check_is_change_tangent</span><span class="p">(</span><span class="n">tangent</span><span class="p">)</span>
+</span><span id="__span-0-215"><a id="__codelineno-0-215" name="__codelineno-0-215"></a>        <span class="k">return</span> <span class="n">Diff</span><span class="p">(</span><span class="n">primal</span><span class="p">,</span> <span class="n">tangent</span><span class="p">)</span>
+</span><span id="__span-0-216"><a id="__codelineno-0-216" name="__codelineno-0-216"></a>
+</span><span id="__span-0-217"><a id="__codelineno-0-217" name="__codelineno-0-217"></a>    <span class="k">def</span> <span class="nf">get_primal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-0-218"><a id="__codelineno-0-218" name="__codelineno-0-218"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">primal</span>
+</span><span id="__span-0-219"><a id="__codelineno-0-219" name="__codelineno-0-219"></a>
+</span><span id="__span-0-220"><a id="__codelineno-0-220" name="__codelineno-0-220"></a>    <span class="k">def</span> <span class="nf">get_tangent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-0-221"><a id="__codelineno-0-221" name="__codelineno-0-221"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tangent</span>
+</span><span id="__span-0-222"><a id="__codelineno-0-222" name="__codelineno-0-222"></a>
+</span><span id="__span-0-223"><a id="__codelineno-0-223" name="__codelineno-0-223"></a>    <span class="k">def</span> <span class="nf">get_tracers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trace</span><span class="p">):</span>
+</span><span id="__span-0-224"><a id="__codelineno-0-224" name="__codelineno-0-224"></a>        <span class="c1"># If we&#39;re not in a `DiffTrace` context -</span>
+</span><span id="__span-0-225"><a id="__codelineno-0-225" name="__codelineno-0-225"></a>        <span class="c1"># we shouldn&#39;t try and make DiffTracers.</span>
+</span><span id="__span-0-226"><a id="__codelineno-0-226" name="__codelineno-0-226"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trace</span><span class="p">,</span> <span class="n">DiffTrace</span><span class="p">):</span>
+</span><span id="__span-0-227"><a id="__codelineno-0-227" name="__codelineno-0-227"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">primal</span>
+</span><span id="__span-0-228"><a id="__codelineno-0-228" name="__codelineno-0-228"></a>        <span class="k">return</span> <span class="n">DiffTracer</span><span class="p">(</span><span class="n">trace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">primal</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tangent</span><span class="p">)</span>
+</span><span id="__span-0-229"><a id="__codelineno-0-229" name="__codelineno-0-229"></a>
+</span><span id="__span-0-230"><a id="__codelineno-0-230" name="__codelineno-0-230"></a>    <span class="k">def</span> <span class="nf">unpack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-0-231"><a id="__codelineno-0-231" name="__codelineno-0-231"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">primal</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tangent</span>
+</span><span id="__span-0-232"><a id="__codelineno-0-232" name="__codelineno-0-232"></a>
+</span><span id="__span-0-233"><a id="__codelineno-0-233" name="__codelineno-0-233"></a>    <span class="nd">@typecheck</span>
+</span><span id="__span-0-234"><a id="__codelineno-0-234" name="__codelineno-0-234"></a>    <span class="nd">@classmethod</span>
+</span><span id="__span-0-235"><a id="__codelineno-0-235" name="__codelineno-0-235"></a>    <span class="k">def</span> <span class="nf">from_tracer</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tracer</span><span class="p">:</span> <span class="n">DiffTracer</span><span class="p">):</span>
+</span><span id="__span-0-236"><a id="__codelineno-0-236" name="__codelineno-0-236"></a>        <span class="k">if</span> <span class="n">tracer</span><span class="o">.</span><span class="n">tangent</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-237"><a id="__codelineno-0-237" name="__codelineno-0-237"></a>            <span class="n">tangent</span> <span class="o">=</span> <span class="n">NoChange</span>
+</span><span id="__span-0-238"><a id="__codelineno-0-238" name="__codelineno-0-238"></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-239"><a id="__codelineno-0-239" name="__codelineno-0-239"></a>            <span class="n">tangent</span> <span class="o">=</span> <span class="n">tracer</span><span class="o">.</span><span class="n">tangent</span>
+</span><span id="__span-0-240"><a id="__codelineno-0-240" name="__codelineno-0-240"></a>        <span class="k">return</span> <span class="n">Diff</span><span class="p">(</span><span class="n">tracer</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">tangent</span><span class="p">)</span>
+</span><span id="__span-0-241"><a id="__codelineno-0-241" name="__codelineno-0-241"></a>
+</span><span id="__span-0-242"><a id="__codelineno-0-242" name="__codelineno-0-242"></a>    <span class="nd">@classmethod</span>
+</span><span id="__span-0-243"><a id="__codelineno-0-243" name="__codelineno-0-243"></a>    <span class="k">def</span> <span class="nf">inflate</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tree</span><span class="p">,</span> <span class="n">change_tangent</span><span class="p">):</span>
+</span><span id="__span-0-244"><a id="__codelineno-0-244" name="__codelineno-0-244"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an instance of `type(tree)` with the same structure as tree,</span>
+</span><span id="__span-0-245"><a id="__codelineno-0-245" name="__codelineno-0-245"></a><span class="sd">        but with all values replaced with `change_tangent`&quot;&quot;&quot;</span>
+</span><span id="__span-0-246"><a id="__codelineno-0-246" name="__codelineno-0-246"></a>        <span class="k">return</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">change_tangent</span><span class="p">,</span> <span class="n">tree</span><span class="p">)</span>
+</span><span id="__span-0-247"><a id="__codelineno-0-247" name="__codelineno-0-247"></a>
+</span><span id="__span-0-248"><a id="__codelineno-0-248" name="__codelineno-0-248"></a>    <span class="nd">@classmethod</span>
+</span><span id="__span-0-249"><a id="__codelineno-0-249" name="__codelineno-0-249"></a>    <span class="k">def</span> <span class="nf">no_change</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
+</span><span id="__span-0-250"><a id="__codelineno-0-250" name="__codelineno-0-250"></a>        <span class="k">return</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">Diff</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">NoChange</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+            </details>
+
+  
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="genjax._src.core.transforms.incremental.Diff.inflate" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">inflate</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">change_tangent</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#genjax._src.core.transforms.incremental.Diff.inflate" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Create an instance of <code>type(tree)</code> with the same structure as tree,
+but with all values replaced with <code>change_tangent</code></p>
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/incremental.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#__codelineno-0-245">245</a></span>
+<span class="normal"><a href="#__codelineno-0-246">246</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-242"><a id="__codelineno-0-242" name="__codelineno-0-242"></a><span class="nd">@classmethod</span>
+</span><span id="__span-0-243"><a id="__codelineno-0-243" name="__codelineno-0-243"></a><span class="k">def</span> <span class="nf">inflate</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tree</span><span class="p">,</span> <span class="n">change_tangent</span><span class="p">):</span>
+</span><span id="__span-0-244"><a id="__codelineno-0-244" name="__codelineno-0-244"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create an instance of `type(tree)` with the same structure as tree,</span>
+</span><span id="__span-0-245"><a id="__codelineno-0-245" name="__codelineno-0-245"></a><span class="sd">    but with all values replaced with `change_tangent`&quot;&quot;&quot;</span>
+</span><span id="__span-0-246"><a id="__codelineno-0-246" name="__codelineno-0-246"></a>    <span class="k">return</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">change_tangent</span><span class="p">,</span> <span class="n">tree</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
 </div>
+
+
+
+  </div>
+
+  </div>
+
+</div>
+
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="genjax._src.core.transforms.incremental.tree_diff_primal" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">tree_diff_primal</span><span class="p">(</span><span class="n">v</span><span class="p">)</span></code>
+
+<a href="#genjax._src.core.transforms.incremental.tree_diff_primal" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/incremental.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-269">269</a></span>
+<span class="normal"><a href="#__codelineno-0-270">270</a></span>
+<span class="normal"><a href="#__codelineno-0-271">271</a></span>
+<span class="normal"><a href="#__codelineno-0-272">272</a></span>
+<span class="normal"><a href="#__codelineno-0-273">273</a></span>
+<span class="normal"><a href="#__codelineno-0-274">274</a></span>
+<span class="normal"><a href="#__codelineno-0-275">275</a></span>
+<span class="normal"><a href="#__codelineno-0-276">276</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-269"><a id="__codelineno-0-269" name="__codelineno-0-269"></a><span class="k">def</span> <span class="nf">tree_diff_primal</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+</span><span id="__span-0-270"><a id="__codelineno-0-270" name="__codelineno-0-270"></a>    <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+</span><span id="__span-0-271"><a id="__codelineno-0-271" name="__codelineno-0-271"></a>        <span class="k">if</span> <span class="n">static_check_is_diff</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+</span><span id="__span-0-272"><a id="__codelineno-0-272" name="__codelineno-0-272"></a>            <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">get_primal</span><span class="p">()</span>
+</span><span id="__span-0-273"><a id="__codelineno-0-273" name="__codelineno-0-273"></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-274"><a id="__codelineno-0-274" name="__codelineno-0-274"></a>            <span class="k">return</span> <span class="n">v</span>
+</span><span id="__span-0-275"><a id="__codelineno-0-275" name="__codelineno-0-275"></a>
+</span><span id="__span-0-276"><a id="__codelineno-0-276" name="__codelineno-0-276"></a>    <span class="k">return</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">_inner</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">v</span><span class="p">,</span> <span class="n">is_leaf</span><span class="o">=</span><span class="n">static_check_is_diff</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="genjax._src.core.transforms.incremental.tree_diff_tangent" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">tree_diff_tangent</span><span class="p">(</span><span class="n">v</span><span class="p">)</span></code>
+
+<a href="#genjax._src.core.transforms.incremental.tree_diff_tangent" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/incremental.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-279">279</a></span>
+<span class="normal"><a href="#__codelineno-0-280">280</a></span>
+<span class="normal"><a href="#__codelineno-0-281">281</a></span>
+<span class="normal"><a href="#__codelineno-0-282">282</a></span>
+<span class="normal"><a href="#__codelineno-0-283">283</a></span>
+<span class="normal"><a href="#__codelineno-0-284">284</a></span>
+<span class="normal"><a href="#__codelineno-0-285">285</a></span>
+<span class="normal"><a href="#__codelineno-0-286">286</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-279"><a id="__codelineno-0-279" name="__codelineno-0-279"></a><span class="k">def</span> <span class="nf">tree_diff_tangent</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+</span><span id="__span-0-280"><a id="__codelineno-0-280" name="__codelineno-0-280"></a>    <span class="k">def</span> <span class="nf">_inner</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+</span><span id="__span-0-281"><a id="__codelineno-0-281" name="__codelineno-0-281"></a>        <span class="k">if</span> <span class="n">static_check_is_diff</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+</span><span id="__span-0-282"><a id="__codelineno-0-282" name="__codelineno-0-282"></a>            <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">get_tangent</span><span class="p">()</span>
+</span><span id="__span-0-283"><a id="__codelineno-0-283" name="__codelineno-0-283"></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-284"><a id="__codelineno-0-284" name="__codelineno-0-284"></a>            <span class="k">return</span> <span class="n">v</span>
+</span><span id="__span-0-285"><a id="__codelineno-0-285" name="__codelineno-0-285"></a>
+</span><span id="__span-0-286"><a id="__codelineno-0-286" name="__codelineno-0-286"></a>    <span class="k">return</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">_inner</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">v</span><span class="p">,</span> <span class="n">is_leaf</span><span class="o">=</span><span class="n">static_check_is_diff</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="genjax._src.core.transforms.incremental.tree_diff_no_change" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">tree_diff_no_change</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span></code>
+
+<a href="#genjax._src.core.transforms.incremental.tree_diff_no_change" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/incremental.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-331">331</a></span>
+<span class="normal"><a href="#__codelineno-0-332">332</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-331"><a id="__codelineno-0-331" name="__codelineno-0-331"></a><span class="k">def</span> <span class="nf">tree_diff_no_change</span><span class="p">(</span><span class="n">tree</span><span class="p">):</span>
+</span><span id="__span-0-332"><a id="__codelineno-0-332" name="__codelineno-0-332"></a>    <span class="k">return</span> <span class="n">tree_diff</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">NoChange</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="genjax._src.core.transforms.incremental.tree_diff_unknown_change" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">tree_diff_unknown_change</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span></code>
+
+<a href="#genjax._src.core.transforms.incremental.tree_diff_unknown_change" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/incremental.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-335">335</a></span>
+<span class="normal"><a href="#__codelineno-0-336">336</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-335"><a id="__codelineno-0-335" name="__codelineno-0-335"></a><span class="k">def</span> <span class="nf">tree_diff_unknown_change</span><span class="p">(</span><span class="n">tree</span><span class="p">):</span>
+</span><span id="__span-0-336"><a id="__codelineno-0-336" name="__codelineno-0-336"></a>    <span class="k">return</span> <span class="n">tree_diff</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">UnknownChange</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+
+  </div>
+
+  </div>
+
+</div><h2 id="stateful-computation">Stateful computation<a class="headerlink" href="#stateful-computation" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title"><code>harvest</code> from <a href="https://github.com/jax-ml/oryx">oryx</a></p>
+<p><a href="https://www.tensorflow.org/probability/oryx/api_docs/python/oryx/core/interpreters/harvest">The <code>harvest</code> transformation is from Oryx</a>. GenJAX supports an implementation which essentially matches the <code>Oryx</code> version, customized for a few higher-level tools.</p>
+</div>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="genjax._src.core.transforms.harvest" class="doc doc-heading">
+            <code>genjax._src.core.transforms.harvest</code>
+
+
+<a href="#genjax._src.core.transforms.harvest" class="headerlink" title="Permanent link">&para;</a></h2>
+
+  <div class="doc doc-contents first">
+  
+      <p>This module contains a general-purpose set of tools for transforming
+functions with a specific side-effect mechanism into pure functions. The names
+of the transformations in this module are inspired by the Sow/Reap mechanism in
+Wolfram Mathematica.</p>
+<p>The harvest module exposes two main functions: <code>sow</code> and <code>harvest</code>.</p>
+<ul>
+<li><code>sow</code> is
+used to tag values.</li>
+<li><code>harvest</code> can inject values into functions or pull out
+tagged values.</li>
+</ul>
+<p><code>harvest</code> is a very general purpose transformation purely focused on converting
+functions that have special side-effects (defined using <code>sow</code>) and
+"functionalizing" them.</p>
+<p>Specifically, a function
+<code>f :: (x: X) -&gt; Y</code> has a set of defined intermediates, or <code>Sows</code>. This set
+can be divided into intermediates you are "collecting" and intermediates you are
+"injecting", or <code>Reaps</code> and <code>Plants</code> respectively. Functionalizing
+<code>f</code> now gives you <code>harvest(f) :: (plants: Plants, x: X) -&gt; Tuple[Y, Reaps]</code>.</p>
+<p>Generally, most users will not need to use <code>harvest</code> directly, but will use
+wrappers around it.</p>
+
+  
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="genjax._src.core.transforms.harvest.sow" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">sow</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">)</span></code>
+
+<a href="#genjax._src.core.transforms.harvest.sow" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <blockquote>
+<p>Marks a value with a metadata value and a tag.</p>
+</blockquote>
+<p><code>sow</code> is the function used to tag values in a function. It takes in a single
+positional argument, <code>value</code>, which is returned as an output, so <code>sow</code> outside
+of a tracing context behaves like the identity function, i.e.
+<code>sow(x, ...) == x</code>. It also takes in two mandatory keyword arguments,
+<code>tag</code> and <code>name</code>.</p>
+<ul>
+<li>
+<p><code>tag</code> is a string used to namespace intermediate values in a
+function. For example, some intermediates may be useful
+for logging or debugging. The tag enables <code>harvest</code> to interact with only one set of intermediates at a time.</p>
+</li>
+<li>
+<p>The <code>name</code> is a string that describes the value you are <code>sow</code>-ing. Eventually,
+when calling <code>harvest</code> on a function, the <code>name</code> is used as the identifier
+for the intermediate value.</p>
+</li>
+</ul>
+<p>Finally, <code>sow</code> takes in an optional string keyword argument <code>mode</code>, which is by
+default set to <code>'strict'</code>. The <code>mode</code> of a <code>sow</code> describes how it behaves when
+the same name appears multiple times. In "strict" mode, <code>sow</code> will error if the
+same <code>(tag, name)</code> appears more than once. Another option is <code>'append'</code>, in
+which all sows of the same name will be appended into a growing array. Finally,
+there is <code>'clobber'</code>, where only the final sown value for a given <code>(tag, name)</code>
+will be returned. The final optional argument for <code>sow</code> is <code>key</code>, which will
+automatically be tied-in to the output of <code>sow</code> to introduce a fake
+data-dependence. By default, it is <code>None</code>.</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>value</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.Any">Any</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A JAX value to be tagged and metad.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>tag</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.Hashable">Hashable</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A <code>String</code> representing the tag of the sown value.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>meta</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.Any">Any</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A piece of metadata to sow the value with.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mode</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.String">String</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The mode by which to sow the value. There are three options:</p>
+<ul>
+<li>
+<p><code>'strict'</code> - if another value is sown with the same metadata and tag in the
+same context, harvest will throw an error.</p>
+</li>
+<li>
+<p><code>'clobber'</code> - if another is
+value is sown with the same meta and tag, it will replace this value</p>
+</li>
+<li>
+<p><code>'append'</code> - sown values of the same meta and tag are appended to a
+growing list. Append mode assumes some ordering on the values being sown
+defined by data-dependence.</p>
+</li>
+</ul>
+            </div>
+          </td>
+          <td>
+                <code>&#39;strict&#39;</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>value</code></td>          <td>
+                <code><span title="genjax._src.core.typing.Any">Any</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>The original <code>value</code> that was passed in.</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/harvest.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-133">133</a></span>
+<span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span>
+<span class="normal"><a href="#__codelineno-0-136">136</a></span>
+<span class="normal"><a href="#__codelineno-0-137">137</a></span>
+<span class="normal"><a href="#__codelineno-0-138">138</a></span>
+<span class="normal"><a href="#__codelineno-0-139">139</a></span>
+<span class="normal"><a href="#__codelineno-0-140">140</a></span>
+<span class="normal"><a href="#__codelineno-0-141">141</a></span>
+<span class="normal"><a href="#__codelineno-0-142">142</a></span>
+<span class="normal"><a href="#__codelineno-0-143">143</a></span>
+<span class="normal"><a href="#__codelineno-0-144">144</a></span>
+<span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#__codelineno-0-153">153</a></span>
+<span class="normal"><a href="#__codelineno-0-154">154</a></span>
+<span class="normal"><a href="#__codelineno-0-155">155</a></span>
+<span class="normal"><a href="#__codelineno-0-156">156</a></span>
+<span class="normal"><a href="#__codelineno-0-157">157</a></span>
+<span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span>
+<span class="normal"><a href="#__codelineno-0-172">172</a></span>
+<span class="normal"><a href="#__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span>
+<span class="normal"><a href="#__codelineno-0-188">188</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-133"><a id="__codelineno-0-133" name="__codelineno-0-133"></a><span class="k">def</span> <span class="nf">sow</span><span class="p">(</span>
+</span><span id="__span-0-134"><a id="__codelineno-0-134" name="__codelineno-0-134"></a>    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+</span><span id="__span-0-135"><a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="o">*</span><span class="p">,</span>
+</span><span id="__span-0-136"><a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="n">tag</span><span class="p">:</span> <span class="n">Hashable</span><span class="p">,</span>
+</span><span id="__span-0-137"><a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="n">meta</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+</span><span id="__span-0-138"><a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n">String</span> <span class="o">=</span> <span class="s2">&quot;strict&quot;</span><span class="p">,</span>
+</span><span id="__span-0-139"><a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+</span><span id="__span-0-140"><a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;&gt; Marks a value with a metadata value and a tag.</span>
+</span><span id="__span-0-141"><a id="__codelineno-0-141" name="__codelineno-0-141"></a>
+</span><span id="__span-0-142"><a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">    `sow` is the function used to tag values in a function. It takes in a single</span>
+</span><span id="__span-0-143"><a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    positional argument, `value`, which is returned as an output, so `sow` outside</span>
+</span><span id="__span-0-144"><a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">    of a tracing context behaves like the identity function, i.e.</span>
+</span><span id="__span-0-145"><a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">    `sow(x, ...) == x`. It also takes in two mandatory keyword arguments,</span>
+</span><span id="__span-0-146"><a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="sd">    `tag` and `name`.</span>
+</span><span id="__span-0-147"><a id="__codelineno-0-147" name="__codelineno-0-147"></a>
+</span><span id="__span-0-148"><a id="__codelineno-0-148" name="__codelineno-0-148"></a><span class="sd">    * `tag` is a string used to namespace intermediate values in a</span>
+</span><span id="__span-0-149"><a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    function. For example, some intermediates may be useful</span>
+</span><span id="__span-0-150"><a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">    for logging or debugging. The tag enables `harvest` to interact with only one set of intermediates at a time.</span>
+</span><span id="__span-0-151"><a id="__codelineno-0-151" name="__codelineno-0-151"></a>
+</span><span id="__span-0-152"><a id="__codelineno-0-152" name="__codelineno-0-152"></a><span class="sd">    * The `name` is a string that describes the value you are `sow`-ing. Eventually,</span>
+</span><span id="__span-0-153"><a id="__codelineno-0-153" name="__codelineno-0-153"></a><span class="sd">    when calling `harvest` on a function, the `name` is used as the identifier</span>
+</span><span id="__span-0-154"><a id="__codelineno-0-154" name="__codelineno-0-154"></a><span class="sd">    for the intermediate value.</span>
+</span><span id="__span-0-155"><a id="__codelineno-0-155" name="__codelineno-0-155"></a>
+</span><span id="__span-0-156"><a id="__codelineno-0-156" name="__codelineno-0-156"></a><span class="sd">    Finally, `sow` takes in an optional string keyword argument `mode`, which is by</span>
+</span><span id="__span-0-157"><a id="__codelineno-0-157" name="__codelineno-0-157"></a><span class="sd">    default set to `&#39;strict&#39;`. The `mode` of a `sow` describes how it behaves when</span>
+</span><span id="__span-0-158"><a id="__codelineno-0-158" name="__codelineno-0-158"></a><span class="sd">    the same name appears multiple times. In &quot;strict&quot; mode, `sow` will error if the</span>
+</span><span id="__span-0-159"><a id="__codelineno-0-159" name="__codelineno-0-159"></a><span class="sd">    same `(tag, name)` appears more than once. Another option is `&#39;append&#39;`, in</span>
+</span><span id="__span-0-160"><a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="sd">    which all sows of the same name will be appended into a growing array. Finally,</span>
+</span><span id="__span-0-161"><a id="__codelineno-0-161" name="__codelineno-0-161"></a><span class="sd">    there is `&#39;clobber&#39;`, where only the final sown value for a given `(tag, name)`</span>
+</span><span id="__span-0-162"><a id="__codelineno-0-162" name="__codelineno-0-162"></a><span class="sd">    will be returned. The final optional argument for `sow` is `key`, which will</span>
+</span><span id="__span-0-163"><a id="__codelineno-0-163" name="__codelineno-0-163"></a><span class="sd">    automatically be tied-in to the output of `sow` to introduce a fake</span>
+</span><span id="__span-0-164"><a id="__codelineno-0-164" name="__codelineno-0-164"></a><span class="sd">    data-dependence. By default, it is `None`.</span>
+</span><span id="__span-0-165"><a id="__codelineno-0-165" name="__codelineno-0-165"></a>
+</span><span id="__span-0-166"><a id="__codelineno-0-166" name="__codelineno-0-166"></a><span class="sd">    Args:</span>
+</span><span id="__span-0-167"><a id="__codelineno-0-167" name="__codelineno-0-167"></a><span class="sd">      value: A JAX value to be tagged and metad.</span>
+</span><span id="__span-0-168"><a id="__codelineno-0-168" name="__codelineno-0-168"></a><span class="sd">      tag: A `String` representing the tag of the sown value.</span>
+</span><span id="__span-0-169"><a id="__codelineno-0-169" name="__codelineno-0-169"></a><span class="sd">      meta: A piece of metadata to sow the value with.</span>
+</span><span id="__span-0-170"><a id="__codelineno-0-170" name="__codelineno-0-170"></a><span class="sd">      mode: The mode by which to sow the value. There are three options:</span>
+</span><span id="__span-0-171"><a id="__codelineno-0-171" name="__codelineno-0-171"></a>
+</span><span id="__span-0-172"><a id="__codelineno-0-172" name="__codelineno-0-172"></a><span class="sd">        * `&#39;strict&#39;` - if another value is sown with the same metadata and tag in the</span>
+</span><span id="__span-0-173"><a id="__codelineno-0-173" name="__codelineno-0-173"></a><span class="sd">        same context, harvest will throw an error.</span>
+</span><span id="__span-0-174"><a id="__codelineno-0-174" name="__codelineno-0-174"></a>
+</span><span id="__span-0-175"><a id="__codelineno-0-175" name="__codelineno-0-175"></a><span class="sd">        * `&#39;clobber&#39;` - if another is</span>
+</span><span id="__span-0-176"><a id="__codelineno-0-176" name="__codelineno-0-176"></a><span class="sd">        value is sown with the same meta and tag, it will replace this value</span>
+</span><span id="__span-0-177"><a id="__codelineno-0-177" name="__codelineno-0-177"></a>
+</span><span id="__span-0-178"><a id="__codelineno-0-178" name="__codelineno-0-178"></a><span class="sd">        * `&#39;append&#39;` - sown values of the same meta and tag are appended to a</span>
+</span><span id="__span-0-179"><a id="__codelineno-0-179" name="__codelineno-0-179"></a><span class="sd">        growing list. Append mode assumes some ordering on the values being sown</span>
+</span><span id="__span-0-180"><a id="__codelineno-0-180" name="__codelineno-0-180"></a><span class="sd">        defined by data-dependence.</span>
+</span><span id="__span-0-181"><a id="__codelineno-0-181" name="__codelineno-0-181"></a>
+</span><span id="__span-0-182"><a id="__codelineno-0-182" name="__codelineno-0-182"></a><span class="sd">    Returns:</span>
+</span><span id="__span-0-183"><a id="__codelineno-0-183" name="__codelineno-0-183"></a><span class="sd">        value: The original `value` that was passed in.</span>
+</span><span id="__span-0-184"><a id="__codelineno-0-184" name="__codelineno-0-184"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-185"><a id="__codelineno-0-185" name="__codelineno-0-185"></a>    <span class="n">value</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="n">jc</span><span class="o">.</span><span class="n">raise_as_much_as_possible</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span id="__span-0-186"><a id="__codelineno-0-186" name="__codelineno-0-186"></a>    <span class="n">flat_args</span><span class="p">,</span> <span class="n">in_tree</span> <span class="o">=</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_flatten</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</span><span id="__span-0-187"><a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="n">out_flat</span> <span class="o">=</span> <span class="n">sow_p</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="o">*</span><span class="n">flat_args</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">tree</span><span class="o">=</span><span class="n">in_tree</span><span class="p">)</span>
+</span><span id="__span-0-188"><a id="__codelineno-0-188" name="__codelineno-0-188"></a>    <span class="k">return</span> <span class="n">jtu</span><span class="o">.</span><span class="n">tree_unflatten</span><span class="p">(</span><span class="n">in_tree</span><span class="p">,</span> <span class="n">out_flat</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="genjax._src.core.transforms.harvest.harvest" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">harvest</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span></code>
+
+<a href="#genjax._src.core.transforms.harvest.harvest" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <blockquote>
+<p><code>harvest</code> is a function transformation that augments the behaviors of
+<code>sow</code>s in the function body. By default, invoking <code>sow</code> acts as the
+identity function and does not affect the semantics of a function.
+Harvesting <code>f</code> produces a function that can take advantage of <code>sow</code>s
+present in its execution.</p>
+</blockquote>
+<p><code>harvest</code> is a function that takes in a function
+<code>f</code> and a <code>tag: String</code>. <code>harvest</code> will only interact with <code>sow</code>s whose tag
+matches the input <code>tag</code>. The returned function can interact with the <code>sow</code> invocations
+in the function body in either of two ways.</p>
+<ul>
+<li>
+<p>The first is via "injection",
+where intermediate values in the function values can be overridden.
+<code>harvest(f)</code> takes in an additional initial argument, <code>plants</code>, a
+dictionary mapping names to values. Each name in <code>plants</code> should correspond
+to a <code>sow</code> in <code>f</code>, and while running <code>harvest(f)</code> rather than using the
+value at runtime for the <code>sow</code>, we substitute in the value from the
+<code>plants</code> dictionary.</p>
+</li>
+<li>
+<p>The other way in which <code>harvest(f)</code> interacts with
+<code>sow</code> invocations is that if it encounters a <code>sow</code> whose tag matches and whose name is
+<em>not</em> in <code>plants</code>, it will add the output of the <code>sow</code> to a dictionary
+mapping the sow name to its output, called <code>reaps</code>. The <code>reaps</code> dictionary,
+at the end of <code>harvest(f)</code>'s execution, will contain the outputs of all
+<code>sow</code>s whose values were not injected, or "planted.".</p>
+</li>
+</ul>
+<p>The general convention is that, for any given execution of
+<code>harvest(f, tag=tag)</code>, there will be *no more remaining sow invocations of the
+given tag if the function were to be harvested again, i.e. if we were to
+nest harvests with the same tag <code>harvest(harvest(f, tag='some_tag'),
+tag='some_tag')</code>, the outer harvest would have nothing to plant or
+to reap.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/core/transforms/harvest.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1203">1203</a></span>
+<span class="normal"><a href="#__codelineno-0-1204">1204</a></span>
+<span class="normal"><a href="#__codelineno-0-1205">1205</a></span>
+<span class="normal"><a href="#__codelineno-0-1206">1206</a></span>
+<span class="normal"><a href="#__codelineno-0-1207">1207</a></span>
+<span class="normal"><a href="#__codelineno-0-1208">1208</a></span>
+<span class="normal"><a href="#__codelineno-0-1209">1209</a></span>
+<span class="normal"><a href="#__codelineno-0-1210">1210</a></span>
+<span class="normal"><a href="#__codelineno-0-1211">1211</a></span>
+<span class="normal"><a href="#__codelineno-0-1212">1212</a></span>
+<span class="normal"><a href="#__codelineno-0-1213">1213</a></span>
+<span class="normal"><a href="#__codelineno-0-1214">1214</a></span>
+<span class="normal"><a href="#__codelineno-0-1215">1215</a></span>
+<span class="normal"><a href="#__codelineno-0-1216">1216</a></span>
+<span class="normal"><a href="#__codelineno-0-1217">1217</a></span>
+<span class="normal"><a href="#__codelineno-0-1218">1218</a></span>
+<span class="normal"><a href="#__codelineno-0-1219">1219</a></span>
+<span class="normal"><a href="#__codelineno-0-1220">1220</a></span>
+<span class="normal"><a href="#__codelineno-0-1221">1221</a></span>
+<span class="normal"><a href="#__codelineno-0-1222">1222</a></span>
+<span class="normal"><a href="#__codelineno-0-1223">1223</a></span>
+<span class="normal"><a href="#__codelineno-0-1224">1224</a></span>
+<span class="normal"><a href="#__codelineno-0-1225">1225</a></span>
+<span class="normal"><a href="#__codelineno-0-1226">1226</a></span>
+<span class="normal"><a href="#__codelineno-0-1227">1227</a></span>
+<span class="normal"><a href="#__codelineno-0-1228">1228</a></span>
+<span class="normal"><a href="#__codelineno-0-1229">1229</a></span>
+<span class="normal"><a href="#__codelineno-0-1230">1230</a></span>
+<span class="normal"><a href="#__codelineno-0-1231">1231</a></span>
+<span class="normal"><a href="#__codelineno-0-1232">1232</a></span>
+<span class="normal"><a href="#__codelineno-0-1233">1233</a></span>
+<span class="normal"><a href="#__codelineno-0-1234">1234</a></span>
+<span class="normal"><a href="#__codelineno-0-1235">1235</a></span>
+<span class="normal"><a href="#__codelineno-0-1236">1236</a></span>
+<span class="normal"><a href="#__codelineno-0-1237">1237</a></span>
+<span class="normal"><a href="#__codelineno-0-1238">1238</a></span>
+<span class="normal"><a href="#__codelineno-0-1239">1239</a></span>
+<span class="normal"><a href="#__codelineno-0-1240">1240</a></span>
+<span class="normal"><a href="#__codelineno-0-1241">1241</a></span>
+<span class="normal"><a href="#__codelineno-0-1242">1242</a></span>
+<span class="normal"><a href="#__codelineno-0-1243">1243</a></span>
+<span class="normal"><a href="#__codelineno-0-1244">1244</a></span>
+<span class="normal"><a href="#__codelineno-0-1245">1245</a></span>
+<span class="normal"><a href="#__codelineno-0-1246">1246</a></span>
+<span class="normal"><a href="#__codelineno-0-1247">1247</a></span>
+<span class="normal"><a href="#__codelineno-0-1248">1248</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1203"><a id="__codelineno-0-1203" name="__codelineno-0-1203"></a><span class="k">def</span> <span class="nf">harvest</span><span class="p">(</span>
+</span><span id="__span-0-1204"><a id="__codelineno-0-1204" name="__codelineno-0-1204"></a>    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+</span><span id="__span-0-1205"><a id="__codelineno-0-1205" name="__codelineno-0-1205"></a>    <span class="o">*</span><span class="p">,</span>
+</span><span id="__span-0-1206"><a id="__codelineno-0-1206" name="__codelineno-0-1206"></a>    <span class="n">tag</span><span class="p">:</span> <span class="n">Hashable</span><span class="p">,</span>
+</span><span id="__span-0-1207"><a id="__codelineno-0-1207" name="__codelineno-0-1207"></a><span class="p">):</span>
+</span><span id="__span-0-1208"><a id="__codelineno-0-1208" name="__codelineno-0-1208"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;&gt; `harvest` is a function transformation that augments the behaviors of</span>
+</span><span id="__span-0-1209"><a id="__codelineno-0-1209" name="__codelineno-0-1209"></a><span class="sd">    `sow`s in the function body. By default, invoking `sow` acts as the</span>
+</span><span id="__span-0-1210"><a id="__codelineno-0-1210" name="__codelineno-0-1210"></a><span class="sd">    identity function and does not affect the semantics of a function.</span>
+</span><span id="__span-0-1211"><a id="__codelineno-0-1211" name="__codelineno-0-1211"></a><span class="sd">    Harvesting `f` produces a function that can take advantage of `sow`s</span>
+</span><span id="__span-0-1212"><a id="__codelineno-0-1212" name="__codelineno-0-1212"></a><span class="sd">    present in its execution.</span>
+</span><span id="__span-0-1213"><a id="__codelineno-0-1213" name="__codelineno-0-1213"></a>
+</span><span id="__span-0-1214"><a id="__codelineno-0-1214" name="__codelineno-0-1214"></a><span class="sd">    `harvest` is a function that takes in a function</span>
+</span><span id="__span-0-1215"><a id="__codelineno-0-1215" name="__codelineno-0-1215"></a><span class="sd">    `f` and a `tag: String`. `harvest` will only interact with `sow`s whose tag</span>
+</span><span id="__span-0-1216"><a id="__codelineno-0-1216" name="__codelineno-0-1216"></a><span class="sd">    matches the input `tag`. The returned function can interact with the `sow` invocations</span>
+</span><span id="__span-0-1217"><a id="__codelineno-0-1217" name="__codelineno-0-1217"></a><span class="sd">    in the function body in either of two ways.</span>
+</span><span id="__span-0-1218"><a id="__codelineno-0-1218" name="__codelineno-0-1218"></a>
+</span><span id="__span-0-1219"><a id="__codelineno-0-1219" name="__codelineno-0-1219"></a><span class="sd">    * The first is via &quot;injection&quot;,</span>
+</span><span id="__span-0-1220"><a id="__codelineno-0-1220" name="__codelineno-0-1220"></a><span class="sd">    where intermediate values in the function values can be overridden.</span>
+</span><span id="__span-0-1221"><a id="__codelineno-0-1221" name="__codelineno-0-1221"></a><span class="sd">    `harvest(f)` takes in an additional initial argument, `plants`, a</span>
+</span><span id="__span-0-1222"><a id="__codelineno-0-1222" name="__codelineno-0-1222"></a><span class="sd">    dictionary mapping names to values. Each name in `plants` should correspond</span>
+</span><span id="__span-0-1223"><a id="__codelineno-0-1223" name="__codelineno-0-1223"></a><span class="sd">    to a `sow` in `f`, and while running `harvest(f)` rather than using the</span>
+</span><span id="__span-0-1224"><a id="__codelineno-0-1224" name="__codelineno-0-1224"></a><span class="sd">    value at runtime for the `sow`, we substitute in the value from the</span>
+</span><span id="__span-0-1225"><a id="__codelineno-0-1225" name="__codelineno-0-1225"></a><span class="sd">    `plants` dictionary.</span>
+</span><span id="__span-0-1226"><a id="__codelineno-0-1226" name="__codelineno-0-1226"></a>
+</span><span id="__span-0-1227"><a id="__codelineno-0-1227" name="__codelineno-0-1227"></a><span class="sd">    * The other way in which `harvest(f)` interacts with</span>
+</span><span id="__span-0-1228"><a id="__codelineno-0-1228" name="__codelineno-0-1228"></a><span class="sd">    `sow` invocations is that if it encounters a `sow` whose tag matches and whose name is</span>
+</span><span id="__span-0-1229"><a id="__codelineno-0-1229" name="__codelineno-0-1229"></a><span class="sd">    *not* in `plants`, it will add the output of the `sow` to a dictionary</span>
+</span><span id="__span-0-1230"><a id="__codelineno-0-1230" name="__codelineno-0-1230"></a><span class="sd">    mapping the sow name to its output, called `reaps`. The `reaps` dictionary,</span>
+</span><span id="__span-0-1231"><a id="__codelineno-0-1231" name="__codelineno-0-1231"></a><span class="sd">    at the end of `harvest(f)`&#39;s execution, will contain the outputs of all</span>
+</span><span id="__span-0-1232"><a id="__codelineno-0-1232" name="__codelineno-0-1232"></a><span class="sd">    `sow`s whose values were not injected, or &quot;planted.&quot;.</span>
+</span><span id="__span-0-1233"><a id="__codelineno-0-1233" name="__codelineno-0-1233"></a>
+</span><span id="__span-0-1234"><a id="__codelineno-0-1234" name="__codelineno-0-1234"></a><span class="sd">    The general convention is that, for any given execution of</span>
+</span><span id="__span-0-1235"><a id="__codelineno-0-1235" name="__codelineno-0-1235"></a><span class="sd">    `harvest(f, tag=tag)`, there will be *no more remaining sow invocations of the</span>
+</span><span id="__span-0-1236"><a id="__codelineno-0-1236" name="__codelineno-0-1236"></a><span class="sd">    given tag if the function were to be harvested again, i.e. if we were to</span>
+</span><span id="__span-0-1237"><a id="__codelineno-0-1237" name="__codelineno-0-1237"></a><span class="sd">    nest harvests with the same tag `harvest(harvest(f, tag=&#39;some_tag&#39;),</span>
+</span><span id="__span-0-1238"><a id="__codelineno-0-1238" name="__codelineno-0-1238"></a><span class="sd">    tag=&#39;some_tag&#39;)`, the outer harvest would have nothing to plant or</span>
+</span><span id="__span-0-1239"><a id="__codelineno-0-1239" name="__codelineno-0-1239"></a><span class="sd">    to reap.</span>
+</span><span id="__span-0-1240"><a id="__codelineno-0-1240" name="__codelineno-0-1240"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-1241"><a id="__codelineno-0-1241" name="__codelineno-0-1241"></a>
+</span><span id="__span-0-1242"><a id="__codelineno-0-1242" name="__codelineno-0-1242"></a>    <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+</span><span id="__span-0-1243"><a id="__codelineno-0-1243" name="__codelineno-0-1243"></a>    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">plants</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-0-1244"><a id="__codelineno-0-1244" name="__codelineno-0-1244"></a>        <span class="n">f</span> <span class="o">=</span> <span class="n">plant</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">)</span>
+</span><span id="__span-0-1245"><a id="__codelineno-0-1245" name="__codelineno-0-1245"></a>        <span class="n">f</span> <span class="o">=</span> <span class="n">reap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">)</span>
+</span><span id="__span-0-1246"><a id="__codelineno-0-1246" name="__codelineno-0-1246"></a>        <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="n">plants</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span><span id="__span-0-1247"><a id="__codelineno-0-1247" name="__codelineno-0-1247"></a>
+</span><span id="__span-0-1248"><a id="__codelineno-0-1248" name="__codelineno-0-1248"></a>    <span class="k">return</span> <span class="n">wrapper</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+
+  </div>
+
+  </div>
+
+</div><h3 id="sharp-edges">Sharp edges<a class="headerlink" href="#sharp-edges" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>harvest</code> has undefined semantics under automatic differentiation. If a function
+  you're taking the gradient of has a <code>sow</code>, it might produce unintuitive
+  results when harvested. To better control gradient semantics, you can use
+  <code>jax.custom_jvp</code> or <code>jax.custom_vjp</code>. The current implementation sows primals
+  and tangents in the JVP but ignore cotangents in the VJP. These particular
+  semantics are subject to change.</li>
+<li>Planting values into a <code>pmap</code> is partially working. Harvest tries to plant all
+  the values, assuming they have a leading map dimension.</li>
+</ul>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<h4 id="using-sow-and-harvest">Using <code>sow</code> and <code>harvest</code><a class="headerlink" href="#using-sow-and-harvest" title="Permanent link">&para;</a></h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">y</span> <span class="o">=</span> <span class="n">sow</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mf">1.</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="k">return</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">1.</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Injecting, or &quot;planting&quot; a value for `y`.</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">harvest</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)({</span><span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mf">0.</span><span class="p">},</span> <span class="mf">1.</span><span class="p">)</span>  <span class="c1"># ==&gt; (1., {})</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">harvest</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)({</span><span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mf">0.</span><span class="p">},</span> <span class="mf">5.</span><span class="p">)</span>  <span class="c1"># ==&gt; (1., {})</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Collecting , or &quot;reaping&quot; the value of `y`.</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">harvest</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)({},</span> <span class="mf">1.</span><span class="p">)</span>  <span class="c1"># ==&gt; (3., {&#39;y&#39;: 2.})</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">harvest</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)({},</span> <span class="mf">5.</span><span class="p">)</span>  <span class="c1"># ==&gt; (7., {&#39;y&#39;: 6.})</span>
+</span></code></pre></div>
+<h4 id="using-reap-and-plant">Using <code>reap</code> and <code>plant</code>.<a class="headerlink" href="#using-reap-and-plant" title="Permanent link">&para;</a></h4>
+<p><code>reap</code> and <code>plant</code> are simple wrappers around <code>harvest</code>. <code>reap</code> only pulls
+intermediate values without injecting, and <code>plant</code> only injects values without
+collecting intermediate values.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  <span class="n">y</span> <span class="o">=</span> <span class="n">sow</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mf">1.</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  <span class="k">return</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">1.</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Injecting, or &quot;planting&quot; a value for `y`.</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">plant</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)({</span><span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mf">0.</span><span class="p">},</span> <span class="mf">1.</span><span class="p">)</span>  <span class="c1"># ==&gt; 1.</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">plant</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)({</span><span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mf">0.</span><span class="p">},</span> <span class="mf">5.</span><span class="p">)</span>  <span class="c1"># ==&gt; 1.</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># Collecting , or &quot;reaping&quot; the value of `y`.</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">reap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)(</span><span class="mf">1.</span><span class="p">)</span>  <span class="c1"># ==&gt; {&#39;y&#39;: 2.}</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">reap</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;intermediate&#39;</span><span class="p">)(</span><span class="mf">5.</span><span class="p">)</span>  <span class="c1"># ==&gt; {&#39;y&#39;: 6.}</span>
+</span></code></pre></div>
 
   
     
@@ -1615,7 +2875,7 @@ with stateful contexts and custom primitive handling lookups.</p>
         <span class="md-icon" title="Last update">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
         </span>
-        <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 22, 2023</span>
+        <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">August 23, 2023</span>
       </span>
     
     
@@ -1653,44 +2913,6 @@ with stateful contexts and custom primitive handling lookups.</p>
       
         <footer class="md-footer">
   
-    
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="masking.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: The masking system" rel="prev">
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                The masking system
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../generative_functions/index.html" class="md-footer__link md-footer__link--next" aria-label="Next: Generative function languages" rel="next">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Generative function languages
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
-    
-  
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
@@ -1711,7 +2933,7 @@ with stateful contexts and custom primitive handling lookups.</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.code.select", "content.tooltips", "content.tabs.link", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../../assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["optimize", "typeset", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.code.select", "content.tooltips", "content.tabs.link", "navigation.footer navigation.expand", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "navigation.instant", "navigation.path", "navigation.prune", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../../assets/javascripts/workers/search.6c7302c4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.10c6cd24.min.js"></script>

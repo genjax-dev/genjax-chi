@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.433">
+<meta name="generator" content="quarto-1.3.450">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -207,88 +207,61 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax <span class="im">import</span> numpy <span class="im">as</span> jnp</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax <span class="im">import</span> tree_util <span class="im">as</span> jtu</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax <span class="im">import</span> diff, NoChange, UnknownChange</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax <span class="im">import</span> numpy <span class="im">as</span> jnp</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax <span class="im">import</span> tree_util <span class="im">as</span> jtu</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax <span class="im">import</span> typing</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty()</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> flowjax <span class="im">as</span> fj</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax.core.state <span class="im">as</span> state</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">17</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>console <span class="op">=</span> genjax.pretty()</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>key <span class="op">=</span> jax.random.PRNGKey(<span class="dv">17</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax.core.runtime_debugger <span class="im">as</span> debug</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>chm <span class="op">=</span> genjax.choice_map({<span class="st">"x"</span>: <span class="fl">5.0</span>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f1():</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> genjax.tfp_normal(<span class="fl">0.0</span>, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"y"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f2():</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> genjax.tfp_normal(<span class="fl">0.0</span>, <span class="fl">2.0</span>) <span class="op">@</span> <span class="st">"y"</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>s <span class="op">=</span> genjax.SwitchCombinator([f1, f2])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-execution_count="3">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax.experimental <span class="im">import</span> checkify</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _inner():</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    chm <span class="op">=</span> genjax.choice_map({<span class="st">"x"</span>: <span class="fl">5.0</span>})</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    masked <span class="op">=</span> genjax.mask(<span class="va">False</span>, chm)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> masked[<span class="st">"x"</span>].unmask()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>keys <span class="op">=</span> jax.random.split(jax.random.PRNGKey(<span class="dv">17</span>), <span class="dv">3</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Just select 0 in all branches for simplicity:</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>tr <span class="op">=</span> jax.vmap(s.simulate, in_axes<span class="op">=</span>(<span class="dv">0</span>, <span class="va">None</span>))(keys, (<span class="dv">0</span>,))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> jax.jit(_inner)()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">"y"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+└── <span style="font-weight: bold">(Mask,  bool[3])</span>
+    └──  f32[3]
+</pre>
+</div>
 </div>
 <div class="cell" data-execution_count="5">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>genjax.global_options.allow_checkify(<span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.gen</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> f():</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> genjax.tfp_normal(<span class="fl">0.0</span>, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"x"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _inner():</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    chm <span class="op">=</span> genjax.choice_map({<span class="st">"x"</span>: <span class="fl">5.0</span>})</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    masked <span class="op">=</span> genjax.mask(<span class="va">False</span>, chm)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> masked[<span class="st">"x"</span>].unmask()</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>err, out <span class="op">=</span> jax.jit(checkify.checkify(_inner))()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>tr <span class="op">=</span> f.simulate(key, ())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-execution_count="7">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>err.throw()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">"x"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display">
-<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #ff0000; text-decoration-color: #ff0000; font-weight: bold">FailedCheckError: </span>Mask is <span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span>, the masked value is invalid.
- `check` failed at:
-
-<span style="color: #800080; text-decoration-color: #800080">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_74056/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">3125249168.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">6:11</span> <span style="font-weight: bold">(&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">module</span><span style="font-weight: bold">&gt;)</span>
-<span style="color: #800080; text-decoration-color: #800080">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_74056/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">3125249168.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">4:11</span> <span style="font-weight: bold">(</span>_inner<span style="font-weight: bold">)</span>
-<span style="color: #800080; text-decoration-color: #800080">/Users/mccoybecker/research/genjax/src/genjax/_src/core/datatypes/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">masking.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">67:8</span> <span style="font-weight: bold">(</span>unmask<span style="font-weight: bold">)</span>
-<span style="color: #800080; text-decoration-color: #800080">/Users/mccoybecker/research/genjax/src/genjax/_src/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">global_options.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">30:12</span> <span style="font-weight: bold">(</span>optional_check<span style="font-weight: bold">)</span>
-<span style="color: #800080; text-decoration-color: #800080">/Users/mccoybecker/research/genjax/src/genjax/_src/core/datatypes/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">masking.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">65:12</span> <span style="font-weight: bold">(</span>_check<span style="font-weight: bold">)</span>
-
-<span style="font-style: italic">The above exception was the direct cause of the following exception:</span>
-
-<span style="color: #800000; text-decoration-color: #800000">╭─────────────────────────────── </span><span style="color: #800000; text-decoration-color: #800000; font-weight: bold">Traceback </span><span style="color: #bf7f7f; text-decoration-color: #bf7f7f; font-weight: bold">(most recent call last)</span><span style="color: #800000; text-decoration-color: #800000"> ────────────────────────────────╮</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_74056/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">4170081960.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">&lt;module&gt;</span>     <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">[Errno 2] No such file or directory: </span>                                                            <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #800000; text-decoration-color: #800000; font-style: italic">'/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_74056/4170081960.py'</span>                 <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">checkify.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">246</span>   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">throw</span>                                                                                         <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">checkify.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">1191</span>  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">_check_error</span>                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">380</span> in    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">bind</span>                                                                                             <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">383</span> in    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">bind_with_trace</span>                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">core.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">815</span> in    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #00ff00; text-decoration-color: #00ff00">process_primitive</span>                                                                                <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span>                                                                                                  <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> <span style="color: #bfbf7f; text-decoration-color: #bfbf7f">/Users/mccoybecker/miniconda3/envs/py311/lib/python3.11/site-packages/jax/_src/</span><span style="color: #808000; text-decoration-color: #808000; font-weight: bold">checkify.py</span>:<span style="color: #0000ff; text-decoration-color: #0000ff">492</span>   <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">│</span> in <span style="color: #00ff00; text-decoration-color: #00ff00">check_impl</span>                                                                                    <span style="color: #800000; text-decoration-color: #800000">│</span>
-<span style="color: #800000; text-decoration-color: #800000">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</span>
-<span style="color: #ff0000; text-decoration-color: #ff0000; font-weight: bold">JaxRuntimeError: </span>Mask is <span style="color: #ff0000; text-decoration-color: #ff0000; font-style: italic">False</span>, the masked value is invalid.
- `check` failed at:
-
-<span style="color: #800080; text-decoration-color: #800080">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_74056/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">3125249168.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">6:11</span> <span style="font-weight: bold">(&lt;</span><span style="color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold">module</span><span style="font-weight: bold">&gt;)</span>
-<span style="color: #800080; text-decoration-color: #800080">/var/folders/mk/btkplz1n40q001dsy957srbh0000gn/T/ipykernel_74056/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">3125249168.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">4:11</span> <span style="font-weight: bold">(</span>_inner<span style="font-weight: bold">)</span>
-<span style="color: #800080; text-decoration-color: #800080">/Users/mccoybecker/research/genjax/src/genjax/_src/core/datatypes/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">masking.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">67:8</span> <span style="font-weight: bold">(</span>unmask<span style="font-weight: bold">)</span>
-<span style="color: #800080; text-decoration-color: #800080">/Users/mccoybecker/research/genjax/src/genjax/_src/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">global_options.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">30:12</span> <span style="font-weight: bold">(</span>optional_check<span style="font-weight: bold">)</span>
-<span style="color: #800080; text-decoration-color: #800080">/Users/mccoybecker/research/genjax/src/genjax/_src/core/datatypes/</span><span style="color: #ff00ff; text-decoration-color: #ff00ff">masking.py</span>:<span style="color: #00ff00; text-decoration-color: #00ff00; font-weight: bold">65:12</span> <span style="font-weight: bold">(</span>_check<span style="font-weight: bold">)</span>
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"><span style="color: #800080; text-decoration-color: #800080; font-weight: bold">Array</span><span style="font-weight: bold">(</span><span style="color: #008080; text-decoration-color: #008080; font-weight: bold">0.1511115</span>, <span style="color: #808000; text-decoration-color: #808000">dtype</span>=<span style="color: #800080; text-decoration-color: #800080">float32</span><span style="font-weight: bold">)</span>
 </pre>
 </div>
 </div>

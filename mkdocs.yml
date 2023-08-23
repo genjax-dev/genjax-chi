@@ -15,6 +15,8 @@
 site_name: Gen ⊗ JAX
 site_url: https://probcomp.github.io/genjax/
 repo_url: https://github.com/probcomp/genjax
+repo_name: probcomp/genjax
+edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
@@ -28,17 +30,14 @@ nav:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
           - Generative datatypes: genjax/library/core/generative.md
-          - The masking system: genjax/library/core/masking.md
-          - (Advanced) Interpreters: genjax/library/core/interpreters.md
+          - Functional types: genjax/library/core/functional_types.md
+          - Interpreters & transforms: genjax/library/core/interpreters.md
       - Generative function languages: 
           - genjax/library/generative_functions/index.md
           - Distributions: 
               - genjax/library/generative_functions/distributions/index.md
-              - SciPy: genjax/library/generative_functions/distributions/scipy.md
-              - TensorFlow Distributions: genjax/library/generative_functions/distributions/tfd.md
-              - Custom: genjax/library/generative_functions/distributions/custom/index.md
-        #              - Coryx: genjax/library/generative_functions/distributions/coryx.md
-        #              - GenSP: genjax/library/generative_functions/distributions/gensp.md
+        #     - Coryx: genjax/library/generative_functions/distributions/coryx.md
+        #     - GenSP: genjax/library/generative_functions/distributions/gensp.md
           - Builtin language: genjax/library/generative_functions/builtin.md
           - Combinators: 
               - genjax/library/generative_functions/combinators/index.md
@@ -82,9 +81,11 @@ theme:
     - content.tooltips
     - content.tabs.link
     - navigation.footer
+      navigation.expand
     - navigation.indexes
     - navigation.sections
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
     - navigation.tracking
     - navigation.instant
@@ -118,7 +119,7 @@ plugins:
   - markdown-exec
   - git-revision-date-localized:
       enable_creation_date: true
-      type: date
+      fallback_to_build_date: true
   - mkdocstrings:
       enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
       custom_templates: templates
@@ -128,9 +129,12 @@ plugins:
           options:
             show_source: true
             show_root_heading: true
+            show_symbol_type_heading: true
 
 extra:
   generator: false
+  version:
+    provider: mike
 
 extra_css: 
   - css/fonts.css

@@ -16,45 +16,59 @@ from dataclasses import dataclass
 
 import dill as pickle
 
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.serialization.backend import SerializationBackend
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class Pickle(SerializationBackend):
-    @typecheck
-    def _to_tuple(obj: Pytree):
-        return (obj.__class__, obj.flatten())
+class PickleDataFormat(Pytree):
+    payload: Any
 
-    def pickle_serialize(self, obj: Pytree):
+    def flatten(self):
+        return (), (self.payload,)
+
+
+@dataclass
+class PickleSerializationBackend(SerializationBackend):
+    def dumps(self, obj: Any):
         """Serializes an object using pickle."""
-        return pickle.dumps(self._to_tuple(obj))
+        return pickle.dumps(obj)
 
-    def serialize(self, path, obj):
+    def loads(self, serialized_obj) -> PickleDataFormat:
+        """Deserializes an object using pickle."""
+        return pickle.loads(serialized_obj)
+
+    def serialize(self, path, obj: PickleDataFormat):
         pickle.dump(path, self._to_tuple(obj))
 
-    def deserialize(self, serialized_obj):
-        """Deserializes an object using pickle."""
-        cls, (xs, data) = pickle.loads(serialized_obj)
-        return cls.unflatten(xs, data)
+
+pickle_backend = PickleSerializationBackend()
 
 
 #####
-# Mixin
+# Mixins
 #####
+
 
 # This should be implemented for traces.
 class SupportsPickleSerialization:
     @dispatch
-    def serialize(self, path, backend: Pickle):
-        backend.serialize(path, self)
+    def dumps(
+        self,
+        backend: PickleSerializationBackend,
+    ) -> PickleDataFormat:
+        raise NotImplementedError
 
 
 # This should be implemented for generative functions.
 class SupportsPickleDeserialization:
     @dispatch
-    def deserialize(self, path, backend: Pickle):
-        tr = backend.deserialize(path)
-        return tr
+    def loads(
+        self,
+        data: PickleDataFormat,
+        backend: PickleSerializationBackend,
+    ) -> Trace:
+        raise NotImplementedError

@@ -14,16 +14,62 @@
 
 from dataclasses import dataclass
 
+import jax.numpy as jnp
+
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.serialization.pickle import PickleDataFormat
+from genjax._src.core.serialization.pickle import PickleSerializationBackend
+from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
+
+
+########################################################
+# Dynamic choice map (for dynamic address uncertainty) #
+########################################################
+
+
+@dataclass
+class DynamicChoiceMap(ChoiceMap):
+    dynamic_indices: List[IntArray]
+    subtrees: List[ChoiceMap]
+
+    def flatten(self):
+        return (self.dynamic_indices, self.subtrees), ()
+
+    @dispatch
+    def get_subtree(self, addr: IntArray):
+        pass
+
+    @dispatch
+    def get_subtree(self, addr: Tuple):
+        (idx, rest) = addr
+        disjoint_union_chm = self.get_subtree(idx)
+        return disjoint_union_chm.get_subtree(rest)
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        equality_checks = jnp.array(map(lambda v: addr == v, self.dynamic_indices))
+        return jnp.any(equality_checks)
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        (idx, rest) = addr
+        disjoint_union_chm = self.get_subtree(idx)
+        return jnp.logical_and(
+            self.has_subtree(idx),
+            disjoint_union_chm.has_subtree(rest),
+        )
 
 
 #########
@@ -32,7 +78,10 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class BuiltinTrace(Trace):
+class BuiltinTrace(
+    Trace,
+    SupportsPickleSerialization,
+):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -97,3 +146,28 @@ class BuiltinTrace(Trace):
 
     def get_aux(self):
         return (self.cache,)
+
+    #################
+    # Serialization #
+    #################
+
+    @dispatch
+    def dumps(
+        self,
+        backend: PickleSerializationBackend,
+    ) -> PickleDataFormat:
+        args, retval, score = self.args, self.retval, self.score
+        choices_payload = []
+        addr_payload = []
+        for (addr, subtrace) in self.choices.get_subtrees_shallow():
+            inner_payload = subtrace.dumps(backend)
+            choices_payload.append(inner_payload)
+            addr_payload.append(addr)
+        payload = [
+            backend.dumps(args),
+            backend.dumps(retval),
+            backend.dumps(score),
+            backend.dumps(addr_payload),
+            backend.dumps(choices_payload),
+        ]
+        return PickleDataFormat(payload)
