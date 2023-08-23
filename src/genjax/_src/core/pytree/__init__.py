@@ -12,23 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.tree_util as jtu
-
-from genjax._src.core.typing import static_check_is_array
-
-
-def static_check_leaf_matching_leading_dim(tree):
-    def _inner(v):
-        if static_check_is_array(v):
-            shape = v.shape
-            return shape[0] if shape else 0
-        else:
-            return 0
-
-    broadcast_dim_tree = jtu.tree_map(lambda v: _inner(v), tree)
-    leaves = jtu.tree_leaves(broadcast_dim_tree)
-    leaf_lengths = set(leaves)
-    # all the leaves must have the same first dim size.
-    assert len(leaf_lengths) == 1
-    max_index = list(leaf_lengths).pop()
-    return max_index
+from .closure import *
+from .pytree import *
+from .static_checks import *
+from .sumtree import *
+from .utilities import *

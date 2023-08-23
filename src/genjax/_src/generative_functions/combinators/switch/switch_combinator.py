@@ -35,7 +35,7 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.interpreters.staging import get_trace_data_shape
-from genjax._src.core.pytree import Sumtree
+from genjax._src.core.pytree.sumtree import DataSharedSumTree
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.transforms.incremental import tree_diff_unknown_change
@@ -132,7 +132,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         for gen_fn in self.branches:
             trace_shape = get_trace_data_shape(gen_fn, key, args)
             covers.append(trace_shape)
-        return Sumtree.new(choices, covers)
+        return DataSharedSumTree.new(choices, covers)
 
     def get_trace_type(self, *args):
         subtypes = []
@@ -199,25 +199,31 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         new: ChoiceMap,
         argdiffs: Tuple,
     ):
-        def _inner_update(br, key, prev, new, argdiffs):
-            # Create a skeleton discard instance.
-            discard_option = mask(False, prev.strip())
-            concrete_branch_index = self.branches.index(br)
+        # Create a skeleton discard instance.
+        discard_option: SwitchChoiceMap = prev.strip()
+        discard_option = SwitchChoiceMap(
+            discard_option.index,
+            list(map(lambda s: mask(False, s), discard_option.submaps)),
+        )
 
+        def _inner_update(br, key):
+            # Get the branch index (at tracing time) and use the branch
+            # to update.
+            concrete_branch_index = self.branches.index(br)
             prev_subtrace = prev.get_subtrace(concrete_branch_index)
             (retval_diff, w, tr, maybe_discard) = br.update(
                 key, prev_subtrace, new, argdiffs[1:]
             )
 
-            # Here, we create a Sumtree -- and we place the real trace
+            # Merge the skeleton discard with the actual one.
+            discard_option.submaps[concrete_branch_index] = maybe_discard
+
+            # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
             args = tree_diff_primal(argdiffs)
             sum_pytree = self._create_sum_pytree(key, tr, args[1:])
             choices = list(sum_pytree.materialize_iterator())
             choice_map = SwitchChoiceMap(concrete_branch_index, choices)
-
-            # Merge the skeleton discard with the actual one.
-            discard_option.submaps[concrete_branch_index] = maybe_discard
 
             # Get all the metadata for update from the trace.
             score = tr.get_score()
@@ -226,9 +232,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             return (retval_diff, w, trace, discard_option)
 
         def _inner(br):
-            return lambda key, prev, new, argdiffs: _inner_update(
-                br, key, prev, new, argdiffs
-            )
+            return lambda key: _inner_update(br, key)
 
         branch_functions = list(map(_inner, self.branches))
         switch = tree_diff_primal(argdiffs[0])
@@ -237,9 +241,6 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             switch,
             branch_functions,
             key,
-            prev,
-            new,
-            argdiffs,
         )
 
     def _update_branch_switch(

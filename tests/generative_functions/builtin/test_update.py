@@ -21,6 +21,15 @@ import genjax
 from genjax._src.core.typing import FloatArray
 
 
+###################################################
+#          Remember: the update weight math
+#
+#   log p(r′,t′;x′) + log q(r;x,t) - log p(r,t;x)
+#       - log q(r′;x′,t′) - q(t′;x′,t+u)
+#
+##################################################
+
+
 class TestUpdateSimpleNormal:
     def test_simple_normal_update(self):
         @genjax.gen

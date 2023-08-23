@@ -32,7 +32,7 @@ from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.context import Cont
 from genjax._src.core.interpreters.context import Context
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -181,7 +181,7 @@ adev_tag = functools.partial(harvest.sow, tag=NAMESPACE)
 
 @typecheck
 def strat(strategy: GradientStrategy, addr):
-    return adev_tag(strategy, name=addr)
+    return adev_tag(strategy, meta=addr)
 
 
 ####################

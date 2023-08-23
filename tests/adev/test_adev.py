@@ -32,7 +32,7 @@ class TestVarianceNormal:
 
     def test_expected_grad(self):
         key = jax.random.PRNGKey(314159)
-        key, sub_keys = genjax.slash(key, 1000)
+        sub_keys = jax.random.split(key, 1000)
         adev_prog = genjax.adev.lang(model)
         v, tangents = jax.vmap(adev_prog.grad_estimate, in_axes=(0, None, None))(
             sub_keys, (3.0,), (1.0,)

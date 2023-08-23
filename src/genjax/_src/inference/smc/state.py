@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 from dataclasses import dataclass
 
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -52,3 +53,10 @@ class SMCState(Pytree):
     def current_lml_est(self):
         n_particles = self.get_num_particles()
         return self.log_ml_est + logsumexp(self.log_weights) - jnp.log(n_particles)
+
+
+@dataclass
+class SMCAlgorithm(Pytree):
+    @abc.abstractmethod
+    def apply(self, *args) -> SMCState:
+        pass

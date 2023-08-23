@@ -45,13 +45,15 @@ class TestSimpleSMC:
             choice_map({"x": jnp.array([1.0])}),
         )
         key, sub_key = jax.random.split(key)
-        smc_state = smc.smc_initialize(sub_key, chain, (init_len, init_state), obs, 100)
+        smc_state = smc.smc_initialize(chain, 100).apply(
+            sub_key, obs, (init_len, init_state)
+        )
         obs = index_choice_map(
             [1],
             choice_map({"x": jnp.array([1.0])}),
         )
         key, sub_key = jax.random.split(key)
-        smc_state = smc.smc_update(
+        smc_state = smc.smc_update().apply(
             sub_key,
             smc_state,
             (diff(1, UnknownChange), diff(init_state, NoChange)),
@@ -75,8 +77,8 @@ class TestSimpleSMC:
         def extend_smc_no_resampling(key, obs, init_state):
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
-            smc_state = smc.smc_initialize(
-                sub_key, chain, (0, init_state), obs_slice, 100
+            smc_state = smc.smc_initialize(chain, 100).apply(
+                sub_key, obs_slice, (0, init_state)
             )
             obs = jtu.tree_map(lambda v: v[1:], obs)
 
@@ -85,7 +87,7 @@ class TestSimpleSMC:
                 obs_slice = xs
                 t = t + 1
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_update(
+                smc_state = smc.smc_update().apply(
                     sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
@@ -120,8 +122,8 @@ class TestSimpleSMC:
             index_sel = index_select(0)
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
-            smc_state = smc.smc_initialize(
-                sub_key, chain, (0, init_state), obs_slice, 100
+            smc_state = smc.smc_initialize(chain, 100).apply(
+                sub_key, obs_slice, (0, init_state)
             )
             obs = jtu.tree_map(lambda v: v[1:], obs)
 
@@ -130,15 +132,15 @@ class TestSimpleSMC:
                 obs_slice = xs
                 t = t + 1
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_update(
+                smc_state = smc.smc_update().apply(
                     sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_resample(
-                    sub_key, smc_state, smc.multinomial_resampling
+                smc_state = smc.smc_resample(smc.multinomial_resampling).apply(
+                    sub_key, smc_state
                 )
                 return (key, smc_state, t), (smc_state,)
 

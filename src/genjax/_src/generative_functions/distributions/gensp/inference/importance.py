@@ -52,16 +52,15 @@ class Importance(GenSPDistribution):
     def default_random_weighted(self, key, target: Target):
         key, *sub_keys = jax.random.split(key, self.num_particles + 1)
         sub_keys = jnp.array(sub_keys)
-        _, (lws, tr) = jax.vmap(target.p.importance, in_axes=(0, None, None))(
+        (lws, tr) = jax.vmap(target.p.importance, in_axes=(0, None, None))(
             sub_keys, target.constraints, target.args
         )
         tw = jax.scipy.special.logsumexp(lws)
         lnw = lws - tw
         aw = tw - np.log(self.num_particles)
-        key, sub_key = jax.random.split(key)
-        index = jax.random.categorical(sub_key, lnw)
+        index = jax.random.categorical(key, lnw)
         selected_particle = jtu.tree_map(lambda v: v[index], tr)
-        return key, (
+        return (
             selected_particle.get_score() - aw,
             target.get_latents(selected_particle),
         )

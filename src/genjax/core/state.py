@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.debugging import grab
-from genjax._src.debugging import stab
-from genjax._src.debugging import tag
+from genjax._src.core.state import Module
+from genjax._src.core.state import init
+from genjax._src.core.state import param
 
 
-__all__ = ["tag", "grab", "stab"]
+__all__ = ["init", "param", "Module"]

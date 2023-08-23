@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -21,8 +22,8 @@ from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.pytree import DynamicClosure
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.closure import DynamicClosure
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -33,7 +34,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions import gentle
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
@@ -110,10 +110,8 @@ class DeferredGenerativeFunctionCall(Pytree):
             # `BuiltinGenerativeFunction`.
             assert isinstance(self.gen_fn, BuiltinGenerativeFunction)
             return self.gen_fn.inline(*self.args)
-        elif isinstance(self.gen_fn, JAXGenerativeFunction):
-            return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
         else:
-            return gentle.trace(addr, self.gen_fn, **self.kwargs)(*self.args)
+            return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
 
 # This mixin overloads the call functionality for this generative function
@@ -136,7 +134,10 @@ class SupportsBuiltinSugar:
 
 
 @dataclass
-class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
+class BuiltinGenerativeFunction(
+    JAXGenerativeFunction,
+    SupportsBuiltinSugar,
+):
     source: Callable
 
     def flatten(self):
@@ -148,7 +149,9 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
     @typecheck
     @classmethod
     def new(cls, source: Callable):
-        return BuiltinGenerativeFunction(source)
+        gen_fn = BuiltinGenerativeFunction(source)
+        functools.update_wrapper(gen_fn, source)
+        return gen_fn
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
@@ -226,6 +229,10 @@ class BuiltinGenerativeFunction(JAXGenerativeFunction, SupportsBuiltinSugar):
         (cache,) = aux
         trie = choices.trie
         return BuiltinTrace.new(self, original_args, retval, trie, cache, score)
+
+    ###################
+    # Deserialization #
+    ###################
 
 
 #####
