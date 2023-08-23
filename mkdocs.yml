@@ -15,6 +15,8 @@
 site_name: Gen ⊗ JAX
 site_url: https://probcomp.github.io/genjax/
 repo_url: https://github.com/probcomp/genjax
+repo_name: probcomp/genjax
+edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
@@ -117,7 +119,7 @@ plugins:
   - markdown-exec
   - git-revision-date-localized:
       enable_creation_date: true
-      type: date
+      fallback_to_build_date: true
   - mkdocstrings:
       enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
       custom_templates: templates
@@ -131,6 +133,8 @@ plugins:
 
 extra:
   generator: false
+  version:
+    provider: mike
 
 extra_css: 
   - css/fonts.css
