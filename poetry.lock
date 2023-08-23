@@ -1115,14 +1115,14 @@ gitdb = ">=4.0.1,<5"
 
 [[package]]
 name = "griffe"
-version = "0.33.0"
+version = "0.34.0"
 description = "Signatures for entire Python programs. Extract the structure, the frame, the skeleton of your project, to generate API documentation or find breaking changes in your API."
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "griffe-0.33.0-py3-none-any.whl", hash = "sha256:16af15d0140c0a5f0b2628d33235fef91a6d8a832dd7cff5759dfe6b7d7a7a49"},
-    {file = "griffe-0.33.0.tar.gz", hash = "sha256:783bcb7e7f0d346fcb0cb8072667ca8f6ce7ff776bb278fbccf8a3a753a793e4"},
+    {file = "griffe-0.34.0-py3-none-any.whl", hash = "sha256:d8bca9bd4a0880e7f71dc152de4222171d941a32b5504d77450a71a7908dfc1d"},
+    {file = "griffe-0.34.0.tar.gz", hash = "sha256:48c667ad51a7f756238f798866203aeb8f9fa02d4192e25970f57f813bb37f26"},
 ]
 
 [package.dependencies]
@@ -2183,14 +2183,14 @@ python-legacy = ["mkdocstrings-python-legacy (>=0.2.1)"]
 
 [[package]]
 name = "mkdocstrings-python"
-version = "1.4.0"
+version = "1.5.0"
 description = "A Python handler for mkdocstrings."
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "mkdocstrings_python-1.4.0-py3-none-any.whl", hash = "sha256:46f4b0ed8540c6bfd0c3f50471831a7bdb9a1bf35f24400525721d7555aa355c"},
-    {file = "mkdocstrings_python-1.4.0.tar.gz", hash = "sha256:c92304c402928a05c793203dadee7a1a51b5ae56404fd594d0b2db49a7b3957a"},
+    {file = "mkdocstrings_python-1.5.0-py3-none-any.whl", hash = "sha256:f95055a23c42dd6c861f8e10201ada246c5c34def22a74dd5f73ead59c0d8958"},
+    {file = "mkdocstrings_python-1.5.0.tar.gz", hash = "sha256:1b56a66b600df09b3bc787f27b86592fb4cb02e62e08e68053538725a0489175"},
 ]
 
 [package.dependencies]
@@ -2226,7 +2226,6 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.2", markers = "python_version > \"3.9\" and python_version <= \"3.10\""},
     {version = ">1.20", markers = "python_version <= \"3.9\""},
     {version = ">=1.23.3", markers = "python_version > \"3.10\""},
     {version = ">=1.21.2", markers = "python_version > \"3.9\""},
@@ -2630,8 +2629,8 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.20.3", markers = "python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
     {version = ">=1.23.2", markers = "python_version >= \"3.11\""},
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
