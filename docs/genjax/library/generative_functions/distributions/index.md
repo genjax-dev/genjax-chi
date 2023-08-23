@@ -4,10 +4,6 @@
     options:
       show_root_heading: true
 
-!!! info 
-    
-    On this page, we document the abstract base classes which are used throughout the module. For submodules which implement distributions using the base classes (e.g. `scipy`, or `tfd`) - we list the available distributions.
-
 ## The `Distribution` abstract base class
 
 ::: genjax.generative_functions.distributions.Distribution
@@ -27,3 +23,12 @@ If you are attempting to create a new `Distribution`, you'll likely want to inhe
       members:
         - sample
         - logpdf
+
+## Supported distributions
+
+Below, we list all supported distributions, and their exported names.
+
+::: genjax.generative_functions.distributions 
+    options:
+        members:
+            - tfp_bates
