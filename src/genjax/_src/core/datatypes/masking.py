@@ -63,11 +63,18 @@ class Mask(Pytree):
             return cls(mask, inner)
 
     @typecheck
-    def match(self, none: Callable, some: Callable):
+    def match(self, none: Callable, some: Callable) -> Any:
         """> Pattern match on the `Mask` type - by providing "none"
         and "some" lambdas.
 
         The "none" lambda should accept no arguments, while the "some" lambda should accept the same type as the value in the `Mask`. Both lambdas should return the same type (array, or `jax.Pytree`).
+
+        Arguments:
+            none: A lambda to handle the "none" branch. The type of the return value must agree with the "some" branch.
+            some: A lambda to handle the "some" branch. The type of the return value must agree with the "none" branch.
+
+        Returns:
+            value: A value computed by either the "none" or "some" lambda, depending on if the `Mask` is valid (e.g. `Mask.mask` is `True`).
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -91,7 +98,7 @@ class Mask(Pytree):
         )
 
     def unmask(self):
-        """> Unmask the `Mask`, returning the value.
+        """> Unmask the `Mask`, returning the value within.
 
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use `genjax.global_options.allow_checkify(True)` and then handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 

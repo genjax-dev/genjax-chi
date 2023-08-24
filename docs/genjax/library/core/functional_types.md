@@ -9,5 +9,16 @@ GenJAX contains a system for tagging data with flags, to indicate if the data is
 ::: genjax.core.Mask
     options:
         show_root_heading: true
+        members:
+          - match
+          - unmask
 
 ## (Sum types) Tagged unions
+
+Like option types, sum types allow representing a form of type uncertainty which can be useful when working within the restricted `jax.lax` control flow model.
+
+::: genjax.core.TaggedUnion
+    options:
+        show_root_heading: true
+        members:
+          - match
