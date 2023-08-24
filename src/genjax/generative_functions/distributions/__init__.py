@@ -30,6 +30,9 @@ from genjax._src.generative_functions.distributions.scipy.normal import normal
 from genjax._src.generative_functions.distributions.scipy.pareto import pareto
 from genjax._src.generative_functions.distributions.scipy.poisson import poisson
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPDistribution,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
     TFPMixture,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -121,9 +124,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_zipf,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    TFPDistribution,
 )
 
 
