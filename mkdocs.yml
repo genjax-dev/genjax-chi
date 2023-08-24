@@ -20,35 +20,35 @@ edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
-  #  - Home: 
+  #  - Home:
   #      - index.md
   #      - Comparisons to Gen.jl: genjax/diff_jl.md
   - Inference notebooks: genjax/notebooks.md
   - Library reference:
       - genjax/library/index.md
-      - Core: 
+      - Core:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
           - Generative datatypes: genjax/library/core/generative.md
           - Functional types: genjax/library/core/functional_types.md
           - Interpreters & transforms: genjax/library/core/interpreters.md
-      - Generative function languages: 
+      - Generative function languages:
           - genjax/library/generative_functions/index.md
-          - Distributions: 
+          - Distributions:
               - genjax/library/generative_functions/distributions/index.md
-        #     - Coryx: genjax/library/generative_functions/distributions/coryx.md
-        #     - GenSP: genjax/library/generative_functions/distributions/gensp.md
+          #     - Coryx: genjax/library/generative_functions/distributions/coryx.md
+          #     - GenSP: genjax/library/generative_functions/distributions/gensp.md
           - Builtin language: genjax/library/generative_functions/builtin.md
-          - Combinators: 
+          - Combinators:
               - genjax/library/generative_functions/combinators/index.md
               - Map combinator: genjax/library/generative_functions/combinators/map.md
               - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
               - Switch combinator: genjax/library/generative_functions/combinators/switch.md
-      - Extension modules: 
+      - Extension modules:
           - genjax/library/extensions/index.md
           - Gaussian processes: genjax/library/extensions/tinygp.md
           - HMC/NUTS: genjax/library/extensions/blackjax.md
-    #      - Inference: 
+    #      - Inference:
     #          - genjax/library/inference/index.md
     #          - Importance sampling: genjax/library/inference/is.md
     #          - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
@@ -69,7 +69,7 @@ theme:
   icon:
     repo: fontawesome/brands/github
   font:
-    text: Atkinson Hyperlegible 
+    text: Atkinson Hyperlegible
   features:
     - optimize
     - typeset
@@ -109,7 +109,7 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-      
+
 watch:
   - src/genjax
 
@@ -129,6 +129,7 @@ plugins:
           options:
             show_source: true
             show_root_heading: true
+            show_root_full_path: false
             show_symbol_type_heading: true
             show_symbol_type_toc: true
 
@@ -137,7 +138,7 @@ extra:
   version:
     provider: mike
 
-extra_css: 
+extra_css:
   - css/fonts.css
   - css/custom.css
   - css/mkdocstrings.css

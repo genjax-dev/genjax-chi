@@ -69,7 +69,17 @@ def _trace(gen_fn, addr, *args, **kwargs):
 
 
 @typecheck
-def trace(addr: Any, gen_fn: GenerativeFunction, **kwargs):
+def trace(addr: Any, gen_fn: GenerativeFunction, **kwargs) -> Callable:
+    """
+    Invoke a generative function, binding its generative semantics with the current caller.
+
+    Arguments:
+        addr: An address denoting the site of a generative function invocation.
+        gen_fn: A generative function invoked as a callee of `BuiltinGenerativeFunction`.
+
+    Returns:
+        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.
+    """
     assert isinstance(gen_fn, GenerativeFunction)
     static_address_type_check(addr)
     return lambda *args: _trace(gen_fn, addr, *args, **kwargs)
@@ -85,7 +95,17 @@ def _cache(fn, addr, *args, **kwargs):
 
 
 @typecheck
-def cache(addr: Any, fn: Callable, *args: Any, **kwargs):
+def cache(addr: Any, fn: Callable, *args: Any, **kwargs) -> Callable:
+    """
+    Invoke a generative function, binding its generative semantics with the current caller.
+
+    Arguments:
+        addr: An address denoting the site of a function invocation.
+        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `BuiltinGenerativeFunction` traces.
+
+    Returns:
+        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.
+    """
     # fn must be deterministic.
     assert not isinstance(fn, GenerativeFunction)
     static_address_type_check(addr)
