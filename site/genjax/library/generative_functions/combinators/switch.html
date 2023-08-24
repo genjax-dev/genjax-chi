@@ -441,6 +441,8 @@
       
         
       
+        
+      
     
     
       
@@ -582,6 +584,32 @@
     
   
     Interpreters & transforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/runtime_debugger.html" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime debugger
   
 
     
@@ -937,23 +965,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" SwitchCombinator">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator.new" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;new
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
     </ul>
@@ -1198,23 +1209,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" SwitchCombinator">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator.new" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;new
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
     </ul>
@@ -1350,7 +1344,7 @@ other stochastic choices.</p>
 
 
 <p><strong>Examples:</strong></p>
-    <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-24--__tabbed_1_1" name="exec-24--__tabbed_1" type="radio" /><input id="exec-24--__tabbed_1_2" name="exec-24--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-24--__tabbed_1_1">Source</label><label for="exec-24--__tabbed_1_2">Result</label></div>
+    <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-7--__tabbed_1_1" name="exec-7--__tabbed_1" type="radio" /><input id="exec-7--__tabbed_1_2" name="exec-7--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-7--__tabbed_1_1">Source</label><label for="exec-7--__tabbed_1_2">Result</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">jax</span>
@@ -1992,113 +1986,6 @@ other stochastic choices.</p>
 
 
 
-
-
-<div class="doc doc-object doc-function">
-
-
-
-<h3 id="genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator.new" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code><code class="highlight language-python"><span class="n">new</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span></code>
-  
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
-  </span>
-
-<a href="#genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator.new" class="headerlink" title="Permanent link">&para;</a></h3>
-
-
-  <div class="doc doc-contents ">
-  
-      <p>The preferred constructor for <code>SwitchCombinator</code> generative function
-instances. The shorthand symbol is <code>Switch = SwitchCombinator.new</code>.</p>
-
-
-
-  <p><strong>Parameters:</strong></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr>
-          <td><code>*args</code></td>
-          <td>
-                <code><a class="autorefs autorefs-internal" title="genjax._src.core.datatypes.generative.JAXGenerativeFunction" href="../../core/generative.html#genjax.core.JAXGenerativeFunction">JAXGenerativeFunction</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>JAX generative functions which will act as branch callees for the invocation of branching control flow.</p>
-            </div>
-          </td>
-          <td>
-                <code>()</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-
-
-  <p><strong>Returns:</strong></p>
-  <table>
-    <thead>
-      <tr>
-<th>Name</th>        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr>
-<td><code>instance</code></td>          <td>
-                <code><a class="autorefs autorefs-internal" title="genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator" href="#genjax.generative_functions.combinators.SwitchCombinator">SwitchCombinator</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>A <code>SwitchCombinator</code> instance.</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>src/genjax/_src/generative_functions/combinators/switch/switch_combinator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-108">108</a></span>
-<span class="normal"><a href="#__codelineno-0-109">109</a></span>
-<span class="normal"><a href="#__codelineno-0-110">110</a></span>
-<span class="normal"><a href="#__codelineno-0-111">111</a></span>
-<span class="normal"><a href="#__codelineno-0-112">112</a></span>
-<span class="normal"><a href="#__codelineno-0-113">113</a></span>
-<span class="normal"><a href="#__codelineno-0-114">114</a></span>
-<span class="normal"><a href="#__codelineno-0-115">115</a></span>
-<span class="normal"><a href="#__codelineno-0-116">116</a></span>
-<span class="normal"><a href="#__codelineno-0-117">117</a></span>
-<span class="normal"><a href="#__codelineno-0-118">118</a></span>
-<span class="normal"><a href="#__codelineno-0-119">119</a></span>
-<span class="normal"><a href="#__codelineno-0-120">120</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108"></a><span class="nd">@typecheck</span>
-</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109"></a><span class="nd">@classmethod</span>
-</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110"></a><span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">JAXGenerativeFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SwitchCombinator&quot;</span><span class="p">:</span>
-</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;The preferred constructor for `SwitchCombinator` generative function</span>
-</span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="sd">    instances. The shorthand symbol is `Switch = SwitchCombinator.new`.</span>
-</span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113"></a>
-</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="sd">    Arguments:</span>
-</span><span id="__span-0-115"><a id="__codelineno-0-115" name="__codelineno-0-115"></a><span class="sd">        *args: JAX generative functions which will act as branch callees for the invocation of branching control flow.</span>
-</span><span id="__span-0-116"><a id="__codelineno-0-116" name="__codelineno-0-116"></a>
-</span><span id="__span-0-117"><a id="__codelineno-0-117" name="__codelineno-0-117"></a><span class="sd">    Returns:</span>
-</span><span id="__span-0-118"><a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="sd">        instance: A `SwitchCombinator` instance.</span>
-</span><span id="__span-0-119"><a id="__codelineno-0-119" name="__codelineno-0-119"></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="__span-0-120"><a id="__codelineno-0-120" name="__codelineno-0-120"></a>    <span class="k">return</span> <span class="n">SwitchCombinator</span><span class="p">([</span><span class="o">*</span><span class="n">args</span><span class="p">])</span>
-</span></code></pre></div></td></tr></table></div>
-          </details>
-  </div>
-
-</div>
 
 
 
