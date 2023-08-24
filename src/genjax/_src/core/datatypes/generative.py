@@ -1295,6 +1295,9 @@ class GenerativeFunction(Pytree):
 
 @dataclasses.dataclass
 class JAXGenerativeFunction(GenerativeFunction, Pytree):
+    """A `GenerativeFunction` subclass for JAX compatible generative
+    functions."""
+
     # This is used to support tracing.
     # Below, a default implementation: GenerativeFunctions
     # may customize this to improve compilation time.
