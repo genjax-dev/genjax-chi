@@ -26,9 +26,6 @@ If you are attempting to create a new `Distribution`, you'll likely want to inhe
 
 ## Supported distributions
 
-Below, we list all supported distributions, and their exported names.
+Below, we list distribution generative function wrappers, all supported distributions, and their exported names.
 
-::: genjax.generative_functions.distributions 
-    options:
-        members:
-            - tfp_bates
+::: genjax.generative_functions.distributions.TFPDistribution

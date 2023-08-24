@@ -31,6 +31,11 @@ tfd = tfp.distributions
 
 @dataclass
 class TFPDistribution(ExactDensity):
+    """
+    A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
+
+    Implements the `ExactDensity` subclass of `genjax.Distribution` automatically using the interfaces defined for `tfp.distributions` objects.
+    """
     distribution: Any
 
     def flatten(self):
@@ -55,6 +60,10 @@ class TFPDistribution(ExactDensity):
 
 
 tfp_bates = TFPDistribution.new(tfd.Bates)
+"""
+A `TFPDistribution` generative function which wraps the [`tfd.Bates`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bates) distribution from TensorFlow Probability distributions.
+"""
+
 tfp_chi = TFPDistribution.new(tfd.Chi)
 tfp_chi2 = TFPDistribution.new(tfd.Chi2)
 tfp_geometric = TFPDistribution.new(tfd.Geometric)
