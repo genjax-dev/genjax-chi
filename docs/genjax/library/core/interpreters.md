@@ -1,3 +1,7 @@
+!!! note "User interaction with `genjax` interpreters"
+    
+    Users are not expected to interact with the data structures and functions described below directly. Instead, generative function languages and advanced DSLs can utilize the functionality described here to expose useful functionality.
+
 JAX supports transformations of pure, numerical Python programs by staging out interpreters which evaluate [`Jaxpr`](https://jax.readthedocs.io/en/latest/jaxpr.html) representations of programs.
 
 The `Core` module features interpreter infrastructure, and common transforms designed to facilitate certain types of transformations.
