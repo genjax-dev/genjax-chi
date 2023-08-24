@@ -73,5 +73,7 @@ __all__ = [
     "tag",
     "pull",
     "push",
+    "record_value",
+    "record_call",
     "record",
 ]

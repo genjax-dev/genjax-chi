@@ -60,7 +60,7 @@ TAGGING_NAMESPACE = "debug_tag"
 @typecheck
 def tag(
     meta: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
-    *args: typing.Any,
+    val: typing.Any,
 ) -> typing.Any:
     """Tag a value, allowing the debugger to store and return it as state."""
     f = functools.partial(
@@ -68,7 +68,7 @@ def tag(
         tag=TAGGING_NAMESPACE,
         meta=meta,
     )
-    return f(*args)
+    return f(val)
 
 
 ###########
@@ -272,7 +272,54 @@ def pull(
     f: typing.Callable,
 ) -> typing.Callable:
     """Transform a function into one which returns a debugger recording and
-    debugger tags."""
+    debugger tags.
+
+    Arguments:
+        f: A function contain `record` invocations which will be transformed by the debugger transformation.
+
+    Returns:
+        callable: A new function which accepts the same arguments as the original function `f`, but returns a tuple, where the first element is the original return value, and the second element is a 2-tuple containing a `DebuggerRecording` instance and a `DebuggerTags` instance.
+
+
+    Examples:
+        Here's an example using pure functions, without generative semantics.
+
+        ```python exec="yes" source="tabbed-left"
+        import jax.numpy as jnp
+        import genjax
+        import genjax.core.runtime_debugger as debug
+        console = genjax.pretty()
+
+        def foo(x):
+            v = jnp.ones(10) * x
+            debug.record(v)
+            z = v / 2
+            return z
+
+        v, (recording, tags) = debug.pull(foo)(3.0)
+        print(console.render(recording))
+        ```
+
+        Here's an example using generative functions. Now, `debug.record` will transform `GenerativeFunction` instances into `debug.DebugCombinator`, wrapping `debug.record_call` around their generative function interface invocations.
+
+        ```python exec="yes" source="tabbed-left"
+        import jax
+        import jax.numpy as jnp
+        import genjax
+        import genjax.core.runtime_debugger as debug
+        console = genjax.pretty()
+        key = jax.random.PRNGKey(314159)
+
+        @genjax.gen
+        def foo(x):
+            v = jnp.ones(10) * x
+            x = debug.record(genjax.tfp_normal)(jnp.sum(v), 2.0) @ "x"
+            return x
+
+        v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0, ))
+        print(console.render(recording))
+        ```
+    """
 
     def _collect(f):
         return harvest.reap(
@@ -334,13 +381,15 @@ def tag_with_frame(*args, frame: Frame):
 
 @typecheck
 def record_call(f: typing.Callable) -> typing.Callable:
-    """Transform a function into a version which records the arguments to its
+    """> Transform a function into a version which records the arguments to its
     invocation, as well as the return value.
 
-    The transformed version allows the debugger to store this
-    information in the debug recording, along other debug information,
-    including the definition file, the source line start, the module,
-    and the name of the function.
+    > The transformed version allows the debugger to store this
+    > information in the debug recording, along other debug information,
+    > including the definition file, the source line start, the module,
+    > and the name of the function.
+
+    The user is not expected to use this function, but to instead use the multimethod `record` below which will dispatch appropriately based on invocation types.
     """
 
     @functools.wraps(f)
@@ -366,8 +415,11 @@ def record_call(f: typing.Callable) -> typing.Callable:
 
 @typecheck
 def record_value(value: typing.Any) -> typing.Any:
-    """Record a value, allowing the debugger to store it in the debug
-    recording, along with the caller's frame information."""
+    """> Record a value, allowing the debugger to store it in the debug
+    recording, along with the caller's stack frame information.
+
+    The user is not expected to use this function, but to instead use the multimethod `record` below which will dispatch appropriately based on invocation types.
+    """
     caller_frame_info = inspect.stack()[3]
     file_name = caller_frame_info.filename
     source_line = caller_frame_info.lineno
