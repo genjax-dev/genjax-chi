@@ -33,7 +33,11 @@ The builtin language exposes custom primitives, which are handled by JAX interpr
 
 ### `trace`
 
-The `trace` primitive provides access to the ability to invoke another generative function as a callee. Returning to our example above:
+The `trace` primitive provides access to the ability to invoke another generative function as a callee. 
+
+::: genjax.generative_functions.builtin.trace
+
+Returning to our example above:
 
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
@@ -69,6 +73,8 @@ The `trace` primitive is a critical element of structuring hierarchical generati
 ### `cache`
 
 The `cache` primitive is designed to expose a space vs. time trade-off for incremental computation in Gen's `update` interface.
+
+::: genjax.generative_functions.builtin.cache
 
 ## Generative datatypes
 

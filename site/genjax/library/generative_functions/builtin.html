@@ -823,6 +823,23 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax.generative_functions.builtin.trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;trace
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" trace">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
   <a href="#cache" class="md-nav__link">
     <span class="md-ellipsis">
@@ -836,6 +853,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax.generative_functions.builtin.cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;cache
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1183,6 +1211,23 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax.generative_functions.builtin.trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;trace
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" trace">
+      <ul class="md-nav__list">
+        
           <li class="md-nav__item">
   <a href="#cache" class="md-nav__link">
     <span class="md-ellipsis">
@@ -1196,6 +1241,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#genjax.generative_functions.builtin.cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;cache
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1362,7 +1418,128 @@ utilize other generative functions inside of a new JAX primitive
 <h2 id="language-primitives">Language primitives<a class="headerlink" href="#language-primitives" title="Permanent link">&para;</a></h2>
 <p>The builtin language exposes custom primitives, which are handled by JAX interpreters to support the semantics of the generative function interface.</p>
 <h3 id="trace"><code>trace</code><a class="headerlink" href="#trace" title="Permanent link">&para;</a></h3>
-<p>The <code>trace</code> primitive provides access to the ability to invoke another generative function as a callee. Returning to our example above:</p>
+<p>The <code>trace</code> primitive provides access to the ability to invoke another generative function as a callee. </p>
+
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h2 id="genjax.generative_functions.builtin.trace" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code><code class="highlight language-python"><span class="n">trace</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">gen_fn</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+<a href="#genjax.generative_functions.builtin.trace" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+  <div class="doc doc-contents first">
+  
+      <p>Invoke a generative function, binding its generative semantics with the current caller.</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>addr</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.Any">Any</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An address denoting the site of a generative function invocation.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>gen_fn</code></td>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="genjax._src.core.datatypes.generative.GenerativeFunction" href="../core/generative.html#genjax.core.GenerativeFunction">GenerativeFunction</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A generative function invoked as a callee of <code>BuiltinGenerativeFunction</code>.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>callable</code></td>          <td>
+                <code><span title="genjax._src.core.typing.Callable">Callable</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A callable which wraps the <code>trace_p</code> primitive, accepting arguments (<code>args</code>) and binding the primitive with them. This raises the primitive to be handled by <code>BuiltinGenerativeFunction</code> transformations.</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/generative_functions/builtin/builtin_primitives.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#__codelineno-0-77">77</a></span>
+<span class="normal"><a href="#__codelineno-0-78">78</a></span>
+<span class="normal"><a href="#__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#__codelineno-0-80">80</a></span>
+<span class="normal"><a href="#__codelineno-0-81">81</a></span>
+<span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#__codelineno-0-84">84</a></span>
+<span class="normal"><a href="#__codelineno-0-85">85</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-71"><a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="nd">@typecheck</span>
+</span><span id="__span-0-72"><a id="__codelineno-0-72" name="__codelineno-0-72"></a><span class="k">def</span> <span class="nf">trace</span><span class="p">(</span><span class="n">addr</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">gen_fn</span><span class="p">:</span> <span class="n">GenerativeFunction</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+</span><span id="__span-0-73"><a id="__codelineno-0-73" name="__codelineno-0-73"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-74"><a id="__codelineno-0-74" name="__codelineno-0-74"></a><span class="sd">    Invoke a generative function, binding its generative semantics with the current caller.</span>
+</span><span id="__span-0-75"><a id="__codelineno-0-75" name="__codelineno-0-75"></a>
+</span><span id="__span-0-76"><a id="__codelineno-0-76" name="__codelineno-0-76"></a><span class="sd">    Arguments:</span>
+</span><span id="__span-0-77"><a id="__codelineno-0-77" name="__codelineno-0-77"></a><span class="sd">        addr: An address denoting the site of a generative function invocation.</span>
+</span><span id="__span-0-78"><a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="sd">        gen_fn: A generative function invoked as a callee of `BuiltinGenerativeFunction`.</span>
+</span><span id="__span-0-79"><a id="__codelineno-0-79" name="__codelineno-0-79"></a>
+</span><span id="__span-0-80"><a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="sd">    Returns:</span>
+</span><span id="__span-0-81"><a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.</span>
+</span><span id="__span-0-82"><a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-83"><a id="__codelineno-0-83" name="__codelineno-0-83"></a>    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gen_fn</span><span class="p">,</span> <span class="n">GenerativeFunction</span><span class="p">)</span>
+</span><span id="__span-0-84"><a id="__codelineno-0-84" name="__codelineno-0-84"></a>    <span class="n">static_address_type_check</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span><span id="__span-0-85"><a id="__codelineno-0-85" name="__codelineno-0-85"></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_trace</span><span class="p">(</span><span class="n">gen_fn</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div><p>Returning to our example above:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="exec-21--__tabbed_1_1" name="exec-21--__tabbed_1" type="radio" /><input id="exec-21--__tabbed_1_2" name="exec-21--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="exec-21--__tabbed_1_1">Source</label><label for="exec-21--__tabbed_1_2">Result</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -1443,7 +1620,129 @@ utilize other generative functions inside of a new JAX primitive
 <p>The <code>trace</code> primitive is a critical element of structuring hierarchical generative computation in the builtin language.</p>
 <h3 id="cache"><code>cache</code><a class="headerlink" href="#cache" title="Permanent link">&para;</a></h3>
 <p>The <code>cache</code> primitive is designed to expose a space vs. time trade-off for incremental computation in Gen's <code>update</code> interface.</p>
-<h2 id="generative-datatypes">Generative datatypes<a class="headerlink" href="#generative-datatypes" title="Permanent link">&para;</a></h2>
+
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h2 id="genjax.generative_functions.builtin.cache" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code><code class="highlight language-python"><span class="n">cache</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+<a href="#genjax.generative_functions.builtin.cache" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+  <div class="doc doc-contents first">
+  
+      <p>Invoke a generative function, binding its generative semantics with the current caller.</p>
+
+
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>addr</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.Any">Any</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>An address denoting the site of a function invocation.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>fn</code></td>
+          <td>
+                <code><span title="genjax._src.core.typing.Callable">Callable</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A deterministic function whose return value is cached under the arguments (memoization) inside <code>BuiltinGenerativeFunction</code> traces.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+
+
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+<th>Name</th>        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+<td><code>callable</code></td>          <td>
+                <code><span title="genjax._src.core.typing.Callable">Callable</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>A callable which wraps the <code>cache_p</code> primitive, accepting arguments (<code>args</code>) and binding the primitive with them. This raises the primitive to be handled by <code>BuiltinGenerativeFunction</code> transformations.</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+          <details class="quote">
+            <summary>Source code in <code>src/genjax/_src/generative_functions/builtin/builtin_primitives.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-97"> 97</a></span>
+<span class="normal"><a href="#__codelineno-0-98"> 98</a></span>
+<span class="normal"><a href="#__codelineno-0-99"> 99</a></span>
+<span class="normal"><a href="#__codelineno-0-100">100</a></span>
+<span class="normal"><a href="#__codelineno-0-101">101</a></span>
+<span class="normal"><a href="#__codelineno-0-102">102</a></span>
+<span class="normal"><a href="#__codelineno-0-103">103</a></span>
+<span class="normal"><a href="#__codelineno-0-104">104</a></span>
+<span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span>
+<span class="normal"><a href="#__codelineno-0-108">108</a></span>
+<span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-97"><a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="nd">@typecheck</span>
+</span><span id="__span-0-98"><a id="__codelineno-0-98" name="__codelineno-0-98"></a><span class="k">def</span> <span class="nf">cache</span><span class="p">(</span><span class="n">addr</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+</span><span id="__span-0-99"><a id="__codelineno-0-99" name="__codelineno-0-99"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-100"><a id="__codelineno-0-100" name="__codelineno-0-100"></a><span class="sd">    Invoke a generative function, binding its generative semantics with the current caller.</span>
+</span><span id="__span-0-101"><a id="__codelineno-0-101" name="__codelineno-0-101"></a>
+</span><span id="__span-0-102"><a id="__codelineno-0-102" name="__codelineno-0-102"></a><span class="sd">    Arguments:</span>
+</span><span id="__span-0-103"><a id="__codelineno-0-103" name="__codelineno-0-103"></a><span class="sd">        addr: An address denoting the site of a function invocation.</span>
+</span><span id="__span-0-104"><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="sd">        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `BuiltinGenerativeFunction` traces.</span>
+</span><span id="__span-0-105"><a id="__codelineno-0-105" name="__codelineno-0-105"></a>
+</span><span id="__span-0-106"><a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="sd">    Returns:</span>
+</span><span id="__span-0-107"><a id="__codelineno-0-107" name="__codelineno-0-107"></a><span class="sd">        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.</span>
+</span><span id="__span-0-108"><a id="__codelineno-0-108" name="__codelineno-0-108"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-109"><a id="__codelineno-0-109" name="__codelineno-0-109"></a>    <span class="c1"># fn must be deterministic.</span>
+</span><span id="__span-0-110"><a id="__codelineno-0-110" name="__codelineno-0-110"></a>    <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">GenerativeFunction</span><span class="p">)</span>
+</span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>    <span class="n">static_address_type_check</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a>    <span class="k">return</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_cache</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div><h2 id="generative-datatypes">Generative datatypes<a class="headerlink" href="#generative-datatypes" title="Permanent link">&para;</a></h2>
 <p>The builtin language implements a trie-like trace.</p>
 
 
@@ -1452,7 +1751,7 @@ utilize other generative functions inside of a new JAX primitive
 
 
 <h2 id="genjax.generative_functions.builtin.BuiltinTrace" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code><code>genjax.generative_functions.builtin.BuiltinTrace</code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code><code>BuiltinTrace</code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
