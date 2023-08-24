@@ -122,9 +122,17 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_zipf,
 )
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    TFPDistribution,
+)
 
 
 __all__ = [
+    "Distribution",
+    "ExactDensity",
+    "TFPDistribution",
+    "TFPMixture",
+    "tfp_mixture",
     "tfp_bates",
     "tfp_chi",
     "tfp_chi2",
@@ -154,10 +162,6 @@ __all__ = [
     "tfp_von_mises_fisher",
     "tfp_weibull",
     "tfp_zipf",
-    "TFPMixture",
-    "tfp_mixture",
-    "Distribution",
-    "ExactDensity",
     "beta",
     "bernoulli",
     "cauchy",

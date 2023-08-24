@@ -782,7 +782,7 @@
   <a href="#genjax._src.generative_functions.builtin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        genjax._src.generative_functions.builtin
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;builtin
       
     </span>
   </a>
@@ -854,7 +854,7 @@
   <a href="#genjax.generative_functions.builtin.BuiltinTrace" class="md-nav__link">
     <span class="md-ellipsis">
       
-        BuiltinTrace
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;BuiltinTrace
       
     </span>
   </a>
@@ -1142,7 +1142,7 @@
   <a href="#genjax._src.generative_functions.builtin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        genjax._src.generative_functions.builtin
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;builtin
       
     </span>
   </a>
@@ -1214,7 +1214,7 @@
   <a href="#genjax.generative_functions.builtin.BuiltinTrace" class="md-nav__link">
     <span class="md-ellipsis">
       
-        BuiltinTrace
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;BuiltinTrace
       
     </span>
   </a>
@@ -1305,6 +1305,7 @@
 <div class="doc doc-object doc-module">
 
 
+
 <a id="genjax._src.generative_functions.builtin"></a>
   <div class="doc doc-contents first">
   
@@ -1315,6 +1316,10 @@ transformations by JAX interpreters.</p>
 hierarchical construction of generative programs. These programs can
 utilize other generative functions inside of a new JAX primitive
 (<code>trace</code>) to create hierarchical patterns of generative computation.</p>
+
+
+
+
 
   
 
@@ -1403,27 +1408,27 @@ utilize other generative functions inside of a new JAX primitive
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    │   └──  bool[]
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    ├── choices
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    │   └── Trie
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    │       ├── :p
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    │       ├── :v
 </span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    │       │   └── DistributionTrace
 </span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    │       │       ├── gen_fn
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    │       │       │   └── Beta
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    │       │       │   └── Bernoulli
 </span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    │       │       ├── args
 </span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    │       │       │   └── tuple
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    │       │       │       ├── (const) 0
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    │       │       │       └── (const) 2
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    │       │       ├── value
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    │       │       │   └──  f32[]
-</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>    │       │       └── score
-</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    │       │           └──  f32[]
-</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    │       └── :v
-</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    │           └── DistributionTrace
-</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>    │               ├── gen_fn
-</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    │               │   └── Bernoulli
-</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>    │               ├── args
-</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>    │               │   └── tuple
-</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    │               │       └──  f32[]
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    │       │       │       └──  f32[]
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    │       │       ├── value
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    │       │       │   └──  bool[]
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    │       │       └── score
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>    │       │           └──  f32[]
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    │       └── :p
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    │           └── DistributionTrace
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    │               ├── gen_fn
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>    │               │   └── Beta
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    │               ├── args
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>    │               │   └── tuple
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>    │               │       ├── (const) 0
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    │               │       └── (const) 2
 </span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>    │               ├── value
-</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>    │               │   └──  bool[]
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>    │               │   └──  f32[]
 </span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>    │               └── score
 </span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>    │                   └──  f32[]
 </span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>    ├── cache
@@ -1447,8 +1452,7 @@ utilize other generative functions inside of a new JAX primitive
 
 
 <h2 id="genjax.generative_functions.builtin.BuiltinTrace" class="doc doc-heading">
-          <code>genjax.generative_functions.builtin.BuiltinTrace</code>
-
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code><code>genjax.generative_functions.builtin.BuiltinTrace</code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
@@ -1460,6 +1464,10 @@ utilize other generative functions inside of a new JAX primitive
   <div class="doc doc-contents first">
           <p class="doc doc-class-bases">
             Bases: <code><a class="autorefs autorefs-internal" title="genjax._src.core.datatypes.generative.Trace" href="../core/generative.html#genjax.core.Trace">Trace</a></code>, <code><span title="genjax._src.core.serialization.pickle.SupportsPickleSerialization">SupportsPickleSerialization</span></code></p>
+
+
+
+
 
 
             <details class="quote">
@@ -1671,6 +1679,7 @@ utilize other generative functions inside of a new JAX primitive
   </div>
 
   </div>
+
 
 </div>
 

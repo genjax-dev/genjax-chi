@@ -181,6 +181,10 @@ def docs_build(session: Session) -> None:
     )
     session.install("mkdocs")
     session.install("mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders")
+    session.install("mkdocstrings @ git+https://github.com/pawamoy-insiders/mkdocstrings")
+    session.install("mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.0.1.2.0")
+
+
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
@@ -195,6 +199,8 @@ def docs_serve(session: Session) -> None:
     )
     session.install("mkdocs")
     session.install("mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders")
+    session.install("mkdocstrings @ git+https://github.com/pawamoy-insiders/mkdocstrings")
+    session.install("mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.0.1.2.0")
     session.run("mkdocs", "serve")
 
 
