@@ -1,13 +1,15 @@
 @font-face {
   font-family: 'Berkeley Mono';
-  font-weight: normal;
+  font-weight: 100 1000;
+  font-style: normal;
   src: local('Berkeley Mono'),
     url('../assets/font/BerkeleyMonoVariable-Regular.ttf') format('truetype');
 }
 
 @font-face {
   font-family: 'Berkeley Mono';
-  font-weight: normal italic;
+  font-weight: 100 1000;
+  font-style: italic;
   src: local('Berkeley Mono'),
     url('../assets/font/BerkeleyMonoVariable-Italic.ttf.ttf') format('truetype');
 }
