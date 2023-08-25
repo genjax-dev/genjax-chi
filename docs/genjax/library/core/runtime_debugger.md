@@ -12,4 +12,5 @@ GenJAX features a runtime (1) debugging system implemented via JAX transformatio
         - record_value
         - record_call
         - record
+        - tag
         - pull

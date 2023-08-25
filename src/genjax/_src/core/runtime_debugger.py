@@ -59,14 +59,23 @@ TAGGING_NAMESPACE = "debug_tag"
 
 @typecheck
 def tag(
-    meta: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
+    name: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
     val: typing.Any,
 ) -> typing.Any:
-    """Tag a value, allowing the debugger to store and return it as state."""
+    """Tag a value, allowing the debugger to store and return it as state in
+    the `DebuggerTags` produced by `pull`.
+
+    Arguments:
+        name: A `String` or `Tuple[String, ...]` providing a reference name (key, into a `Trie`) for the tagged value.
+        val: The value. Must be a JAX compatible type.
+
+    Returns:
+        val: The value. Must be a JAX compatible type.
+    """
     f = functools.partial(
         harvest.sow,
         tag=TAGGING_NAMESPACE,
-        meta=meta,
+        meta=name,
     )
     return f(val)
 
@@ -298,6 +307,26 @@ def pull(
 
         v, (recording, tags) = debug.pull(foo)(3.0)
         print(console.render(recording))
+        ```
+
+        Here's an example where we mix `tag` and `record`.
+
+        ```python exec="yes" source="tabbed-left"
+        import jax.numpy as jnp
+        import genjax
+        import genjax.core.runtime_debugger as debug
+        console = genjax.pretty()
+
+        def foo(x):
+            v = jnp.ones(10) * x
+            debug.record(debug.tag("v", v))
+            z = v / 2
+            return z
+
+        v, (recording, tags) = debug.pull(foo)(3.0)
+        print(console.render(recording))
+        print(console.render(tags))
+        print(console.render(tags["v"]))
         ```
 
         Here's an example using generative functions. Now, `debug.record` will transform `GenerativeFunction` instances into `debug.DebugCombinator`, wrapping `debug.record_call` around their generative function interface invocations.
