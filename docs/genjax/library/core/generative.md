@@ -34,6 +34,8 @@ The interface definitions of generative functions often interact with JAX tracin
 Other generative function languages which utilize callee generative functions can enforce JAX compatibility by typechecking on `JAXGenerativeFunction`.
 
 ::: genjax.core.JAXGenerativeFunction
+    options:
+      members: false
 
 ## Traces
 
