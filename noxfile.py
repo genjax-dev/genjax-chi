@@ -133,7 +133,7 @@ def lint(session: Session) -> None:
     session.install(
         "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
     )
-    
+
     # Source
     session.run("isort", "src")
     session.run("black", "src")
@@ -142,7 +142,7 @@ def lint(session: Session) -> None:
         "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "src"
     )
     session.run("flake8", "src")
-    
+
     # Tests
     session.run("isort", "tests")
     session.run("black", "tests")
@@ -150,13 +150,18 @@ def lint(session: Session) -> None:
         "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "tests"
     )
     session.run("flake8", "tests")
-    
+
     # Notebooks
     session.run("isort", "notebooks")
     session.run("black", "notebooks")
     session.run("docformatter", "--in-place", "--recursive", "notebooks")
     session.run(
-        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "notebooks"
+        "autoflake8",
+        "--in-place",
+        "--recursive",
+        "--exclude",
+        "__init__.py",
+        "notebooks",
     )
     session.run("flake8", "notebooks")
 
@@ -180,16 +185,19 @@ def docs_build(session: Session) -> None:
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
     session.install("mkdocs")
-    session.install("mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders")
-    session.install("mkdocstrings @ git+https://github.com/pawamoy-insiders/mkdocstrings")
-    session.install("mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.0.1.2.0")
-
+    session.install(
+        "mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders"
+    )
+    session.install(
+        "mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.2.1.3.0"
+    )
 
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
     session.run("mkdocs", "build")
     session.run("quarto", "render", "notebooks", external=True)
+
 
 @session(name="docs-serve", python=python_version)
 def docs_serve(session: Session) -> None:
@@ -198,9 +206,12 @@ def docs_serve(session: Session) -> None:
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
     session.install("mkdocs")
-    session.install("mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders")
-    session.install("mkdocstrings @ git+https://github.com/pawamoy-insiders/mkdocstrings")
-    session.install("mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.0.1.2.0")
+    session.install(
+        "mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders"
+    )
+    session.install(
+        "mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.2.1.3.0"
+    )
     session.run("mkdocs", "serve")
 
 
