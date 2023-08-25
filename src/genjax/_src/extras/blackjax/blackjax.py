@@ -18,10 +18,9 @@ import dataclasses
 
 import blackjax
 import jax
-import jax.numpy as jnp
 
-from genjax._src.core.datatypes import Selection
-from genjax._src.core.datatypes import Trace
+from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
@@ -59,7 +58,8 @@ class HamiltonianMonteCarlo(MCMCKernel):
         gen_fn = trace.get_gen_fn()
         fixed = self.selection.complement().filter(trace.strip())
         initial_chm_position = self.selection.filter(trace.strip())
-        key, scorer, _ = gen_fn.unzip(key, fixed)
+        key, sub_key = jax.random.split(key)
+        scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
         grad, nograd = tree_grad_split(
@@ -85,11 +85,10 @@ class HamiltonianMonteCarlo(MCMCKernel):
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
-        key, *sub_keys = jax.random.split(key, self.num_steps + 1)
-        sub_keys = jnp.array(sub_keys)
+        sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions, _ = tree_zipper(states.position, nograd)
-        return key, final_positions
+        return final_positions
 
     def reversal(self):
         return self
@@ -122,7 +121,8 @@ class NoUTurnSampler(MCMCKernel):
         gen_fn = trace.get_gen_fn()
         fixed = self.selection.complement().filter(trace.strip())
         initial_chm_position = self.selection.filter(trace.strip())
-        key, scorer, _ = gen_fn.unzip(key, fixed)
+        key, sub_key = jax.random.split(key)
+        scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
         grad, nograd = tree_grad_split(
@@ -147,8 +147,7 @@ class NoUTurnSampler(MCMCKernel):
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
-        key, *sub_keys = jax.random.split(key, self.num_steps + 1)
-        sub_keys = jnp.array(sub_keys)
+        sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions, _ = tree_zipper(states.position, nograd)
         return key, final_positions
