@@ -542,7 +542,7 @@ class Trace(ChoiceMap, AddressTree):
 
     @abc.abstractmethod
     def get_score(self) -> FloatArray:
-        """Return the joint log score of the `Trace`.
+        """Return the score of the `Trace`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -630,7 +630,7 @@ class Trace(ChoiceMap, AddressTree):
 
     @dispatch
     def project(self, selection: "Selection") -> FloatArray:
-        """Given a `Selection`, return the total contribution to the joint log
+        """Given a `Selection`, return the total contribution to the 
         score of the addresses contained within the `Selection`.
 
         Examples:
