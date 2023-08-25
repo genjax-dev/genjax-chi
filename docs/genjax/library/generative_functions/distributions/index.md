@@ -33,6 +33,8 @@ Below, we list distribution generative function wrappers, all supported distribu
 To support [TensorFlow Probability distributions (`tfp.distributions`)](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions), `genjax` exposes a `TFPDistribution` wrapper class which relies on interfaces defined for `tfp.distributions` objects to implement the `genjax.ExactDensity` interface.
 
 ::: genjax.generative_functions.distributions.TFPDistribution
+    options:
+      members: false
 
 Below, we list all currently exported `TFPDistribution` instances.
 
