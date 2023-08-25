@@ -3725,7 +3725,7 @@ value, and the identity of the generative function itself.</p>
 </span><span id="__span-0-542"><a id="__codelineno-0-542" name="__codelineno-0-542"></a>
 </span><span id="__span-0-543"><a id="__codelineno-0-543" name="__codelineno-0-543"></a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
 </span><span id="__span-0-544"><a id="__codelineno-0-544" name="__codelineno-0-544"></a>    <span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FloatArray</span><span class="p">:</span>
-</span><span id="__span-0-545"><a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the joint log score of the `Trace`.</span>
+</span><span id="__span-0-545"><a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the score of the `Trace`.</span>
 </span><span id="__span-0-546"><a id="__codelineno-0-546" name="__codelineno-0-546"></a>
 </span><span id="__span-0-547"><a id="__codelineno-0-547" name="__codelineno-0-547"></a><span class="sd">        Examples:</span>
 </span><span id="__span-0-548"><a id="__codelineno-0-548" name="__codelineno-0-548"></a><span class="sd">            ```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;</span>
@@ -3813,7 +3813,7 @@ value, and the identity of the generative function itself.</p>
 </span><span id="__span-0-630"><a id="__codelineno-0-630" name="__codelineno-0-630"></a>
 </span><span id="__span-0-631"><a id="__codelineno-0-631" name="__codelineno-0-631"></a>    <span class="nd">@dispatch</span>
 </span><span id="__span-0-632"><a id="__codelineno-0-632" name="__codelineno-0-632"></a>    <span class="k">def</span> <span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">selection</span><span class="p">:</span> <span class="s2">&quot;Selection&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FloatArray</span><span class="p">:</span>
-</span><span id="__span-0-633"><a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Given a `Selection`, return the total contribution to the joint log</span>
+</span><span id="__span-0-633"><a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Given a `Selection`, return the total contribution to the </span>
 </span><span id="__span-0-634"><a id="__codelineno-0-634" name="__codelineno-0-634"></a><span class="sd">        score of the addresses contained within the `Selection`.</span>
 </span><span id="__span-0-635"><a id="__codelineno-0-635" name="__codelineno-0-635"></a>
 </span><span id="__span-0-636"><a id="__codelineno-0-636" name="__codelineno-0-636"></a><span class="sd">        Examples:</span>
@@ -4246,7 +4246,7 @@ produce the <code>Trace</code>.</p>
 
   <div class="doc doc-contents ">
   
-      <p>Return the joint log score of the <code>Trace</code>.</p>
+      <p>Return the score of the <code>Trace</code>.</p>
 
 
 
@@ -4308,7 +4308,7 @@ produce the <code>Trace</code>.</p>
 <span class="normal"><a href="#__codelineno-0-566">566</a></span>
 <span class="normal"><a href="#__codelineno-0-567">567</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-543"><a id="__codelineno-0-543" name="__codelineno-0-543"></a><span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
 </span><span id="__span-0-544"><a id="__codelineno-0-544" name="__codelineno-0-544"></a><span class="k">def</span> <span class="nf">get_score</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FloatArray</span><span class="p">:</span>
-</span><span id="__span-0-545"><a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the joint log score of the `Trace`.</span>
+</span><span id="__span-0-545"><a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the score of the `Trace`.</span>
 </span><span id="__span-0-546"><a id="__codelineno-0-546" name="__codelineno-0-546"></a>
 </span><span id="__span-0-547"><a id="__codelineno-0-547" name="__codelineno-0-547"></a><span class="sd">    Examples:</span>
 </span><span id="__span-0-548"><a id="__codelineno-0-548" name="__codelineno-0-548"></a><span class="sd">        ```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;</span>
@@ -4452,7 +4452,7 @@ produce the <code>Trace</code>.</p>
 
   <div class="doc doc-contents ">
   
-      <p>Given a <code>Selection</code>, return the total contribution to the joint log
+      <p>Given a <code>Selection</code>, return the total contribution to the 
 score of the addresses contained within the <code>Selection</code>.</p>
 
 
@@ -4517,7 +4517,7 @@ score of the addresses contained within the <code>Selection</code>.</p>
 <span class="normal"><a href="#__codelineno-0-656">656</a></span>
 <span class="normal"><a href="#__codelineno-0-657">657</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-631"><a id="__codelineno-0-631" name="__codelineno-0-631"></a><span class="nd">@dispatch</span>
 </span><span id="__span-0-632"><a id="__codelineno-0-632" name="__codelineno-0-632"></a><span class="k">def</span> <span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">selection</span><span class="p">:</span> <span class="s2">&quot;Selection&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FloatArray</span><span class="p">:</span>
-</span><span id="__span-0-633"><a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Given a `Selection`, return the total contribution to the joint log</span>
+</span><span id="__span-0-633"><a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Given a `Selection`, return the total contribution to the </span>
 </span><span id="__span-0-634"><a id="__codelineno-0-634" name="__codelineno-0-634"></a><span class="sd">    score of the addresses contained within the `Selection`.</span>
 </span><span id="__span-0-635"><a id="__codelineno-0-635" name="__codelineno-0-635"></a>
 </span><span id="__span-0-636"><a id="__codelineno-0-636" name="__codelineno-0-636"></a><span class="sd">    Examples:</span>
