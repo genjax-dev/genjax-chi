@@ -630,8 +630,8 @@ class Trace(ChoiceMap, AddressTree):
 
     @dispatch
     def project(self, selection: "Selection") -> FloatArray:
-        """Given a `Selection`, return the total contribution to the 
-        score of the addresses contained within the `Selection`.
+        """Given a `Selection`, return the total contribution to the score of
+        the addresses contained within the `Selection`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
