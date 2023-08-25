@@ -1333,9 +1333,10 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
     # A higher-level gradient API - it relies upon `unzip`,
     # but provides convenient access to first-order gradients.
-    def choice_grad(self, key, trace, selection):
+    @typecheck
+    def choice_grad(self, key: PRNGKey, trace: Trace, selection: Selection):
         fixed = trace.strip().filter(selection.complement())
-        chm = trace.strip().filter(selection.filter)
+        chm = trace.strip().filter(selection)
         scorer, _ = self.unzip(key, fixed)
         grad, nograd = tree_grad_split(
             (chm, trace.get_args()),
