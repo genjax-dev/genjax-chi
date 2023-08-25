@@ -56,7 +56,15 @@ Traces support a set of accessor method interfaces designed to provide convenien
 ## Choice maps
 
 ::: genjax.core.ChoiceMap
+    options:
+      members: 
+        - filter
+        - insert
+        - replace
 
 ## Selections
 
 ::: genjax.core.Selection
+    options:
+      members: 
+        - complement
