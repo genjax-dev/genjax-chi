@@ -70,8 +70,9 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         argdiffs = Diff.no_change(args)
 
         # Forward proposal.
-        key, forward_gradient_trie = gen_fn.choice_grad(key, trace, self.selection)
-        forward_values = self.selection.filter(trace.strip())
+        key, sub_key = jax.random.split(key)
+        forward_gradient_trie = gen_fn.choice_grad(sub_key, trace, self.selection)
+        forward_values = trace.strip().filter(self.selection)
         forward_mu = jtu.tree_map(
             self._grad_step_no_none,
             forward_values,
@@ -85,12 +86,13 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         )
 
         # Get model weight.
-        key, (_, weight, new_trace, _) = gen_fn.update(
-            key, trace, proposed_values, argdiffs
+        (_, weight, new_trace, _) = gen_fn.update(
+            sub_key, trace, proposed_values, argdiffs
         )
 
         # Backward proposal.
-        key, backward_gradient_trie = gen_fn.choice_grad(key, new_trace, self.selection)
+        key, sub_key = jax.random.split(key)
+        backward_gradient_trie = gen_fn.choice_grad(sub_key, new_trace, self.selection)
         backward_mu = jtu.tree_map(
             self._grad_step_no_none,
             proposed_values,
@@ -101,9 +103,8 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         )
 
         alpha = weight - forward_score + backward_score
-        key, sub_key = jax.random.split(key)
-        check = jnp.log(jax.random.uniform(sub_key)) < alpha
-        return key, jax.lax.cond(
+        check = jnp.log(jax.random.uniform(key)) < alpha
+        return jax.lax.cond(
             check,
             lambda *args: (new_trace, True),
             lambda *args: (trace, False),
