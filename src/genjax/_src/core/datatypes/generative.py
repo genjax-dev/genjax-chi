@@ -1576,6 +1576,11 @@ class HierarchicalChoiceMap(ChoiceMap):
         return tree
 
 
+@dataclasses.dataclass
+class DisjointUnionChoiceMap(ChoiceMap):
+    pass
+
+
 ##############
 # Shorthands #
 ##############
