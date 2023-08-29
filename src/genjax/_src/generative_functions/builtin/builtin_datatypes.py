@@ -19,6 +19,7 @@ import jax.numpy as jnp
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
@@ -26,6 +27,7 @@ from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import static_assert_trees_same_structure
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
@@ -40,12 +42,18 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class DynamicChoiceMap(ChoiceMap):
+class DynamicHomogeneousChoiceMap(ChoiceMap):
     dynamic_indices: List[IntArray]
     subtrees: List[ChoiceMap]
 
     def flatten(self):
         return (self.dynamic_indices, self.subtrees), ()
+
+    @classmethod
+    def new(cls, dynamic_indices, subtrees):
+        # Restriction: All subtrees must have the same structure.
+        static_assert_trees_same_structure(subtrees)
+        return DynamicHomogeneousChoiceMap(dynamic_indices, subtrees)
 
     @dispatch
     def get_subtree(self, addr: IntArray):
@@ -85,7 +93,9 @@ class BuiltinTrace(
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    choices: Trie
+    static_address_choices: Trie
+    dynamic_addresses: List[IntArray]
+    dynamic_address_choices: List[ChoiceMap]
     cache: Trie
     score: FloatArray
 
@@ -95,6 +105,8 @@ class BuiltinTrace(
             self.args,
             self.retval,
             self.choices,
+            self.dynamic_addresses,
+            self.dynamic_address_choices,
             self.cache,
             self.score,
         ), ()
@@ -107,16 +119,35 @@ class BuiltinTrace(
         args: Tuple,
         retval: Any,
         choices: Trie,
+        dynamic_addresses: List[IntArray],
+        dynamic_address_choices: List[ChoiceMap],
         cache: Trie,
         score: FloatArray,
     ):
-        return BuiltinTrace(gen_fn, args, retval, choices, cache, score)
+        return BuiltinTrace(
+            gen_fn,
+            args,
+            retval,
+            choices,
+            dynamic_addresses,
+            dynamic_address_choices,
+            cache,
+            score,
+        )
 
     def get_gen_fn(self):
         return self.gen_fn
 
     def get_choices(self):
-        return HierarchicalChoiceMap(self.choices)
+        if not self.dynamic_addresses and not self.dynamic_address_choices:
+            return HierarchicalChoiceMap.new(self.choices)
+        else:
+            static_choices = HierarchicalChoiceMap.new(self.choices)
+            dynamic = DynamicHomogeneousChoiceMap.new(
+                self.dynamic_addresses,
+                self.dynamic_address_choices,
+            )
+            return DisjointUnionChoiceMap.new([static_choices, dynamic])
 
     def get_retval(self):
         return self.retval

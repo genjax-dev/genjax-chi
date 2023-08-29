@@ -39,6 +39,7 @@ from genjax._src.core.transforms.incremental import tree_diff_get_tracers
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
+from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
 from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
@@ -80,6 +81,31 @@ class AddressVisitor(Pytree):
             new.visit(addr)
 
 
+# Usage in transforms: checks for duplicate dynamic addresses.
+@dataclasses.dataclass
+class DynamicAddressVisitor(Pytree):
+    visited: List[IntArray]
+
+    def flatten(self):
+        return (self.visited,), ()
+
+    @classmethod
+    def new(cls):
+        return DynamicAddressVisitor([])
+
+    def visit(self, addr):
+        self.visited.append(addr)
+
+    def merge(self, other):
+        new = DynamicAddressVisitor.new()
+        for addr in itertools.chain(self.visited, other.visited):
+            new.visit(addr)
+
+    # TODO: checkify.
+    def verify(self):
+        pass
+
+
 #####
 # Builtin interpreter context
 #####
@@ -109,6 +135,12 @@ class BuiltinInterfaceContext(context.Context):
         else:
             return None
 
+    def yield_state(self):
+        raise NotImplementedError
+
+    def runtime_verify(self):
+        return None
+
 
 #####
 # Simulate
@@ -119,9 +151,15 @@ class BuiltinInterfaceContext(context.Context):
 class SimulateContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
+    # Static addresses
     choice_state: Trie
-    cache_state: Trie
     trace_visitor: AddressVisitor
+    # Dynamic addresses
+    dynamic_addresses: List[IntArray]
+    dynamic_choice_state: List[ChoiceMap]
+    dynamic_address_visitor: AddressVisitor
+    # Caching
+    cache_state: Trie
     cache_visitor: AddressVisitor
 
     def flatten(self):
@@ -129,8 +167,10 @@ class SimulateContext(BuiltinInterfaceContext):
             self.key,
             self.score,
             self.choice_state,
-            self.cache_state,
             self.trace_visitor,
+            self.dynamic_addresses,
+            self.dynamic_choice_state,
+            self.cache_state,
             self.cache_visitor,
         ), ()
 
@@ -141,33 +181,58 @@ class SimulateContext(BuiltinInterfaceContext):
         cache_state = Trie.new()
         trace_visitor = AddressVisitor.new()
         cache_visitor = AddressVisitor.new()
+        dynamic_addresses = []
+        dynamic_choice_state = []
+        dynamic_address_visitor = DynamicAddressVisitor.new()
         return SimulateContext(
             key,
             score,
             choice_state,
-            cache_state,
             trace_visitor,
+            dynamic_addresses,
+            dynamic_choice_state,
+            dynamic_address_visitor,
+            cache_state,
             cache_visitor,
         )
 
     def yield_state(self):
         return (
             self.choice_state,
+            self.dynamic_addresses,
+            self.dynamic_address_visitor,
             self.cache_state,
             self.score,
         )
+
+    def runtime_verify(self):
+        self.dynamic_address_visitor.verify()
+
+    def visit(self, addr):
+        if is_concrete(addr):
+            self.trace_visitor.visit(addr)
+        else:
+            self.dynamic_address_visitor.visit(addr)
+
+    def set_choice_state(self, addr, tr):
+        if is_concrete(addr):
+            self.choice_state[addr] = tr
+        else:
+            self.dynamic_addresses.append(addr)
+            self.dynamic_choice_state.append(tr)
 
     def handle_trace(self, _, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
-        self.trace_visitor.visit(addr)
+        self.visit(addr)
         passed_in_tracers = tracers[num_consts:]
         gen_fn, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         call_args = tuple(call_args)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, call_args)
         score = tr.get_score()
+        self.set_choice_state(addr, tr)
         self.choice_state[addr] = tr
         self.score += score
         v = tr.get_retval()
@@ -182,8 +247,17 @@ def simulate_transform(source_fn, **kwargs):
     def wrapper(key, args):
         ctx = SimulateContext.new(key)
         retvals, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        constraints, cache, score = statefuls
-        return (source_fn, args, retvals, constraints, score), cache
+        ctx.runtime_verify()  # Produce runtime check for checkify.
+        static_choices, dynamic_addresses, dynamic_choices, cache, score = statefuls
+        return (
+            source_fn,
+            args,
+            retvals,
+            static_choices,
+            dynamic_addresses,
+            dynamic_choices,
+            score,
+        ), cache
 
     return wrapper
 
