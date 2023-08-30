@@ -24,6 +24,7 @@ from genjax.core import serialization
 from genjax.generative_functions import gentle
 from genjax.generative_functions.distributions import coryx
 from genjax.generative_functions.distributions import gensp
+from genjax.generative_functions.distributions import custom
 
 from .adev import *
 from .console import *
