@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.distributions.custom import discrete_hmm
+from genjax._src.generative_functions.distributions.custom import lgssm
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
 )
@@ -29,4 +30,5 @@ __all__ = [
     "DiscreteHMM",
     "DiscreteHMMConfiguration",
     "forward_filtering_backward_sampling",
+    "lgssm"
 ]

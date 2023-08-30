@@ -119,8 +119,8 @@ class NoUTurnSampler(MCMCKernel):
         # is not changing. The only update which can occur is to
         # the choice map.
         gen_fn = trace.get_gen_fn()
-        fixed = self.selection.complement().filter(trace.strip())
-        initial_chm_position = self.selection.filter(trace.strip())
+        fixed = trace.strip().filter(self.selection.complement())
+        initial_chm_position = trace.strip().filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
