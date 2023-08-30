@@ -77,7 +77,7 @@ class TaggedUnion(Pytree):
     def __rich_tree__(self, tree):
         doc = gpp._pformat_array(self.tag, short_arrays=True)
         vals_tree = gpp.tree_pformat(self.values, short_arrays=True)
-        sub_tree = Tree(f"[bold](Tagged, {doc})")
+        sub_tree = Tree(f"[bold](TaggedUnion, {doc})")
         sub_tree.add(vals_tree)
         tree.add(sub_tree)
         return tree

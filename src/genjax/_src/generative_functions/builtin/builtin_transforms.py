@@ -40,9 +40,14 @@ from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
 from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
+from genjax._src.generative_functions.builtin.builtin_primitives import PytreeAddress
 
 
 safe_map = jax_core.safe_map
@@ -56,6 +61,7 @@ safe_zip = jax_core.safe_zip
 #####
 # Transform address checks
 #####
+
 
 # Usage in transforms: checks for duplicate addresses.
 @dataclasses.dataclass
@@ -71,7 +77,9 @@ class AddressVisitor(Pytree):
 
     def visit(self, addr):
         if addr in self.visited:
-            raise Exception("Already visited this address.")
+            raise Exception(
+                f"Already visited this address {addr}. Duplicate addresses are not allowed."
+            )
         else:
             self.visited.append(addr)
 
@@ -84,22 +92,29 @@ class AddressVisitor(Pytree):
 # Usage in transforms: checks for duplicate dynamic addresses.
 @dataclasses.dataclass
 class DynamicAddressVisitor(Pytree):
-    visited: List[IntArray]
+    subtree_visited: List
+    index_visited: List[IntArray]
 
     def flatten(self):
-        return (self.visited,), ()
+        return (self.index_visited,), (self.subtree_visited,)
 
     @classmethod
     def new(cls):
-        return DynamicAddressVisitor([])
+        return DynamicAddressVisitor([], [])
 
-    def visit(self, addr):
-        self.visited.append(addr)
+    @typecheck
+    def visit(self, index_addr: IntArray, rst: Tuple):
+        self.index_visited.append(index_addr)
+        self.subtree_visited.append(rst)
 
-    def merge(self, other):
+    @typecheck
+    def merge(self, other: "DynamicAddressVisitor"):
         new = DynamicAddressVisitor.new()
-        for addr in itertools.chain(self.visited, other.visited):
-            new.visit(addr)
+        for index_addr, subtree_addr in zip(
+            itertools.chain(self.index_visited, other.index_visited),
+            itertools.chain(self.subtree_visited, other.subtree_visited),
+        ):
+            new.visit(index_addr, subtree_addr)
 
     # TODO: checkify.
     def verify(self):
@@ -109,6 +124,7 @@ class DynamicAddressVisitor(Pytree):
 #####
 # Builtin interpreter context
 #####
+
 
 # NOTE: base context class for GFI transforms below.
 @dataclasses.dataclass
@@ -152,8 +168,8 @@ class SimulateContext(BuiltinInterfaceContext):
     key: PRNGKey
     score: FloatArray
     # Static addresses
-    choice_state: Trie
-    trace_visitor: AddressVisitor
+    static_choice_state: Trie
+    static_address_visitor: AddressVisitor
     # Dynamic addresses
     dynamic_addresses: List[IntArray]
     dynamic_choice_state: List[ChoiceMap]
@@ -166,10 +182,11 @@ class SimulateContext(BuiltinInterfaceContext):
         return (
             self.key,
             self.score,
-            self.choice_state,
-            self.trace_visitor,
+            self.static_choice_state,
+            self.static_address_visitor,
             self.dynamic_addresses,
             self.dynamic_choice_state,
+            self.dynamic_address_visitor,
             self.cache_state,
             self.cache_visitor,
         ), ()
@@ -177,18 +194,18 @@ class SimulateContext(BuiltinInterfaceContext):
     @classmethod
     def new(cls, key: PRNGKey):
         score = 0.0
-        choice_state = Trie.new()
-        cache_state = Trie.new()
-        trace_visitor = AddressVisitor.new()
-        cache_visitor = AddressVisitor.new()
+        static_choice_state = Trie.new()
+        static_address_visitor = AddressVisitor.new()
         dynamic_addresses = []
         dynamic_choice_state = []
         dynamic_address_visitor = DynamicAddressVisitor.new()
+        cache_state = Trie.new()
+        cache_visitor = AddressVisitor.new()
         return SimulateContext(
             key,
             score,
-            choice_state,
-            trace_visitor,
+            static_choice_state,
+            static_address_visitor,
             dynamic_addresses,
             dynamic_choice_state,
             dynamic_address_visitor,
@@ -198,9 +215,9 @@ class SimulateContext(BuiltinInterfaceContext):
 
     def yield_state(self):
         return (
-            self.choice_state,
+            self.static_choice_state,
             self.dynamic_addresses,
-            self.dynamic_address_visitor,
+            self.dynamic_choice_state,
             self.cache_state,
             self.score,
         )
@@ -208,32 +225,67 @@ class SimulateContext(BuiltinInterfaceContext):
     def runtime_verify(self):
         self.dynamic_address_visitor.verify()
 
-    def visit(self, addr):
-        if is_concrete(addr):
-            self.trace_visitor.visit(addr)
+    @dispatch
+    def visit(self, addr: Tuple):
+        fst, *rest = addr
+        if is_concrete(fst):
+            self.static_address_visitor.visit(addr)
         else:
-            self.dynamic_address_visitor.visit(addr)
+            self.dynamic_address_visitor.visit(fst, tuple(rest))
 
-    def set_choice_state(self, addr, tr):
+    @dispatch
+    def visit(self, addr: Any):
         if is_concrete(addr):
-            self.choice_state[addr] = tr
+            self.static_address_visitor.visit(addr)
+        else:
+            self.dynamic_address_visitor.visit(fst, ())
+
+    @dispatch
+    def visit(self, addr: PytreeAddress):
+        tup = addr.to_tuple()
+        if len(tup) == 1:
+            self.visit(tup[0])
+        else:
+            self.visit(tup)
+
+    @dispatch
+    def set_choice_state(self, addr: Tuple, tr: Trace):
+        fst, *rest = addr
+        if is_concrete(fst):
+            self.static_choice_state[addr] = tr
+        else:
+            self.dynamic_addresses.append(fst)
+            sub_trie = Trie.new()
+            sub_trie[tuple(rest)] = tr
+            self.dynamic_choice_state.append(sub_trie)
+
+    @dispatch
+    def set_choice_state(self, addr: Any, tr: Trace):
+        if is_concrete(addr):
+            self.static_choice_state[addr] = tr
         else:
             self.dynamic_addresses.append(addr)
             self.dynamic_choice_state.append(tr)
 
+    @dispatch
+    def set_choice_state(self, addr: PytreeAddress, tr: Trace):
+        tup = addr.to_tuple()
+        if len(tup) == 1:
+            self.set_choice_state(tup[0], tr)
+        else:
+            self.set_choice_state(tup, tr)
+
     def handle_trace(self, _, *tracers, **params):
-        addr = params.get("addr")
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
-        self.visit(addr)
         passed_in_tracers = tracers[num_consts:]
-        gen_fn, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        gen_fn, addr, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        self.visit(addr)
         call_args = tuple(call_args)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, call_args)
         score = tr.get_score()
         self.set_choice_state(addr, tr)
-        self.choice_state[addr] = tr
         self.score += score
         v = tr.get_retval()
         return jtu.tree_leaves(v)
