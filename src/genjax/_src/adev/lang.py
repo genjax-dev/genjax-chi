@@ -22,12 +22,12 @@ import jax.tree_util as jtu
 from jax import api_util
 from jax import linear_util as lu
 from jax import util as jax_util
-from jax.interpreters import ad as jax_autodiff
-from jax.interpreters.ad import JVPTrace
-from jax.interpreters.ad import JVPTracer
 from jax._src import core
 from jax._src import linear_util as lu
 from jax._src.interpreters import partial_eval as pe
+from jax.interpreters import ad as jax_autodiff
+from jax.interpreters.ad import JVPTrace
+from jax.interpreters.ad import JVPTracer
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters import context as ctx
@@ -69,7 +69,7 @@ class SupportsREINFORCE(Pytree):
 @dataclasses.dataclass
 class SupportsEnum(Pytree):
     @abc.abstractmethod
-    def enum_estimate(self, key, primals, tangents, kont):
+    def enum_exact(self, key, primals, tangents, kont):
         pass
 
 
@@ -106,30 +106,37 @@ class ADEVTerm(Pytree):
     def jvp_estimate_nokwargs(self, key, primals, tangents):
         return self.jvp_estimate(key, primals, tangents)
 
-    def grad_estimate(self):
-        def _inner(key, *args):
+    def grad_estimate(self, key, args):
+        @typecheck
+        def _inner(key: PRNGKey, args: Tuple):
             primal_tree = jtu.tree_structure(args)
-            flat_args, in_tree = jtu.tree_flatten((key, *args))
-            flat_fun, out_tree = api_util.flatten_fun_nokwargs(
-                self.jvp_estimate_nokwargs, in_tree
+            # Second args slot is for tangents.
+            _, in_tree = jtu.tree_flatten((key, args, args))
+            fun = lu.wrap_init(self.jvp_estimate_nokwargs)
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
+            # Flat known is the key and the arguments.
+            flat_known = jtu.tree_map(
+                pe.PartialVal.known,
+                jtu.tree_leaves((key, args)),
             )
-            flat_known = jtu.tree_map(pe.PartialVal.known, flat_args)
-            unknown_tangents = jtu.tree_map(
+
+            # Flat unknown is the tangents.
+            flat_unknown = jtu.tree_map(
                 lambda v: pe.PartialVal.unknown(core.ShapedArray(v.shape, v.dtype)),
-                flat_args,
+                jtu.tree_leaves(args),
             )
-            in_pvals = [*flat_known, *unknown_tangents]
-            jaxpr, out_pvals, consts = pe.trace_to_jaxpr_nounits(
-                lu.wrap_init(flat_fun), in_pvals
-            )
-            primal_dummies = [ad.UndefinedPrimal(v.aval) for v in jaxpr.invars]
-            flat_args_bar = ad.backward_pass(
+            in_pvals = [*flat_known, *flat_unknown]
+            jaxpr, out_pvals, consts = pe.trace_to_jaxpr_nounits(flat_fun, in_pvals)
+            primal_dummies = [
+                jax_autodiff.UndefinedPrimal(v.aval) for v in jaxpr.invars
+            ]
+            flat_args_bar = jax_autodiff.backward_pass(
                 jaxpr, (), None, consts, primal_dummies, (1.0,)
             )
             args_bar = jtu.tree_unflatten(primal_tree, flat_args_bar)
             return args_bar
 
-        return _inner
+        return _inner(key, args)
 
     @sample.defjvp
     def sample_jvp(self, key, primals, tangents):
@@ -186,7 +193,7 @@ class GradStratREINFORCE(GradientStrategy):
 class GradStratEnum(GradientStrategy):
     def apply(self, prim, key, primals, tangents, kont):
         assert isinstance(prim, SupportsEnum)
-        return prim.enum_estimate(key, primals, tangents, kont)
+        return prim.enum_exact(key, primals, tangents, kont)
 
 
 @dataclasses.dataclass
@@ -225,23 +232,24 @@ sample_p = primitives.InitialStylePrimitive("sample")
 def _abstract_adev_term_call(adev_term, strategy, *args):
     # Only the type matters here.
     key = jax.random.PRNGKey(0)
-    return adev_term.sample(key, args)
+    v = adev_term.sample(key, args)
+    return v
 
 
-def _sample(adev_term, strategy, args, **kwargs):
+def _sample(adev_term, strategy, args):
     return primitives.initial_style_bind(sample_p)(_abstract_adev_term_call)(
-        adev_term, strategy, *args, **kwargs
+        adev_term,
+        strategy,
+        *args,
     )
 
 
 @typecheck
-def sample(adev_term: ADEVTerm, args: Tuple, **kwargs):
-    # Default strategy is REINFORCE.
-    strategy = GradStratREINFORCE()
+def sample(adev_term: ADEVTerm, args: Tuple, strategy=GradStratREINFORCE()):
     if isinstance(adev_term, ADEVPrimitive):
         # Embed using sow.
         strategy = strat(strategy, "sample")
-    return _sample(adev_term, strategy, args, **kwargs)
+    return _sample(adev_term, strategy, args)
 
 
 ##############
@@ -473,7 +481,10 @@ class GradEstimateContext(ADEVContext):
         # dual numbers to the gradient strategy.
         else:
 
-            def lift_kont(primals, tangents):
+            # This continuation accepts raw primals and tangents (as lists of arrays)
+            # and then zips them into JVPTracer types -- allowing us to integrate our AD
+            # with JAX's native forward mode AD.
+            def flat_kont(primals: List, tangents: List):
                 new_tracers = [
                     JVPTracer(self.trace, x, t) for x, t in zip(primals, tangents)
                 ]
@@ -481,8 +492,15 @@ class GradEstimateContext(ADEVContext):
                 (retdual,) = kont(*new_tracers)
                 return retdual.primal, retdual.tangent
 
+            # Defers handling the sample to the gradient strategy.
+            # The gradient strategy will attempt to invoke the corresponding
+            # method on the term, e.g. `reinforce_estimate`.
             primals, tangents = strategy.apply(
-                adev_term, sub_key, primals, tangents, lift_kont
+                adev_term,
+                sub_key,
+                primals,
+                tangents,
+                flat_kont,
             )
             return primals, tangents
 
@@ -513,7 +531,7 @@ class ADEVProgram(ADEVTerm):
         return (), (self.source,)
 
     def sample(self, key, args):
-        return sample_transform(self.source)(key, args)
+        return sample_transform(self.source)(key, *args)
 
     def jvp_estimate(self, key, primals, tangents, kont=identity):
         return jvp_estimate_transform(self.source, kont)(key, primals, tangents)
