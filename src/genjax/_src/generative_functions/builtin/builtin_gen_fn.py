@@ -168,11 +168,25 @@ class BuiltinGenerativeFunction(
         key: PRNGKey,
         args: Tuple,
     ) -> BuiltinTrace:
-        (f, args, r, chm, score), cache = simulate_transform(self.source)(key, args)
-        # `chm` is a `Trie` here.
-        if not chm.inner:
-            chm = EmptyChoiceMap()
-        return BuiltinTrace.new(self, args, r, chm, cache, score)
+        (
+            f,
+            args,
+            retval,
+            static_choices,
+            dynamic_addresses,
+            dynamic_choices,
+            score,
+        ), cache = simulate_transform(self.source)(key, args)
+        return BuiltinTrace.new(
+            self,
+            args,
+            retval,
+            static_choices,
+            dynamic_addresses,
+            dynamic_choices,
+            cache,
+            score,
+        )
 
     @typecheck
     def importance(

@@ -190,9 +190,12 @@ class Mask(Pytree):
 
     def __rich_tree__(self, tree):
         doc = gpp._pformat_array(self.mask, short_arrays=True)
-        val_tree = gpp.tree_pformat(self.value, short_arrays=True)
         sub_tree = Tree(f"[bold](Mask, {doc})")
-        sub_tree.add(val_tree)
+        if isinstance(self.value, Pytree):
+            _ = self.value.__rich_tree__(sub_tree)
+        else:
+            val_tree = gpp.tree_pformat(self.value, short_arrays=True)
+            sub_tree.add(val_tree)
         tree.add(sub_tree)
         return tree
 

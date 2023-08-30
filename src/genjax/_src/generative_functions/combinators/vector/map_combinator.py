@@ -32,6 +32,8 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
+from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
@@ -42,12 +44,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    IndexChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    IndexSelection,
-)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -117,7 +113,7 @@ class MapTrace(Trace):
     @dispatch
     def project(
         self,
-        selection: IndexSelection,
+        selection: IndexedSelection,
     ) -> FloatArray:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
@@ -280,7 +276,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: IndexChoiceMap,
+        chm: IndexedChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, MapTrace]:
         self._static_check_broadcastable(args)
@@ -319,7 +315,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: HierarchicalChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, MapTrace]:
-        indchm = IndexChoiceMap.convert(chm)
+        indchm = IndexedChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
     @dispatch
@@ -350,7 +346,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: IndexChoiceMap,
+        chm: IndexedChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
@@ -449,7 +445,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
-        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        maybe_idx_chm = IndexedChoiceMap.convert(chm)
         return self.update(key, prev, maybe_idx_chm, argdiffs)
 
     def _optional_index_check(

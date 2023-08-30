@@ -17,17 +17,22 @@ from dataclasses import dataclass
 import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import static_assert_trees_same_structure
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_structure_equivalence,
+)
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
@@ -42,7 +47,7 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class DynamicHomogeneousChoiceMap(ChoiceMap):
+class DynamicChoiceMap(ChoiceMap):
     dynamic_indices: List[IntArray]
     subtrees: List[ChoiceMap]
 
@@ -51,9 +56,7 @@ class DynamicHomogeneousChoiceMap(ChoiceMap):
 
     @classmethod
     def new(cls, dynamic_indices, subtrees):
-        # Restriction: All subtrees must have the same structure.
-        static_assert_trees_same_structure(subtrees)
-        return DynamicHomogeneousChoiceMap(dynamic_indices, subtrees)
+        return DynamicChoiceMap(dynamic_indices, subtrees)
 
     @dispatch
     def get_subtree(self, addr: IntArray):
@@ -104,7 +107,7 @@ class BuiltinTrace(
             self.gen_fn,
             self.args,
             self.retval,
-            self.choices,
+            self.static_address_choices,
             self.dynamic_addresses,
             self.dynamic_address_choices,
             self.cache,
@@ -118,9 +121,9 @@ class BuiltinTrace(
         gen_fn: GenerativeFunction,
         args: Tuple,
         retval: Any,
-        choices: Trie,
+        static_address_choices: Trie,
         dynamic_addresses: List[IntArray],
-        dynamic_address_choices: List[ChoiceMap],
+        dynamic_address_choices: List[Trie],
         cache: Trie,
         score: FloatArray,
     ):
@@ -128,7 +131,7 @@ class BuiltinTrace(
             gen_fn,
             args,
             retval,
-            choices,
+            static_address_choices,
             dynamic_addresses,
             dynamic_address_choices,
             cache,
@@ -139,15 +142,37 @@ class BuiltinTrace(
         return self.gen_fn
 
     def get_choices(self):
-        if not self.dynamic_addresses and not self.dynamic_address_choices:
-            return HierarchicalChoiceMap.new(self.choices)
+        # Handle coercion of the static address choices (a `Trie`)
+        # to a choice map.
+        if self.static_address_choices.is_empty():
+            static_chm = EmptyChoiceMap()
         else:
-            static_choices = HierarchicalChoiceMap.new(self.choices)
-            dynamic = DynamicHomogeneousChoiceMap.new(
-                self.dynamic_addresses,
-                self.dynamic_address_choices,
-            )
-            return DisjointUnionChoiceMap.new([static_choices, dynamic])
+            static_chm = HierarchicalChoiceMap.new(self.static_address_choices)
+
+        # Now deal with the dynamic address choices.
+        if not self.dynamic_addresses and not self.dynamic_address_choices:
+            return static_chm
+        else:
+            # Specialized path: all structure is the same, we can coerce into
+            # an `IndexedChoiceMap`.
+            if static_check_tree_structure_equivalence(self.dynamic_address_choices):
+                index_arr = jnp.stack(self.dynamic_addresses)
+                stacked_inner = tree_stack(self.dynamic_address_choices)
+                hierarchical = HierarchicalChoiceMap.new(stacked_inner)
+                dynamic = IndexedChoiceMap.new(index_arr, hierarchical)
+
+            # Fallback path: heterogeneous structure, we defer specialization
+            # to other methods.
+            else:
+                dynamic = DynamicChoiceMap.new(
+                    self.dynamic_addresses,
+                    self.dynamic_address_choices,
+                )
+
+            if isinstance(static_chm, EmptyChoiceMap):
+                return dynamic
+            else:
+                return DisjointUnionChoiceMap.new([static_chm, dynamic])
 
     def get_retval(self):
         return self.retval
@@ -164,7 +189,7 @@ class BuiltinTrace(
         selection: HierarchicalSelection,
     ) -> FloatArray:
         weight = 0.0
-        for (k, subtrace) in self.choices.get_subtrees_shallow():
+        for k, subtrace in self.static_address_choices.get_subtrees_shallow():
             if selection.has_subtree(k):
                 weight += subtrace.project(selection.get_subtree(k))
         return weight
@@ -190,7 +215,7 @@ class BuiltinTrace(
         args, retval, score = self.args, self.retval, self.score
         choices_payload = []
         addr_payload = []
-        for (addr, subtrace) in self.choices.get_subtrees_shallow():
+        for addr, subtrace in self.static_address_choices.get_subtrees_shallow():
             inner_payload = subtrace.dumps(backend)
             choices_payload.append(inner_payload)
             addr_payload.append(addr)

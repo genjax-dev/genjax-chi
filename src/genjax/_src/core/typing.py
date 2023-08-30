@@ -76,16 +76,6 @@ typecheck = beartype(conf=conf)
 # Static checks #
 #################
 
-# TODO.
-def static_assert_trees_same_structure(trees: List):
-    assert jtu.tree_structure(x) == jtu.tree_structure(y)
-    assert all(
-        [
-            x.shape == y.shape and x.dtype == y.dtype
-            for x, y in zip(jtu.tree_leaves(x), jtu.tree_leaves(y))
-        ]
-    )
-
 
 def static_check_is_array(v):
     return (

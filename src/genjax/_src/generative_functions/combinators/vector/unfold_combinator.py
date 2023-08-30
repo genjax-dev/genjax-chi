@@ -29,6 +29,8 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
+from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import make_zero_trace
@@ -46,12 +48,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    IndexChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    IndexSelection,
-)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -103,7 +99,7 @@ class UnfoldTrace(Trace):
     @dispatch
     def project(
         self,
-        selection: IndexSelection,
+        selection: IndexedSelection,
     ) -> FloatArray:
         inner_project = self.inner.project(selection.inner)
         return jnp.sum(
@@ -289,14 +285,14 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         chm: ChoiceMap,
         args: Tuple,
     ):
-        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        maybe_idx_chm = IndexedChoiceMap.convert(chm)
         return self.importance(key, maybe_idx_chm, args)
 
     @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: IndexChoiceMap,
+        chm: IndexedChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
         length = args[0]
@@ -437,7 +433,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state: Diff,
         *static_args: Diff,
     ):
-        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        maybe_idx_chm = IndexedChoiceMap.convert(chm)
         return self._update_fallback(
             key, prev, maybe_idx_chm, length, state, *static_args
         )
@@ -509,7 +505,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: IndexChoiceMap,
+        chm: IndexedChoiceMap,
         length: Diff,
         state: Any,
         *static_args: Any,
@@ -650,7 +646,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state: Any,
         *static_args: Any,
     ):
-        maybe_idx_chm = IndexChoiceMap.convert(chm)
+        maybe_idx_chm = IndexedChoiceMap.convert(chm)
         return self._update_specialized(
             key, prev, maybe_idx_chm, length, state, *static_args
         )

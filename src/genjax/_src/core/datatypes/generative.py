@@ -33,13 +33,22 @@ from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
+from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.tagged_unions import tagged_union
+from genjax._src.global_options import global_options
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_leaves_have_matching_leading_dim,
+)
 from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -282,6 +291,105 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
         return tree
 
 
+@dataclass
+class IndexedSelection(Selection):
+    indices: IntArray
+    inner: Selection
+
+    def flatten(self):
+        return (
+            self.indices,
+            self.inner,
+        ), ()
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, IntArray]):
+        idxs = jnp.array(idx)
+        return IndexedSelection(idxs, AllSelection())
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, List[Int], IntArray], inner: Selection):
+        idxs = jnp.array(idx)
+        return IndexedSelection(idxs, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, List[Int], IntArray], *inner: Any):
+        idxs = jnp.array(idx)
+        inner = select(*inner)
+        return IndexedSelection(idxs, inner)
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        return jnp.isin(addr, self.indices)
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    def get_subtree(self, addr):
+        return self.index_selection.get_subtree(addr)
+
+    def complement(self):
+        return ComplementIndexedSelection(self)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](Indexed,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
+@dataclass
+class ComplementIndexedSelection(IndexedSelection):
+    index_selection: Selection
+
+    def __init__(self, index_selection):
+        self.index_selection = index_selection
+
+    def flatten(self):
+        return (self.index_selection,), ()
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        return jnp.logical_not(jnp.isin(addr, self.indices))
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_not(
+            jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+        )
+
+    def get_subtree(self, addr):
+        return self.index_selection.get_subtree(addr).complement()
+
+    def complement(self):
+        return self.index_selection
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = rich.tree.Tree("[bold](Complement)")
+        self.index_selection.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
 #####
 # ChoiceMap
 #####
@@ -366,7 +474,7 @@ class ChoiceMap(AddressTree, metaclass=LiftedTypeMeta):
         selection: Selection,
         replacement: "ChoiceMap",
     ) -> "ChoiceMap":
-        """Replace the submaps selected by `selection` with `replacement`,
+        """Replace the subtrees selected by `selection` with `replacement`,
         returning a new choice map.
 
         Examples:
@@ -1378,7 +1486,8 @@ class EmptyChoiceMap(ChoiceMap, AddressLeaf):
     ###################
 
     def __rich_tree__(self, tree):
-        tree = rich.tree.Tree("[bold](Empty)")
+        sub = rich.tree.Tree("[bold](Empty)")
+        tree.add(sub)
         return tree
 
 
@@ -1442,8 +1551,8 @@ class HierarchicalChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.trie,), ()
 
-    @typecheck
     @classmethod
+    @dispatch
     def new(cls, constraints: Dict):
         assert isinstance(constraints, Dict)
         trie = Trie.new()
@@ -1454,6 +1563,11 @@ class HierarchicalChoiceMap(ChoiceMap):
                 else v
             )
             trie[k] = v
+        return HierarchicalChoiceMap(trie)
+
+    @classmethod
+    @dispatch
+    def new(cls, trie: Trie):
         return HierarchicalChoiceMap(trie)
 
     def is_empty(self):
@@ -1576,9 +1690,226 @@ class HierarchicalChoiceMap(ChoiceMap):
         return tree
 
 
+@dataclass
+class IndexedChoiceMap(ChoiceMap):
+    indices: IntArray
+    inner: ChoiceMap
+
+    def flatten(self):
+        return (self.indices, self.inner), ()
+
+    @classmethod
+    def convert(cls, chm: ChoiceMap) -> "IndexedChoiceMap":
+        indices = []
+        subtrees = []
+        for k, v in chm.get_subtrees_shallow():
+            if isinstance(k, IntArray):
+                indices.append(k)
+                subtrees.append(v)
+            else:
+                raise Exception(
+                    f"Failed to convert choice map of type {type(chm)} to IndexedChoiceMap."
+                )
+
+        inner = tree_stack(subtrees)
+        indices = jnp.array(indices)
+        return IndexedChoiceMap.new(indices, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
+        # Promote raw integers (or scalars) to non-null leading dim.
+        indices = jnp.array(indices)
+        if not indices.shape:
+            indices = indices[:, None]
+
+        # Verify that dimensions are consistent before creating an
+        # `IndexedChoiceMap`.
+        _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
+
+        # if you try to wrap around an EmptyChoiceMap, do nothing.
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
+
+        return IndexedChoiceMap(indices, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: List, inner: ChoiceMap) -> ChoiceMap:
+        indices = jnp.array(indices)
+        return IndexedChoiceMap.new(indices, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: Any, inner: Dict) -> ChoiceMap:
+        inner = choice_map(inner)
+        return IndexedChoiceMap.new(indices, inner)
+
+    def is_empty(self):
+        return self.inner.is_empty()
+
+    @dispatch
+    def filter(
+        self,
+        selection: HierarchicalSelection,
+    ) -> ChoiceMap:
+        return IndexedChoiceMap(self.indices, self.inner.filter(selection))
+
+    def has_subtree(self, addr):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    @dispatch
+    def filter(
+        self,
+        selection: IndexedSelection,
+    ) -> ChoiceMap:
+        flags = jnp.isin(selection.indices, self.indices)
+        filtered_inner = self.inner.filter(selection.inner)
+        masked = mask(flags, filtered_inner)
+        return IndexedChoiceMap(self.indices, masked)
+
+    def has_subtree(self, addr):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    @dispatch
+    def get_subtree(self, addr: Tuple):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return EmptyChoiceMap()
+        (idx, addr) = addr
+        subtree = self.get_subtree(idx)
+        return subtree.get_subtree(addr)
+
+    @dispatch
+    def get_subtree(self, idx: IntArray):
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = slice_index[0]
+        subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        return mask(jnp.isin(idx, self.indices), subtree)
+
+    def get_selection(self):
+        return self.inner.get_selection()
+
+    def get_subtrees_shallow(self):
+        raise NotImplementedError
+
+    def merge(self, _: ChoiceMap):
+        raise Exception("TODO: can't merge IndexedChoiceMaps")
+
+    def get_index(self):
+        return self.indices
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](Indexed,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
 @dataclasses.dataclass
 class DisjointUnionChoiceMap(ChoiceMap):
-    pass
+    """> A choice map combinator type which represents a disjoint union over multiple choice maps.
+
+    The internal data representation of a `ChoiceMap` is often specialized to support optimized code generation for inference interfaces, but the address hierarchy which a `ChoiceMap` represents (as an assignment of choices to addresses) must be generic.
+
+    To make this more concrete, a `VectorChoiceMap` represents choices with addresses of the form `(integer_index, ...)` - but its internal data representation is a struct-of-arrays. A `HierarchicalChoiceMap` can also represent address assignments with form `(integer_index, ...)` - but supporting choice map interfaces like `merge` across choice map types with specialized internal representations is complicated.
+
+    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `Builtin` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
+
+    To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
+    """
+
+    subtrees: List[ChoiceMap]
+
+    def flatten(self):
+        return (self.subtrees,), ()
+
+    def has_subtree(self, addr):
+        checks = jnp.array(map(lambda v: v.has_subtree(addr), self.subtrees))
+        return jnp.sum(checks) == 1
+
+    def get_subtree(self, addr):
+        # Tracer time computation which eliminates the DisjointUnionChoiceMap
+        # type, and returns a more specialized choice map.
+        new_subtrees = list(
+            filter(
+                lambda v: not isinstance(v, EmptyChoiceMap),
+                map(lambda v: v.get_subtree(addr), self.subtrees),
+            )
+        )
+        # Static check: if any of the subtrees are `AddressLeaf` instances, we must
+        # check that all of them are. Otherwise, the choice map is invalid.
+        check_address_leaves = list(
+            map(lambda v: isinstance(v, AddressLeaf), new_subtrees)
+        )
+        if any(check_address_leaves):
+            assert all(map(lambda v: isinstance(v, AddressLeaf), new_subtrees))
+
+        if len(new_subtrees) == 0:
+            return EmptyChoiceMap()
+
+        elif len(new_subtrees) == 1:
+            return new_subtrees[0]
+
+        # We've reached the `AddressLeaf` level - now we need to perform checks
+        # * There must at least one valid leaf instance.
+        # * There should be only one valid leaf instance.
+        elif all(check_address_leaves):
+            # Convert all to Mask instances -- this operation will preserve existing
+            # Mask instances (and jnp.logical_and with the provided flag).
+            new_subtrees = list(map(lambda v: mask(True, v), new_subtrees))
+
+            # Now, extract the flags and runtime check that at least one is valid.
+            masks = jnp.array(
+                list(map(lambda v: v.mask, new_subtrees)),
+            )
+
+            def _check_valid():
+                check_flag = jnp.any(masks)
+                return checkify.check(
+                    check_flag,
+                    "(DisjointUnionChoiceMap.get_subtree): masked leaf values have no valid data.",
+                )
+
+            global_options.optional_check(_check_valid)
+
+            # Now, extract the flags and runtime check that only one is valid.
+            def _check_only_one():
+                check_flag = jnp.sum(masks) == 1
+                return checkify.check(
+                    check_flag,
+                    "(DisjointUnionChoiceMap.get_subtree): multiple valid leaves.",
+                )
+
+            global_options.optional_check(_check_only_one)
+
+            # Get the index of the valid value, and create a `TaggedUnion` with it.
+            tag = jnp.argwhere(masks, size=1).reshape(1)[0]
+            new_subtrees = list(map(lambda v: v.unsafe_unmask(), new_subtrees))
+            return tagged_union(tag, new_subtrees)
+        else:
+            return DisjointUnionChoiceMap(new_subtrees)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = rich.tree.Tree(f"[bold](DisjointUnion)")
+        for subtree in self.subtrees:
+            _ = subtree.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
 
 
 ##############
@@ -1595,3 +1926,6 @@ none_select = NoneSelection.new
 none_sel = none_select
 choice_map = HierarchicalChoiceMap.new
 select = HierarchicalSelection.new
+indexed_choice_map = IndexedChoiceMap.new
+indexed_select = IndexedSelection.new
+disjoint_union_choice_map = DisjointUnionChoiceMap.new
