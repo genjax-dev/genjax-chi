@@ -25,6 +25,9 @@ from jax import util as jax_util
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters.ad import JVPTrace
 from jax.interpreters.ad import JVPTracer
+from jax._src import core
+from jax._src import linear_util as lu
+from jax._src.interpreters import partial_eval as pe
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters import context as ctx
@@ -80,7 +83,7 @@ class SupportsMVD(Pytree):
 @dataclasses.dataclass
 class SupportsCustom(Pytree):
     @abc.abstractmethod
-    def custom_grad_estimate(self, key, primals, tangents, kont):
+    def custom_jvp_estimate(self, key, primals, tangents, kont):
         pass
 
 
@@ -93,20 +96,48 @@ class SupportsCustom(Pytree):
 class ADEVTerm(Pytree):
     @functools.partial(jax.custom_jvp, nondiff_argnums=(0, 1))
     @abc.abstractmethod
-    def simulate(self, key, args):
+    def sample(self, key, args):
         pass
 
     @abc.abstractmethod
-    def grad_estimate(self, key, primals, tangents, kont=identity):
+    def jvp_estimate(self, key, primals, tangents, kont=identity):
         pass
 
-    @simulate.defjvp
-    def simulate_jvp(self, key, primals, tangents):
-        primals, tangents = self.grad_estimate(key, primals, tangents)
+    def jvp_estimate_nokwargs(self, key, primals, tangents):
+        return self.jvp_estimate(key, primals, tangents)
+
+    def grad_estimate(self):
+        def _inner(key, *args):
+            primal_tree = jtu.tree_structure(args)
+            flat_args, in_tree = jtu.tree_flatten((key, *args))
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(
+                self.jvp_estimate_nokwargs, in_tree
+            )
+            flat_known = jtu.tree_map(pe.PartialVal.known, flat_args)
+            unknown_tangents = jtu.tree_map(
+                lambda v: pe.PartialVal.unknown(core.ShapedArray(v.shape, v.dtype)),
+                flat_args,
+            )
+            in_pvals = [*flat_known, *unknown_tangents]
+            jaxpr, out_pvals, consts = pe.trace_to_jaxpr_nounits(
+                lu.wrap_init(flat_fun), in_pvals
+            )
+            primal_dummies = [ad.UndefinedPrimal(v.aval) for v in jaxpr.invars]
+            flat_args_bar = ad.backward_pass(
+                jaxpr, (), None, consts, primal_dummies, (1.0,)
+            )
+            args_bar = jtu.tree_unflatten(primal_tree, flat_args_bar)
+            return args_bar
+
+        return _inner
+
+    @sample.defjvp
+    def sample_jvp(self, key, primals, tangents):
+        primals, tangents = self.jvp_estimate(key, primals, tangents)
         return primals, tangents
 
     def __call__(self, key, *args):
-        return self.simulate(key, args)
+        return self.sample(key, args)
 
 
 ###################
@@ -120,11 +151,11 @@ class ADEVPrimitive(ADEVTerm):
         return (), ()
 
     @abc.abstractmethod
-    def simulate(self, key, args):
+    def sample(self, key, args):
         pass
 
     @abc.abstractmethod
-    def grad_estimate(self, key, primals, tangents, kont=identity):
+    def jvp_estimate(self, key, primals, tangents, kont=identity):
         pass
 
 
@@ -194,7 +225,7 @@ sample_p = primitives.InitialStylePrimitive("sample")
 def _abstract_adev_term_call(adev_term, strategy, *args):
     # Only the type matters here.
     key = jax.random.PRNGKey(0)
-    return adev_term.simulate(key, args)
+    return adev_term.sample(key, args)
 
 
 def _sample(adev_term, strategy, args, **kwargs):
@@ -219,7 +250,7 @@ def sample(adev_term: ADEVTerm, args: Tuple, **kwargs):
 
 
 #####
-# Simulate
+# Sample
 #####
 
 
@@ -243,7 +274,7 @@ class ADEVContext(Context):
 
 
 @dataclasses.dataclass
-class SimulateContext(ADEVContext):
+class SampleContext(ADEVContext):
     key: PRNGKey
 
     def flatten(self):
@@ -251,7 +282,7 @@ class SimulateContext(ADEVContext):
 
     @classmethod
     def new(cls, key: PRNGKey):
-        return SimulateContext(key)
+        return SampleContext(key)
 
     def yield_state(self):
         return ()
@@ -261,14 +292,14 @@ class SimulateContext(ADEVContext):
         adev_term, _, *args = jtu.tree_unflatten(in_tree, tracers)
         args = tuple(args)
         self.key, sub_key = jax.random.split(self.key)
-        v = adev_term.simulate(sub_key, args)
+        v = adev_term.sample(sub_key, args)
         return jtu.tree_leaves(v)
 
 
-def simulate_transform(source_fn, **kwargs):
+def sample_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, *args):
-        context = SimulateContext.new(key)
+        context = SampleContext.new(key)
         retvals, _ = ctx.transform(source_fn, context)(*args, **kwargs)
         return retvals
 
@@ -278,6 +309,7 @@ def simulate_transform(source_fn, **kwargs):
 #####
 # Grad estimate transform
 #####
+
 
 # CPS with real tangents.
 class ADEVTrace(JVPTrace):
@@ -432,11 +464,9 @@ class GradEstimateContext(ADEVContext):
         self.key, sub_key = jax.random.split(self.key)
 
         # Check if the term is an `ADEVProgram`, then use
-        # `grad_estimate` to propagate dual numbers.
+        # `jvp_estimate` to propagate dual numbers.
         if isinstance(adev_term, ADEVProgram):
-            primals, tangents = adev_term.grad_estimate(
-                sub_key, primals, tangents, kont
-            )
+            primals, tangents = adev_term.jvp_estimate(sub_key, primals, tangents, kont)
             return primals, tangents
 
         # We're dealing with an `ADEVPrimitive` - we defer propagating
@@ -457,7 +487,7 @@ class GradEstimateContext(ADEVContext):
             return primals, tangents
 
 
-def grad_estimate_transform(source_fn, kont, **kwargs):
+def jvp_estimate_transform(source_fn, kont, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, primals, tangents):
         ctx = GradEstimateContext.new(key)
@@ -482,11 +512,11 @@ class ADEVProgram(ADEVTerm):
     def flatten(self):
         return (), (self.source,)
 
-    def simulate(self, key, args):
-        return simulate_transform(self.source)(key, args)
+    def sample(self, key, args):
+        return sample_transform(self.source)(key, args)
 
-    def grad_estimate(self, key, primals, tangents, kont=identity):
-        return grad_estimate_transform(self.source, kont)(key, primals, tangents)
+    def jvp_estimate(self, key, primals, tangents, kont=identity):
+        return jvp_estimate_transform(self.source, kont)(key, primals, tangents)
 
 
 @dispatch
