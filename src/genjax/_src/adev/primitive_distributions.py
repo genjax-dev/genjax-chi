@@ -90,8 +90,10 @@ class ADEVPrimBernoulli(
         fl_primal, fl_tangent = kont([False], [jnp.array(0.0)])
         ev_primal = p * tl_primal + (1 - p) * fl_primal
         return [ev_primal], [
-            p_tangent
-            * (tl_primal + (p * tl_tangent) - fl_primal + (1 - p) * fl_tangent)
+            (p_tangent * tl_primal)
+            + (p * tl_tangent)
+            - (p_tangent * fl_primal)
+            + (1 - p) * fl_tangent
         ]
 
     def reinforce_estimate(self, key, primals, tangents, kont):
@@ -99,15 +101,10 @@ class ADEVPrimBernoulli(
         (p_tangent,) = tangents
         b = bernoulli.sample(key, p)
         l_primal, l_tangent = kont([b], [jnp.array(0.0)])
-        jvp_logpdf = lambda primal, tangent: jax.jvp(
-            lambda p: bernoulli.logpdf(b, p),
-            (primal,),
-            (tangent,),
-        )
-        _, lp_tangent = jax.lax.cond(
+        lp_tangent = jax.lax.cond(
             b,
-            lambda *_: jvp_logpdf(p, p_tangent),
-            lambda *_: jvp_logpdf(1 - p, p_tangent),
+            lambda *_: p_tangent * (1 / p),
+            lambda *_: -p_tangent * (1 / (1 - p)),
         )
         return [l_primal], [l_tangent + l_primal * lp_tangent]
 
