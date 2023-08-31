@@ -18,6 +18,7 @@ import dataclasses
 
 import blackjax
 import jax
+from jax import tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
