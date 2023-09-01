@@ -20,6 +20,7 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.adev.lang import ADEVPrimitive
+from genjax._src.adev.lang import SupportsEnum
 from genjax._src.adev.lang import SupportsMVD
 from genjax._src.adev.lang import SupportsREINFORCE
 from genjax._src.adev.lang import register
@@ -40,7 +41,7 @@ identity = lambda v: v
 
 @dataclasses.dataclass
 class ADEVPrimNormal(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
-    def simulate(self, key, args):
+    def sample(self, key, args):
         tr = normal.simulate(key, args)
         v = tr.get_retval()
         return v
@@ -69,27 +70,43 @@ register(Normal, ADEVPrimNormal)
 
 
 @dataclasses.dataclass
-class ADEVPrimBernoulli(ADEVPrimitive, SupportsREINFORCE):
-    def simulate(self, key, args):
-        tr = bernoulli.simulate(key, args)
-        v = tr.get_retval()
+class ADEVPrimBernoulli(
+    ADEVPrimitive,
+    SupportsEnum,
+    SupportsREINFORCE,
+):
+    def sample(self, key, args):
+        (p,) = args
+        v = bernoulli.sample(key, p)
         return v
 
     def grad_estimate(self, key, primals, tangents):
         return self.reinforce_estimate(self, key, primals, tangents, identity)
 
+    def enum_exact(self, _, primals, tangents, kont):
+        (p,) = primals
+        (p_tangent,) = tangents
+        tl_primal, tl_tangent = kont([True], [jnp.array(0.0)])
+        fl_primal, fl_tangent = kont([False], [jnp.array(0.0)])
+        ev_primal = p * tl_primal + (1 - p) * fl_primal
+        return [ev_primal], [
+            (p_tangent * tl_primal)
+            + (p * tl_tangent)
+            - (p_tangent * fl_primal)
+            + (1 - p) * fl_tangent
+        ]
+
     def reinforce_estimate(self, key, primals, tangents, kont):
         (p,) = primals
         (p_tangent,) = tangents
         b = bernoulli.sample(key, p)
-        retdual = kont(b)
-        l_primal, l_tangent = retdual.primal, retdual.tangent
-        dlp = jax.lax.switch(
+        l_primal, l_tangent = kont([b], [jnp.array(0.0)])
+        lp_tangent = jax.lax.cond(
             b,
-            lambda *_: jnp.log(p_tangent),
-            lambda *_: jnp.log(1 - p_tangent),
+            lambda *_: p_tangent * (1 / p),
+            lambda *_: -p_tangent * (1 / (1 - p)),
         )
-        return (l_primal, l_tangent + l_primal * dlp.tangent)
+        return [l_primal], [l_tangent + l_primal * lp_tangent]
 
 
 register(Bernoulli, ADEVPrimBernoulli)
@@ -101,7 +118,7 @@ register(Bernoulli, ADEVPrimBernoulli)
 
 @dataclasses.dataclass
 class ADEVPrimPoisson(ADEVPrimitive, SupportsMVD, SupportsREINFORCE):
-    def simulate(self, key, args):
+    def sample(self, key, args):
         key, tr = poisson.simulate(key, args)
         v = tr.get_retval()
         return key, v
