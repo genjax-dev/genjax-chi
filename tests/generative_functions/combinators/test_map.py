@@ -50,7 +50,7 @@ class TestMapCombinator:
             2.0, 1.0, 1.0
         ) + genjax.normal.logpdf(3.0, 2.0, 1.0)
 
-    def test_map_index_choice_map_importance(self):
+    def test_map_indexed_choice_map_importance(self):
         @genjax.gen
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
@@ -59,7 +59,7 @@ class TestMapCombinator:
         key = jax.random.PRNGKey(314159)
         model = genjax.Map(kernel, in_axes=(0,))
         map_over = jnp.arange(0, 3)
-        chm = genjax.index_choice_map(
+        chm = genjax.indexed_choice_map(
             [0],
             genjax.choice_map({"z": jnp.array([3.0])}),
         )
@@ -69,11 +69,11 @@ class TestMapCombinator:
 
         key, sub_key = jax.random.split(key)
         zv = jnp.array([3.0, -1.0, 2.0])
-        chm = genjax.index_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
+        chm = genjax.indexed_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
         (_, tr) = model.importance(sub_key, chm, (map_over,))
         assert all(tr["z"] == zv)
 
-    def test_map_nested_index_choice_map_importance(self):
+    def test_map_nested_indexed_choice_map_importance(self):
         @genjax.gen(genjax.Map, in_axes=(0,))
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
@@ -85,8 +85,8 @@ class TestMapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.ones((3, 3))
-        chm = genjax.index_choice_map(
-            [0], {"outer": genjax.index_choice_map([1], {"z": jnp.array([[1.0]])})}
+        chm = genjax.indexed_choice_map(
+            [0], {"outer": genjax.indexed_choice_map([1], {"z": jnp.array([[1.0]])})}
         )
         (w, _) = jax.jit(higher_model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)

@@ -28,33 +28,34 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.lifted_types import LiftedTypeMeta
+from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.tagged_unions import tagged_union
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.datatypes.tagged_unions import tagged_union
-from genjax._src.global_options import global_options
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
+from genjax._src.core.pytree.utilities import tree_grad_split
+from genjax._src.core.pytree.utilities import tree_stack
+from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_array
 from genjax._src.core.typing import typecheck
+from genjax._src.global_options import global_options
 
 
 ########################
@@ -1818,7 +1819,8 @@ class IndexedChoiceMap(ChoiceMap):
 
 @dataclasses.dataclass
 class DisjointUnionChoiceMap(ChoiceMap):
-    """> A choice map combinator type which represents a disjoint union over multiple choice maps.
+    """> A choice map combinator type which represents a disjoint union over
+    multiple choice maps.
 
     The internal data representation of a `ChoiceMap` is often specialized to support optimized code generation for inference interfaces, but the address hierarchy which a `ChoiceMap` represents (as an assignment of choices to addresses) must be generic.
 

@@ -17,22 +17,22 @@ from dataclasses import dataclass
 import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
-from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_structure_equivalence,
+)
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
-from genjax._src.core.pytree.static_checks import (
-    static_check_tree_structure_equivalence,
-)
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
@@ -201,7 +201,12 @@ class BuiltinTrace(
         return self.cache.get_subtree(addr)
 
     def get_aux(self):
-        return (self.cache,)
+        return (
+            self.static_address_choices,
+            self.dynamic_addresses,
+            self.dynamic_address_choices,
+            self.cache,
+        )
 
     #################
     # Serialization #

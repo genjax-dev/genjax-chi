@@ -22,9 +22,9 @@ from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import Finite
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
-from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Integers
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Naturals
@@ -37,9 +37,9 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import all_select
 from genjax._src.core.datatypes.generative import choice_map
+from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import indexed_choice_map
 from genjax._src.core.datatypes.generative import indexed_select
-from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.generative import value_choice_map

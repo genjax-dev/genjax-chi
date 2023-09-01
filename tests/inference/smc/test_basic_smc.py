@@ -23,8 +23,8 @@ from genjax import UnknownChange
 from genjax import choice_map
 from genjax import diff
 from genjax import gen
-from genjax import index_choice_map
-from genjax import index_select
+from genjax import indexed_choice_map
+from genjax import indexed_select
 from genjax import normal
 from genjax.inference import smc
 
@@ -40,7 +40,7 @@ class TestSimpleSMC:
         key = jax.random.PRNGKey(314159)
         init_len = 0
         init_state = 0.0
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [0],
             choice_map({"x": jnp.array([1.0])}),
         )
@@ -48,7 +48,7 @@ class TestSimpleSMC:
         smc_state = smc.smc_initialize(chain, 100).apply(
             sub_key, obs, (init_len, init_state)
         )
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [1],
             choice_map({"x": jnp.array([1.0])}),
         )
@@ -68,7 +68,7 @@ class TestSimpleSMC:
             x = normal(z, 1.0) @ "x"
             return z
 
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [0, 1, 2, 3],
             choice_map({"x": jnp.array([1.0, 2.0, 3.0, 4.0])}),
         )
@@ -113,13 +113,13 @@ class TestSimpleSMC:
             x = normal(z, 1.0) @ "x"
             return z
 
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [0, 1, 2, 3],
             choice_map({"x": jnp.array([1.0, 2.0, 3.0, 4.0])}),
         )
 
         def extending_smc(key, obs, init_state):
-            index_sel = index_select(0)
+            index_sel = indexed_select(0)
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
             smc_state = smc.smc_initialize(chain, 100).apply(

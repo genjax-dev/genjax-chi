@@ -27,10 +27,10 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import make_zero_trace
