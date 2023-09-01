@@ -1320,22 +1320,23 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            _, (_, score) = self.assess(key, merged, args)
+            (_, score) = self.assess(key, merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            _, (retval, _) = self.assess(key, merged, args)
+            (retval, _) = self.assess(key, merged, args)
             return retval
 
         return score, retval
 
     # A higher-level gradient API - it relies upon `unzip`,
     # but provides convenient access to first-order gradients.
-    def choice_grad(self, key, trace, selection):
+    @typecheck
+    def choice_grad(self, key: PRNGKey, trace: Trace, selection: Selection):
         fixed = trace.strip().filter(selection.complement())
-        chm = trace.strip().filter(selection.filter)
+        chm = trace.strip().filter(selection)
         scorer, _ = self.unzip(key, fixed)
         grad, nograd = tree_grad_split(
             (chm, trace.get_args()),
