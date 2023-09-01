@@ -23,6 +23,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 import rich
+from jax.experimental.checkify import checkify
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
@@ -1907,7 +1908,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = rich.tree.Tree(f"[bold](DisjointUnion)")
+        sub_tree = rich.tree.Tree("[bold](DisjointUnion)")
         for subtree in self.subtrees:
             _ = subtree.__rich_tree__(sub_tree)
         tree.add(sub_tree)

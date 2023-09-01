@@ -15,14 +15,23 @@
 import functools
 from dataclasses import dataclass
 
+import jax.numpy as jnp
+
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_structure_equivalence,
+)
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -34,6 +43,7 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
+from genjax._src.generative_functions.builtin.builtin_datatypes import DynamicChoiceMap
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
