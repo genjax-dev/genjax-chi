@@ -238,7 +238,7 @@ class SimulateContext(BuiltinInterfaceContext):
         if is_concrete(addr):
             self.static_address_visitor.visit(addr)
         else:
-            self.dynamic_address_visitor.visit(fst, ())
+            self.dynamic_address_visitor.visit(addr, ())
 
     @dispatch
     def visit(self, addr: PytreeAddress):
@@ -407,7 +407,7 @@ class ImportanceContext(BuiltinInterfaceContext):
         if is_concrete(addr):
             self.static_address_visitor.visit(addr)
         else:
-            self.dynamic_address_visitor.visit(fst, ())
+            self.dynamic_address_visitor.visit(addr, ())
 
     @dispatch
     def visit(self, addr: PytreeAddress):
@@ -610,7 +610,7 @@ class UpdateContext(BuiltinInterfaceContext):
         if is_concrete(addr):
             self.static_address_visitor.visit(addr)
         else:
-            self.dynamic_address_visitor.visit(fst, ())
+            self.dynamic_address_visitor.visit(addr, ())
 
     @dispatch
     def visit(self, addr: PytreeAddress):
@@ -829,7 +829,7 @@ class AssessContext(BuiltinInterfaceContext):
         if is_concrete(addr):
             self.static_address_visitor.visit(addr)
         else:
-            self.dynamic_address_visitor.visit(fst, ())
+            self.dynamic_address_visitor.visit(addr, ())
 
     @dispatch
     def visit(self, addr: PytreeAddress):
