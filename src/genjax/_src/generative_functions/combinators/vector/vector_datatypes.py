@@ -18,28 +18,19 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich
 
-import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import ComplementIndexedSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedSelection
-from genjax._src.core.datatypes.generative import ComplementIndexedSelection
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import choice_map
-from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
-from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch

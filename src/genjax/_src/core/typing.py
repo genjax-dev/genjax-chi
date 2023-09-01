@@ -28,7 +28,6 @@ import numpy as np
 from beartype import BeartypeConf
 from beartype import beartype
 from plum import dispatch
-import jax.tree_util as jtu
 
 
 Dataclass = typing.Any

@@ -13,21 +13,21 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-import jax.tree_util as jtu
+
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Optional
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 
 
 ##############
