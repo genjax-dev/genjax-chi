@@ -50,7 +50,7 @@ class ADEVConvertContext(BuiltinInterfaceContext):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
-        gen_fn, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        gen_fn, _, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         args = tuple(args)
         adev_term = adev_lang(gen_fn)
         v = adev_sample(adev_term, args)
