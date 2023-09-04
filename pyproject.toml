@@ -16,14 +16,14 @@ classifiers = ["Development Status :: 4 - Beta"]
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9,<=3.13"
 jax = "^0.4.14"
 numpy = "^1.25.2"
-tensorflow-probability = "^0.19.0"
-rich = "^12.6.0"
+tensorflow-probability = "^0.21.0"
+rich = "^13.5.2"
 jaxtyping = "^0.2.21"
 optax = "^0.1.7"
-beartype = "^0.12.0"
+beartype = "^0.15.0"
 plum-dispatch = "^2.2.1"
 dill = "^0.3.7"
 pygments = "^2.16.1"
