@@ -38,7 +38,6 @@ from genjax._src.core.pytree.static_checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
 from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.transforms.incremental import tree_diff_no_change
 from genjax._src.core.typing import Any
@@ -208,7 +207,6 @@ class HierarchicalSelection(Selection):
     @classmethod
     @dispatch
     def new(cls, selections: Dict):
-        assert isinstance(selections, Dict)
         trie = Trie.new()
         for k, v in selections.items():
             assert isinstance(v, Selection)
@@ -1572,6 +1570,22 @@ class HierarchicalChoiceMap(ChoiceMap):
     def new(cls, trie: Trie):
         return HierarchicalChoiceMap(trie)
 
+    def static_convert_to_indexed(self) -> "IndexedChoiceMap":
+        indices = []
+        subtrees = []
+        for k, v in chm.get_subtrees_shallow():
+            if isinstance(k, IntArray):
+                indices.append(k)
+                subtrees.append(v)
+            else:
+                raise Exception(
+                    f"Failed to convert choice map of type {type(chm)} to IndexedChoiceMap."
+                )
+
+        inner = tree_stack(subtrees)
+        indices = jnp.array(indices)
+        return IndexedChoiceMap.new(indices, inner)
+
     def is_empty(self):
         return self.trie.is_empty()
 
@@ -1701,23 +1715,6 @@ class IndexedChoiceMap(ChoiceMap):
         return (self.indices, self.inner), ()
 
     @classmethod
-    def convert(cls, chm: ChoiceMap) -> "IndexedChoiceMap":
-        indices = []
-        subtrees = []
-        for k, v in chm.get_subtrees_shallow():
-            if isinstance(k, IntArray):
-                indices.append(k)
-                subtrees.append(v)
-            else:
-                raise Exception(
-                    f"Failed to convert choice map of type {type(chm)} to IndexedChoiceMap."
-                )
-
-        inner = tree_stack(subtrees)
-        indices = jnp.array(indices)
-        return IndexedChoiceMap.new(indices, inner)
-
-    @classmethod
     @dispatch
     def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
         # Promote raw integers (or scalars) to non-null leading dim.
@@ -1793,6 +1790,10 @@ class IndexedChoiceMap(ChoiceMap):
         slice_index = slice_index[0]
         subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         return mask(jnp.isin(idx, self.indices), subtree)
+
+    @dispatch
+    def get_subtree(self, addr: Any):
+        return EmptyChoiceMap()
 
     def get_selection(self):
         return self.inner.get_selection()
@@ -1920,15 +1921,60 @@ class DisjointUnionChoiceMap(ChoiceMap):
 ##############
 
 empty_choice_map = EmptyChoiceMap.new
-emp_chm = empty_choice_map
 value_choice_map = ValueChoiceMap.new
-val_chm = value_choice_map
 all_select = AllSelection.new
-all_sel = all_select
 none_select = NoneSelection.new
-none_sel = none_select
-choice_map = HierarchicalChoiceMap.new
-select = HierarchicalSelection.new
+hierarchical_choice_map = HierarchicalChoiceMap.new
+hierarchical_select = HierarchicalSelection.new
 indexed_choice_map = IndexedChoiceMap.new
 indexed_select = IndexedSelection.new
 disjoint_union_choice_map = DisjointUnionChoiceMap.new
+
+
+@dispatch
+def choice_map():
+    return hierarchical_choice_map()
+
+
+@dispatch
+def choice_map(submaps: Dict):
+    return hierarchical_choice_map(submaps)
+
+
+@dispatch
+def choice_map(indices: List[Int], submaps: List[ChoiceMap]):
+    index_arr = jnp.array(indices)
+    # submaps must have same Pytree structure
+    static_check_tree_structure_equivalence(submaps)
+    return indexed_choice_map(indices, submaps)
+
+
+@dispatch
+def choice_map(index: Int, submap: ChoiceMap):
+    expanded = jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), submap)
+    return indexed_choice_map([index], expanded)
+
+
+@dispatch
+def choice_map(submaps: List[ChoiceMap]):
+    return disjoint_union_choice_map(submaps)
+
+
+@dispatch
+def select():
+    return all_select()
+
+
+@dispatch
+def select(subselects: Dict):
+    return hierarchical_select(subselects)
+
+
+@dispatch
+def select(*addrs: Any):
+    return hierarchical_select(*addrs)
+
+
+@dispatch
+def select(idx: Union[Int, IntArray], *args):
+    return indexed_select(idx, *args)

@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import emp_chm
+from genjax._src.core.datatypes.generative import empty_choice_map
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
     GenSPDistribution,
@@ -44,12 +44,12 @@ class EstimatedNormalizedDistribution(GenSPDistribution):
         return EstimatedNormalizedDistribution(unnorm_fn, custom_q)
 
     def random_weighted(self, key, *args):
-        target = Target.new(self.unnorm_fn, args, emp_chm())
+        target = Target.new(self.unnorm_fn, args, empty_choice_map())
         key, (weight, val_chm) = self.custom_q.random_weighted(key, target)
         return key, (weight, val_chm)
 
     def estimate_logpdf(self, key, val_chm, *args):
-        target = Target.new(self.unnorm_fn, args, emp_chm())
+        target = Target.new(self.unnorm_fn, args, empty_choice_map())
         key, w = self.custom_q.estimate_logpdf(key, val_chm, target)
         return key, w
 

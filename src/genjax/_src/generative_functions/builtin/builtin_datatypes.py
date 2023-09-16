@@ -25,6 +25,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_structure_equivalence,
 )
@@ -123,7 +124,7 @@ class BuiltinTrace(
         retval: Any,
         static_address_choices: Trie,
         dynamic_addresses: List[IntArray],
-        dynamic_address_choices: List[Trie],
+        dynamic_address_choices: List[Pytree],
         cache: Trie,
         score: FloatArray,
     ):
@@ -158,8 +159,11 @@ class BuiltinTrace(
             if static_check_tree_structure_equivalence(self.dynamic_address_choices):
                 index_arr = jnp.stack(self.dynamic_addresses)
                 stacked_inner = tree_stack(self.dynamic_address_choices)
-                hierarchical = HierarchicalChoiceMap.new(stacked_inner)
-                dynamic = IndexedChoiceMap.new(index_arr, hierarchical)
+                if isinstance(stacked_inner, Trie):
+                    inner = HierarchicalChoiceMap.new(stacked_inner)
+                else:
+                    inner = stacked_inner
+                dynamic = IndexedChoiceMap.new(index_arr, inner)
 
             # Fallback path: heterogeneous structure, we defer specialization
             # to other methods.
