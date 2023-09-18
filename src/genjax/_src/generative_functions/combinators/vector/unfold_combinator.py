@@ -24,6 +24,7 @@ import jax.tree_util as jtu
 from jax.experimental import checkify
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -417,11 +418,62 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     def importance(
         self,
         key: PRNGKey,
+        dynamic_chm: DynamicHierarchicalChoiceMap,
+        args: Tuple,
+    ) -> Tuple[FloatArray, UnfoldTrace]:
+        length = args[0]
+        self._optional_out_of_bounds_check(length)
+        state = args[1]
+        static_args = args[2:]
+
+        def _inner(carry, slice):
+            count, key, state = carry
+            sub_chm = dynamic_chm.get_subtree(count)
+            key, sub_key = jax.random.split(key)
+
+            check_count = jnp.less(count, length + 1)
+            w, tr = self.kernel.importance(key, sub_chm, (state, *static_args))
+
+            count, state, score, w = concrete_cond(
+                check_count,
+                lambda *args: (
+                    count + 1,
+                    tr.get_retval(),
+                    tr.get_score(),
+                    w,
+                ),
+                lambda *args: (count, state, 0.0, 0.0),
+            )
+            return (count, key, state), (w, score, tr, state)
+
+        (_, _, state), (w, score, tr, retval) = jax.lax.scan(
+            _inner,
+            (0, key, state),
+            None,
+            length=self.max_length,
+        )
+
+        unfold_tr = UnfoldTrace(
+            self,
+            tr,
+            length,
+            args,
+            retval,
+            jnp.sum(score),
+        )
+
+        w = jnp.sum(w)
+        return (w, unfold_tr)
+
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
     ):
-        maybe_idx_chm = IndexedChoiceMap.convert(chm)
-        return self.importance(key, maybe_idx_chm, args)
+        dynamic_chm = chm.dynamic_convert()
+        return self.importance(key, dynamic_chm, args)
 
     @dispatch
     def _update_fallback(
@@ -641,14 +693,26 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
+        chm: DynamicHierarchicalChoiceMap,
+        length: Diff,
+        state: Any,
+        *static_args: Any,
+    ):
+        raise NotImplementedError
+
+    @dispatch
+    def _update_specialized(
+        self,
+        key: PRNGKey,
+        prev: UnfoldTrace,
         chm: ChoiceMap,
         length: Diff,
         state: Any,
         *static_args: Any,
     ):
-        maybe_idx_chm = IndexedChoiceMap.convert(chm)
+        dynamic_chm = chm.dynamic_convert()
         return self._update_specialized(
-            key, prev, maybe_idx_chm, length, state, *static_args
+            key, prev, dynamic_chm, length, state, *static_args
         )
 
     @typecheck
