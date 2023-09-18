@@ -37,8 +37,9 @@ class TestDynamicAddresses:
 
         @genjax.gen
         def temporal_proposal(obs, t):
-            obs_at_t = obs[t, "x"]
+            obs_at_t = obs[t, "x"].match(lambda: 1.0, lambda v: v)
             new_z = genjax.tfp_normal(obs_at_t, 1.0) @ (t, "z")
 
         key = jax.random.PRNGKey(314159)
-        dynamic_constraints = temporal_proposal.propose(key, )
+        obs = genjax.choice_map({(3, "x"): 3.0})
+        dynamic_constraints = temporal_proposal.propose(key, (obs, 3))

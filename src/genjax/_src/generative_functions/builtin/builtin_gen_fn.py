@@ -43,7 +43,9 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
-from genjax._src.generative_functions.builtin.builtin_datatypes import DynamicChoiceMap
+from genjax._src.generative_functions.builtin.builtin_datatypes import (
+    DynamicHierarchicalChoiceMap,
+)
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
@@ -258,7 +260,7 @@ class BuiltinGenerativeFunction(
             # Fallback path: heterogeneous structure, we defer specialization
             # to other methods.
             else:
-                dynamic = DynamicChoiceMap.new(
+                dynamic = DynamicHierarchicalChoiceMap.new(
                     dynamic_addresses,
                     dynamic_address_choices,
                 )
