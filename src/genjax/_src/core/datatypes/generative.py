@@ -1290,7 +1290,6 @@ class GenerativeFunction(Pytree):
         new_constraints: Mask,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, Trace, Mask]:
-
         # The semantics of the merge operation entail that the second returned value
         # is the discarded values after the merge.
         discard_option = prev.strip()
@@ -1299,17 +1298,23 @@ class GenerativeFunction(Pytree):
 
         def _none():
             (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoiceMap(), argdiffs)
-            # We return the possible_discards, but denote them as invalid via masking.
-            discard = mask(False, possible_discards)
+            if possible_discards.is_empty():
+                discard = EmptyChoiceMap()
+            else:
+                # We return the possible_discards, but denote them as invalid via masking.
+                discard = mask(False, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (retdiff, w, new_tr, discard)
 
         def _some(chm):
-            (retdiff, w, new_tr, true_discards) = self.update(key, prev, chm, argdiffs)
-            # The true_discards should match the Pytree type of possible_discards,
-            # but these are valid.
-            discard = mask(True, true_discards)
+            (retdiff, w, new_tr, _) = self.update(key, prev, chm, argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoiceMap()
+            else:
+                # The true_discards should match the Pytree type of possible_discards,
+                # but these are valid.
+                discard = mask(True, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (retdiff, w, new_tr, discard)
@@ -1597,7 +1602,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def merge(self, other: EmptyChoiceMap):
-        return self, EmptyChoiceMap()
+        return self, other
 
     @dispatch
     def merge(self, other: ValueChoiceMap):
