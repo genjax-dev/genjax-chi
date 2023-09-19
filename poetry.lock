@@ -2424,13 +2424,13 @@ files = [
 
 [[package]]
 name = "notebook"
-version = "6.5.5"
+version = "6.5.6"
 description = "A web-based notebook environment for interactive computing"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "notebook-6.5.5-py3-none-any.whl", hash = "sha256:171039245a5b1a8f8233165091210632c21250ce2a652daed38fe8f94389984f"},
-    {file = "notebook-6.5.5.tar.gz", hash = "sha256:457caa1fa1c647395420945b2b7559f603eedbc9aeb2a59a0c286c8029e31efa"},
+    {file = "notebook-6.5.6-py3-none-any.whl", hash = "sha256:c1e2eb2e3b6079a0552a04974883a48d04c3c05792170d64a4b23d707d453181"},
+    {file = "notebook-6.5.6.tar.gz", hash = "sha256:b4625a4b7a597839dd3156b140d5ba2c7123761f98245a3290f67a8b8ee048d9"},
 ]
 
 [package.dependencies]
