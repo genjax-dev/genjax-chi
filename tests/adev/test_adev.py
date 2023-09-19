@@ -34,7 +34,7 @@ class TestVarianceNormal:
         key = jax.random.PRNGKey(314159)
         sub_keys = jax.random.split(key, 1000)
         adev_prog = genjax.adev.lang(model)
-        v, tangents = jax.vmap(adev_prog.grad_estimate, in_axes=(0, None, None))(
+        v, tangents = jax.vmap(adev_prog.jvp_estimate, in_axes=(0, None, None))(
             sub_keys, (3.0,), (1.0,)
         )
         assert jnp.mean(tangents) == pytest.approx(0.0, 0.01)
