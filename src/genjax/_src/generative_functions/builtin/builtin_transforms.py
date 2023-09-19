@@ -648,31 +648,33 @@ class UpdateContext(BuiltinInterfaceContext):
             self.set_choice_state(tup, tr)
 
     @dispatch
-    def set_discard_state(self, addr: Tuple, tr: ChoiceMap):
+    def set_discard_state(self, addr: Tuple, chm: ChoiceMap):
         fst, *rest = addr
         if is_concrete(fst):
-            self.static_discard[addr] = tr
+            self.static_discard[addr] = chm
         else:
             self.dynamic_discard_addresses.append(fst)
             sub_trie = Trie.new()
-            sub_trie[tuple(rest)] = tr
+            sub_trie[tuple(rest)] = chm
             self.dynamic_discard_choices.append(sub_trie)
 
     @dispatch
-    def set_discard_state(self, addr: Any, tr: ChoiceMap):
+    def set_discard_state(self, addr: Any, chm: ChoiceMap):
         if is_concrete(addr):
-            self.static_discard[addr] = tr
+            self.static_discard[addr] = chm
         else:
             self.dynamic_discard_addresses.append(addr)
-            self.dynamic_discard_choices.append(tr)
+            self.dynamic_discard_choices.append(chm)
 
     @dispatch
-    def set_discard_state(self, addr: PytreeAddress, tr: ChoiceMap):
+    def set_discard_state(self, addr: PytreeAddress, chm: ChoiceMap):
         tup = addr.to_tuple()
+        if chm.is_empty():
+            return
         if len(tup) == 1:
-            self.set_discard_state(tup[0], tr)
+            self.set_discard_state(tup[0], chm)
         else:
-            self.set_discard_state(tup, tr)
+            self.set_discard_state(tup, chm)
 
     def get_prev_subtrace(self, addr: PytreeAddress):
         tup = addr.to_tuple()
