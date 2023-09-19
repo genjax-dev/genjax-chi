@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -26,11 +24,12 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import parametric
 from genjax._src.core.typing import typecheck
 from genjax._src.global_options import global_options
 
 
-@dataclass
+@parametric
 class Mask(Pytree):
     """The `Mask` datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
@@ -46,8 +45,24 @@ class Mask(Pytree):
     * Using `Mask.match` - which allows a user to provide "none" and "some" lambdas. The "none" lambda should accept no arguments, while the "some" lambda should accept an argument whose type is the same as the masked value. These lambdas should return the same type (`Pytree`, array, etc) of value.
     """
 
-    mask: BoolArray
-    value: Any
+    def __init__(self, mask: BoolArray, value: Any):
+        self.mask = mask
+        self.value = value
+
+    @classmethod
+    @dispatch
+    def __init_type_parameter__(self, t: type):
+        return t
+
+    @classmethod
+    def __infer_type_parameter__(self, mask, value):
+        return type(value)
+
+    @classmethod
+    def __le_type_parameter__(self, left, right):
+        (t_left,) = left
+        (t_right,) = right
+        return issubclass(t_left, t_right)
 
     def flatten(self):
         return (self.mask, self.value), ()
@@ -90,12 +105,24 @@ class Mask(Pytree):
             print(console.render((v1, v2)))
             ```
         """
+        flag = jnp.array(self.mask)
+        if flag.shape == ():
+            return jax.lax.cond(
+                self.mask,
+                lambda: some(self.value),
+                lambda: none(),
+            )
+        else:
+            return jax.lax.select(
+                flag,
+                some(self.value),
+                none(),
+            )
 
-        return jax.lax.cond(
-            self.mask,
-            lambda: some(self.value),
-            lambda: none(),
-        )
+    @typecheck
+    def just_match(self, some: Callable) -> Any:
+        v = self.unmask()
+        return some(v)
 
     def unmask(self):
         """> Unmask the `Mask`, returning the value within.
@@ -130,6 +157,7 @@ class Mask(Pytree):
             genjax.global_options.allow_checkify(False)
             ```
         """
+
         # If a user chooses to `unmask`, require that they
         # jax.experimental.checkify.checkify their call in transformed
         # contexts.
@@ -147,23 +175,6 @@ class Mask(Pytree):
     ###########
     # Dunders #
     ###########
-
-    def __getattr__(self, name):
-        sub = getattr(self.value, name)
-        if isinstance(sub, Callable):
-
-            @functools.wraps(sub)
-            def wrapper(*args):
-                v = sub(*args)
-                return Mask(self.mask, v)
-
-            return wrapper
-        else:
-            return Mask(self.mask, sub)
-
-    def __getitem__(self, name):
-        s = self.value[name]
-        return Mask(self.mask, s)
 
     @dispatch
     def __eq__(self, other: "Mask"):
