@@ -75,7 +75,7 @@ class Mask(Pytree):
                 inner.value,
             )
         else:
-            return cls(mask, inner)
+            return Mask(mask, inner)
 
     @typecheck
     def match(self, none: Callable, some: Callable) -> Any:
@@ -108,7 +108,7 @@ class Mask(Pytree):
         flag = jnp.array(self.mask)
         if flag.shape == ():
             return jax.lax.cond(
-                self.mask,
+                flag,
                 lambda: some(self.value),
                 lambda: none(),
             )
