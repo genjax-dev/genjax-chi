@@ -1,8 +1,8 @@
-name: (main) 
+name: (main)
 
 on:
   push:
-    branches: ["main"]
+    branches: ['main']
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -23,8 +23,13 @@ jobs:
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
-      - name: Install poetry/nox-poetry
-        run: pip install poetry nox-poetry
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          installation-arguments: --git https://github.com/python-poetry/poetry.git
+
+      - name: Install nox-poetry
+        run: pip install nox-poetry
 
       - name: Run Nox
         run: nox
