@@ -28,6 +28,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import select
+from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_leaves_have_matching_leading_dim,
@@ -333,7 +334,7 @@ class VectorChoiceMap(ChoiceMap):
     def filter(
         self,
         selection: IndexSelection,
-    ) -> ChoiceMap:
+    ) -> Mask:
         filtered = self.inner.filter(selection.inner)
         flags = jnp.logical_and(
             selection.indices >= 0,
@@ -350,7 +351,7 @@ class VectorChoiceMap(ChoiceMap):
     def filter(
         self,
         selection: ComplementIndexSelection,
-    ) -> ChoiceMap:
+    ) -> Mask:
         filtered = self.inner.filter(selection.inner.complement())
         flags = jnp.logical_not(
             jnp.logical_and(

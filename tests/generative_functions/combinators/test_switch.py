@@ -191,7 +191,6 @@ class TestSwitch:
         assert v2 == tr["y2"]
 
     def test_switch_update_updates_score(self):
-
         regular_stddev = 1.0
         outlier_stddev = 10.0
         sample_value = 2.0
@@ -247,5 +246,6 @@ class TestSwitch:
         # Just select 0 in all branches for simplicity:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0,))
         y = tr["y"]
-        assert y.value.shape == (3,)
+        v = y.unsafe_unmask()
+        assert v.get_leaf_value().shape == (3,)
         assert (y.mask == jnp.array([True, True, True])).all()
