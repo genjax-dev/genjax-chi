@@ -206,11 +206,15 @@ class BuiltinGenerativeFunction(
             ),
             cache,
         ) = update_transform(self.source)(key, prev, constraints, argdiffs)
+        if not discard.is_empty():
+            discard = HierarchicalChoiceMap(discard)
+        else:
+            discard = EmptyChoiceMap()
         return (
             retval_diffs,
             w,
             BuiltinTrace.new(self, args, r, chm, cache, score),
-            HierarchicalChoiceMap(discard),
+            discard,
         )
 
     @typecheck
