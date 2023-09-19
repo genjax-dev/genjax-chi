@@ -21,9 +21,9 @@ import jax
 import jax.numpy as jnp
 from jax import api_util
 from jax import core as jax_core
-from jax import linear_util as lu
 from jax import tree_util as jtu
 from jax._src import dtypes
+from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.random import KeyArray
 
