@@ -28,7 +28,7 @@ from jax.experimental.checkify import checkify
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.lifted_types import LiftedTypeMeta
+from genjax._src.core.datatypes.masking import Mask
 from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.datatypes.tagged_unions import tagged_union
 from genjax._src.core.datatypes.trie import Trie
@@ -43,6 +43,8 @@ from genjax._src.core.pytree.static_checks import (
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.transforms.incremental import tree_diff_no_change
+from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
@@ -399,7 +401,7 @@ class ComplementIndexedSelection(IndexedSelection):
 
 
 @dataclasses.dataclass
-class ChoiceMap(AddressTree, metaclass=LiftedTypeMeta):
+class ChoiceMap(AddressTree):
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
         pass
@@ -801,8 +803,10 @@ class Trace(ChoiceMap, AddressTree):
     def filter(
         self,
         selection: Selection,
-    ) -> ChoiceMap:
-        return self.strip().filter(selection)
+    ) -> Any:
+        stripped = self.strip()
+        filtered = stripped.filter(selection)
+        return filtered
 
     def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         return self.strip().merge(other.strip())
@@ -1329,6 +1333,7 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return (retval, score, chm)
 
+    @dispatch
     def importance(
         self,
         key: PRNGKey,
@@ -1359,14 +1364,59 @@ class GenerativeFunction(Pytree):
         """
         raise NotImplementedError
 
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        constraints: Mask,
+        args: Tuple,
+    ) -> Tuple[FloatArray, Trace]:
+        def _inactive():
+            w = 0.0
+            tr = self.simulate(key, args)
+            return w, tr
+
+        def _active(chm):
+            w, tr = self.importance(key, chm, args)
+            return w, tr
+
+        return constraints.match(_inactive, _active)
+
+    @dispatch
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
-        new: ChoiceMap,
+        prev: Trace,
+        new_constraints: ChoiceMap,
         diffs: Tuple,
     ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
         raise NotImplementedError
+
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        new_constraints: Mask,
+        argdiffs: Tuple,
+    ) -> Tuple[Any, FloatArray, Trace, Mask]:
+        discard_option = prev.strip()
+
+        def _none():
+            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoiceMap(), argdiffs)
+            discard = mask(False, discard_option)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (retdiff, w, new_tr, discard)
+
+        def _some(chm):
+            (retdiff, w, new_tr, _) = self.update(key, prev, chm, argdiffs)
+            discard = mask(True, discard_option)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (retdiff, w, new_tr, discard)
+
+        return new_constraints.match(_none, _some)
 
     def assess(
         self,
@@ -1997,6 +2047,11 @@ dynamic_choice_map = DynamicHierarchicalChoiceMap.new
 @dispatch
 def choice_map():
     return hierarchical_choice_map()
+
+
+@dispatch
+def choice_map(v: Any):
+    return value_choice_map(v)
 
 
 @dispatch

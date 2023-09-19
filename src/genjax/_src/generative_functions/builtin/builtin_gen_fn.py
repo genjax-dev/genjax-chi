@@ -200,7 +200,7 @@ class BuiltinGenerativeFunction(
             score,
         )
 
-    @typecheck
+    @dispatch
     def importance(
         self,
         key: PRNGKey,
@@ -270,7 +270,7 @@ class BuiltinGenerativeFunction(
             else:
                 return DisjointUnionChoiceMap.new([static_chm, dynamic])
 
-    @typecheck
+    @dispatch
     def update(
         self,
         key: PRNGKey,

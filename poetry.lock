@@ -213,20 +213,20 @@ files = [
 
 [[package]]
 name = "beartype"
-version = "0.12.0"
+version = "0.15.0"
 description = "Unbearably fast runtime type checking in pure Python."
 optional = false
-python-versions = ">=3.7.0"
+python-versions = ">=3.8.0"
 files = [
-    {file = "beartype-0.12.0-py3-none-any.whl", hash = "sha256:3d9d5bec198bcf965c000d7b5120bebdd19a444ef6e39e97d0e93eb8832e10c8"},
-    {file = "beartype-0.12.0.tar.gz", hash = "sha256:3b7545b3f333a6b07042b68b102141554c9add2e979dab7b0f8ed6378f7af7d7"},
+    {file = "beartype-0.15.0-py3-none-any.whl", hash = "sha256:52cd2edea72fdd84e4e7f8011a9e3007bf0125c3d6d7219e937b9d8868169177"},
+    {file = "beartype-0.15.0.tar.gz", hash = "sha256:2af6a8d8a7267ccf7d271e1a3bd908afbc025d2a09aa51123567d7d7b37438df"},
 ]
 
 [package.extras]
 all = ["typing-extensions (>=3.10.0.0)"]
-dev = ["autoapi (>=0.9.0)", "coverage (>=5.5)", "mypy (>=0.800)", "numpy", "pytest (>=4.0.0)", "sphinx", "sphinx (>=4.1.0)", "tox (>=3.20.1)", "typing-extensions"]
-doc-rtd = ["furo (==2022.6.21)", "sphinx (==4.1.0)"]
-test-tox = ["mypy (>=0.800)", "numpy", "pytest (>=4.0.0)", "sphinx", "typing-extensions"]
+dev = ["autoapi (>=0.9.0)", "coverage (>=5.5)", "mypy (>=0.800)", "numpy", "pandera", "pydata-sphinx-theme (<=0.7.2)", "pytest (>=4.0.0)", "sphinx", "sphinx (>=4.2.0,<6.0.0)", "sphinxext-opengraph (>=0.7.5)", "tox (>=3.20.1)", "typing-extensions (>=3.10.0.0)"]
+doc-rtd = ["autoapi (>=0.9.0)", "pydata-sphinx-theme (<=0.7.2)", "sphinx (>=4.2.0,<6.0.0)", "sphinxext-opengraph (>=0.7.5)"]
+test-tox = ["mypy (>=0.800)", "numpy", "pandera", "pytest (>=4.0.0)", "sphinx", "typing-extensions (>=3.10.0.0)"]
 test-tox-coverage = ["coverage (>=5.5)"]
 
 [[package]]
@@ -561,20 +561,6 @@ traitlets = ">=4"
 lint = ["black (>=22.6.0)", "mdformat (>0.7)", "mdformat-gfm (>=0.3.5)", "ruff (>=0.0.156)"]
 test = ["pytest"]
 typing = ["mypy (>=0.990)"]
-
-[[package]]
-name = "commonmark"
-version = "0.9.1"
-description = "Python parser for the CommonMark Markdown spec"
-optional = false
-python-versions = "*"
-files = [
-    {file = "commonmark-0.9.1-py2.py3-none-any.whl", hash = "sha256:da2f38c92590f83de410ba1a3cbceafbc74fee9def35f9251ba9a971d6d66fd9"},
-    {file = "commonmark-0.9.1.tar.gz", hash = "sha256:452f9dc859be7f06631ddcb328b6919c67984aca654e5fefb3914d54691aed60"},
-]
-
-[package.extras]
-test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
 name = "contourpy"
@@ -1952,6 +1938,30 @@ pymdown-extensions = ">=9"
 ansi = ["pygments-ansi-color"]
 
 [[package]]
+name = "markdown-it-py"
+version = "3.0.0"
+description = "Python port of markdown-it. Markdown parsing, done right!"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "markdown-it-py-3.0.0.tar.gz", hash = "sha256:e3f60a94fa066dc52ec76661e37c851cb232d92f9886b15cb560aaada2df8feb"},
+    {file = "markdown_it_py-3.0.0-py3-none-any.whl", hash = "sha256:355216845c60bd96232cd8d8c40e8f9765cc86f46880e43a8fd22dc1a1a8cab1"},
+]
+
+[package.dependencies]
+mdurl = ">=0.1,<1.0"
+
+[package.extras]
+benchmarking = ["psutil", "pytest", "pytest-benchmark"]
+code-style = ["pre-commit (>=3.0,<4.0)"]
+compare = ["commonmark (>=0.9,<1.0)", "markdown (>=3.4,<4.0)", "mistletoe (>=1.0,<2.0)", "mistune (>=2.0,<3.0)", "panflute (>=2.3,<3.0)"]
+linkify = ["linkify-it-py (>=1,<3)"]
+plugins = ["mdit-py-plugins"]
+profiling = ["gprof2dot"]
+rtd = ["jupyter_sphinx", "mdit-py-plugins", "myst-parser", "pyyaml", "sphinx", "sphinx-copybutton", "sphinx-design", "sphinx_book_theme"]
+testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]
+
+[[package]]
 name = "markupsafe"
 version = "2.1.3"
 description = "Safely add untrusted strings to HTML/XML markup."
@@ -2075,6 +2085,17 @@ files = [
 traitlets = "*"
 
 [[package]]
+name = "mdurl"
+version = "0.1.2"
+description = "Markdown URL utilities"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
+    {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
+]
+
+[[package]]
 name = "mergedeep"
 version = "1.3.4"
 description = "A deep merge function for 🐍."
@@ -2098,13 +2119,13 @@ files = [
 
 [[package]]
 name = "mkdocs"
-version = "1.5.2"
+version = "1.5.3"
 description = "Project documentation with Markdown."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "mkdocs-1.5.2-py3-none-any.whl", hash = "sha256:60a62538519c2e96fe8426654a67ee177350451616118a41596ae7c876bb7eac"},
-    {file = "mkdocs-1.5.2.tar.gz", hash = "sha256:70d0da09c26cff288852471be03c23f0f521fc15cf16ac89c7a3bfb9ae8d24f9"},
+    {file = "mkdocs-1.5.3-py3-none-any.whl", hash = "sha256:3b3a78e736b31158d64dbb2f8ba29bd46a379d0c6e324c2246c3bc3d2189cfc1"},
+    {file = "mkdocs-1.5.3.tar.gz", hash = "sha256:eb7c99214dcb945313ba30426c2451b735992c73c2e10838f76d09e39ff4d0e2"},
 ]
 
 [package.dependencies]
@@ -2781,21 +2802,25 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "plum-dispatch"
-version = "2.2.1"
+version = "1.5.4.dev179+g50ae604"
 description = "Multiple dispatch in Python"
 optional = false
 python-versions = ">=3.8"
-files = [
-    {file = "plum_dispatch-2.2.1-py3-none-any.whl", hash = "sha256:2dea636e5a423f76a6f1900b3ba947db635f67db713dffa446b43c74a72b035b"},
-    {file = "plum_dispatch-2.2.1.tar.gz", hash = "sha256:71ee4f95b02abd2aef608d7112b4e6d42f6cf96c9af0a6c1ba5f713f8491be69"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 beartype = "*"
 typing-extensions = {version = "*", markers = "python_version <= \"3.10\""}
 
 [package.extras]
-dev = ["black (==22.10.0)", "build", "coveralls", "ghp-import", "ipython", "jupyter-book", "mypy", "numpy", "pre-commit", "pyright", "pytest (>=6)", "pytest-cov", "tox", "wheel"]
+dev = ["black (==23.9.0)", "build", "coveralls", "ghp-import", "ipython", "jupyter-book", "mypy", "numpy", "pre-commit", "pyright", "pytest (>=6)", "pytest-cov", "tox", "wheel"]
+
+[package.source]
+type = "git"
+url = "https://github.com/PhilipVinc/plum"
+reference = "pv/fix-parametric"
+resolved_reference = "50ae60456491ec4e03acb04ccc5c4213fdd65bf6"
 
 [[package]]
 name = "prometheus-client"
@@ -3336,21 +3361,21 @@ files = [
 
 [[package]]
 name = "rich"
-version = "12.6.0"
+version = "13.5.3"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 optional = false
-python-versions = ">=3.6.3,<4.0.0"
+python-versions = ">=3.7.0"
 files = [
-    {file = "rich-12.6.0-py3-none-any.whl", hash = "sha256:a4eb26484f2c82589bd9a17c73d32a010b1e29d89f1604cd9bf3a2097b81bb5e"},
-    {file = "rich-12.6.0.tar.gz", hash = "sha256:ba3a3775974105c221d31141f2c116f4fd65c5ceb0698657a11e9f295ec93fd0"},
+    {file = "rich-13.5.3-py3-none-any.whl", hash = "sha256:9257b468badc3d347e146a4faa268ff229039d4c2d176ab0cffb4c4fbc73d5d9"},
+    {file = "rich-13.5.3.tar.gz", hash = "sha256:87b43e0543149efa1253f485cd845bb7ee54df16c9617b8a893650ab84b4acb6"},
 ]
 
 [package.dependencies]
-commonmark = ">=0.9.0,<0.10.0"
-pygments = ">=2.6.0,<3.0.0"
+markdown-it-py = ">=2.2.0"
+pygments = ">=2.13.0,<3.0.0"
 
 [package.extras]
-jupyter = ["ipywidgets (>=7.5.1,<8.0.0)"]
+jupyter = ["ipywidgets (>=7.5.1,<9)"]
 
 [[package]]
 name = "rpds-py"
@@ -3726,12 +3751,12 @@ tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
 name = "tensorflow-probability"
-version = "0.19.0"
+version = "0.21.0"
 description = "Probabilistic modeling and statistical inference in TensorFlow"
 optional = false
-python-versions = "*"
+python-versions = ">=3.8"
 files = [
-    {file = "tensorflow_probability-0.19.0-py2.py3-none-any.whl", hash = "sha256:ee70967fbd52b09e9c5ec148a9437c4cf3f9e9d689cdca400a1bc921f21cdcac"},
+    {file = "tensorflow_probability-0.21.0-py2.py3-none-any.whl", hash = "sha256:03ed06bd6fd876541110712842d43367c7be5affe8040d62efa3906c6c9e645d"},
 ]
 
 [package.dependencies]
@@ -3742,6 +3767,7 @@ dm-tree = "*"
 gast = ">=0.3.2"
 numpy = ">=1.13.3"
 six = ">=1.10.0"
+typing-extensions = "<4.6.0"
 
 [package.extras]
 jax = ["jax", "jaxlib"]
@@ -3864,32 +3890,32 @@ test = ["argcomplete (>=3.0.3)", "mypy (>=1.5.1)", "pre-commit", "pytest (>=7.0,
 
 [[package]]
 name = "typeguard"
-version = "4.1.5"
+version = "4.0.0"
 description = "Run-time type checker for Python"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.7.4"
 files = [
-    {file = "typeguard-4.1.5-py3-none-any.whl", hash = "sha256:8923e55f8873caec136c892c3bed1f676eae7be57cdb94819281b3d3bc9c0953"},
-    {file = "typeguard-4.1.5.tar.gz", hash = "sha256:ea0a113bbc111bcffc90789ebb215625c963411f7096a7e9062d4e4630c155fd"},
+    {file = "typeguard-4.0.0-py3-none-any.whl", hash = "sha256:c4a40af0ba8a41077221271b46d0a6d8d46045443e4d887887c69254ca861952"},
+    {file = "typeguard-4.0.0.tar.gz", hash = "sha256:194fb3dbcb06ea9caf7088f3befee014de57961689f9c859ac5239b1ef61d987"},
 ]
 
 [package.dependencies]
 importlib-metadata = {version = ">=3.6", markers = "python_version < \"3.10\""}
-typing-extensions = {version = ">=4.7.0", markers = "python_version < \"3.12\""}
+typing-extensions = {version = ">=4.4.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
-doc = ["Sphinx (>=7)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)"]
-test = ["coverage[toml] (>=7)", "mypy (>=1.2.0)", "pytest (>=7)"]
+doc = ["packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
+test = ["mypy (>=1.2.0)", "pytest (>=7)"]
 
 [[package]]
 name = "typing-extensions"
-version = "4.7.1"
+version = "4.5.0"
 description = "Backported and Experimental Type Hints for Python 3.7+"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "typing_extensions-4.7.1-py3-none-any.whl", hash = "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36"},
-    {file = "typing_extensions-4.7.1.tar.gz", hash = "sha256:b75ddc264f0ba5615db7ba217daeb99701ad295353c45f9e95963337ceeeffb2"},
+    {file = "typing_extensions-4.5.0-py3-none-any.whl", hash = "sha256:fb33085c39dd998ac16d1431ebc293a8b3eedd00fd4a32de0ff79002c19511b4"},
+    {file = "typing_extensions-4.5.0.tar.gz", hash = "sha256:5cb5f4a79139d699607b3ef622a1dedafa84e115ab0024e0d9c044a9479ca7cb"},
 ]
 
 [[package]]
@@ -4159,17 +4185,17 @@ test = ["mypy", "pre-commit", "pytest", "pytest-asyncio", "websockets (>=10.0)"]
 
 [[package]]
 name = "zipp"
-version = "3.16.2"
+version = "3.17.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "zipp-3.16.2-py3-none-any.whl", hash = "sha256:679e51dd4403591b2d6838a48de3d283f3d188412a9782faadf845f298736ba0"},
-    {file = "zipp-3.16.2.tar.gz", hash = "sha256:ebc15946aa78bd63458992fc81ec3b6f7b1e92d51c35e6de1c3804e73b799147"},
+    {file = "zipp-3.17.0-py3-none-any.whl", hash = "sha256:0e923e726174922dce09c53c59ad483ff7bbb8e572e00c7f7c46b88556409f31"},
+    {file = "zipp-3.17.0.tar.gz", hash = "sha256:84e64a1c28cf7e91ed2078bb8cc8c259cb19b76942096c8d7b84947690cabaf0"},
 ]
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (<7.2.5)", "sphinx (>=3.5)", "sphinx-lint"]
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
@@ -4180,4 +4206,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "1e85b7e5f7a58693312e9b5c7c2fd9baaf9addc14d2c16bfabd915b79bc8f058"
+content-hash = "39d9ea3240d1479b6c033f95fd29fad02586c0dceb41b6986430821b26cd39cb"

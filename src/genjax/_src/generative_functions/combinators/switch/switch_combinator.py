@@ -196,7 +196,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        new: ChoiceMap,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ):
         # Create a skeleton discard instance.
@@ -206,13 +206,17 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             list(map(lambda s: mask(False, s), discard_option.submaps)),
         )
 
+        # Wrap `constraints` in a Mask to indicate that callees must be conservative
+        # about `Pytree` return types for the `jax.lax.switch` invocation.
+        constraints = mask(True, constraints)
+
         def _inner_update(br, key):
             # Get the branch index (at tracing time) and use the branch
             # to update.
             concrete_branch_index = self.branches.index(br)
             prev_subtrace = prev.get_subtrace(concrete_branch_index)
             (retval_diff, w, tr, maybe_discard) = br.update(
-                key, prev_subtrace, new, argdiffs[1:]
+                key, prev_subtrace, constraints, argdiffs[1:]
             )
 
             # Merge the skeleton discard with the actual one.
@@ -247,16 +251,17 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        new: ChoiceMap,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ):
-        def _inner_importance(br, key, prev, new, argdiffs):
+        def _inner_importance(br, key, prev, constraints, argdiffs):
             concrete_branch_index = self.branches.index(br)
-            new = prev.strip().unsafe_merge(new)
+            stripped = prev.strip()
+            constraints = stripped.unsafe_merge(constraints)
             args = tree_diff_primal(argdiffs)
-            (w, tr) = br.importance(key, new, args[1:])
+            (w, tr) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
-            discard = mask(True, prev.strip())
+            discard = mask(True, stripped)
             retval = tr.get_retval()
             retval_diff = tree_diff_unknown_change(retval)
 
@@ -270,8 +275,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             return (retval_diff, update_weight, trace, discard)
 
         def _inner(br):
-            return lambda key, prev, new, argdiffs: _inner_importance(
-                br, key, prev, new, argdiffs
+            return lambda key, prev, constraints, argdiffs: _inner_importance(
+                br, key, prev, constraints, argdiffs
             )
 
         branch_functions = list(map(_inner, self.branches))
@@ -282,7 +287,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             branch_functions,
             key,
             prev,
-            new,
+            constraints,
             argdiffs,
         )
 
@@ -291,15 +296,15 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: SwitchTrace,
-        new: ChoiceMap,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, SwitchTrace, ChoiceMap]:
+    ) -> Tuple[Any, FloatArray, SwitchTrace, Any]:
         index_argdiff = argdiffs[0]
 
         if static_check_no_change(index_argdiff):
-            return self._update_fallback(key, prev, new, argdiffs)
+            return self._update_fallback(key, prev, constraints, argdiffs)
         else:
-            return self._update_branch_switch(key, prev, new, argdiffs)
+            return self._update_branch_switch(key, prev, constraints, argdiffs)
 
     @typecheck
     def assess(
