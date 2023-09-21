@@ -490,20 +490,20 @@ files = [
 
 [[package]]
 name = "chex"
-version = "0.1.82"
+version = "0.1.83"
 description = "Chex: Testing made fun, in JAX!"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "chex-0.1.82-py3-none-any.whl", hash = "sha256:4df8f087e30c3879c15d3765f9081d5996e57682fa1fbaa8a16a1eab6f6eb2d0"},
-    {file = "chex-0.1.82.tar.gz", hash = "sha256:a9b151ada0b5c1bc5a8ae572617eb09f2fe4ff110fe1d75045f9083eecf5b2c1"},
+    {file = "chex-0.1.83-py3-none-any.whl", hash = "sha256:d51485018b064c0cca2b9db8e96a74368ab4bea96f023fa95b916ada1ec27b0e"},
+    {file = "chex-0.1.83.tar.gz", hash = "sha256:8b8eb8d435594ff62f54be919b4b40795a6d2c35b800876f02f17f47643ceb6f"},
 ]
 
 [package.dependencies]
 absl-py = ">=0.9.0"
-jax = ">=0.4.6"
+jax = ">=0.4.16"
 jaxlib = ">=0.1.37"
-numpy = ">=1.25.0"
+numpy = ">=1.24.1"
 toolz = ">=0.9.0"
 typing-extensions = ">=4.2.0"
 
