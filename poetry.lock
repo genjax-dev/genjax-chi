@@ -1344,13 +1344,13 @@ scipy = ">=1.0.0"
 
 [[package]]
 name = "jaxtyping"
-version = "0.2.21"
+version = "0.2.22"
 description = "Type annotations and runtime checking for shape and dtype of JAX arrays, and PyTrees."
 optional = false
 python-versions = "~=3.9"
 files = [
-    {file = "jaxtyping-0.2.21-py3-none-any.whl", hash = "sha256:d94afe0def7df435090f1f699d97c06b8b8cfa04667be8fe9215a33bb0f17980"},
-    {file = "jaxtyping-0.2.21.tar.gz", hash = "sha256:316e17b06cefff887cc93769d46b77b926a2b110c65e9a129562736297d515a7"},
+    {file = "jaxtyping-0.2.22-py3-none-any.whl", hash = "sha256:7b68a8d34bfb823ff5537b94552850a2e7f2687d61afeaee0689c0615bfcea98"},
+    {file = "jaxtyping-0.2.22.tar.gz", hash = "sha256:adf0a6b3098ec7a20165adbdc019e90f1b52494462367b5d12c0a5ea2555d223"},
 ]
 
 [package.dependencies]
