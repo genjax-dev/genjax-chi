@@ -385,6 +385,20 @@ class VectorChoiceMap(ChoiceMap):
         return VectorChoiceMap(new), VectorChoiceMap(discard)
 
     @dispatch
+    def merge(self, other: IndexChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        indices = other.indices
+
+        sliced = jtu.tree_map(lambda v: v[indices], self.inner)
+        new, discard = sliced.merge(other.inner)
+
+        def _inner(v1, v2):
+            return v1.at[indices].set(v2)
+
+        new = jtu.tree_map(_inner, self.inner, new)
+
+        return VectorChoiceMap(new), IndexChoiceMap(indices, discard)
+
+    @dispatch
     def merge(self, other: EmptyChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         return self, other
 
