@@ -24,9 +24,9 @@ rich = "^13.5.3"
 jaxtyping = "^0.2.21"
 optax = "^0.1.7"
 beartype = "^0.15.0"
-plum-dispatch = { git = "https://github.com/PhilipVinc/plum", branch="pv/fix-parametric" }
 dill = "^0.3.7"
 pygments = "^2.16.1"
+plum-dispatch = "^2.2.1"
 
 [tool.poetry.group.dev]
 optional = true

@@ -24,12 +24,10 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import parametric
 from genjax._src.core.typing import typecheck
 from genjax._src.global_options import global_options
 
 
-@parametric
 class Mask(Pytree):
     """The `Mask` datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
@@ -49,21 +47,6 @@ class Mask(Pytree):
         self.mask = mask
         self.value = value
 
-    @classmethod
-    @dispatch
-    def __init_type_parameter__(self, t: type):
-        return t
-
-    @classmethod
-    def __infer_type_parameter__(self, mask, value):
-        return type(value)
-
-    @classmethod
-    def __le_type_parameter__(self, left, right):
-        (t_left,) = left
-        (t_right,) = right
-        return issubclass(t_left, t_right)
-
     def flatten(self):
         return (self.mask, self.value), ()
 
@@ -75,7 +58,7 @@ class Mask(Pytree):
                 inner.value,
             )
         else:
-            return cls(mask, inner)
+            return Mask(mask, inner)
 
     @typecheck
     def match(self, none: Callable, some: Callable) -> Any:
@@ -108,7 +91,7 @@ class Mask(Pytree):
         flag = jnp.array(self.mask)
         if flag.shape == ():
             return jax.lax.cond(
-                self.mask,
+                flag,
                 lambda: some(self.value),
                 lambda: none(),
             )

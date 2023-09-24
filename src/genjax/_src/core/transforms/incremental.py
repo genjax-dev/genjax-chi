@@ -31,8 +31,8 @@ import functools
 import jax.core as jc
 import jax.tree_util as jtu
 from jax import api_util
-from jax import linear_util as lu
 from jax import util as jax_util
+from jax.extend import linear_util as lu
 
 from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.context import Context
