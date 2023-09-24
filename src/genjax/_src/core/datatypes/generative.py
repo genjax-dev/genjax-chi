@@ -599,6 +599,18 @@ class ChoiceMap(AddressTree):
     def __add__(self, other):
         return self.safe_merge(other)
 
+    def __getitem__(self, addr):
+        subtree = self.get_subtree(addr)
+        if isinstance(subtree, AddressLeaf):
+            v = subtree.get_leaf_value()
+            return v
+        else:
+            # Kludgy to build in support for Mask -- but we're in Python so forgivable.
+            if isinstance(subtree, Mask):
+                return subtree.try_leaf_value()
+            else:
+                return subtree
+
     ###################
     # Pretty printing #
     ###################
@@ -1184,7 +1196,7 @@ class HierarchicalTraceType(TraceType):
 ###########
 
 
-class Mask(ChoiceMap):
+class Mask(Pytree):
     """The `Mask` datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
 
@@ -1336,6 +1348,12 @@ class Mask(ChoiceMap):
         assert isinstance(self.value, AddressLeaf)
         v = self.value.get_leaf_value()
         return Mask.new(self.mask, v)
+
+    def try_leaf_value(self):
+        if isinstance(self.value, AddressLeaf):
+            return self.get_leaf_value()
+        else:
+            return self
 
     ###########
     # Dunders #

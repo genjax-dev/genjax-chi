@@ -276,5 +276,5 @@ class TestSwitch:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0,))
         y = tr["y"]
         v = y.unsafe_unmask()
-        assert v.get_leaf_value().shape == (3,)
+        assert v.shape == (3,)
         assert (y.mask == jnp.array([True, True, True])).all()
