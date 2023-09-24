@@ -28,10 +28,8 @@ from jax.experimental.checkify import checkify
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.masking import Mask
-from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.datatypes.tagged_unions import tagged_union
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.static_checks import (
@@ -1181,6 +1179,277 @@ class HierarchicalTraceType(TraceType):
         return check
 
 
+###########
+# Masking #
+###########
+
+
+class Mask(ChoiceMap):
+    """The `Mask` datatype provides access to the masking system. The masking
+    system is heavily influenced by the functional `Option` monad.
+
+    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as constraints in choice maps, and participate in inference computations (like scores, and importance weights or density ratios).
+
+    Masks are also used internally by generative function combinators which include uncertainty over structure.
+
+    Users are expected to interact with `Mask` instances by either:
+
+    * Unmasking them using the `Mask.unmask` interface. This interface uses JAX's `checkify` transformation to ensure that masked data exposed to a user is used only when valid. If a user chooses to `Mask.unmask` a `Mask` instance, they are also expected to use [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html) to transform their function to one which could return an error.
+
+    * Using `Mask.match` - which allows a user to provide "none" and "some" lambdas. The "none" lambda should accept no arguments, while the "some" lambda should accept an argument whose type is the same as the masked value. These lambdas should return the same type (`Pytree`, array, etc) of value.
+    """
+
+    def __init__(self, mask: BoolArray, value: Any):
+        self.mask = mask
+        self.value = value
+
+    def flatten(self):
+        return (self.mask, self.value), ()
+
+    @classmethod
+    def new(cls, mask: BoolArray, inner):
+        if isinstance(inner, Mask):
+            return Mask(
+                jnp.logical_and(mask, inner.mask),
+                inner.value,
+            )
+        else:
+            return Mask(mask, inner)
+
+    @typecheck
+    def match(self, none: Callable, some: Callable) -> Any:
+        """> Pattern match on the `Mask` type - by providing "none"
+        and "some" lambdas.
+
+        The "none" lambda should accept no arguments, while the "some" lambda should accept the same type as the value in the `Mask`. Both lambdas should return the same type (array, or `jax.Pytree`).
+
+        Arguments:
+            none: A lambda to handle the "none" branch. The type of the return value must agree with the "some" branch.
+            some: A lambda to handle the "some" branch. The type of the return value must agree with the "none" branch.
+
+        Returns:
+            value: A value computed by either the "none" or "some" lambda, depending on if the `Mask` is valid (e.g. `Mask.mask` is `True`).
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+            console = genjax.pretty()
+
+            masked = genjax.mask(False, jnp.ones(5))
+            v1 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
+            masked = genjax.mask(True, jnp.ones(5))
+            v2 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
+            print(console.render((v1, v2)))
+            ```
+        """
+        flag = jnp.array(self.mask)
+        if flag.shape == ():
+            return jax.lax.cond(
+                flag,
+                lambda: some(self.value),
+                lambda: none(),
+            )
+        else:
+            return jax.lax.select(
+                flag,
+                some(self.value),
+                none(),
+            )
+
+    @typecheck
+    def just_match(self, some: Callable) -> Any:
+        v = self.unmask()
+        return some(v)
+
+    def unmask(self):
+        """> Unmask the `Mask`, returning the value within.
+
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use `genjax.global_options.allow_checkify(True)` and then handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+            console = genjax.pretty()
+
+            masked = genjax.mask(True, jnp.ones(5))
+            print(console.render(masked.unmask()))
+            ```
+
+            Here's an example which uses `jax.experimental.checkify`. To enable runtime checks, the user must enable them explicitly in `genjax`.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import jax.experimental.checkify as checkify
+            import genjax
+            console = genjax.pretty()
+            genjax.global_options.allow_checkify(True)
+
+            masked = genjax.mask(False, jnp.ones(5))
+            err, _ = checkify.checkify(masked.unmask)()
+            print(console.render(err))
+
+            genjax.global_options.allow_checkify(False)
+            ```
+        """
+
+        # If a user chooses to `unmask`, require that they
+        # jax.experimental.checkify.checkify their call in transformed
+        # contexts.
+        def _check():
+            check_flag = jnp.all(self.mask)
+            checkify.check(check_flag, "Mask is False, the masked value is invalid.\n")
+
+        global_options.optional_check(_check)
+        return self.value
+
+    def unsafe_unmask(self):
+        # Unsafe version of unmask -- should only be used internally.
+        return self.value
+
+    #########################
+    # Choice map interfaces #
+    #########################
+
+    def get_subtree(self, addr):
+        assert isinstance(self.value, ChoiceMap)
+        subtree = self.value.get_subtree(addr)
+        if isinstance(subtree, EmptyChoiceMap):
+            return subtree
+        else:
+            return Mask.new(self.mask, subtree)
+
+    def has_subtree(self, addr):
+        assert isinstance(self.value, ChoiceMap)
+        check = self.value.has_subtree(addr)
+        return jnp.logical_and(self.mask, check)
+
+    ###########################
+    # Address leaf interfaces #
+    ###########################
+
+    def get_leaf_value(self):
+        assert isinstance(self.value, AddressLeaf)
+        v = self.value.get_leaf_value()
+        return Mask.new(self.mask, v)
+
+    ###########
+    # Dunders #
+    ###########
+
+    @dispatch
+    def __eq__(self, other: "Mask"):
+        return jnp.logical_and(
+            jnp.logical_and(self.mask, other.mask),
+            self.value == other.value,
+        )
+
+    @dispatch
+    def __eq__(self, other: Any):
+        return jnp.logical_and(
+            self.mask,
+            self.value == other,
+        )
+
+    def __hash__(self):
+        hash1 = hash(self.value)
+        hash2 = hash(self.mask)
+        return hash((hash1, hash2))
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.mask, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](Mask, {doc})")
+        if isinstance(self.value, Pytree):
+            _ = self.value.__rich_tree__(sub_tree)
+        else:
+            val_tree = gpp.tree_pformat(self.value, short_arrays=True)
+            sub_tree.add(val_tree)
+        tree.add(sub_tree)
+        return tree
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = rich.tree.Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
+
+
+#################
+# Tagged unions #
+#################
+
+
+@dataclass
+class TaggedUnion(Pytree):
+    tag: IntArray
+    values: List[Any]
+
+    def flatten(self):
+        return (self.tag, self.values), ()
+
+    @classmethod
+    @typecheck
+    def new(cls, tag: IntArray, values: List[Any]):
+        return cls(tag, values)
+
+    def _static_assert_tagged_union_switch_num_callables_is_num_values(self, callables):
+        assert len(callables) == len(self.values)
+
+    def _static_assert_tagged_union_switch_returns_same_type(self, vs):
+        return True
+
+    @typecheck
+    def match(self, *callables: Callable):
+        assert len(callables) == len(self.values)
+        self._static_assert_tagged_union_switch_num_callables_is_num_values(callables)
+        vs = list(map(lambda v: v[0](v[1]), zip(callables, self.values)))
+        self._static_assert_tagged_union_switch_returns_same_type(vs)
+        vs = jnp.array(vs)
+        return vs[self.tag]
+
+    ###########
+    # Dunders #
+    ###########
+
+    def __getattr__(self, name):
+        subs = list(map(lambda v: getattr(v, name), self.values))
+        if subs and all(map(lambda v: isinstance(v, Callable), subs)):
+
+            def wrapper(*args):
+                vs = [s(*args) for s in subs]
+                return TaggedUnion(self.tag, vs)
+
+            return wrapper
+        else:
+            return TaggedUnion(self.tag, subs)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.tag, short_arrays=True)
+        vals_tree = gpp.tree_pformat(self.values, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](TaggedUnion, {doc})")
+        sub_tree.add(vals_tree)
+        tree.add(sub_tree)
+        return tree
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = rich.tree.Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
+
+
 #####
 # Generative function
 #####
@@ -1223,14 +1492,14 @@ class GenerativeFunction(Pytree):
         args: Tuple,
     ) -> Trace:
         """> Given a `key: PRNGKey` and arguments `x: Tuple`, the generative
-        function sample a choice map $c \sim p(\cdot; x)$, as well as any
-        untraced randomness $r \sim p(\cdot; x, c)$ to produce a trace $t = (x,
-        c, r)$.
+        function sample a choice map $c \\sim p(\\cdot; x)$, as well as any
+        untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
+        (x, c, r)$.
 
         While the types of traces `t` are formally defined by $(x, c, r)$, they will often store additional information - like the _score_ ($s$):
 
         $$
-        s = \log \\frac{p(c, r; x)}{q(r; x, c)}
+        s = \\log \\frac{p(c, r; x)}{q(r; x, c)}
         $$
 
         Arguments:
@@ -1359,7 +1628,7 @@ class GenerativeFunction(Pytree):
         The importance weight `w` is given by:
 
         $$
-        w = \log \\frac{p(u' ⧺ u, r; x)}{q(u'; u, x)q(r; x, t)}
+        w = \\log \\frac{p(u' ⧺ u, r; x)}{q(u'; u, x)q(r; x, t)}
         $$
         """
         raise NotImplementedError
@@ -1454,7 +1723,7 @@ class GenerativeFunction(Pytree):
         The score ($s$) is given by:
 
         $$
-        s = \log \\frac{p(c, r; x)}{q(r; x, c)}
+        s = \\log \\frac{p(c, r; x)}{q(r; x, c)}
         $$
         """
         raise NotImplementedError
@@ -1734,9 +2003,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
 
-    @dispatch
-    def get_subtree(self, addr: Any):
-        value = self.trie.get_subtree(addr)
+    def _lift_value(self, value):
         if value is None:
             return EmptyChoiceMap()
         else:
@@ -1747,9 +2014,18 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
                 return submap
 
     @dispatch
+    def get_subtree(self, addr: Any):
+        value = self.trie.get_subtree(addr)
+        return self._lift_value(value)
+
+    @dispatch
     def get_subtree(self, addr: IntArray):
-        dynamic_chm = self.dynamic_convert()
-        return dynamic_chm.get_subtree(addr)
+        if is_concrete(addr):
+            value = self.trie.get_subtree(addr)
+            return self._lift_value(value)
+        else:
+            dynamic_chm = self.dynamic_convert()
+            return dynamic_chm.get_subtree(addr)
 
     @dispatch
     def get_subtree(self, addr: Tuple):
@@ -1903,11 +2179,17 @@ class IndexedChoiceMap(ChoiceMap):
 
     @dispatch
     def get_subtree(self, addr: Tuple):
-        if not isinstance(addr, Tuple) and len(addr) == 1:
-            return EmptyChoiceMap()
-        (idx, addr) = addr
-        subtree = self.get_subtree(idx)
-        return subtree.get_subtree(addr)
+        if len(addr) == 1:
+            return self.get_subtree(addr[0])
+        idx, *rest = addr
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = slice_index[0]
+        subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        subtree = subtree.get_subtree(tuple(rest))
+        if isinstance(subtree, EmptyChoiceMap):
+            return subtree
+        else:
+            return mask(jnp.isin(idx, self.indices), subtree)
 
     @dispatch
     def get_subtree(self, idx: IntArray):
@@ -2055,6 +2337,8 @@ indexed_choice_map = IndexedChoiceMap.new
 indexed_select = IndexedSelection.new
 disjoint_union_choice_map = DisjointUnionChoiceMap.new
 dynamic_choice_map = DynamicHierarchicalChoiceMap.new
+mask = Mask.new
+tagged_union = TaggedUnion.new
 
 
 @dispatch
