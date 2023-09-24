@@ -190,6 +190,35 @@ class TestSwitch:
         assert v1 == tr["y1"]
         assert v2 == tr["y2"]
 
+    def test_switch_update_with_masking(self):
+        @genjax.gen
+        def branch_1(v):
+            return genjax.tfp_normal(v, 1.0) @ "v"
+
+        @genjax.gen
+        def branch_2(v):
+            return genjax.tfp_normal(v, 3.0) @ "v"
+
+        switch = genjax.Switch(branch_1, branch_2)
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(switch.simulate)(key, (1, 0.0))
+        (rd, w, tr, d) = jax.jit(switch.update)(
+            key,
+            tr,
+            genjax.mask(jnp.array(True), genjax.empty_choice_map()),
+            genjax.tree_diff_no_change((1, 0.0)),
+        )
+        assert isinstance(d, genjax.EmptyChoiceMap)
+        assert w == 0.0
+        (rd, w, tr, d) = jax.jit(switch.update)(
+            key,
+            tr,
+            genjax.mask(jnp.array(False), genjax.empty_choice_map()),
+            genjax.tree_diff_no_change((1, 0.0)),
+        )
+        assert isinstance(d, genjax.EmptyChoiceMap)
+        assert w == 0.0
+
     def test_switch_update_updates_score(self):
         regular_stddev = 1.0
         outlier_stddev = 10.0
