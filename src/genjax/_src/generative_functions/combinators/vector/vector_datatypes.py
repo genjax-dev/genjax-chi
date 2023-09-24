@@ -22,12 +22,13 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ComplementIndexedSelection
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
+from genjax._src.core.datatypes.generative import Mask
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import choice_map
-from genjax._src.core.datatypes.masking import Mask
-from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
@@ -148,7 +149,7 @@ class VectorChoiceMap(ChoiceMap):
         return VectorChoiceMap(new), VectorChoiceMap(discard)
 
     @dispatch
-    def merge(self, other: IndexChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+    def merge(self, other: IndexedChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         indices = other.indices
 
         sliced = jtu.tree_map(lambda v: v[indices], self.inner)
@@ -159,7 +160,7 @@ class VectorChoiceMap(ChoiceMap):
 
         new = jtu.tree_map(_inner, self.inner, new)
 
-        return VectorChoiceMap(new), IndexChoiceMap(indices, discard)
+        return VectorChoiceMap(new), IndexedChoiceMap(indices, discard)
 
     @dispatch
     def merge(self, other: EmptyChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:

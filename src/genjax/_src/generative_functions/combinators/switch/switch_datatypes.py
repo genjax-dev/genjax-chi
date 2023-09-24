@@ -28,7 +28,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
