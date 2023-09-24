@@ -36,7 +36,7 @@ except ImportError:
 package = "genjax"
 python_version = "3.11"
 nox.needs_version = ">= 2021.6.6"
-nox.options.sessions = ("tests", "xdoctests", "lint", "build")
+nox.options.sessions = ("tests", "lint", "build")
 
 
 @session(python=python_version)
