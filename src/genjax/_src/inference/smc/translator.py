@@ -17,6 +17,9 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.utilities import tree_grad_split
+from genjax._src.core.pytree.utilities import tree_zipper
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     BuiltinGenerativeFunction,
@@ -43,13 +46,16 @@ class TraceKernel(Pytree):
         (chm, aux) = retval
         return (choices, score, (chm, aux))
 
-    def jacfwd_retval(self, key, choices, args):
-        def _inner(choices, args):
-            ((chm, aux), w) = self.gen_fn.assess(key, choices, args)
+    def jacfwd_retval(self, key, choices, trace, proposal_args):
+        grad_tree, no_grad_tree = tree_grad_split((choices, trace))
+
+        def _inner(differentiable: Tuple):
+            choices, trace = tree_zipper(differentiable, no_grad_tree)
+            ((chm, aux), _) = self.gen_fn.assess(key, choices, (trace, proposal_args))
             return (chm, aux)
 
-        inner_jacfwd = jax.jacfwd(_inner, argnums=(0, 1))
-        J = inner_jacfwd(choices, args)
+        inner_jacfwd = jax.jacfwd(_inner)
+        J = inner_jacfwd(grad_tree)
         return J
 
 
