@@ -106,20 +106,6 @@ class Trie(AddressTree, CustomPretty):
     def get_selection(self):
         return self
 
-    def merge(self, other: "Trie"):
-        new = hashable_dict()
-        discard = hashable_dict()
-        for (k, v) in self.get_subtrees_shallow():
-            if other.has_subtree(k):
-                sub = other.get_subtree(k)
-                new[k], discard[k] = v.merge(sub)
-            else:
-                new[k] = v
-        for (k, v) in other.get_subtrees_shallow():
-            if not self.has_subtree(k):
-                new[k] = v
-        return Trie(new), Trie(discard)
-
     ###########
     # Dunders #
     ###########

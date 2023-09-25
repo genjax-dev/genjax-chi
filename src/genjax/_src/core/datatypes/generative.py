@@ -26,6 +26,7 @@ import rich
 from jax.experimental.checkify import checkify
 
 import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.trie import Trie
@@ -2082,8 +2083,18 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
 
     @dispatch
     def merge(self, other: "HierarchicalChoiceMap"):
-        new_inner, discard = self.trie.merge(other.trie)
-        return HierarchicalChoiceMap(new_inner), HierarchicalChoiceMap(discard)
+        new = hashable_dict()
+        discard = hashable_dict()
+        for (k, v) in self.get_subtrees_shallow():
+            if other.has_subtree(k):
+                sub = other.get_subtree(k)
+                new[k], discard[k] = v.merge(sub)
+            else:
+                new[k] = v
+        for (k, v) in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
+                new[k] = v
+        return HierarchicalChoiceMap(Trie(new)), HierarchicalChoiceMap(Trie(discard))
 
     @dispatch
     def merge(self, other: EmptyChoiceMap):
