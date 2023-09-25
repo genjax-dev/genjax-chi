@@ -23,10 +23,10 @@ tensorflow-probability = "^0.21.0"
 rich = "^13.5.3"
 jaxtyping = "^0.2.21"
 optax = "^0.1.7"
-beartype = "^0.15.0"
+beartype = "^0.16.2"
 dill = "^0.3.7"
 pygments = "^2.16.1"
-plum-dispatch = "^2.2.1"
+plum-dispatch = "^2.2.2"
 
 [tool.poetry.group.dev]
 optional = true
