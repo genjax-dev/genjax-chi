@@ -138,8 +138,8 @@ class TestSimpleSMC:
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
-                key, sub_key = jax.random.split(key)
                 smc_state = smc.smc_resample(smc.multinomial_resampling).apply(
+                        key, sub_key = jax.random.split(key)
                     sub_key, smc_state
                 )
                 return (key, smc_state, t), (smc_state,)
@@ -154,3 +154,24 @@ class TestSimpleSMC:
         key = jax.random.PRNGKey(314159)
         smc_state = jax.jit(extending_smc)(key, obs, 0.0)
         assert True
+
+    def test_smoke_smc_with_nested_switch(self):
+        @genjax.gen
+        def outlier():
+            return genjax.tfp_normal(0.0, 1.0) @ "reflection_point"
+
+        branching = genjax.switch(outlier, outlier)
+
+        @genjax.gen(genjax.Map, max_length=361)
+        def inner_chain():
+            outlier = genjax.bernoulli(0.3) @ "outlier"
+            c = branching(outlier) @ "reflection_or_outlier"
+            return c
+
+        @genjax.gen(genjax.Unfold, max_length = 17)
+        def chain(z):
+            c = inner_chain() @ "chain"
+            return c
+
+        key = jax.random.PRNGKey(314159)
+        init_latent = jnp.ones(361)
