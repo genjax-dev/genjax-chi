@@ -213,13 +213,13 @@ files = [
 
 [[package]]
 name = "beartype"
-version = "0.15.0"
+version = "0.16.2"
 description = "Unbearably fast runtime type checking in pure Python."
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "beartype-0.15.0-py3-none-any.whl", hash = "sha256:52cd2edea72fdd84e4e7f8011a9e3007bf0125c3d6d7219e937b9d8868169177"},
-    {file = "beartype-0.15.0.tar.gz", hash = "sha256:2af6a8d8a7267ccf7d271e1a3bd908afbc025d2a09aa51123567d7d7b37438df"},
+    {file = "beartype-0.16.2-py3-none-any.whl", hash = "sha256:72d133615fe674affc8c49365dd24dfe2260552b9a8a2b7193cdd48021527782"},
+    {file = "beartype-0.16.2.tar.gz", hash = "sha256:47ec1c8c3be3f999f4f9f829e8913f65926aa7e85b180d9ffd305dc78d3e7d7b"},
 ]
 
 [package.extras]
@@ -2821,21 +2821,21 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "plum-dispatch"
-version = "2.2.1"
+version = "2.2.2"
 description = "Multiple dispatch in Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "plum_dispatch-2.2.1-py3-none-any.whl", hash = "sha256:2dea636e5a423f76a6f1900b3ba947db635f67db713dffa446b43c74a72b035b"},
-    {file = "plum_dispatch-2.2.1.tar.gz", hash = "sha256:71ee4f95b02abd2aef608d7112b4e6d42f6cf96c9af0a6c1ba5f713f8491be69"},
+    {file = "plum_dispatch-2.2.2-py3-none-any.whl", hash = "sha256:d7ee415bd166ffa90eaa4b24d7c9dc7ca6f8875750586001e7c9baff706223bd"},
+    {file = "plum_dispatch-2.2.2.tar.gz", hash = "sha256:d5d180225c9fbf0277375bb558b649d97d0b651a91037bb7155cedbe9f52764b"},
 ]
 
 [package.dependencies]
-beartype = "*"
+beartype = ">=0.16.2"
 typing-extensions = {version = "*", markers = "python_version <= \"3.10\""}
 
 [package.extras]
-dev = ["black (==22.10.0)", "build", "coveralls", "ghp-import", "ipython", "jupyter-book", "mypy", "numpy", "pre-commit", "pyright", "pytest (>=6)", "pytest-cov", "tox", "wheel"]
+dev = ["black (==23.9.0)", "build", "coveralls", "ghp-import", "ipython", "jupyter-book", "mypy", "numpy", "pre-commit", "pyright", "pytest (>=6)", "pytest-cov", "tox", "wheel"]
 
 [[package]]
 name = "prometheus-client"
@@ -4214,4 +4214,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "37f0b3710c8a011967a6fdcca682ddea03e8f210e4930437773f7a5d1a09b6d3"
+content-hash = "2e3606836cf3f5c41ac87bd0d23cbd3eecefd316e58dd9ab6ffc6b89aa524c9f"

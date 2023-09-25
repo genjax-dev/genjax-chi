@@ -31,28 +31,26 @@ class TraceKernel(Pytree):
         return (self.gen_fn,), ()
 
     def assess(self, key, choices, args):
-        key, (r, w) = self.gen_fn.assess(key, choices, args)
+        (r, w) = self.gen_fn.assess(key, choices, args)
         (chm, aux) = r
-        return key, ((chm, aux), w)
+        return ((chm, aux), w)
 
     def propose(self, key, args):
-        key, tr = self.gen_fn.simulate(key, args)
+        tr = self.gen_fn.simulate(key, args)
         choices = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
         (chm, aux) = retval
-        return key, (choices, score, (chm, aux))
+        return (choices, score, (chm, aux))
 
     def jacfwd_retval(self, key, choices, args):
-        key, sub_key = jax.random.split(key)
-
         def _inner(choices, args):
-            _, ((chm, aux), w) = self.gen_fn.assess(sub_key, choices, args)
+            ((chm, aux), w) = self.gen_fn.assess(key, choices, args)
             return (chm, aux)
 
         inner_jacfwd = jax.jacfwd(_inner, argnums=(0, 1))
         J = inner_jacfwd(choices, args)
-        return key, J
+        return J
 
 
 #####
@@ -61,12 +59,5 @@ class TraceKernel(Pytree):
 
 
 @typecheck
-def lang(gen_fn: BuiltinGenerativeFunction):
+def trace_kernel(gen_fn: BuiltinGenerativeFunction):
     return TraceKernel.new(gen_fn)
-
-
-#####
-# Exports
-#####
-
-__all__ = ["lang", "TraceKernel"]
