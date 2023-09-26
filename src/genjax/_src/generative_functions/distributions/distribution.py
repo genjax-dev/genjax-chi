@@ -28,8 +28,6 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import tt_lift
-from genjax._src.core.datatypes.masking import Mask
-from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
@@ -177,25 +175,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         score = w
         return (w, DistributionTrace(self, args, v, score))
 
-    # Precedence means preferred.
-    @dispatch(precedence=1)
-    def importance(
-        self,
-        key: PRNGKey,
-        chm: Mask,
-        args: Tuple,
-    ) -> Tuple[FloatArray, DistributionTrace]:
-        def _inactive():
-            w = 0.0
-            tr = self.simulate(key, args)
-            return w, tr
-
-        def _active(v):
-            w, tr = self.importance(key, v, args)
-            return w, tr
-
-        return chm.match(_inactive, _active)
-
     @dispatch
     def update(
         self,
@@ -238,32 +217,6 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
         discard = prev.get_choices()
         retval_diff = tree_diff_unknown_change(v)
         return (retval_diff, w, new_tr, discard)
-
-    @dispatch(precedence=1)
-    def update(
-        self,
-        key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: Mask,
-        argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
-        discard_option = prev.strip()
-
-        def _none():
-            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoiceMap(), argdiffs)
-            discard = mask(False, discard_option)
-            primal = tree_diff_primal(retdiff)
-            retdiff = tree_diff_unknown_change(primal)
-            return (retdiff, w, new_tr, discard)
-
-        def _some(val_chm):
-            (retdiff, w, new_tr, _) = self.update(key, prev, val_chm, argdiffs)
-            discard = mask(True, discard_option)
-            primal = tree_diff_primal(retdiff)
-            retdiff = tree_diff_unknown_change(primal)
-            return (retdiff, w, new_tr, discard)
-
-        return constraints.match(_none, _some)
 
     @typecheck
     def assess(
