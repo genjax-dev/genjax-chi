@@ -54,6 +54,7 @@ from genjax._src.generative_functions.builtin.builtin_transforms import update_t
 # Builtin language syntactic sugar
 #####
 
+
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the builtin language for functions via the `cache` builtin_primitives.
 @dataclass
@@ -88,6 +89,7 @@ class INLINE_FLAG:
 
 
 inline = INLINE_FLAG()
+
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the builtin language for generative functions via the `trace` intrinsic.
@@ -174,7 +176,7 @@ class BuiltinGenerativeFunction(
             chm = EmptyChoiceMap()
         return BuiltinTrace.new(self, args, r, chm, cache, score)
 
-    @typecheck
+    @dispatch
     def importance(
         self,
         key: PRNGKey,
@@ -186,7 +188,7 @@ class BuiltinGenerativeFunction(
         )
         return (w, BuiltinTrace.new(self, args, r, chm, cache, score))
 
-    @typecheck
+    @dispatch
     def update(
         self,
         key: PRNGKey,
@@ -204,11 +206,15 @@ class BuiltinGenerativeFunction(
             ),
             cache,
         ) = update_transform(self.source)(key, prev, constraints, argdiffs)
+        if not discard.is_empty():
+            discard = HierarchicalChoiceMap(discard)
+        else:
+            discard = EmptyChoiceMap()
         return (
             retval_diffs,
             w,
             BuiltinTrace.new(self, args, r, chm, cache, score),
-            HierarchicalChoiceMap(discard),
+            discard,
         )
 
     @typecheck
