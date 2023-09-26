@@ -18,7 +18,6 @@ import dataclasses
 
 import blackjax
 import jax
-import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
@@ -83,7 +82,8 @@ class HamiltonianMonteCarlo(MCMCKernel):
         initial_state = hmc.init(grad)
 
         def step(state, key):
-            return _one_step(hmc.step, state, key)
+            state, _ = hmc.step(key, state)
+            return state, state
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
@@ -131,11 +131,9 @@ class NoUTurnSampler(MCMCKernel):
         grad, nograd = tree_grad_split(
             (initial_chm_position, trace.get_args()),
         )
-        flat_grad, grad_tree_def = jtu.tree_flatten(grad)
 
         # The nograd component never changes.
-        def _logpdf(flat_grad):
-            grad = jtu.tree_unflatten(grad_tree_def, flat_grad)
+        def _logpdf(grad):
             return scorer(grad, nograd)
 
         hmc = blackjax.nuts(
@@ -145,7 +143,7 @@ class NoUTurnSampler(MCMCKernel):
         )
 
         # Pass the grad component into the HMC init.
-        initial_state = hmc.init(flat_grad)
+        initial_state = hmc.init(grad)
 
         def step(state, key):
             return _one_step(hmc.step, state, key)
@@ -153,10 +151,9 @@ class NoUTurnSampler(MCMCKernel):
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
         sub_keys = jax.random.split(key, self.num_steps)
-        _, flat_states = jax.lax.scan(step, initial_state, sub_keys)
-        states = jtu.tree_unflatten(grad_tree_def, flat_states)
+        _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions, _ = tree_zipper(states.position, nograd)
-        return key, final_positions
+        return final_positions
 
     def reversal(self):
         return self
