@@ -17,13 +17,12 @@
 import abc
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.lifted_types import LiftedTypeMeta
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import BoolArray
 
 
 @dataclass
-class AddressTree(Pytree, metaclass=LiftedTypeMeta):
+class AddressTree(Pytree):
     """> The `AddressTree` class is used to define abstract classes for tree-
     shaped datatypes. These classes are used to implement trace, choice map,
     and selection types.
