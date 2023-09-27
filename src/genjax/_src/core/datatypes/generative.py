@@ -26,9 +26,9 @@ import rich
 from jax.experimental.checkify import checkify
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pretty_printing import CustomPretty
