@@ -669,7 +669,8 @@ class UpdateContext(BuiltinInterfaceContext):
     @dispatch
     def set_discard_state(self, addr: PytreeAddress, chm: ChoiceMap):
         tup = addr.to_tuple()
-        if chm.is_empty():
+        empty_check = chm.is_empty()
+        if is_concrete(empty_check) and empty_check:
             return
         if len(tup) == 1:
             self.set_discard_state(tup[0], chm)
