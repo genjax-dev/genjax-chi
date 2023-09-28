@@ -46,7 +46,7 @@ class LGSSM(ExactDensity):
         x_next = alpha * x_t + sigma_SE * jax.random.normal(subkey1)
         
         # Measurement update
-        y_t = x_t + zt + sigma_noise * jax.random.normal(subkey2)
+        y_t = x_next + zt + sigma_noise * jax.random.normal(subkey2)
         
         new_carry = (key, x_next, alpha, sigma_SE, sigma_noise)
         
