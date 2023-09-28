@@ -136,7 +136,7 @@ class LGSSM(ExactDensity):
         
         # Initial values
         x_hat = 0.0  # initial state mean
-        P = sigma_SE**2  # initial state variance
+        P = 0.0  # initial state variance
         carry = (x_hat, P, alpha, sigma_SE, sigma_noise)
         
         # Use lax.scan to efficiently loop over measurements and z values
