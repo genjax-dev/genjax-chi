@@ -1969,7 +1969,11 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     @classmethod
     @dispatch
     def new(cls, trie: Trie):
-        return HierarchicalChoiceMap(trie)
+        check = trie.is_empty()
+        if is_concrete(check) and check:
+            return EmptyChoiceMap()
+        else:
+            return HierarchicalChoiceMap(trie)
 
     def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
         dynamic_addrs = []
