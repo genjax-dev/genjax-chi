@@ -77,9 +77,7 @@ class DefaultImportance(ChoiceMapDistribution):
         )
         inner_chm = chm.get_leaf_value()
         assert isinstance(inner_chm, ChoiceMap)
-        (_, retained_tr) = target.importance(key, inner_chm)
-        constrained = target.constraints.get_selection()
-        retained_w = retained_tr.project(constrained)
+        (retained_w, retained_tr) = target.importance(key, inner_chm)
         lse = _logsumexp_with_extra(lws, retained_w)
         return retained_tr.get_score() - lse + np.log(self.num_particles)
 
