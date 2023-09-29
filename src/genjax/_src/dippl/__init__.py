@@ -20,11 +20,14 @@ from adevjax import flip_enum
 from adevjax import sample_with_key
 
 from genjax._src.core.datatypes.generative import AllSelection
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.scipy.bernoulli import bernoulli
@@ -71,7 +74,12 @@ class ChoiceMapDistribution(Distribution):
             selection = AllSelection()
         return ChoiceMapDistribution(p, selection, custom_q)
 
-    def random_weighted(self, key, *args):
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ):
         tr = self.p.simulate(key, args)
         choices = tr.get_choices()
         selected_choices = choices.filter(self.selection)
@@ -87,12 +95,20 @@ class ChoiceMapDistribution(Distribution):
             weight = tr.get_score() - w
             return (weight, ValueChoiceMap(selected_choices))
 
-    def estimate_logpdf(self, key, choices, *args):
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        choices: ValueChoiceMap,
+        *args,
+    ):
+        inner_choices = choices.get_leaf_value()
+        assert isinstance(inner_choices, ChoiceMap)
         if self.custom_q is None:
-            (_, weight) = self.p.assess(key, choices, args)
-            return weight
+            (_, w) = self.p.assess(key, inner_choices, args)
+            return w
         else:
-            target = Target(self.p, args, choices)
+            target = Target(self.p, args, inner_choices)
             key, sub_key = jax.random.split(key)
             tr = self.custom_q.simulate(sub_key, (target,))
             (w, _) = target.importance(key, tr.get_retval(), ())
