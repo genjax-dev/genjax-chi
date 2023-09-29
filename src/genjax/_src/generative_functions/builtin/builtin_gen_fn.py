@@ -171,9 +171,6 @@ class BuiltinGenerativeFunction(
         args: Tuple,
     ) -> BuiltinTrace:
         (f, args, r, chm, score), cache = simulate_transform(self.source)(key, args)
-        # `chm` is a `Trie` here.
-        if not chm.inner:
-            chm = EmptyChoiceMap()
         return BuiltinTrace.new(self, args, r, chm, cache, score)
 
     @dispatch
