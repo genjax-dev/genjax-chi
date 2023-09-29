@@ -25,10 +25,8 @@ import jax.tree_util as jtu
 import numpy as np
 
 from genjax._src.core.datatypes.generative import ValueChoiceMap
-from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
-    GenSPDistribution,
-)
-from genjax._src.generative_functions.distributions.gensp.target import Target
+from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.gensp.target import Target
 
 
 Int = Union[np.int32, jnp.int32]

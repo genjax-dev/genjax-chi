@@ -25,7 +25,6 @@ from jax import tree_util as jtu
 from jax._src import dtypes
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
-from jax.random import KeyArray
 
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
@@ -41,8 +40,8 @@ def get_shaped_aval(x):
     """Converts a JAX value type into a shaped abstract value."""
     # TODO: This is a kludge. Abstract evaluation currently breaks
     # on `random_wrap` without this branch.
-    if isinstance(x, KeyArray):
-        return jax_core.raise_to_shaped(jax_core.get_aval(x))
+    # if isinstance(x, KeyArray):
+    #    return jax_core.raise_to_shaped(jax_core.get_aval(x))
 
     if hasattr(x, "dtype") and hasattr(x, "shape"):
         return jax_core.ShapedArray(x.shape, dtypes.canonicalize_dtype(x.dtype))
