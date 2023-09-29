@@ -69,6 +69,11 @@ tfp_bates = TFPDistribution.new(tfd.Bates)
 A `TFPDistribution` generative function which wraps the [`tfd.Bates`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bates) distribution from TensorFlow Probability distributions.
 """
 
+tfp_bernoulli = TFPDistribution.new(tfd.Bernoulli)
+"""
+A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
+"""
+
 tfp_chi = TFPDistribution.new(tfd.Chi)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Chi`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi) distribution from TensorFlow Probability distributions.

@@ -39,6 +39,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_bates,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_bernoulli,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_categorical,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -134,6 +137,7 @@ __all__ = [
     "TFPMixture",
     "tfp_mixture",
     "tfp_bates",
+    "tfp_bernoulli",
     "tfp_chi",
     "tfp_chi2",
     "tfp_geometric",
