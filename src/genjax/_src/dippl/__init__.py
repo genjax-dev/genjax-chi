@@ -31,7 +31,9 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
-from genjax._src.generative_functions.distributions.scipy.bernoulli import bernoulli
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_bernoulli,
+)
 from genjax._src.gensp.target import Target
 
 
@@ -61,7 +63,7 @@ class ADEVDistribution(ExactDensity):
 
 flip_enum = ADEVDistribution.new(
     flip_enum,
-    lambda v, p: bernoulli.logpdf(v, p),
+    lambda v, p: tfp_bernoulli.logpdf(v, p),
 )
 
 normal_reinforce = ADEVDistribution.new(
