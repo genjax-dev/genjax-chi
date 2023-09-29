@@ -47,6 +47,7 @@ from genjax._src.core.typing import typecheck
 # (effect handler)-inspired dispatch stack.
 _GENTLE_STACK = []
 
+
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
 def handle(msg):
@@ -307,7 +308,7 @@ class GentleGenerativeFunction(GenerativeFunction):
             retval = self.source(*args)
             score = handler.score
             choices = handler.choice_state
-            return key, GentleTrace(self, args, retval, choices, score)
+            return GentleTrace(self, args, retval, choices, score)
 
     def importance(
         self,
@@ -320,7 +321,7 @@ class GentleGenerativeFunction(GenerativeFunction):
             score = handler.score
             choices = handler.choice_state
             weight = handler.weight
-            return key, (weight, GentleTrace(self, args, retval, choices, score))
+            return (weight, GentleTrace(self, args, retval, choices, score))
 
     def update(
         self,
@@ -337,7 +338,7 @@ class GentleGenerativeFunction(GenerativeFunction):
             discard = handler.discard
             retdiff = tree_diff(retval, UnknownChange)
             score = prev_trace.get_score() + weight
-            return key, (
+            return (
                 retdiff,
                 weight,
                 GentleTrace(self, args, retval, choices, score),
@@ -353,7 +354,7 @@ class GentleGenerativeFunction(GenerativeFunction):
         with AssessHandler.new(key, choice_map) as handler:
             retval = self.source(*args)
             score = handler.score
-            return key, (retval, score)
+            return (retval, score)
 
 
 # A decorator to pipe callables into our generative function.
