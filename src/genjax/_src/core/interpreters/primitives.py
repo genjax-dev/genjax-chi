@@ -15,8 +15,8 @@
 
 import itertools as it
 
+import jax.tree_util as jtu
 from jax import api_util
-from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
 from jax.extend import linear_util as lu
@@ -146,7 +146,7 @@ class FlatPrimitive(jax_core.Primitive):
             tangents_out = jax_util.safe_map(
                 ad.recast_to_float0, primals_out, tangents_out
             )
-            return primals_out, tangents_out
+            return jtu.tree_leaves(primals_out), jtu.tree_leaves(tangents_out)
 
         ad.primitive_jvps[self] = _jvp
 
@@ -173,7 +173,7 @@ def call_bind(prim, **params):
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
             fun = lu.wrap_init(f)
-            flat_args, in_tree = tree_util.tree_flatten((args, kwargs))
+            flat_args, in_tree = jtu.tree_flatten((args, kwargs))
             flat_fun, out_tree = api_util.flatten_fun(fun, in_tree)
             out_tree_dest = None
             out = prim.bind(
@@ -186,7 +186,7 @@ def call_bind(prim, **params):
                 **params,
             )
             out_tree_dest = out_tree()
-            return tree_util.tree_unflatten(out_tree_dest, out)
+            return jtu.tree_unflatten(out_tree_dest, out)
 
         return wrapped
 
@@ -223,7 +223,7 @@ def initial_style_bind(prim, **params):
             jaxpr, (_, in_tree, out_tree) = staging.stage(f, dynamic=True)(
                 *args, **kwargs
             )
-            flat_args = tree_util.tree_leaves(args)
+            flat_args = jtu.tree_leaves(args)
             outs = prim.bind(
                 *it.chain(jaxpr.literals, flat_args),
                 jaxpr=jaxpr.jaxpr,
@@ -232,7 +232,7 @@ def initial_style_bind(prim, **params):
                 num_consts=len(jaxpr.literals),
                 **params,
             )
-            return tree_util.tree_unflatten(out_tree, outs)
+            return jtu.tree_unflatten(out_tree, outs)
 
         return wrapped
 
