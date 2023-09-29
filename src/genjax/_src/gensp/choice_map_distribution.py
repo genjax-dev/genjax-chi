@@ -17,10 +17,13 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.datatypes.generative import AllSelection
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.gensp.target import Target
 
@@ -43,34 +46,47 @@ class ChoiceMapDistribution(Distribution):
     def get_trace_type(self, *args):
         raise NotImplementedError
 
-    def random_weighted(self, key, *args):
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ):
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, args)
         choices = tr.get_choices()
         selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
             weight = tr.project(self.selection)
-            return (weight, selected_choices)
+            return (weight, ValueChoiceMap(selected_choices))
         else:
             unselected = choices.filter(self.selection.complement())
             target = Target.new(self.p, args, selected_choices)
 
-            (w, _) = self.custom_q.assess(
-                key, ValueChoiceMap.new(unselected), (target,)
+            w = self.custom_q.estimate_logpdf(
+                key, ValueChoiceMap.new(unselected), target
             )
             weight = tr.get_score() - w
-            return (weight, selected_choices)
+            return (weight, ValueChoiceMap(selected_choices))
 
-    def estimate_logpdf(self, key, choices, *args):
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        choices: ValueChoiceMap,
+        *args,
+    ):
+        inner_chm = choices.get_leaf_value()
+        assert isinstance(inner_chm, ChoiceMap)
         if self.custom_q is None:
-            (_, weight) = self.p.assess(key, choices, args)
+            (weight, _) = self.p.importance(key, inner_chm, args)
             return weight
         else:
             key, sub_key = jax.random.split(key)
-            target = Target(self.p, args, choices)
-            tr = self.custom_q.simulate(sub_key, (target,))
-            (w, _) = target.importance(key, tr.get_retval())
-            weight = w - tr.get_score()
+            target = Target.new(self.p, args, inner_chm)
+            (bwd_weight, other_choices) = self.custom_q.random_weighted(sub_key, target)
+            (fwd_weight, _) = target.importance(key, other_choices.get_leaf_value())
+            weight = fwd_weight - bwd_weight
             return weight
 
 
