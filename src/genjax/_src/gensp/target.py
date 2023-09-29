@@ -23,6 +23,7 @@ from genjax._src.core.interpreters.context import Context
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import typecheck
 
 
 ###################
@@ -32,12 +33,10 @@ from genjax._src.core.typing import Tuple
 score_p = primitives.InitialStylePrimitive("score")
 
 
-def _score_impl(*args, **_):
-    return args
-
-
-def accum_score(*args, **kwargs):
-    return primitives.initial_style_bind(score_p)(_score_impl)(*args, **kwargs)
+@typecheck
+def accum_score(*args):
+    (v,) = args
+    primitives.initial_style_bind(score_p)(lambda v: v)(v)
 
 
 #################################
@@ -111,7 +110,7 @@ class Target(Pytree):
 
     def importance(self, key, chm: ChoiceMap):
         merged = self.constraints.safe_merge(chm)
-        importance_fn = self.gen_fn.importance
+        importance_fn = self.p.importance
         rescaled = rescale_transform(importance_fn)
         (w, tr), energy = rescaled(key, merged, self.args)
         return (w + energy, tr)

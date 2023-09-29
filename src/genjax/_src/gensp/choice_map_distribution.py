@@ -18,6 +18,7 @@ import jax
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
@@ -57,7 +58,9 @@ class ChoiceMapDistribution(Distribution):
         choices = tr.get_choices()
         selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
-            weight = tr.project(self.selection)
+            unselected = choices.filter(self.selection.complement())
+            target = Target.new(self.p, args, selected_choices)
+            (weight, _) = target.importance(key, unselected)
             return (weight, ValueChoiceMap(selected_choices))
         else:
             unselected = choices.filter(self.selection.complement())
@@ -79,7 +82,8 @@ class ChoiceMapDistribution(Distribution):
         inner_chm = choices.get_leaf_value()
         assert isinstance(inner_chm, ChoiceMap)
         if self.custom_q is None:
-            (weight, _) = self.p.importance(key, inner_chm, args)
+            target = Target.new(self.p, args, inner_chm)
+            (weight, _) = target.importance(key, EmptyChoiceMap())
             return weight
         else:
             key, sub_key = jax.random.split(key)
