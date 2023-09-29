@@ -278,3 +278,24 @@ class TestSwitch:
         v = y.unsafe_unmask()
         assert v.shape == (3,)
         assert (y.mask == jnp.array([True, True, True])).all()
+
+    def test_switch_with_empty_gen_fn(self):
+        @genjax.gen
+        def f():
+            x = genjax.tfp_normal(0.0, 1.0) @ "x"
+            return x
+
+        @genjax.gen
+        def empty():
+            return 0.0
+
+        @genjax.gen
+        def model():
+            b = genjax.bernoulli(0.5) @ "b"
+            s = genjax.Switch(f, empty)(jnp.int32(b)) @ "s"
+            return s
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = genjax.simulate(model)(sub_key, ())
+        assert True
