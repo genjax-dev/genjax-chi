@@ -12,17 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.dippl import ChoiceMapDistribution
-from genjax._src.dippl import Target
-from genjax._src.dippl import chm_dist
 from genjax._src.dippl import flip_enum
-from genjax._src.dippl import target
+from genjax._src.dippl import normal_reinforce
 
 
 __all__ = [
     "flip_enum",
-    "ChoiceMapDistribution",
-    "chm_dist",
-    "Target",
-    "target",
+    "normal_reinforce",
 ]

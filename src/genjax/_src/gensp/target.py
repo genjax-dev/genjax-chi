@@ -12,19 +12,83 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.interpreters import context as ctx
+from genjax._src.core.interpreters import primitives
+from genjax._src.core.interpreters.context import Context
+from genjax._src.core.pytree import Pytree
+from genjax._src.core.typing import Float
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
-from genjax._src.gensp.unnorm import UnnormalizedMeasure
-from genjax._src.gensp.unnorm import UnnormalizedMeasureFunction
+
+
+###################
+# Score intrinsic #
+###################
+
+score_p = primitives.InitialStylePrimitive("score")
+
+
+def _score_impl(*args, **_):
+    return args
+
+
+def accum_score(*args, **kwargs):
+    return primitives.initial_style_bind(score_p)(_score_impl)(*args, **kwargs)
+
+
+#################################
+# Unnormalized measure function #
+#################################
 
 
 @dataclass
-class Target(UnnormalizedMeasure):
-    p: Union[GenerativeFunction, UnnormalizedMeasureFunction]
+class RescaleContext(Context):
+    energy: Float
+
+    def flatten(self):
+        return (self.energy,), ()
+
+    @classmethod
+    def new(cls):
+        return RescaleContext(0.0)
+
+    def yield_state(self):
+        return (self.energy,)
+
+    def handle_score(self, _, tracer, **params):
+        self.energy += tracer
+        return [tracer]
+
+    def can_process(self, primitive):
+        return False
+
+    def process_primitive(self, primitive):
+        raise NotImplementedError
+
+    def get_custom_rule(self, primitive):
+        if primitive is score_p:
+            return self.handle_score
+        else:
+            return None
+
+
+def rescale_transform(source_fn, **kwargs):
+    @functools.wraps(source_fn)
+    def wrapper(*args):
+        context = RescaleContext.new()
+        retvals, (energy,) = ctx.transform(source_fn, context)(*args, **kwargs)
+        return retvals, energy
+
+    return wrapper
+
+
+@dataclass
+class Target(Pytree):
+    p: GenerativeFunction
     args: Tuple
     constraints: ChoiceMap
 
@@ -45,9 +109,12 @@ class Target(UnnormalizedMeasure):
         latents = v.strip().filter(latent_selection)
         return latents
 
-    def importance(self, key, chm: ChoiceMap, _: Tuple):
+    def importance(self, key, chm: ChoiceMap):
         merged = self.constraints.safe_merge(chm)
-        return self.p.importance(key, merged, self.args)
+        importance_fn = self.gen_fn.importance
+        rescaled = rescale_transform(importance_fn)
+        (w, tr), energy = rescaled(key, merged, self.args)
+        return (w + energy, tr)
 
 
 ##############

@@ -14,21 +14,22 @@
 
 from dataclasses import dataclass
 
+import jax
+
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.typing import Union
-from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.gensp.target import Target
-from genjax._src.gensp.utils import static_check_supports
 
 
 @dataclass
-class ChoiceMapDistribution(GenSPDistribution):
+class ChoiceMapDistribution(Distribution):
     p: GenerativeFunction
     selection: Selection
-    custom_q: Union[None, GenSPDistribution]
+    custom_q: Union[None, "ChoiceMapDistribution"]
 
     def flatten(self):
         return (), (self.p, self.selection, self.custom_q)
@@ -40,52 +41,41 @@ class ChoiceMapDistribution(GenSPDistribution):
         return ChoiceMapDistribution(p, selection, custom_q)
 
     def get_trace_type(self, *args):
-        inner_type = self.p.get_trace_type(*args)
-        trace_type = inner_type.filter(self.selection)
-        correct_if_check = trace_type
-        if self.custom_q is None:
-            return correct_if_check
-        else:
-            target = Target.new(self.p, args, self.selection)
-            static_check_supports(target, self.custom_q)
-            return correct_if_check
+        raise NotImplementedError
 
     def random_weighted(self, key, *args):
-        key, tr = self.p.simulate(key, args)
+        key, sub_key = jax.random.split(key)
+        tr = self.p.simulate(sub_key, args)
         choices = tr.get_choices()
         selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
             weight = tr.project(self.selection)
+            return (weight, selected_choices)
         else:
             unselected = choices.filter(self.selection.complement())
             target = Target.new(self.p, args, selected_choices)
 
-            # Perform a compile-time trace type check.
-            static_check_supports(target, self.custom_q)
-
-            key, (w, _) = self.custom_q.assess(
+            (w, _) = self.custom_q.assess(
                 key, ValueChoiceMap.new(unselected), (target,)
             )
             weight = tr.get_score() - w
-        return key, (weight, selected_choices)
+            return (weight, selected_choices)
 
     def estimate_logpdf(self, key, choices, *args):
         if self.custom_q is None:
-            key, (_, weight) = self.p.assess(key, choices, args)
+            (_, weight) = self.p.assess(key, choices, args)
+            return weight
         else:
+            key, sub_key = jax.random.split(key)
             target = Target(self.p, args, choices)
-
-            # Perform a compile-time trace type check.
-            static_check_supports(target, self.custom_q)
-
-            key, tr = self.custom_q.simulate(key, (target,))
-            key, (w, _) = target.importance(key, tr.get_retval(), ())
+            tr = self.custom_q.simulate(sub_key, (target,))
+            (w, _) = target.importance(key, tr.get_retval())
             weight = w - tr.get_score()
-        return key, weight
+            return weight
 
 
 ##############
 # Shorthands #
 ##############
 
-chm_dist = ChoiceMapDistribution.new
+choice_map_distribution = ChoiceMapDistribution.new

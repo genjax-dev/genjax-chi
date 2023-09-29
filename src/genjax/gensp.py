@@ -20,16 +20,11 @@ and his Gen implementation
 GenGenSP.
 """
 
-from genjax._src.gensp import unnorm
 from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
-from genjax._src.gensp.choice_map_distribution import chm_dist
-from genjax._src.gensp.estimated_norm_distribution import (
-    EstimatedNormalizedDistribution,
-)
-from genjax._src.gensp.estimated_norm_distribution import estimated_norm_dist
-from genjax._src.gensp.gensp_distribution import GenSPDistribution
-from genjax._src.gensp.inference.importance import Importance
-from genjax._src.gensp.inference.importance import importance
+from genjax._src.gensp.choice_map_distribution import choice_map_distribution
+from genjax._src.gensp.inference.importance_sampling import CustomImportance
+from genjax._src.gensp.inference.importance_sampling import DefaultImportance
+from genjax._src.gensp.inference.importance_sampling import importance_sampler
 from genjax._src.gensp.inference.sequential_monte_carlo import ChangeTarget
 from genjax._src.gensp.inference.sequential_monte_carlo import Compose
 from genjax._src.gensp.inference.sequential_monte_carlo import Extend
@@ -45,21 +40,21 @@ from genjax._src.gensp.inference.sequential_monte_carlo import SMCSequencePropag
 from genjax._src.gensp.marginal import Marginal
 from genjax._src.gensp.marginal import marginal
 from genjax._src.gensp.target import Target
+from genjax._src.gensp.target import accum_score
 from genjax._src.gensp.target import target
-from genjax._src.gensp.unnorm import score
 from genjax._src.gensp.utils import static_check_supports
 
 
 __all__ = [
     "Target",
     "target",
-    "GenSPDistribution",
     "Marginal",
     "marginal",
     "ChoiceMapDistribution",
-    "chm_dist",
-    "Importance",
-    "importance",
+    "choice_map_distribution",
+    "CustomImportance",
+    "DefaultImportance",
+    "importance_sampler",
     "ParticleCollection",
     "SMCPropagator",
     "SMCExtendPropagator",
@@ -73,8 +68,5 @@ __all__ = [
     "Compose",
     "Sequence",
     "static_check_supports",
-    "unnorm",
-    "score",
-    "estimated_norm_dist",
-    "EstimatedNormalizedDistribution",
+    "accum_score",
 ]
