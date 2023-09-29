@@ -28,7 +28,7 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
 
 
@@ -37,7 +37,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
     num_meta_p: Int
     num_meta_q: Int
     p: GenerativeFunction
-    q: GenSPDistribution
+    q: ChoiceMapDistribution
     inf_selection: Selection
 
     def flatten(self):
@@ -51,7 +51,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
     def new(
         cls,
         p: GenerativeFunction,
-        q: GenSPDistribution,
+        q: ChoiceMapDistribution,
         inf_selection: Selection,
         num_meta_p: Int,
         num_meta_q: Int,

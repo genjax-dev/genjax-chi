@@ -47,7 +47,7 @@ from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
-from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
 
 
@@ -180,7 +180,7 @@ class SMCPropagator(Pytree):
 
 @dataclasses.dataclass
 class SMCExtendPropagator(SMCPropagator):
-    k: GenSPDistribution
+    k: ChoiceMapDistribution
 
     def flatten(self):
         return (), (self.k,)
@@ -427,7 +427,7 @@ class SMCSequencePropagator(SMCPropagator):
 
 
 @dataclasses.dataclass
-class SMCAlgorithm(GenSPDistribution):
+class SMCAlgorithm(ChoiceMapDistribution):
     @abc.abstractmethod
     def get_final_target(self) -> Target:
         pass

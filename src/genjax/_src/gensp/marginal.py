@@ -14,21 +14,28 @@
 
 from dataclasses import dataclass
 
+import jax
+
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.datatypes.generative import choice_map
+from genjax._src.core.datatypes.generative import select
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import (
     HierarchicalSelection,
 )
-from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.generative_functions.distributions.distribution import Distribution
+from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
 
 
 @dataclass
-class Marginal(GenSPDistribution):
+class Marginal(Distribution):
     p: GenerativeFunction
-    q: GenSPDistribution
+    q: ChoiceMapDistribution
     addr: Any
 
     def flatten(self):
@@ -40,29 +47,42 @@ class Marginal(GenSPDistribution):
         trace_type = inner_type.filter(selection)
         return trace_type
 
-    def random_weighted(self, key, *args):
-        key, tr = self.p.simulate(key, args)
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ) -> Any:
+        key, sub_key = jax.random.split(key)
+        tr = self.p.simulate(sub_key, args)
         weight = tr.get_score()
         choices = tr.get_choices()
         val = choices[self.addr]
-        selection = HierarchicalSelection.new([self.addr]).complement()
+        selection = select(self.addr).complement()
         other_choices = choices.filter(selection)
-        target = Target.new(self.p, args, HierarchicalChoiceMap.new({self.addr: val}))
-        key, (q_weight, _) = self.q.importance(
+        target = Target.new(self.p, args, choice_map({self.addr: val}))
+        (q_weight, _) = self.q.importance(
             key, ValueChoiceMap.new(other_choices), (target,)
         )
         weight -= q_weight
-        return key, (weight, val)
+        return (weight, val)
 
-    def estimate_logpdf(self, key, val, *args):
-        chm = HierarchicalChoiceMap.new({self.addr: val})
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        val: Any,
+        *args,
+    ) -> FloatArray:
+        chm = choice_map({self.addr: val})
         target = Target.new(self.p, args, chm)
-        key, tr = self.q.simulate(key, (target,))
+        key, sub_key = jax.random.split(key)
+        tr = self.q.simulate(sub_key, (target,))
         q_w = tr.get_score()
         choices = tr.get_choices()
         choices = choices.safe_merge(chm)
-        key, (p_w, _) = self.p.importance(key, choices, args)
-        return key, p_w - q_w
+        (p_w, _) = self.p.importance(key, choices, args)
+        return p_w - q_w
 
 
 ##############
