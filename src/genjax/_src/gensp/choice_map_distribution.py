@@ -54,22 +54,22 @@ class ChoiceMapDistribution(Distribution):
         *args,
     ):
         key, sub_key = jax.random.split(key)
-        tr = self.p.simulate(sub_key, args)
-        choices = tr.get_choices()
+        target = Target.new(self.p, args, EmptyChoiceMap())
+        energy, tr = target.importance(sub_key, EmptyChoiceMap())
+        choices = tr.strip()
         selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
-            unselected = choices.filter(self.selection.complement())
-            target = Target.new(self.p, args, selected_choices)
-            (weight, _) = target.importance(key, unselected)
+            weight = energy + tr.project(self.selection)
             return (weight, ValueChoiceMap(selected_choices))
         else:
+            key, sub_key = jax.random.split(key)
             unselected = choices.filter(self.selection.complement())
             target = Target.new(self.p, args, selected_choices)
 
             w = self.custom_q.estimate_logpdf(
                 key, ValueChoiceMap.new(unselected), target
             )
-            weight = tr.get_score() - w
+            weight = energy + (tr.get_score() - w)
             return (weight, ValueChoiceMap(selected_choices))
 
     @typecheck
