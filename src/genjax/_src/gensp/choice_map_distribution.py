@@ -19,13 +19,9 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.typing import Union
-from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
-    GenSPDistribution,
-)
-from genjax._src.generative_functions.distributions.gensp.target import Target
-from genjax._src.generative_functions.distributions.gensp.utils import (
-    static_check_supports,
-)
+from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.gensp.target import Target
+from genjax._src.gensp.utils import static_check_supports
 
 
 @dataclass

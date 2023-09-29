@@ -18,12 +18,8 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
-from genjax._src.generative_functions.distributions.gensp.unnorm import (
-    UnnormalizedMeasure,
-)
-from genjax._src.generative_functions.distributions.gensp.unnorm import (
-    UnnormalizedMeasureFunction,
-)
+from genjax._src.gensp.unnorm import UnnormalizedMeasure
+from genjax._src.gensp.unnorm import UnnormalizedMeasureFunction
 
 
 @dataclass

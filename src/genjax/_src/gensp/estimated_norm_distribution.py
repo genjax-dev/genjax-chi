@@ -16,13 +16,9 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import emp_chm
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
-    GenSPDistribution,
-)
-from genjax._src.generative_functions.distributions.gensp.target import Target
-from genjax._src.generative_functions.distributions.gensp.unnorm import (
-    UnnormalizedMeasureFunction,
-)
+from genjax._src.gensp.gensp_distribution import GenSPDistribution
+from genjax._src.gensp.target import Target
+from genjax._src.gensp.unnorm import UnnormalizedMeasureFunction
 
 
 #######################################
