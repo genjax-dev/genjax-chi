@@ -131,7 +131,10 @@ def lower(prim: Distribution):
 def loss(fn: Callable):
     @adev
     def _inner(*args):
-        fn(*args)
-        return 0.0
+        v = fn(*args)
+        if v is None:
+            return 0.0
+        else:
+            return v
 
     return E(_inner)
