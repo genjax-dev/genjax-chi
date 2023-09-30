@@ -28,6 +28,7 @@ dill = "^0.3.7"
 pygments = "^2.16.1"
 plum-dispatch = "^2.2.2"
 adevjax = { git = "https://github.com/probcomp/adevjax" }
+equinox = "^0.11.0"
 
 [tool.poetry.group.dev]
 optional = true

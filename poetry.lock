@@ -913,6 +913,22 @@ files = [
 ]
 
 [[package]]
+name = "equinox"
+version = "0.11.0"
+description = "Elegant easy-to-use neural networks in JAX."
+optional = false
+python-versions = "~=3.9"
+files = [
+    {file = "equinox-0.11.0-py3-none-any.whl", hash = "sha256:9aa5ae402fb63865f5e596fea6d839801481750567dc87803b531fb8da74ba7d"},
+    {file = "equinox-0.11.0.tar.gz", hash = "sha256:b47c38c5057639b42828b8d86ae831a77af24f6f53d5f99a358806383a3239b2"},
+]
+
+[package.dependencies]
+jax = ">=0.4.13"
+jaxtyping = ">=0.2.20"
+typing-extensions = ">=4.5.0"
+
+[[package]]
 name = "exceptiongroup"
 version = "1.1.3"
 description = "Backport of PEP 654 (exception groups)"
@@ -4254,4 +4270,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "f11523830b9c8d90744509b3d7dc9821e110bc10f50d3af5d41b4b3517381265"
+content-hash = "ef51a95f33f1971305ca136579ff60ec47d184638569460c629b24cdd8cf0adf"

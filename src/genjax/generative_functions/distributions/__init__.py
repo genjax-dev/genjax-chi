@@ -129,6 +129,13 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_zipf,
 )
 
+from .custom import Dirac
+from .custom import DiscreteHMM
+from .custom import DiscreteHMMConfiguration
+from .custom import dirac
+from .custom import discrete_hmm
+from .custom import forward_filtering_backward_sampling
+
 
 __all__ = [
     "Distribution",
@@ -179,4 +186,10 @@ __all__ = [
     "normal",
     "pareto",
     "poisson",
+    "discrete_hmm",
+    "DiscreteHMM",
+    "DiscreteHMMConfiguration",
+    "forward_filtering_backward_sampling",
+    "Dirac",
+    "dirac",
 ]
