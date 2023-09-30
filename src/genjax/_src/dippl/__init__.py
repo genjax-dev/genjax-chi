@@ -40,6 +40,9 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_bernoulli,
 )
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_normal,
+)
 from genjax._src.gensp.target import Target
 
 
@@ -74,7 +77,7 @@ flip_enum = ADEVDistribution.new(
 
 normal_reinforce = ADEVDistribution.new(
     normal_reinforce,
-    lambda v, μ, σ: genjax.tfp_normal.logpdf(v, μ, σ),
+    lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
 )
 
 ##################################

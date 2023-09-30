@@ -42,6 +42,7 @@ from genjax._src.gensp.marginal import marginal
 from genjax._src.gensp.target import Target
 from genjax._src.gensp.target import accum_score
 from genjax._src.gensp.target import target
+from genjax._src.gensp.utils import merge
 from genjax._src.gensp.utils import static_check_supports
 
 
@@ -68,5 +69,6 @@ __all__ = [
     "Compose",
     "Sequence",
     "static_check_supports",
+    "merge",
     "accum_score",
 ]
