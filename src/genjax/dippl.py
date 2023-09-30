@@ -13,10 +13,16 @@
 # limitations under the License.
 
 from genjax._src.dippl import flip_enum
+from genjax._src.dippl import loss
+from genjax._src.dippl import lower
 from genjax._src.dippl import normal_reinforce
+from genjax._src.dippl import upper
 
 
 __all__ = [
     "flip_enum",
     "normal_reinforce",
+    "upper",
+    "lower",
+    "loss",
 ]

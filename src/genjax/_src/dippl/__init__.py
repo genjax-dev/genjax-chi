@@ -15,7 +15,12 @@
 from dataclasses import dataclass
 
 import jax
+import jax.numpy as jnp
+import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
+from adevjax import E
+from adevjax import add_cost
+from adevjax import adev
 from adevjax import flip_enum
 from adevjax import normal_reinforce
 from adevjax import sample_with_key
@@ -25,6 +30,7 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Union
@@ -63,10 +69,69 @@ class ADEVDistribution(ExactDensity):
 
 flip_enum = ADEVDistribution.new(
     flip_enum,
-    lambda v, p: tfp_bernoulli.logpdf(v, p),
+    lambda v, p: tfp_bernoulli.logpdf(v, probs=p),
 )
 
 normal_reinforce = ADEVDistribution.new(
     normal_reinforce,
     lambda v, μ, σ: genjax.tfp_normal.logpdf(v, μ, σ),
 )
+
+##################################
+# Differentiable loss primitives #
+##################################
+
+
+# This is a metaprogramming trick.
+# We can interact with the PRNGKey provided by adevjax's JVP transformation
+# context by defining a new primitive whose only job is to grab the key and provide it to
+# the continuation.
+@dataclass
+class GrabKey(ADEVPrimitive):
+    def flatten(self):
+        return (), ()
+
+    def abstract_call(self, key, *args):
+        return key
+
+    def jvp_estimate(
+        self,
+        key: PRNGKey,
+        primals: Pytree,
+        tangents: Pytree,
+        kont: Callable,
+    ):
+        return kont(key, None)
+
+
+def grab_key():
+    prim = GrabKey()
+    return prim()
+
+
+def upper(prim: Distribution):
+    def _inner(*args):
+        key = grab_key()
+        (w, v) = prim.random_weighted(key, *args)
+        add_cost(-w)
+        return v
+
+    return lambda *args: _inner(*args)
+
+
+def lower(prim: Distribution):
+    def _inner(v, *args):
+        key = grab_key()
+        w = prim.estimate_logpdf(key, v, *args)
+        add_cost(w)
+
+    return lambda v, *args: _inner(v, *args)
+
+
+def loss(fn: Callable):
+    @adev
+    def _inner(*args):
+        fn(*args)
+        return 0.0
+
+    return E(_inner)
