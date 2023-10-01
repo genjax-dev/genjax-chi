@@ -27,6 +27,7 @@ from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
 from adevjax import normal_reparam
 from adevjax import sample_with_key
+from jax.experimental import host_callback as hcb
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -125,17 +126,22 @@ class GrabKey(ADEVPrimitive):
         tangents: Pytree,
         kont: Callable,
     ):
-        return kont(key, None)
+        return kont(key, jnp.zeros_like(key))
 
 
-def grab_key():
+# We provide arguments - because our tracer types
+# are carried via arguments. If this was nullary,
+# our transformation would fail.
+#
+# We ignore the arguments anyways.
+def grab_key(*args):
     prim = GrabKey()
-    return prim()
+    return prim(*args)
 
 
 def upper(prim: Distribution):
     def _inner(*args):
-        key = grab_key()
+        key = grab_key(*args)
         (w, v) = prim.random_weighted(key, *args)
         add_cost(-w)
         return v
@@ -145,7 +151,7 @@ def upper(prim: Distribution):
 
 def lower(prim: Distribution):
     def _inner(v, *args):
-        key = grab_key()
+        key = grab_key(v, *args)
         w = prim.estimate_logpdf(key, v, *args)
         add_cost(w)
 
