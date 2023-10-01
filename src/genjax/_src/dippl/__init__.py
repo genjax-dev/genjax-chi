@@ -22,7 +22,10 @@ from adevjax import E
 from adevjax import add_cost
 from adevjax import adev
 from adevjax import flip_enum
+from adevjax import geometric_reinforce
+from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
+from adevjax import normal_reparam
 from adevjax import sample_with_key
 
 from genjax._src.core.datatypes.generative import AllSelection
@@ -39,6 +42,9 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_bernoulli,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_mv_normal,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_normal,
@@ -78,6 +84,21 @@ flip_enum = ADEVDistribution.new(
 normal_reinforce = ADEVDistribution.new(
     normal_reinforce,
     lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
+)
+
+normal_reparam = ADEVDistribution.new(
+    normal_reparam,
+    lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
+)
+
+mv_normal_reparam = ADEVDistribution.new(
+    mv_normal_reparam,
+    lambda v, μ, Σ: tfp_mv_normal.logpdf(v, μ, Σ),
+)
+
+geometric_reinforce = ADEVDistribution.new(
+    geometric_reinforce,
+    lambda v, *args: tfp_geometric.logpdf(v, *args),
 )
 
 ##################################

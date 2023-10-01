@@ -32,7 +32,7 @@ tensorflow-probability = "^0.21.0"
 type = "git"
 url = "https://github.com/probcomp/adevjax"
 reference = "HEAD"
-resolved_reference = "645f5d4d4dde5dcc0676ccf67a692ead27b6c8e2"
+resolved_reference = "9c53ab65f389ef456b94e0b2971e77fb56e0507f"
 
 [[package]]
 name = "aiofiles"
@@ -977,13 +977,13 @@ tests = ["asttokens (>=2.1.0)", "coverage", "coverage-enable-subprocess", "ipyth
 
 [[package]]
 name = "fastjsonschema"
-version = "2.18.0"
+version = "2.18.1"
 description = "Fastest Python implementation of JSON schema"
 optional = false
 python-versions = "*"
 files = [
-    {file = "fastjsonschema-2.18.0-py3-none-any.whl", hash = "sha256:128039912a11a807068a7c87d0da36660afbfd7202780db26c4aa7153cfdc799"},
-    {file = "fastjsonschema-2.18.0.tar.gz", hash = "sha256:e820349dd16f806e4bd1467a138dced9def4bc7d6213a34295272a6cac95b5bd"},
+    {file = "fastjsonschema-2.18.1-py3-none-any.whl", hash = "sha256:aec6a19e9f66e9810ab371cc913ad5f4e9e479b63a7072a2cd060a9369e329a8"},
+    {file = "fastjsonschema-2.18.1.tar.gz", hash = "sha256:06dc8680d937628e993fa0cd278f196d20449a1adc087640710846b324d422ea"},
 ]
 
 [package.extras]
@@ -3882,13 +3882,13 @@ test = ["flake8", "isort", "pytest"]
 
 [[package]]
 name = "tinygp"
-version = "0.2.3"
+version = "0.2.4"
 description = "The tiniest of Gaussian Process libraries"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.9"
 files = [
-    {file = "tinygp-0.2.3-py3-none-any.whl", hash = "sha256:52136eb9cc53726c0d09e8882c34433b565b4f22493b9c4418b9eccf5baeee0c"},
-    {file = "tinygp-0.2.3.tar.gz", hash = "sha256:15b2426d4ec232b4649286e32dcad7a2680b09e09b0c857dee8eabfa99244e7b"},
+    {file = "tinygp-0.2.4-py3-none-any.whl", hash = "sha256:607da8dfb5d009066b84000d4e94ca68ca165613cdc1d223256891da0afc9beb"},
+    {file = "tinygp-0.2.4.tar.gz", hash = "sha256:7e88a607a5ec83efadadf229903908e9b195273c5345ef60bdd38a809a3c6504"},
 ]
 
 [package.dependencies]
@@ -3896,9 +3896,8 @@ jax = "*"
 jaxlib = "*"
 
 [package.extras]
-coverage = ["celerite", "george", "pytest (>=3.6)", "pytest-cov"]
-docs = ["arviz", "flax", "ipython (==7.31.0)", "jaxopt", "matplotlib", "myst-nb", "numpyro", "optax", "sphinx (>=3.3)", "sphinx-book-theme", "statsmodels"]
-test = ["celerite", "george", "pytest (>=3.6)"]
+docs = ["arviz", "flax", "ipython", "jaxopt", "matplotlib", "myst-nb", "numpyro", "optax", "sphinx-book-theme", "statsmodels"]
+test = ["celerite", "george", "pytest"]
 
 [[package]]
 name = "tomli"
