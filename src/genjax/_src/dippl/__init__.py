@@ -23,6 +23,7 @@ from adevjax import add_cost
 from adevjax import adev
 from adevjax import flip_enum
 from adevjax import geometric_reinforce
+from adevjax import mv_normal_diag_reparam
 from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
 from adevjax import normal_reparam
@@ -46,6 +47,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_mv_normal,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_mv_normal_diag,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_normal,
@@ -95,6 +99,11 @@ normal_reparam = ADEVDistribution.new(
 mv_normal_reparam = ADEVDistribution.new(
     mv_normal_reparam,
     lambda v, μ, Σ: tfp_mv_normal.logpdf(v, μ, Σ),
+)
+
+mv_normal_diag_reparam = ADEVDistribution.new(
+    mv_normal_diag_reparam,
+    lambda v, μ, Σ_diag: tfp_mv_normal_diag.logpdf(v, μ, Σ_diag),
 )
 
 geometric_reinforce = ADEVDistribution.new(
