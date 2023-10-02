@@ -16,6 +16,7 @@ from genjax._src.dippl import flip_enum
 from genjax._src.dippl import geometric_reinforce
 from genjax._src.dippl import loss
 from genjax._src.dippl import lower
+from genjax._src.dippl import mv_normal_diag_reparam
 from genjax._src.dippl import mv_normal_reparam
 from genjax._src.dippl import normal_reinforce
 from genjax._src.dippl import normal_reparam
@@ -27,6 +28,7 @@ __all__ = [
     "normal_reinforce",
     "normal_reparam",
     "mv_normal_reparam",
+    "mv_normal_diag_reparam",
     "geometric_reinforce",
     "upper",
     "lower",
