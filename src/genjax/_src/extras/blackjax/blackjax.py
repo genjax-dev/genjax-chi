@@ -56,8 +56,9 @@ class HamiltonianMonteCarlo(MCMCKernel):
         # is not changing. The only update which can occur is to
         # the choice map.
         gen_fn = trace.get_gen_fn()
-        fixed = self.selection.complement().filter(trace.strip())
-        initial_chm_position = self.selection.filter(trace.strip())
+        stripped = trace.strip()
+        fixed = stripped.filter(self.selection.complement())
+        initial_chm_position = stripped.filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
@@ -81,7 +82,8 @@ class HamiltonianMonteCarlo(MCMCKernel):
         initial_state = hmc.init(grad)
 
         def step(state, key):
-            return _one_step(hmc.step, state, key)
+            state, _ = hmc.step(key, state)
+            return state, state
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
@@ -119,8 +121,9 @@ class NoUTurnSampler(MCMCKernel):
         # is not changing. The only update which can occur is to
         # the choice map.
         gen_fn = trace.get_gen_fn()
-        fixed = self.selection.complement().filter(trace.strip())
-        initial_chm_position = self.selection.filter(trace.strip())
+        stripped = trace.strip()
+        fixed = stripped.filter(self.selection.complement())
+        initial_chm_position = stripped.filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
@@ -150,7 +153,7 @@ class NoUTurnSampler(MCMCKernel):
         sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
         final_positions, _ = tree_zipper(states.position, nograd)
-        return key, final_positions
+        return final_positions
 
     def reversal(self):
         return self
