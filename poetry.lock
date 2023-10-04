@@ -1303,23 +1303,27 @@ tpu = ["jaxlib (==0.4.16)", "libtpu-nightly (==0.1.dev20230918)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.4.16"
+version = "0.4.17"
 description = "XLA library for JAX"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "jaxlib-0.4.16-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:c790eab261ea11bec397b767c53e4dd25df418ab7938f669ab71c65fd3052a6a"},
-    {file = "jaxlib-0.4.16-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:206da90ae8bf623f8b0cc6d0c01565bbbca5da596a9dac4ccf3fccb41bc1afa5"},
-    {file = "jaxlib-0.4.16-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:e17c9a0e728432101b7cf12f3774420c48d74d66ce2fab56ad397261e89ba15b"},
-    {file = "jaxlib-0.4.16-cp310-cp310-win_amd64.whl", hash = "sha256:b9c1acbaf9bdeafe67c9efe7a7c85e7c7b6266185120fce1ce9156ddab468cd8"},
-    {file = "jaxlib-0.4.16-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:82a8be6107db8590218e59078a770cdc3eb96153a394d6b38c61317c9e91d48d"},
-    {file = "jaxlib-0.4.16-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d249b28219a560fe0b145670c3d71869607d8af5495f974463642c514531e008"},
-    {file = "jaxlib-0.4.16-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:55e45e7af59909a8385b10e9d7072aab1dcb77eb65a16c63fe86b7344ee1543a"},
-    {file = "jaxlib-0.4.16-cp311-cp311-win_amd64.whl", hash = "sha256:e19626b8b7ca286065a335be9d77494e70b051500045fe97b0009d0ed5c0c455"},
-    {file = "jaxlib-0.4.16-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:e6cbd9e161bb340b2fef04430954a3783247ee45e4170cb768b74098f779d286"},
-    {file = "jaxlib-0.4.16-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:dff0870685127a89991a511039588b034379d4c92709bacd60c286b482d22eb6"},
-    {file = "jaxlib-0.4.16-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:e402c7e652a802ed67bbbd7f3ffc1ef76dc9c92e269e273d1e9a3a9098e297ca"},
-    {file = "jaxlib-0.4.16-cp39-cp39-win_amd64.whl", hash = "sha256:a5cdb37690e6bf31a29a3967f9f51c2ca22c35f81e525be15669e5f17784309e"},
+    {file = "jaxlib-0.4.17-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:d4be1ac4bf1be1ae1cd8f5f4da414a6d0de8de36cf2effdb5758d4d677896078"},
+    {file = "jaxlib-0.4.17-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:392c779f902c43e1a0af49159daffef9b5af952aba001463f98cf95a59ef17ff"},
+    {file = "jaxlib-0.4.17-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:160fce68b82a79a6c522652e8dd9a10aac9c00d1599cb7e166671ad909aa139e"},
+    {file = "jaxlib-0.4.17-cp310-cp310-win_amd64.whl", hash = "sha256:61b3788c6cfe46f307e6e67d4a942de72cf34711ff349f4f11500cdf6dc67199"},
+    {file = "jaxlib-0.4.17-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:6c3524150bd85098f291fac81f73e285f3e095dbbb49751647cc27bed5327a78"},
+    {file = "jaxlib-0.4.17-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:2e0d84a756b47ef6db52a6532b1f242cb8dc9035c102c60075470d65e71f7afb"},
+    {file = "jaxlib-0.4.17-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:e04a0b8bb18ac24e25c15ed03be771815566f118c16f585ffe2e0f75bf7c064d"},
+    {file = "jaxlib-0.4.17-cp311-cp311-win_amd64.whl", hash = "sha256:73173f1aff8d277110d32bdd5e073dc7d50e6618b5567b3bfbc53864b4613439"},
+    {file = "jaxlib-0.4.17-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:909971337aabf5f2724a84c3166cea454b37024908d830695dc6b4ba4440676f"},
+    {file = "jaxlib-0.4.17-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:98d42a402201fd0cb332bad4177b20c942d1acd1487581ee0c3cb5ef6766531a"},
+    {file = "jaxlib-0.4.17-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:593aa9d1c940b9215968878561ad59feee2438386c3868d6524ff4ca730cfdf1"},
+    {file = "jaxlib-0.4.17-cp312-cp312-win_amd64.whl", hash = "sha256:a4384cc7187f4f10749c6c623211d1a6b55575f921c00af38ff8f05fd3f7ecfd"},
+    {file = "jaxlib-0.4.17-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:84b6cd54143ffe2ce45d5bcf2f9eafa1f9b4cf51dab0cc8e7703622fb624549d"},
+    {file = "jaxlib-0.4.17-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:a521d8323ef4d8155efc11b788f29dd3794cbb80f83533da957921a058fd3abe"},
+    {file = "jaxlib-0.4.17-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:c933a6fb74f9fc16a2610566b32ff0135077ae9032e50f695653377d2cfbc9e5"},
+    {file = "jaxlib-0.4.17-cp39-cp39-win_amd64.whl", hash = "sha256:44a2bff9966fe3b5783595d3214d3598bea48a2aa502de9d7d44c2ca39426929"},
 ]
 
 [package.dependencies]
