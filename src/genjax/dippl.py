@@ -21,6 +21,7 @@ from genjax._src.dippl import mv_normal_reparam
 from genjax._src.dippl import normal_reinforce
 from genjax._src.dippl import normal_reparam
 from genjax._src.dippl import upper
+from genjax._src.dippl import ADEVDistribution
 
 
 __all__ = [
@@ -33,4 +34,5 @@ __all__ = [
     "upper",
     "lower",
     "loss",
+    "ADEVDistribution",
 ]

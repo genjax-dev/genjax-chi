@@ -18,6 +18,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
+from adevjax import grab_key
 from adevjax import E
 from adevjax import add_cost
 from adevjax import adev
@@ -28,7 +29,6 @@ from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
 from adevjax import normal_reparam
 from adevjax import sample_with_key
-from jax.experimental import host_callback as hcb
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -75,7 +75,7 @@ class ADEVDistribution(ExactDensity):
         return ADEVDistribution(diff_logpdf, adev_prim)
 
     def sample(self, key, *args):
-        return sample_with_key(self.adev_primitive, key, args)
+        return sample_with_key(self.adev_primitive, key, *args)
 
     def logpdf(self, v, *args):
         return self.differentiable_logpdf(v, *args)
@@ -116,41 +116,9 @@ geometric_reinforce = ADEVDistribution.new(
 ##################################
 
 
-# This is a metaprogramming trick.
-# We can interact with the PRNGKey provided by adevjax's JVP transformation
-# context by defining a new primitive whose only job is to grab the key and provide it to
-# the continuation.
-@dataclass
-class GrabKey(ADEVPrimitive):
-    def flatten(self):
-        return (), ()
-
-    def abstract_call(self, key, *args):
-        return key
-
-    def jvp_estimate(
-        self,
-        key: PRNGKey,
-        primals: Pytree,
-        tangents: Pytree,
-        kont: Callable,
-    ):
-        return kont(key, jnp.zeros_like(key))
-
-
-# We provide arguments - because our tracer types
-# are carried via arguments. If this was nullary,
-# our transformation would fail.
-#
-# We ignore the arguments anyways.
-def grab_key(*args):
-    prim = GrabKey()
-    return prim(*args)
-
-
 def upper(prim: Distribution):
     def _inner(*args):
-        key = grab_key(*args)
+        key = grab_key()
         (w, v) = prim.random_weighted(key, *args)
         add_cost(-w)
         return v
@@ -160,7 +128,7 @@ def upper(prim: Distribution):
 
 def lower(prim: Distribution):
     def _inner(v, *args):
-        key = grab_key(v, *args)
+        key = grab_key()
         w = prim.estimate_logpdf(key, v, *args)
         add_cost(w)
 
