@@ -31,7 +31,6 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.staging import concrete_cond
 from genjax._src.core.interpreters.staging import is_concrete
-from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.transforms.incremental import Diff
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_no_change
@@ -46,6 +45,7 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexChoiceMap,
 )
@@ -500,7 +500,47 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         state: Any,
         *static_args: Any,
     ):
-        raise NotImplementedError
+        length, state, static_args = tree_diff_primal((length, state, static_args))
+
+        def _inner(carry, slice):
+            count, key, state = carry
+            (prev,) = slice
+            key, sub_key = jax.random.split(key)
+
+            (retval_diff, w, tr, discard) = self.kernel.update(
+                sub_key,
+                prev,
+                chm,
+                tree_diff_no_change((state, *static_args)),
+            )
+
+            check = jnp.less(count, length + 1)
+            count, state, score, weight = concrete_cond(
+                check,
+                lambda *args: (count + 1, retval_diff, tr.get_score(), w),
+                lambda *args: (count, state, 0.0, 0.0),
+            )
+            return (count, key, state), (state, score, weight, tr, discard)
+
+        prev_inner_trace = prev.inner
+        (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
+            _inner,
+            (0, key, state),
+            (prev_inner_trace,),
+            length=self.max_length,
+        )
+
+        unfold_tr = UnfoldTrace(
+            self,
+            tr,
+            length,
+            (length, state, *static_args),
+            tree_diff_primal(retval_diff),
+            jnp.sum(score),
+        )
+
+        w = jnp.sum(w)
+        return (retval_diff, w, unfold_tr, discard)
 
     # TODO: this does not handle when the new length
     # is less than the previous!
