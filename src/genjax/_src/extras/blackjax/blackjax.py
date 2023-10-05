@@ -83,7 +83,8 @@ class HamiltonianMonteCarlo(MCMCKernel):
         initial_state = hmc.init(grad)
 
         def step(state, key):
-            return _one_step(hmc.step, state, key)
+            state, _ = hmc.step(key, state)
+            return state, state
 
         # TODO: do we need to allocate keys for the full chain?
         # Shouldn't it just pass a single key along?
@@ -156,7 +157,7 @@ class NoUTurnSampler(MCMCKernel):
         _, flat_states = jax.lax.scan(step, initial_state, sub_keys)
         states = jtu.tree_unflatten(grad_tree_def, flat_states)
         final_positions, _ = tree_zipper(states.position, nograd)
-        return key, final_positions
+        return final_positions
 
     def reversal(self):
         return self

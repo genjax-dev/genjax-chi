@@ -14,10 +14,9 @@ A final style (customized trace/tracer) interpreter (it defines its own `Trace` 
 
 ### Supports
 
-* (**GFI implementations for `Builtin` language**)
-* (**harvest**) Oryx's `harvest` transformation.
-* (**diff_rules**) Forward metadata propagation transformation.
-* (**adev**) [ADEV](https://arxiv.org/pdf/2212.06386.pdf) CPS transform with dual number propagation.
+- (**GFI implementations for `Builtin` language**)
+- (**harvest**) Oryx's `harvest` transformation.
+- (**diff_rules**) Forward metadata propagation transformation.
 
 ## Propagate
 
@@ -29,7 +28,7 @@ An initial style interpreter (no special `Trace` or `Tracers`) which treats a `J
 
 ### Supports
 
-* (**`coryx`**) A DSL for exact densities based on Oryx.
+- (**`coryx`**) A DSL for exact densities based on Oryx.
 
 [effects_notebook]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [oryx_propagate]: https://github.com/jax-ml/oryx/blob/main/oryx/core/interpreters/propagate.py
