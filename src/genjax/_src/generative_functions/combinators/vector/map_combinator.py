@@ -476,13 +476,13 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         indices = jnp.array([i for i in range(0, broadcast_dim_length)])
-        check = jnp.count_nonzero(indices - chm.get_index()) == 0
+        # check = jnp.count_nonzero(indices - chm.get_index()) == 0
 
         # This inserts a `checkify.check` for bounds checking.
         # If there is an index failure, `assess` must fail
         # because we must provide a constraint for every generative
         # function call.
-        self._optional_index_check(check, indices, chm.get_index())
+        # self._optional_index_check(check, indices, chm.get_index())
 
         inner = chm.inner
         sub_keys = jax.random.split(key, broadcast_dim_length)
