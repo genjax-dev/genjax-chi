@@ -1,20 +1,20 @@
-import argparse
 import inspect
 import os
-import time
 
-import matplotlib.pyplot as plt
-
-from jax import jit, lax, random
-from jax.example_libraries import stax
 import jax.numpy as jnp
-from jax.random import PRNGKey
-
 import numpyro
-from numpyro import optim
 import numpyro.distributions as dist
-from numpyro.examples.datasets import MNIST, load_dataset
-from numpyro.infer import SVI, Trace_ELBO
+from jax import jit
+from jax import lax
+from jax import random
+from jax.example_libraries import stax
+from jax.random import PRNGKey
+from numpyro import optim
+from numpyro.examples.datasets import MNIST
+from numpyro.examples.datasets import load_dataset
+from numpyro.infer import SVI
+from numpyro.infer import Trace_ELBO
+
 
 RESULTS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(inspect.getfile(lambda: None)), ".results")
