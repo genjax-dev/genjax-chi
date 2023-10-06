@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.dippl import ADEVDistribution
 from genjax._src.dippl import flip_enum
 from genjax._src.dippl import geometric_reinforce
 from genjax._src.dippl import loss
@@ -21,7 +22,6 @@ from genjax._src.dippl import mv_normal_reparam
 from genjax._src.dippl import normal_reinforce
 from genjax._src.dippl import normal_reparam
 from genjax._src.dippl import upper
-from genjax._src.dippl import ADEVDistribution
 
 
 __all__ = [

@@ -1,27 +1,22 @@
-import argparse
 import inspect
 import os
-import time
-
-import matplotlib.pyplot as plt
 
 import jax
-from jax import jit, lax, random
-from jax.example_libraries import stax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax import jit
+from jax import lax
+from jax import random
+from jax.example_libraries import stax
 from jax.random import PRNGKey
-
-import numpyro
 from numpyro import optim
-from numpyro.examples.datasets import MNIST, load_dataset
-import numpyro.distributions as dist
-import adevjax
+from numpyro.examples.datasets import MNIST
+from numpyro.examples.datasets import load_dataset
+
 import genjax
-from dataclasses import dataclass
 from genjax import dippl
 from genjax import gensp
-from genjax import select, dirac
+from genjax import select
 
 
 RESULTS_DIR = os.path.abspath(
