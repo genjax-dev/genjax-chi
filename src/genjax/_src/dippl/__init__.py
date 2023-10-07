@@ -28,7 +28,7 @@ from adevjax import mv_normal_diag_reparam
 from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
 from adevjax import normal_reparam
-from adevjax import sample_with_indicator
+from adevjax import sample_with_key
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -75,8 +75,7 @@ class ADEVDistribution(ExactDensity):
         return ADEVDistribution(diff_logpdf, adev_prim)
 
     def sample(self, key, *args):
-        tracer_indicator = grab_tracer_indicator()
-        return sample_with_indicator(self.adev_primitive, key, tracer_indicator, *args)
+        return sample_with_key(self.adev_primitive, key, *args)
 
     def logpdf(self, v, *args):
         return self.differentiable_logpdf(v, *args)
