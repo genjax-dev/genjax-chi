@@ -1,27 +1,22 @@
-import argparse
 import inspect
 import os
-import time
-
-import matplotlib.pyplot as plt
 
 import jax
-from jax import jit, lax, random
-from jax.example_libraries import stax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax import jit
+from jax import lax
+from jax import random
+from jax.example_libraries import stax
 from jax.random import PRNGKey
-
-import numpyro
 from numpyro import optim
-from numpyro.examples.datasets import MNIST, load_dataset
-import numpyro.distributions as dist
-import adevjax
+from numpyro.examples.datasets import MNIST
+from numpyro.examples.datasets import load_dataset
+
 import genjax
-from dataclasses import dataclass
 from genjax import dippl
 from genjax import gensp
-from genjax import select, dirac
+from genjax import select
 
 
 RESULTS_DIR = os.path.abspath(
@@ -114,13 +109,13 @@ def test_benchmark(benchmark):
             dippl.mv_normal_diag_reparam(jnp.zeros(z_dim), jnp.ones(z_dim)) @ "latent"
         )
         probs = decoder_nn_apply(decoder_params, latent)
-        binary_image = dippl.flip_enum(probs) @ "image"
+        _ = dippl.flip_enum(probs) @ "image"
 
     @genjax.gen
     def encoder_model(encoder_params, chm):
         image = chm.get_leaf_value()["image"]
         μ, Σ_scale = encoder_nn_apply(encoder_params, image)
-        x = dippl.mv_normal_diag_reparam(μ, Σ_scale) @ "latent"
+        _ = dippl.mv_normal_diag_reparam(μ, Σ_scale) @ "latent"
 
     model = gensp.choice_map_distribution(
         decoder_model, select("latent", "image"), None

@@ -18,12 +18,12 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
-from adevjax import grab_key
 from adevjax import E
 from adevjax import add_cost
 from adevjax import adev
 from adevjax import flip_enum
 from adevjax import geometric_reinforce
+from adevjax import grab_key
 from adevjax import mv_normal_diag_reparam
 from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
