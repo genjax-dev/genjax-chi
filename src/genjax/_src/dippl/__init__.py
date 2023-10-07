@@ -28,7 +28,7 @@ from adevjax import mv_normal_diag_reparam
 from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
 from adevjax import normal_reparam
-from adevjax import sample_with_key
+from adevjax import sample_with_indicator
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -75,7 +75,8 @@ class ADEVDistribution(ExactDensity):
         return ADEVDistribution(diff_logpdf, adev_prim)
 
     def sample(self, key, *args):
-        return sample_with_key(self.adev_primitive, key, *args)
+        tracer_indicator = grab_tracer_indicator()
+        return sample_with_indicator(self.adev_primitive, key, tracer_indicator, *args)
 
     def logpdf(self, v, *args):
         return self.differentiable_logpdf(v, *args)
@@ -117,22 +118,20 @@ geometric_reinforce = ADEVDistribution.new(
 
 
 def upper(prim: Distribution):
-    def _inner(*args):
-        key = grab_key()
+    def _inner(key, *args):
         (w, v) = prim.random_weighted(key, *args)
         add_cost(-w)
         return v
 
-    return lambda *args: _inner(*args)
+    return lambda key, *args: _inner(key, *args)
 
 
 def lower(prim: Distribution):
-    def _inner(v, *args):
-        key = grab_key()
+    def _inner(key, v, *args):
         w = prim.estimate_logpdf(key, v, *args)
         add_cost(w)
 
-    return lambda v, *args: _inner(v, *args)
+    return lambda key, v, *args: _inner(key, v, *args)
 
 
 def loss(fn: Callable):
