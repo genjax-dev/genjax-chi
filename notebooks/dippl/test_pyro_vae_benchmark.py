@@ -1,16 +1,16 @@
 import os
 
-import numpy as np
+import pyro
+import pyro.contrib.examples.util  # patches torchvision
+import pyro.distributions as dist
 import torch
-from pyro.contrib.examples.util import MNIST
 import torch.nn as nn
 import torchvision.transforms as transforms
-
-import pyro
-import pyro.distributions as dist
-import pyro.contrib.examples.util  # patches torchvision
-from pyro.infer import SVI, Trace_ELBO
+from pyro.contrib.examples.util import MNIST
+from pyro.infer import SVI
+from pyro.infer import Trace_ELBO
 from pyro.optim import Adam
+
 
 assert pyro.__version__.startswith("1.8.6")
 pyro.distributions.enable_validation(False)
