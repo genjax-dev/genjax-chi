@@ -28,6 +28,7 @@ import numpy as np
 from beartype import BeartypeConf
 from beartype import beartype
 from plum import dispatch
+from plum import parametric
 
 
 Dataclass = typing.Any
@@ -117,4 +118,5 @@ __all__ = [
     "static_check_supports_grad",
     "typecheck",
     "dispatch",
+    "parametric",
 ]

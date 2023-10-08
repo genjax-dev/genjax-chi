@@ -17,6 +17,9 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.utilities import tree_grad_split
+from genjax._src.core.pytree.utilities import tree_zipper
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_gen_fn import (
     BuiltinGenerativeFunction,
@@ -31,28 +34,29 @@ class TraceKernel(Pytree):
         return (self.gen_fn,), ()
 
     def assess(self, key, choices, args):
-        key, (r, w) = self.gen_fn.assess(key, choices, args)
+        (r, w) = self.gen_fn.assess(key, choices, args)
         (chm, aux) = r
-        return key, ((chm, aux), w)
+        return ((chm, aux), w)
 
     def propose(self, key, args):
-        key, tr = self.gen_fn.simulate(key, args)
+        tr = self.gen_fn.simulate(key, args)
         choices = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
         (chm, aux) = retval
-        return key, (choices, score, (chm, aux))
+        return (choices, score, (chm, aux))
 
-    def jacfwd_retval(self, key, choices, args):
-        key, sub_key = jax.random.split(key)
+    def jacfwd_retval(self, key, choices, trace, proposal_args):
+        grad_tree, no_grad_tree = tree_grad_split((choices, trace))
 
-        def _inner(choices, args):
-            _, ((chm, aux), w) = self.gen_fn.assess(sub_key, choices, args)
+        def _inner(differentiable: Tuple):
+            choices, trace = tree_zipper(differentiable, no_grad_tree)
+            ((chm, aux), _) = self.gen_fn.assess(key, choices, (trace, proposal_args))
             return (chm, aux)
 
-        inner_jacfwd = jax.jacfwd(_inner, argnums=(0, 1))
-        J = inner_jacfwd(choices, args)
-        return key, J
+        inner_jacfwd = jax.jacfwd(_inner)
+        J = inner_jacfwd(grad_tree)
+        return J
 
 
 #####
@@ -61,12 +65,5 @@ class TraceKernel(Pytree):
 
 
 @typecheck
-def lang(gen_fn: BuiltinGenerativeFunction):
+def trace_kernel(gen_fn: BuiltinGenerativeFunction):
     return TraceKernel.new(gen_fn)
-
-
-#####
-# Exports
-#####
-
-__all__ = ["lang", "TraceKernel"]

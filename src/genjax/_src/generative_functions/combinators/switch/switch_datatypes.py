@@ -63,8 +63,12 @@ class SwitchChoiceMap(ChoiceMap):
         return (self.index, self.submaps), ()
 
     def is_empty(self):
-        flags = jnp.array([sm.is_empty() for sm in self.submaps])
-        return flags[self.index]
+        # Concrete evaluation -- when possible.
+        if all(map(lambda sm: isinstance(sm, EmptyChoiceMap), self.submaps)):
+            return True
+        else:
+            flags = jnp.array([sm.is_empty() for sm in self.submaps])
+            return flags[self.index]
 
     def filter(
         self,
