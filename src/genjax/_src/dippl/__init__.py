@@ -14,6 +14,7 @@
 
 from dataclasses import dataclass
 
+import adevjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -37,13 +38,18 @@ from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_bernoulli,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_categorical,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_mv_normal,
@@ -54,6 +60,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_normal,
 )
+from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
 
 
@@ -82,34 +89,163 @@ class ADEVDistribution(ExactDensity):
 
 
 flip_enum = ADEVDistribution.new(
-    flip_enum,
+    adevjax.flip_enum,
     lambda v, p: tfp_bernoulli.logpdf(v, probs=p),
 )
 
+flip_reinforce = ADEVDistribution.new(
+    adevjax.flip_reinforce,
+    lambda v, p: tfp_bernoulli.logpdf(v, probs=p),
+)
+
+categorical_enum = ADEVDistribution.new(
+    adevjax.categorical_enum_parallel,
+    lambda v, p: tfp_categorical.logpdf(v, probs=p),
+)
+
 normal_reinforce = ADEVDistribution.new(
-    normal_reinforce,
+    adevjax.normal_reinforce,
     lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
 )
 
 normal_reparam = ADEVDistribution.new(
-    normal_reparam,
+    adevjax.normal_reparam,
     lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
 )
 
 mv_normal_reparam = ADEVDistribution.new(
-    mv_normal_reparam,
+    adevjax.mv_normal_reparam,
     lambda v, μ, Σ: tfp_mv_normal.logpdf(v, μ, Σ),
 )
 
 mv_normal_diag_reparam = ADEVDistribution.new(
-    mv_normal_diag_reparam,
+    adevjax.mv_normal_diag_reparam,
     lambda v, μ, Σ_diag: tfp_mv_normal_diag.logpdf(v, μ, Σ_diag),
 )
 
 geometric_reinforce = ADEVDistribution.new(
-    geometric_reinforce,
+    adevjax.geometric_reinforce,
     lambda v, *args: tfp_geometric.logpdf(v, *args),
 )
+
+#######################################
+# Differentiable inference primitives #
+#######################################
+
+
+@dataclass
+class DefaultImportanceEnum(ChoiceMapDistribution):
+    num_particles: Int
+
+    def flatten(self):
+        return (), (self.num_particles,)
+
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        (lws, tr) = jax.vmap(target.importance, in_axes=(0, None))(
+            sub_keys, EmptyChoiceMap()
+        )
+        tw = jax.scipy.special.logsumexp(lws)
+        lnw = lws - tw
+        aw = tw - np.log(self.num_particles)
+        idx = sample_with_key(
+            adevjax.categorical_enum, key, lnw
+        )  # enumerate over all possible index choices
+        selected_particle = jtu.tree_map(lambda v: v[idx], tr)
+        return (
+            selected_particle.get_score() - aw,
+            ValueChoiceMap(target.get_latents(selected_particle)),
+        )
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        chm: ValueChoiceMap,
+        target: Target,
+    ):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(key, self.num_particles - 1)
+        (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(
+            sub_keys, EmptyChoiceMap()
+        )
+        inner_chm = chm.get_leaf_value()
+        assert isinstance(inner_chm, ChoiceMap)
+        (retained_w, retained_tr) = target.importance(key, inner_chm)
+        lse = _logsumexp_with_extra(lws, retained_w)
+        return retained_tr.get_score() - lse + np.log(self.num_particles)
+
+
+@dataclass
+class CustomImportanceEnum(ChoiceMapDistribution):
+    num_particles: Int
+    proposal: ChoiceMapDistribution
+
+    def flatten(self):
+        return (self.proposal,), (self.num_particles,)
+
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        (ws, ps) = jax.vmap(self.proposal.random_weighted, in_axes=(0, None))(
+            sub_keys, target
+        )
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(sub_keys, ps)
+        lws = lws - particles.get_score()
+        tw = jax.scipy.special.logsumexp(lws)
+        lnw = lws - tw
+        aw = tw - np.log(self.num_particles)
+        idx = sample_with_key(
+            adevjax.categorical_enum, key, lnw
+        )  # enumerate over all possible index choices
+        selected_particle = jtu.tree_map(lambda v: v[idx], particles)
+        return (selected_particle.get_score() - aw, selected_particle)
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        chm: ValueChoiceMap,
+        target: Target,
+    ):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        unchosen_bwd_lws, unchosen = jax.vmap(
+            self.proposal.random_weighted, in_axes=(0, None)
+        )(sub_keys, target)
+        key, sub_key = jax.random.split(key)
+        retained_bwd = self.proposal.estimate_logpdf(sub_key, chm, target)
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles - 1)
+        (unchosen_fwd_lws, _) = jax.vmap(target.importance, in_axes=(0, 0))(
+            sub_keys, unchosen.get_retval()
+        )
+        inner_chm = chm.get_leaf_value()
+        assert isinstance(inner_chm, ChoiceMap)
+        (retained_fwd, retained_tr) = target.importance(key, inner_chm)
+        unchosen_lws = unchosen_fwd_lws - unchosen_bwd_lws
+        chosen_lw = retained_fwd - retained_bwd
+        lse = _logsumexp_with_extra(unchosen_lws, chosen_lw)
+        return retained_tr.get_score() - lse + np.log(self.num_particles)
+
+
+@dispatch
+def importance_enum(num_particles: Int):
+    return DefaultImportanceEnum.new(num_particles)
+
 
 ##################################
 # Differentiable loss primitives #
@@ -117,20 +253,22 @@ geometric_reinforce = ADEVDistribution.new(
 
 
 def upper(prim: Distribution):
-    def _inner(key, *args):
+    def _inner(*args):
+        key = grab_key()
         (w, v) = prim.random_weighted(key, *args)
         add_cost(-w)
         return v
 
-    return lambda key, *args: _inner(key, *args)
+    return _inner
 
 
 def lower(prim: Distribution):
-    def _inner(key, v, *args):
+    def _inner(v, *args):
+        key = grab_key()
         w = prim.estimate_logpdf(key, v, *args)
         add_cost(w)
 
-    return lambda key, v, *args: _inner(key, v, *args)
+    return _inner
 
 
 def loss(fn: Callable):
