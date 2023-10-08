@@ -327,7 +327,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: DropArgumentsTrace,
-        submap: ChoiceMap,
+        submap: Any,
         original_arguments: Tuple,
         argdiffs: Tuple,
     ):
@@ -339,7 +339,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        submap: ChoiceMap,
+        submap: Any,
         original_arguments: Tuple,
         argdiffs: Tuple,
     ):

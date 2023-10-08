@@ -27,13 +27,16 @@ import rich
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.lifted_types import LiftedTypeMeta
+from genjax._src.core.datatypes.masking import Mask
+from genjax._src.core.datatypes.masking import mask
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.transforms.incremental import tree_diff_no_change
+from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
@@ -288,7 +291,7 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
 
 
 @dataclasses.dataclass
-class ChoiceMap(AddressTree, metaclass=LiftedTypeMeta):
+class ChoiceMap(AddressTree):
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
         pass
@@ -690,8 +693,10 @@ class Trace(ChoiceMap, AddressTree):
     def filter(
         self,
         selection: Selection,
-    ) -> ChoiceMap:
-        return self.strip().filter(selection)
+    ) -> Any:
+        stripped = self.strip()
+        filtered = stripped.filter(selection)
+        return filtered
 
     def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         return self.strip().merge(other.strip())
@@ -1218,6 +1223,7 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return (retval, score, chm)
 
+    @dispatch
     def importance(
         self,
         key: PRNGKey,
@@ -1248,14 +1254,72 @@ class GenerativeFunction(Pytree):
         """
         raise NotImplementedError
 
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        constraints: Mask,
+        args: Tuple,
+    ) -> Tuple[FloatArray, Trace]:
+        def _inactive():
+            w = 0.0
+            tr = self.simulate(key, args)
+            return w, tr
+
+        def _active(chm):
+            w, tr = self.importance(key, chm, args)
+            return w, tr
+
+        return constraints.match(_inactive, _active)
+
+    @dispatch
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
-        new: ChoiceMap,
+        prev: Trace,
+        new_constraints: ChoiceMap,
         diffs: Tuple,
     ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
         raise NotImplementedError
+
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        new_constraints: Mask,
+        argdiffs: Tuple,
+    ) -> Tuple[Any, FloatArray, Trace, Mask]:
+        # The semantics of the merge operation entail that the second returned value
+        # is the discarded values after the merge.
+        discard_option = prev.strip()
+        possible_constraints = new_constraints.unsafe_unmask()
+        _, possible_discards = discard_option.merge(possible_constraints)
+
+        def _none():
+            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoiceMap(), argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoiceMap()
+            else:
+                # We return the possible_discards, but denote them as invalid via masking.
+                discard = mask(False, possible_discards)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (retdiff, w, new_tr, discard)
+
+        def _some(chm):
+            (retdiff, w, new_tr, _) = self.update(key, prev, chm, argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoiceMap()
+            else:
+                # The true_discards should match the Pytree type of possible_discards,
+                # but these are valid.
+                discard = mask(True, possible_discards)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (retdiff, w, new_tr, discard)
+
+        return new_constraints.match(_none, _some)
 
     def assess(
         self,
@@ -1320,22 +1384,23 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            _, (_, score) = self.assess(key, merged, args)
+            (_, score) = self.assess(key, merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            _, (retval, _) = self.assess(key, merged, args)
+            (retval, _) = self.assess(key, merged, args)
             return retval
 
         return score, retval
 
     # A higher-level gradient API - it relies upon `unzip`,
     # but provides convenient access to first-order gradients.
-    def choice_grad(self, key, trace, selection):
+    @typecheck
+    def choice_grad(self, key: PRNGKey, trace: Trace, selection: Selection):
         fixed = trace.strip().filter(selection.complement())
-        chm = trace.strip().filter(selection.filter)
+        chm = trace.strip().filter(selection)
         scorer, _ = self.unzip(key, fixed)
         grad, nograd = tree_grad_split(
             (chm, trace.get_args()),
@@ -1537,7 +1602,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def merge(self, other: EmptyChoiceMap):
-        return self, EmptyChoiceMap()
+        return self, other
 
     @dispatch
     def merge(self, other: ValueChoiceMap):

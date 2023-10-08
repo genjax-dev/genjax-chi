@@ -363,7 +363,8 @@ class UpdateContext(BuiltinInterfaceContext):
         )
         self.weight += w
         self.choice_state[addr] = tr
-        self.discard[addr] = discard
+        if not discard.is_empty():
+            self.discard[addr] = discard
 
         # We have to convert the Diff back to tracers to return
         # from the primitive.
