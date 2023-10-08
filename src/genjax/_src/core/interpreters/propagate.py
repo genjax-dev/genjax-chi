@@ -35,9 +35,9 @@ from typing import Type
 from typing import Union
 
 from jax import core as jax_core
-from jax import linear_util as lu
 from jax import tree_util as jtu
 from jax.experimental import pjit
+from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import extract_call_jaxpr

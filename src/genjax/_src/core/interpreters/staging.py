@@ -21,9 +21,9 @@ import jax
 import jax.numpy as jnp
 from jax import api_util
 from jax import core as jax_core
-from jax import linear_util as lu
 from jax import tree_util as jtu
 from jax._src import dtypes
+from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.random import KeyArray
 
@@ -87,23 +87,6 @@ def stage(f, dynamic=True):
         return typed_jaxpr, (flat_args, in_tree, out_tree())
 
     return wrapped
-
-
-def get_trace_data_shape(gen_fn, *args):
-    def _apply(*args):
-        tr = gen_fn.simulate(*args)
-        return tr
-
-    (_, trace_shape) = jax.make_jaxpr(_apply, return_shape=True)(*args)
-    return trace_shape
-
-
-def make_zero_trace(gen_fn, *args):
-    out_tree = get_trace_data_shape(gen_fn, *args)
-    return jtu.tree_map(
-        lambda v: jnp.zeros(v.shape, v.dtype),
-        out_tree,
-    )
 
 
 def trees(f):
