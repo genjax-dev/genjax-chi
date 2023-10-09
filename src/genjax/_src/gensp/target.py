@@ -16,13 +16,17 @@ import functools
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.interpreters import context as ctx
 from genjax._src.core.interpreters import primitives
 from genjax._src.core.interpreters.context import Context
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
+from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 
 
@@ -94,6 +98,25 @@ class Target(Pytree):
     def flatten(self):
         return (self.p, self.args, self.constraints), ()
 
+    @dispatch
+    @classmethod
+    def new(
+        cls,
+        p: GenerativeFunction,
+        args: Tuple,
+    ):
+        return Target(p, args, EmptyChoiceMap())
+
+    @dispatch
+    @classmethod
+    def new(
+        cls,
+        p: GenerativeFunction,
+        args: Tuple,
+        constraints: ChoiceMap,
+    ):
+        return Target(p, args, constraints)
+
     def get_trace_type(self):
         inner_type = self.p.get_trace_type(*self.args)
         latent_selection = self.latent_selection()
@@ -108,12 +131,20 @@ class Target(Pytree):
         latents = v.strip().filter(latent_selection)
         return latents
 
-    def importance(self, key, chm: ChoiceMap):
+    @dispatch
+    def importance(self, key: PRNGKey, chm: ValueChoiceMap):
+        inner = chm.get_leaf_value()
+        assert isinstance(inner, ChoiceMap)
         merged = self.constraints.safe_merge(chm)
-        importance_fn = self.p.importance
-        rescaled = rescale_transform(importance_fn)
-        (w, tr), energy = rescaled(key, merged, self.args)
-        return (w + energy, tr)
+        rescaled = rescale_transform(self.p.importance)
+        (_, tr), energy = rescaled(key, merged, self.args)
+        return (energy, tr)
+
+    @dispatch
+    def importance(self, key: PRNGKey):
+        rescaled = rescale_transform(self.p.importance)
+        (_, tr), energy = rescaled(key, self.constraints, self.args)
+        return (energy, tr)
 
 
 ##############
