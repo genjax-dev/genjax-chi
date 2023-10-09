@@ -42,7 +42,7 @@ class SMCProposalMetropolisHastingsRejuvenate(SMCAlgorithm):
         particles = state.get_particles()
         n_particles = state.get_num_particles()
         kernel = mh(self.proposal)
-        sub_keys = jax.random.split(key)
+        sub_keys = jax.random.split(key, n_particles)
         _, rejuvenated_particles = jax.vmap(kernel.apply, in_axes=(0, 0, None))(
             sub_keys, particles, proposal_args
         )

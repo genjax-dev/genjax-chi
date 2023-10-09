@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from math import pi
 
 import jax
 import jax.numpy as jnp
@@ -26,11 +25,8 @@ class Normal(ExactDensity):
     def sample(self, key, mu, std, **kwargs):
         return mu + std * jax.random.normal(key, **kwargs)
 
-    def logpdf(self, v, mu, std, **kwargs):
-        z = (v - mu) / std
-        return jnp.sum(
-            -1.0 * (jnp.square(jnp.abs(z)) + jnp.log(2.0 * pi)) / (2 - jnp.log(std))
-        )
+    def logpdf(self, x, mu, std, **kwargs):
+        return jnp.sum(jax.scipy.stats.norm.logpdf(x, mu, std))
 
 
 normal = Normal()
