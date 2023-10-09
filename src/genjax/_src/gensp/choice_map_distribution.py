@@ -18,7 +18,6 @@ import jax
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
@@ -54,8 +53,8 @@ class ChoiceMapDistribution(Distribution):
         *args,
     ):
         key, sub_key = jax.random.split(key)
-        target = Target.new(self.p, args, EmptyChoiceMap())
-        energy, tr = target.importance(sub_key, EmptyChoiceMap())
+        target = Target.new(self.p, args)
+        energy, tr = target.importance(sub_key)
         choices = tr.strip()
         selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
@@ -65,11 +64,10 @@ class ChoiceMapDistribution(Distribution):
             key, sub_key = jax.random.split(key)
             unselected = choices.filter(self.selection.complement())
             target = Target.new(self.p, args, selected_choices)
-
             w = self.custom_q.estimate_logpdf(
                 key, ValueChoiceMap.new(unselected), target
             )
-            weight = energy + (tr.get_score() - w)
+            weight = energy + tr.project(self.selection) - w
             return (weight, ValueChoiceMap(selected_choices))
 
     @typecheck
@@ -83,13 +81,15 @@ class ChoiceMapDistribution(Distribution):
         assert isinstance(inner_chm, ChoiceMap)
         if self.custom_q is None:
             target = Target.new(self.p, args, inner_chm)
-            (weight, _) = target.importance(key, EmptyChoiceMap())
+            (energy, tr) = target.importance(key)
+            weight = energy + tr.project(self.selection)
             return weight
         else:
             key, sub_key = jax.random.split(key)
             target = Target.new(self.p, args, inner_chm)
             (bwd_weight, other_choices) = self.custom_q.random_weighted(sub_key, target)
-            (fwd_weight, _) = target.importance(key, other_choices.get_leaf_value())
+            (energy, tr) = target.importance(key, other_choices.get_leaf_value())
+            fwd_weight = energy + tr.project(self.selection)
             weight = fwd_weight - bwd_weight
             return weight
 
