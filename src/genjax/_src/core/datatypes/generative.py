@@ -1383,7 +1383,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     ]:
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
-            merged = fixed.safe_merge(provided)
+            merged = fixed.unsafe_merge(provided)
             (_, score) = self.assess(key, merged, args)
             return score
 
