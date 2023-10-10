@@ -261,7 +261,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        inner = chm.inner
+        inner = chm.inner.get_choices()
         (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
             sub_keys, inner, args
         )
