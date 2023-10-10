@@ -40,6 +40,7 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
@@ -134,7 +135,7 @@ geometric_reinforce = ADEVDistribution.new(
 
 
 @dataclass
-class DefaultImportanceEnum(ChoiceMapDistribution):
+class DefaultImportanceEnum(Distribution):
     num_particles: Int
 
     def flatten(self):
@@ -183,7 +184,7 @@ class DefaultImportanceEnum(ChoiceMapDistribution):
 
 
 @dataclass
-class CustomImportanceEnum(ChoiceMapDistribution):
+class CustomImportanceEnum(Distribution):
     num_particles: Int
     proposal: ChoiceMapDistribution
 
@@ -195,24 +196,32 @@ class CustomImportanceEnum(ChoiceMapDistribution):
         self,
         key: PRNGKey,
         target: Target,
+        proposal_args: Tuple,
     ):
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
-        (ws, ps) = jax.vmap(self.proposal.random_weighted, in_axes=(0, None))(
-            sub_keys, target
-        )
+
+        def _inner_proposal(sub_keys):
+            return self.proposal.random_weighted(sub_keys, *proposal_args)
+
+        (proposal_lws, ps) = jax.vmap(_inner_proposal)(sub_keys)
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
-        (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(sub_keys, ps)
-        lws = lws - particles.get_score()
+        (energies, particles) = jax.vmap(target.importance, in_axes=(0, None))(
+            sub_keys, ps
+        )
+        lws = energies + particles.get_score() - proposal_lws
         tw = jax.scipy.special.logsumexp(lws)
         lnw = lws - tw
-        aw = tw - np.log(self.num_particles)
+        aw = tw - jnp.log(self.num_particles)
         idx = sample_with_key(
-            adevjax.categorical_enum, key, lnw
+            adevjax.categorical_enum_parallel, key, lnw
         )  # enumerate over all possible index choices
         selected_particle = jtu.tree_map(lambda v: v[idx], particles)
-        return (selected_particle.get_score() - aw, selected_particle)
+        return (
+            selected_particle.get_score() - aw,
+            ValueChoiceMap(target.get_latents(selected_particle.strip())),
+        )
 
     @typecheck
     def estimate_logpdf(
@@ -245,6 +254,11 @@ class CustomImportanceEnum(ChoiceMapDistribution):
 @dispatch
 def importance_enum(num_particles: Int):
     return DefaultImportanceEnum.new(num_particles)
+
+
+@dispatch
+def importance_enum(num_particles: Int, proposal: ChoiceMapDistribution):
+    return CustomImportanceEnum.new(num_particles, proposal)
 
 
 ##################################

@@ -98,25 +98,6 @@ class Target(Pytree):
     def flatten(self):
         return (self.p, self.args, self.constraints), ()
 
-    @dispatch
-    @classmethod
-    def new(
-        cls,
-        p: GenerativeFunction,
-        args: Tuple,
-    ):
-        return Target(p, args, EmptyChoiceMap())
-
-    @dispatch
-    @classmethod
-    def new(
-        cls,
-        p: GenerativeFunction,
-        args: Tuple,
-        constraints: ChoiceMap,
-    ):
-        return Target(p, args, constraints)
-
     def get_trace_type(self):
         inner_type = self.p.get_trace_type(*self.args)
         latent_selection = self.latent_selection()
@@ -135,7 +116,7 @@ class Target(Pytree):
     def importance(self, key: PRNGKey, chm: ValueChoiceMap):
         inner = chm.get_leaf_value()
         assert isinstance(inner, ChoiceMap)
-        merged = self.constraints.safe_merge(chm)
+        merged = self.constraints.safe_merge(inner)
         rescaled = rescale_transform(self.p.importance)
         (_, tr), energy = rescaled(key, merged, self.args)
         return (energy, tr)
@@ -151,4 +132,19 @@ class Target(Pytree):
 # Shorthands #
 ##############
 
-target = Target.new
+
+@dispatch
+def target(
+    p: GenerativeFunction,
+    args: Tuple,
+):
+    return Target.new(p, args, EmptyChoiceMap())
+
+
+@dispatch
+def target(
+    p: GenerativeFunction,
+    args: Tuple,
+    constraints: ChoiceMap,
+):
+    return Target.new(p, args, constraints)
