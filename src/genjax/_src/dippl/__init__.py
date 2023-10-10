@@ -255,6 +255,14 @@ def importance_enum(num_particles: Int):
 def upper(prim: Distribution):
     def _inner(*args):
         key = grab_key()
+        return prim.random_weighted(key, *args)
+
+    return _inner
+
+
+def do_upper(prim: Distribution):
+    def _inner(*args):
+        key = grab_key()
         (w, v) = prim.random_weighted(key, *args)
         add_cost(-w)
         return v
@@ -265,10 +273,23 @@ def upper(prim: Distribution):
 def lower(prim: Distribution):
     def _inner(v, *args):
         key = grab_key()
+        return prim.estimate_logpdf(key, v, *args)
+
+    return _inner
+
+
+def do_lower(prim: Distribution):
+    def _inner(v, *args):
+        key = grab_key()
         w = prim.estimate_logpdf(key, v, *args)
         add_cost(w)
 
     return _inner
+
+
+#####
+# Language decorator
+#####
 
 
 def loss(fn: Callable):

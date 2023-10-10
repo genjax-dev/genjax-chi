@@ -190,7 +190,6 @@ class SMCExtendPropagator(SMCPropagator):
         new_constraints = old_constraints.safe_merge(new_choices)
         return Target(
             target.p,
-            target.choice_map_coercion,
             new_args,
             new_constraints,
         )
@@ -399,7 +398,7 @@ class SMCSequencePropagator(SMCPropagator):
             return SMCSequencePropagator([fst, snd])
 
     def propagate_target(self, target: Target, args_sequence: Sequence[Tuple]):
-        for (propagator, args) in zip(self.sequence, args_sequence):
+        for propagator, args in zip(self.sequence, args_sequence):
             target = propagator.propagate_target(target, *args)
         return target
 
@@ -409,7 +408,7 @@ class SMCSequencePropagator(SMCPropagator):
         state: SMCState,
         args_sequence: Sequence[Tuple],
     ) -> Tuple[PRNGKey, SMCState]:
-        for (propagator, args) in zip(self.sequence, args_sequence):
+        for propagator, args in zip(self.sequence, args_sequence):
             key, state = propagator.apply(key, state, *args)
         return key, state
 

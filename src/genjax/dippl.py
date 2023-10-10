@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from genjax._src.dippl import ADEVDistribution
+from genjax._src.dippl import do_lower
+from genjax._src.dippl import do_upper
 from genjax._src.dippl import flip_enum
 from genjax._src.dippl import geometric_reinforce
 from genjax._src.dippl import loss
@@ -32,7 +34,9 @@ __all__ = [
     "mv_normal_diag_reparam",
     "geometric_reinforce",
     "upper",
+    "do_upper",
     "lower",
+    "do_lower",
     "loss",
     "ADEVDistribution",
 ]
