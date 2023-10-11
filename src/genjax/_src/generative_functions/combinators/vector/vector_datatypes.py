@@ -157,7 +157,7 @@ class VectorChoiceMap(ChoiceMap):
 
         def _inner(v1, v2):
             return v1.at[indices].set(v2)
-       
+
         print(jtu.tree_structure(self.inner))
         print()
         print(jtu.tree_structure(new))

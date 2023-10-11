@@ -511,6 +511,7 @@ def importance_transform(source_fn, **kwargs):
 @dataclasses.dataclass
 class UpdateContext(BuiltinInterfaceContext):
     key: PRNGKey
+    score: FloatArray
     weight: FloatArray
     previous_trace: Trace
     constraints: ChoiceMap
@@ -531,6 +532,7 @@ class UpdateContext(BuiltinInterfaceContext):
     def flatten(self):
         return (
             self.key,
+            self.score,
             self.weight,
             self.previous_trace,
             self.constraints,
@@ -548,6 +550,7 @@ class UpdateContext(BuiltinInterfaceContext):
 
     def yield_state(self):
         return (
+            self.score,
             self.weight,
             self.static_discard,
             self.dynamic_discard_addresses,
@@ -566,6 +569,7 @@ class UpdateContext(BuiltinInterfaceContext):
 
     @classmethod
     def new(cls, key, previous_trace, constraints):
+        score = 0.0
         weight = 0.0
         static_discard = Trie.new()
         dynamic_discard_addresses = []
@@ -579,6 +583,7 @@ class UpdateContext(BuiltinInterfaceContext):
         cache_visitor = AddressVisitor.new()
         return UpdateContext(
             key,
+            score,
             weight,
             previous_trace,
             constraints,
@@ -703,6 +708,7 @@ class UpdateContext(BuiltinInterfaceContext):
         (retval_diff, w, tr, discard) = gen_fn.update(
             sub_key, subtrace, subconstraints, argdiffs
         )
+        self.score += tr.get_score()
         self.weight += w
         self.set_choice_state(addr, tr)
         self.set_discard_state(addr, discard)
@@ -745,6 +751,7 @@ def update_transform(source_fn, **kwargs):
         retval_primals = tree_diff_primal(retval_diffs)
         arg_primals = tree_diff_primal(diffs)
         (
+            score,
             weight,
             static_discard,
             dynamic_discard_addresses,
@@ -765,7 +772,7 @@ def update_transform(source_fn, **kwargs):
                     static_address_choices,
                     dynamic_addresses,
                     dynamic_address_choices,
-                    previous_trace.get_score() + weight,
+                    score,
                 ),
                 # Discard.
                 (static_discard, dynamic_discard_addresses, dynamic_discard_choices),

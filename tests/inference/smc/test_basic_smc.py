@@ -138,8 +138,8 @@ class TestSimpleSMC:
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
+                key, sub_key = jax.random.split(key)
                 smc_state = smc.smc_resample(smc.multinomial_resampling).apply(
-                        key, sub_key = jax.random.split(key)
                     sub_key, smc_state
                 )
                 return (key, smc_state, t), (smc_state,)
@@ -168,7 +168,7 @@ class TestSimpleSMC:
             c = branching(outlier) @ "reflection_or_outlier"
             return c
 
-        @genjax.gen(genjax.Unfold, max_length = 17)
+        @genjax.gen(genjax.Unfold, max_length=17)
         def chain(z):
             c = inner_chain() @ "chain"
             return c
