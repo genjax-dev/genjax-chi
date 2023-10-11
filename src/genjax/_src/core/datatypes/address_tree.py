@@ -40,10 +40,6 @@ class AddressTree(Pytree):
     def get_subtree(self, addr):
         pass
 
-    @abc.abstractmethod
-    def get_subtrees_shallow(self):
-        pass
-
 
 @dataclass
 class AddressLeaf(AddressTree):
@@ -67,9 +63,4 @@ class AddressLeaf(AddressTree):
     def get_subtree(self, addr):
         raise Exception(
             f"{type(self)} is a AddressLeaf: it does not address any internal choices."
-        )
-
-    def get_subtrees_shallow(self):
-        raise Exception(
-            f"{type(self)} is a AddressLeaf: it does not have any subtrees."
         )
