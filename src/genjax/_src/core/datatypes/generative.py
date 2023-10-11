@@ -105,11 +105,6 @@ class Selection(AddressTree):
     def get_selection(self):
         return self
 
-    def get_subtrees_shallow(self):
-        raise Exception(
-            f"Selection of type {type(self)} does not implement get_subtrees_shallow.",
-        )
-
     ###########
     # Dunders #
     ###########
@@ -1328,6 +1323,10 @@ class Mask(Pytree):
     # Choice map interfaces #
     #########################
 
+    def is_empty(self):
+        assert isinstance(self.value, ChoiceMap)
+        return jnp.logical_and(self.mask, self.value.is_empty())
+
     def get_subtree(self, addr):
         assert isinstance(self.value, ChoiceMap)
         subtree = self.value.get_subtree(addr)
@@ -1910,6 +1909,9 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
     def new(cls, dynamic_addrs, subtrees):
         return DynamicHierarchicalChoiceMap(dynamic_addrs, subtrees)
 
+    def is_empty(self):
+        return jnp.all(jnp.array(map(lambda v: v.is_empty(), self.subtrees)))
+
     @dispatch
     def get_subtree(self, addr: IntArray):
         compares = map(lambda v: addr == v, self.dynamic_addrs)
@@ -1967,7 +1969,11 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     @classmethod
     @dispatch
     def new(cls, trie: Trie):
-        return HierarchicalChoiceMap(trie)
+        check = trie.is_empty()
+        if is_concrete(check) and check:
+            return EmptyChoiceMap()
+        else:
+            return HierarchicalChoiceMap(trie)
 
     def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
         dynamic_addrs = []
@@ -2085,13 +2091,13 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     def merge(self, other: "HierarchicalChoiceMap"):
         new = hashable_dict()
         discard = hashable_dict()
-        for (k, v) in self.get_subtrees_shallow():
+        for k, v in self.get_subtrees_shallow():
             if other.has_subtree(k):
                 sub = other.get_subtree(k)
                 new[k], discard[k] = v.merge(sub)
             else:
                 new[k] = v
-        for (k, v) in other.get_subtrees_shallow():
+        for k, v in other.get_subtrees_shallow():
             if not self.has_subtree(k):
                 new[k] = v
         return HierarchicalChoiceMap(Trie(new)), HierarchicalChoiceMap(Trie(discard))
@@ -2233,9 +2239,6 @@ class IndexedChoiceMap(ChoiceMap):
 
     def get_selection(self):
         return self.inner.get_selection()
-
-    def get_subtrees_shallow(self):
-        raise NotImplementedError
 
     def merge(self, _: ChoiceMap):
         raise Exception("TODO: can't merge IndexedChoiceMaps")

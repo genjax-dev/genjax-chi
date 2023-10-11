@@ -160,18 +160,51 @@ class TestSimpleSMC:
         def outlier():
             return genjax.tfp_normal(0.0, 1.0) @ "reflection_point"
 
-        branching = genjax.switch(outlier, outlier)
+        branching = genjax.Switch(outlier, outlier)
 
-        @genjax.gen(genjax.Map, max_length=361)
-        def inner_chain():
+        @genjax.gen(genjax.Map, in_axes=(0,))
+        def inner_chain(v):
             outlier = genjax.bernoulli(0.3) @ "outlier"
-            c = branching(outlier) @ "reflection_or_outlier"
+            idx = outlier.astype(int)
+            c = branching(idx) @ "reflection_or_outlier"
             return c
 
         @genjax.gen(genjax.Unfold, max_length=17)
         def chain(z):
-            c = inner_chain() @ "chain"
+            c = inner_chain(z) @ "chain"
             return c
 
         key = jax.random.PRNGKey(314159)
         init_latent = jnp.ones(361)
+        tr = chain.simulate(key, (16, init_latent))
+
+        def make_choice_map(step):
+            obs = jnp.ones(361)
+            return genjax.indexed_choice_map(
+                [step],
+                jtu.tree_map(
+                    lambda v: jnp.expand_dims(v, axis=0),
+                    genjax.choice_map(
+                        {
+                            "chain": genjax.indexed_choice_map(
+                                jnp.arange(361),
+                                genjax.choice_map(
+                                    {("reflection_or_outlier", "reflection_point"): obs}
+                                ),
+                            )
+                        }
+                    ),
+                ),
+            )
+
+        smc_state = genjax.smc.smc_initialize(chain, 5).apply(
+            key, make_choice_map(0), (0, jnp.ones(361))
+        )
+
+        argdiffs = (
+            genjax.tree_diff_unknown_change(1),
+            genjax.tree_diff_no_change(jnp.ones(361)),
+        )
+        smc_state = genjax.smc.smc_update().apply(
+            key, smc_state, argdiffs, make_choice_map(1)
+        )

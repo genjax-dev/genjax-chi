@@ -150,8 +150,8 @@ class SwitchChoiceMap(ChoiceMap):
         new_submaps, new_discard = list(
             zip(*map(lambda v: v.merge(other), self.submaps))
         )
-        return SwitchChoiceMap.new(self.index, new_submaps), SwitchChoiceMap.new(
-            self.index, new_discard
+        return SwitchChoiceMap.new(self.index, list(new_submaps)), SwitchChoiceMap.new(
+            self.index, list(new_discard)
         )
 
     ###################
