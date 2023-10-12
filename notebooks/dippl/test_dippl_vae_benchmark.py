@@ -59,9 +59,9 @@ def svi_update(
 
         @dippl.loss
         def vae_loss(encoder_params, decoder_params):
-            v = dippl.upper(guide)(encoder_params, v_chm)
+            v = dippl.do_upper(guide)(encoder_params, v_chm)
             merged = gensp.merge(v, v_chm)
-            dippl.lower(model)(merged, decoder_params)
+            dippl.do_lower(model)(merged, decoder_params)
 
         loss, (
             encoder_params_grad,
