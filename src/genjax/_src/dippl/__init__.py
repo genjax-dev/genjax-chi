@@ -261,6 +261,42 @@ def importance_enum(num_particles: Int, proposal: ChoiceMapDistribution):
     return CustomImportanceEnum.new(num_particles, proposal)
 
 
+@dataclass
+class IWAEImportance(Distribution):
+    num_particles: Int
+    proposal: ChoiceMapDistribution
+    proposal_args: Tuple
+
+    def flatten(self):
+        return (self.proposal, self.proposal_args), (self.num_particles,)
+
+    @typecheck
+    def estimate_normalizing_constant(self, key: PRNGKey, target: Target):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+
+        def _inner_proposal(sub_keys):
+            return self.proposal.random_weighted(sub_keys, *self.proposal_args)
+
+        (proposal_lws, ps) = jax.vmap(_inner_proposal)(sub_keys)
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        (energies, particles) = jax.vmap(target.importance)(sub_keys, ps)
+        lws = energies + particles.get_score() - proposal_lws
+        tw = jax.scipy.special.logsumexp(lws)
+        lnw = lws - tw
+        aw = tw - jnp.log(self.num_particles)
+        return aw
+
+
+def iwae_importance(
+    N: Int,
+    proposal: ChoiceMapDistribution,
+    proposal_args: Tuple,
+):
+    return IWAEImportance(N, proposal, proposal_args)
+
+
 ##################################
 # Differentiable loss primitives #
 ##################################

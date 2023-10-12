@@ -18,6 +18,7 @@ from genjax._src.dippl import do_upper
 from genjax._src.dippl import flip_enum
 from genjax._src.dippl import geometric_reinforce
 from genjax._src.dippl import importance_enum
+from genjax._src.dippl import iwae_importance
 from genjax._src.dippl import loss
 from genjax._src.dippl import lower
 from genjax._src.dippl import mv_normal_diag_reparam
@@ -41,4 +42,5 @@ __all__ = [
     "loss",
     "ADEVDistribution",
     "importance_enum",
+    "iwae_importance",
 ]
