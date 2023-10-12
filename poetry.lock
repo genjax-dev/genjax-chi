@@ -1365,18 +1365,18 @@ scipy = ">=1.0.0"
 
 [[package]]
 name = "jaxtyping"
-version = "0.2.22"
+version = "0.2.23"
 description = "Type annotations and runtime checking for shape and dtype of JAX arrays, and PyTrees."
 optional = false
 python-versions = "~=3.9"
 files = [
-    {file = "jaxtyping-0.2.22-py3-none-any.whl", hash = "sha256:7b68a8d34bfb823ff5537b94552850a2e7f2687d61afeaee0689c0615bfcea98"},
-    {file = "jaxtyping-0.2.22.tar.gz", hash = "sha256:adf0a6b3098ec7a20165adbdc019e90f1b52494462367b5d12c0a5ea2555d223"},
+    {file = "jaxtyping-0.2.23-py3-none-any.whl", hash = "sha256:c8df034f8403dc6289117723cb43386a2f27e73dff63c8169cc4bbf3e81261bf"},
+    {file = "jaxtyping-0.2.23.tar.gz", hash = "sha256:8a666257ea5b333bb7485598fd3312420fadeb193b8a6f9e4fe0fdc51b64df94"},
 ]
 
 [package.dependencies]
 numpy = ">=1.20.0"
-typeguard = ">=2.13.3"
+typeguard = ">=2.13.3,<3"
 typing-extensions = ">=3.7.4.1"
 
 [[package]]
@@ -3956,22 +3956,18 @@ test = ["argcomplete (>=3.0.3)", "mypy (>=1.5.1)", "pre-commit", "pytest (>=7.0,
 
 [[package]]
 name = "typeguard"
-version = "4.0.0"
+version = "2.13.3"
 description = "Run-time type checker for Python"
 optional = false
-python-versions = ">=3.7.4"
+python-versions = ">=3.5.3"
 files = [
-    {file = "typeguard-4.0.0-py3-none-any.whl", hash = "sha256:c4a40af0ba8a41077221271b46d0a6d8d46045443e4d887887c69254ca861952"},
-    {file = "typeguard-4.0.0.tar.gz", hash = "sha256:194fb3dbcb06ea9caf7088f3befee014de57961689f9c859ac5239b1ef61d987"},
+    {file = "typeguard-2.13.3-py3-none-any.whl", hash = "sha256:5e3e3be01e887e7eafae5af63d1f36c849aaa94e3a0112097312aabfa16284f1"},
+    {file = "typeguard-2.13.3.tar.gz", hash = "sha256:00edaa8da3a133674796cf5ea87d9f4b4c367d77476e185e80251cc13dfbb8c4"},
 ]
 
-[package.dependencies]
-importlib-metadata = {version = ">=3.6", markers = "python_version < \"3.10\""}
-typing-extensions = {version = ">=4.4.0", markers = "python_version < \"3.11\""}
-
 [package.extras]
-doc = ["packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
-test = ["mypy (>=1.2.0)", "pytest (>=7)"]
+doc = ["sphinx-autodoc-typehints (>=1.2.0)", "sphinx-rtd-theme"]
+test = ["mypy", "pytest", "typing-extensions"]
 
 [[package]]
 name = "types-python-dateutil"
