@@ -37,6 +37,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
@@ -271,20 +272,32 @@ class IWAEImportance(Distribution):
         return (self.proposal, self.proposal_args), (self.num_particles,)
 
     @typecheck
-    def estimate_normalizing_constant(self, key: PRNGKey, target: Target):
+    def estimate_normalizing_constant(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
+
+        # Kludge.
+        particles = []
+        weights = []
+        for i in range(0, self.num_particles):
+            key, sub_key = jax.random.split(key)
+            proposal_lws, ps = self.proposal.random_weighted(
+                sub_key, *self.proposal_args
+            )
+            particles.append(ps)
+            weights.append(proposal_lws)
+
+        proposal_lws = tree_stack(weights)
+        ps = tree_stack(particles)
+        # END Kludge.
+
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
-
-        def _inner_proposal(sub_keys):
-            return self.proposal.random_weighted(sub_keys, *self.proposal_args)
-
-        (proposal_lws, ps) = jax.vmap(_inner_proposal)(sub_keys)
-        key, sub_key = jax.random.split(key)
-        sub_keys = jax.random.split(sub_key, self.num_particles)
-        (energies, particles) = jax.vmap(target.importance)(sub_keys, ps)
-        lws = energies + particles.get_score() - proposal_lws
+        (_, particles) = jax.vmap(target.importance)(sub_keys, ps)
+        lws = particles.get_score() - proposal_lws
         tw = jax.scipy.special.logsumexp(lws)
-        lnw = lws - tw
         aw = tw - jnp.log(self.num_particles)
         return aw
 
