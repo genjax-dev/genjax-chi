@@ -17,7 +17,6 @@
 # For the internals, see _src.
 
 # Closed modules.
-from genjax import dippl
 from genjax import gensp
 from genjax import inference
 from genjax import typing
