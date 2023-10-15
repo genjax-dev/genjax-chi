@@ -18,12 +18,12 @@ from genjax._src.gensp.nablasp import flip_enum
 from genjax._src.gensp.nablasp import geometric_reinforce
 from genjax._src.gensp.nablasp import hvi_elbo
 from genjax._src.gensp.nablasp import iwae_elbo
-from genjax._src.gensp.nablasp import iwae_importance
 from genjax._src.gensp.nablasp import marginal
 from genjax._src.gensp.nablasp import mv_normal_diag_reparam
 from genjax._src.gensp.nablasp import mv_normal_reparam
 from genjax._src.gensp.nablasp import normal_reinforce
 from genjax._src.gensp.nablasp import normal_reparam
+from genjax._src.gensp.nablasp import sir
 
 
 __all__ = [
@@ -34,7 +34,7 @@ __all__ = [
     "mv_normal_reparam",
     "mv_normal_diag_reparam",
     "geometric_reinforce",
-    "iwae_importance",
+    "sir",
     "marginal",
     "elbo",
     "iwae_elbo",
