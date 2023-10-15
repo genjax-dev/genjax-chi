@@ -39,18 +39,6 @@ from genjax._src.gensp.inference.sequential_monte_carlo import SMCPropagator
 from genjax._src.gensp.inference.sequential_monte_carlo import SMCSequencePropagator
 from genjax._src.gensp.marginal import Marginal
 from genjax._src.gensp.marginal import marginal
-from genjax._src.gensp.nablasp import ADEVDistribution
-from genjax._src.gensp.nablasp import do_lower
-from genjax._src.gensp.nablasp import do_upper
-from genjax._src.gensp.nablasp import flip_enum
-from genjax._src.gensp.nablasp import geometric_reinforce
-from genjax._src.gensp.nablasp import iwae_importance
-from genjax._src.gensp.nablasp import lower
-from genjax._src.gensp.nablasp import mv_normal_diag_reparam
-from genjax._src.gensp.nablasp import mv_normal_reparam
-from genjax._src.gensp.nablasp import normal_reinforce
-from genjax._src.gensp.nablasp import normal_reparam
-from genjax._src.gensp.nablasp import upper
 from genjax._src.gensp.target import Target
 from genjax._src.gensp.target import accum_score
 from genjax._src.gensp.target import target
@@ -83,16 +71,4 @@ __all__ = [
     "static_check_supports",
     "merge",
     "accum_score",
-    "flip_enum",
-    "normal_reinforce",
-    "normal_reparam",
-    "mv_normal_reparam",
-    "mv_normal_diag_reparam",
-    "geometric_reinforce",
-    "upper",
-    "do_upper",
-    "lower",
-    "do_lower",
-    "ADEVDistribution",
-    "iwae_importance",
 ]

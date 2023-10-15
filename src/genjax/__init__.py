@@ -19,6 +19,7 @@
 # Closed modules.
 from genjax import gensp
 from genjax import inference
+from genjax import nablasp
 from genjax import typing
 from genjax.core import interpreters
 from genjax.core import serialization
