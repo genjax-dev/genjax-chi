@@ -221,13 +221,13 @@ files = [
 
 [[package]]
 name = "beartype"
-version = "0.16.2"
+version = "0.16.3"
 description = "Unbearably fast runtime type checking in pure Python."
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "beartype-0.16.2-py3-none-any.whl", hash = "sha256:72d133615fe674affc8c49365dd24dfe2260552b9a8a2b7193cdd48021527782"},
-    {file = "beartype-0.16.2.tar.gz", hash = "sha256:47ec1c8c3be3f999f4f9f829e8913f65926aa7e85b180d9ffd305dc78d3e7d7b"},
+    {file = "beartype-0.16.3-py3-none-any.whl", hash = "sha256:dc7b3fd28d4998771b4ff8eb41eccb70aa665a8dd505b8db43ba03c191450dd6"},
+    {file = "beartype-0.16.3.tar.gz", hash = "sha256:085591b5b77807229b65a137fd473c6891c45287fe0ca6565b3250dead00380b"},
 ]
 
 [package.extras]
