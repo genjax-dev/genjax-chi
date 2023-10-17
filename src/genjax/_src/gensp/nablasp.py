@@ -29,9 +29,9 @@ from adevjax import sample_with_key
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_stack
@@ -152,14 +152,66 @@ class SPAlgorithm(Pytree):
         self,
         key: PRNGKey,
         target: Target,
-        tr: Trace,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ):
         pass
 
 
 @dataclass
-class SIR(SPAlgorithm):
+class DefaultSIR(SPAlgorithm):
+    num_particles: Int
+
+    def flatten(self):
+        return (), (self.num_particles,)
+
+    @typecheck
+    def estimate_recip_normalizing_constant(
+        self,
+        key: PRNGKey,
+        target: Target,
+        latent_choices: ChoiceMap,
+        w: FloatArray,
+    ):
+        # Kludge.
+        log_weights = []
+        for i in range(0, self.num_particles - 1):
+            key, sub_key = jax.random.split(key)
+            (lw, _) = target.importance(sub_key, ps)
+            log_weights.append(lw)
+
+        log_weights.append(w)
+
+        lws = tree_stack(log_weights)
+        # END Kludge.
+
+        tw = jax.scipy.special.logsumexp(lws)
+        aw = tw - jnp.log(self.num_particles)
+        return aw
+
+    @typecheck
+    def estimate_normalizing_constant(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
+        # Kludge.
+        log_weights = []
+        for i in range(0, self.num_particles - 1):
+            key, sub_key = jax.random.split(key)
+            (lw, ps) = jax.vmap(target.importance)(sub_keys, ps)
+            log_weights.append(lw)
+
+        lws = tree_stack(log_weights)
+        # END Kludge.
+
+        tw = jax.scipy.special.logsumexp(lws)
+        aw = tw - jnp.log(self.num_particles)
+        return aw
+
+
+@dataclass
+class CustomSIR(SPAlgorithm):
     num_particles: Int
     proposal: SPDistribution
     proposal_args: Tuple
@@ -172,10 +224,36 @@ class SIR(SPAlgorithm):
         self,
         key: PRNGKey,
         target: Target,
-        tr: Trace,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ):
-        pass
+        # Kludge.
+        particles = []
+        weights = []
+        for i in range(0, self.num_particles - 1):
+            key, sub_key = jax.random.split(key)
+            proposal_lws, ps = self.proposal.random_weighted(
+                sub_key,
+                target.constraints,
+                *self.proposal_args,
+            )
+            particles.append(ps)
+            weights.append(proposal_lws)
+
+        weights.append(w)
+        particles.append(latent_choices)
+
+        proposal_lws = tree_stack(weights)
+        ps = tree_stack(particles)
+        # END Kludge.
+
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        (_, particles) = jax.vmap(target.importance)(sub_keys, ps)
+        lws = particles.get_score() - proposal_lws
+        tw = jax.scipy.special.logsumexp(lws)
+        aw = tw - jnp.log(self.num_particles)
+        return aw
 
     @typecheck
     def estimate_normalizing_constant(
@@ -207,12 +285,18 @@ class SIR(SPAlgorithm):
         return aw
 
 
+@dispatch
 def sir(
     N: Int,
     proposal: SPDistribution,
     proposal_args: Tuple,
 ):
-    return SIR(N, proposal, proposal_args)
+    return CustomSIR(N, proposal, proposal_args)
+
+
+@dispatch
+def sir(N: Int):
+    return DefaultSIR(N)
 
 
 @dataclass
@@ -232,18 +316,21 @@ class DefaultMarginal(SPDistribution):
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, args)
         weight = tr.get_score()
-        choices = tr.get_choices()
+        choices = tr.strip()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
-        q = sir(1, self.p, args)
-        tgt = target(self.p, args, latent_choices)
-        Z = q.estimate_recip_normalizing_constant(
-            key,
-            tgt,
-            other_choices,
-            weight,
-        )
-        return (Z, ValueChoiceMap(latent_choices))
+        if isinstance(other_choices, EmptyChoiceMap):
+            return (weight, ValueChoiceMap(latent_choices))
+        else:
+            q = sir(1, self.p, args)
+            tgt = target(self.p, args, latent_choices)
+            Z = q.estimate_recip_normalizing_constant(
+                key,
+                tgt,
+                other_choices,
+                weight,
+            )
+            return (Z, ValueChoiceMap(latent_choices))
 
     @typecheck
     def estimate_logpdf(
@@ -261,12 +348,12 @@ class DefaultMarginal(SPDistribution):
 
 @dataclass
 class CustomMarginal(SPDistribution):
+    q: Callable[[Any, ...], SPAlgorithm]
     selection: Selection
     p: GenerativeFunction
-    q: SPAlgorithm
 
     def flatten(self):
-        return (self.select, self.p, self.q), ()
+        return (self.select, self.p), (self.q,)
 
     @typecheck
     def random_weighted(
@@ -275,18 +362,15 @@ class CustomMarginal(SPDistribution):
         *args,
     ) -> Any:
         key, sub_key = jax.random.split(key)
-        tr = self.p.simulate(sub_key, args)
+        p_args, q_args = args
+        tr = self.p.simulate(sub_key, p_args)
         weight = tr.get_score()
         choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         tgt = target(self.p, args, latent_choices)
-        Z = self.q.estimate_recip_normalizing_constant(
-            key,
-            tgt,
-            other_choices,
-            weight,
-        )
+        alg = self.q(*q_args)
+        Z = alg.estimate_recip_normalizing_constant(key, tgt, other_choices, weight)
         return (Z, ValueChoiceMap(latent_choices))
 
     @typecheck
@@ -297,24 +381,26 @@ class CustomMarginal(SPDistribution):
         *args,
     ) -> FloatArray:
         inner_choices = latent_choices.get_leaf_value()
-        tgt = target(self.p, args, inner_choices)
-        Z = self.q.estimate_normalizing_constant(key, tgt)
+        (p_args, q_args) = args
+        tgt = target(self.p, p_args, inner_choices)
+        alg = self.q(*p_args)
+        Z = alg.estimate_normalizing_constant(key, tgt)
         return Z
 
 
 @dispatch
 def marginal(
-    p: GenerativeFunction,
-    q: SPAlgorithm,
     selection: Selection,
+    p: GenerativeFunction,
+    q: Callable[[Any, ...], SPAlgorithm],
 ):
-    return CustomMarginal.new(selection, p, q)
+    return CustomMarginal.new(q, selection, p)
 
 
 @dispatch
 def marginal(
-    p: GenerativeFunction,
     selection: Selection,
+    p: GenerativeFunction,
 ):
     return DefaultMarginal.new(selection, p)
 
@@ -336,7 +422,7 @@ def elbo(
     @typecheck
     def elbo_loss(diff_p_args: Tuple, diff_q_args: Tuple):
         tgt = target(p, (*diff_p_args, *nondiff_p_args), data)
-        variational_family = sir(1, q, (diff_q_args, nondiff_q_args))
+        variational_family = sir(1, q, (data, *diff_q_args, *nondiff_q_args))
         key = adevjax.grab_key()
         w = variational_family.estimate_normalizing_constant(key, tgt)
         return w
@@ -352,17 +438,17 @@ def elbo(
     nondiff_q_args: Tuple,
     data: ChoiceMap,
 ):
-    choice_map_q = marginal(q, AllSelection())
+    marginal_q = marginal(AllSelection(), q)
     return elbo(
         p,
         nondiff_p_args,
-        choice_map_q,
+        marginal_q,
         nondiff_q_args,
         data,
     )
 
 
-@typecheck
+@dispatch
 def iwae_elbo(
     p: GenerativeFunction,
     nondiff_p_args: Tuple,
@@ -375,12 +461,32 @@ def iwae_elbo(
     @typecheck
     def elbo_loss(diff_p_args: Tuple, diff_q_args: Tuple):
         tgt = target(p, (*diff_p_args, *nondiff_p_args), data)
-        variational_family = sir(N, q, (diff_q_args, nondiff_q_args))
+        variational_family = sir(N, q, (data, *diff_q_args, *nondiff_q_args))
         key = adevjax.grab_key()
         w = variational_family.estimate_normalizing_constant(key, tgt)
         return w
 
     return adevjax.E(elbo_loss)
+
+
+@dispatch
+def iwae_elbo(
+    p: GenerativeFunction,
+    nondiff_p_args: Tuple,
+    q: GenerativeFunction,
+    nondiff_q_args: Tuple,
+    data: ChoiceMap,
+    N: Int,
+):
+    marginal_q = marginal(AllSelection(), q)
+    return iwae_elbo(
+        p,
+        nondiff_p_args,
+        marginal_q,
+        nondiff_q_args,
+        data,
+        N,
+    )
 
 
 @typecheck
