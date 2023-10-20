@@ -1310,37 +1310,40 @@ tpu = ["jaxlib (==0.4.18)", "libtpu-nightly (==0.1.dev20231006)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.4.18"
+version = "0.4.19"
 description = "XLA library for JAX"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "jaxlib-0.4.18-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:e0d78703fd1219d9875f20c6c692bba0973b744d66791e0b3e3cdb230c65a2a5"},
-    {file = "jaxlib-0.4.18-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:89fff93b90d054715db0bc3d3b572b799071e63f1fb44edfb1630c5f53631cfd"},
-    {file = "jaxlib-0.4.18-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:43287e8ece61f69b1d2a13d7f5e4d540c6edf4ab60bc1606b2b5f9321a9e8471"},
-    {file = "jaxlib-0.4.18-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:3293689a8bef495c7837a82ca3038b92c4f21204cadbad6f497306c58aa554e1"},
-    {file = "jaxlib-0.4.18-cp310-cp310-win_amd64.whl", hash = "sha256:a72ee7baf663ed5b9c6a426c1919f3755d4d71d4db6abf1979e6ce1f2451fb7f"},
-    {file = "jaxlib-0.4.18-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:02895bc15ec578d3bdbdf2c3a2195852d45870f611b26e2e7261cc6b0353a928"},
-    {file = "jaxlib-0.4.18-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e73b17ac3a6a3e034bca5e5752b1bf035a2eb50ced721a4651b287f5e2c672f7"},
-    {file = "jaxlib-0.4.18-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:f3a8ce7096b3eadd531773c5ef7f7c3bb7552cdf163d682ccd0b0c7f7240d109"},
-    {file = "jaxlib-0.4.18-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:4ce7b001fb070e2b7926553bedb9490b7671b3dcc176fd7b52df3932c3593cb0"},
-    {file = "jaxlib-0.4.18-cp311-cp311-win_amd64.whl", hash = "sha256:055950e663fdc101b544597c1361596ff82816575640685effd4779949c8cf06"},
-    {file = "jaxlib-0.4.18-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:85572a9fa84a17cffd05b771d528012297be4c0e227a07e7dd082c15094749b8"},
-    {file = "jaxlib-0.4.18-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c429a15165b6b5ded5b0c46c5861d0b978a82aaa2200b2e517366d220f3f01ee"},
-    {file = "jaxlib-0.4.18-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:dfe84a294ab3de2557c49a48c0d83c555018a5190aefa1134d5cb3219865edcd"},
-    {file = "jaxlib-0.4.18-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:ed1ba86c1a2adea8235269f3e1f5561696068ca60c68b8e5a6f0eb3b978a305a"},
-    {file = "jaxlib-0.4.18-cp312-cp312-win_amd64.whl", hash = "sha256:f0d5414bc79bdd667b81ee3c5836641bbd52d6d9c0054043dec8e025857e1260"},
-    {file = "jaxlib-0.4.18-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:9593ff69f424947567e206f3e356b2a2df55ca68e6d815d5adc6cae308e8f652"},
-    {file = "jaxlib-0.4.18-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:116a0d6aedd3e856b52493d7e392fb1b40952b84fb72448fde1c1ab5687db667"},
-    {file = "jaxlib-0.4.18-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:6cb20bbbdafd90e71ad0deb9295519a0175c108c8c557b84fb9fe94f751daee4"},
-    {file = "jaxlib-0.4.18-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:f7787a5531d226d6cc9ec2baa7141260bb713435e1cfc053cb9f5cefa9756ac3"},
-    {file = "jaxlib-0.4.18-cp39-cp39-win_amd64.whl", hash = "sha256:4771e8439c48d1c3cf65e01016da02c6592a310bf973c9609fc3be7df9b49b22"},
+    {file = "jaxlib-0.4.19-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:82a28c519497aedf2c42d4c0a106f301f0b33bc80cf58d7fb59a6e2555b23746"},
+    {file = "jaxlib-0.4.19-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:3bb747bdd28b29f3442c67c5e132b2ecde445fa09aed9bbc3ad2d75af172911f"},
+    {file = "jaxlib-0.4.19-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:05272c33ea6a2b83c8c6842b7f944fc0a7be82f85666ddbf76391fee308e60b3"},
+    {file = "jaxlib-0.4.19-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:92c9d8f823c4b2d69cb7994a8db4a0f9948f26d4add18d0d156105b9f0420729"},
+    {file = "jaxlib-0.4.19-cp310-cp310-win_amd64.whl", hash = "sha256:a0f02c69b8406cccedec8b77ab27f492bbee92dfb2eb817a3a124b86e5a7f43d"},
+    {file = "jaxlib-0.4.19-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:80e2c8c6493eda17b0d86a96bb55a0315131d5812eb71ed9a1ded06f0b2e5154"},
+    {file = "jaxlib-0.4.19-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:cc23808da5960904fd2679b58e3735461e607a6ab2ec00ad4ca2ccd0ca922733"},
+    {file = "jaxlib-0.4.19-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:64a2fffc69e66863cda0f2bf5443d92abb4d37f2613273d8d05229635be539a3"},
+    {file = "jaxlib-0.4.19-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:9be343cf05cc35ba0d8c39769cb63ebea0283767502595566f55100e9aaa0cfc"},
+    {file = "jaxlib-0.4.19-cp311-cp311-win_amd64.whl", hash = "sha256:675362fa803e7f64b2cf3c371852136be72a6223622c0f6aa254351bf18f1152"},
+    {file = "jaxlib-0.4.19-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:287ce521f6bd2ad61c1d7fa2fc5fd229a613a43e3f5e31d5bb98f705d4535267"},
+    {file = "jaxlib-0.4.19-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:680313acb5d4f446303effa475ec88f3cfc3edbe0d00d077f459fcbee5d4a850"},
+    {file = "jaxlib-0.4.19-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:f664f293465cf009147ff102ae877e24ea4b6513454d53d4633b8ac1f5130e6f"},
+    {file = "jaxlib-0.4.19-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:0594e692036e5789d6b5f6d8e2dff5f5a3f8deccd9404760a455e1e6ac064579"},
+    {file = "jaxlib-0.4.19-cp312-cp312-win_amd64.whl", hash = "sha256:9c724eb7f35d5e9de0d1b992048c7ca134ff6b63fc59f2c0fddb096da225c49c"},
+    {file = "jaxlib-0.4.19-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:9834f520d2ea3dd0a4c6d30c151d2a1cb38865d584cbc22ecf0d7fbcea040ac0"},
+    {file = "jaxlib-0.4.19-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:4e6bf688eaa535b66ac3fad88de7fa1a6334375f04039253b7a4f79507bee11b"},
+    {file = "jaxlib-0.4.19-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:96510b738c73a6dee2361bb58298400f1633d544c5941ef61a54932a7c63f288"},
+    {file = "jaxlib-0.4.19-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:f1b4eb5aeb6e2b4a959db91cc0c7e005fe35e1875a2dcdc62b922c0a6fc934f1"},
+    {file = "jaxlib-0.4.19-cp39-cp39-win_amd64.whl", hash = "sha256:3750000f5859464e9cce0d51b79832528cd1cf4117847bb248b514ad00a58a75"},
 ]
 
 [package.dependencies]
 ml-dtypes = ">=0.2.0"
 numpy = ">=1.22"
-scipy = ">=1.7"
+scipy = [
+    {version = ">=1.11.1", markers = "python_version >= \"3.12\""},
+    {version = ">=1.9", markers = "python_version < \"3.12\""},
+]
 
 [package.extras]
 cuda11-pip = ["nvidia-cublas-cu11 (>=11.11)", "nvidia-cuda-cupti-cu11 (>=11.8)", "nvidia-cuda-nvcc-cu11 (>=11.8)", "nvidia-cuda-runtime-cu11 (>=11.8)", "nvidia-cudnn-cu11 (>=8.8)", "nvidia-cufft-cu11 (>=10.9)", "nvidia-cusolver-cu11 (>=11.4)", "nvidia-cusparse-cu11 (>=11.7)"]
