@@ -1340,6 +1340,10 @@ class Mask(Pytree):
         check = self.value.has_subtree(addr)
         return jnp.logical_and(self.mask, check)
 
+    def get_choices(self):
+        choices = self.value.get_choices()
+        return Mask.new(self.mask, choices)
+
     ###########################
     # Address leaf interfaces #
     ###########################
