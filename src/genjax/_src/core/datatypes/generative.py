@@ -309,13 +309,13 @@ class IndexedSelection(Selection):
 
     @classmethod
     @dispatch
-    def new(cls, idx: Union[Int, List[Int], IntArray], inner: Selection):
+    def new(cls, idx: Any, inner: Selection):
         idxs = jnp.array(idx)
         return IndexedSelection(idxs, inner)
 
     @classmethod
     @dispatch
-    def new(cls, idx: Union[Int, List[Int], IntArray], *inner: Any):
+    def new(cls, idx: Any, *inner: Any):
         idxs = jnp.array(idx)
         inner = select(*inner)
         return IndexedSelection(idxs, inner)

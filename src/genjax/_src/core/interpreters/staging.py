@@ -25,15 +25,12 @@ from jax import tree_util as jtu
 from jax._src import dtypes
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
+from jax.util import safe_map
 
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Generator
 from genjax._src.core.typing import List
-
-
-safe_map = jax_core.safe_map
-safe_zip = jax_core.safe_zip
 
 
 def get_shaped_aval(x):
