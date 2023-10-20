@@ -33,7 +33,7 @@ import jax
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.pytree.sumtree import DataSharedSumTree
 from genjax._src.core.transforms.incremental import static_check_no_change
 from genjax._src.core.transforms.incremental import tree_diff_primal

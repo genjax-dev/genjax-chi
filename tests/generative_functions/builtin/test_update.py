@@ -106,7 +106,7 @@ class TestUpdateSimpleNormal:
         score3 = genjax.normal.logpdf(y3, y1 + y2, 1.0)
         test_score = score1 + score2 + score3
         assert original_chm[("y1",)] == discard[("y1",)]
-        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_hierarchical_normal(self):

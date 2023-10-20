@@ -23,15 +23,22 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 import rich
+from jax.experimental.checkify import checkify
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
-from genjax._src.core.datatypes.masking import Mask
-from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_leaves_have_matching_leading_dim,
+)
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_structure_equivalence,
+)
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.transforms.incremental import tree_diff_no_change
@@ -43,12 +50,16 @@ from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_array
 from genjax._src.core.typing import typecheck
+from genjax._src.global_options import global_options
 
 
 ########################
@@ -93,11 +104,6 @@ class Selection(AddressTree):
 
     def get_selection(self):
         return self
-
-    def get_subtrees_shallow(self):
-        raise Exception(
-            f"Selection of type {type(self)} does not implement get_subtrees_shallow.",
-        )
 
     ###########
     # Dunders #
@@ -200,7 +206,6 @@ class HierarchicalSelection(Selection):
     @classmethod
     @dispatch
     def new(cls, selections: Dict):
-        assert isinstance(selections, Dict)
         trie = Trie.new()
         for k, v in selections.items():
             assert isinstance(v, Selection)
@@ -281,6 +286,105 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
         for k, v in self.get_subtrees_shallow():
             subk = sub_tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
+        tree.add(sub_tree)
+        return tree
+
+
+@dataclass
+class IndexedSelection(Selection):
+    indices: IntArray
+    inner: Selection
+
+    def flatten(self):
+        return (
+            self.indices,
+            self.inner,
+        ), ()
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, IntArray]):
+        idxs = jnp.array(idx)
+        return IndexedSelection(idxs, AllSelection())
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, List[Int], IntArray], inner: Selection):
+        idxs = jnp.array(idx)
+        return IndexedSelection(idxs, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, idx: Union[Int, List[Int], IntArray], *inner: Any):
+        idxs = jnp.array(idx)
+        inner = select(*inner)
+        return IndexedSelection(idxs, inner)
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        return jnp.isin(addr, self.indices)
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    def get_subtree(self, addr):
+        return self.index_selection.get_subtree(addr)
+
+    def complement(self):
+        return ComplementIndexedSelection(self)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](Indexed,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
+@dataclass
+class ComplementIndexedSelection(IndexedSelection):
+    index_selection: Selection
+
+    def __init__(self, index_selection):
+        self.index_selection = index_selection
+
+    def flatten(self):
+        return (self.index_selection,), ()
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        return jnp.logical_not(jnp.isin(addr, self.indices))
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_not(
+            jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+        )
+
+    def get_subtree(self, addr):
+        return self.index_selection.get_subtree(addr).complement()
+
+    def complement(self):
+        return self.index_selection
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = rich.tree.Tree("[bold](Complement)")
+        self.index_selection.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
 
@@ -369,7 +473,7 @@ class ChoiceMap(AddressTree):
         selection: Selection,
         replacement: "ChoiceMap",
     ) -> "ChoiceMap":
-        """Replace the submaps selected by `selection` with `replacement`,
+        """Replace the subtrees selected by `selection` with `replacement`,
         returning a new choice map.
 
         Examples:
@@ -490,6 +594,18 @@ class ChoiceMap(AddressTree):
 
     def __add__(self, other):
         return self.safe_merge(other)
+
+    def __getitem__(self, addr):
+        subtree = self.get_subtree(addr)
+        if isinstance(subtree, AddressLeaf):
+            v = subtree.get_leaf_value()
+            return v
+        else:
+            # Kludgy to build in support for Mask -- but we're in Python so forgivable.
+            if isinstance(subtree, Mask):
+                return subtree.try_leaf_value()
+            else:
+                return subtree
 
     ###################
     # Pretty printing #
@@ -1071,6 +1187,291 @@ class HierarchicalTraceType(TraceType):
         return check
 
 
+###########
+# Masking #
+###########
+
+
+class Mask(Pytree):
+    """The `Mask` datatype provides access to the masking system. The masking
+    system is heavily influenced by the functional `Option` monad.
+
+    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as constraints in choice maps, and participate in inference computations (like scores, and importance weights or density ratios).
+
+    Masks are also used internally by generative function combinators which include uncertainty over structure.
+
+    Users are expected to interact with `Mask` instances by either:
+
+    * Unmasking them using the `Mask.unmask` interface. This interface uses JAX's `checkify` transformation to ensure that masked data exposed to a user is used only when valid. If a user chooses to `Mask.unmask` a `Mask` instance, they are also expected to use [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html) to transform their function to one which could return an error.
+
+    * Using `Mask.match` - which allows a user to provide "none" and "some" lambdas. The "none" lambda should accept no arguments, while the "some" lambda should accept an argument whose type is the same as the masked value. These lambdas should return the same type (`Pytree`, array, etc) of value.
+    """
+
+    def __init__(self, mask: BoolArray, value: Any):
+        self.mask = mask
+        self.value = value
+
+    def flatten(self):
+        return (self.mask, self.value), ()
+
+    @classmethod
+    def new(cls, mask: BoolArray, inner):
+        if isinstance(inner, Mask):
+            return Mask(
+                jnp.logical_and(mask, inner.mask),
+                inner.value,
+            )
+        else:
+            return Mask(mask, inner)
+
+    @typecheck
+    def match(self, none: Callable, some: Callable) -> Any:
+        """> Pattern match on the `Mask` type - by providing "none"
+        and "some" lambdas.
+
+        The "none" lambda should accept no arguments, while the "some" lambda should accept the same type as the value in the `Mask`. Both lambdas should return the same type (array, or `jax.Pytree`).
+
+        Arguments:
+            none: A lambda to handle the "none" branch. The type of the return value must agree with the "some" branch.
+            some: A lambda to handle the "some" branch. The type of the return value must agree with the "none" branch.
+
+        Returns:
+            value: A value computed by either the "none" or "some" lambda, depending on if the `Mask` is valid (e.g. `Mask.mask` is `True`).
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+            console = genjax.pretty()
+
+            masked = genjax.mask(False, jnp.ones(5))
+            v1 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
+            masked = genjax.mask(True, jnp.ones(5))
+            v2 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
+            print(console.render((v1, v2)))
+            ```
+        """
+        flag = jnp.array(self.mask)
+        if flag.shape == ():
+            return jax.lax.cond(
+                flag,
+                lambda: some(self.value),
+                lambda: none(),
+            )
+        else:
+            return jax.lax.select(
+                flag,
+                some(self.value),
+                none(),
+            )
+
+    @typecheck
+    def just_match(self, some: Callable) -> Any:
+        v = self.unmask()
+        return some(v)
+
+    def unmask(self):
+        """> Unmask the `Mask`, returning the value within.
+
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use `genjax.global_options.allow_checkify(True)` and then handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+            console = genjax.pretty()
+
+            masked = genjax.mask(True, jnp.ones(5))
+            print(console.render(masked.unmask()))
+            ```
+
+            Here's an example which uses `jax.experimental.checkify`. To enable runtime checks, the user must enable them explicitly in `genjax`.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import jax.experimental.checkify as checkify
+            import genjax
+            console = genjax.pretty()
+            genjax.global_options.allow_checkify(True)
+
+            masked = genjax.mask(False, jnp.ones(5))
+            err, _ = checkify.checkify(masked.unmask)()
+            print(console.render(err))
+
+            genjax.global_options.allow_checkify(False)
+            ```
+        """
+
+        # If a user chooses to `unmask`, require that they
+        # jax.experimental.checkify.checkify their call in transformed
+        # contexts.
+        def _check():
+            check_flag = jnp.all(self.mask)
+            checkify.check(check_flag, "Mask is False, the masked value is invalid.\n")
+
+        global_options.optional_check(_check)
+        return self.value
+
+    def unsafe_unmask(self):
+        # Unsafe version of unmask -- should only be used internally.
+        return self.value
+
+    #########################
+    # Choice map interfaces #
+    #########################
+
+    def is_empty(self):
+        assert isinstance(self.value, ChoiceMap)
+        return jnp.logical_and(self.mask, self.value.is_empty())
+
+    def get_subtree(self, addr):
+        assert isinstance(self.value, ChoiceMap)
+        subtree = self.value.get_subtree(addr)
+        if isinstance(subtree, EmptyChoiceMap):
+            return subtree
+        else:
+            return Mask.new(self.mask, subtree)
+
+    def has_subtree(self, addr):
+        assert isinstance(self.value, ChoiceMap)
+        check = self.value.has_subtree(addr)
+        return jnp.logical_and(self.mask, check)
+
+    def get_choices(self):
+        choices = self.value.get_choices()
+        return Mask.new(self.mask, choices)
+
+    ###########################
+    # Address leaf interfaces #
+    ###########################
+
+    def get_leaf_value(self):
+        assert isinstance(self.value, AddressLeaf)
+        v = self.value.get_leaf_value()
+        return Mask.new(self.mask, v)
+
+    def try_leaf_value(self):
+        if isinstance(self.value, AddressLeaf):
+            return self.get_leaf_value()
+        else:
+            return self
+
+    ###########
+    # Dunders #
+    ###########
+
+    @dispatch
+    def __eq__(self, other: "Mask"):
+        return jnp.logical_and(
+            jnp.logical_and(self.mask, other.mask),
+            self.value == other.value,
+        )
+
+    @dispatch
+    def __eq__(self, other: Any):
+        return jnp.logical_and(
+            self.mask,
+            self.value == other,
+        )
+
+    def __hash__(self):
+        hash1 = hash(self.value)
+        hash2 = hash(self.mask)
+        return hash((hash1, hash2))
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.mask, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](Mask, {doc})")
+        if isinstance(self.value, Pytree):
+            _ = self.value.__rich_tree__(sub_tree)
+        else:
+            val_tree = gpp.tree_pformat(self.value, short_arrays=True)
+            sub_tree.add(val_tree)
+        tree.add(sub_tree)
+        return tree
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = rich.tree.Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
+
+
+#################
+# Tagged unions #
+#################
+
+
+@dataclass
+class TaggedUnion(Pytree):
+    tag: IntArray
+    values: List[Any]
+
+    def flatten(self):
+        return (self.tag, self.values), ()
+
+    @classmethod
+    @typecheck
+    def new(cls, tag: IntArray, values: List[Any]):
+        return cls(tag, values)
+
+    def _static_assert_tagged_union_switch_num_callables_is_num_values(self, callables):
+        assert len(callables) == len(self.values)
+
+    def _static_assert_tagged_union_switch_returns_same_type(self, vs):
+        return True
+
+    @typecheck
+    def match(self, *callables: Callable):
+        assert len(callables) == len(self.values)
+        self._static_assert_tagged_union_switch_num_callables_is_num_values(callables)
+        vs = list(map(lambda v: v[0](v[1]), zip(callables, self.values)))
+        self._static_assert_tagged_union_switch_returns_same_type(vs)
+        vs = jnp.array(vs)
+        return vs[self.tag]
+
+    ###########
+    # Dunders #
+    ###########
+
+    def __getattr__(self, name):
+        subs = list(map(lambda v: getattr(v, name), self.values))
+        if subs and all(map(lambda v: isinstance(v, Callable), subs)):
+
+            def wrapper(*args):
+                vs = [s(*args) for s in subs]
+                return TaggedUnion(self.tag, vs)
+
+            return wrapper
+        else:
+            return TaggedUnion(self.tag, subs)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.tag, short_arrays=True)
+        vals_tree = gpp.tree_pformat(self.values, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](TaggedUnion, {doc})")
+        sub_tree.add(vals_tree)
+        tree.add(sub_tree)
+        return tree
+
+    # Defines custom pretty printing.
+    def __rich_console__(self, console, options):
+        tree = rich.tree.Tree("")
+        tree = self.__rich_tree__(tree)
+        yield tree
+
+
 #####
 # Generative function
 #####
@@ -1113,14 +1514,14 @@ class GenerativeFunction(Pytree):
         args: Tuple,
     ) -> Trace:
         """> Given a `key: PRNGKey` and arguments `x: Tuple`, the generative
-        function sample a choice map $c \sim p(\cdot; x)$, as well as any
-        untraced randomness $r \sim p(\cdot; x, c)$ to produce a trace $t = (x,
-        c, r)$.
+        function sample a choice map $c \\sim p(\\cdot; x)$, as well as any
+        untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
+        (x, c, r)$.
 
         While the types of traces `t` are formally defined by $(x, c, r)$, they will often store additional information - like the _score_ ($s$):
 
         $$
-        s = \log \\frac{p(c, r; x)}{q(r; x, c)}
+        s = \\log \\frac{p(c, r; x)}{q(r; x, c)}
         $$
 
         Arguments:
@@ -1249,7 +1650,7 @@ class GenerativeFunction(Pytree):
         The importance weight `w` is given by:
 
         $$
-        w = \log \\frac{p(u' ⧺ u, r; x)}{q(u'; u, x)q(r; x, t)}
+        w = \\log \\frac{p(u' ⧺ u, r; x)}{q(u'; u, x)q(r; x, t)}
         $$
         """
         raise NotImplementedError
@@ -1344,7 +1745,7 @@ class GenerativeFunction(Pytree):
         The score ($s$) is given by:
 
         $$
-        s = \log \\frac{p(c, r; x)}{q(r; x, c)}
+        s = \\log \\frac{p(c, r; x)}{q(r; x, c)}
         $$
         """
         raise NotImplementedError
@@ -1442,7 +1843,8 @@ class EmptyChoiceMap(ChoiceMap, AddressLeaf):
     ###################
 
     def __rich_tree__(self, tree):
-        tree = rich.tree.Tree("[bold](Empty)")
+        sub = rich.tree.Tree("[bold](Empty)")
+        tree.add(sub)
         return tree
 
 
@@ -1500,14 +1902,62 @@ class ValueChoiceMap(ChoiceMap, AddressLeaf):
 
 
 @dataclasses.dataclass
-class HierarchicalChoiceMap(ChoiceMap):
+class DynamicHierarchicalChoiceMap(ChoiceMap):
+    dynamic_addrs: List[Any]
+    subtrees: List[ChoiceMap]
+
+    def flatten(self):
+        return (self.dynamic_addrs, self.subtrees), ()
+
+    @classmethod
+    def new(cls, dynamic_addrs, subtrees):
+        return DynamicHierarchicalChoiceMap(dynamic_addrs, subtrees)
+
+    def is_empty(self):
+        return jnp.all(jnp.array(map(lambda v: v.is_empty(), self.subtrees)))
+
+    @dispatch
+    def get_subtree(self, addr: IntArray):
+        compares = map(lambda v: addr == v, self.dynamic_addrs)
+        masks = list(map(lambda v: mask(v[0], v[1]), zip(compares, self.subtrees)))
+        return DisjointUnionChoiceMap(masks)
+
+    @dispatch
+    def get_subtree(self, addr: Tuple):
+        (idx, rest) = addr
+        disjoint_union_chm = self.get_subtree(idx)
+        return disjoint_union_chm.get_subtree(rest)
+
+    @dispatch
+    def has_subtree(self, addr: IntArray):
+        equality_checks = jnp.array(map(lambda v: addr == v, self.dynamic_addrs))
+        return jnp.any(equality_checks)
+
+    @dispatch
+    def has_subtree(self, addr: Tuple):
+        (idx, rest) = addr
+        disjoint_union_chm = self.get_subtree(idx)
+        return jnp.logical_and(
+            self.has_subtree(idx),
+            disjoint_union_chm.has_subtree(rest),
+        )
+
+
+class DynamicConvertible:
+    @abc.abstractmethod
+    def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
+        pass
+
+
+@dataclasses.dataclass
+class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     trie: Trie
 
     def flatten(self):
         return (self.trie,), ()
 
-    @typecheck
     @classmethod
+    @dispatch
     def new(cls, constraints: Dict):
         assert isinstance(constraints, Dict)
         trie = Trie.new()
@@ -1519,6 +1969,23 @@ class HierarchicalChoiceMap(ChoiceMap):
             )
             trie[k] = v
         return HierarchicalChoiceMap(trie)
+
+    @classmethod
+    @dispatch
+    def new(cls, trie: Trie):
+        check = trie.is_empty()
+        if is_concrete(check) and check:
+            return EmptyChoiceMap()
+        else:
+            return HierarchicalChoiceMap(trie)
+
+    def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
+        dynamic_addrs = []
+        submaps = []
+        for k, v in self.get_subtrees_shallow():
+            dynamic_addrs.append(k)
+            submaps.append(v)
+        return DynamicHierarchicalChoiceMap(dynamic_addrs, submaps)
 
     def is_empty(self):
         return self.trie.is_empty()
@@ -1565,8 +2032,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     def has_subtree(self, addr):
         return self.trie.has_subtree(addr)
 
-    def get_subtree(self, addr):
-        value = self.trie.get_subtree(addr)
+    def _lift_value(self, value):
         if value is None:
             return EmptyChoiceMap()
         else:
@@ -1575,6 +2041,36 @@ class HierarchicalChoiceMap(ChoiceMap):
                 return HierarchicalChoiceMap(submap)
             else:
                 return submap
+
+    @dispatch
+    def get_subtree(self, addr: Any):
+        value = self.trie.get_subtree(addr)
+        return self._lift_value(value)
+
+    @dispatch
+    def get_subtree(self, addr: IntArray):
+        if is_concrete(addr):
+            value = self.trie.get_subtree(addr)
+            return self._lift_value(value)
+        else:
+            dynamic_chm = self.dynamic_convert()
+            return dynamic_chm.get_subtree(addr)
+
+    @dispatch
+    def get_subtree(self, addr: Tuple):
+        first, *rest = addr
+        top = self.get_subtree(first)
+        if isinstance(top, EmptyChoiceMap):
+            return top
+        else:
+            if rest:
+                if len(rest) == 1:
+                    rest = rest[0]
+                else:
+                    rest = tuple(rest)
+                return top.get_subtree(rest)
+            else:
+                return top
 
     def get_subtrees_shallow(self):
         def _inner(v):
@@ -1597,8 +2093,18 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def merge(self, other: "HierarchicalChoiceMap"):
-        new_inner, discard = self.trie.merge(other.trie)
-        return HierarchicalChoiceMap(new_inner), HierarchicalChoiceMap(discard)
+        new = hashable_dict()
+        discard = hashable_dict()
+        for k, v in self.get_subtrees_shallow():
+            if other.has_subtree(k):
+                sub = other.get_subtree(k)
+                new[k], discard[k] = v.merge(sub)
+            else:
+                new[k] = v
+        for k, v in other.get_subtrees_shallow():
+            if not self.has_subtree(k):
+                new[k] = v
+        return HierarchicalChoiceMap(Trie(new)), HierarchicalChoiceMap(Trie(discard))
 
     @dispatch
     def merge(self, other: EmptyChoiceMap):
@@ -1640,17 +2146,294 @@ class HierarchicalChoiceMap(ChoiceMap):
         return tree
 
 
+@dataclass
+class IndexedChoiceMap(ChoiceMap):
+    indices: IntArray
+    inner: ChoiceMap
+
+    def flatten(self):
+        return (self.indices, self.inner), ()
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
+        # Promote raw integers (or scalars) to non-null leading dim.
+        indices = jnp.array(indices)
+        if not indices.shape:
+            indices = indices[:, None]
+
+        # Verify that dimensions are consistent before creating an
+        # `IndexedChoiceMap`.
+        _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
+
+        # if you try to wrap around an EmptyChoiceMap, do nothing.
+        if isinstance(inner, EmptyChoiceMap):
+            return inner
+
+        return IndexedChoiceMap(indices, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: List, inner: ChoiceMap) -> ChoiceMap:
+        indices = jnp.array(indices)
+        return IndexedChoiceMap.new(indices, inner)
+
+    @classmethod
+    @dispatch
+    def new(cls, indices: Any, inner: Dict) -> ChoiceMap:
+        inner = choice_map(inner)
+        return IndexedChoiceMap.new(indices, inner)
+
+    def is_empty(self):
+        return self.inner.is_empty()
+
+    @dispatch
+    def filter(
+        self,
+        selection: HierarchicalSelection,
+    ) -> ChoiceMap:
+        return IndexedChoiceMap(self.indices, self.inner.filter(selection))
+
+    def has_subtree(self, addr):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    @dispatch
+    def filter(
+        self,
+        selection: IndexedSelection,
+    ) -> ChoiceMap:
+        flags = jnp.isin(selection.indices, self.indices)
+        filtered_inner = self.inner.filter(selection.inner)
+        masked = mask(flags, filtered_inner)
+        return IndexedChoiceMap(self.indices, masked)
+
+    def has_subtree(self, addr):
+        if not isinstance(addr, Tuple) and len(addr) == 1:
+            return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_subtree(addr))
+
+    @dispatch
+    def get_subtree(self, addr: Tuple):
+        if len(addr) == 1:
+            return self.get_subtree(addr[0])
+        idx, *rest = addr
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = slice_index[0]
+        subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        subtree = subtree.get_subtree(tuple(rest))
+        if isinstance(subtree, EmptyChoiceMap):
+            return subtree
+        else:
+            return mask(jnp.isin(idx, self.indices), subtree)
+
+    @dispatch
+    def get_subtree(self, idx: IntArray):
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = slice_index[0]
+        subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        return mask(jnp.isin(idx, self.indices), subtree)
+
+    @dispatch
+    def get_subtree(self, addr: Any):
+        return EmptyChoiceMap()
+
+    def get_selection(self):
+        return self.inner.get_selection()
+
+    def merge(self, _: ChoiceMap):
+        raise Exception("TODO: can't merge IndexedChoiceMaps")
+
+    def get_index(self):
+        return self.indices
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        sub_tree = rich.tree.Tree(f"[bold](Indexed,{doc})")
+        self.inner.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
+@dataclasses.dataclass
+class DisjointUnionChoiceMap(ChoiceMap):
+    """> A choice map combinator type which represents a disjoint union over
+    multiple choice maps.
+
+    The internal data representation of a `ChoiceMap` is often specialized to support optimized code generation for inference interfaces, but the address hierarchy which a `ChoiceMap` represents (as an assignment of choices to addresses) must be generic.
+
+    To make this more concrete, a `VectorChoiceMap` represents choices with addresses of the form `(integer_index, ...)` - but its internal data representation is a struct-of-arrays. A `HierarchicalChoiceMap` can also represent address assignments with form `(integer_index, ...)` - but supporting choice map interfaces like `merge` across choice map types with specialized internal representations is complicated.
+
+    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `Builtin` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
+
+    To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
+    """
+
+    subtrees: List[ChoiceMap]
+
+    def flatten(self):
+        return (self.subtrees,), ()
+
+    def has_subtree(self, addr):
+        checks = jnp.array(map(lambda v: v.has_subtree(addr), self.subtrees))
+        return jnp.sum(checks) == 1
+
+    def get_subtree(self, addr):
+        # Tracer time computation which eliminates the DisjointUnionChoiceMap
+        # type, and returns a more specialized choice map.
+        new_subtrees = list(
+            filter(
+                lambda v: not isinstance(v, EmptyChoiceMap),
+                map(lambda v: v.get_subtree(addr), self.subtrees),
+            )
+        )
+        # Static check: if any of the subtrees are `AddressLeaf` instances, we must
+        # check that all of them are. Otherwise, the choice map is invalid.
+        check_address_leaves = list(
+            map(lambda v: isinstance(v, AddressLeaf), new_subtrees)
+        )
+        if any(check_address_leaves):
+            assert all(map(lambda v: isinstance(v, AddressLeaf), new_subtrees))
+
+        if len(new_subtrees) == 0:
+            return EmptyChoiceMap()
+
+        elif len(new_subtrees) == 1:
+            return new_subtrees[0]
+
+        # We've reached the `AddressLeaf` level - now we need to perform checks
+        # * There must at least one valid leaf instance.
+        # * There should be only one valid leaf instance.
+        elif all(check_address_leaves):
+            # Convert all to Mask instances -- this operation will preserve existing
+            # Mask instances (and jnp.logical_and with the provided flag).
+            new_subtrees = list(map(lambda v: mask(True, v), new_subtrees))
+
+            # Now, extract the flags and runtime check that at least one is valid.
+            masks = jnp.array(
+                list(map(lambda v: v.mask, new_subtrees)),
+            )
+
+            def _check_valid():
+                check_flag = jnp.any(masks)
+                return checkify.check(
+                    check_flag,
+                    "(DisjointUnionChoiceMap.get_subtree): masked leaf values have no valid data.",
+                )
+
+            global_options.optional_check(_check_valid)
+
+            # Now, extract the flags and runtime check that only one is valid.
+            def _check_only_one():
+                check_flag = jnp.sum(masks) == 1
+                return checkify.check(
+                    check_flag,
+                    "(DisjointUnionChoiceMap.get_subtree): multiple valid leaves.",
+                )
+
+            global_options.optional_check(_check_only_one)
+
+            # Get the index of the valid value, and create a `TaggedUnion` with it.
+            tag = jnp.argwhere(masks, size=1).reshape(1)[0]
+            new_subtrees = list(map(lambda v: v.unsafe_unmask(), new_subtrees))
+            return tagged_union(tag, new_subtrees)
+        else:
+            return DisjointUnionChoiceMap(new_subtrees)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self, tree):
+        sub_tree = rich.tree.Tree("[bold](DisjointUnion)")
+        for subtree in self.subtrees:
+            _ = subtree.__rich_tree__(sub_tree)
+        tree.add(sub_tree)
+        return tree
+
+
 ##############
 # Shorthands #
 ##############
 
 empty_choice_map = EmptyChoiceMap.new
-emp_chm = empty_choice_map
 value_choice_map = ValueChoiceMap.new
-val_chm = value_choice_map
 all_select = AllSelection.new
-all_sel = all_select
 none_select = NoneSelection.new
-none_sel = none_select
-choice_map = HierarchicalChoiceMap.new
-select = HierarchicalSelection.new
+hierarchical_choice_map = HierarchicalChoiceMap.new
+hierarchical_select = HierarchicalSelection.new
+indexed_choice_map = IndexedChoiceMap.new
+indexed_select = IndexedSelection.new
+disjoint_union_choice_map = DisjointUnionChoiceMap.new
+dynamic_choice_map = DynamicHierarchicalChoiceMap.new
+mask = Mask.new
+tagged_union = TaggedUnion.new
+
+
+@dispatch
+def choice_map():
+    return hierarchical_choice_map()
+
+
+@dispatch
+def choice_map(v: Any):
+    return value_choice_map(v)
+
+
+@dispatch
+def choice_map(submaps: Dict):
+    return hierarchical_choice_map(submaps)
+
+
+@dispatch
+def choice_map(indices: List[Int], submaps: List[ChoiceMap]):
+    # submaps must have same Pytree structure to use
+    # optimized representation.
+    if static_check_tree_structure_equivalence(submaps):
+        index_arr = jnp.array(indices)
+        return indexed_choice_map(index_arr, submaps)
+    else:
+        return dynamic_choice_map(indices, submaps)
+
+
+@dispatch
+def choice_map(index: Int, submap: ChoiceMap):
+    expanded = jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), submap)
+    return indexed_choice_map([index], expanded)
+
+
+@dispatch
+def choice_map(submaps: List[ChoiceMap]):
+    return disjoint_union_choice_map(submaps)
+
+
+@dispatch
+def choice_map(dynamic_addrs: List[Any], submaps: List[ChoiceMap]):
+    return dynamic_choice_map(dynamic_addrs, submaps)
+
+
+@dispatch
+def select():
+    return all_select()
+
+
+@dispatch
+def select(subselects: Dict):
+    return hierarchical_select(subselects)
+
+
+@dispatch
+def select(*addrs: Any):
+    return hierarchical_select(*addrs)
+
+
+@dispatch
+def select(idx: Union[Int, IntArray], *args):
+    return indexed_select(idx, *args)

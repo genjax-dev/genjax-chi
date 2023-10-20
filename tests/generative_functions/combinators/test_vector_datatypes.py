@@ -28,37 +28,41 @@ class TestVectorChoiceMap:
 
 
 class TestIndexChoiceMap:
-    def test_index_choice_map_construction(self):
-        chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array([3.0])}))
+    def test_indexed_choice_map_construction(self):
+        chm = genjax.indexed_choice_map([0], genjax.choice_map({"z": jnp.array([3.0])}))
         assert chm.has_subtree((0, "z"))
 
         with pytest.raises(Exception):
-            chm = genjax.index_choice_map(0, genjax.choice_map({"z": jnp.array([3.0])}))
+            chm = genjax.indexed_choice_map(
+                0, genjax.choice_map({"z": jnp.array([3.0])})
+            )
 
         with pytest.raises(Exception):
-            chm = genjax.index_choice_map([0], genjax.choice_map({"z": jnp.array(3.0)}))
+            chm = genjax.indexed_choice_map(
+                [0], genjax.choice_map({"z": jnp.array(3.0)})
+            )
 
-    def test_nested_index_choice_map_construction(self):
-        inner = genjax.index_choice_map(
+    def test_nested_indexed_choice_map_construction(self):
+        inner = genjax.indexed_choice_map(
             jnp.arange(5),
             genjax.choice_map({"x": jnp.ones((5,))}),
         )
-        outer = genjax.index_choice_map(
+        outer = genjax.indexed_choice_map(
             [1], jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), inner)
         )
         assert outer[1].match(
             lambda: False, lambda v: jnp.all(v.inner["x"] == jnp.ones(5))
         )
 
-    def test_index_choice_map_has_subtree(self):
-        chm = genjax.index_choice_map(
+    def test_indexed_choice_map_has_subtree(self):
+        chm = genjax.indexed_choice_map(
             [0, 3], genjax.choice_map({"z": jnp.array([3.0, 5.0])})
         )
         assert chm.has_subtree((0, "z"))
         assert chm.has_subtree((3, "z"))
 
-    def test_index_choice_map_get_subtree(self):
-        chm = genjax.index_choice_map(
+    def test_indexed_choice_map_get_subtree(self):
+        chm = genjax.indexed_choice_map(
             [0, 3], genjax.choice_map({"z": jnp.array([3.0, 5.0])})
         )
         st = chm.get_subtree((2, "x"))
@@ -95,7 +99,7 @@ class TestVectorTrace:
         map_over = jnp.arange(0, 50)
         key, sub_key = jax.random.split(key)
         vec_tr = jax.jit(genjax.simulate(model))(sub_key, (map_over,))
-        sel = genjax.index_select(jnp.array([1]), genjax.select("z"))
+        sel = genjax.indexed_select(jnp.array([1]), genjax.select("z"))
         score = genjax.normal.logpdf(vec_tr.get_choices()["z"][1], 1.0, 1.0)
         assert score == vec_tr.project(sel)
 
@@ -107,19 +111,19 @@ class TestVectorTrace:
 
         key, sub_key = jax.random.split(key)
         vec_tr = jax.jit(genjax.simulate(chain))(sub_key, (5, 0.0))
-        sel = genjax.index_select([0], genjax.select("z"))
+        sel = genjax.indexed_select([0], genjax.select("z"))
         proj_score = vec_tr.project(sel)
         latent_z_0 = vec_tr.filter(sel).just_match(lambda v: v["z"])
         z_score = genjax.normal.logpdf(latent_z_0, 0.0, 1.0)
         assert proj_score == z_score
 
-        sel = genjax.index_select([1], genjax.select("z"))
+        sel = genjax.indexed_select([1], genjax.select("z"))
         proj_score = vec_tr.project(sel)
         latent_z_1 = vec_tr.filter(sel).just_match(lambda v: v["z"])
         z_score = genjax.normal.logpdf(latent_z_1, latent_z_0, 1.0)
         assert proj_score == pytest.approx(z_score, 0.0001)
 
-        sel = genjax.index_select([2], genjax.select("z"))
+        sel = genjax.indexed_select([2], genjax.select("z"))
         proj_score = vec_tr.project(sel)
         latent_z_2 = vec_tr.filter(sel).just_match(lambda v: v["z"])
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
@@ -133,14 +137,14 @@ class TestVectorTrace:
 
         key, sub_key = jax.random.split(key)
         vec_tr = jax.jit(genjax.simulate(two_layer_chain))(sub_key, (5, 0.0))
-        sel = genjax.index_select([0], genjax.select("z1"))
+        sel = genjax.indexed_select([0], genjax.select("z1"))
         proj_score = vec_tr.project(sel)
         latent_z_1 = vec_tr.filter(sel).just_match(lambda v: v["z1"])
         z_score = genjax.normal.logpdf(latent_z_1, 0.0, 1.0)
         assert proj_score == z_score
 
-        z1_sel = genjax.index_select([0], genjax.select("z1"))
-        z2_sel = genjax.index_select([0], genjax.select("z2"))
+        z1_sel = genjax.indexed_select([0], genjax.select("z1"))
+        z2_sel = genjax.indexed_select([0], genjax.select("z2"))
         proj_score = vec_tr.project(z2_sel)
         latent_z_1 = vec_tr.filter(z1_sel).just_match(lambda v: v["z1"])
         latent_z_2 = vec_tr.filter(z2_sel).just_match(lambda v: v["z2"])

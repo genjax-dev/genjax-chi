@@ -15,7 +15,18 @@
 
 import jax.tree_util as jtu
 
+from genjax._src.core.typing import List
 from genjax._src.core.typing import static_check_is_array
+
+
+def static_check_tree_structure_equivalence(trees: List):
+    if not trees:
+        return True
+    else:
+        fst, *rest = trees
+        treedef = jtu.tree_structure(fst)
+        check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
+        return check
 
 
 def static_check_tree_leaves_have_matching_leading_dim(tree):
