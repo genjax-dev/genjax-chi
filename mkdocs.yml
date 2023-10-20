@@ -57,7 +57,6 @@ nav:
     #      - Differentiable programming:
     #          - genjax/library/diff_prog/index.md
     #          - Differentiable state: genjax/library/diff_prog/state.md
-    #          - Automatic differentiation of expected values: genjax/library/diff_prog/adev.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
