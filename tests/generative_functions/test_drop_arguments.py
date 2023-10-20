@@ -30,12 +30,12 @@ class TestDropArguments:
             return y
 
         key = jax.random.PRNGKey(314159)
-        chm = genjax.index_choice_map([0], {"y": jnp.array([5.0])})
+        chm = genjax.indexed_choice_map([0], {"y": jnp.array([5.0])})
         tr = model.simulate(key, (jnp.ones(5),))
         _, _, tr, _ = model.update(
             key, tr, chm, genjax.tree_diff_no_change((jnp.ones(5),))
         )
         v = tr.strip()["y"]
         assert v[0] == 5.0
-        sel = genjax.index_select([0], genjax.select("y"))
+        sel = genjax.indexed_select([0], genjax.select("y"))
         assert tr.project(sel) == genjax.normal.logpdf(5.0, 1.0, 1.0)

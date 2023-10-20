@@ -15,15 +15,23 @@
 import functools
 from dataclasses import dataclass
 
+import jax.numpy as jnp
+
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.static_checks import (
+    static_check_tree_structure_equivalence,
+)
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -35,6 +43,9 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
+from genjax._src.generative_functions.builtin.builtin_datatypes import (
+    DynamicHierarchicalChoiceMap,
+)
 from genjax._src.generative_functions.builtin.builtin_primitives import cache
 from genjax._src.generative_functions.builtin.builtin_primitives import trace
 from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
@@ -170,8 +181,24 @@ class BuiltinGenerativeFunction(
         key: PRNGKey,
         args: Tuple,
     ) -> BuiltinTrace:
-        (f, args, r, chm, score), cache = simulate_transform(self.source)(key, args)
-        return BuiltinTrace.new(self, args, r, chm, cache, score)
+        (
+            args,
+            retval,
+            static_address_choices,
+            dynamic_addresses,
+            dynamic_address_choices,
+            score,
+        ), cache_state = simulate_transform(self.source)(key, args)
+        return BuiltinTrace.new(
+            self,
+            args,
+            retval,
+            static_address_choices,
+            dynamic_addresses,
+            dynamic_address_choices,
+            cache_state,
+            score,
+        )
 
     @dispatch
     def importance(
@@ -180,10 +207,68 @@ class BuiltinGenerativeFunction(
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, BuiltinTrace]:
-        (w, (f, args, r, chm, score)), cache = importance_transform(self.source)(
-            key, chm, args
+        (
+            w,
+            (
+                args,
+                retval,
+                static_address_choices,
+                dynamic_addresses,
+                dynamic_address_choices,
+                score,
+            ),
+        ), cache_state = importance_transform(self.source)(key, chm, args)
+        return (
+            w,
+            BuiltinTrace.new(
+                self,
+                args,
+                retval,
+                static_address_choices,
+                dynamic_addresses,
+                dynamic_address_choices,
+                cache_state,
+                score,
+            ),
         )
-        return (w, BuiltinTrace.new(self, args, r, chm, cache, score))
+
+    def _create_discard(
+        self,
+        static_address_choices,
+        dynamic_addresses,
+        dynamic_address_choices,
+    ):
+        # Handle coercion of the static address choices (a `Trie`)
+        # to a choice map.
+        if static_address_choices.is_empty():
+            static_chm = EmptyChoiceMap()
+        else:
+            static_chm = HierarchicalChoiceMap.new(static_address_choices)
+
+        # Now deal with the dynamic address choices.
+        if not dynamic_addresses and not dynamic_address_choices:
+            return static_chm
+        else:
+            # Specialized path: all structure is the same, we can coerce into
+            # an `IndexedChoiceMap`.
+            if static_check_tree_structure_equivalence(dynamic_address_choices):
+                index_arr = jnp.stack(dynamic_addresses)
+                stacked_inner = tree_stack(dynamic_address_choices)
+                hierarchical = HierarchicalChoiceMap.new(stacked_inner)
+                dynamic = IndexedChoiceMap.new(index_arr, hierarchical)
+
+            # Fallback path: heterogeneous structure, we defer specialization
+            # to other methods.
+            else:
+                dynamic = DynamicHierarchicalChoiceMap.new(
+                    dynamic_addresses,
+                    dynamic_address_choices,
+                )
+
+            if isinstance(static_chm, EmptyChoiceMap):
+                return dynamic
+            else:
+                return DisjointUnionChoiceMap.new([static_chm, dynamic])
 
     @dispatch
     def update(
@@ -197,20 +282,37 @@ class BuiltinGenerativeFunction(
         (
             (
                 retval_diffs,
-                w,
-                (f, args, r, chm, score),
-                discard,
+                weight,
+                (
+                    arg_primals,
+                    retval_primals,
+                    static_address_choices,
+                    dynamic_addresses,
+                    dynamic_address_choices,
+                    score,
+                ),
+                (static_discard, dynamic_discard_addresses, dynamic_discard_choices),
             ),
-            cache,
+            cache_state,
         ) = update_transform(self.source)(key, prev, constraints, argdiffs)
-        if not discard.is_empty():
-            discard = HierarchicalChoiceMap(discard)
-        else:
-            discard = EmptyChoiceMap()
+        discard = self._create_discard(
+            static_discard,
+            dynamic_discard_addresses,
+            dynamic_discard_choices,
+        )
         return (
             retval_diffs,
-            w,
-            BuiltinTrace.new(self, args, r, chm, cache, score),
+            weight,
+            BuiltinTrace.new(
+                self,
+                arg_primals,
+                retval_primals,
+                static_address_choices,
+                dynamic_addresses,
+                dynamic_address_choices,
+                cache_state,
+                score,
+            ),
             discard,
         )
 
@@ -228,10 +330,23 @@ class BuiltinGenerativeFunction(
         return self.source(*args)
 
     def restore_with_aux(self, interface_data, aux):
-        (original_args, retval, score, choices) = interface_data
-        (cache,) = aux
-        trie = choices.trie
-        return BuiltinTrace.new(self, original_args, retval, trie, cache, score)
+        (original_args, retval, score, _) = interface_data
+        (
+            static_address_choices,
+            dynamic_addresses,
+            dynamic_address_choices,
+            cache,
+        ) = aux
+        return BuiltinTrace.new(
+            self,
+            original_args,
+            retval,
+            static_address_choices,
+            dynamic_addresses,
+            dynamic_address_choices,
+            cache,
+            score,
+        )
 
     ###################
     # Deserialization #

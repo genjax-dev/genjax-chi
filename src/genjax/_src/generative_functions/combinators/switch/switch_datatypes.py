@@ -28,7 +28,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.datatypes.masking import mask
+from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -150,8 +150,8 @@ class SwitchChoiceMap(ChoiceMap):
         new_submaps, new_discard = list(
             zip(*map(lambda v: v.merge(other), self.submaps))
         )
-        return SwitchChoiceMap.new(self.index, new_submaps), SwitchChoiceMap.new(
-            self.index, new_discard
+        return SwitchChoiceMap.new(self.index, list(new_submaps)), SwitchChoiceMap.new(
+            self.index, list(new_discard)
         )
 
     ###################

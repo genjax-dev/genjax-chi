@@ -23,8 +23,8 @@ from genjax import UnknownChange
 from genjax import choice_map
 from genjax import diff
 from genjax import gen
-from genjax import index_choice_map
-from genjax import index_select
+from genjax import indexed_choice_map
+from genjax import indexed_select
 from genjax import normal
 from genjax.inference import smc
 
@@ -40,7 +40,7 @@ class TestSimpleSMC:
         key = jax.random.PRNGKey(314159)
         init_len = 0
         init_state = 0.0
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [0],
             choice_map({"x": jnp.array([1.0])}),
         )
@@ -48,7 +48,7 @@ class TestSimpleSMC:
         smc_state = smc.smc_initialize(chain, 100).apply(
             sub_key, obs, (init_len, init_state)
         )
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [1],
             choice_map({"x": jnp.array([1.0])}),
         )
@@ -68,7 +68,7 @@ class TestSimpleSMC:
             x = normal(z, 1.0) @ "x"
             return z
 
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [0, 1, 2, 3],
             choice_map({"x": jnp.array([1.0, 2.0, 3.0, 4.0])}),
         )
@@ -113,13 +113,13 @@ class TestSimpleSMC:
             x = normal(z, 1.0) @ "x"
             return z
 
-        obs = index_choice_map(
+        obs = indexed_choice_map(
             [0, 1, 2, 3],
             choice_map({"x": jnp.array([1.0, 2.0, 3.0, 4.0])}),
         )
 
         def extending_smc(key, obs, init_state):
-            index_sel = index_select(0)
+            index_sel = indexed_select(0)
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
             smc_state = smc.smc_initialize(chain, 100).apply(
@@ -154,3 +154,57 @@ class TestSimpleSMC:
         key = jax.random.PRNGKey(314159)
         smc_state = jax.jit(extending_smc)(key, obs, 0.0)
         assert True
+
+    def test_smoke_smc_with_nested_switch(self):
+        @genjax.gen
+        def outlier():
+            return genjax.tfp_normal(0.0, 1.0) @ "reflection_point"
+
+        branching = genjax.Switch(outlier, outlier)
+
+        @genjax.gen(genjax.Map, in_axes=(0,))
+        def inner_chain(v):
+            outlier = genjax.bernoulli(0.3) @ "outlier"
+            idx = outlier.astype(int)
+            c = branching(idx) @ "reflection_or_outlier"
+            return c
+
+        @genjax.gen(genjax.Unfold, max_length=17)
+        def chain(z):
+            c = inner_chain(z) @ "chain"
+            return c
+
+        key = jax.random.PRNGKey(314159)
+        init_latent = jnp.ones(361)
+        tr = chain.simulate(key, (16, init_latent))
+
+        def make_choice_map(step):
+            obs = jnp.ones(361)
+            return genjax.indexed_choice_map(
+                [step],
+                jtu.tree_map(
+                    lambda v: jnp.expand_dims(v, axis=0),
+                    genjax.choice_map(
+                        {
+                            "chain": genjax.indexed_choice_map(
+                                jnp.arange(361),
+                                genjax.choice_map(
+                                    {("reflection_or_outlier", "reflection_point"): obs}
+                                ),
+                            )
+                        }
+                    ),
+                ),
+            )
+
+        smc_state = genjax.smc.smc_initialize(chain, 5).apply(
+            key, make_choice_map(0), (0, jnp.ones(361))
+        )
+
+        argdiffs = (
+            genjax.tree_diff_unknown_change(1),
+            genjax.tree_diff_no_change(jnp.ones(361)),
+        )
+        smc_state = genjax.smc.smc_update().apply(
+            key, smc_state, argdiffs, make_choice_map(1)
+        )
