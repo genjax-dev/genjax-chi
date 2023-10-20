@@ -39,6 +39,7 @@ from jax import tree_util as jtu
 from jax.experimental import pjit
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
+from jax.util import safe_map
 
 from genjax._src.core.interpreters.staging import extract_call_jaxpr
 from genjax._src.core.pytree.pytree import Pytree
@@ -47,8 +48,6 @@ from genjax._src.core.pytree.pytree import Pytree
 State = Any
 VarOrLiteral = Union[jax_core.Var, jax_core.Literal]
 
-safe_map = jax_core.safe_map
-safe_zip = jax_core.safe_zip
 
 #####################
 # Graph interpreter #
