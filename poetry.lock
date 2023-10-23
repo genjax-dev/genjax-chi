@@ -32,7 +32,7 @@ tensorflow-probability = "^0.21.0"
 type = "git"
 url = "https://github.com/probcomp/adevjax"
 reference = "HEAD"
-resolved_reference = "b4283ad2557a74b9d12f85cc5154fbedf5a05d22"
+resolved_reference = "2671c0d34fda23a4fbf3036ff9a59ed5a225a815"
 
 [[package]]
 name = "aiofiles"
