@@ -24,12 +24,12 @@ from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.distribution import Distribution
+from genjax._src.gensp.sp_distribution import SPDistribution
 from genjax._src.gensp.target import target
 
 
 @dataclass
-class ChoiceMapDistribution(Distribution):
+class ChoiceMapDistribution(SPDistribution):
     p: GenerativeFunction
     selection: Selection
     custom_q: Union[None, "ChoiceMapDistribution"]
