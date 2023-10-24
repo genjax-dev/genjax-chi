@@ -27,6 +27,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
+from genjax._src.gensp.sp_distribution import SPDistribution
 from genjax._src.gensp.target import Target
 
 
@@ -36,7 +37,7 @@ def _logsumexp_with_extra(arr, x):
 
 
 @dataclass
-class DefaultImportance(ChoiceMapDistribution):
+class DefaultImportance(SPDistribution):
     num_particles: int
 
     def flatten(self):
@@ -83,9 +84,9 @@ class DefaultImportance(ChoiceMapDistribution):
 
 
 @dataclass
-class CustomImportance(ChoiceMapDistribution):
+class CustomImportance(SPDistribution):
     num_particles: int
-    proposal: ChoiceMapDistribution
+    proposal: SPDistribution
 
     def flatten(self):
         return (self.proposal,), (self.num_particles,)
@@ -101,10 +102,14 @@ class CustomImportance(ChoiceMapDistribution):
         particles = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys, (target,)
         )
-        constraints = target.constraints.safe_merge(particles.get_retval())
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
-        (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(sub_keys, constraints)
+
+        def _importance(key, chm):
+            (_, p) = target.importance(key, chm)
+            return p.get_score()
+
+        lws = jax.vmap(_importance)(sub_keys, particles.get_retval())
         lws = lws - particles.get_score()
         tw = jax.scipy.special.logsumexp(lws)
         lnw = lws - tw
