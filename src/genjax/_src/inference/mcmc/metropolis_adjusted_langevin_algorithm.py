@@ -20,7 +20,7 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.transforms.incremental import Diff
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.distributions.scipy.normal import normal
 from genjax._src.inference.mcmc.kernel import MCMCKernel

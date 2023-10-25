@@ -32,7 +32,7 @@ from genjax._src.core.pytree.static_checks import (
     static_check_tree_structure_equivalence,
 )
 from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -42,32 +42,32 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import BuiltinTrace
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
+from genjax._src.generative_functions.static.static_datatypes import StaticTrace
+from genjax._src.generative_functions.static.static_datatypes import (
     DynamicHierarchicalChoiceMap,
 )
-from genjax._src.generative_functions.builtin.builtin_primitives import cache
-from genjax._src.generative_functions.builtin.builtin_primitives import trace
-from genjax._src.generative_functions.builtin.builtin_transforms import assess_transform
-from genjax._src.generative_functions.builtin.builtin_transforms import (
+from genjax._src.generative_functions.static.static_transforms import cache
+from genjax._src.generative_functions.static.static_transforms import trace
+from genjax._src.generative_functions.static.static_transforms import assess_transform
+from genjax._src.generative_functions.static.static_transforms import (
     importance_transform,
 )
-from genjax._src.generative_functions.builtin.builtin_transforms import (
+from genjax._src.generative_functions.static.static_transforms import (
     simulate_transform,
 )
-from genjax._src.generative_functions.builtin.builtin_transforms import (
+from genjax._src.generative_functions.static.static_transforms import (
     trace_type_transform,
 )
-from genjax._src.generative_functions.builtin.builtin_transforms import update_transform
+from genjax._src.generative_functions.static.static_transforms import update_transform
 
 
 #####
-# Builtin language syntactic sugar
+# Static language syntactic sugar
 #####
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
-# in the builtin language for functions via the `cache` builtin_primitives.
+# in the static language for functions via the `cache` static_primitives.
 @dataclass
 class DeferredFunctionCall(Pytree):
     fn: Callable
@@ -103,7 +103,7 @@ inline = INLINE_FLAG()
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
-# in the builtin language for generative functions via the `trace` intrinsic.
+# in the static language for generative functions via the `trace` intrinsic.
 @dataclass
 class DeferredGenerativeFunctionCall(Pytree):
     gen_fn: GenerativeFunction
@@ -120,16 +120,16 @@ class DeferredGenerativeFunctionCall(Pytree):
     def __matmul__(self, addr):
         if addr == inline:
             # To use inlining, the generative function must be a
-            # `BuiltinGenerativeFunction`.
-            assert isinstance(self.gen_fn, BuiltinGenerativeFunction)
+            # `StaticGenerativeFunction`.
+            assert isinstance(self.gen_fn, StaticGenerativeFunction)
             return self.gen_fn.inline(*self.args)
         else:
             return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
 
 
 # This mixin overloads the call functionality for this generative function
-# and allows usage of shorthand notation in the builtin DSL.
-class SupportsBuiltinSugar:
+# and allows usage of shorthand notation in the static DSL.
+class SupportsStaticSugar:
     @dispatch
     def __call__(self, *args: Any, **kwargs) -> DeferredGenerativeFunctionCall:
         return DeferredGenerativeFunctionCall.new(self, args, kwargs)
@@ -147,9 +147,9 @@ class SupportsBuiltinSugar:
 
 
 @dataclass
-class BuiltinGenerativeFunction(
+class StaticGenerativeFunction(
     JAXGenerativeFunction,
-    SupportsBuiltinSugar,
+    SupportsStaticSugar,
 ):
     source: Callable
 
@@ -162,7 +162,7 @@ class BuiltinGenerativeFunction(
     @typecheck
     @classmethod
     def new(cls, source: Callable):
-        gen_fn = BuiltinGenerativeFunction(source)
+        gen_fn = StaticGenerativeFunction(source)
         functools.update_wrapper(gen_fn, source)
         return gen_fn
 
@@ -180,7 +180,7 @@ class BuiltinGenerativeFunction(
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> BuiltinTrace:
+    ) -> StaticTrace:
         (
             args,
             retval,
@@ -189,7 +189,7 @@ class BuiltinGenerativeFunction(
             dynamic_address_choices,
             score,
         ), cache_state = simulate_transform(self.source)(key, args)
-        return BuiltinTrace.new(
+        return StaticTrace.new(
             self,
             args,
             retval,
@@ -206,7 +206,7 @@ class BuiltinGenerativeFunction(
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, BuiltinTrace]:
+    ) -> Tuple[FloatArray, StaticTrace]:
         (
             w,
             (
@@ -220,7 +220,7 @@ class BuiltinGenerativeFunction(
         ), cache_state = importance_transform(self.source)(key, chm, args)
         return (
             w,
-            BuiltinTrace.new(
+            StaticTrace.new(
                 self,
                 args,
                 retval,
@@ -303,7 +303,7 @@ class BuiltinGenerativeFunction(
         return (
             retval_diffs,
             weight,
-            BuiltinTrace.new(
+            StaticTrace.new(
                 self,
                 arg_primals,
                 retval_primals,
@@ -337,7 +337,7 @@ class BuiltinGenerativeFunction(
             dynamic_address_choices,
             cache,
         ) = aux
-        return BuiltinTrace.new(
+        return StaticTrace.new(
             self,
             original_args,
             retval,
@@ -359,7 +359,7 @@ class BuiltinGenerativeFunction(
 
 
 def partial(gen_fn, *static_args):
-    return BuiltinGenerativeFunction.new(
+    return StaticGenerativeFunction.new(
         lambda *args: gen_fn.inline(*args, *static_args),
     )
 
@@ -368,4 +368,13 @@ def partial(gen_fn, *static_args):
 # Shorthands #
 ##############
 
-builtin_generative_function = BuiltinGenerativeFunction.new
+static_generative_function = StaticGenerativeFunction.new
+
+
+# A decorator to pipe callables into our generative function.
+@typecheck
+def gen_fn(source: Callable):
+    return StaticGenerativeFunction.new(source)
+
+
+Static = gen_fn

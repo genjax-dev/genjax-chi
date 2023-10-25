@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import NoChange
-from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import diff
-from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
-from genjax._src.core.transforms.incremental import tree_diff
-from genjax._src.core.transforms.incremental import tree_diff_no_change
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.incremental import NoChange
+from genjax._src.core.interpreters.incremental import UnknownChange
+from genjax._src.core.interpreters.incremental import diff
+from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import tree_diff
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 
 
 __all__ = [

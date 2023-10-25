@@ -32,13 +32,12 @@ from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.interpreters.staging import concrete_cond
-from genjax._src.core.interpreters.staging import is_concrete
-from genjax._src.core.transforms.incremental import Diff
-from genjax._src.core.transforms.incremental import static_check_no_change
-from genjax._src.core.transforms.incremental import tree_diff_no_change
-from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
+from genjax._src.core.typing import static_check_is_concrete
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.incremental import static_check_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import Int
@@ -47,7 +46,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
@@ -131,7 +130,7 @@ class UnfoldTrace(Trace):
 
 
 @dataclass
-class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     """> `UnfoldCombinator` accepts a kernel generative function, as well as a
     static maximum unroll length, and provides a scan-like pattern of
     generative computation.
@@ -249,7 +248,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             count, key, state = carry
             check = jnp.less(count, length + 1)
             key, sub_key = jax.random.split(key)
-            tr, state, index, count, score = concrete_cond(
+            tr, state, index, count, score = jax.lax.cond(
                 check,
                 _inner_simulate,
                 _inner_zero_fallback,
@@ -311,8 +310,13 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 return key, count, tr, state, 0.0, 0.0
 
             check = jnp.less(count, length + 1)
-            key, count, tr, state, score, w = concrete_cond(
-                check, _with_choicemap, _with_empty_choicemap, key, count, state
+            key, count, tr, state, score, w = jax.lax.cond(
+                check,
+                _with_choicemap,
+                _with_empty_choicemap,
+                key,
+                count,
+                state,
             )
 
             return (count, key, state), (w, score, tr, state)
@@ -361,7 +365,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 return (0.0, tr)
 
             check_count = jnp.less(count, length + 1)
-            (w, tr) = concrete_cond(
+            (w, tr) = jax.lax.cond(
                 check_count,
                 _importance,
                 _simulate,
@@ -370,7 +374,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 state,
             )
 
-            count, state, score, w = concrete_cond(
+            count, state, score, w = jax.lax.cond(
                 check_count,
                 lambda *args: (
                     count + 1,
@@ -434,7 +438,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             check_count = jnp.less(count, length + 1)
             w, tr = self.kernel.importance(key, sub_chm, (state, *static_args))
 
-            count, state, score, w = concrete_cond(
+            count, state, score, w = jax.lax.cond(
                 check_count,
                 lambda *args: (
                     count + 1,
@@ -512,7 +516,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             )
 
             check = jnp.less(count, length + 1)
-            count, state, score, weight = concrete_cond(
+            count, state, score, weight = jax.lax.cond(
                 check,
                 lambda *args: (count + 1, retval_diff, tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
@@ -563,7 +567,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             )
 
             check = jnp.less(count, length + 1)
-            count, state, score, weight = concrete_cond(
+            count, state, score, weight = jax.lax.cond(
                 check,
                 lambda *args: (count + 1, retval_diff, tr.get_score(), w),
                 lambda *args: (count, state, 0.0, 0.0),
@@ -608,7 +612,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
         state_diff = tree_diff_unknown_change(
-            concrete_cond(
+            jax.lax.cond(
                 start_lower
                 == 0,  # if the starting index is 0, we need to grab the state argument.
                 lambda *args: state,
@@ -653,7 +657,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
                 return (retval_diff, w, new_tr)
 
             check = prev_length < index
-            (state_diff, idx_w, new_tr) = concrete_cond(
+            (state_diff, idx_w, new_tr) = jax.lax.cond(
                 check, _importance, _update, sub_key
             )
 
@@ -812,12 +816,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             (retval, score) = self.kernel.assess(sub_key, chm, (state, *static_args))
 
             check = jnp.less(count, length + 1)
-            index = concrete_cond(
+            index = jax.lax.cond(
                 check,
                 lambda *args: count,
                 lambda *args: -1,
             )
-            count, state, score = concrete_cond(
+            count, state, score = jax.lax.cond(
                 check,
                 lambda *args: (count + 1, retval, score),
                 lambda *args: (count, state, 0.0),
@@ -839,16 +843,19 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 # Shorthands #
 ##############
 
-Unfold = UnfoldCombinator.new
-
-
-@dispatch
-def unfold_combinator(max_length: IntArray):
-    assert is_concrete(max_length)
-    return lambda gen_fn: Unfold(gen_fn, max_length)
-
 
 @dispatch
 def unfold_combinator(gen_fn: GenerativeFunction, max_length: IntArray):
-    assert is_concrete(max_length)
-    return Unfold(gen_fn, max_length)
+    assert static_check_is_concrete(max_length)
+    return UnfoldCombinator.new(gen_fn, max_length)
+
+
+@dispatch
+def unfold_combinator(gen_fn: GenerativeFunction, **kwargs):
+    assert "max_length" in kwargs
+    max_length = kwargs["max_length"]
+    assert static_check_is_concrete(max_length)
+    return UnfoldCombinator.new(gen_fn, max_length)
+
+
+Unfold = unfold_combinator

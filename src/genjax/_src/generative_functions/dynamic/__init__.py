@@ -11,11 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `genjax.gentle` language is a scratch / pedagogical generative function
+"""The `genjax.dynamic` language is a generative function
 language which exposes a less restrictive set of program constructs, based on
 normal Python.
 
-The downside of the `genjax.gentle` language is that you cannot invoked
+The downside of the `genjax.dynamic` language is that you cannot invoked
 its generative functions in JAX generative function code.
 """
 
@@ -31,9 +31,9 @@ from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.transforms.incremental import UnknownChange
-from genjax._src.core.transforms.incremental import tree_diff
-from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import UnknownChange
+from genjax._src.core.interpreters.incremental import tree_diff
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
@@ -45,14 +45,14 @@ from genjax._src.core.typing import typecheck
 
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
-_GENTLE_STACK = []
+_DYNAMIC_STACK = []
 
 
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
 def handle(msg):
-    assert _GENTLE_STACK
-    handler = _GENTLE_STACK[-1]
+    assert _DYNAMIC_STACK
+    handler = _DYNAMIC_STACK[-1]
     v = handler.process_message(msg)
     return v
 
@@ -61,18 +61,18 @@ def handle(msg):
 # It must also provide an implementation for `process_message`.
 class Handler(object):
     def __enter__(self):
-        _GENTLE_STACK.append(self)
+        _DYNAMIC_STACK.append(self)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
-            assert _GENTLE_STACK[-1] is self
-            _GENTLE_STACK.pop()
+            assert _DYNAMIC_STACK[-1] is self
+            _DYNAMIC_STACK.pop()
         else:
-            if self in _GENTLE_STACK:
-                loc = _GENTLE_STACK.index(self)
-                for _ in range(loc, len(_GENTLE_STACK)):
-                    _GENTLE_STACK.pop()
+            if self in _DYNAMIC_STACK:
+                loc = _DYNAMIC_STACK.index(self)
+                for _ in range(loc, len(_DYNAMIC_STACK)):
+                    _DYNAMIC_STACK.pop()
 
     @abc.abstractmethod
     def process_message(self, msg):
@@ -84,7 +84,7 @@ class Handler(object):
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction, *args: Any) -> Any:
     # Must be handled.
-    assert _GENTLE_STACK
+    assert _DYNAMIC_STACK
 
     initial_msg = {
         "type": "trace",
@@ -260,7 +260,7 @@ class AssessHandler(Handler):
 
 
 @dataclass
-class GentleTrace(Trace):
+class DynamicTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -292,7 +292,7 @@ class GentleTrace(Trace):
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 @dataclass
-class GentleGenerativeFunction(GenerativeFunction):
+class DynamicGenerativeFunction(GenerativeFunction):
     source: Callable
 
     def flatten(self):
@@ -302,34 +302,34 @@ class GentleGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> GentleTrace:
+    ) -> DynamicTrace:
         # Handle trace with the `SimulateHandler`.
         with SimulateHandler.new(key) as handler:
             retval = self.source(*args)
             score = handler.score
             choices = handler.choice_state
-            return GentleTrace(self, args, retval, choices, score)
+            return DynamicTrace(self, args, retval, choices, score)
 
     def importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, GentleTrace]:
+    ) -> Tuple[FloatArray, DynamicTrace]:
         with ImportanceHandler.new(key, choice_map) as handler:
             retval = self.source(*args)
             score = handler.score
             choices = handler.choice_state
             weight = handler.weight
-            return (weight, GentleTrace(self, args, retval, choices, score))
+            return (weight, DynamicTrace(self, args, retval, choices, score))
 
     def update(
         self,
         key: PRNGKey,
-        prev_trace: GentleTrace,
+        prev_trace: DynamicTrace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, GentleTrace, ChoiceMap]:
+    ) -> Tuple[Any, FloatArray, DynamicTrace, ChoiceMap]:
         with UpdateHandler.new(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
             retval = self.source(*args)
@@ -341,7 +341,7 @@ class GentleGenerativeFunction(GenerativeFunction):
             return (
                 retdiff,
                 weight,
-                GentleTrace(self, args, retval, choices, score),
+                DynamicTrace(self, args, retval, choices, score),
                 HierarchicalChoiceMap(discard),
             )
 
@@ -359,5 +359,8 @@ class GentleGenerativeFunction(GenerativeFunction):
 
 # A decorator to pipe callables into our generative function.
 @typecheck
-def gen(source: Callable):
-    return GentleGenerativeFunction(source)
+def gen_fn(source: Callable):
+    return DynamicGenerativeFunction(source)
+
+
+Dynamic = gen_fn

@@ -18,7 +18,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.typing import Any
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
+from genjax._src.core.datatypes.generative import (
     HierarchicalSelection,
 )
 from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (

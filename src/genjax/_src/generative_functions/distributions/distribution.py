@@ -31,18 +31,18 @@ from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
-from genjax._src.core.transforms.incremental import static_check_no_change
-from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
-from genjax._src.core.transforms.incremental import tree_diff_no_change
-from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import static_check_no_change
+from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 
 
 #####
@@ -115,7 +115,7 @@ class DistributionTrace(
 
 
 @dataclass
-class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
+class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
     def flatten(self):
         return (), ()
 

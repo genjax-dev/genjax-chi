@@ -28,12 +28,10 @@ from genjax._src.core.datatypes.generative import HierarchicalTraceType
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.interpreters.incremental import DiffTrace
 from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_from_tracer
 from genjax._src.core.interpreters.incremental import tree_diff_get_tracers
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
@@ -57,7 +55,6 @@ from genjax._src.core.interpreters.forward import (
     StatefulHandler,
 )
 from genjax._src.core.interpreters.incremental import incremental
-from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -86,7 +83,7 @@ cache_p = InitialStylePrimitive("cache")
 
 # Usage in intrinsics: ensure that addresses do not contain JAX traced values.
 def static_check_address_type(addr):
-    check = all(jtu.tree_leaves(jtu.tree_map(is_concrete, addr)))
+    check = all(jtu.tree_leaves(jtu.tree_map(static_check_is_concrete, addr)))
     if not check:
         raise Exception("Addresses must not contained JAX traced values.")
 
@@ -94,7 +91,7 @@ def static_check_address_type(addr):
 # Usage in intrinsics: ensure that addresses do not contain JAX traced values.
 def static_check_concrete_or_dynamic_int_address(addr):
     def _check(v):
-        if is_concrete(v):
+        if static_check_is_concrete(v):
             return True
         else:
             # TODO: fix to be more robust to different bit types.
@@ -139,7 +136,7 @@ class PytreeAddress(Pytree):
     @dispatch
     def new(cls, addr: Tuple):
         fst, *rst = addr
-        if is_concrete(fst):
+        if static_check_is_concrete(fst):
             return PytreeAddress((fst, *rst), None)
         else:
             return PytreeAddress(tuple(rst), fst)
@@ -177,10 +174,10 @@ def trace(addr: Any, gen_fn: GenerativeFunction, **kwargs) -> Callable:
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
-        gen_fn: A generative function invoked as a callee of `BuiltinGenerativeFunction`.
+        gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
 
     Returns:
-        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.
+        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
     assert isinstance(gen_fn, GenerativeFunction)
     static_check_concrete_or_dynamic_int_address(addr)
@@ -204,10 +201,10 @@ def cache(addr: Any, fn: Callable, *args: Any, **kwargs) -> Callable:
 
     Arguments:
         addr: An address denoting the site of a function invocation.
-        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `BuiltinGenerativeFunction` traces.
+        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `StaticGenerativeFunction` traces.
 
     Returns:
-        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.
+        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
     # fn must be deterministic.
     assert not isinstance(fn, GenerativeFunction)
@@ -283,23 +280,23 @@ class DynamicAddressVisitor(Pytree):
 
 
 #####
-# Builtin handler
+# Static handler
 #####
 
 
 @dataclasses.dataclass
-class BuiltinHandler(StatefulHandler):
+class StaticHandler(StatefulHandler):
     @dispatch
     def visit(self, addr: Tuple):
         fst, *rest = addr
-        if is_concrete(fst):
+        if static_check_is_concrete(fst):
             self.static_address_visitor.visit(addr)
         else:
             self.dynamic_address_visitor.visit(fst, tuple(rest))
 
     @dispatch
     def visit(self, addr: Any):
-        if is_concrete(addr):
+        if static_check_is_concrete(addr):
             self.static_address_visitor.visit(addr)
         else:
             self.dynamic_address_visitor.visit(addr, ())
@@ -315,7 +312,7 @@ class BuiltinHandler(StatefulHandler):
     @dispatch
     def set_choice_state(self, addr: Tuple, tr: Trace):
         fst, *rest = addr
-        if is_concrete(fst):
+        if static_check_is_concrete(fst):
             self.static_address_choices[addr] = tr
         else:
             self.dynamic_addresses.append(fst)
@@ -325,7 +322,7 @@ class BuiltinHandler(StatefulHandler):
 
     @dispatch
     def set_choice_state(self, addr: Any, tr: Trace):
-        if is_concrete(addr):
+        if static_check_is_concrete(addr):
             self.static_address_choices[addr] = tr
         else:
             self.dynamic_addresses.append(addr)
@@ -354,7 +351,7 @@ class BuiltinHandler(StatefulHandler):
 
 
 @dataclasses.dataclass
-class SimulateHandler(BuiltinHandler):
+class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: FloatArray
     # Static addresses
@@ -465,7 +462,7 @@ def simulate_transform(source_fn):
 
 
 @dataclasses.dataclass
-class ImportanceHandler(BuiltinHandler):
+class ImportanceHandler(StaticHandler):
     key: PRNGKey
     score: FloatArray
     weight: FloatArray
@@ -599,7 +596,7 @@ def importance_transform(source_fn):
 
 
 @dataclasses.dataclass
-class UpdateHandler(BuiltinHandler):
+class UpdateHandler(StaticHandler):
     key: PRNGKey
     score: FloatArray
     weight: FloatArray
@@ -689,7 +686,7 @@ class UpdateHandler(BuiltinHandler):
     @dispatch
     def set_discard_state(self, addr: Tuple, chm: ChoiceMap):
         fst, *rest = addr
-        if is_concrete(fst):
+        if static_check_is_concrete(fst):
             self.static_discard[addr] = chm
         else:
             self.dynamic_discard_addresses.append(fst)
@@ -699,7 +696,7 @@ class UpdateHandler(BuiltinHandler):
 
     @dispatch
     def set_discard_state(self, addr: Any, chm: ChoiceMap):
-        if is_concrete(addr):
+        if static_check_is_concrete(addr):
             self.static_discard[addr] = chm
         else:
             self.dynamic_discard_addresses.append(addr)
@@ -709,7 +706,7 @@ class UpdateHandler(BuiltinHandler):
     def set_discard_state(self, addr: PytreeAddress, chm: ChoiceMap):
         tup = addr.to_tuple()
         empty_check = chm.is_empty()
-        if is_concrete(empty_check) and empty_check:
+        if static_check_is_concrete(empty_check) and empty_check:
             return
         if len(tup) == 1:
             self.set_discard_state(tup[0], chm)
@@ -719,7 +716,7 @@ class UpdateHandler(BuiltinHandler):
     def get_prev_subtrace(self, addr: PytreeAddress):
         tup = addr.to_tuple()
         # TODO: For now, we disallow updating generative function traces
-        # from Builtin gen fns with dynamic addresses.
+        # from Static gen fns with dynamic addresses.
         return self.previous_trace.static_address_choices.get_subtree(tup)
 
     def get_submap(self, addr: PytreeAddress):
@@ -730,10 +727,8 @@ class UpdateHandler(BuiltinHandler):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr, *tracer_argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        gen_fn, addr, *argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
-        # Convert DiffTracers into Diff values.
-        argdiffs = tuple(tree_diff_from_tracer(tracer_argdiffs))
 
         # Run the update step.
         subtrace = self.get_prev_subtrace(addr)
@@ -750,8 +745,7 @@ class UpdateHandler(BuiltinHandler):
 
         # We have to convert the Diff back to tracers to return
         # from the primitive.
-        out_tracers = self.get_tracers(retval_diff)
-        return jtu.tree_leaves(out_tracers)
+        return tree_diff_unpack_leaves(retval_diff)
 
     # TODO: fix -- add Diff/tracer return.
     def handle_cache(self, *tracers, **params):
@@ -762,7 +756,7 @@ class UpdateHandler(BuiltinHandler):
         has_value = self.previous_trace.has_cached_value(addr)
 
         if (
-            is_concrete(has_value)
+            static_check_is_concrete(has_value)
             and has_value
             and all(map(static_check_no_change, args))
         ):
@@ -822,7 +816,7 @@ def update_transform(source_fn):
 
 
 @dataclasses.dataclass
-class AssessHandler(BuiltinHandler):
+class AssessHandler(StaticHandler):
     key: PRNGKey
     score: FloatArray
     constraints: ChoiceMap

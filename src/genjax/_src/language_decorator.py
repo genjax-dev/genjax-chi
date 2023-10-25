@@ -16,24 +16,12 @@ import inspect
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.typing import Callable
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    BuiltinGenerativeFunction,
-)
 
 
 #####
 # Language decorator
 #####
 
-# TODO: possibly just shorthand `gen = BuiltinGenerativeFunction.new`
-# and defer wrapping into higher combinators via `functools` idioms.
 
-
-def gen(callable: Callable, **kwargs) -> GenerativeFunction:
-    if inspect.isclass(callable) or inspect.ismethod(callable):
-        return lambda source: callable(
-            BuiltinGenerativeFunction.new(source),
-            **kwargs,
-        )
-    else:
-        return BuiltinGenerativeFunction.new(callable)
+def gen(gen_fn_constructor: Callable, *args, **kwargs) -> GenerativeFunction:
+    return lambda inner: gen_fn_constructor(inner, *args, **kwargs)
