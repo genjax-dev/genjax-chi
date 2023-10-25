@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import ValueChoiceMap
-from genjax._src.core.interpreters import context as ctx
-from genjax._src.core.interpreters import primitives
-from genjax._src.core.interpreters.context import Context
+from genjax._src.core.interpreters.forward import InitialStylePrimitive
+from genjax._src.core.interpreters.forward import initial_style_bind
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Float
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
@@ -34,59 +31,18 @@ from genjax._src.core.typing import typecheck
 # Score intrinsic #
 ###################
 
-score_p = primitives.InitialStylePrimitive("score")
+score_p = InitialStylePrimitive("score")
 
 
 @typecheck
 def accum_score(*args):
     (v,) = args
-    primitives.initial_style_bind(score_p)(lambda v: v)(v)
+    initial_style_bind(score_p)(lambda v: v)(v)
 
 
-#################################
-# Unnormalized measure function #
-#################################
-
-
-@dataclass
-class RescaleContext(Context):
-    energy: Float
-
-    def flatten(self):
-        return (self.energy,), ()
-
-    @classmethod
-    def new(cls):
-        return RescaleContext(0.0)
-
-    def yield_state(self):
-        return (self.energy,)
-
-    def handle_score(self, _, tracer, **params):
-        self.energy += tracer
-        return [tracer]
-
-    def can_process(self, primitive):
-        return False
-
-    def process_primitive(self, primitive):
-        raise NotImplementedError
-
-    def get_custom_rule(self, primitive):
-        if primitive is score_p:
-            return self.handle_score
-        else:
-            return None
-
-
-def rescale_transform(source_fn, **kwargs):
-    @functools.wraps(source_fn)
-    def wrapper(*args):
-        context = RescaleContext.new()
-        retvals, (energy,) = ctx.transform(source_fn, context)(*args, **kwargs)
-        return retvals, energy
-
-    return wrapper
+##########
+# Target #
+##########
 
 
 @dataclass
@@ -117,15 +73,13 @@ class Target(Pytree):
         inner = chm.get_leaf_value()
         assert isinstance(inner, ChoiceMap)
         merged = self.constraints.safe_merge(inner)
-        rescaled = rescale_transform(self.p.importance)
-        (_, tr), energy = rescaled(key, merged, self.args)
-        return (energy, tr)
+        (_, tr) = self.p.importance(key, merged, self.args)
+        return (0.0, tr)
 
     @dispatch
     def importance(self, key: PRNGKey):
-        rescaled = rescale_transform(self.p.importance)
-        (_, tr), energy = rescaled(key, self.constraints, self.args)
-        return (energy, tr)
+        (_, tr) = self.p.importance(key, self.constraints, self.args)
+        return (0.0, tr)
 
 
 ##############

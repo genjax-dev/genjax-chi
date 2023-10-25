@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.typing import Callable

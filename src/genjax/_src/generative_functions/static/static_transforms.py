@@ -12,56 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
 import dataclasses
 import functools
 import itertools
+from dataclasses import dataclass
 
 import jax
-from jax.util import safe_map, safe_zip
 import jax.core as jc
+import jax.numpy as jnp
 import jax.tree_util as jtu
-from jax._src import core as jax_core
+from jax.util import safe_map
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalTraceType
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_get_tracers
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from dataclasses import dataclass
-
-import jax.numpy as jnp
-import jax.tree_util as jtu
-
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.interpreters.forward import (
-    InitialStylePrimitive,
-    initial_style_bind,
-    forward,
-    StatefulHandler,
-)
+from genjax._src.core.interpreters.forward import InitialStylePrimitive
+from genjax._src.core.interpreters.forward import StatefulHandler
+from genjax._src.core.interpreters.forward import forward
+from genjax._src.core.interpreters.forward import initial_style_bind
 from genjax._src.core.interpreters.incremental import incremental
+from genjax._src.core.interpreters.incremental import static_check_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_unpack_leaves
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Optional
+from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
 
 
@@ -773,10 +760,10 @@ def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, previous_trace, constraints, diffs):
         stateful_handler = UpdateHandler.new(key, previous_trace, constraints)
-        retval_diffs = incremental(source_fn)(stateful_handler, *diffs, **kwargs)
+        retval_diffs = incremental(source_fn)(stateful_handler, *diffs)
         stateful_handler.runtime_verify()  # Produce runtime check for checkify.
-        retval_primals = tree_diff_primal(retval_diffs)
-        arg_primals = tree_diff_primal(diffs)
+        retval_primals = tree_diff_primals(retval_diffs)
+        arg_primals = tree_diff_primals(diffs)
         (
             score,
             weight,

@@ -20,6 +20,7 @@ import inspect
 
 import jax.core as jc
 import jax.tree_util as jtu
+from oryx import harvest
 from pygments.token import Comment
 from pygments.token import Keyword
 from pygments.token import Name
@@ -46,7 +47,6 @@ from rich.theme import Theme
 import genjax._src.core.typing as typing
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import typecheck
-from oryx import harvest
 
 
 RECORDING_NAMESPACE = "debug_record"

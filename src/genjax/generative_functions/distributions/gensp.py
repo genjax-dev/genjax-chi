@@ -26,12 +26,6 @@ from genjax._src.generative_functions.distributions.gensp.choice_map_distributio
 from genjax._src.generative_functions.distributions.gensp.choice_map_distribution import (
     chm_dist,
 )
-from genjax._src.generative_functions.distributions.gensp.estimated_norm_distribution import (
-    EstimatedNormalizedDistribution,
-)
-from genjax._src.generative_functions.distributions.gensp.estimated_norm_distribution import (
-    estimated_norm_dist,
-)
 from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
     GenSPDistribution,
 )
@@ -109,7 +103,4 @@ __all__ = [
     "Compose",
     "Sequence",
     "static_check_supports",
-    "score",
-    "estimated_norm_dist",
-    "EstimatedNormalizedDistribution",
 ]

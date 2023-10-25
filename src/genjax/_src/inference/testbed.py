@@ -24,7 +24,6 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
-from genjax._src.generative_functions.static.static_gen_fn import Static
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
@@ -38,6 +37,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_categorical,
 )
+from genjax._src.generative_functions.static.static_gen_fn import Static
 from genjax._src.language_decorator import gen
 
 

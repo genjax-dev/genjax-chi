@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `genjax.dynamic` language is a generative function
-language which exposes a less restrictive set of program constructs, based on
-normal Python.
+"""The `genjax.dynamic` language is a generative function language which
+exposes a less restrictive set of program constructs, based on normal Python.
 
 The downside of the `genjax.dynamic` language is that you cannot invoked
 its generative functions in JAX generative function code.
@@ -33,7 +32,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import UnknownChange
 from genjax._src.core.interpreters.incremental import tree_diff
-from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
@@ -331,7 +330,7 @@ class DynamicGenerativeFunction(GenerativeFunction):
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, DynamicTrace, ChoiceMap]:
         with UpdateHandler.new(key, prev_trace, choice_map) as handler:
-            args = tree_diff_primal(argdiffs)
+            args = tree_diff_primals(argdiffs)
             retval = self.source(*args)
             choices = handler.choice_state
             weight = handler.weight

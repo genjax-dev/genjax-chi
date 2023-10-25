@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import select
@@ -24,9 +25,6 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_datatypes import (
-    HierarchicalSelection,
-)
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
