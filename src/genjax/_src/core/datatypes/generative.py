@@ -41,7 +41,9 @@ from genjax._src.core.pytree.static_checks import (
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_structure_equivalence,
 )
+from genjax._src.core.pytree.string import PytreeString
 from genjax._src.core.pytree.utilities import tree_grad_split
+from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
@@ -53,6 +55,7 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
@@ -1948,6 +1951,33 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
             disjoint_union_chm.has_subtree(rest),
         )
 
+    def maybe_specialize(self):
+        if all(
+            map(
+                lambda v: isinstance(v, Int) or isinstance(v, PytreeString),
+                self.dynamic_addrs,
+            )
+        ):
+            new_choice_map = HierarchicalChoiceMap.new()
+            for k, subtree in zip(self.dynamic_addrs, self.subtrees):
+                if isinstance(k, PytreeString):
+                    k = k.string
+                new_choice_map[k] = tree_choice_map_specialize(subtree)
+            return new_choice_map
+
+        elif all(
+            map(
+                lambda v: isinstance(v, Int) or isinstance(v, IntArray),
+                self.dynamic_addrs,
+            )
+        ) and static_check_tree_structure_equivalence(self.subtrees):
+            stacked_idxs = tree_stack(self.dynamic_addrs)
+            stacked_submaps = tree_stack(self.subtrees)
+            return IndexedChoiceMap(stacked_idxs, stacked_submaps)
+
+        else:
+            return self
+
     ###########
     # Dunders #
     ###########
@@ -1963,6 +1993,16 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
         self.subtrees.append(v)
 
     @dispatch
+    def __setitem__(self, k: String, v: Any):
+        v = (
+            ValueChoiceMap(v)
+            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+            else v
+        )
+        self.dynamic_addrs.append(PytreeString(k))
+        self.subtrees.append(v)
+
+    @dispatch
     def __setitem__(self, k: Tuple, v: Any):
         v = (
             ValueChoiceMap(v)
@@ -1971,6 +2011,18 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
         )
         self.dynamic_addrs.append(k)
         self.subtrees.append(v)
+
+
+def tree_choice_map_specialize(v):
+    def _convert(v):
+        if isinstance(v, DynamicHierarchicalChoiceMap):
+            return v.maybe_specialize()
+        else:
+            return v
+
+    return jtu.tree_map(
+        _convert, v, is_leaf=lambda v: isinstance(v, DynamicHierarchicalChoiceMap)
+    )
 
 
 class DynamicConvertible:
@@ -2008,6 +2060,12 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
             return EmptyChoiceMap()
         else:
             return HierarchicalChoiceMap(trie)
+
+    @classmethod
+    @dispatch
+    def new(cls):
+        trie = Trie.new()
+        return HierarchicalChoiceMap(trie)
 
     def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
         dynamic_addrs = []
@@ -2170,9 +2228,11 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     ###################
 
     def __rich_tree__(self, tree):
+        sub_tree = rich.tree.Tree("[bold](Hierarchical)")
         for k, v in self.get_subtrees_shallow():
-            subk = tree.add(f"[bold]:{k}")
+            subk = sub_tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
+        tree.add(sub_tree)
         return tree
 
 
@@ -2262,6 +2322,13 @@ class IndexedChoiceMap(ChoiceMap):
 
     @dispatch
     def get_subtree(self, idx: IntArray):
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = slice_index[0]
+        subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        return mask(jnp.isin(idx, self.indices), subtree)
+
+    @dispatch
+    def get_subtree(self, idx: Int):
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
         slice_index = slice_index[0]
         subtree = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
