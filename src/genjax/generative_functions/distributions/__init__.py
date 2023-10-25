@@ -39,6 +39,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_bates,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_bernoulli,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_categorical,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -126,6 +129,13 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     tfp_zipf,
 )
 
+from .custom import Dirac
+from .custom import DiscreteHMM
+from .custom import DiscreteHMMConfiguration
+from .custom import dirac
+from .custom import discrete_hmm
+from .custom import forward_filtering_backward_sampling
+
 
 __all__ = [
     "Distribution",
@@ -134,6 +144,7 @@ __all__ = [
     "TFPMixture",
     "tfp_mixture",
     "tfp_bates",
+    "tfp_bernoulli",
     "tfp_chi",
     "tfp_chi2",
     "tfp_geometric",
@@ -175,4 +186,10 @@ __all__ = [
     "normal",
     "pareto",
     "poisson",
+    "discrete_hmm",
+    "DiscreteHMM",
+    "DiscreteHMMConfiguration",
+    "forward_filtering_backward_sampling",
+    "Dirac",
+    "dirac",
 ]

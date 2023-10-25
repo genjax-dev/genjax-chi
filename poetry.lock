@@ -12,6 +12,29 @@ files = [
 ]
 
 [[package]]
+name = "adevjax"
+version = "0.0.1"
+description = ""
+optional = false
+python-versions = ">=3.9,<3.13"
+files = []
+develop = false
+
+[package.dependencies]
+beartype = "^0.16.4"
+jax = "^0.4.19"
+jaxtyping = "^0.2.23"
+plum-dispatch = "^2.2.2"
+rich = "^13.6.0"
+tensorflow-probability = "^0.21.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/probcomp/adevjax"
+reference = "HEAD"
+resolved_reference = "2671c0d34fda23a4fbf3036ff9a59ed5a225a815"
+
+[[package]]
 name = "aiofiles"
 version = "22.1.0"
 description = "File support for asyncio."
@@ -899,6 +922,22 @@ files = [
     {file = "entrypoints-0.4-py3-none-any.whl", hash = "sha256:f174b5ff827504fd3cd97cc3f8649f3693f51538c7e4bdf3ef002c8429d42f9f"},
     {file = "entrypoints-0.4.tar.gz", hash = "sha256:b706eddaa9218a19ebcd67b56818f05bb27589b1ca9e8d797b74affad4ccacd4"},
 ]
+
+[[package]]
+name = "equinox"
+version = "0.11.1"
+description = "Elegant easy-to-use neural networks in JAX."
+optional = false
+python-versions = "~=3.9"
+files = [
+    {file = "equinox-0.11.1-py3-none-any.whl", hash = "sha256:fbffe34e80d338be940a6eb8a0284496894cc63e2b7f6dac4c9d7aa5b0fd5ffd"},
+    {file = "equinox-0.11.1.tar.gz", hash = "sha256:b63fbc18010c9b5ff11c6f183de9bffc792aa6b953e1e665d0d056a138e51e4c"},
+]
+
+[package.dependencies]
+jax = ">=0.4.13"
+jaxtyping = ">=0.2.20"
+typing-extensions = ">=4.5.0"
 
 [[package]]
 name = "exceptiongroup"
@@ -3563,13 +3602,13 @@ files = [
 
 [[package]]
 name = "ruamel-yaml"
-version = "0.18.2"
+version = "0.18.1"
 description = "ruamel.yaml is a YAML parser/emitter that supports roundtrip preservation of comments, seq/map flow style, and map key order"
 optional = false
 python-versions = ">=3"
 files = [
-    {file = "ruamel.yaml-0.18.2-py3-none-any.whl", hash = "sha256:92076ac8a83dbf44ca661dbed3c935229c8cbc2f10b05959dd3bd5292d8353d3"},
-    {file = "ruamel.yaml-0.18.2.tar.gz", hash = "sha256:9bce33f7a814cea4c29a9c62fe872d2363d6220b767891d956eacea8fa5e6fe8"},
+    {file = "ruamel.yaml-0.18.1-py3-none-any.whl", hash = "sha256:93907ef6c731ec1bcb41ab7ff99413945f5acfd7eee27785f2cb18b175dd5aae"},
+    {file = "ruamel.yaml-0.18.1.tar.gz", hash = "sha256:649a301890441d36ea9cb0f48d07353de82b8cbde2244387e7ef6b1d3b9ee6cd"},
 ]
 
 [package.dependencies]
@@ -4291,4 +4330,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "f1309270156b708f129d013fe59b334c4ad27f669f7be23487e762a2478ec6b7"
+content-hash = "ebe58416a87d8ef72db0643ef9d8c0294b73d3f4f749e5fb20c72451fb8aff8e"

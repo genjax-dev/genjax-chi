@@ -17,12 +17,14 @@
 # For the internals, see _src.
 
 # Closed modules.
+from genjax import gensp
+from genjax import grasp
 from genjax import inference
 from genjax import typing
 from genjax.core import interpreters
 from genjax.core import serialization
-from genjax.generative_functions import dynamic
-from genjax.generative_functions.distributions import gensp
+from genjax.generative_functions import gentle
+from genjax.generative_functions.distributions import coryx
 
 from .console import *
 from .core import *
