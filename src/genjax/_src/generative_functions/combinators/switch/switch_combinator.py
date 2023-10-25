@@ -34,10 +34,10 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.pytree.sumtree import DataSharedSumTree
 from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
+from genjax._src.core.pytree.sumtree import DataSharedSumTree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -45,7 +45,6 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 from genjax._src.generative_functions.combinators.staging_utils import (
     get_discard_data_shape,
 )
@@ -61,6 +60,7 @@ from genjax._src.generative_functions.combinators.switch.switch_datatypes import
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchTrace,
 )
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 
 
 #####
@@ -232,7 +232,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
 
             # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
-            args = tree_diff_primal(argdiffs)
+            args = tree_diff_primals(argdiffs)
             data_shared_sum_tree = self._create_data_shared_sum_tree_trace(
                 key, tr, args
             )
@@ -257,7 +257,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             return lambda key: _inner_update(br, key)
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primal(argdiffs[0])
+        switch = tree_diff_primals(argdiffs[0])
 
         return jax.lax.switch(
             switch,
@@ -276,7 +276,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             concrete_branch_index = self.branches.index(br)
             stripped = prev.strip()
             constraints = stripped.unsafe_merge(constraints)
-            args = tree_diff_primal(argdiffs)
+            args = tree_diff_primals(argdiffs)
             (w, tr) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
             discard = mask(True, stripped)
@@ -302,7 +302,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             )
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primal(argdiffs[0])
+        switch = tree_diff_primals(argdiffs[0])
 
         return jax.lax.switch(
             switch,

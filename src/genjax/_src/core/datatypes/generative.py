@@ -30,7 +30,9 @@ from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.typing import static_check_is_concrete
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.static_checks import (
@@ -41,9 +43,6 @@ from genjax._src.core.pytree.static_checks import (
 )
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
@@ -58,6 +57,7 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_array
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
 from genjax._src.global_options import global_options
 
@@ -1634,8 +1634,8 @@ class GenerativeFunction(Pytree):
         """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
         and arguments ($x$), execute the generative function, and return an
         importance weight estimate of the conditional density evaluated at the
-        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
-        consistent with the constraints ($u$), with unconstrained choices
+        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$)
+        is consistent with the constraints ($u$), with unconstrained choices
         ($u'$) proposed from an internal proposal.
 
         Arguments:
@@ -1704,7 +1704,7 @@ class GenerativeFunction(Pytree):
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = mask(False, possible_discards)
-            primal = tree_diff_primal(retdiff)
+            primal = tree_diff_primals(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (retdiff, w, new_tr, discard)
 
@@ -1716,7 +1716,7 @@ class GenerativeFunction(Pytree):
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
                 discard = mask(True, possible_discards)
-            primal = tree_diff_primal(retdiff)
+            primal = tree_diff_primals(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (retdiff, w, new_tr, discard)
 

@@ -42,8 +42,8 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Float
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
@@ -201,7 +201,7 @@ class SMCExtendPropagator(SMCPropagator):
         argdiffs: Tuple,
         new_choices: ChoiceMap,
     ) -> Tuple[PRNGKey, SMCState]:
-        new_args = tree_diff_primal(argdiffs)
+        new_args = tree_diff_primals(argdiffs)
         new_target = self.propagate_target(
             state.get_target(),
             new_args,
@@ -239,7 +239,7 @@ class SMCExtendPropagator(SMCPropagator):
         new_retained_trace: Trace,
         forward_weight_retained: Float,
     ):
-        new_args = tree_diff_primal(argdiffs)
+        new_args = tree_diff_primals(argdiffs)
         new_target = self.propagate_target(
             state.get_target(),
             new_args,
@@ -287,7 +287,7 @@ class SMCExtendPropagator(SMCPropagator):
         argdiffs: Tuple,
         new_constraints: ChoiceMap,
     ) -> Tuple[PRNGKey, SMCState]:
-        new_args = tree_diff_primal(argdiffs)
+        new_args = tree_diff_primals(argdiffs)
         new_target = self.propagate_target(
             previous_target,
             new_args,

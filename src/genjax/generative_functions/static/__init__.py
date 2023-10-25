@@ -13,16 +13,16 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.static.static_datatypes import StaticTrace
+from genjax._src.generative_functions.static.static_gen_fn import Static
 from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
-    gen_fn,
-    Static,
 )
+from genjax._src.generative_functions.static.static_gen_fn import gen_fn
+from genjax._src.generative_functions.static.static_gen_fn import partial
+from genjax._src.generative_functions.static.static_gen_fn import save
 from genjax._src.generative_functions.static.static_gen_fn import (
     static_generative_function,
 )
-from genjax._src.generative_functions.static.static_gen_fn import partial
-from genjax._src.generative_functions.static.static_gen_fn import save
 from genjax._src.generative_functions.static.static_transforms import cache
 from genjax._src.generative_functions.static.static_transforms import trace
 

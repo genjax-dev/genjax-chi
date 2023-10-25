@@ -26,13 +26,13 @@ from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
+from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_structure_equivalence,
 )
 from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -42,19 +42,17 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_datatypes import StaticTrace
 from genjax._src.generative_functions.static.static_datatypes import (
     DynamicHierarchicalChoiceMap,
 )
-from genjax._src.generative_functions.static.static_transforms import cache
-from genjax._src.generative_functions.static.static_transforms import trace
+from genjax._src.generative_functions.static.static_datatypes import StaticTrace
 from genjax._src.generative_functions.static.static_transforms import assess_transform
+from genjax._src.generative_functions.static.static_transforms import cache
 from genjax._src.generative_functions.static.static_transforms import (
     importance_transform,
 )
-from genjax._src.generative_functions.static.static_transforms import (
-    simulate_transform,
-)
+from genjax._src.generative_functions.static.static_transforms import simulate_transform
+from genjax._src.generative_functions.static.static_transforms import trace
 from genjax._src.generative_functions.static.static_transforms import (
     trace_type_transform,
 )

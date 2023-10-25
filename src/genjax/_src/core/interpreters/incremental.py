@@ -31,25 +31,18 @@ from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
-from jax import api_util
 from jax import util as jax_util
-from jax.extend import linear_util as lu
 
-from genjax._src.core.interpreters import staging
+from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.interpreters.forward import Environment
-from genjax._src.core.typing import static_check_is_concrete
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import Iterable
-from genjax._src.core.typing import List
-from genjax._src.core.typing import String
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import Callable
-from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Value
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import static_check_is_concrete
 
 
 #######################################
@@ -179,7 +172,7 @@ def static_check_no_change(v):
     )
 
 
-def tree_diff_primal(v):
+def tree_diff_primals(v):
     def _inner(v):
         if static_check_is_diff(v):
             return v.get_primal()
@@ -189,7 +182,7 @@ def tree_diff_primal(v):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
-def tree_diff_tangent(v):
+def tree_diff_tangents(v):
     def _inner(v):
         if static_check_is_diff(v):
             return v.get_tangent()
@@ -199,14 +192,10 @@ def tree_diff_tangent(v):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
-def tree_diff_get_tracers(v, trace):
-    def _inner(v):
-        if static_check_is_diff(v):
-            return v.get_tracers(trace)
-        else:
-            return v
-
-    return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
+def tree_diff_unpack_leaves(v):
+    primals = tree_diff_primals(v)
+    tangents = tree_diff_tangents(v)
+    return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
 
 
 def static_check_tree_leaves_diff(v):
