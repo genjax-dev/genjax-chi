@@ -49,7 +49,7 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class BuiltinTrace(
+class StaticTrace(
     Trace,
     SupportsPickleSerialization,
 ):
@@ -87,7 +87,7 @@ class BuiltinTrace(
         cache: Trie,
         score: FloatArray,
     ):
-        return BuiltinTrace(
+        return StaticTrace(
             gen_fn,
             args,
             retval,

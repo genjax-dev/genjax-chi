@@ -17,10 +17,10 @@ structuring probabilistic programs.
 * The `distributions` module exports standard distributions from several sources, including SciPy (`scipy`), TensorFlow Probability Distributions (`tfd`), and custom distributions.
     * The `distributions` module also contains a small `oryx`-like language called `coryx` which implements the generative function interface for programs with inverse log determinant Jacobian (ildj) compatible return value functions of distribution random choices.
     * The `distributions` module also contains an implementation of `gensp`, a research language for probabilistic programming with estimated densities.
-* The `builtin` module contains a function-like language for defining generative functions from programs.
+* The `static` module contains a statically JAX traceable function-like language for defining generative functions from programs.
 * The `combinators` module contains combinators which support transforming generative functions into new ones with structured control flow patterns of computation.
 """
 
-from .builtin import *
+from .static import *
 from .combinators import *
 from .distributions import *

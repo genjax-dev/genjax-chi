@@ -19,7 +19,7 @@ import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -81,7 +81,7 @@ class SMCInitializeFromProposal(SMCAlgorithm):
         proposal: GenerativeFunction,
         n_particles: Int,
     ):
-        assert is_concrete(n_particles)
+        assert static_check_is_concrete(n_particles)
         return SMCInitializeFromPrior(n_particles, model, proposal)
 
     def apply(

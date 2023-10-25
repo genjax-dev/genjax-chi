@@ -27,6 +27,7 @@ By default, `genjax` provides two types of `ChangeTangent`:
 import abc
 import dataclasses
 import functools
+from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -36,7 +37,7 @@ from jax.extend import linear_util as lu
 
 from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.forward import Environment
-from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
@@ -46,7 +47,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import HashableDict
+from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.typing import Value
 from genjax._src.core.typing import typecheck
 
@@ -122,7 +123,7 @@ class StaticIntChange(ChangeTangent):
 
     @classmethod
     def new(cls, dv):
-        assert is_concrete(dv)
+        assert static_check_is_concrete(dv)
         return StaticIntChange(dv)
 
     def should_flatten(self):
@@ -281,29 +282,34 @@ class IncrementalInterpreter(Pytree):
 
         return jax_util.safe_map(env.read, jaxpr.outvars)
 
-    def run_interpreter(self, stateful_handler, fn, *args, **kwargs):
+    def run_interpreter(self, stateful_handler, fn, primals, tangents, **kwargs):
         def _inner(*args):
             return fn(*args, **kwargs)
 
-        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+        closed_jaxpr, (flat_primals, _, out_tree) = stage(_inner)(*primals)
+        flat_tangents = jtu.tree_leaves(
+            tangents, is_leaf=lambda v: isinstance(v, ChangeTangent)
+        )
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
             stateful_handler,
             jaxpr,
             consts,
-            flat_args,
+            flat_primals,
+            flat_tangents,
         )
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-def forward(f: Callable):
+def incremental(f: Callable):
     @functools.wraps(f)
-    def wrapped(stateful_handler, *args):
+    def wrapped(stateful_handler, primals, tangents):
         with IncrementalInterpreter.new() as interpreter:
             return interpreter.run_interpreter(
                 stateful_handler,
                 f,
-                *args,
+                primals,
+                tangents,
             )
 
     return wrapped

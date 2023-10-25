@@ -21,14 +21,14 @@ from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    BuiltinGenerativeFunction,
+from genjax._src.generative_functions.static.static_gen_fn import (
+    StaticGenerativeFunction,
 )
 
 
 @dataclass
 class TraceKernel(Pytree):
-    gen_fn: BuiltinGenerativeFunction
+    gen_fn: StaticGenerativeFunction
 
     def flatten(self):
         return (self.gen_fn,), ()
@@ -65,5 +65,5 @@ class TraceKernel(Pytree):
 
 
 @typecheck
-def trace_kernel(gen_fn: BuiltinGenerativeFunction):
+def trace_kernel(gen_fn: StaticGenerativeFunction):
     return TraceKernel.new(gen_fn)

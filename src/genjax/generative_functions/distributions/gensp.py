@@ -20,7 +20,6 @@ and his Gen implementation
 GenGenSP.
 """
 
-from genjax._src.generative_functions.distributions.gensp import unnorm
 from genjax._src.generative_functions.distributions.gensp.choice_map_distribution import (
     ChoiceMapDistribution,
 )
@@ -82,7 +81,6 @@ from genjax._src.generative_functions.distributions.gensp.marginal import Margin
 from genjax._src.generative_functions.distributions.gensp.marginal import marginal
 from genjax._src.generative_functions.distributions.gensp.target import Target
 from genjax._src.generative_functions.distributions.gensp.target import target
-from genjax._src.generative_functions.distributions.gensp.unnorm import score
 from genjax._src.generative_functions.distributions.gensp.utils import (
     static_check_supports,
 )
@@ -111,7 +109,6 @@ __all__ = [
     "Compose",
     "Sequence",
     "static_check_supports",
-    "unnorm",
     "score",
     "estimated_norm_dist",
     "EstimatedNormalizedDistribution",

@@ -22,7 +22,7 @@ from genjax._src.core.runtime_debugger import record_value
 from genjax._src.core.runtime_debugger import tag
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import dispatch
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 
 
 ####################
@@ -31,7 +31,7 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuil
 
 
 @dataclasses.dataclass
-class DebugCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+class DebugCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     gen_fn: JAXGenerativeFunction
 
     def flatten(self):

@@ -20,7 +20,7 @@ import jax.random as random
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.transforms.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck

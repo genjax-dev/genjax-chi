@@ -30,7 +30,7 @@ from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.address_tree import AddressTree
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.static_checks import (
@@ -41,9 +41,9 @@ from genjax._src.core.pytree.static_checks import (
 )
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.transforms.incremental import tree_diff_no_change
-from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
@@ -1545,7 +1545,7 @@ class GenerativeFunction(Pytree):
             print(console.render(tr))
             ```
 
-            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+            Here's a slightly more complicated example using the `Static` generative function language. You can find more examples on the `Static` language page.
 
             ```python exec="yes" source="tabbed-left"
             import jax
@@ -1600,7 +1600,7 @@ class GenerativeFunction(Pytree):
             print(console.render(chm))
             ```
 
-            Here's a slightly more complicated example using the `Builtin` generative function language. You can find more examples on the `Builtin` language page.
+            Here's a slightly more complicated example using the `Static` generative function language. You can find more examples on the `Static` language page.
 
             ```python exec="yes" source="tabbed-left"
             import jax
@@ -1974,7 +1974,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     @dispatch
     def new(cls, trie: Trie):
         check = trie.is_empty()
-        if is_concrete(check) and check:
+        if static_check_is_concrete(check) and check:
             return EmptyChoiceMap()
         else:
             return HierarchicalChoiceMap(trie)
@@ -2049,7 +2049,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
 
     @dispatch
     def get_subtree(self, addr: IntArray):
-        if is_concrete(addr):
+        if static_check_is_concrete(addr):
             value = self.trie.get_subtree(addr)
             return self._lift_value(value)
         else:
@@ -2271,7 +2271,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
 
     To make this more concrete, a `VectorChoiceMap` represents choices with addresses of the form `(integer_index, ...)` - but its internal data representation is a struct-of-arrays. A `HierarchicalChoiceMap` can also represent address assignments with form `(integer_index, ...)` - but supporting choice map interfaces like `merge` across choice map types with specialized internal representations is complicated.
 
-    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `Builtin` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
+    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `Static` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
 
     To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
     """

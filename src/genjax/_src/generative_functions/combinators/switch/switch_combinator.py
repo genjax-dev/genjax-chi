@@ -35,9 +35,9 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.pytree.sumtree import DataSharedSumTree
-from genjax._src.core.transforms.incremental import static_check_no_change
-from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import static_check_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -45,7 +45,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 from genjax._src.generative_functions.combinators.staging_utils import (
     get_discard_data_shape,
 )
@@ -69,7 +69,7 @@ from genjax._src.generative_functions.combinators.switch.switch_datatypes import
 
 
 @dataclass
-class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching
     control flow patterns, including control flow patterns which branch on
@@ -352,10 +352,10 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 # Shorthands #
 ##############
 
-Switch = SwitchCombinator.new
+
+@typecheck
+def switch_combinator(*gen_fn: JAXGenerativeFunction):
+    return SwitchCombinator.new(*gen_fn)
 
 
-def switch_combinator(
-    *gen_fn: JAXGenerativeFunction,
-):
-    return Switch(*gen_fn)
+Switch = switch_combinator

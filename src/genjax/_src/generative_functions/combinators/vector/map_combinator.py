@@ -34,7 +34,7 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
@@ -43,7 +43,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -141,7 +141,7 @@ class MapTrace(Trace):
 
 
 @dataclass
-class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
@@ -492,21 +492,17 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 # Shorthands #
 ##############
 
-Map = MapCombinator.new
+
+@dispatch
+def map_combinator(**kwargs):
+    in_axes = kwargs["in_axes"]
+    return lambda gen_fn: MapCombinator.new(gen_fn, in_axes)
 
 
 @dispatch
-def map_combinator(
-    **kwargs,
-):
+def map_combinator(gen_fn: JAXGenerativeFunction, **kwargs):
     in_axes = kwargs["in_axes"]
-    return lambda gen_fn: Map(gen_fn, in_axes)
+    return MapCombinator.new(gen_fn, in_axes)
 
 
-@dispatch
-def map_combinator(
-    gen_fn: JAXGenerativeFunction,
-    **kwargs,
-):
-    in_axes = kwargs["in_axes"]
-    return Map(gen_fn, in_axes)
+Map = map_combinator
