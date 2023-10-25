@@ -22,6 +22,7 @@ from tensorflow_probability.substrates import jax as tfp
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Sequence
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
@@ -37,19 +38,16 @@ class TFPDistribution(ExactDensity):
     Implements the `ExactDensity` subclass of `genjax.Distribution` automatically using the interfaces defined for `tfp.distributions` objects.
     """
 
-    distribution: Any
+    make_tfp_distribution: Callable
 
     def flatten(self):
-        return (), (self.distribution,)
+        return (), (self.make_tfp_distribution,)
 
     @classmethod
     def new(cls, tfp_d):
         new = TFPDistribution(tfp_d)
         functools.update_wrapper(new, tfp_d)
         return new
-
-    def make_tfp_distribution(self, *args, **kwargs):
-        return self.distribution(*args, **kwargs)
 
     def sample(self, key, *args, **kwargs):
         dist = self.make_tfp_distribution(*args, **kwargs)
@@ -67,6 +65,11 @@ class TFPDistribution(ExactDensity):
 tfp_bates = TFPDistribution.new(tfd.Bates)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Bates`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bates) distribution from TensorFlow Probability distributions.
+"""
+
+tfp_bernoulli = TFPDistribution.new(lambda logits: tfd.Bernoulli(logits=logits))
+"""
+A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
 
 tfp_chi = TFPDistribution.new(tfd.Chi)
@@ -159,7 +162,9 @@ tfp_normal = TFPDistribution.new(tfd.Normal)
 A `TFPDistribution` generative function which wraps the [`tfd.Normal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Normal) distribution from TensorFlow Probability distributions.
 """
 
-tfp_mv_normal_diag = TFPDistribution.new(tfd.MultivariateNormalDiag)
+tfp_mv_normal_diag = TFPDistribution.new(
+    lambda μ, Σ_diag: tfd.MultivariateNormalDiag(loc=μ, scale_diag=Σ_diag)
+)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.MultivariateNormalDiag`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/MultivariateNormalDiag) distribution from TensorFlow Probability distributions.
 """
