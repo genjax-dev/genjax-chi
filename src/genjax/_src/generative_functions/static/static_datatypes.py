@@ -80,7 +80,7 @@ class StaticTrace(
         return self.gen_fn
 
     def get_choices(self):
-        return self.address_choices
+        return self.address_choices.maybe_specialize().strip()
 
     def get_retval(self):
         return self.retval

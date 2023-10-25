@@ -359,13 +359,5 @@ def partial(gen_fn, *static_args):
 # Shorthands #
 ##############
 
-static_generative_function = StaticGenerativeFunction.new
 
-
-# A decorator to pipe callables into our generative function.
-@typecheck
-def gen_fn(source: Callable):
-    return StaticGenerativeFunction.new(source)
-
-
-Static = gen_fn
+Static = StaticGenerativeFunction.new

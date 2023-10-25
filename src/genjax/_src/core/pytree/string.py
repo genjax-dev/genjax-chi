@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,11 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.dynamic import Dynamic
-from genjax._src.generative_functions.dynamic import trace
+from dataclasses import dataclass
+
+import jax.tree_util as jtu
+
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import String
 
 
-__all__ = [
-    "Dynamic",
-    "trace",
-]
+@dataclass
+class PytreeString(Pytree):
+    string: String
+
+    def flatten(self):
+        return (), (self.string,)
+
+
+def tree_convert_strings(v):
+    def _convert(v):
+        if isinstance(v, String):
+            return PytreeString(v)
+        else:
+            return v
+
+    return jtu.tree_map(_convert, v)

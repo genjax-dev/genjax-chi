@@ -85,7 +85,7 @@ class UnfoldTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap.new(self.inner)
+        return VectorChoiceMap.new(self.inner.strip())
 
     def get_gen_fn(self):
         return self.unfold

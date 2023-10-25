@@ -15,7 +15,6 @@
 import dataclasses
 import functools
 import itertools
-from dataclasses import dataclass
 
 import jax
 import jax.core as jc
@@ -40,13 +39,14 @@ from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.interpreters.incremental import tree_diff_unpack_leaves
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree.string import PytreeString
+from genjax._src.core.pytree.string import tree_convert_strings
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_concrete
@@ -107,24 +107,6 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 ############################################################
 # Trace call (denotes invocation of a generative function) #
 ############################################################
-
-
-@dataclass
-class PytreeString(Pytree):
-    string: String
-
-    def flatten(self):
-        return (), (self.string,)
-
-
-def tree_convert_strings(v):
-    def _convert(v):
-        if isinstance(v, String):
-            return PytreeString(v)
-        else:
-            return v
-
-    return jtu.tree_map(_convert, v)
 
 
 def _trace(gen_fn, addr, *args, **kwargs):
