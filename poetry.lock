@@ -1563,13 +1563,13 @@ test = ["click", "pre-commit", "pytest (>=7.0)", "pytest-asyncio (>=0.19.0)", "p
 
 [[package]]
 name = "jupyter-server"
-version = "2.8.0"
+version = "2.9.0"
 description = "The backend—i.e. core services, APIs, and REST endpoints—to Jupyter web applications."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jupyter_server-2.8.0-py3-none-any.whl", hash = "sha256:c57270faa6530393ae69783a2d2f1874c718b9f109080581ea076b05713249fa"},
-    {file = "jupyter_server-2.8.0.tar.gz", hash = "sha256:b11e2ba80667c75f55630faf8ac3d5809f8734f9006d65cce117c46a0a516ab8"},
+    {file = "jupyter_server-2.9.0-py3-none-any.whl", hash = "sha256:c02501c5028af95242558c39ac986420be55b92ad69c2f94709a26ee521d87aa"},
+    {file = "jupyter_server-2.9.0.tar.gz", hash = "sha256:06a334ffba7797e84c9e0e26c510b78bb8cc9051485ecab7f4e3c0963b8fc714"},
 ]
 
 [package.dependencies]
