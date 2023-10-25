@@ -221,10 +221,8 @@ class StatefulHandler(Pytree):
 
 @dataclasses.dataclass
 class ForwardInterpreter(Pytree):
-    custom_rules: HashableDict[jc.Primitive, Callable]
-
     def flatten(self):
-        return (), (self.custom_rules,)
+        return (), ()
 
     # This produces an instance of `Interpreter`
     # as a context manager - to allow us to control error stack traces,

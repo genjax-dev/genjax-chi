@@ -24,6 +24,7 @@ import jax.tree_util as jtu
 from jax.util import safe_map
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalTraceType
 from genjax._src.core.datatypes.generative import Trace
@@ -44,8 +45,8 @@ from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
-from genjax._src.core.typing import Optional
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_concrete
@@ -109,48 +110,30 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 
 
 @dataclass
-class PytreeAddress(Pytree):
-    static_rest: Tuple
-    optional_leading_int_arr: Optional[IntArray]
+class PytreeString(Pytree):
+    string: String
 
     def flatten(self):
-        if self.optional_leading_int_arr is None:
-            return (), (self.static_rest, self.optional_leading_int_arr)
+        return (), (self.string,)
+
+
+def tree_convert_strings(v):
+    def _convert(v):
+        if isinstance(v, String):
+            return PytreeString(v)
         else:
-            return (self.optional_leading_int_arr,), (self.static_rest,)
+            return v
 
-    @classmethod
-    @dispatch
-    def new(cls, addr: Tuple):
-        fst, *rst = addr
-        if static_check_is_concrete(fst):
-            return PytreeAddress((fst, *rst), None)
-        else:
-            return PytreeAddress(tuple(rst), fst)
-
-    @classmethod
-    @dispatch
-    def new(cls, addr: IntArray):
-        return PytreeAddress((), addr)
-
-    @classmethod
-    @dispatch
-    def new(cls, addr: Any):
-        return PytreeAddress((addr,), None)
-
-    def to_tuple(self):
-        if self.optional_leading_int_arr is None:
-            return self.static_rest
-        else:
-            return (self.optional_leading_int_arr, *self.static_rest)
-
-
-pytree_address = PytreeAddress.new
+    return jtu.tree_map(_convert, v)
 
 
 def _trace(gen_fn, addr, *args, **kwargs):
+    addr = tree_convert_strings(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
-        gen_fn, addr, *args, **kwargs
+        gen_fn,
+        addr,
+        *args,
+        **kwargs,
     )
 
 
@@ -167,9 +150,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction, **kwargs) -> Callable:
         callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
     assert isinstance(gen_fn, GenerativeFunction)
-    static_check_concrete_or_dynamic_int_address(addr)
-    pytree_addr = pytree_address(addr)
-    return lambda *args: _trace(gen_fn, pytree_addr, *args, **kwargs)
+    return lambda *args: _trace(gen_fn, addr, *args, **kwargs)
 
 
 ##############################################################
@@ -288,40 +269,13 @@ class StaticHandler(StatefulHandler):
         else:
             self.dynamic_address_visitor.visit(addr, ())
 
-    @dispatch
-    def visit(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.visit(tup[0])
-        else:
-            self.visit(tup)
+    def set_choice_state(self, addr, tr):
+        if isinstance(addr, PytreeString):
+            addr = addr.string
+        self.address_choices[addr] = tr
 
-    @dispatch
-    def set_choice_state(self, addr: Tuple, tr: Trace):
-        fst, *rest = addr
-        if static_check_is_concrete(fst):
-            self.static_address_choices[addr] = tr
-        else:
-            self.dynamic_addresses.append(fst)
-            sub_trie = Trie.new()
-            sub_trie[tuple(rest)] = tr
-            self.dynamic_address_choices.append(sub_trie)
-
-    @dispatch
-    def set_choice_state(self, addr: Any, tr: Trace):
-        if static_check_is_concrete(addr):
-            self.static_address_choices[addr] = tr
-        else:
-            self.dynamic_addresses.append(addr)
-            self.dynamic_address_choices.append(tr)
-
-    @dispatch
-    def set_choice_state(self, addr: PytreeAddress, tr: Trace):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.set_choice_state(tup[0], tr)
-        else:
-            self.set_choice_state(tup, tr)
+    def handles(self, prim):
+        return prim == trace_p or prim == cache_p
 
     def dispatch(self, prim, *tracers, **params):
         if prim == trace_p:
@@ -341,14 +295,9 @@ class StaticHandler(StatefulHandler):
 class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: FloatArray
-    # Static addresses
-    static_address_choices: Trie
     static_address_visitor: AddressVisitor
-    # Dynamic addresses
-    dynamic_addresses: List[IntArray]
-    dynamic_address_choices: List[ChoiceMap]
     dynamic_address_visitor: AddressVisitor
-    # Caching
+    address_choices: DynamicHierarchicalChoiceMap
     cache_state: Trie
     cache_visitor: AddressVisitor
 
@@ -356,11 +305,9 @@ class SimulateHandler(StaticHandler):
         return (
             self.key,
             self.score,
-            self.static_address_choices,
             self.static_address_visitor,
-            self.dynamic_addresses,
-            self.dynamic_address_choices,
             self.dynamic_address_visitor,
+            self.address_choices,
             self.cache_state,
             self.cache_visitor,
         ), ()
@@ -368,30 +315,24 @@ class SimulateHandler(StaticHandler):
     @classmethod
     def new(cls, key: PRNGKey):
         score = 0.0
-        static_address_choices = Trie.new()
         static_address_visitor = AddressVisitor.new()
-        dynamic_addresses = []
-        dynamic_address_choices = []
         dynamic_address_visitor = DynamicAddressVisitor.new()
+        address_choices = DynamicHierarchicalChoiceMap.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return SimulateHandler(
             key,
             score,
-            static_address_choices,
             static_address_visitor,
-            dynamic_addresses,
-            dynamic_address_choices,
             dynamic_address_visitor,
+            address_choices,
             cache_state,
             cache_visitor,
         )
 
     def yield_state(self):
         return (
-            self.static_address_choices,
-            self.dynamic_addresses,
-            self.dynamic_address_choices,
+            self.address_choices,
             self.cache_state,
             self.score,
         )
@@ -425,18 +366,14 @@ def simulate_transform(source_fn):
         retval = forward(source_fn)(stateful_handler, *args)
         stateful_handler.runtime_verify()  # Produce runtime check for checkify.
         (
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             cache_state,
             score,
         ) = stateful_handler.yield_state()
         return (
             args,
             retval,
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             score,
         ), cache_state
 
@@ -455,12 +392,11 @@ class ImportanceHandler(StaticHandler):
     weight: FloatArray
     constraints: ChoiceMap
     # Static addresses
-    static_address_choices: Trie
     static_address_visitor: AddressVisitor
+    dynamic_address_visitor: AddressVisitor
     # Dynamic addresses
     dynamic_addresses: List[IntArray]
-    dynamic_address_choices: List[ChoiceMap]
-    dynamic_address_visitor: AddressVisitor
+    address_choices: List[ChoiceMap]
     # Caching
     cache_state: Trie
     cache_visitor: AddressVisitor
@@ -518,9 +454,8 @@ class ImportanceHandler(StaticHandler):
     def runtime_verify(self):
         self.dynamic_address_visitor.verify()
 
-    def get_submap(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        return self.constraints.get_subtree(tup)
+    def get_submap(self, addr: Tuple):
+        return self.constraints.get_subtree(addr)
 
     def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
@@ -689,27 +624,6 @@ class UpdateHandler(StaticHandler):
             self.dynamic_discard_addresses.append(addr)
             self.dynamic_discard_choices.append(chm)
 
-    @dispatch
-    def set_discard_state(self, addr: PytreeAddress, chm: ChoiceMap):
-        tup = addr.to_tuple()
-        empty_check = chm.is_empty()
-        if static_check_is_concrete(empty_check) and empty_check:
-            return
-        if len(tup) == 1:
-            self.set_discard_state(tup[0], chm)
-        else:
-            self.set_discard_state(tup, chm)
-
-    def get_prev_subtrace(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        # TODO: For now, we disallow updating generative function traces
-        # from Static gen fns with dynamic addresses.
-        return self.previous_trace.static_address_choices.get_subtree(tup)
-
-    def get_submap(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        return self.constraints.get_subtree(tup)
-
     def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
@@ -838,10 +752,6 @@ class AssessHandler(StaticHandler):
             dynamic_address_visitor,
             cache_visitor,
         )
-
-    def get_submap(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        return self.constraints.get_subtree(tup)
 
     def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")

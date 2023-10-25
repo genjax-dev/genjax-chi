@@ -179,21 +179,14 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         args: Tuple,
     ) -> StaticTrace:
-        (
-            args,
-            retval,
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
-            score,
-        ), cache_state = simulate_transform(self.source)(key, args)
+        (args, retval, address_choices, score), cache_state = simulate_transform(
+            self.source
+        )(key, args)
         return StaticTrace.new(
             self,
             args,
             retval,
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             cache_state,
             score,
         )
