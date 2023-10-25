@@ -45,8 +45,8 @@ from rich.theme import Theme
 
 import genjax._src.core.typing as typing
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import typecheck
+from oryx import harvest
 
 
 RECORDING_NAMESPACE = "debug_record"

@@ -35,9 +35,7 @@ from jax import util as jax_util
 from jax.extend import linear_util as lu
 
 from genjax._src.core.interpreters import staging
-from genjax._src.core.interpreters.context import Context
-from genjax._src.core.interpreters.context import ContextualTrace
-from genjax._src.core.interpreters.context import Fwd
+from genjax._src.core.interpreters.forward import Environment
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
@@ -47,6 +45,8 @@ from genjax._src.core.typing import Iterable
 from genjax._src.core.typing import List
 from genjax._src.core.typing import String
 from genjax._src.core.typing import Union
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import HashableDict
 from genjax._src.core.typing import Value
 from genjax._src.core.typing import typecheck
 
@@ -55,71 +55,9 @@ from genjax._src.core.typing import typecheck
 # Change type lattice and propagation #
 #######################################
 
-
-class DiffTracer(jc.Tracer):
-    """A `DiffTracer` encapsulates a single value."""
-
-    def __init__(self, trace: "DiffTrace", val: Value, tangent: "ChangeTangent"):
-        self._trace = trace
-        self.val = val
-        self.tangent = tangent
-
-    @property
-    def aval(self):
-        return jc.raise_to_shaped(jc.get_aval(self.val))
-
-    def full_lower(self):
-        return self
-
-
-class DiffTrace(ContextualTrace):
-    def pure(self, val: Value) -> DiffTracer:
-        return DiffTracer(self, val, NoChange)
-
-    def sublift(self, tracer: DiffTracer) -> DiffTracer:
-        return self.pure(tracer.val)
-
-    def lift(self, val: Value) -> DiffTracer:
-        return self.pure(val)
-
-    def default_process_primitive(
-        self,
-        primitive: jc.Primitive,
-        tracers: List[DiffTracer],
-        params: Dict[String, Any],
-    ) -> Union[DiffTracer, List[DiffTracer]]:
-        context = staging.get_dynamic_context(self)
-        vals = [v.val for v in tracers]
-        tangents = [v.tangent for v in tracers]
-        check = static_check_no_change(tangents)
-        if context.can_process(primitive):
-            outvals = context.process_primitive(primitive, *vals, **params)
-            return jax_util.safe_map(self.pure, outvals)
-        outvals = primitive.bind(*vals, **params)
-        if not primitive.multiple_results:
-            outvals = [outvals]
-        out_tracers = jax_util.safe_map(self.full_raise, outvals)
-        if not check:
-            for tracer in out_tracers:
-                tracer.tangent = UnknownChange
-        if primitive.multiple_results:
-            return out_tracers
-        return out_tracers[0]
-
-    def post_process_call(self, call_primitive, out_tracers, params):
-        vals = tuple(t.val for t in out_tracers)
-        master = self.main
-
-        def todo(x):
-            trace = DiffTrace(master, jc.cur_sublevel())
-            return jax_util.safe_map(functools.partial(DiffTracer, trace), x)
-
-        return vals, todo
-
-
-#####
-# Change types
-#####
+###################
+# Change tangents #
+###################
 
 
 @dataclasses.dataclass
@@ -195,9 +133,9 @@ def static_check_is_change_tangent(v):
     return isinstance(v, ChangeTangent)
 
 
-#####
-# Diffs (generalized duals)
-#####
+#############################
+# Diffs (generalized duals) #
+#############################
 
 
 @dataclasses.dataclass
@@ -220,34 +158,8 @@ class Diff(Pytree):
     def get_tangent(self):
         return self.tangent
 
-    def get_tracers(self, trace):
-        # If we're not in a `DiffTrace` context -
-        # we shouldn't try and make DiffTracers.
-        if not isinstance(trace, DiffTrace):
-            return self.primal
-        return DiffTracer(trace, self.primal, self.tangent)
-
     def unpack(self):
         return self.primal, self.tangent
-
-    @typecheck
-    @classmethod
-    def from_tracer(cls, tracer: DiffTracer):
-        if tracer.tangent is None:
-            tangent = NoChange
-        else:
-            tangent = tracer.tangent
-        return Diff(tracer.val, tangent)
-
-    @classmethod
-    def inflate(cls, tree, change_tangent):
-        """Create an instance of `type(tree)` with the same structure as tree,
-        but with all values replaced with `change_tangent`"""
-        return jtu.tree_map(lambda _: change_tangent, tree)
-
-    @classmethod
-    def no_change(cls, tree):
-        return jtu.tree_map(lambda v: Diff.new(v, NoChange), tree)
 
 
 def static_check_is_diff(v):
@@ -296,20 +208,6 @@ def tree_diff_get_tracers(v, trace):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
-def static_check_is_diff_tracer(v):
-    return isinstance(v, DiffTracer)
-
-
-def tree_diff_from_tracer(tree):
-    def _inner(v):
-        if static_check_is_diff_tracer(v):
-            return Diff.from_tracer(v)
-        else:
-            return v
-
-    return jtu.tree_map(lambda v: _inner(v), tree)
-
-
 def static_check_tree_leaves_diff(v):
     def _inner(v):
         if static_check_is_diff(v):
@@ -341,46 +239,72 @@ def tree_diff_unknown_change(tree):
 #################################
 
 
-@lu.transformation
-def _jvp(main: jc.MainTrace, ctx: Context, diffs: Iterable[Diff]):
-    trace = DiffTrace(main, jc.cur_sublevel())
-    in_tracers = jtu.tree_leaves(tree_diff_get_tracers(diffs, trace))
-    with staging.new_dynamic_context(main, ctx):
-        # Give ctx main so that we can new up
-        # tracers at the correct level when required.
-        ctx.main_trace = main
-        ans = yield in_tracers, {}
-        out_tracers = jax_util.safe_map(trace.full_raise, ans)
-        stateful_tracers = jtu.tree_map(trace.full_raise, ctx.yield_state())
-        del main
-    stateful_values = jtu.tree_map(lambda x: x.val, stateful_tracers)
-    out_diffs = tree_diff_from_tracer(out_tracers)
-    yield out_diffs, stateful_values
+@dataclasses.dataclass
+class IncrementalInterpreter(Pytree):
+    custom_rules: HashableDict[jc.Primitive, Callable]
+
+    def flatten(self):
+        return (), (self.custom_rules,)
+
+    # This produces an instance of `Interpreter`
+    # as a context manager - to allow us to control error stack traces,
+    # if required.
+    @classmethod
+    @contextmanager
+    def new(cls):
+        try:
+            yield IncrementalInterpreter()
+        except Exception as e:
+            raise e
+
+    def _eval_jaxpr_forward(
+        self,
+        stateful_handler,
+        jaxpr: jc.Jaxpr,
+        consts: List[Value],
+        args: List[Value],
+    ):
+        env = Environment.new()
+        jax_util.safe_map(env.write, jaxpr.constvars, consts)
+        jax_util.safe_map(env.write, jaxpr.invars, args)
+        for eqn in jaxpr.eqns:
+            invals = jax_util.safe_map(env.read, eqn.invars)
+            subfuns, params = eqn.primitive.get_bind_params(eqn.params)
+            args = subfuns + invals
+            if stateful_handler.handles(eqn.primitive):
+                outvals = stateful_handler.dispatch(eqn.primitive, *args, **params)
+            else:
+                outvals = eqn.primitive.bind(*args, **params)
+            if not eqn.primitive.multiple_results:
+                outvals = [outvals]
+            jax_util.safe_map(env.write, eqn.outvars, outvals)
+
+        return jax_util.safe_map(env.read, jaxpr.outvars)
+
+    def run_interpreter(self, stateful_handler, fn, *args, **kwargs):
+        def _inner(*args):
+            return fn(*args, **kwargs)
+
+        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        flat_out = self._eval_jaxpr_forward(
+            stateful_handler,
+            jaxpr,
+            consts,
+            flat_args,
+        )
+        return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-# NOTE: There's no constraint on Pytree equality between primals and tangents.
-# I'm really not sure about this, more generally.
-# How to specify custom tangents for arbitrary Pytree types?
-# This solution works for array-like values (e.g. JAX native values)
-# but I'm not sure how to generalize to custom tangents for structure.
-def jvp(f, ctx: Context):
-    # Runs the interpreter.
-    def _run_interpreter(main, *args, **kwargs):
-        with Fwd.new() as interpreter:
-            return interpreter.run_interpreter(DiffTrace, main, f, *args, **kwargs)
-
-    # Propagates tracer values through running the interpreter.
+def forward(f: Callable):
     @functools.wraps(f)
-    def wrapped(*diffs, **kwargs):
-        with jc.new_main(DiffTrace) as main:
-            fun = lu.wrap_init(functools.partial(_run_interpreter, main), kwargs)
-            primals = tree_diff_primal(diffs)
-            _, primal_tree = jtu.tree_flatten(primals)
-            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, primal_tree)
-            flat_fun = _jvp(flat_fun, main, ctx)
-            out_diffs, ctx_statefuls = flat_fun.call_wrapped(diffs)
-            del main
-        return jtu.tree_unflatten(out_tree(), out_diffs), ctx_statefuls
+    def wrapped(stateful_handler, *args):
+        with IncrementalInterpreter.new() as interpreter:
+            return interpreter.run_interpreter(
+                stateful_handler,
+                f,
+                *args,
+            )
 
     return wrapped
 
@@ -390,4 +314,3 @@ def jvp(f, ctx: Context):
 ##############
 
 diff = Diff.new
-transform = jvp

@@ -18,11 +18,11 @@ import functools
 import itertools
 
 import jax
+from jax.util import safe_map, safe_zip
 import jax.core as jc
 import jax.tree_util as jtu
 from jax._src import core as jax_core
 
-import genjax._src.core.interpreters.context as context
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalTraceType
 from genjax._src.core.datatypes.generative import Trace
@@ -31,12 +31,11 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.transforms import incremental
-from genjax._src.core.transforms.incremental import DiffTrace
-from genjax._src.core.transforms.incremental import static_check_no_change
-from genjax._src.core.transforms.incremental import tree_diff_from_tracer
-from genjax._src.core.transforms.incremental import tree_diff_get_tracers
-from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import DiffTrace
+from genjax._src.core.interpreters.incremental import static_check_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_from_tracer
+from genjax._src.core.interpreters.incremental import tree_diff_get_tracers
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
@@ -45,13 +44,175 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_primitives import PytreeAddress
-from genjax._src.generative_functions.builtin.builtin_primitives import cache_p
-from genjax._src.generative_functions.builtin.builtin_primitives import trace_p
+from dataclasses import dataclass
+
+import jax.numpy as jnp
+import jax.tree_util as jtu
+
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.interpreters.forward import (
+    InitialStylePrimitive,
+    initial_style_bind,
+    forward,
+    StatefulHandler,
+)
+from genjax._src.core.interpreters.incremental import incremental
+from genjax._src.core.interpreters.staging import is_concrete
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import Optional
+from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 
 
-safe_map = jax_core.safe_map
-safe_zip = jax_core.safe_zip
+##############
+# Primitives #
+##############
+
+# Generative function trace intrinsic.
+trace_p = InitialStylePrimitive("trace")
+
+# Cache intrinsic.
+cache_p = InitialStylePrimitive("cache")
+
+
+#####
+# Static address checks
+#####
+
+
+# Usage in intrinsics: ensure that addresses do not contain JAX traced values.
+def static_check_address_type(addr):
+    check = all(jtu.tree_leaves(jtu.tree_map(is_concrete, addr)))
+    if not check:
+        raise Exception("Addresses must not contained JAX traced values.")
+
+
+# Usage in intrinsics: ensure that addresses do not contain JAX traced values.
+def static_check_concrete_or_dynamic_int_address(addr):
+    def _check(v):
+        if is_concrete(v):
+            return True
+        else:
+            # TODO: fix to be more robust to different bit types.
+            return v.dtype == jnp.int32
+
+    check = all(jtu.tree_leaves(jtu.tree_map(_check, addr)))
+    if not check:
+        raise Exception(
+            "Addresses must contain concrete (non-traced) values or traced integer values."
+        )
+
+
+#####
+# Abstract generative function call
+#####
+
+
+# We defer the abstract call here so that, when we
+# stage, any traced values stored in `gen_fn`
+# get lifted to by `get_shaped_aval`.
+def _abstract_gen_fn_call(gen_fn, _, *args):
+    return gen_fn.__abstract_call__(*args)
+
+
+############################################################
+# Trace call (denotes invocation of a generative function) #
+############################################################
+
+
+@dataclass
+class PytreeAddress(Pytree):
+    static_rest: Tuple
+    optional_leading_int_arr: Optional[IntArray]
+
+    def flatten(self):
+        if self.optional_leading_int_arr is None:
+            return (), (self.static_rest, self.optional_leading_int_arr)
+        else:
+            return (self.optional_leading_int_arr,), (self.static_rest,)
+
+    @classmethod
+    @dispatch
+    def new(cls, addr: Tuple):
+        fst, *rst = addr
+        if is_concrete(fst):
+            return PytreeAddress((fst, *rst), None)
+        else:
+            return PytreeAddress(tuple(rst), fst)
+
+    @classmethod
+    @dispatch
+    def new(cls, addr: IntArray):
+        return PytreeAddress((), addr)
+
+    @classmethod
+    @dispatch
+    def new(cls, addr: Any):
+        return PytreeAddress((addr,), None)
+
+    def to_tuple(self):
+        if self.optional_leading_int_arr is None:
+            return self.static_rest
+        else:
+            return (self.optional_leading_int_arr, *self.static_rest)
+
+
+pytree_address = PytreeAddress.new
+
+
+def _trace(gen_fn, addr, *args, **kwargs):
+    return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
+        gen_fn, addr, *args, **kwargs
+    )
+
+
+@typecheck
+def trace(addr: Any, gen_fn: GenerativeFunction, **kwargs) -> Callable:
+    """Invoke a generative function, binding its generative semantics with the
+    current caller.
+
+    Arguments:
+        addr: An address denoting the site of a generative function invocation.
+        gen_fn: A generative function invoked as a callee of `BuiltinGenerativeFunction`.
+
+    Returns:
+        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.
+    """
+    assert isinstance(gen_fn, GenerativeFunction)
+    static_check_concrete_or_dynamic_int_address(addr)
+    pytree_addr = pytree_address(addr)
+    return lambda *args: _trace(gen_fn, pytree_addr, *args, **kwargs)
+
+
+##############################################################
+# Caching (denotes caching of deterministic subcomputations) #
+##############################################################
+
+
+def _cache(fn, addr, *args, **kwargs):
+    return initial_style_bind(cache_p)(fn)(fn, *args, addr, **kwargs)
+
+
+@typecheck
+def cache(addr: Any, fn: Callable, *args: Any, **kwargs) -> Callable:
+    """Invoke a generative function, binding its generative semantics with the
+    current caller.
+
+    Arguments:
+        addr: An address denoting the site of a function invocation.
+        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `BuiltinGenerativeFunction` traces.
+
+    Returns:
+        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `BuiltinGenerativeFunction` transformations.
+    """
+    # fn must be deterministic.
+    assert not isinstance(fn, GenerativeFunction)
+    static_check_address_type(addr)
+    return lambda *args: _cache(fn, addr, *args, **kwargs)
 
 
 ######################################
@@ -122,109 +283,12 @@ class DynamicAddressVisitor(Pytree):
 
 
 #####
-# Builtin interpreter context
-#####
-
-
-# NOTE: base context class for GFI transforms below.
-@dataclasses.dataclass
-class BuiltinInterfaceContext(context.Context):
-    @abc.abstractmethod
-    def handle_trace(self, *tracers, **params):
-        pass
-
-    @abc.abstractmethod
-    def handle_cache(self, *tracers, **params):
-        pass
-
-    def can_process(self, primitive):
-        return False
-
-    def process_primitive(self, primitive):
-        raise NotImplementedError
-
-    def get_custom_rule(self, primitive):
-        if primitive is trace_p:
-            return self.handle_trace
-        elif primitive is cache_p:
-            return self.handle_cache
-        else:
-            return None
-
-    def yield_state(self):
-        raise NotImplementedError
-
-    def runtime_verify(self):
-        return None
-
-
-#####
-# Simulate
+# Builtin handler
 #####
 
 
 @dataclasses.dataclass
-class SimulateContext(BuiltinInterfaceContext):
-    key: PRNGKey
-    score: FloatArray
-    # Static addresses
-    static_address_choices: Trie
-    static_address_visitor: AddressVisitor
-    # Dynamic addresses
-    dynamic_addresses: List[IntArray]
-    dynamic_address_choices: List[ChoiceMap]
-    dynamic_address_visitor: AddressVisitor
-    # Caching
-    cache_state: Trie
-    cache_visitor: AddressVisitor
-
-    def flatten(self):
-        return (
-            self.key,
-            self.score,
-            self.static_address_choices,
-            self.static_address_visitor,
-            self.dynamic_addresses,
-            self.dynamic_address_choices,
-            self.dynamic_address_visitor,
-            self.cache_state,
-            self.cache_visitor,
-        ), ()
-
-    @classmethod
-    def new(cls, key: PRNGKey):
-        score = 0.0
-        static_address_choices = Trie.new()
-        static_address_visitor = AddressVisitor.new()
-        dynamic_addresses = []
-        dynamic_address_choices = []
-        dynamic_address_visitor = DynamicAddressVisitor.new()
-        cache_state = Trie.new()
-        cache_visitor = AddressVisitor.new()
-        return SimulateContext(
-            key,
-            score,
-            static_address_choices,
-            static_address_visitor,
-            dynamic_addresses,
-            dynamic_address_choices,
-            dynamic_address_visitor,
-            cache_state,
-            cache_visitor,
-        )
-
-    def yield_state(self):
-        return (
-            self.static_address_choices,
-            self.dynamic_addresses,
-            self.dynamic_address_choices,
-            self.cache_state,
-            self.score,
-        )
-
-    def runtime_verify(self):
-        self.dynamic_address_visitor.verify()
-
+class BuiltinHandler(StatefulHandler):
     @dispatch
     def visit(self, addr: Tuple):
         fst, *rest = addr
@@ -275,7 +339,83 @@ class SimulateContext(BuiltinInterfaceContext):
         else:
             self.set_choice_state(tup, tr)
 
-    def handle_trace(self, _, *tracers, **params):
+    def dispatch(self, prim, *tracers, **params):
+        if prim == trace_p:
+            return self.handle_trace(*tracers, **params)
+        elif prim == cache_p:
+            return self.handle_cache(*tracers, **params)
+        else:
+            raise Exception("Illegal primitive: {}".format(prim))
+
+
+############
+# Simulate #
+############
+
+
+@dataclasses.dataclass
+class SimulateHandler(BuiltinHandler):
+    key: PRNGKey
+    score: FloatArray
+    # Static addresses
+    static_address_choices: Trie
+    static_address_visitor: AddressVisitor
+    # Dynamic addresses
+    dynamic_addresses: List[IntArray]
+    dynamic_address_choices: List[ChoiceMap]
+    dynamic_address_visitor: AddressVisitor
+    # Caching
+    cache_state: Trie
+    cache_visitor: AddressVisitor
+
+    def flatten(self):
+        return (
+            self.key,
+            self.score,
+            self.static_address_choices,
+            self.static_address_visitor,
+            self.dynamic_addresses,
+            self.dynamic_address_choices,
+            self.dynamic_address_visitor,
+            self.cache_state,
+            self.cache_visitor,
+        ), ()
+
+    @classmethod
+    def new(cls, key: PRNGKey):
+        score = 0.0
+        static_address_choices = Trie.new()
+        static_address_visitor = AddressVisitor.new()
+        dynamic_addresses = []
+        dynamic_address_choices = []
+        dynamic_address_visitor = DynamicAddressVisitor.new()
+        cache_state = Trie.new()
+        cache_visitor = AddressVisitor.new()
+        return SimulateHandler(
+            key,
+            score,
+            static_address_choices,
+            static_address_visitor,
+            dynamic_addresses,
+            dynamic_address_choices,
+            dynamic_address_visitor,
+            cache_state,
+            cache_visitor,
+        )
+
+    def yield_state(self):
+        return (
+            self.static_address_choices,
+            self.dynamic_addresses,
+            self.dynamic_address_choices,
+            self.cache_state,
+            self.score,
+        )
+
+    def runtime_verify(self):
+        self.dynamic_address_visitor.verify()
+
+    def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
@@ -290,23 +430,23 @@ class SimulateContext(BuiltinInterfaceContext):
         v = tr.get_retval()
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, _, *args, **params):
+    def handle_cache(self, *args, **params):
         raise NotImplementedError
 
 
-def simulate_transform(source_fn, **kwargs):
+def simulate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, args):
-        ctx = SimulateContext.new(key)
-        retval, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        ctx.runtime_verify()  # Produce runtime check for checkify.
+        stateful_handler = SimulateHandler.new(key)
+        retval = forward(source_fn)(stateful_handler, *args)
+        stateful_handler.runtime_verify()  # Produce runtime check for checkify.
         (
             static_address_choices,
             dynamic_addresses,
             dynamic_address_choices,
             cache_state,
             score,
-        ) = statefuls
+        ) = stateful_handler.yield_state()
         return (
             args,
             retval,
@@ -319,13 +459,13 @@ def simulate_transform(source_fn, **kwargs):
     return wrapper
 
 
-#####
-# Importance
-#####
+##############
+# Importance #
+##############
 
 
 @dataclasses.dataclass
-class ImportanceContext(BuiltinInterfaceContext):
+class ImportanceHandler(BuiltinHandler):
     key: PRNGKey
     score: FloatArray
     weight: FloatArray
@@ -377,7 +517,7 @@ class ImportanceContext(BuiltinInterfaceContext):
         dynamic_address_visitor = DynamicAddressVisitor.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
-        return ImportanceContext(
+        return ImportanceHandler(
             key,
             score,
             weight,
@@ -394,61 +534,11 @@ class ImportanceContext(BuiltinInterfaceContext):
     def runtime_verify(self):
         self.dynamic_address_visitor.verify()
 
-    @dispatch
-    def visit(self, addr: Tuple):
-        fst, *rest = addr
-        if is_concrete(fst):
-            self.static_address_visitor.visit(addr)
-        else:
-            self.dynamic_address_visitor.visit(fst, tuple(rest))
-
-    @dispatch
-    def visit(self, addr: Any):
-        if is_concrete(addr):
-            self.static_address_visitor.visit(addr)
-        else:
-            self.dynamic_address_visitor.visit(addr, ())
-
-    @dispatch
-    def visit(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.visit(tup[0])
-        else:
-            self.visit(tup)
-
-    @dispatch
-    def set_choice_state(self, addr: Tuple, tr: Trace):
-        fst, *rest = addr
-        if is_concrete(fst):
-            self.static_address_choices[addr] = tr
-        else:
-            self.dynamic_addresses.append(fst)
-            sub_trie = Trie.new()
-            sub_trie[tuple(rest)] = tr
-            self.dynamic_address_choices.append(sub_trie)
-
-    @dispatch
-    def set_choice_state(self, addr: Any, tr: Trace):
-        if is_concrete(addr):
-            self.static_address_choices[addr] = tr
-        else:
-            self.dynamic_addresses.append(addr)
-            self.dynamic_address_choices.append(tr)
-
-    @dispatch
-    def set_choice_state(self, addr: PytreeAddress, tr: Trace):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.set_choice_state(tup[0], tr)
-        else:
-            self.set_choice_state(tup, tr)
-
     def get_submap(self, addr: PytreeAddress):
         tup = addr.to_tuple()
         return self.constraints.get_subtree(tup)
 
-    def handle_trace(self, _, *tracers, **params):
+    def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
@@ -464,7 +554,7 @@ class ImportanceContext(BuiltinInterfaceContext):
         v = tr.get_retval()
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, _, *tracers, **params):
+    def handle_cache(self, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
         self.cache_visitor.visit(addr)
@@ -474,12 +564,12 @@ class ImportanceContext(BuiltinInterfaceContext):
         return jtu.tree_leaves(retval)
 
 
-def importance_transform(source_fn, **kwargs):
+def importance_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, constraints, args):
-        ctx = ImportanceContext.new(key, constraints)
-        retval, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        ctx.runtime_verify()  # Produce runtime check for checkify.
+        stateful_handler = ImportanceHandler.new(key, constraints)
+        retval = forward(source_fn)(stateful_handler, *args)
+        stateful_handler.runtime_verify()  # Produce runtime check for checkify.
         (
             score,
             weight,
@@ -487,7 +577,7 @@ def importance_transform(source_fn, **kwargs):
             dynamic_addresses,
             dynamic_address_choices,
             cache_state,
-        ) = statefuls
+        ) = stateful_handler.yield_state()
         return (
             weight,
             (
@@ -503,13 +593,13 @@ def importance_transform(source_fn, **kwargs):
     return wrapper
 
 
-#####
-# Update
-#####
+##########
+# Update #
+##########
 
 
 @dataclasses.dataclass
-class UpdateContext(BuiltinInterfaceContext):
+class UpdateHandler(BuiltinHandler):
     key: PRNGKey
     score: FloatArray
     weight: FloatArray
@@ -561,12 +651,6 @@ class UpdateContext(BuiltinInterfaceContext):
             self.cache_state,
         )
 
-    def get_tracers(self, diff):
-        main = self.main_trace
-        trace = DiffTrace(main, jc.cur_sublevel())
-        out_tracers = tree_diff_get_tracers(diff, trace)
-        return out_tracers
-
     @classmethod
     def new(cls, key, previous_trace, constraints):
         score = 0.0
@@ -581,7 +665,7 @@ class UpdateContext(BuiltinInterfaceContext):
         dynamic_address_visitor = DynamicAddressVisitor.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
-        return UpdateContext(
+        return UpdateHandler(
             key,
             score,
             weight,
@@ -601,56 +685,6 @@ class UpdateContext(BuiltinInterfaceContext):
 
     def runtime_verify(self):
         self.dynamic_address_visitor.verify()
-
-    @dispatch
-    def visit(self, addr: Tuple):
-        fst, *rest = addr
-        if is_concrete(fst):
-            self.static_address_visitor.visit(addr)
-        else:
-            self.dynamic_address_visitor.visit(fst, tuple(rest))
-
-    @dispatch
-    def visit(self, addr: Any):
-        if is_concrete(addr):
-            self.static_address_visitor.visit(addr)
-        else:
-            self.dynamic_address_visitor.visit(addr, ())
-
-    @dispatch
-    def visit(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.visit(tup[0])
-        else:
-            self.visit(tup)
-
-    @dispatch
-    def set_choice_state(self, addr: Tuple, tr: Trace):
-        fst, *rest = addr
-        if is_concrete(fst):
-            self.static_address_choices[addr] = tr
-        else:
-            self.dynamic_addresses.append(fst)
-            sub_trie = Trie.new()
-            sub_trie[tuple(rest)] = tr
-            self.dynamic_address_choices.append(sub_trie)
-
-    @dispatch
-    def set_choice_state(self, addr: Any, tr: Trace):
-        if is_concrete(addr):
-            self.static_address_choices[addr] = tr
-        else:
-            self.dynamic_addresses.append(addr)
-            self.dynamic_address_choices.append(tr)
-
-    @dispatch
-    def set_choice_state(self, addr: PytreeAddress, tr: Trace):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.set_choice_state(tup[0], tr)
-        else:
-            self.set_choice_state(tup, tr)
 
     @dispatch
     def set_discard_state(self, addr: Tuple, chm: ChoiceMap):
@@ -692,7 +726,7 @@ class UpdateContext(BuiltinInterfaceContext):
         tup = addr.to_tuple()
         return self.constraints.get_subtree(tup)
 
-    def handle_trace(self, _, *tracers, **params):
+    def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
@@ -720,7 +754,7 @@ class UpdateContext(BuiltinInterfaceContext):
         return jtu.tree_leaves(out_tracers)
 
     # TODO: fix -- add Diff/tracer return.
-    def handle_cache(self, _, *tracers, **params):
+    def handle_cache(self, *tracers, **params):
         addr = params.get("addr")
         in_tree = params.get("in_tree")
         self.cache_visitor.visit(addr)
@@ -741,14 +775,12 @@ class UpdateContext(BuiltinInterfaceContext):
         return jtu.tree_leaves(retval)
 
 
-def update_transform(source_fn, **kwargs):
+def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, previous_trace, constraints, diffs):
-        ctx = UpdateContext.new(key, previous_trace, constraints)
-        retval_diffs, statefuls = incremental.transform(source_fn, ctx)(
-            *diffs, **kwargs
-        )
-        ctx.runtime_verify()  # Produce runtime check for checkify.
+        stateful_handler = UpdateHandler.new(key, previous_trace, constraints)
+        retval_diffs = incremental(source_fn)(stateful_handler, *diffs, **kwargs)
+        stateful_handler.runtime_verify()  # Produce runtime check for checkify.
         retval_primals = tree_diff_primal(retval_diffs)
         arg_primals = tree_diff_primal(diffs)
         (
@@ -761,7 +793,7 @@ def update_transform(source_fn, **kwargs):
             dynamic_addresses,
             dynamic_address_choices,
             cache_state,
-        ) = statefuls
+        ) = stateful_handler.yield_state()
         return (
             (
                 retval_diffs,
@@ -790,7 +822,7 @@ def update_transform(source_fn, **kwargs):
 
 
 @dataclasses.dataclass
-class AssessContext(BuiltinInterfaceContext):
+class AssessHandler(BuiltinHandler):
     key: PRNGKey
     score: FloatArray
     constraints: ChoiceMap
@@ -817,7 +849,7 @@ class AssessContext(BuiltinInterfaceContext):
         static_address_visitor = AddressVisitor.new()
         dynamic_address_visitor = DynamicAddressVisitor.new()
         cache_visitor = AddressVisitor.new()
-        return AssessContext(
+        return AssessHandler(
             key,
             score,
             constraints,
@@ -826,34 +858,11 @@ class AssessContext(BuiltinInterfaceContext):
             cache_visitor,
         )
 
-    @dispatch
-    def visit(self, addr: Tuple):
-        fst, *rest = addr
-        if is_concrete(fst):
-            self.static_address_visitor.visit(addr)
-        else:
-            self.dynamic_address_visitor.visit(fst, tuple(rest))
-
-    @dispatch
-    def visit(self, addr: Any):
-        if is_concrete(addr):
-            self.static_address_visitor.visit(addr)
-        else:
-            self.dynamic_address_visitor.visit(addr, ())
-
-    @dispatch
-    def visit(self, addr: PytreeAddress):
-        tup = addr.to_tuple()
-        if len(tup) == 1:
-            self.visit(tup[0])
-        else:
-            self.visit(tup)
-
     def get_submap(self, addr: PytreeAddress):
         tup = addr.to_tuple()
         return self.constraints.get_subtree(tup)
 
-    def handle_trace(self, _, *tracers, **params):
+    def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
         num_consts = params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
@@ -866,7 +875,7 @@ class AssessContext(BuiltinInterfaceContext):
         self.score += score
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, _, *tracers, **params):
+    def handle_cache(self, *tracers, **params):
         in_tree = params.get("in_tree")
         fn, *args = jtu.tree_unflatten(in_tree, tracers)
         retval = fn(*args)
@@ -876,18 +885,18 @@ class AssessContext(BuiltinInterfaceContext):
 def assess_transform(source_fn, **kwargs):
     @functools.wraps(source_fn)
     def wrapper(key, constraints, args):
-        ctx = AssessContext.new(key, constraints)
-        retval, statefuls = context.transform(source_fn, ctx)(*args, **kwargs)
-        ctx.runtime_verify()
-        (score,) = statefuls
+        stateful_handler = AssessHandler.new(key, constraints)
+        retval = forward(source_fn)(stateful_handler, *args, **kwargs)
+        stateful_handler.runtime_verify()
+        (score,) = stateful_handler.yield_state()
         return (retval, score)
 
     return wrapper
 
 
-#####
-# Trace typing
-#####
+################
+# Trace typing #
+################
 
 
 def trace_typing(jaxpr: jc.ClosedJaxpr, flat_in, consts):
