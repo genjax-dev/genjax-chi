@@ -43,18 +43,12 @@ class TFPDistribution(ExactDensity):
     def flatten(self):
         return (), (self.make_tfp_distribution,)
 
-    @classmethod
-    def new(cls, tfp_d):
-        new = TFPDistribution(tfp_d)
-        functools.update_wrapper(new, tfp_d)
-        return new
-
-    def sample(self, key, *args, **kwargs):
-        dist = self.make_tfp_distribution(*args, **kwargs)
+    def sample(self, key, *args):
+        dist = self.make_tfp_distribution(*args)
         return dist.sample(seed=key)
 
-    def logpdf(self, v, *args, **kwargs):
-        dist = self.make_tfp_distribution(*args, **kwargs)
+    def logpdf(self, v, *args):
+        dist = self.make_tfp_distribution(*args)
         return jnp.sum(dist.log_prob(v))
 
 

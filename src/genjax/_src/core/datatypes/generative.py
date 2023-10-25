@@ -1634,8 +1634,8 @@ class GenerativeFunction(Pytree):
         """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
         and arguments ($x$), execute the generative function, and return an
         importance weight estimate of the conditional density evaluated at the
-        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$)
-        is consistent with the constraints ($u$), with unconstrained choices
+        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
+        consistent with the constraints ($u$), with unconstrained choices
         ($u'$) proposed from an internal proposal.
 
         Arguments:
@@ -1910,8 +1910,14 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
         return (self.dynamic_addrs, self.subtrees), ()
 
     @classmethod
+    @dispatch
     def new(cls, dynamic_addrs, subtrees):
         return DynamicHierarchicalChoiceMap(dynamic_addrs, subtrees)
+
+    @classmethod
+    @dispatch
+    def new(cls):
+        return DynamicHierarchicalChoiceMap([], [])
 
     def is_empty(self):
         return jnp.all(jnp.array(map(lambda v: v.is_empty(), self.subtrees)))
@@ -1941,6 +1947,30 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
             self.has_subtree(idx),
             disjoint_union_chm.has_subtree(rest),
         )
+
+    ###########
+    # Dunders #
+    ###########
+
+    @dispatch
+    def __setitem__(self, k: Any, v: Any):
+        v = (
+            ValueChoiceMap(v)
+            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+            else v
+        )
+        self.dynamic_addrs.append(k)
+        self.subtrees.append(v)
+
+    @dispatch
+    def __setitem__(self, k: Tuple, v: Any):
+        v = (
+            ValueChoiceMap(v)
+            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
+            else v
+        )
+        self.dynamic_addrs.append(k)
+        self.subtrees.append(v)
 
 
 class DynamicConvertible:
