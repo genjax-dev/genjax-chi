@@ -34,6 +34,7 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
+from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.transforms.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
@@ -486,6 +487,77 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             sub_keys, inner, args
         )
         return (retval, jnp.sum(score))
+
+
+##############
+# Masked map #
+##############
+
+
+@dataclass
+class MaskedMapTrace(Trace):
+    gen_fn: GenerativeFunction
+    mask: BoolArray
+    inner: Trace
+    args: Tuple
+    retval: Any
+    score: FloatArray
+
+    def flatten(self):
+        return (
+            self.gen_fn,
+            self.mask,
+            self.inner,
+            self.args,
+            self.retval,
+            self.score,
+        ), ()
+
+    def get_score(self):
+        return self.get_score()
+
+    def get_gen_fn(self):
+        return self.gen_fn
+
+    def get_args(self):
+        return self.args
+
+    def get_retval(self):
+        return self.retval
+
+    def get_score(self):
+        return self.score
+
+
+@dataclass
+class MaskedMapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+    map_combinator: MapCombinator
+
+    def flatten(self):
+        return (self.map_combinator,), ()
+
+    def simulate(self, key, args):
+        mask_array, *normal_args = args
+        tr = self.map_combinator.simulate(key, tuple(normal_args))
+        inner_tr = tr.inner
+        score = jnp.sum(jnp.multiply(inner_tr.get_score(), mask_array))
+        retval = tr.get_retval()
+        masked_retval = mask(mask_array, retval)
+        return MaskedMapTrace(
+            self, mask_array, inner_tr, normal_args, masked_retval, score
+        )
+
+    def importance(self, key, chm, args):
+        mask_array, *normal_args = args
+        masked_chm = mask(mask_array, chm)
+        w, tr = self.map_combinator.importance(key, masked_chm, normal_args)
+        inner_tr = tr.inner
+        score = jnp.sum(jnp.multiply(inner_tr.get_score(), mask_array))
+        retval = tr.get_retval()
+        masked_retval = mask(mask_array, retval)
+        return w, MaskedMapTrace(
+            self, mask_array, inner_tr, normal_args, masked_retval, score
+        )
 
 
 ##############
