@@ -96,7 +96,7 @@ class ADEVDistribution(ExactDensity):
 
 flip_enum = ADEVDistribution.new(
     adevjax.flip_enum,
-    lambda v, p: tfp_bernoulli.logpdf(v, probs=p),
+    lambda v, logits: tfp_bernoulli.logpdf(v, logits=logits),
 )
 
 flip_reinforce = ADEVDistribution.new(
