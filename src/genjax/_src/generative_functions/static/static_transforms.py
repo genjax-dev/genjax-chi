@@ -23,9 +23,11 @@ import jax.tree_util as jtu
 from jax.util import safe_map
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import DisjointPairChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalTraceType
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.trie import Trie
@@ -44,6 +46,7 @@ from genjax._src.core.pytree.string import tree_convert_strings
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
@@ -200,11 +203,11 @@ class AddressVisitor(Pytree):
 # Usage in transforms: checks for duplicate dynamic addresses.
 @dataclasses.dataclass
 class DynamicAddressVisitor(Pytree):
-    subtree_visited: List
+    submap_visited: List
     index_visited: List[IntArray]
 
     def flatten(self):
-        return (self.index_visited,), (self.subtree_visited,)
+        return (self.index_visited,), (self.submap_visited,)
 
     @classmethod
     def new(cls):
@@ -213,16 +216,16 @@ class DynamicAddressVisitor(Pytree):
     @typecheck
     def visit(self, index_addr: IntArray, rst: Tuple):
         self.index_visited.append(index_addr)
-        self.subtree_visited.append(rst)
+        self.submap_visited.append(rst)
 
     @typecheck
     def merge(self, other: "DynamicAddressVisitor"):
         new = DynamicAddressVisitor.new()
-        for index_addr, subtree_addr in zip(
+        for index_addr, submap_addr in zip(
             itertools.chain(self.index_visited, other.index_visited),
-            itertools.chain(self.subtree_visited, other.subtree_visited),
+            itertools.chain(self.submap_visited, other.submap_visited),
         ):
-            new.visit(index_addr, subtree_addr)
+            new.visit(index_addr, submap_addr)
 
     # TODO: checkify.
     def verify(self):
@@ -251,10 +254,30 @@ class StaticHandler(StatefulHandler):
         else:
             self.dynamic_address_visitor.visit(addr, ())
 
-    def set_choice_state(self, addr, tr):
-        if isinstance(addr, PytreeString):
-            addr = addr.string
-        self.address_choices[addr] = tr
+    @dispatch
+    def set_choice_state(self, addr: PytreeString, tr):
+        addr = addr.string
+        if isinstance(self.address_choices, DisjointPairChoiceMap):
+            self.address_choices.submap_2[addr] = tr
+        else:
+            self.address_choices[addr] = tr
+
+    @dispatch
+    def set_choice_state(self, addr: Int, tr):
+        if isinstance(self.address_choices, DisjointPairChoiceMap):
+            self.address_choices.submap_1[addr] = tr
+        else:
+            self.address_choices[addr] = tr
+
+    @dispatch
+    def set_choice_state(self, addr: IntArray, tr):
+        if isinstance(self.address_choices, DisjointPairChoiceMap):
+            self.address_choices.submap_1[addr] = tr
+        else:
+            self.address_choices = DisjointPairChoiceMap(
+                IndexedChoiceMap.new(addr, tr),
+                self.address_choices,
+            )
 
     def handles(self, prim):
         return prim == trace_p or prim == cache_p
@@ -279,7 +302,8 @@ class SimulateHandler(StaticHandler):
     score: FloatArray
     static_address_visitor: AddressVisitor
     dynamic_address_visitor: AddressVisitor
-    address_choices: DynamicHierarchicalChoiceMap
+    address_choices: ChoiceMap
+    # Caching.
     cache_state: Trie
     cache_visitor: AddressVisitor
 
@@ -299,7 +323,7 @@ class SimulateHandler(StaticHandler):
         score = 0.0
         static_address_visitor = AddressVisitor.new()
         dynamic_address_visitor = DynamicAddressVisitor.new()
-        address_choices = DynamicHierarchicalChoiceMap.new()
+        address_choices = HierarchicalChoiceMap.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return SimulateHandler(
@@ -373,12 +397,9 @@ class ImportanceHandler(StaticHandler):
     score: FloatArray
     weight: FloatArray
     constraints: ChoiceMap
-    # Static addresses
     static_address_visitor: AddressVisitor
     dynamic_address_visitor: AddressVisitor
-    # Dynamic addresses
-    dynamic_addresses: List[IntArray]
-    address_choices: List[ChoiceMap]
+    address_choices: ChoiceMap
     # Caching
     cache_state: Trie
     cache_visitor: AddressVisitor
@@ -389,11 +410,9 @@ class ImportanceHandler(StaticHandler):
             self.score,
             self.weight,
             self.constraints,
-            self.static_address_choices,
             self.static_address_visitor,
-            self.dynamic_addresses,
             self.dynamic_address_choices,
-            self.dynamic_address_visitor,
+            self.address_choices,
             self.cache_state,
             self.cache_visitor,
         ), ()
@@ -402,9 +421,7 @@ class ImportanceHandler(StaticHandler):
         return (
             self.score,
             self.weight,
-            self.static_address_choices,
-            self.dynamic_addresses,
-            self.dynamic_address_choices,
+            self.address_choices,
             self.cache_state,
         )
 
@@ -412,11 +429,9 @@ class ImportanceHandler(StaticHandler):
     def new(cls, key, constraints):
         score = 0.0
         weight = 0.0
-        static_address_choices = Trie.new()
         static_address_visitor = AddressVisitor.new()
-        dynamic_addresses = []
-        dynamic_address_choices = []
         dynamic_address_visitor = DynamicAddressVisitor.new()
+        address_choices = HierarchicalChoiceMap.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return ImportanceHandler(
@@ -424,11 +439,9 @@ class ImportanceHandler(StaticHandler):
             score,
             weight,
             constraints,
-            static_address_choices,
             static_address_visitor,
-            dynamic_addresses,
-            dynamic_address_choices,
             dynamic_address_visitor,
+            address_choices,
             cache_state,
             cache_visitor,
         )
@@ -437,7 +450,7 @@ class ImportanceHandler(StaticHandler):
         self.dynamic_address_visitor.verify()
 
     def get_submap(self, addr: Tuple):
-        return self.constraints.get_subtree(addr)
+        return self.constraints.get_submap(addr)
 
     def handle_trace(self, *tracers, **params):
         in_tree = params.get("in_tree")
@@ -474,9 +487,7 @@ def importance_transform(source_fn):
         (
             score,
             weight,
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             cache_state,
         ) = stateful_handler.yield_state()
         return (
@@ -484,9 +495,7 @@ def importance_transform(source_fn):
             (
                 args,
                 retval,
-                static_address_choices,
-                dynamic_addresses,
-                dynamic_address_choices,
+                address_choices,
                 score,
             ),
         ), cache_state
