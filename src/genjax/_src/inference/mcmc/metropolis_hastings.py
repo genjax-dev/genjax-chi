@@ -34,6 +34,10 @@ class MetropolisHastings(MCMCKernel):
     def flatten(self):
         return (self.proposal,)
 
+    @classmethod
+    def new(cls, proposal):
+        return MetropolisHastings(proposal)
+
     @typecheck
     def apply(self, key: PRNGKey, trace: Trace, proposal_args: Tuple):
         model = trace.get_gen_fn()

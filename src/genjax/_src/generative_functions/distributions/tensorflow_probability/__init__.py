@@ -43,6 +43,10 @@ class TFPDistribution(ExactDensity):
     def flatten(self):
         return (), (self.make_tfp_distribution,)
 
+    @classmethod
+    def new(cls, callable):
+        return cls(callable)
+
     def sample(self, key, *args):
         dist = self.make_tfp_distribution(*args)
         return dist.sample(seed=key)

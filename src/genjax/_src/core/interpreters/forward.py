@@ -24,16 +24,6 @@ from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
-from adevjax.hashable_dict import HashableDict
-from adevjax.hashable_dict import hashable_dict
-from adevjax.pytree import Pytree
-from adevjax.staging import stage
-from adevjax.typing import Any
-from adevjax.typing import Bool
-from adevjax.typing import Callable
-from adevjax.typing import List
-from adevjax.typing import Union
-from adevjax.typing import Value
 from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
@@ -42,6 +32,17 @@ from jax.interpreters import ad
 from jax.interpreters import batching
 from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
+
+from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
+from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Bool
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Union
+from genjax._src.core.typing import Value
 
 
 #########################

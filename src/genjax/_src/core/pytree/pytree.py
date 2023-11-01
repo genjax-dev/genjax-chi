@@ -22,7 +22,6 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.pytree.utilities import tree_unstack
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
 
 
 class Pytree:
@@ -142,11 +141,6 @@ class Pytree:
             ```
         """
         return cls(*data, *xs)
-
-    @classmethod
-    @dispatch
-    def new(cls, *args, **kwargs):
-        return cls(*args, **kwargs)
 
     # This exposes slicing the struct-of-array representation,
     # taking leaves and indexing/randing into them on the first index,

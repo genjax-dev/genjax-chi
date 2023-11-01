@@ -15,6 +15,7 @@
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import typecheck
 
 
 #####
@@ -22,5 +23,14 @@ from genjax._src.core.typing import Callable
 #####
 
 
-def gen(gen_fn_constructor: Callable, *args, **kwargs) -> GenerativeFunction:
-    return lambda inner: gen_fn_constructor(inner, *args, **kwargs)
+@typecheck
+def gen(
+    gen_fn_constructor: Callable,
+    *args,
+    **kwargs,
+) -> Callable:
+    @typecheck
+    def _inner(inner) -> GenerativeFunction:
+        return gen_fn_constructor(inner, *args, **kwargs)
+
+    return _inner

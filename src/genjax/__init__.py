@@ -21,7 +21,6 @@ from genjax import gensp
 from genjax import grasp
 from genjax import inference
 from genjax import typing
-from genjax.core import interpreters
 from genjax.core import serialization
 from genjax.generative_functions import dynamic
 

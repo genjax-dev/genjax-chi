@@ -42,9 +42,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_datatypes import (
-    DynamicHierarchicalChoiceMap,
-)
 from genjax._src.generative_functions.static.static_datatypes import StaticTrace
 from genjax._src.generative_functions.static.static_transforms import assess_transform
 from genjax._src.generative_functions.static.static_transforms import cache

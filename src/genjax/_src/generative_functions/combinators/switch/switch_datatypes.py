@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -77,8 +76,8 @@ class SwitchChoiceMap(ChoiceMap):
         filtered_submaps = map(lambda chm: chm.filter(selection), self.submaps)
         return SwitchChoiceMap(self.index, filtered_submaps)
 
-    def has_subtree(self, addr):
-        checks = list(map(lambda v: v.has_subtree(addr), self.submaps))
+    def has_submap(self, addr):
+        checks = list(map(lambda v: v.has_submap(addr), self.submaps))
         return jnp.choose(self.index, checks, mode="wrap")
 
     # The way this works is slightly complicated, and relies on specific
@@ -89,8 +88,8 @@ class SwitchChoiceMap(ChoiceMap):
     # and it shares that address with another branch, the shape of the
     # choice map for each shared address has to be the same, all the
     # way down to the arguments.
-    def get_subtree(self, addr):
-        submaps = list(map(lambda v: v.get_subtree(addr), self.submaps))
+    def get_submap(self, addr):
+        submaps = list(map(lambda v: v.get_submap(addr), self.submaps))
 
         # Here, we create an index map before we filter out
         # EmptyChoiceMap instances.
@@ -127,20 +126,6 @@ class SwitchChoiceMap(ChoiceMap):
                 *non_empty_submaps,
             ),
         )
-
-    def get_subtrees_shallow(self):
-        def _inner(index, submap):
-            check = index == self.index
-            return map(
-                lambda v: (v[0], mask(check, v[1])),
-                submap.get_subtrees_shallow(),
-            )
-
-        sub_iterators = map(
-            lambda args: _inner(*args),
-            enumerate(self.submaps),
-        )
-        return itertools.chain(*sub_iterators)
 
     def get_selection(self):
         raise NotImplementedError
@@ -234,18 +219,11 @@ class SumTraceType(TraceType):
     def get_leaf_value(self):
         pass
 
-    def has_subtree(self, addr):
-        return any(map(lambda v: v.has_subtree(addr), self.summands))
+    def has_submap(self, addr):
+        return any(map(lambda v: v.has_submap(addr), self.summands))
 
-    def get_subtree(self, addr):
+    def get_submap(self, addr):
         pass
-
-    def get_subtrees_shallow(self):
-        sub_iterators = map(
-            lambda v: v.get_subtrees_shallow(),
-            self.summands,
-        )
-        return itertools.chain(*sub_iterators)
 
     def merge(self, other):
         raise Exception("Not implemented.")
