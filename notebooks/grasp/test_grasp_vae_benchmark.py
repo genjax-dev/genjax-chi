@@ -14,9 +14,7 @@ from numpyro.examples.datasets import MNIST
 from numpyro.examples.datasets import load_dataset
 
 import genjax
-from genjax import dippl
-from genjax import gensp
-from genjax import select
+from genjax import grasp
 
 
 RESULTS_DIR = os.path.abspath(
@@ -53,20 +51,16 @@ def svi_update(
     optimizer,
 ):
     def _inner(key, encoder_params, decoder_params, data):
-        v_chm = genjax.value_choice_map(
-            genjax.choice_map({"image": data.reshape((28 * 28,))})
-        )
+        img_data = genjax.choice_map({"image": data.reshape((28 * 28,))})
 
-        @dippl.loss
-        def vae_loss(encoder_params, decoder_params):
-            v = dippl.do_upper(guide)(encoder_params, v_chm)
-            merged = gensp.merge(v, v_chm)
-            dippl.do_lower(model)(merged, decoder_params)
+        objective = grasp.elbo(model, guide, img_data)
 
         loss, (
-            encoder_params_grad,
-            decoder_params_grad,
-        ) = vae_loss.value_and_grad_estimate(key, (encoder_params, decoder_params))
+            (decoder_params_grad,),
+            (encoder_params_grad, _),
+        ) = objective.value_and_grad_estimate(
+            key, ((decoder_params,), (encoder_params, img_data))
+        )
         return (encoder_params_grad, decoder_params_grad), loss
 
     def batch_update(key, svi_state, batch):
@@ -104,23 +98,18 @@ def test_benchmark(benchmark):
 
     # Model + guide close over the neural net apply functions.
     @genjax.gen
-    def decoder_model(decoder_params):
+    def model(decoder_params):
         latent = (
-            dippl.mv_normal_diag_reparam(jnp.zeros(z_dim), jnp.ones(z_dim)) @ "latent"
+            grasp.mv_normal_diag_reparam(jnp.zeros(z_dim), jnp.ones(z_dim)) @ "latent"
         )
         probs = decoder_nn_apply(decoder_params, latent)
-        _ = dippl.flip_enum(probs) @ "image"
+        _ = grasp.flip_enum(probs) @ "image"
 
     @genjax.gen
-    def encoder_model(encoder_params, chm):
-        image = chm.get_leaf_value()["image"]
+    def guide(encoder_params, chm):
+        image = chm["image"]
         μ, Σ_scale = encoder_nn_apply(encoder_params, image)
-        _ = dippl.mv_normal_diag_reparam(μ, Σ_scale) @ "latent"
-
-    model = gensp.choice_map_distribution(
-        decoder_model, select("latent", "image"), None
-    )
-    guide = gensp.choice_map_distribution(encoder_model, select("latent"), None)
+        _ = grasp.mv_normal_diag_reparam(μ, Σ_scale) @ "latent"
 
     adam = optim.Adam(learning_rate)
     svi_updater = svi_update(model, guide, adam)
