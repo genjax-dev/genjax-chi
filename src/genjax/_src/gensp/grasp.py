@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import adevjax
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
 from adevjax import flip_enum
 from adevjax import geometric_reinforce
@@ -171,6 +172,22 @@ class DefaultSIR(SPAlgorithm):
 
     def flatten(self):
         return (), (self.num_particles,)
+
+    @typecheck
+    def simulate(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(key, self.num_particles)
+        (_, ps) = jax.vmap(target.importance)(sub_keys)
+        lws = ps.get_score()
+        tw = jax.scipy.special.logsumexp(lws)
+        aw = tw - jnp.log(self.num_particles)
+        idx = categorical_enum.sample(key, lws)
+        selected = jtu.tree_map(lambda v: v[idx], ps)
+        return aw, selected
 
     @typecheck
     def estimate_recip_normalizing_constant(
@@ -436,6 +453,28 @@ def elbo(
         return w
 
     return adevjax.E(elbo_loss)
+
+
+@dispatch
+def q_wake(
+    p: GenerativeFunction,
+    p_args: Tuple,
+    q: SPDistribution,
+    data: ChoiceMap,
+    N_particles: Int,
+):
+    @adevjax.adev
+    @typecheck
+    def q_wake_loss(q_args: Tuple):
+        tgt = target(p, p_args, data)
+        posterior_approx = sir(N_particles, p, p_args)
+        key = adevjax.reap_key()
+        _, p_sample = posterior_approx.simulate(key, tgt)
+        key = adevjax.reap_key()
+        w = q.estimate_logpdf(key, p_sample)
+        return -w
+
+    return adevjax.E(q_wake_loss)
 
 
 @dispatch
