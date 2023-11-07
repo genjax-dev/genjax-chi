@@ -24,6 +24,7 @@ from genjax._src.gensp.grasp import normal_reinforce
 from genjax._src.gensp.grasp import normal_reparam
 from genjax._src.gensp.grasp import sir
 from genjax._src.gensp.grasp import uniform
+from genjax._src.gensp.grasp import categorical_enum
 
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "mv_normal_diag_reparam",
     "geometric_reinforce",
     "uniform",
+    "categorical_enum",
     "sir",
     "marginal",
     "elbo",
