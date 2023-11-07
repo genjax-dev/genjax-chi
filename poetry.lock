@@ -1344,13 +1344,13 @@ cuda12-pip = ["nvidia-cublas-cu12", "nvidia-cuda-cupti-cu12", "nvidia-cuda-nvcc-
 
 [[package]]
 name = "jaxopt"
-version = "0.8.1"
+version = "0.8.2"
 description = "Hardware accelerated, batchable and differentiable optimizers in JAX."
 optional = false
 python-versions = "*"
 files = [
-    {file = "jaxopt-0.8.1-py3-none-any.whl", hash = "sha256:af6ef03d11d72dcf51b606d3046ebec8be0227f5d4e653cd1768cc8dab12cabb"},
-    {file = "jaxopt-0.8.1.tar.gz", hash = "sha256:1d82e2f3d2b7da8a90e537f28686e0c27f6120fc6fb0e2ffed54a528ffaa174b"},
+    {file = "jaxopt-0.8.2-py3-none-any.whl", hash = "sha256:5dd94a635ae52899d4a5063ec88b4c1ca9f04d921b888f73211a444c937b7cfa"},
+    {file = "jaxopt-0.8.2.tar.gz", hash = "sha256:65b5b4d17cde3ead7e3c8de6ebd2df8a9a12a3520211f02b0345dde8de37d25d"},
 ]
 
 [package.dependencies]
