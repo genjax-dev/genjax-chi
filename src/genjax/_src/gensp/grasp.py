@@ -20,13 +20,14 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
+from adevjax import baseline
 from adevjax import flip_enum
 from adevjax import geometric_reinforce
 from adevjax import mv_normal_diag_reparam
-from adevjax import mv_normal_reparam
 from adevjax import normal_reinforce
 from adevjax import normal_reparam
 from adevjax import sample_with_key
+from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -46,19 +47,10 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_bernoulli,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_categorical,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_geometric,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_mv_normal,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_mv_normal_diag,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_normal,
@@ -69,6 +61,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.gensp.sp_distribution import SPDistribution
 from genjax._src.gensp.target import Target
 from genjax._src.gensp.target import target
+
+
+tfd = tfp.distributions
 
 
 ##########################################
@@ -92,17 +87,22 @@ class ADEVDistribution(ExactDensity):
         return sample_with_key(self.adev_primitive, key, *args)
 
     def logpdf(self, v, *args):
-        return self.differentiable_logpdf(v, *args)
+        lp = self.differentiable_logpdf(v, *args)
+        if lp.shape:
+            return jnp.sum(lp)
+        else:
+            return lp
 
 
 flip_enum = ADEVDistribution.new(
     adevjax.flip_enum,
-    lambda v, logits: tfp_bernoulli.logpdf(v, logits=logits),
+    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
+
 
 flip_reinforce = ADEVDistribution.new(
     adevjax.flip_reinforce,
-    lambda v, p: tfp_bernoulli.logpdf(v, probs=p),
+    lambda v, logit: tfd.Bernoulli(logits=logit).log_prob(v),
 )
 
 categorical_enum = ADEVDistribution.new(
@@ -120,14 +120,11 @@ normal_reparam = ADEVDistribution.new(
     lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
 )
 
-mv_normal_reparam = ADEVDistribution.new(
-    adevjax.mv_normal_reparam,
-    lambda v, μ, Σ: tfp_mv_normal.logpdf(v, μ, Σ),
-)
-
 mv_normal_diag_reparam = ADEVDistribution.new(
     adevjax.mv_normal_diag_reparam,
-    lambda v, μ, Σ_diag: tfp_mv_normal_diag.logpdf(v, μ, Σ_diag),
+    lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
+        loc=loc, scale_diag=scale_diag
+    ).log_prob(v),
 )
 
 geometric_reinforce = ADEVDistribution.new(
@@ -139,6 +136,34 @@ uniform = ADEVDistribution.new(
     adevjax.uniform,
     lambda v: tfp_uniform.logpdf(v, 0.0, 1.0),
 )
+
+
+@dataclass
+class Baselined(ExactDensity):
+    adev_dist: ADEVDistribution
+
+    def flatten(self):
+        return (self.adev_dist,), ()
+
+    @classmethod
+    def new(cls, adev_dist: ADEVDistribution):
+        return Baselined(adev_dist)
+
+    def sample(self, key, b, *args):
+        baselined = adevjax.baseline(self.adev_dist.adev_primitive)
+        return sample_with_key(baselined, key, b, *args)
+
+    def logpdf(self, v, b, *args):
+        return self.adev_dist.logpdf(v, *args)
+
+
+@typecheck
+def baseline(adev_dist: ADEVDistribution):
+    return Baselined.new(adev_dist)
+
+
+baselined_flip = baseline(flip_reinforce)
+
 
 #######################################
 # Differentiable inference primitives #

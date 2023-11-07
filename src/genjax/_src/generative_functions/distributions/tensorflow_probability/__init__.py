@@ -55,7 +55,11 @@ class TFPDistribution(ExactDensity):
 
     def logpdf(self, v, *args, **kwargs):
         dist = self.make_tfp_distribution(*args, **kwargs)
-        return jnp.sum(dist.log_prob(v))
+        lp = dist.log_prob(v)
+        if lp.shape:
+            return jnp.sum(dist.log_prob(v))
+        else:
+            return lp
 
 
 #####################

@@ -13,18 +13,19 @@
 # limitations under the License.
 
 from genjax._src.gensp.grasp import ADEVDistribution
+from genjax._src.gensp.grasp import baseline
+from genjax._src.gensp.grasp import categorical_enum
 from genjax._src.gensp.grasp import elbo
 from genjax._src.gensp.grasp import flip_enum
+from genjax._src.gensp.grasp import flip_reinforce
 from genjax._src.gensp.grasp import geometric_reinforce
 from genjax._src.gensp.grasp import iwae_elbo
 from genjax._src.gensp.grasp import marginal
 from genjax._src.gensp.grasp import mv_normal_diag_reparam
-from genjax._src.gensp.grasp import mv_normal_reparam
 from genjax._src.gensp.grasp import normal_reinforce
 from genjax._src.gensp.grasp import normal_reparam
 from genjax._src.gensp.grasp import sir
 from genjax._src.gensp.grasp import uniform
-from genjax._src.gensp.grasp import categorical_enum
 
 
 __all__ = [
@@ -32,11 +33,12 @@ __all__ = [
     "flip_enum",
     "normal_reinforce",
     "normal_reparam",
-    "mv_normal_reparam",
     "mv_normal_diag_reparam",
     "geometric_reinforce",
     "uniform",
     "categorical_enum",
+    "flip_reinforce",
+    "baseline",
     "sir",
     "marginal",
     "elbo",

@@ -1,44 +1,27 @@
+import os
+from dataclasses import dataclass
+
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import time
-import os
-from dataclasses import dataclass
-from collections import namedtuple
-import pyro
-import optax
-from pyro.infer import SVI, TraceGraph_ELBO
-import pyro.distributions as dist
-import pyro.poutine as poutine
-import pyro.contrib.examples.multi_mnist as multi_mnist
-import torch
-import torch.nn as nn
-from torch.nn.functional import relu, sigmoid, softplus, grid_sample, affine_grid
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib.gridspec import GridSpec
-import matplotlib.font_manager as font_manager
-from matplotlib.patches import Rectangle
-import matplotlib.ticker as ticker
-import matplotlib.patches as patches
+import optax
+import pyro
+import pyro.contrib.examples.multi_mnist as multi_mnist
 import seaborn as sns
+from jax import vmap
+
+import genjax
 from genjax import Pytree
-import equinox as eqx
+from genjax import grasp
 from genjax.typing import Any
-from genjax.typing import Tuple
 from genjax.typing import FloatArray
 from genjax.typing import Int
 from genjax.typing import IntArray
-from genjax.typing import PRNGKey
+from genjax.typing import Tuple
 from genjax.typing import typecheck
 
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator
-from matplotlib import rcParams
-from scipy.interpolate import griddata
-import genjax
-from genjax import grasp
 
 key = jax.random.PRNGKey(314159)
 console = genjax.pretty()
@@ -152,11 +135,9 @@ predict = Predict.new(key)
 
 
 def affine_grid_generator(height, width, theta):
-    """
-    This function returns a sampling grid, which when
-    used with the bilinear sampler on the input feature
-    map, will create an output feature map that is an
-    affine transformation [1] of the input feature map.
+    """This function returns a sampling grid, which when used with the bilinear
+    sampler on the input feature map, will create an output feature map that is
+    an affine transformation [1] of the input feature map.
 
     Input
     -----
@@ -212,10 +193,9 @@ def affine_grid_generator(height, width, theta):
 
 
 def bilinear_sampler(img, x, y):
-    """
-    Performs bilinear sampling of the input images according to the
-    normalized coordinates provided by the sampling grid. Note that
-    the sampling is done identically for each channel of the input.
+    """Performs bilinear sampling of the input images according to the
+    normalized coordinates provided by the sampling grid. Note that the
+    sampling is done identically for each channel of the input.
 
     To test if the function works properly, output image should be
     identical to input image when theta is initialized to identity
@@ -282,9 +262,8 @@ def bilinear_sampler(img, x, y):
 
 
 def get_pixel_value(img, x, y):
-    """
-    Utility function to get pixel value for coordinate
-    vectors x and y from a  4D tensor image.
+    """Utility function to get pixel value for coordinate vectors x and y from
+    a  4D tensor image.
 
     Input
     -----
@@ -361,6 +340,7 @@ def image_to_object(z_where, image):
     out = bilinear_sampler(jnp.reshape(image, (n, 50, 50, 1)), x_s, y_s)
     return jnp.reshape(out, (400,))
 
+
 #########
 # Model #
 #########
@@ -371,6 +351,7 @@ z_where_prior_scale = jnp.array([0.2, 1.0, 1.0])
 z_what_prior_loc = jnp.zeros(50, dtype=float)
 z_what_prior_scale = jnp.ones(50, dtype=float)
 z_pres_prior = 0.01
+
 
 @genjax.gen
 @typecheck
@@ -406,6 +387,7 @@ def model(decoder: Decoder):
         x, z_pres = step.inline(t, decoder, x, z_pres)
     obs = grasp.mv_normal_diag_reparam(x, 0.3 * jnp.ones_like(x)) @ "obs"
     return x
+
 
 #########
 # Guide #
@@ -456,6 +438,7 @@ def guide(
             t, rnn, encoder, predict, img_arr, (z_where, z_what, z_pres, h, c)
         )
 
+
 def data_loader(
     data,
     batch_size,
@@ -474,8 +457,9 @@ def data_loader(
     def get_batch(i=0, idxs=data_idxs):
         ret_idx = jax.lax.dynamic_slice_in_dim(idxs, i * batch_size, batch_size)
         return jax.lax.index_take(data, (ret_idx,), axes=(0,))
-                                  
+
     return init, get_batch
+
 
 batch_size = 64
 learning_rate = 1.0e-4
@@ -518,6 +502,7 @@ svi_updater = svi_update(model, guide, adam)
 train_init, train_fetch = data_loader(jnp.array(mnist), batch_size)
 num_batch, train_idx = train_init()
 
+
 @jax.jit
 def epoch_train(opt_state, params, key, train_idx):
     def body_fn(carry, xs):
@@ -548,4 +533,6 @@ def test_benchmark(benchmark):
     # Warm up.
     _ = epoch_train(opt_state, params, key, train_idx)
 
-    params, opt_state, loss = benchmark(epoch_train, opt_state, params, sub_key, train_idx)
+    params, opt_state, loss = benchmark(
+        epoch_train, opt_state, params, sub_key, train_idx
+    )
