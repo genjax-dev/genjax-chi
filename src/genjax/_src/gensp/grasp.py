@@ -127,6 +127,14 @@ mv_normal_diag_reparam = ADEVDistribution.new(
     ).log_prob(v),
 )
 
+mv_normal_reparam = ADEVDistribution.new(
+    adevjax.mv_normal_reparam,
+    lambda v, loc, covariance_matrix: tfd.MultivariateNormal(
+        loc=loc,
+        covariance_matrix=covariance_matrix,
+    ).log_prob(v),
+)
+
 geometric_reinforce = ADEVDistribution.new(
     adevjax.geometric_reinforce,
     lambda v, *args: tfp_geometric.logpdf(v, *args),
