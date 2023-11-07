@@ -47,9 +47,6 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_categorical,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_geometric,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -107,7 +104,7 @@ flip_reinforce = ADEVDistribution.new(
 
 categorical_enum = ADEVDistribution.new(
     adevjax.categorical_enum_parallel,
-    lambda v, p: tfp_categorical.logpdf(v, probs=p),
+    lambda v, logits: tfd.Categorical(logits=logits).log_prob(v),
 )
 
 normal_reinforce = ADEVDistribution.new(
