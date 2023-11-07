@@ -129,7 +129,7 @@ mv_normal_diag_reparam = ADEVDistribution.new(
 
 mv_normal_reparam = ADEVDistribution.new(
     adevjax.mv_normal_reparam,
-    lambda v, loc, covariance_matrix: tfd.MultivariateNormal(
+    lambda v, loc, covariance_matrix: tfd.MultivariateNormalFullCovariance(
         loc=loc,
         covariance_matrix=covariance_matrix,
     ).log_prob(v),
