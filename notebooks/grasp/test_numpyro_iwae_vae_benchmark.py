@@ -75,7 +75,14 @@ def test_benchmark(benchmark):
     batch_size = 64
 
     adam = optim.Adam(learning_rate)
-    svi = SVI(model, guide, adam, RenyiELBO(num_particles = 2), hidden_dim=hidden_dim, z_dim=z_dim)
+    svi = SVI(
+        model,
+        guide,
+        adam,
+        RenyiELBO(num_particles=2),
+        hidden_dim=hidden_dim,
+        z_dim=z_dim,
+    )
     rng_key = PRNGKey(0)
     train_init, train_fetch = load_dataset(MNIST, batch_size=batch_size, split="train")
     num_train, train_idx = train_init()
