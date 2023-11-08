@@ -99,12 +99,12 @@ flip_enum = ADEVDistribution.new(
 
 flip_reinforce = ADEVDistribution.new(
     adevjax.flip_reinforce,
-    lambda v, logit: tfd.Bernoulli(logits=logit).log_prob(v),
+    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
 categorical_enum = ADEVDistribution.new(
     adevjax.categorical_enum_parallel,
-    lambda v, logits: tfd.Categorical(logits=logits).log_prob(v),
+    lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
 )
 
 normal_reinforce = ADEVDistribution.new(
@@ -215,7 +215,8 @@ class DefaultSIR(SPAlgorithm):
         lws = ps.get_score()
         tw = jax.scipy.special.logsumexp(lws)
         aw = tw - jnp.log(self.num_particles)
-        idx = categorical_enum.sample(key, lws)
+        probs = jax.nn.softmax(lws)
+        idx = categorical_enum.sample(key, probs)
         selected = jtu.tree_map(lambda v: v[idx], ps)
         return aw, selected
 
@@ -354,6 +355,16 @@ def sir(
     proposal_args: Tuple,
 ):
     return CustomSIR(N, proposal, proposal_args)
+
+
+@dispatch
+def sir(
+    N: Int,
+    proposal: GenerativeFunction,
+    proposal_args: Tuple,
+):
+    proposal_sp_dist = marginal(AllSelection(), proposal)
+    return CustomSIR(N, proposal_sp_dist, proposal_args)
 
 
 @dataclass

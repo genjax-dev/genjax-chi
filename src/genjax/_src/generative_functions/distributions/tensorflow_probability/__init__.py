@@ -178,7 +178,7 @@ tfp_mv_normal = TFPDistribution.new(tfd.MultivariateNormalFullCovariance)
 A `TFPDistribution` generative function which wraps the [`tfd.MultivariateNormalFullCovariance`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/MultivariateNormalFullCovariance) distribution from TensorFlow Probability distributions.
 """
 
-tfp_categorical = TFPDistribution.new(tfd.Categorical)
+tfp_categorical = TFPDistribution.new(lambda logits: tfd.Categorical(logits=logits))
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Categorical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Categorical) distribution from TensorFlow Probability distributions.
 """
