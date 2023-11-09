@@ -278,6 +278,33 @@ class CustomSIR(SPAlgorithm):
         ), (self.num_particles,)
 
     @typecheck
+    def simulate(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(key, self.num_particles)
+
+        def _random_weighted(key, proposal_args):
+            return self.proposal.random_weighted(key, *proposal_args)
+
+        ws, qps = jax.vmap(_random_weighted, in_axes=(0, None))(
+            sub_keys, self.proposal_args
+        )
+        inner_qps = qps.get_leaf_value()
+        key, sub_key = jax.random.split(key)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
+        (_, pps) = jax.vmap(target.importance)(sub_keys, ValueChoiceMap(inner_qps))
+        lws = pps.get_score() - ws
+        tw = jax.scipy.special.logsumexp(lws)
+        aw = tw - jnp.log(self.num_particles)
+        probs = jax.nn.softmax(lws)
+        idx = categorical_enum.sample(key, probs)
+        selected = jtu.tree_map(lambda v: v[idx], pps.strip())
+        return aw, ValueChoiceMap(selected)
+
+    @typecheck
     def estimate_recip_normalizing_constant(
         self,
         key: PRNGKey,
