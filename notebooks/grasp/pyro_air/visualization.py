@@ -8,8 +8,8 @@ from .air import latents_to_tensor
 
 
 def bounding_box(z_where, x_size):
-    """This doesn't take into account interpolation, but it's close
-    enough to be usable."""
+    """This doesn't take into account interpolation, but it's close enough to
+    be usable."""
     w = x_size / z_where.s
     h = x_size / z_where.s
     xtrans = -z_where.x / z_where.s * x_size / 2.0
