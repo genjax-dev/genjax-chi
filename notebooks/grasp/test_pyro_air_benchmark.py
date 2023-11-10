@@ -4,12 +4,17 @@ from typing import Tuple
 import numpy as np
 import pyro
 import pyro.contrib.examples.multi_mnist as multi_mnist
-from pyro.infer import SVI, RenyiELBO, TraceGraph_ELBO, ELBO
-from pyro.optim import Adam
-
 import pytest
 import torch
-from pyro_air import AIR, make_prior, get_per_param_lr, count_accuracy
+from pyro.infer import ELBO
+from pyro.infer import SVI
+from pyro.infer import RenyiELBO
+from pyro.infer import TraceGraph_ELBO
+from pyro.optim import Adam
+from pyro_air import AIR
+from pyro_air import count_accuracy
+from pyro_air import get_per_param_lr
+from pyro_air import make_prior
 
 
 #####################

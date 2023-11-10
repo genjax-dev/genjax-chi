@@ -1,8 +1,6 @@
 # Copyright (c) 2017-2019 Uber Technologies, Inc.
 # SPDX-License-Identifier: Apache-2.0
-
-"""
-An implementation of the model described in [1].
+"""An implementation of the model described in [1].
 
 [1] Eslami, SM Ali, et al. "Attend, infer, repeat: Fast scene
 understanding with generative models." Advances in Neural Information
@@ -11,13 +9,17 @@ Processing Systems. 2016.
 
 from collections import namedtuple
 
+import pyro
+import pyro.distributions as dist
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .modules import MLP, Decoder, Encoder, Identity, Predict
 
-import pyro
-import pyro.distributions as dist
+from .modules import MLP
+from .modules import Decoder
+from .modules import Encoder
+from .modules import Identity
+from .modules import Predict
 
 
 # Default prior success probability for z_pres.
