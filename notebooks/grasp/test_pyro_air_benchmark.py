@@ -12,7 +12,6 @@ from pyro.infer import RenyiELBO
 from pyro.infer import TraceGraph_ELBO
 from pyro.optim import Adam
 from pyro_air import AIR
-from pyro_air import count_accuracy
 from pyro_air import get_per_param_lr
 from pyro_air import make_prior
 
