@@ -1,23 +1,26 @@
-import time
 from pathlib import Path
 from typing import Tuple
 
 import numpy as np
 import pyro
 import pyro.contrib.examples.multi_mnist as multi_mnist
-from pyro.infer import SVI, RenyiELBO, TraceGraph_ELBO, ELBO
-from pyro.optim import Adam
-
 import pytest
 import torch
-from pyro_air import AIR, make_prior, get_per_param_lr
+from pyro.infer import ELBO
+from pyro.infer import SVI
+from pyro.infer import RenyiELBO
+from pyro.infer import TraceGraph_ELBO
+from pyro.optim import Adam
+from pyro_air import AIR
+from pyro_air import get_per_param_lr
+from pyro_air import make_prior
 
 
 #####################
 # Benchmark Configs
 #####################
 seed = 123456
-use_cuda = False
+use_cuda = torch.cuda.is_available()
 batch_size = 64
 num_epoches = 1
 
@@ -76,11 +79,14 @@ def setup():
     pyro.clear_param_store()  # just in case
 
 
-def train_air(svi: SVI, data: torch.Tensor):
+def train_air(svi: SVI, air: AIR, multi_mnist_data: Tuple[torch.Tensor, torch.Tensor]):
+    data, true_counts = multi_mnist_data
     num_steps = int(np.ceil((data.size(0) / batch_size) * num_epoches))
 
     for _ in range(1, num_steps + 1):
-        svi.step(data, batch_size=batch_size, z_pres_prior_p=z_pres_prior_fn)
+        loss = svi.step(data, batch_size=batch_size, z_pres_prior_p=z_pres_prior_fn)
+        # # evaluate count accuracy
+        # accuracy, counts, error_z, error_ix = count_accuracy(data, true_counts, air, 1000)
 
 
 @pytest.mark.parametrize("elbo", [TraceGraph_ELBO(), RenyiELBO(alpha=0)], ids=type)
@@ -90,6 +96,5 @@ def test_benchmark(
     air = AIR(**air_model_args)
     adam = Adam(get_per_param_lr(learning_rate, baseline_lr))
     svi = SVI(air.model, air.guide, adam, loss=elbo)
-    X, counts = multi_mnist_data
 
-    benchmark(train_air, svi, X)
+    benchmark(train_air, svi, air, multi_mnist_data)
