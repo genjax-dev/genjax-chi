@@ -18,7 +18,7 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
 jax = "^0.4.20"
-numpy = "^1.26.1"
+numpy = "^1.26.2"
 tensorflow-probability = "^0.21.0"
 rich = "^13.6.0"
 jaxtyping = "^0.2.23"
@@ -28,7 +28,7 @@ dill = "^0.3.7"
 pygments = "^2.16.1"
 plum-dispatch = "^2.2.2"
 adevjax = { git = "https://github.com/probcomp/adevjax" }
-equinox = "^0.11.1"
+equinox = "^0.11.2"
 
 [tool.poetry.group.dev]
 optional = true
