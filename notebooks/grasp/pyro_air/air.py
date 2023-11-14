@@ -148,8 +148,8 @@ class AIR(nn.Module):
         # Sample presence indicators.
         z_pres = pyro.sample(
             "z_pres_{}".format(t),
-            dist.Bernoulli(z_pres_prior_p(t) * prev.z_pres).to_event(1),
-        )
+            dist.Bernoulli(z_pres_prior_p(t) * prev.z_pres.squeeze(-1)),
+        ).unsqueeze(-1)
 
         # If zero is sampled for a data point, then no more objects
         # will be added to its output image. We can't
@@ -271,11 +271,20 @@ class AIR(nn.Module):
         # Compute baseline estimates for discrete choice z_pres.
         infer_dict, bl_h, bl_c = self.baseline_step(prev, inputs)
 
+        # Configure enumeration
+        infer_dict["enumerate"] = "sequential"
+
         # Sample presence.
-        z_pres = pyro.sample(
-            "z_pres_{}".format(t),
-            dist.Bernoulli(z_pres_p * prev.z_pres).to_event(1),
-            infer=infer_dict,
+        z_pres = (
+            (
+                pyro.sample(
+                    "z_pres_{}".format(t),
+                    dist.Bernoulli((z_pres_p * prev.z_pres).squeeze(-1)),
+                    infer=infer_dict,
+                )
+            )
+            .unsqueeze(-1)
+            .broadcast_to((z_pres_p.shape[0], 1))
         )
 
         sample_mask = z_pres if self.use_masking else torch.tensor(1.0)
