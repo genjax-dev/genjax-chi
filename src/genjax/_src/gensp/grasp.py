@@ -22,6 +22,7 @@ import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
 from adevjax import baseline
 from adevjax import flip_enum
+from adevjax import flip_mvd
 from adevjax import geometric_reinforce
 from adevjax import mv_normal_diag_reparam
 from adevjax import normal_reinforce
@@ -93,6 +94,11 @@ class ADEVDistribution(ExactDensity):
 
 flip_enum = ADEVDistribution.new(
     adevjax.flip_enum,
+    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
+)
+
+flip_mvd = ADEVDistribution.new(
+    adevjax.flip_mvd,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
