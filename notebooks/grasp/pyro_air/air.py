@@ -19,6 +19,7 @@ from .modules import MLP
 from .modules import Decoder
 from .modules import Encoder
 from .modules import Identity
+from .modules import NDLSTMCell
 from .modules import Predict
 
 
@@ -93,7 +94,7 @@ class AIR(nn.Module):
         rnn_input_size += self.z_where_size + z_what_size + self.z_pres_size
         nl = getattr(nn, non_linearity)
 
-        self.rnn = nn.LSTMCell(rnn_input_size, rnn_hidden_size)
+        self.rnn = NDLSTMCell(rnn_input_size, rnn_hidden_size)
         self.encode = Encoder(window_size**2, encoder_net, z_what_size, nl)
         self.decode = Decoder(
             window_size**2,
@@ -110,7 +111,7 @@ class AIR(nn.Module):
             Identity() if embed_net is None else MLP(x_size**2, embed_net, nl, True)
         )
 
-        self.bl_rnn = nn.LSTMCell(rnn_input_size, rnn_hidden_size)
+        self.bl_rnn = NDLSTMCell(rnn_input_size, rnn_hidden_size)
         self.bl_predict = MLP(rnn_hidden_size, bl_predict_net + [1], nl)
         self.bl_embed = (
             Identity() if embed_net is None else MLP(x_size**2, embed_net, nl, True)
@@ -124,10 +125,34 @@ class AIR(nn.Module):
         self.z_where_init = nn.Parameter(torch.zeros(1, self.z_where_size))
         self.z_what_init = nn.Parameter(torch.zeros(1, self.z_what_size))
 
+        self._batched_image_to_window = torch.vmap(
+            lambda z_where, images: image_to_window(
+                z_where, self.window_size, self.x_size, images
+            )
+        )
+        self._batched_window_to_image = torch.vmap(
+            lambda z_where, windows: window_to_image(
+                z_where, self.window_size, self.x_size, windows
+            )
+        )
+
         if use_cuda:
             self.cuda()
 
+    def nd_image_to_window(self, z_where, images):
+        if z_where.ndim == 3:
+            return self._batched_image_to_window(z_where, images)
+        else:
+            return image_to_window(z_where, self.window_size, self.x_size, images)
+
+    def nd_window_to_image(self, z_where, windows):
+        if z_where.ndim == 3:
+            return self._batched_window_to_image(z_where, windows)
+        else:
+            return window_to_image(z_where, self.window_size, self.x_size, windows)
+
     def prior(self, n, **kwargs):
+        dims = (1, n)
         state = ModelState(
             x=torch.zeros(n, self.x_size, self.x_size, **self.options),
             z_pres=torch.ones(n, self.z_pres_size, **self.options),
@@ -183,12 +208,12 @@ class AIR(nn.Module):
         y_att = self.decode(z_what)
 
         # Position/scale attention window within larger image.
-        y = window_to_image(z_where, self.window_size, self.x_size, y_att)
+        y = self.nd_window_to_image(z_where, y_att)
 
         # Combine the image generated at this step with the image so far.
         # (Note that there's no notion of occlusion here. Overlapping
         # objects can create pixel intensities > 1.)
-        x = prev.x + (y * z_pres.view(-1, 1, 1))
+        x = prev.x + (y * z_pres.unsqueeze(-1))
 
         return ModelState(x=x, z_pres=z_pres, z_where=z_where)
 
@@ -201,7 +226,7 @@ class AIR(nn.Module):
             pyro.sample(
                 "obs",
                 dist.Normal(
-                    x.view(n, -1),
+                    x.view(*x.shape[:-2], -1),
                     (
                         self.likelihood_sd
                         * torch.ones(n, self.x_size**2, **self.options)
@@ -263,9 +288,24 @@ class AIR(nn.Module):
 
     def guide_step(self, t, n, prev, inputs):
         rnn_input = torch.cat(
-            (inputs["embed"], prev.z_where, prev.z_what, prev.z_pres), 1
+            (
+                inputs["embed"].expand(
+                    *prev.z_where.shape[:-1], *inputs["embed"].shape[1:]
+                ),
+                prev.z_where,
+                prev.z_what,
+                prev.z_pres,
+            ),
+            -1,
         )
-        h, c = self.rnn(rnn_input, (prev.h, prev.c))
+
+        h, c = self.rnn(
+            rnn_input,
+            (
+                prev.h.expand(*rnn_input.shape[:-1], prev.h.shape[-1]),
+                prev.c.expand(*rnn_input.shape[:-1], prev.c.shape[-1]),
+            ),
+        )
         z_pres_p, z_where_loc, z_where_scale = self.predict(h)
 
         # Compute baseline estimates for discrete choice z_pres.
@@ -276,16 +316,15 @@ class AIR(nn.Module):
 
         # Sample presence.
         z_pres = (
-            (
-                pyro.sample(
-                    "z_pres_{}".format(t),
-                    dist.Bernoulli((z_pres_p * prev.z_pres).squeeze(-1)),
-                    infer=infer_dict,
-                )
+            pyro.sample(
+                "z_pres_{}".format(t),
+                dist.Bernoulli((z_pres_p * prev.z_pres).squeeze(-1)),
+                infer=infer_dict,
             )
-            .unsqueeze(-1)
-            .broadcast_to((z_pres_p.shape[0], 1))
-        )
+        ).unsqueeze(-1)
+        if z_pres.ndim < 3:
+            # match shape of z_pres after enumeration
+            z_pres = z_pres.broadcast_to(z_pres_p.shape)
 
         sample_mask = z_pres if self.use_masking else torch.tensor(1.0)
 
@@ -302,7 +341,9 @@ class AIR(nn.Module):
         # Figure 2 of [1] shows x_att depending on z_where and h,
         # rather than z_where and x as here, but I think this is
         # correct.
-        x_att = image_to_window(z_where, self.window_size, self.x_size, inputs["raw"])
+        x_att = self.nd_image_to_window(
+            z_where, inputs["raw"].expand(*z_where.shape[:-1], *inputs["raw"].shape[1:])
+        )
 
         # Encode attention windows.
         z_what_loc, z_what_scale = self.encode(x_att)
@@ -334,7 +375,7 @@ class AIR(nn.Module):
                 prev.z_what.detach(),
                 prev.z_pres.detach(),
             ),
-            1,
+            -1,
         )
         bl_h, bl_c = self.bl_rnn(rnn_input, (prev.bl_h, prev.bl_c))
         bl_value = self.bl_predict(bl_h)
