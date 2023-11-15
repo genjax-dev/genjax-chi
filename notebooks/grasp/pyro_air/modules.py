@@ -18,7 +18,7 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         a = self.mlp(x)
-        return a[:, 0 : self.z_size], softplus(a[:, self.z_size :])
+        return a[..., 0 : self.z_size], softplus(a[..., self.z_size :])
 
 
 # Takes a latent code, z_what, to pixel intensities.
@@ -76,9 +76,9 @@ class Predict(nn.Module):
 
     def forward(self, h):
         out = self.mlp(h)
-        z_pres_p = torch.sigmoid(out[:, 0 : self.z_pres_size])
-        z_where_loc = out[:, self.z_pres_size : self.z_pres_size + self.z_where_size]
-        z_where_scale = softplus(out[:, (self.z_pres_size + self.z_where_size) :])
+        z_pres_p = torch.sigmoid(out[..., 0 : self.z_pres_size])
+        z_where_loc = out[..., self.z_pres_size : self.z_pres_size + self.z_where_size]
+        z_where_scale = softplus(out[..., (self.z_pres_size + self.z_where_size) :])
         return z_pres_p, z_where_loc, z_where_scale
 
 
@@ -88,3 +88,20 @@ class Identity(nn.Module):
 
     def forward(self, x):
         return x
+
+
+class NDLSTMCell(nn.LSTMCell):
+    """Wraps a pytorch LSTM so it can handle ND tensors."""
+
+    def forward(self, input, hx):
+        h, c = hx
+        # flatten tensors
+        input_flat = input.reshape(-1, input.size(-1))
+        h = h.reshape(-1, h.size(-1))
+        c = c.reshape(-1, c.size(-1))
+        # apply rnn
+        h, c = super().forward(input_flat, (h, c))
+        # unflatten tensors
+        h = h.reshape(*input.shape[:-1], h.size(-1))
+        c = c.reshape(*input.shape[:-1], c.size(-1))
+        return h, c
