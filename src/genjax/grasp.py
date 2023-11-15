@@ -17,6 +17,7 @@ from genjax._src.gensp.grasp import baseline
 from genjax._src.gensp.grasp import categorical_enum
 from genjax._src.gensp.grasp import elbo
 from genjax._src.gensp.grasp import flip_enum
+from genjax._src.gensp.grasp import flip_mvd
 from genjax._src.gensp.grasp import flip_reinforce
 from genjax._src.gensp.grasp import geometric_reinforce
 from genjax._src.gensp.grasp import iwae_elbo
@@ -32,6 +33,7 @@ from genjax._src.gensp.grasp import uniform
 __all__ = [
     "ADEVDistribution",
     "flip_enum",
+    "flip_mvd",
     "normal_reinforce",
     "normal_reparam",
     "mv_normal_reparam",
