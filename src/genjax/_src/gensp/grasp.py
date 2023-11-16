@@ -219,7 +219,6 @@ class DefaultSIR(SPAlgorithm):
         sub_keys = jax.random.split(key, self.num_particles)
         (_, ps) = jax.vmap(target.importance)(sub_keys)
         lws = ps.get_score()
-        tw = jax.scipy.special.logsumexp(lws)
         probs = jax.nn.softmax(lws)
         idx = categorical_enum.sample(key, probs)
         selected = jtu.tree_map(lambda v: v[idx], ps)
@@ -302,7 +301,6 @@ class CustomSIR(SPAlgorithm):
         sub_keys = jax.random.split(sub_key, self.num_particles)
         (_, pps) = jax.vmap(target.importance)(sub_keys, ValueChoiceMap(inner_qps))
         lws = pps.get_score() - ws
-        tw = jax.scipy.special.logsumexp(lws)
         probs = jax.nn.softmax(lws)
         idx = categorical_enum.sample(key, probs)
         selected = jtu.tree_map(lambda v: v[idx], qps.strip())
