@@ -220,11 +220,10 @@ class DefaultSIR(SPAlgorithm):
         (_, ps) = jax.vmap(target.importance)(sub_keys)
         lws = ps.get_score()
         tw = jax.scipy.special.logsumexp(lws)
-        aw = tw - jnp.log(self.num_particles)
         probs = jax.nn.softmax(lws)
         idx = categorical_enum.sample(key, probs)
         selected = jtu.tree_map(lambda v: v[idx], ps)
-        return aw, selected
+        return selected
 
     @typecheck
     def estimate_recip_normalizing_constant(
@@ -304,11 +303,10 @@ class CustomSIR(SPAlgorithm):
         (_, pps) = jax.vmap(target.importance)(sub_keys, ValueChoiceMap(inner_qps))
         lws = pps.get_score() - ws
         tw = jax.scipy.special.logsumexp(lws)
-        aw = tw - jnp.log(self.num_particles)
         probs = jax.nn.softmax(lws)
         idx = categorical_enum.sample(key, probs)
-        selected = jtu.tree_map(lambda v: v[idx], pps.strip())
-        return aw, ValueChoiceMap(selected)
+        selected = jtu.tree_map(lambda v: v[idx], qps.strip())
+        return selected
 
     @typecheck
     def estimate_recip_normalizing_constant(
@@ -423,9 +421,9 @@ class DefaultMarginal(SPDistribution):
         if isinstance(other_choices, EmptyChoiceMap):
             return (weight, ValueChoiceMap(latent_choices))
         else:
-            q = sir(1, self.p, args)
+            alg = sir(1, self.p, args)
             tgt = target(self.p, args, latent_choices)
-            Z = q.estimate_recip_normalizing_constant(
+            Z = alg.estimate_recip_normalizing_constant(
                 key,
                 tgt,
                 other_choices,
@@ -442,8 +440,8 @@ class DefaultMarginal(SPDistribution):
     ) -> FloatArray:
         inner_choices = latent_choices.get_leaf_value()
         tgt = target(self.p, args, inner_choices)
-        q = sir(1, self.p, args)
-        Z = q.estimate_normalizing_constant(key, tgt)
+        alg = sir(1)
+        Z = alg.estimate_normalizing_constant(key, tgt)
         return Z
 
 
@@ -531,24 +529,72 @@ def elbo(
 
 @dispatch
 def q_wake(
-    p: GenerativeFunction,
-    p_args: Tuple,
+    tgt: Target,
+    posterior_approx: SPAlgorithm,
     q: SPDistribution,
     data: ChoiceMap,
-    N_particles: Int,
 ):
     @adevjax.adev
     @typecheck
-    def q_wake_loss(q_args: Tuple):
-        tgt = target(p, p_args, data)
-        posterior_approx = sir(N_particles, p, p_args)
+    def q_wake_loss(*q_args):
         key = adevjax.reap_key()
-        _, p_sample = posterior_approx.simulate(key, tgt)
+        posterior_sample = posterior_approx.simulate(key, tgt)
         key = adevjax.reap_key()
-        w = q.estimate_logpdf(key, p_sample)
+        w = q.estimate_logpdf(key, posterior_sample, *q_args)
         return -w
 
     return adevjax.E(q_wake_loss)
+
+
+@dispatch
+def q_wake(
+    p: GenerativeFunction,
+    p_args: Tuple,
+    q: GenerativeFunction,
+    q_args: Tuple,
+    data: ChoiceMap,
+    N_particles: Int,
+):
+    marginal_q = marginal(AllSelection(), q)
+    tgt = target(p, p_args, data)
+    posterior_approx = sir(N_particles, q, q_args)
+    return q_wake(tgt, posterior_approx, marginal_q, data)
+
+
+@dispatch
+def p_wake(
+    tgt: Target,
+    posterior_approx: SPAlgorithm,
+    p: GenerativeFunction,
+    data: ChoiceMap,
+):
+    @adevjax.adev
+    @typecheck
+    def p_wake_loss(*p_args):
+        key = adevjax.reap_key()
+        posterior_sample = posterior_approx.simulate(key, tgt)
+        key = adevjax.reap_key()
+        merged = data.safe_merge(posterior_sample.get_leaf_value())
+        w = p.estimate_logpdf(key, ValueChoiceMap(merged), *p_args)
+        return -w
+
+    return adevjax.E(p_wake_loss)
+
+
+@dispatch
+def p_wake(
+    p: GenerativeFunction,
+    p_args: Tuple,
+    q: GenerativeFunction,
+    q_args: Tuple,
+    data: ChoiceMap,
+    N_particles: Int,
+):
+    q_sp = marginal(AllSelection(), q)
+    posterior_approx = sir(N_particles, q_sp, q_args)
+    tgt = target(p, p_args, data)
+    p_sp = marginal(AllSelection(), p)
+    return p_wake(tgt, posterior_approx, p_sp, data)
 
 
 @dispatch

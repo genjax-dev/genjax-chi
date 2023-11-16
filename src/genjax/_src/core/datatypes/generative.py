@@ -453,7 +453,8 @@ class ChoiceMap(AddressTree):
 
     def safe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
         new, discard = self.merge(other)
-        assert discard.is_empty()
+        if not discard.is_empty():
+            raise Exception(f"Discard is non-empty.\n{discard}")
         return new
 
     def unsafe_merge(self, other: "ChoiceMap") -> "ChoiceMap":

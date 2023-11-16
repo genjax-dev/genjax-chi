@@ -26,6 +26,8 @@ from genjax._src.gensp.grasp import mv_normal_diag_reparam
 from genjax._src.gensp.grasp import mv_normal_reparam
 from genjax._src.gensp.grasp import normal_reinforce
 from genjax._src.gensp.grasp import normal_reparam
+from genjax._src.gensp.grasp import p_wake
+from genjax._src.gensp.grasp import q_wake
 from genjax._src.gensp.grasp import sir
 from genjax._src.gensp.grasp import uniform
 
@@ -47,4 +49,6 @@ __all__ = [
     "marginal",
     "elbo",
     "iwae_elbo",
+    "q_wake",
+    "p_wake",
 ]
