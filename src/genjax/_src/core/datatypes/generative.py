@@ -412,6 +412,34 @@ class Choice(Pytree):
 
 
 @dataclasses.dataclass
+class EmptyChoice(Choice):
+    def flatten(self):
+        return (), ()
+
+    def filter(self, selection):
+        return self
+
+
+@dataclasses.dataclass
+class ChoiceValue(Choice):
+    value: Any
+
+    def flatten(self):
+        return (self.value,), ()
+
+    def get_value(self):
+        return self.value
+
+    @dispatch
+    def filter(self, selection: AllSelection):
+        return self
+
+    @dispatch
+    def filter(self, selection: NoneSelection):
+        return EmptyChoice()
+
+
+@dataclasses.dataclass
 class ChoiceMap(AddressMap):
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
@@ -468,104 +496,6 @@ class ChoiceMap(AddressMap):
         """
         raise NotImplementedError
 
-    @dispatch
-    def replace(
-        self,
-        selection: AllSelection,
-        replacement: "ChoiceMap",
-    ) -> "ChoiceMap":
-        return replacement
-
-    @dispatch
-    def replace(
-        self,
-        selection: NoneSelection,
-        replacement: "ChoiceMap",
-    ) -> "ChoiceMap":
-        return self
-
-    @dispatch
-    def replace(
-        self,
-        selection: Selection,
-        replacement: "ChoiceMap",
-    ) -> "ChoiceMap":
-        """Replace the submaps selected by `selection` with `replacement`,
-        returning a new choice map.
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-            console = genjax.pretty()
-
-            @genjax.gen
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            chm = tr.strip()
-            replacement = genjax.choice_map({"z": 5.0})
-            selection = genjax.select("x")
-            replaced = chm.replace(selection, replacement)
-            print(console.render(replaced))
-            ```
-        """
-        raise NotImplementedError
-
-    @dispatch
-    def insert(
-        self,
-        selection: AllSelection,
-        extension: "ChoiceMap",
-    ) -> "ChoiceMap":
-        return extension
-
-    @dispatch
-    def insert(
-        self,
-        selection: NoneSelection,
-        extension: "ChoiceMap",
-    ) -> "ChoiceMap":
-        return self
-
-    @dispatch
-    def insert(
-        self,
-        selection: Selection,
-        extension: "ChoiceMap",
-    ) -> "ChoiceMap":
-        """Extend the submap selected by `selection` with `extension`,
-        returning a new choice map.
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-            console = genjax.pretty()
-
-            @genjax.gen
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            chm = tr.strip()
-            extension = genjax.choice_map({"z": 5.0})
-            selection = genjax.select("x")
-            extended = chm.insert(selection, extension)
-            print(console.render(extended))
-            ```
-        """
-        raise NotImplementedError
-
     def get_selection(self) -> "Selection":
         """Convert a `ChoiceMap` to a `Selection`."""
         raise Exception(
@@ -580,21 +510,6 @@ class ChoiceMap(AddressMap):
     def unsafe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
         new, _ = self.merge(other)
         return new
-
-    def get_choices(self):
-        return self
-
-    def strip(self):
-        def _check(v):
-            return isinstance(v, Trace)
-
-        def _inner(v):
-            if isinstance(v, Trace):
-                return v.strip()
-            else:
-                return v
-
-        return jtu.tree_map(_inner, self, is_leaf=_check)
 
     ###########
     # Dunders #
@@ -635,13 +550,13 @@ class ChoiceMap(AddressMap):
         yield tree
 
 
-#####
-# Trace
-#####
+#########
+# Trace #
+#########
 
 
 @dataclasses.dataclass
-class Trace(ChoiceMap, AddressMap):
+class Trace(Pytree):
     """> Abstract base class for traces of generative functions.
 
     A `Trace` is a data structure used to represent sampled executions
