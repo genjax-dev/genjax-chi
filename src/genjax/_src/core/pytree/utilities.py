@@ -16,12 +16,9 @@
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.pytree.const import PytreeConst
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import static_check_supports_grad
-
-
-#####
-# Utilities
-#####
 
 
 def tree_stack(trees):
@@ -95,3 +92,13 @@ def tree_zipper(grad, nograd):
         return x is None
 
     return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
+
+
+def tree_split_static_dynamic(v):
+    def _inner(v):
+        if static_check_is_concrete(v):
+            return v
+        else:
+            return PytreeConst(v)
+
+    return jtu.tree_map(_inner, v)

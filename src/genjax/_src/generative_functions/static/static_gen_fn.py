@@ -27,11 +27,9 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
 from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.static_checks import (
-    static_check_tree_structure_equivalence,
-)
 from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable

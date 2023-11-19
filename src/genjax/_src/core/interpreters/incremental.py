@@ -11,15 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module supports incremental computation using generalized tangents
-(e.g. `ChangeTangent` below).
+"""This module supports incremental computation using a form of JVP-inspired
+computation with a type of generalized tangent values (e.g. `ChangeTangent`
+below).
+
+Incremental computation is currently a concern of Gen's `update` GFI method - and can be utilized _as a runtime performance optimization_ for computing the weight (and changes to `Trace` instances) which `update` computes.
+
+*Change types*
 
 By default, `genjax` provides two types of `ChangeTangent`:
 
 * `NoChange` - indicating that a value has not changed.
 * `UnknownChange` - indicating that a value has changed, without further information about the change.
 
-`ChangeTangents` are provided along with primal values into `Diff` instances. The generative function `update` interface expects tuples of `Diff` instances (`argdiffs`).
+`ChangeTangents` are provided along with primal values into `Diff` instances. The generative function `update` interface expects tuples of `Pytree` instances whose leaves are `Diff` instances (`argdiffs`).
 """
 
 # TODO: Think about when tangents don't share the same Pytree shape as primals.
@@ -27,7 +32,6 @@ By default, `genjax` provides two types of `ChangeTangent`:
 import abc
 import dataclasses
 import functools
-from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -35,14 +39,17 @@ from jax import util as jax_util
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.interpreters.forward import Environment
+from genjax._src.core.interpreters.forward import StatefulHandler
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Value
 from genjax._src.core.typing import static_check_is_concrete
+from genjax._src.core.typing import typecheck
 
 
 #######################################
@@ -172,7 +179,7 @@ def static_check_no_change(v):
     )
 
 
-def tree_diff_primals(v):
+def tree_diff_primal(v):
     def _inner(v):
         if static_check_is_diff(v):
             return v.get_primal()
@@ -182,7 +189,7 @@ def tree_diff_primals(v):
     return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
 
 
-def tree_diff_tangents(v):
+def tree_diff_tangent(v):
     def _inner(v):
         if static_check_is_diff(v):
             return v.get_tangent()
@@ -193,8 +200,8 @@ def tree_diff_tangents(v):
 
 
 def tree_diff_unpack_leaves(v):
-    primals = tree_diff_primals(v)
-    tangents = tree_diff_tangents(v)
+    primals = tree_diff_primal(v)
+    tangents = tree_diff_tangent(v)
     return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
 
 
@@ -212,21 +219,38 @@ def static_check_tree_leaves_diff(v):
     )
 
 
-def tree_diff(tree, change_tangent):
-    return jtu.tree_map(lambda v: diff(v, change_tangent), tree)
+def tree_diff(tree, tangent_tree):
+    return jtu.tree_map(
+        lambda p, t: diff(p, t),
+        tree,
+        tangent_tree,
+    )
 
 
 def tree_diff_no_change(tree):
-    return tree_diff(tree, NoChange)
+    tangent_tree = jtu.tree_map(lambda _: NoChange, tree)
+    return tree_diff(tree, tangent_tree)
 
 
 def tree_diff_unknown_change(tree):
-    return tree_diff(tree, UnknownChange)
+    tangent_tree = jtu.tree_map(lambda _: UnknownChange, tree)
+    return tree_diff(tree, tangent_tree)
 
 
 #################################
 # Generalized tangent transform #
 #################################
+
+# TODO: currently, only supports our default lattice
+# (`Change` and `NoChange`)
+def default_propagation_rule(prim, *args, **params):
+    check = static_check_no_change(args)
+    args = tree_diff_primal(args)
+    outval = prim.bind(*args, **params)
+    if check:
+        return outval
+    else:
+        return tree_diff_unknown_change(outval)
 
 
 @dataclasses.dataclass
@@ -236,40 +260,30 @@ class IncrementalInterpreter(Pytree):
     def flatten(self):
         return (), (self.custom_rules,)
 
-    # This produces an instance of `Interpreter`
-    # as a context manager - to allow us to control error stack traces,
-    # if required.
-    @classmethod
-    @contextmanager
-    def new(cls):
-        try:
-            yield IncrementalInterpreter()
-        except Exception as e:
-            raise e
-
     def _eval_jaxpr_forward(
         self,
         stateful_handler,
         jaxpr: jc.Jaxpr,
         consts: List[Value],
-        args: List[Value],
+        primals: List[Value],
+        tangents: List[ChangeTangent],
     ):
-        env = Environment.new()
-        jax_util.safe_map(env.write, jaxpr.constvars, consts)
-        jax_util.safe_map(env.write, jaxpr.invars, args)
+        dual_env = Environment.new()
+        jax_util.safe_map(dual_env.write, jaxpr.constvars, tree_diff_no_change(consts))
+        jax_util.safe_map(dual_env.write, jaxpr.invars, tree_diff(primals, tangents))
         for eqn in jaxpr.eqns:
-            invals = jax_util.safe_map(env.read, eqn.invars)
+            induals = jax_util.safe_map(dual_env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-            args = subfuns + invals
+            args = subfuns + induals
             if stateful_handler.handles(eqn.primitive):
-                outvals = stateful_handler.dispatch(eqn.primitive, *args, **params)
+                outduals = stateful_handler.dispatch(eqn.primitive, *args, **params)
             else:
-                outvals = eqn.primitive.bind(*args, **params)
+                outduals = default_propagation_rule(eqn.primitive, *args, **params)
             if not eqn.primitive.multiple_results:
-                outvals = [outvals]
-            jax_util.safe_map(env.write, eqn.outvars, outvals)
+                outduals = [outduals]
+            jax_util.safe_map(dual_env.write, eqn.outvars, outduals)
 
-        return jax_util.safe_map(env.read, jaxpr.outvars)
+        return jax_util.safe_map(dual_env.read, jaxpr.outvars)
 
     def run_interpreter(self, stateful_handler, fn, primals, tangents, **kwargs):
         def _inner(*args):
@@ -290,16 +304,22 @@ class IncrementalInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
+@typecheck
 def incremental(f: Callable):
     @functools.wraps(f)
-    def wrapped(stateful_handler, primals, tangents):
-        with IncrementalInterpreter.new() as interpreter:
-            return interpreter.run_interpreter(
-                stateful_handler,
-                f,
-                primals,
-                tangents,
-            )
+    @typecheck
+    def wrapped(
+        stateful_handler: StatefulHandler,
+        primals: Tuple,
+        tangents: Tuple,
+    ):
+        interpreter = IncrementalInterpreter.new()
+        return interpreter.run_interpreter(
+            stateful_handler,
+            f,
+            primals,
+            tangents,
+        )
 
     return wrapped
 

@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module provides the core functionality and JAX compatibility layer
-which `GenJAX` generative function and inference modules are built on top of.
+which several `GenJAX` generative function and inference modules are built on
+top of.
+
 It contains (truncated, and in no particular order):
 
 * Core data types for the associated data types of generative functions.
