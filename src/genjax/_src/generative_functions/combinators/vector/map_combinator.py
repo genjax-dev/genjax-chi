@@ -24,7 +24,7 @@ import numpy as np
 from jax.experimental import checkify
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -301,7 +301,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         args: Tuple,
     ) -> Tuple[FloatArray, MapTrace]:
         map_tr = self.simulate(key, args)
@@ -417,7 +417,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
         prev_inaxes_tree = jtu.tree_map(

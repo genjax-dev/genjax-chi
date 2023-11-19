@@ -16,9 +16,9 @@ from dataclasses import dataclass
 
 import jax
 
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.typing import Any
@@ -64,7 +64,7 @@ class Marginal(Distribution):
         other_choices = choices.filter(selection)
         target = Target.new(self.p, args, choice_map({self.addr: val}))
         (q_weight, _) = self.q.importance(
-            key, ValueChoiceMap.new(other_choices), (target,)
+            key, ChoiceValue.new(other_choices), (target,)
         )
         weight -= q_weight
         return (weight, val)

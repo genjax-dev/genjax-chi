@@ -20,7 +20,7 @@ import rich
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ComplementIndexedSelection
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
@@ -61,8 +61,8 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def new(
         cls,
-        inner: EmptyChoiceMap,
-    ) -> EmptyChoiceMap:
+        inner: EmptyChoice,
+    ) -> EmptyChoice:
         return inner
 
     @classmethod
@@ -164,7 +164,7 @@ class VectorChoiceMap(ChoiceMap):
         return VectorChoiceMap(new), IndexedChoiceMap(indices, discard)
 
     @dispatch
-    def merge(self, other: EmptyChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+    def merge(self, other: EmptyChoice) -> Tuple[ChoiceMap, ChoiceMap]:
         return self, other
 
     ###########

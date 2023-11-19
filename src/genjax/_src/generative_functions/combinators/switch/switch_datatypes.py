@@ -21,7 +21,7 @@ from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
@@ -63,7 +63,7 @@ class SwitchChoiceMap(ChoiceMap):
 
     def is_empty(self):
         # Concrete evaluation -- when possible.
-        if all(map(lambda sm: isinstance(sm, EmptyChoiceMap), self.submaps)):
+        if all(map(lambda sm: isinstance(sm, EmptyChoice), self.submaps)):
             return True
         else:
             flags = jnp.array([sm.is_empty() for sm in self.submaps])
@@ -92,11 +92,11 @@ class SwitchChoiceMap(ChoiceMap):
         submaps = list(map(lambda v: v.get_submap(addr), self.submaps))
 
         # Here, we create an index map before we filter out
-        # EmptyChoiceMap instances.
+        # EmptyChoice instances.
         counter = 0
         index_map = []
         for v in submaps:
-            if isinstance(v, EmptyChoiceMap):
+            if isinstance(v, EmptyChoice):
                 index_map.append(-1)
             else:
                 index_map.append(counter)
@@ -104,7 +104,7 @@ class SwitchChoiceMap(ChoiceMap):
         index_map = jnp.array(index_map)
 
         non_empty_submaps = list(
-            filter(lambda v: not isinstance(v, EmptyChoiceMap), submaps)
+            filter(lambda v: not isinstance(v, EmptyChoice), submaps)
         )
         indexer = index_map[self.index]
 

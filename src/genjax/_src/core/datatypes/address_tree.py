@@ -46,7 +46,7 @@ class AddressLeaf(AddressMap):
     """> The `AddressLeaf` class specializes `AddressMap` to classes without
     any internal submaps.
 
-    `AddressLeaf` is a convenient base for generative datatypes which don't keep reference to other `AddressMap` instances - things like `ValueChoiceMap` (whose only choice value is a single value, not a dictionary or other tree-like object). `AddressLeaf` extends `AddressMap` with a special extension method `get_leaf_value`.
+    `AddressLeaf` is a convenient base for generative datatypes which don't keep reference to other `AddressMap` instances - things like `ChoiceValue` (whose only choice value is a single value, not a dictionary or other tree-like object). `AddressLeaf` extends `AddressMap` with a special extension method `get_leaf_value`.
     """
 
     @abc.abstractmethod

@@ -29,10 +29,10 @@ from adevjax import sample_with_key
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.typing import Any
@@ -329,8 +329,8 @@ class DefaultMarginal(SPDistribution):
         choices = tr.strip()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
-        if isinstance(other_choices, EmptyChoiceMap):
-            return (weight, ValueChoiceMap(latent_choices))
+        if isinstance(other_choices, EmptyChoice):
+            return (weight, ChoiceValue(latent_choices))
         else:
             q = sir(1, self.p, args)
             tgt = target(self.p, args, latent_choices)
@@ -340,13 +340,13 @@ class DefaultMarginal(SPDistribution):
                 other_choices,
                 weight,
             )
-            return (Z, ValueChoiceMap(latent_choices))
+            return (Z, ChoiceValue(latent_choices))
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ValueChoiceMap,
+        latent_choices: ChoiceValue,
         *args,
     ) -> FloatArray:
         inner_choices = latent_choices.get_leaf_value()
@@ -381,13 +381,13 @@ class CustomMarginal(SPDistribution):
         tgt = target(self.p, p_args, latent_choices)
         alg = self.q(*q_args)
         Z = alg.estimate_recip_normalizing_constant(key, tgt, other_choices, weight)
-        return (Z, ValueChoiceMap(latent_choices))
+        return (Z, ChoiceValue(latent_choices))
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ValueChoiceMap,
+        latent_choices: ChoiceValue,
         *args,
     ) -> FloatArray:
         inner_choices = latent_choices.get_leaf_value()

@@ -15,7 +15,7 @@
 import abc
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -25,7 +25,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 @dataclass
 class SPDistribution(Distribution):
     @abc.abstractmethod
-    def random_weighted(key: PRNGKey, *args) -> Tuple[FloatArray, ValueChoiceMap]:
+    def random_weighted(key: PRNGKey, *args) -> Tuple[FloatArray, ChoiceValue]:
         pass
 
     @abc.abstractmethod
