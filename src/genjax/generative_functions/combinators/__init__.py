@@ -34,9 +34,13 @@ if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator
     These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
 """
 
-from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
+from genjax._src.generative_functions.combinators.mask_combinator import MaskCombinator
+from genjax._src.generative_functions.combinators.mask_combinator import mask_combinator
 from genjax._src.generative_functions.combinators.switch.switch_combinator import (
     SwitchCombinator,
+)
+from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+    switch_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.map_combinator import Map
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
@@ -71,18 +75,15 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 
 __all__ = [
-    "MapTrace",
+    "MaskCombinator",
+    "mask_combinator",
     "MapCombinator",
-    "Map",
     "map_combinator",
-    "UnfoldTrace",
     "UnfoldCombinator",
-    "Unfold",
     "unfold_combinator",
     "StateSpaceCombinator",
-    "StateSpace",
     "SwitchCombinator",
-    "Switch",
+    "switch_combinator",
     "VectorChoiceMap",
     "vector_choice_map",
 ]

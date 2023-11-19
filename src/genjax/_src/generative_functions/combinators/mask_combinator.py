@@ -22,9 +22,12 @@ from genjax._src.core.typing import BoolArray
 
 @dataclass
 class MaskTrace(Trace):
-    check: BoolArray
     mask_combinator: "MaskCombinator"
     inner: Trace
+    check: BoolArray
+
+    def flatten(self):
+        return (self.mask_combinator, self.inner, self.check), ()
 
     def get_gen_fn(self):
         return self.mask_combinator
@@ -52,7 +55,7 @@ class MaskCombinator(GenerativeFunction):
     def simulate(self, key, args):
         (check, inner_args) = args
         tr = self.inner.simulate(key, inner_args)
-        return MaskTrace(tr, check)
+        return MaskTrace(self, tr, check)
 
     def importance(self, key, choice_map, args):
         (check, inner_args) = args

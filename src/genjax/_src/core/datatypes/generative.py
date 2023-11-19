@@ -1078,9 +1078,9 @@ class TaggedUnion(Pytree):
         yield tree
 
 
-#####
-# Generative function
-#####
+#######################
+# Generative function #
+#######################
 
 
 @dataclasses.dataclass
