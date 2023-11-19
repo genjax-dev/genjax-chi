@@ -26,7 +26,6 @@ from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
 from genjax._src.core.pytree.closure import DynamicClosure
@@ -49,9 +48,6 @@ from genjax._src.generative_functions.static.static_transforms import (
 )
 from genjax._src.generative_functions.static.static_transforms import simulate_transform
 from genjax._src.generative_functions.static.static_transforms import trace
-from genjax._src.generative_functions.static.static_transforms import (
-    trace_type_transform,
-)
 from genjax._src.generative_functions.static.static_transforms import update_transform
 
 
@@ -164,10 +160,6 @@ class StaticGenerativeFunction(
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
-
-    @typecheck
-    def get_trace_type(self, *args, **kwargs) -> TraceType:
-        return trace_type_transform(self.source, **kwargs)(*args)
 
     @typecheck
     def simulate(

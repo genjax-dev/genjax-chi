@@ -33,7 +33,6 @@ from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
@@ -45,9 +44,6 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorTraceType,
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
@@ -222,15 +218,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         else:
             raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
         return d_axis_size
-
-    @typecheck
-    def get_trace_type(
-        self,
-        *args,
-    ) -> TraceType:
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        kernel_tt = self.kernel.get_trace_type(*args)
-        return VectorTraceType(kernel_tt, broadcast_dim_length)
 
     @typecheck
     def simulate(

@@ -18,7 +18,6 @@ import jax
 
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.typing import Any
@@ -42,12 +41,6 @@ class Marginal(Distribution):
     @classmethod
     def new(cls, p, q, addr):
         return Marginal(p, q, addr)
-
-    def get_trace_type(self, *args):
-        inner_type = self.p.get_trace_type(*args)
-        selection = HierarchicalSelection.new([self.addr])
-        trace_type = inner_type.filter(selection)
-        return trace_type
 
     @typecheck
     def random_weighted(

@@ -17,16 +17,12 @@ import functools
 import itertools
 
 import jax
-import jax.core as jc
 import jax.tree_util as jtu
-from jax.util import safe_map
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalTraceType
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.forward import InitialStylePrimitive
 from genjax._src.core.interpreters.forward import StatefulHandler
@@ -36,7 +32,6 @@ from genjax._src.core.interpreters.incremental import incremental
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.interpreters.incremental import tree_diff_unpack_leaves
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_split_static_dynamic
 from genjax._src.core.typing import Any
@@ -655,55 +650,3 @@ def assess_transform(source_fn, **kwargs):
         return (retval, score)
 
     return wrapper
-
-
-################
-# Trace typing #
-################
-
-
-def trace_typing(jaxpr: jc.ClosedJaxpr, flat_in, consts):
-    # Simple environment, nothing fancy required.
-    env = {}
-    inner_trace_type = Trie.new()
-
-    def read(var):
-        if type(var) is jc.Literal:
-            return var.val
-        return env[var]
-
-    def write(var, val):
-        env[var] = val
-
-    safe_map(write, jaxpr.invars, flat_in)
-    safe_map(write, jaxpr.constvars, consts)
-
-    for eqn in jaxpr.eqns:
-        if eqn.primitive == trace_p:
-            in_tree = eqn.params["in_tree"]
-            invals = safe_map(read, eqn.invars)
-            gen_fn, addr, *args = jtu.tree_unflatten(in_tree, invals)
-            # Addr is `PytreeAddress`.
-            tup = addr.to_tuple()
-            ty = gen_fn.get_trace_type(*args, **eqn.params)
-            inner_trace_type[tup] = ty
-        outvals = safe_map(lambda v: v.aval, eqn.outvars)
-        safe_map(write, eqn.outvars, outvals)
-
-    return safe_map(read, jaxpr.outvars), inner_trace_type
-
-
-def trace_type_transform(source_fn, **kwargs):
-    @functools.wraps(source_fn)
-    def _inner(*args):
-        closed_jaxpr, (flat_in, _, out_tree) = stage(source_fn)(*args, **kwargs)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out, inner_tt = trace_typing(jaxpr, flat_in, consts)
-        flat_out = list(map(lambda v: tt_lift(v), flat_out))
-        if flat_out:
-            rettypes = jtu.tree_unflatten(out_tree, flat_out)
-        else:
-            rettypes = tt_lift(None)
-        return HierarchicalTraceType(inner_tt, rettypes)
-
-    return _inner

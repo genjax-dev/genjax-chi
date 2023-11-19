@@ -54,9 +54,6 @@ from genjax._src.generative_functions.combinators.switch.sumtree import (
     DataSharedSumTree,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
-    SumTraceType,
-)
-from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
@@ -155,12 +152,6 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             )
             covers.append(discard_shape)
         return DataSharedSumTree.new(discard, covers)
-
-    def get_trace_type(self, *args):
-        subtypes = []
-        for gen_fn in self.branches:
-            subtypes.append(gen_fn.get_trace_type(*args[1:]))
-        return SumTraceType(subtypes)
 
     def _simulate(self, branch_gen_fn, key, args):
         tr = branch_gen_fn.simulate(key, args[1:])

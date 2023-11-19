@@ -19,7 +19,6 @@ import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
