@@ -51,9 +51,13 @@ class TFPDistribution(ExactDensity):
         dist = self.make_tfp_distribution(*args)
         return dist.sample(seed=key)
 
-    def logpdf(self, v, *args):
-        dist = self.make_tfp_distribution(*args)
-        return jnp.sum(dist.log_prob(v))
+    def logpdf(self, v, *args, **kwargs):
+        dist = self.make_tfp_distribution(*args, **kwargs)
+        lp = dist.log_prob(v)
+        if lp.shape:
+            return jnp.sum(dist.log_prob(v))
+        else:
+            return lp
 
 
 #####################
@@ -172,7 +176,7 @@ tfp_mv_normal = TFPDistribution.new(tfd.MultivariateNormalFullCovariance)
 A `TFPDistribution` generative function which wraps the [`tfd.MultivariateNormalFullCovariance`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/MultivariateNormalFullCovariance) distribution from TensorFlow Probability distributions.
 """
 
-tfp_categorical = TFPDistribution.new(tfd.Categorical)
+tfp_categorical = TFPDistribution.new(lambda logits: tfd.Categorical(logits=logits))
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Categorical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Categorical) distribution from TensorFlow Probability distributions.
 """
