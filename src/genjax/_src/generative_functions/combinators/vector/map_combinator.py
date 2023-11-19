@@ -33,7 +33,7 @@ from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
@@ -336,7 +336,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         chm: IndexedChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
-        args = tree_diff_primals(argdiffs)
+        args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -377,7 +377,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         chm: VectorChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
-        args = tree_diff_primals(argdiffs)
+        args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -410,7 +410,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        args = tree_diff_primals(argdiffs)
+        args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)

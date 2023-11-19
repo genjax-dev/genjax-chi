@@ -35,7 +35,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -494,7 +494,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         state: Diff,
         *static_args: Diff,
     ):
-        length, state, static_args = tree_diff_primals((length, state, static_args))
+        length, state, static_args = tree_diff_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
@@ -525,7 +525,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primals(retval_diff),
+            tree_diff_primal(retval_diff),
             jnp.sum(score),
         )
 
@@ -542,7 +542,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         state: Any,
         *static_args: Any,
     ):
-        length, state, static_args = tree_diff_primals((length, state, static_args))
+        length, state, static_args = tree_diff_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
@@ -577,7 +577,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primals(retval_diff),
+            tree_diff_primal(retval_diff),
             jnp.sum(score),
         )
 
@@ -623,7 +623,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
 
             # Extending to an index greater than the previous length.
             def _importance(key):
-                state_primal = tree_diff_primals(state_diff)
+                state_primal = tree_diff_primal(state_diff)
                 (w, new_tr) = self.kernel.importance(
                     key, sub_chm, (state_primal, *static_args)
                 )
@@ -642,7 +642,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
                 # TODO: c.f. message above on `UnknownChange`.
                 # Preserve the diff type across the loop
                 # iterations.
-                primal_state = tree_diff_primals(retval_diff)
+                primal_state = tree_diff_primal(retval_diff)
                 retval_diff = tree_diff_unknown_change(primal_state)
                 return (retval_diff, w, new_tr)
 
@@ -662,7 +662,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
-        new_upper = tree_diff_primals(length)
+        new_upper = tree_diff_primal(length)
         new_upper = jnp.where(
             new_upper >= self.max_length,
             self.max_length - 1,
@@ -689,7 +689,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             prev.get_retval(),
         )
         retval_diff = tree_diff_unknown_change(retval)
-        args = tree_diff_primals((length, state, *static_args))
+        args = tree_diff_primal((length, state, *static_args))
 
         # TODO: is there a faster way to do this with the information I already have?
         new_score = jnp.sum(
@@ -760,12 +760,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         length = argdiffs[0]
         state = argdiffs[1]
         static_args = argdiffs[2:]
-        args = tree_diff_primals(argdiffs)
+        args = tree_diff_primal(argdiffs)
         self._optional_out_of_bounds_check(args[0])  # length
         check_state_static_no_change = static_check_no_change((state, static_args))
         if check_state_static_no_change:
-            state = tree_diff_primals(state)
-            static_args = tree_diff_primals(static_args)
+            state = tree_diff_primal(state)
+            static_args = tree_diff_primal(static_args)
             return self._update_specialized(
                 key,
                 prev,

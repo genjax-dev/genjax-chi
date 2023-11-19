@@ -26,15 +26,13 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.static_checks import (
+from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
-from genjax._src.core.pytree.static_checks import (
-    static_check_tree_structure_equivalence,
-)
+from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.string import PytreeString
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
@@ -408,6 +406,10 @@ class EmptyChoice(Choice):
     def flatten(self):
         return (), ()
 
+    @classmethod
+    def new(cls):
+        return EmptyChoice()
+
     def filter(self, selection):
         return self
 
@@ -423,6 +425,10 @@ class ChoiceValue(Choice):
 
     def flatten(self):
         return (self.value,), ()
+
+    @classmethod
+    def new(cls, v):
+        return ChoiceValue(v)
 
     def get_value(self):
         return self.value
@@ -1300,7 +1306,7 @@ class GenerativeFunction(Pytree):
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = mask(False, possible_discards)
-            primal = tree_diff_primals(retdiff)
+            primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (retdiff, w, new_tr, discard)
 
@@ -1312,7 +1318,7 @@ class GenerativeFunction(Pytree):
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
                 discard = mask(True, possible_discards)
-            primal = tree_diff_primals(retdiff)
+            primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (retdiff, w, new_tr, discard)
 
