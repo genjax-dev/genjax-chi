@@ -22,31 +22,31 @@ from genjax._src.core.typing import BoolArray
 
 
 @dataclass
-class AddressTree(Pytree):
-    """> The `AddressTree` class is used to define abstract classes for tree-
+class AddressMap(Pytree):
+    """> The `AddressMap` class is used to define abstract classes for tree-
     shaped datatypes. These classes are used to implement trace, choice map,
     and selection types.
 
-    One should think of `AddressTree` as providing a convenient base class for
-    many of the generative datatypes declared in GenJAX. `AddressTree` mixes in
+    One should think of `AddressMap` as providing a convenient base class for
+    many of the generative datatypes declared in GenJAX. `AddressMap` mixes in
     `Pytree` automatically.
     """
 
     @abc.abstractmethod
-    def has_subtree(self, addr) -> BoolArray:
+    def has_submap(self, addr) -> BoolArray:
         pass
 
     @abc.abstractmethod
-    def get_subtree(self, addr):
+    def get_submap(self, addr):
         pass
 
 
 @dataclass
-class AddressLeaf(AddressTree):
-    """> The `AddressLeaf` class specializes `AddressTree` to classes without
-    any internal subtrees.
+class AddressLeaf(AddressMap):
+    """> The `AddressLeaf` class specializes `AddressMap` to classes without
+    any internal submaps.
 
-    `AddressLeaf` is a convenient base for generative datatypes which don't keep reference to other `AddressTree` instances - things like `ValueChoiceMap` (whose only choice value is a single value, not a dictionary or other tree-like object). `AddressLeaf` extends `AddressTree` with a special extension method `get_leaf_value`.
+    `AddressLeaf` is a convenient base for generative datatypes which don't keep reference to other `AddressMap` instances - things like `ValueChoiceMap` (whose only choice value is a single value, not a dictionary or other tree-like object). `AddressLeaf` extends `AddressMap` with a special extension method `get_leaf_value`.
     """
 
     @abc.abstractmethod
@@ -57,10 +57,10 @@ class AddressLeaf(AddressTree):
     def set_leaf_value(self, v):
         pass
 
-    def has_subtree(self, addr):
+    def has_submap(self, addr):
         return False
 
-    def get_subtree(self, addr):
+    def get_submap(self, addr):
         raise Exception(
             f"{type(self)} is a AddressLeaf: it does not address any internal choices."
         )

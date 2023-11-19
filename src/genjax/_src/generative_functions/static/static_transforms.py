@@ -22,9 +22,11 @@ import jax.tree_util as jtu
 from jax.util import safe_map
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import DisjointPairChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalTraceType
+from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.datatypes.trie import Trie
@@ -388,9 +390,7 @@ def importance_transform(source_fn):
         (
             score,
             weight,
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             cache_state,
         ) = stateful_handler.yield_state()
         return (
@@ -398,9 +398,7 @@ def importance_transform(source_fn):
             (
                 args,
                 retval,
-                static_address_choices,
-                dynamic_addresses,
-                dynamic_address_choices,
+                address_choices,
                 score,
             ),
         ), cache_state

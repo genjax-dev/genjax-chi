@@ -39,6 +39,10 @@ class Marginal(Distribution):
     def flatten(self):
         return (), (self.p, self.q, self.addr)
 
+    @classmethod
+    def new(cls, p, q, addr):
+        return Marginal(p, q, addr)
+
     def get_trace_type(self, *args):
         inner_type = self.p.get_trace_type(*args)
         selection = HierarchicalSelection.new([self.addr])

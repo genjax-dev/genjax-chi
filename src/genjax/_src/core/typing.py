@@ -34,9 +34,9 @@ from plum import parametric
 Dataclass = typing.Any
 PrettyPrintable = typing.Any
 PRNGKey = jtyping.UInt[jtyping.Array, "..."]
-FloatArray = typing.Union[float, jtyping.Float[jtyping.Array, "..."]]
-BoolArray = typing.Union[bool, jtyping.Bool[jtyping.Array, "..."]]
-IntArray = typing.Union[int, jtyping.Int[jtyping.Array, "..."]]
+FloatArray = jtyping.Float[jtyping.Array, "..."]
+BoolArray = jtyping.Bool[jtyping.Array, "..."]
+IntArray = jtyping.Int[jtyping.Array, "..."]
 Any = typing.Any
 Union = typing.Union
 Callable = btyping.Callable

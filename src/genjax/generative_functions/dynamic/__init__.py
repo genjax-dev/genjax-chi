@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.dynamic import gen_fn
+from genjax._src.generative_functions.dynamic import Dynamic
 from genjax._src.generative_functions.dynamic import trace
 
 
 __all__ = [
-    "gen_fn",
+    "Dynamic",
     "trace",
 ]

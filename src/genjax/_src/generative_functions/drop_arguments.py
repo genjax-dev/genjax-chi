@@ -100,6 +100,10 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
     def flatten(self):
         return (self.gen_fn,), ()
 
+    @classmethod
+    def new(cls, gen_fn):
+        return DropArgumentsGenerativeFunction(gen_fn)
+
     def simulate(
         self,
         key: PRNGKey,

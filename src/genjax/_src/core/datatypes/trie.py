@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.address_tree import AddressTree
+from genjax._src.core.datatypes.address_tree import AddressMap
 from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.pretty_printing import CustomPretty
@@ -30,7 +30,7 @@ from genjax._src.core.pretty_printing import CustomPretty
 
 
 @dataclass
-class Trie(AddressTree, CustomPretty):
+class Trie(AddressMap, CustomPretty):
     inner: HashableDict
 
     def flatten(self):
@@ -53,11 +53,11 @@ class Trie(AddressTree, CustomPretty):
             first, *rest = addr
             rest = tuple(rest)
             if first not in copied_inner:
-                subtree = Trie(hashable_dict())
+                submap = Trie(hashable_dict())
             else:
-                subtree = copied_inner[first]
-            new_subtree = subtree.trie_insert(rest, value)
-            copied_inner[first] = new_subtree
+                submap = copied_inner[first]
+            new_submap = submap.trie_insert(rest, value)
+            copied_inner[first] = new_submap
             return Trie(copied_inner)
         else:
             if isinstance(addr, tuple):
@@ -65,13 +65,13 @@ class Trie(AddressTree, CustomPretty):
             copied_inner[addr] = value
             return Trie(copied_inner)
 
-    def has_subtree(self, addr):
+    def has_submap(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
             rest = tuple(rest)
-            if self.has_subtree(first):
-                subtree = self.get_subtree(first)
-                return subtree.has_subtree(rest)
+            if self.has_submap(first):
+                submap = self.get_submap(first)
+                return submap.has_submap(rest)
             else:
                 return False
         else:
@@ -79,13 +79,13 @@ class Trie(AddressTree, CustomPretty):
                 addr = addr[0]
             return addr in self.inner
 
-    def get_subtree(self, addr):
+    def get_submap(self, addr):
         if isinstance(addr, tuple) and len(addr) > 1:
             first, *rest = addr
             rest = tuple(rest)
-            if self.has_subtree(first):
-                subtree = self.get_subtree(first)
-                return subtree.get_subtree(rest)
+            if self.has_submap(first):
+                submap = self.get_submap(first)
+                return submap.get_submap(rest)
             else:
                 return None
         else:
@@ -95,7 +95,7 @@ class Trie(AddressTree, CustomPretty):
                 return None
             return self.inner[addr]
 
-    def get_subtrees_shallow(self):
+    def get_submaps_shallow(self):
         return self.inner.items()
 
     # This is provided for compatibility with the ChoiceMap interface.
@@ -115,10 +115,10 @@ class Trie(AddressTree, CustomPretty):
         self.inner = new_trie.inner
 
     def __getitem__(self, k):
-        return self.get_subtree(k)
+        return self.get_submap(k)
 
     def __contains__(self, k):
-        return self.has_subtree(k)
+        return self.has_submap(k)
 
     def __hash__(self):
         return hash(self.inner)
@@ -128,7 +128,7 @@ class Trie(AddressTree, CustomPretty):
     ###################
 
     def __rich_tree__(self, tree):
-        for (k, v) in self.get_subtrees_shallow():
+        for (k, v) in self.get_submaps_shallow():
             subk = tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
         return tree
@@ -137,8 +137,8 @@ class Trie(AddressTree, CustomPretty):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
         for (k, v) in self.inner.items():
             subk = tree.add(f"[bold]:{k}")
-            subtree = gpp._pformat(v, **kwargs)
-            subk.add(subtree)
+            submap = gpp._pformat(v, **kwargs)
+            subk.add(submap)
         return tree
 
 

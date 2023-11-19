@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,19 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.interpreters.forward import StatefulHandler
-from genjax._src.core.interpreters.forward import forward
-from genjax._src.core.interpreters.incremental import incremental
-from genjax._src.core.interpreters.staging import concrete
-from genjax._src.core.interpreters.staging import get_shaped_aval
-from genjax._src.core.interpreters.staging import stage
+from dataclasses import dataclass
+
+import jax.tree_util as jtu
+
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import String
 
 
-__all__ = [
-    "forward",
-    "StatefulHandler",
-    "incremental",
-    "stage",
-    "concrete",
-    "get_shaped_aval",
-]
+@dataclass
+class PytreeString(Pytree):
+    string: String
+
+    def flatten(self):
+        return (), (self.string,)
+
+
+def tree_convert_strings(v):
+    def _convert(v):
+        if isinstance(v, String):
+            return PytreeString(v)
+        else:
+            return v
+
+    return jtu.tree_map(_convert, v)

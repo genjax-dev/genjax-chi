@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
@@ -42,7 +42,7 @@ class StaticTrace(
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    address_choices: DynamicHierarchicalChoiceMap
+    address_choices: ChoiceMap
     cache: Trie
     score: FloatArray
 
@@ -63,7 +63,7 @@ class StaticTrace(
         gen_fn: GenerativeFunction,
         args: Tuple,
         retval: Any,
-        address_choices: DynamicHierarchicalChoiceMap,
+        address_choices: ChoiceMap,
         cache: Trie,
         score: FloatArray,
     ):
@@ -80,7 +80,7 @@ class StaticTrace(
         return self.gen_fn
 
     def get_choices(self):
-        return self.address_choices
+        return self.address_choices.strip()
 
     def get_retval(self):
         return self.retval
@@ -97,16 +97,16 @@ class StaticTrace(
         selection: HierarchicalSelection,
     ) -> FloatArray:
         weight = 0.0
-        for k, subtrace in self.static_address_choices.get_subtrees_shallow():
-            if selection.has_subtree(k):
-                weight += subtrace.project(selection.get_subtree(k))
+        for k, subtrace in self.static_address_choices.get_submaps_shallow():
+            if selection.has_submap(k):
+                weight += subtrace.project(selection.get_submap(k))
         return weight
 
     def has_cached_value(self, addr):
-        return self.cache.has_subtree(addr)
+        return self.cache.has_submap(addr)
 
     def get_cached_value(self, addr):
-        return self.cache.get_subtree(addr)
+        return self.cache.get_submap(addr)
 
     def get_aux(self):
         return (
@@ -128,7 +128,7 @@ class StaticTrace(
         args, retval, score = self.args, self.retval, self.score
         choices_payload = []
         addr_payload = []
-        for addr, subtrace in self.static_address_choices.get_subtrees_shallow():
+        for addr, subtrace in self.static_address_choices.get_submaps_shallow():
             inner_payload = subtrace.dumps(backend)
             choices_payload.append(inner_payload)
             addr_payload.append(addr)
