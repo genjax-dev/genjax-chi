@@ -39,9 +39,9 @@ import jax.tree_util as jtu
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Float
@@ -298,12 +298,12 @@ class SMCExtendPropagator(SMCPropagator):
             key, merged, new_target.args
         )
         key, (_, _, previous_trace, discard) = new_retained_trace.update(
-            key, EmptyChoiceMap(), argdiffs
+            key, EmptyChoice(), argdiffs
         )
         previous_latents = retained.filter(discard.get_selection().complement())
         key, (_, forward_weight_retained) = self.k.assess(
             key,
-            ValueChoiceMap(discard),
+            ChoiceValue(discard),
             (previous_trace, new_target),
         )
 
@@ -516,7 +516,7 @@ class SMCInit(SMCAlgorithm):
         # Set retained.
         key, kept = self.q.importance(
             key,
-            ValueChoiceMap.new(choices),
+            ChoiceValue.new(choices),
             (target,),
         )
 

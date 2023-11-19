@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
@@ -228,7 +228,7 @@ class StaticGenerativeFunction(
         # Handle coercion of the static address choices (a `Trie`)
         # to a choice map.
         if static_address_choices.is_empty():
-            static_chm = EmptyChoiceMap()
+            static_chm = EmptyChoice()
         else:
             static_chm = HierarchicalChoiceMap.new(static_address_choices)
 
@@ -252,7 +252,7 @@ class StaticGenerativeFunction(
                     dynamic_address_choices,
                 )
 
-            if isinstance(static_chm, EmptyChoiceMap):
+            if isinstance(static_chm, EmptyChoice):
                 return dynamic
             else:
                 return DisjointUnionChoiceMap.new([static_chm, dynamic])

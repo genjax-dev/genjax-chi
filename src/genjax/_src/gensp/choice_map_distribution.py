@@ -18,9 +18,9 @@ import jax
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import typecheck
@@ -59,20 +59,20 @@ class ChoiceMapDistribution(SPDistribution):
         selected_choices = choices.filter(self.selection)
         if self.custom_q is None:
             weight = energy + tr.project(self.selection)
-            return (weight, ValueChoiceMap(selected_choices))
+            return (weight, ChoiceValue(selected_choices))
         else:
             key, sub_key = jax.random.split(key)
             unselected = choices.filter(self.selection.complement())
             tgt = target(self.p, args, selected_choices)
-            w = self.custom_q.estimate_logpdf(key, ValueChoiceMap.new(unselected), tgt)
+            w = self.custom_q.estimate_logpdf(key, ChoiceValue.new(unselected), tgt)
             weight = energy + tr.project(self.selection) - w
-            return (weight, ValueChoiceMap(selected_choices))
+            return (weight, ChoiceValue(selected_choices))
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        choices: ValueChoiceMap,
+        choices: ChoiceValue,
         *args,
     ):
         inner_chm = choices.get_leaf_value()

@@ -21,7 +21,6 @@ import jax
 import jax.core as jc
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
 import rich
 from jax.experimental.checkify import checkify
 
@@ -419,6 +418,11 @@ class EmptyChoice(Choice):
     def filter(self, selection):
         return self
 
+    def __rich_tree__(self, tree):
+        sub = rich.tree.Tree("[bold](Empty)")
+        tree.add(sub)
+        return tree
+
 
 @dataclasses.dataclass
 class ChoiceValue(Choice):
@@ -437,6 +441,12 @@ class ChoiceValue(Choice):
     @dispatch
     def filter(self, selection: NoneSelection):
         return EmptyChoice()
+
+    def __rich_tree__(self, tree):
+        sub = rich.tree.Tree("[bold](Value)")
+        sub.add(self.value)
+        tree.add(sub)
+        return tree
 
 
 @dataclasses.dataclass
@@ -464,7 +474,7 @@ class ChoiceMap(AddressMap):
         self,
         selection: NoneSelection,
     ) -> "ChoiceMap":
-        return EmptyChoiceMap()
+        return EmptyChoice()
 
     @dispatch
     def filter(
@@ -1258,7 +1268,7 @@ class Mask(Pytree):
     def get_submap(self, addr):
         assert isinstance(self.value, ChoiceMap)
         submap = self.value.get_submap(addr)
-        if isinstance(submap, EmptyChoiceMap):
+        if isinstance(submap, EmptyChoice):
             return submap
         else:
             return Mask.new(self.mask, submap)
@@ -1626,9 +1636,9 @@ class GenerativeFunction(Pytree):
         _, possible_discards = discard_option.merge(possible_constraints)
 
         def _none():
-            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoiceMap(), argdiffs)
+            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoice(), argdiffs)
             if possible_discards.is_empty():
-                discard = EmptyChoiceMap()
+                discard = EmptyChoice()
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = mask(False, possible_discards)
@@ -1639,7 +1649,7 @@ class GenerativeFunction(Pytree):
         def _some(chm):
             (retdiff, w, new_tr, _) = self.update(key, prev, chm, argdiffs)
             if possible_discards.is_empty():
-                discard = EmptyChoiceMap()
+                discard = EmptyChoice()
             else:
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
@@ -1744,13 +1754,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
 
 @dataclasses.dataclass
-class EmptyChoiceMap(ChoiceMap, AddressLeaf):
+class EmptyChoice(ChoiceMap, AddressLeaf):
     def flatten(self):
         return (), ()
 
     @classmethod
     def new(cls):
-        return EmptyChoiceMap()
+        return EmptyChoice()
 
     def is_empty(self):
         return True
@@ -1759,10 +1769,10 @@ class EmptyChoiceMap(ChoiceMap, AddressLeaf):
         return self
 
     def get_leaf_value(self):
-        raise Exception("EmptyChoiceMap has no leaf value.")
+        raise Exception("EmptyChoice has no leaf value.")
 
     def set_leaf_value(self, v):
-        raise Exception("EmptyChoiceMap has no leaf value.")
+        raise Exception("EmptyChoice has no leaf value.")
 
     def get_selection(self):
         return NoneSelection()
@@ -1778,59 +1788,6 @@ class EmptyChoiceMap(ChoiceMap, AddressLeaf):
         sub = rich.tree.Tree("[bold](Empty)")
         tree.add(sub)
         return tree
-
-
-@dataclasses.dataclass
-class ValueChoiceMap(ChoiceMap, AddressLeaf):
-    value: Any
-
-    def flatten(self):
-        return (self.value,), ()
-
-    @classmethod
-    def new(cls, v):
-        if isinstance(v, ValueChoiceMap):
-            return ValueChoiceMap.new(v.get_leaf_value())
-        else:
-            return ValueChoiceMap(v)
-
-    def is_empty(self):
-        return False
-
-    def get_leaf_value(self):
-        return self.value
-
-    def set_leaf_value(self, v):
-        return ValueChoiceMap(v)
-
-    def get_selection(self):
-        return AllSelection()
-
-    @dispatch
-    def merge(self, other: "ValueChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:
-        return other, self
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __hash__(self):
-        if isinstance(self.value, np.ndarray):
-            return hash(self.value.tobytes())
-        else:
-            return hash(self.value)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        if isinstance(self.value, Pytree):
-            return self.value.__rich_tree__(tree)
-        else:
-            sub_tree = gpp.tree_pformat(self.value)
-            tree.add(sub_tree)
-            return tree
 
 
 @dataclasses.dataclass
@@ -1887,7 +1844,7 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
     @dispatch
     def __setitem__(self, k: Any, v: Any):
         v = (
-            ValueChoiceMap(v)
+            ChoiceValue(v)
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
@@ -1897,7 +1854,7 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
     @dispatch
     def __setitem__(self, k: String, v: Any):
         v = (
-            ValueChoiceMap(v)
+            ChoiceValue(v)
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
@@ -1907,7 +1864,7 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
     @dispatch
     def __setitem__(self, k: Tuple, v: Any):
         v = (
-            ValueChoiceMap(v)
+            ChoiceValue(v)
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
@@ -1947,7 +1904,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         trie = Trie.new()
         for k, v in constraints.items():
             v = (
-                ValueChoiceMap(v)
+                ChoiceValue(v)
                 if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
                 else v
             )
@@ -1959,7 +1916,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     def new(cls, trie: Trie):
         check = trie.is_empty()
         if static_check_is_concrete(check) and check:
-            return EmptyChoiceMap()
+            return EmptyChoice()
         else:
             return HierarchicalChoiceMap(trie)
 
@@ -1985,12 +1942,12 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         trie = Trie.new()
         iter = self.get_submaps_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoiceMap):
+            if not isinstance(v, EmptyChoice):
                 trie[k] = v
 
         new = HierarchicalChoiceMap(trie)
         if new.is_empty():
-            return EmptyChoiceMap()
+            return EmptyChoice()
         else:
             return new
 
@@ -2016,7 +1973,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
 
     def _lift_value(self, value):
         if value is None:
-            return EmptyChoiceMap()
+            return EmptyChoice()
         else:
             submap = value.get_choices()
             if isinstance(submap, Trie):
@@ -2042,7 +1999,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     def get_submap(self, addr: Tuple):
         first, *rest = addr
         top = self.get_submap(first)
-        if isinstance(top, EmptyChoiceMap):
+        if isinstance(top, EmptyChoice):
             return top
         else:
             if rest:
@@ -2089,11 +2046,11 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         return HierarchicalChoiceMap(Trie(new)), HierarchicalChoiceMap(Trie(discard))
 
     @dispatch
-    def merge(self, other: EmptyChoiceMap):
+    def merge(self, other: EmptyChoice):
         return self, other
 
     @dispatch
-    def merge(self, other: ValueChoiceMap):
+    def merge(self, other: ChoiceValue):
         return other, self
 
     @dispatch
@@ -2116,7 +2073,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
 
     def __setitem__(self, k, v):
         v = (
-            ValueChoiceMap(v)
+            ChoiceValue(v)
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
@@ -2156,8 +2113,8 @@ class IndexedChoiceMap(ChoiceMap):
         # `IndexedChoiceMap`.
         _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
 
-        # if you try to wrap around an EmptyChoiceMap, do nothing.
-        if isinstance(inner, EmptyChoiceMap):
+        # if you try to wrap around an EmptyChoice, do nothing.
+        if isinstance(inner, EmptyChoice):
             return inner
 
         return IndexedChoiceMap(indices, inner)
@@ -2215,7 +2172,7 @@ class IndexedChoiceMap(ChoiceMap):
         slice_index = slice_index[0]
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         submap = submap.get_submap(tuple(rest))
-        if isinstance(submap, EmptyChoiceMap):
+        if isinstance(submap, EmptyChoice):
             return submap
         else:
             return mask(jnp.isin(idx, self.indices), submap)
@@ -2236,7 +2193,7 @@ class IndexedChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, addr: Any):
-        return EmptyChoiceMap()
+        return EmptyChoice()
 
     def get_selection(self):
         return self.inner.get_selection()
@@ -2291,7 +2248,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
         # type, and returns a more specialized choice map.
         new_submaps = list(
             filter(
-                lambda v: not isinstance(v, EmptyChoiceMap),
+                lambda v: not isinstance(v, EmptyChoice),
                 map(lambda v: v.get_submap(addr), self.submaps),
             )
         )
@@ -2304,7 +2261,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
             assert all(map(lambda v: isinstance(v, AddressLeaf), new_submaps))
 
         if len(new_submaps) == 0:
-            return EmptyChoiceMap()
+            return EmptyChoice()
 
         elif len(new_submaps) == 1:
             return new_submaps[0]
@@ -2395,7 +2352,7 @@ class DisjointPairChoiceMap(ChoiceMap):
         # type, and returns a more specialized choice map.
         new_submaps = list(
             filter(
-                lambda v: not isinstance(v, EmptyChoiceMap),
+                lambda v: not isinstance(v, EmptyChoice),
                 map(lambda v: v.get_submap(addr), self.submaps),
             )
         )
@@ -2408,7 +2365,7 @@ class DisjointPairChoiceMap(ChoiceMap):
             assert all(map(lambda v: isinstance(v, AddressLeaf), new_submaps))
 
         if len(new_submaps) == 0:
-            return EmptyChoiceMap()
+            return EmptyChoice()
 
         elif len(new_submaps) == 1:
             return new_submaps[0]
@@ -2468,8 +2425,8 @@ class DisjointPairChoiceMap(ChoiceMap):
 # Shorthands #
 ##############
 
-empty_choice_map = EmptyChoiceMap.new
-value_choice_map = ValueChoiceMap.new
+empty_choice_map = EmptyChoice.new
+value_choice_map = ChoiceValue.new
 all_select = AllSelection.new
 none_select = NoneSelection.new
 hierarchical_choice_map = HierarchicalChoiceMap.new

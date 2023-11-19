@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.typing import dispatch
 
 
@@ -31,10 +31,10 @@ def static_check_supports(target, proposal):
 
 
 @dispatch
-def merge(v1: ValueChoiceMap, v2: ValueChoiceMap):
+def merge(v1: ChoiceValue, v2: ChoiceValue):
     inner = v1.get_leaf_value()
     assert isinstance(inner, ChoiceMap)
     other_inner = v2.get_leaf_value()
     assert isinstance(other_inner, ChoiceMap)
     merged, _ = inner.merge(other_inner)
-    return ValueChoiceMap(merged)
+    return ChoiceValue(merged)

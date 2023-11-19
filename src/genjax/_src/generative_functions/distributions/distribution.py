@@ -20,13 +20,13 @@ import jax
 
 from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
@@ -77,7 +77,7 @@ class DistributionTrace(
         return self.score
 
     def get_choices(self):
-        return ValueChoiceMap(self.value)
+        return ChoiceValue(self.value)
 
     def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, AllSelection):
@@ -157,7 +157,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         args: Tuple,
     ) -> Tuple[FloatArray, DistributionTrace]:
         tr = self.simulate(key, args)
@@ -167,7 +167,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: ValueChoiceMap,
+        chm: ChoiceValue,
         args: Tuple,
     ) -> Tuple[FloatArray, DistributionTrace]:
         v = chm.get_leaf_value()
@@ -180,7 +180,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: EmptyChoiceMap,
+        constraints: EmptyChoice,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
@@ -189,7 +189,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
 
         # If no change to arguments, no need to update.
         if static_check_no_change(argdiffs):
-            return (retval_diff, 0.0, prev, EmptyChoiceMap())
+            return (retval_diff, 0.0, prev, EmptyChoice())
 
         # Otherwise, we must compute an incremental weight.
         else:
@@ -197,14 +197,14 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
-            return (retval_diff, fwd - bwd, new_tr, EmptyChoiceMap())
+            return (retval_diff, fwd - bwd, new_tr, EmptyChoice())
 
     @dispatch
     def update(
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: ValueChoiceMap,
+        constraints: ChoiceValue,
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
@@ -222,7 +222,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
     def assess(
         self,
         key: PRNGKey,
-        evaluation_point: ValueChoiceMap,
+        evaluation_point: ChoiceValue,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
         v = evaluation_point.get_leaf_value()

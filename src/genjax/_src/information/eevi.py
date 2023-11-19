@@ -18,9 +18,9 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
@@ -92,7 +92,7 @@ class EntropyEstimatorsViaInference(Pytree):
         key, *sub_keys = jax.random.split(key, self.n_upper_bound + 1)
         sub_keys = jnp.array(sub_keys)
         _, (log_q, _) = jax.vmap(self.proposal.assess, in_axes=(0, None, None))(
-            sub_keys, ValueChoiceMap(latents), (target,)
+            sub_keys, ChoiceValue(latents), (target,)
         )
         log_w = log_q - log_p
         return key, -jnp.mean(log_w), (log_p, log_q)

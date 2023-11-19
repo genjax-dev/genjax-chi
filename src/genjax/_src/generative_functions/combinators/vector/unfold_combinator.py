@@ -25,7 +25,7 @@ from jax.experimental import checkify
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
@@ -302,7 +302,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
                 return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
 
             def _with_empty_choicemap(key, count, state):
-                sub_choice_map = EmptyChoiceMap()
+                sub_choice_map = EmptyChoice()
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
                     sub_key, sub_choice_map, (state, *static_args)
@@ -409,7 +409,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     def importance(
         self,
         key: PRNGKey,
-        _: EmptyChoiceMap,
+        _: EmptyChoice,
         args: Tuple,
     ) -> Tuple[FloatArray, UnfoldTrace]:
         length = args[0]
@@ -547,7 +547,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         length: Diff,
         state: Any,
         *static_args: Any,
@@ -718,7 +718,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             retval,
             new_score,
         )
-        return (retval_diff, w, new_tr, EmptyChoiceMap())
+        return (retval_diff, w, new_tr, EmptyChoice())
 
     @dispatch
     def _update_specialized(

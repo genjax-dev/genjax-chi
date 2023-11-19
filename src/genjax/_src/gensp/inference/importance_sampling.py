@@ -20,8 +20,8 @@ import jax.tree_util as jtu
 import numpy as np
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
-from genjax._src.core.datatypes.generative import ValueChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import dispatch
@@ -52,7 +52,7 @@ class DefaultImportance(SPDistribution):
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
         (lws, tr) = jax.vmap(target.importance, in_axes=(0, None))(
-            sub_keys, EmptyChoiceMap()
+            sub_keys, EmptyChoice()
         )
         tw = jax.scipy.special.logsumexp(lws)
         lnw = lws - tw
@@ -61,20 +61,20 @@ class DefaultImportance(SPDistribution):
         selected_particle = jtu.tree_map(lambda v: v[index], tr)
         return (
             selected_particle.get_score() - aw,
-            ValueChoiceMap(target.get_latents(selected_particle)),
+            ChoiceValue(target.get_latents(selected_particle)),
         )
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        chm: ValueChoiceMap,
+        chm: ChoiceValue,
         target: Target,
     ):
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(key, self.num_particles - 1)
         (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(
-            sub_keys, EmptyChoiceMap()
+            sub_keys, EmptyChoice()
         )
         inner_chm = chm.get_leaf_value()
         assert isinstance(inner_chm, ChoiceMap)
@@ -125,7 +125,7 @@ class CustomImportance(SPDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        chm: ValueChoiceMap,
+        chm: ChoiceValue,
         target: Target,
     ):
         key, sub_key = jax.random.split(key)

@@ -15,9 +15,9 @@
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.interpreters.forward import InitialStylePrimitive
 from genjax._src.core.interpreters.forward import initial_style_bind
 from genjax._src.core.pytree import Pytree
@@ -69,7 +69,7 @@ class Target(Pytree):
         return latents
 
     @dispatch
-    def importance(self, key: PRNGKey, chm: ValueChoiceMap):
+    def importance(self, key: PRNGKey, chm: ChoiceValue):
         inner = chm.get_leaf_value()
         assert isinstance(inner, ChoiceMap)
         merged = self.constraints.safe_merge(inner)
@@ -92,7 +92,7 @@ def target(
     p: GenerativeFunction,
     args: Tuple,
 ):
-    return Target.new(p, args, EmptyChoiceMap())
+    return Target.new(p, args, EmptyChoice())
 
 
 @dispatch

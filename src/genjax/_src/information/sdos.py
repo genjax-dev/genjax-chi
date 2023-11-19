@@ -20,9 +20,9 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
@@ -97,7 +97,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
         # Compute estimate of log q(z | x)
         constraints = obs_chm
         target = Target(self.p, p_args, constraints)
-        latent_chm = ValueChoiceMap.new(latent_chm)
+        latent_chm = ChoiceValue.new(latent_chm)
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
             sub_key, key_indices_q, latent_chm, (target,)
