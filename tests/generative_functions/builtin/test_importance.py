@@ -75,7 +75,7 @@ class TestImportance:
         assert w == pytest.approx(score_2, 0.0001)
 
         # No constraints.
-        chm = genjax.EmptyChoiceMap()
+        chm = genjax.EmptyChoice()
         (w, tr) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]

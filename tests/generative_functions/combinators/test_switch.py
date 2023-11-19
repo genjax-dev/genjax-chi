@@ -122,7 +122,7 @@ class TestSwitch:
         switch = genjax.SwitchCombinator([simple_normal, simple_bernoulli])
 
         key = jax.random.PRNGKey(314159)
-        chm = genjax.EmptyChoiceMap()
+        chm = genjax.EmptyChoice()
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
         (w, tr) = jitted(sub_key, chm, (0,))
@@ -208,7 +208,7 @@ class TestSwitch:
             genjax.mask(jnp.array(True), genjax.empty_choice_map()),
             genjax.tree_diff_no_change((1, 0.0)),
         )
-        assert isinstance(d, genjax.EmptyChoiceMap)
+        assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0
         (rd, w, tr, d) = jax.jit(switch.update)(
             key,
@@ -216,7 +216,7 @@ class TestSwitch:
             genjax.mask(jnp.array(False), genjax.empty_choice_map()),
             genjax.tree_diff_no_change((1, 0.0)),
         )
-        assert isinstance(d, genjax.EmptyChoiceMap)
+        assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0
 
     def test_switch_update_updates_score(self):
