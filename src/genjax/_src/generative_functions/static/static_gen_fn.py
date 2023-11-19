@@ -19,6 +19,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
+from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
