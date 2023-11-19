@@ -20,7 +20,6 @@ import copy
 import dataclasses
 import functools
 import itertools as it
-from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -34,6 +33,7 @@ from adevjax.typing import Callable
 from adevjax.typing import List
 from adevjax.typing import Union
 from adevjax.typing import Value
+from adevjax.typing import typecheck
 from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
@@ -224,17 +224,6 @@ class ForwardInterpreter(Pytree):
     def flatten(self):
         return (), ()
 
-    # This produces an instance of `Interpreter`
-    # as a context manager - to allow us to control error stack traces,
-    # if required.
-    @classmethod
-    @contextmanager
-    def new(cls):
-        try:
-            yield ForwardInterpreter()
-        except Exception as e:
-            raise e
-
     def _eval_jaxpr_forward(
         self,
         stateful_handler,
@@ -274,14 +263,16 @@ class ForwardInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
+@typecheck
 def forward(f: Callable):
     @functools.wraps(f)
-    def wrapped(stateful_handler, *args):
-        with ForwardInterpreter.new() as interpreter:
-            return interpreter.run_interpreter(
-                stateful_handler,
-                f,
-                *args,
-            )
+    @typecheck
+    def wrapped(stateful_handler: StatefulHandler, *args):
+        interpreter = ForwardInterpreter.new()
+        return interpreter.run_interpreter(
+            stateful_handler,
+            f,
+            *args,
+        )
 
     return wrapped

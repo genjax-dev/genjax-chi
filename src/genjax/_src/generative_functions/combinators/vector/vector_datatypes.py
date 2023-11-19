@@ -29,7 +29,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import TraceType
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.pytree.static_checks import (
+from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
 from genjax._src.core.typing import Dict

@@ -37,7 +37,6 @@ from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.pytree.sumtree import DataSharedSumTree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
@@ -50,6 +49,9 @@ from genjax._src.generative_functions.combinators.staging_utils import (
 )
 from genjax._src.generative_functions.combinators.staging_utils import (
     get_trace_data_shape,
+)
+from genjax._src.generative_functions.combinators.switch.sumtree import (
+    DataSharedSumTree,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SumTraceType,

@@ -67,9 +67,9 @@ from genjax._src.global_options import global_options
 ########################
 
 
-#####
-# Selection
-#####
+#############
+# Selection #
+#############
 
 
 @dataclasses.dataclass
@@ -389,9 +389,16 @@ class ComplementIndexedSelection(IndexedSelection):
         return tree
 
 
-#####
-# ChoiceMap
-#####
+###########
+# Choices #
+###########
+
+
+@dataclasses.dataclass
+class Choice(Pytree):
+    @abc.abstractmethod
+    def filter(self, selection: Selection) -> "Choice":
+        pass
 
 
 @dataclasses.dataclass
