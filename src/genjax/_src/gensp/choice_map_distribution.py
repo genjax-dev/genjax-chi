@@ -43,9 +43,6 @@ class ChoiceMapDistribution(SPDistribution):
             selection = AllSelection()
         return ChoiceMapDistribution(p, selection, custom_q)
 
-    def get_trace_type(self, *args):
-        raise NotImplementedError
-
     @typecheck
     def random_weighted(
         self,
@@ -75,7 +72,7 @@ class ChoiceMapDistribution(SPDistribution):
         choices: ChoiceValue,
         *args,
     ):
-        inner_chm = choices.get_leaf_value()
+        inner_chm = choices.get_value()
         assert isinstance(inner_chm, ChoiceMap)
         if self.custom_q is None:
             tgt = target(self.p, args, inner_chm)
@@ -86,7 +83,7 @@ class ChoiceMapDistribution(SPDistribution):
             key, sub_key = jax.random.split(key)
             tgt = target(self.p, args, inner_chm)
             (bwd_weight, other_choices) = self.custom_q.random_weighted(sub_key, tgt)
-            (energy, tr) = tgt.importance(key, other_choices.get_leaf_value())
+            (energy, tr) = tgt.importance(key, other_choices.get_value())
             fwd_weight = energy + tr.project(self.selection)
             weight = fwd_weight - bwd_weight
             return weight

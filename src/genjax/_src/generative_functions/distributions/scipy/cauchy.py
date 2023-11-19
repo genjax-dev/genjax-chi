@@ -17,7 +17,6 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import PositiveReals
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
@@ -28,10 +27,6 @@ class Cauchy(ExactDensity):
 
     def logpdf(self, v, **kwargs):
         return jnp.sum(jax.scipy.stats.cauchy.logpdf(v))
-
-    def get_trace_type(self, **kwargs):
-        shape = kwargs.get("shape", ())
-        return PositiveReals(shape)
 
 
 cauchy = Cauchy()

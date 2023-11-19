@@ -18,7 +18,6 @@ from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import EmptyChoice
@@ -26,8 +25,6 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.datatypes.generative import tt_lift
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
@@ -53,7 +50,6 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsStatic
 @dataclass
 class DistributionTrace(
     Trace,
-    AddressLeaf,
     SupportsPickleSerialization,
 ):
     gen_fn: GenerativeFunction
@@ -85,7 +81,7 @@ class DistributionTrace(
         else:
             return 0.0
 
-    def get_leaf_value(self):
+    def get_value(self):
         return self.value
 
     def set_leaf_value(self, v):
@@ -125,16 +121,6 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
         (_, v) = self.random_weighted(key, *args)
         return v
 
-    @typecheck
-    def get_trace_type(self, *args, **kwargs) -> TraceType:
-        # `get_trace_type` is compile time - the key value
-        # doesn't matter, just the type.
-        key = jax.random.PRNGKey(0)
-        (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
-            key, *args
-        )
-        return tt_lift(ttype)
-
     @abc.abstractmethod
     def random_weighted(self, *args, **kwargs):
         pass
@@ -170,7 +156,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
         chm: ChoiceValue,
         args: Tuple,
     ) -> Tuple[FloatArray, DistributionTrace]:
-        v = chm.get_leaf_value()
+        v = chm.get_value()
         w = self.estimate_logpdf(key, v, *args)
         score = w
         return (w, DistributionTrace(self, args, v, score))
@@ -209,7 +195,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
     ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primals(argdiffs)
-        v = constraints.get_leaf_value()
+        v = constraints.get_value()
         fwd = self.estimate_logpdf(key, v, *args)
         bwd = prev.get_score()
         w = fwd - bwd
@@ -225,7 +211,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
         evaluation_point: ChoiceValue,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        v = evaluation_point.get_leaf_value()
+        v = evaluation_point.get_value()
         score = self.estimate_logpdf(key, v, *args)
         return (v, score)
 

@@ -54,12 +54,6 @@ class Target(Pytree):
     def flatten(self):
         return (self.p, self.args, self.constraints), ()
 
-    def get_trace_type(self):
-        inner_type = self.p.get_trace_type(*self.args)
-        latent_selection = self.latent_selection()
-        trace_type = inner_type.filter(latent_selection)
-        return trace_type
-
     def latent_selection(self):
         return self.constraints.get_selection().complement()
 
@@ -70,7 +64,7 @@ class Target(Pytree):
 
     @dispatch
     def importance(self, key: PRNGKey, chm: ChoiceValue):
-        inner = chm.get_leaf_value()
+        inner = chm.get_value()
         assert isinstance(inner, ChoiceMap)
         merged = self.constraints.safe_merge(inner)
         (_, tr) = self.p.importance(key, merged, self.args)

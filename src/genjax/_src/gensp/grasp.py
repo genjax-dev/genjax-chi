@@ -296,7 +296,7 @@ class CustomSIR(SPAlgorithm):
         ws, qps = jax.vmap(_random_weighted, in_axes=(0, None))(
             sub_keys, self.proposal_args
         )
-        inner_qps = qps.get_leaf_value()
+        inner_qps = qps.get_value()
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
         (_, pps) = jax.vmap(target.importance)(sub_keys, ChoiceValue(inner_qps))
@@ -436,7 +436,7 @@ class DefaultMarginal(SPDistribution):
         latent_choices: ChoiceValue,
         *args,
     ) -> FloatArray:
-        inner_choices = latent_choices.get_leaf_value()
+        inner_choices = latent_choices.get_value()
         tgt = target(self.p, args, inner_choices)
         alg = sir(1)
         Z = alg.estimate_normalizing_constant(key, tgt)
@@ -477,7 +477,7 @@ class CustomMarginal(SPDistribution):
         latent_choices: ChoiceValue,
         *args,
     ) -> FloatArray:
-        inner_choices = latent_choices.get_leaf_value()
+        inner_choices = latent_choices.get_value()
         (p_args, q_args) = args
         tgt = target(self.p, p_args, inner_choices)
         alg = self.q(*q_args)
@@ -572,7 +572,7 @@ def p_wake(
         key = adevjax.reap_key()
         posterior_sample = posterior_approx.simulate(key, tgt)
         key = adevjax.reap_key()
-        merged = data.safe_merge(posterior_sample.get_leaf_value())
+        merged = data.safe_merge(posterior_sample.get_value())
         w = p.estimate_logpdf(key, ChoiceValue(merged), *p_args)
         return -w
 

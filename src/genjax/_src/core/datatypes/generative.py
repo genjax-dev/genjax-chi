@@ -15,24 +15,19 @@
 import abc
 import dataclasses
 from dataclasses import dataclass
-from enum import Enum
 
 import jax
-import jax.core as jc
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich
 from jax.experimental.checkify import checkify
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.address_tree import AddressLeaf
-from genjax._src.core.datatypes.address_tree import AddressMap
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primals
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.static_checks import (
     static_check_tree_leaves_have_matching_leading_dim,
@@ -44,7 +39,6 @@ from genjax._src.core.pytree.string import PytreeString
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import Bool
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -57,7 +51,6 @@ from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import static_check_is_array
 from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
 from genjax._src.global_options import global_options
@@ -74,7 +67,7 @@ from genjax._src.global_options import global_options
 
 
 @dataclasses.dataclass
-class Selection(AddressMap):
+class Selection(Pytree):
     @abc.abstractmethod
     def complement(self) -> "Selection":
         """Return a `Selection` which filters addresses to the complement set
@@ -131,7 +124,7 @@ class Selection(AddressMap):
 
 
 @dataclasses.dataclass
-class NoneSelection(Selection, AddressLeaf):
+class NoneSelection(Selection):
     def flatten(self):
         return (), ()
 
@@ -142,7 +135,7 @@ class NoneSelection(Selection, AddressLeaf):
     def complement(self):
         return AllSelection()
 
-    def get_leaf_value(self):
+    def get_value(self):
         raise Exception(
             "NoneSelection is a Selection: it does not provide a leaf value."
         )
@@ -162,7 +155,7 @@ class NoneSelection(Selection, AddressLeaf):
 
 
 @dataclasses.dataclass
-class AllSelection(Selection, AddressLeaf):
+class AllSelection(Selection):
     def flatten(self):
         return (), ()
 
@@ -173,7 +166,7 @@ class AllSelection(Selection, AddressLeaf):
     def complement(self):
         return NoneSelection()
 
-    def get_leaf_value(self):
+    def get_value(self):
         raise Exception(
             "AllSelection is a Selection: it does not provide a leaf value."
         )
@@ -450,7 +443,7 @@ class ChoiceValue(Choice):
 
 
 @dataclasses.dataclass
-class ChoiceMap(AddressMap):
+class ChoiceMap(Choice):
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
         pass
@@ -540,15 +533,8 @@ class ChoiceMap(AddressMap):
 
     def __getitem__(self, addr):
         submap = self.get_submap(addr)
-        if isinstance(submap, AddressLeaf):
-            v = submap.get_leaf_value()
-            return v
-        else:
-            # Kludgy to build in support for Mask -- but we're in Python so forgivable.
-            if isinstance(submap, Mask):
-                return submap.try_leaf_value()
-            else:
-                return submap
+        if isinstance(submap, ChoiceValue):
+            return submap.get_value()
 
     ###################
     # Pretty printing #
@@ -597,7 +583,7 @@ class Trace(Pytree):
             tr = genjax.normal.simulate(key, (0.0, 1.0))
             retval = tr.get_retval()
             chm = tr.get_choices()
-            v = chm.get_leaf_value()
+            v = chm.get_value()
             print(console.render((retval, v)))
             ```
         """
@@ -801,331 +787,6 @@ class Trace(Pytree):
         return jtu.tree_map(_inner, self.get_choices(), is_leaf=_check)
 
 
-#####
-# Trace types
-#####
-
-
-@dataclasses.dataclass
-class TraceType(AddressMap):
-    def on_support(self, other):
-        assert isinstance(other, TraceType)
-        check = self.__check__(other)
-        if check:
-            return check, ()
-        else:
-            return check, (self, other)
-
-    @abc.abstractmethod
-    def __check__(self, other):
-        pass
-
-    @abc.abstractmethod
-    def get_rettype(self):
-        pass
-
-    # TODO: think about this.
-    # Overload now to play nicely with `Selection`.
-    def get_choices(self):
-        return self
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __getitem__(self, addr):
-        submap = self.get_submap(addr)
-        return submap
-
-
-BaseMeasure = Enum("BaseMeasure", ["Counting", "Lebesgue", "Bottom"])
-
-
-@dataclasses.dataclass
-class AddressLeafTraceType(TraceType, AddressLeaf):
-    shape: Tuple
-
-    def flatten(self):
-        return (), (self.shape,)
-
-    @abc.abstractmethod
-    def get_base_measure(self) -> BaseMeasure:
-        pass
-
-    @abc.abstractmethod
-    def check_subset(self, other) -> Bool:
-        pass
-
-    def check_shape(self, other) -> Bool:
-        return self.shape == other.shape
-
-    def check_base_measure(self, other) -> Bool:
-        m1 = self.get_base_measure()
-        m2 = other.get_base_measure()
-        return m1 == m2
-
-    def __check__(self, other) -> Bool:
-        shape_check = self.check_shape(other)
-        measure_check = self.check_base_measure(other)
-        subset_check = self.check_subset(other)
-        check = (
-            (shape_check and measure_check and subset_check)
-            or isinstance(other, Bottom)
-            or isinstance(self, Bottom)
-        )
-        return check
-
-    def on_support(self, other):
-        assert isinstance(other, TraceType)
-        check = self.__check__(other)
-        if check:
-            return check, ()
-        else:
-            return check, (self, other)
-
-    def get_leaf_value(self):
-        raise Exception("AddressLeafTraceType doesn't keep a leaf value.")
-
-    def set_leaf_value(self):
-        raise Exception("AddressLeafTraceType doesn't allow setting a leaf value.")
-
-    def get_rettype(self):
-        return self
-
-
-########################
-# Concrete trace types #
-########################
-
-
-@dataclass
-class Reals(AddressLeafTraceType, CustomPretty):
-    def get_base_measure(self) -> BaseMeasure:
-        return BaseMeasure.Lebesgue
-
-    def check_subset(self, other):
-        return isinstance(other, Reals) or isinstance(other, Bottom)
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree(f"[b]ℝ[/b] {self.shape}")
-        return tree
-
-
-@dataclass
-class PositiveReals(AddressLeafTraceType, CustomPretty):
-    def get_base_measure(self):
-        return BaseMeasure.Lebesgue
-
-    def check_subset(self, other):
-        return (
-            isinstance(other, PositiveReals)
-            or isinstance(other, Reals)
-            or isinstance(other, Bottom)
-        )
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree(f"[b]ℝ⁺[/b] {self.shape}")
-        return tree
-
-
-@dataclass
-class RealInterval(AddressLeafTraceType, CustomPretty):
-    lower_bound: Any
-    upper_bound: Any
-
-    def flatten(self):
-        return (), (self.shape, self.lower_bound, self.upper_bound)
-
-    def get_base_measure(self):
-        return BaseMeasure.Lebesgue
-
-    # TODO: we need to check if `lower_bound` and `upper_bound`
-    # are concrete.
-    def check_subset(self, other):
-        return (
-            isinstance(other, PositiveReals)
-            or isinstance(other, Reals)
-            or isinstance(other, Bottom)
-        )
-
-    # CustomPretty.
-    def pformat_free(self, **kwargs):
-        tree = rich.tree.Tree(
-            f"[b]ℝ[/b] [{self.lower_bound}, {self.upper_bound}]{self.shape}"
-        )
-        return tree
-
-
-@dataclass
-class Integers(AddressLeafTraceType, CustomPretty):
-    def flatten(self):
-        return (), (self.shape,)
-
-    def get_base_measure(self):
-        return BaseMeasure.Counting
-
-    def check_subset(self, other):
-        return (
-            isinstance(other, Integers)
-            or isinstance(other, Reals)
-            or isinstance(other, Bottom)
-        )
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree(f"[b]ℤ[/b] {self.shape}")
-        return tree
-
-
-@dataclass
-class Naturals(AddressLeafTraceType, CustomPretty):
-    def get_base_measure(self):
-        return BaseMeasure.Counting
-
-    def subset_check(self, other):
-        return (
-            isinstance(other, Naturals)
-            or isinstance(other, Integers)
-            or isinstance(other, PositiveReals)
-            or isinstance(other, Reals)
-            or isinstance(other, Bottom)
-        )
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree(f"[b]ℕ[/b] {self.shape}")
-        return tree
-
-
-@dataclass
-class Finite(AddressLeafTraceType, CustomPretty):
-    limit: IntArray
-
-    def get_base_measure(self):
-        return BaseMeasure.Counting
-
-    def check_subset(self, other):
-        return (
-            isinstance(other, Naturals)
-            or isinstance(other, Integers)
-            or isinstance(other, PositiveReals)
-            or isinstance(other, Reals)
-            or isinstance(other, Bottom)
-        )
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree(f"[b]𝔽[/b] [{self.limit}] {self.shape}")
-        return tree
-
-
-@dataclass
-class Bottom(AddressLeafTraceType, CustomPretty):
-    def __init__(self):
-        super().__init__(())
-
-    def get_base_measure(self):
-        return BaseMeasure.Bottom
-
-    def check_subset(self, other):
-        return True
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree("[b]⊥[/b]")
-        return tree
-
-
-@dataclass
-class Empty(AddressLeafTraceType, CustomPretty):
-    def __init__(self):
-        super().__init__(())
-
-    def check_subset(self, other):
-        return True
-
-    # Pretty sure this is wrong - but `Empty` can't occur
-    # in distributions return anyways.
-    def get_base_measure(self):
-        return BaseMeasure.Counting
-
-    # CustomPretty.
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree("[b]ϕ[/b] (empty)")
-        return tree
-
-
-# Lift Python values to the trace type lattice.
-def tt_lift(v, shape=()):
-    if v is None:
-        return Empty()
-    elif v == jnp.int32:
-        return Integers(shape)
-    elif v == jnp.float32:
-        return Reals(shape)
-    elif v == bool:
-        return Finite(shape, 2)
-    elif static_check_is_array(v):
-        return tt_lift(v.dtype, shape=v.shape)
-    elif isinstance(v, jax.ShapeDtypeStruct):
-        return tt_lift(v.dtype, shape=v.shape)
-    elif isinstance(v, jc.ShapedArray):
-        return tt_lift(v.dtype, shape=v.shape)
-
-
-@dataclasses.dataclass
-class HierarchicalTraceType(TraceType):
-    trie: Trie
-    retval_type: TraceType
-
-    def flatten(self):
-        return (), (self.trie, self.retval_type)
-
-    def has_submap(self, addr):
-        return self.trie.has_submap(addr)
-
-    def get_submap(self, addr):
-        value = self.trie.get_submap(addr)
-        if value is None:
-            return Bottom()
-        else:
-            return value
-
-    def get_submaps_shallow(self):
-        return self.trie.get_submaps_shallow()
-
-    def get_rettype(self):
-        return self.retval_type
-
-    def on_support(self, other):
-        if not isinstance(other, HierarchicalTraceType):
-            return False, self
-        else:
-            check = True
-            trie = Trie.new()
-            for k, v in self.get_submaps_shallow():
-                if k in other.trie:
-                    sub = other.trie[k]
-                    subcheck, mismatch = v.on_support(sub)
-                    if not subcheck:
-                        trie[k] = mismatch
-                else:
-                    check = False
-                    trie[k] = (v, None)
-
-            for k, v in other.get_submaps_shallow():
-                if k not in self.trie:
-                    check = False
-                    trie[k] = (None, v)
-            return check, trie
-
-    def __check__(self, other):
-        check, _ = self.on_support(other)
-        return check
-
-
 ###########
 # Masking #
 ###########
@@ -1287,14 +948,14 @@ class Mask(Pytree):
     # Address leaf interfaces #
     ###########################
 
-    def get_leaf_value(self):
-        assert isinstance(self.value, AddressLeaf)
-        v = self.value.get_leaf_value()
+    def get_value(self):
+        assert isinstance(self.value, ChoiceValue)
+        v = self.value.get_value()
         return Mask.new(self.mask, v)
 
-    def try_leaf_value(self):
-        if isinstance(self.value, AddressLeaf):
-            return self.get_leaf_value()
+    def try_value(self):
+        if isinstance(self.value, ChoiceValue):
+            return self.get_value()
         else:
             return self
 
@@ -1442,10 +1103,6 @@ class GenerativeFunction(Pytree):
     Aside from JAX compatibility, an implementor *should* match the interface signatures documented below. This is not statically checked - but failure to do so
     will lead to unintended behavior or errors.
     """
-
-    def get_trace_type(self, *args, **kwargs) -> TraceType:
-        shape = kwargs.get("shape", ())
-        return Bottom(shape)
 
     def simulate(
         self,
@@ -1752,43 +1409,6 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 ########################
 # Concrete choice maps #
 ########################
-
-
-@dataclasses.dataclass
-class EmptyChoice(ChoiceMap, AddressLeaf):
-    def flatten(self):
-        return (), ()
-
-    @classmethod
-    def new(cls):
-        return EmptyChoice()
-
-    def is_empty(self):
-        return True
-
-    def get_submap(self, addr):
-        return self
-
-    def get_leaf_value(self):
-        raise Exception("EmptyChoice has no leaf value.")
-
-    def set_leaf_value(self, v):
-        raise Exception("EmptyChoice has no leaf value.")
-
-    def get_selection(self):
-        return NoneSelection()
-
-    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
-        return other, self
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        sub = rich.tree.Tree("[bold](Empty)")
-        tree.add(sub)
-        return tree
 
 
 @dataclasses.dataclass
@@ -2253,13 +1873,13 @@ class DisjointUnionChoiceMap(ChoiceMap):
                 map(lambda v: v.get_submap(addr), self.submaps),
             )
         )
-        # Static check: if any of the submaps are `AddressLeaf` instances, we must
+        # Static check: if any of the submaps are `ChoiceValue` instances, we must
         # check that all of them are. Otherwise, the choice map is invalid.
         check_address_leaves = list(
-            map(lambda v: isinstance(v, AddressLeaf), new_submaps)
+            map(lambda v: isinstance(v, ChoiceValue), new_submaps)
         )
         if any(check_address_leaves):
-            assert all(map(lambda v: isinstance(v, AddressLeaf), new_submaps))
+            assert all(map(lambda v: isinstance(v, ChoiceValue), new_submaps))
 
         if len(new_submaps) == 0:
             return EmptyChoice()
@@ -2267,7 +1887,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
         elif len(new_submaps) == 1:
             return new_submaps[0]
 
-        # We've reached the `AddressLeaf` level - now we need to perform checks
+        # We've reached the `ChoiceValue` level - now we need to perform checks
         # * There must at least one valid leaf instance.
         # * There should be only one valid leaf instance.
         elif all(check_address_leaves):
@@ -2357,13 +1977,13 @@ class DisjointPairChoiceMap(ChoiceMap):
                 map(lambda v: v.get_submap(addr), self.submaps),
             )
         )
-        # Static check: if any of the submaps are `AddressLeaf` instances, we must
+        # Static check: if any of the submaps are `ChoiceValue` instances, we must
         # check that all of them are. Otherwise, the choice map is invalid.
         check_address_leaves = list(
-            map(lambda v: isinstance(v, AddressLeaf), new_submaps)
+            map(lambda v: isinstance(v, ChoiceValue), new_submaps)
         )
         if any(check_address_leaves):
-            assert all(map(lambda v: isinstance(v, AddressLeaf), new_submaps))
+            assert all(map(lambda v: isinstance(v, ChoiceValue), new_submaps))
 
         if len(new_submaps) == 0:
             return EmptyChoice()
@@ -2371,7 +1991,7 @@ class DisjointPairChoiceMap(ChoiceMap):
         elif len(new_submaps) == 1:
             return new_submaps[0]
 
-        # We've reached the `AddressLeaf` level - now we need to perform checks
+        # We've reached the `ChoiceValue` level - now we need to perform checks
         # * There must at least one valid leaf instance.
         # * There should be only one valid leaf instance.
         elif all(check_address_leaves):

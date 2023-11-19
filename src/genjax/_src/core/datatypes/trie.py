@@ -18,19 +18,19 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.address_tree import AddressMap
 from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.pretty_printing import CustomPretty
+from genjax._src.core.pytree.pytree import Pytree
 
 
-#####
-# Trie
-#####
+########
+# Trie #
+########
 
 
 @dataclass
-class Trie(AddressMap, CustomPretty):
+class Trie(Pytree, CustomPretty):
     inner: HashableDict
 
     def flatten(self):
@@ -97,14 +97,6 @@ class Trie(AddressMap, CustomPretty):
 
     def get_submaps_shallow(self):
         return self.inner.items()
-
-    # This is provided for compatibility with the ChoiceMap interface.
-    def get_choices(self):
-        return self
-
-    # This is provided for compatibility with the Selection interface.
-    def get_selection(self):
-        return self
 
     ###########
     # Dunders #

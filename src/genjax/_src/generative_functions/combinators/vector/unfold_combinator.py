@@ -50,9 +50,6 @@ from genjax._src.generative_functions.combinators.staging_utils import make_zero
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorTraceType,
-)
 from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 from genjax._src.global_options import global_options
 
@@ -207,13 +204,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             )
 
         global_options.optional_check(_check)
-
-    @typecheck
-    def get_trace_type(self, *args, **kwargs) -> VectorTraceType:
-        _ = args[0]
-        args = args[1:]
-        inner_type = self.kernel.get_trace_type(*args, **kwargs)
-        return VectorTraceType(inner_type, self.max_length)
 
     @typecheck
     def simulate(

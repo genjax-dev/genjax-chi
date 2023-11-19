@@ -76,7 +76,7 @@ class DefaultImportance(SPDistribution):
         (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(
             sub_keys, EmptyChoice()
         )
-        inner_chm = chm.get_leaf_value()
+        inner_chm = chm.get_value()
         assert isinstance(inner_chm, ChoiceMap)
         (retained_w, retained_tr) = target.importance(key, inner_chm)
         lse = _logsumexp_with_extra(lws, retained_w)
@@ -140,7 +140,7 @@ class CustomImportance(SPDistribution):
         (unchosen_fwd_lws, _) = jax.vmap(target.importance, in_axes=(0, 0))(
             sub_keys, unchosen.get_retval()
         )
-        inner_chm = chm.get_leaf_value()
+        inner_chm = chm.get_value()
         assert isinstance(inner_chm, ChoiceMap)
         (retained_fwd, retained_tr) = target.importance(key, inner_chm)
         unchosen_lws = unchosen_fwd_lws - unchosen_bwd_lws

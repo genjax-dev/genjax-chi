@@ -16,9 +16,7 @@ from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 
-from genjax._src.core.datatypes.generative import Finite
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
@@ -32,10 +30,6 @@ class Categorical(ExactDensity):
         logpdf = jnp.log(jax.nn.softmax(logits, axis=axis))
         w = jnp.sum(logpdf[v])
         return w
-
-    def get_trace_type(self, logits, **kwargs):
-        shape = kwargs.get("shape", ())
-        return Finite(np.prod(logits.shape), shape)
 
 
 categorical = Categorical()
