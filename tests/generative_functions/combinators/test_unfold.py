@@ -113,7 +113,7 @@ class TestUnfoldSimpleNormal:
             assert tr.get_score() == tr.project(sel)
 
         # No constraints
-        chm = genjax.EmptyChoiceMap()
+        chm = genjax.EmptyChoice()
         for t in range(0, 10):
             key, sub_key = jax.random.split(key)
             (_, tr) = two_layer_chain.importance(sub_key, chm, (t, 0.3))

@@ -15,10 +15,10 @@
 import jax
 
 import genjax
-from genjax import EmptyChoiceMap
+from genjax import ChoiceValue
+from genjax import EmptyChoice
 from genjax import NoChange
 from genjax import UnknownChange
-from genjax import ValueChoiceMap
 from genjax import diff
 from genjax import mask
 
@@ -33,13 +33,13 @@ class TestDistributions:
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        (w, tr) = genjax.tfp_normal.importance(key, EmptyChoiceMap(), (0.0, 1.0))
+        (w, tr) = genjax.tfp_normal.importance(key, EmptyChoice(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.
         (w, tr) = genjax.tfp_normal.importance(
             key,
-            ValueChoiceMap(1.0),
+            ChoiceValue(1.0),
             (0.0, 1.0),
         )
         v = tr.strip().get_leaf_value()
@@ -48,7 +48,7 @@ class TestDistributions:
         # Constraint, mask with True flag.
         (w, tr) = genjax.tfp_normal.importance(
             key,
-            mask(True, ValueChoiceMap(1.0)),
+            mask(True, ChoiceValue(1.0)),
             (0.0, 1.0),
         )
         v = tr.strip().get_leaf_value()
@@ -58,7 +58,7 @@ class TestDistributions:
         # Constraint, mask with False flag.
         (w, tr) = genjax.tfp_normal.importance(
             key,
-            mask(False, ValueChoiceMap(1.0)),
+            mask(False, ChoiceValue(1.0)),
             (0.0, 1.0),
         )
         v = tr.strip().get_leaf_value()
@@ -74,7 +74,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            EmptyChoiceMap(),
+            EmptyChoice(),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == tr.get_leaf_value()
@@ -86,7 +86,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            ValueChoiceMap(1.0),
+            ChoiceValue(1.0),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == 1.0
@@ -100,7 +100,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            EmptyChoiceMap(),
+            EmptyChoice(),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == tr.get_leaf_value()
@@ -114,7 +114,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            ValueChoiceMap(1.0),
+            ChoiceValue(1.0),
             (diff(1.0, UnknownChange), diff(2.0, UnknownChange)),
         )
         assert new_tr.get_leaf_value() == 1.0
@@ -128,7 +128,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(True, ValueChoiceMap(1.0)),
+            mask(True, ChoiceValue(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == 1.0
@@ -142,7 +142,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(True, ValueChoiceMap(1.0)),
+            mask(True, ChoiceValue(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == 1.0
@@ -156,7 +156,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(False, ValueChoiceMap(1.0)),
+            mask(False, ChoiceValue(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == tr.get_leaf_value()
@@ -168,7 +168,7 @@ class TestDistributions:
         (_, w, new_tr, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(False, ValueChoiceMap(1.0)),
+            mask(False, ChoiceValue(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_leaf_value() == tr.get_leaf_value()
