@@ -14,8 +14,11 @@
 
 from dataclasses import dataclass
 
+import jax.tree_util as jtu
+
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import static_check_is_concrete
 
 
 @dataclass
@@ -28,3 +31,13 @@ class PytreeConst(Pytree):
 
 def const(v):
     return PytreeConst(v)
+
+
+def tree_map_static_dynamic(v):
+    def _inner(v):
+        if static_check_is_concrete(v):
+            return v
+        else:
+            return PytreeConst(v)
+
+    return jtu.tree_map(_inner, v)

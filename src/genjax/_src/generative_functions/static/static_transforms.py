@@ -30,10 +30,10 @@ from genjax._src.core.interpreters.forward import forward
 from genjax._src.core.interpreters.forward import initial_style_bind
 from genjax._src.core.interpreters.incremental import incremental
 from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_unpack_leaves
+from genjax._src.core.pytree.const import tree_map_static_dynamic
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_split_static_dynamic
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
@@ -86,7 +86,7 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 
 
 def _trace(gen_fn, addr, *args, **kwargs):
-    addr = tree_split_static_dynamic(addr)
+    addr = tree_map_static_dynamic(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         gen_fn,
         addr,
@@ -548,8 +548,8 @@ def update_transform(source_fn):
     def wrapper(key, previous_trace, constraints, diffs):
         stateful_handler = UpdateHandler.new(key, previous_trace, constraints)
         retval_diffs = incremental(source_fn)(stateful_handler, *diffs)
-        retval_primals = tree_diff_primals(retval_diffs)
-        arg_primals = tree_diff_primals(diffs)
+        retval_primals = tree_diff_primal(retval_diffs)
+        arg_primals = tree_diff_primal(diffs)
         (
             score,
             weight,

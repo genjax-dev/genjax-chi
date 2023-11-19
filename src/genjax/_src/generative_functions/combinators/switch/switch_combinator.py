@@ -35,7 +35,7 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -225,7 +225,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
 
             # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
-            args = tree_diff_primals(argdiffs)
+            args = tree_diff_primal(argdiffs)
             data_shared_sum_tree = self._create_data_shared_sum_tree_trace(
                 key, tr, args
             )
@@ -250,7 +250,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             return lambda key: _inner_update(br, key)
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primals(argdiffs[0])
+        switch = tree_diff_primal(argdiffs[0])
 
         return jax.lax.switch(
             switch,
@@ -269,7 +269,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             concrete_branch_index = self.branches.index(br)
             stripped = prev.strip()
             constraints = stripped.unsafe_merge(constraints)
-            args = tree_diff_primals(argdiffs)
+            args = tree_diff_primal(argdiffs)
             (w, tr) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
             discard = mask(True, stripped)
@@ -295,7 +295,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             )
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primals(argdiffs[0])
+        switch = tree_diff_primal(argdiffs[0])
 
         return jax.lax.switch(
             switch,

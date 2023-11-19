@@ -28,7 +28,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
@@ -179,7 +179,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
 
         # Otherwise, we must compute an incremental weight.
         else:
-            args = tree_diff_primals(argdiffs)
+            args = tree_diff_primal(argdiffs)
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
@@ -194,7 +194,7 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
         static_check_tree_leaves_diff(argdiffs)
-        args = tree_diff_primals(argdiffs)
+        args = tree_diff_primal(argdiffs)
         v = constraints.get_value()
         fwd = self.estimate_logpdf(key, v, *args)
         bwd = prev.get_score()

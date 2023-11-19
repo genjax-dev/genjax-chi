@@ -35,7 +35,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import UnknownChange
 from genjax._src.core.interpreters.incremental import tree_diff
-from genjax._src.core.interpreters.incremental import tree_diff_primals
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
@@ -333,7 +333,7 @@ class DynamicGenerativeFunction(GenerativeFunction):
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, DynamicTrace, ChoiceMap]:
         with UpdateHandler.new(key, prev_trace, choice_map) as handler:
-            args = tree_diff_primals(argdiffs)
+            args = tree_diff_primal(argdiffs)
             retval = self.source(*args)
             choices = handler.choice_state
             weight = handler.weight

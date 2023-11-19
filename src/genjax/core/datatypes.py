@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.datatypes.address_tree import AddressLeaf
-from genjax._src.core.datatypes.address_tree import AddressMap
 from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import Bottom
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import ComplementHierarchicalSelection
 from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import Finite
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
-from genjax._src.core.datatypes.generative import Integers
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Mask
-from genjax._src.core.datatypes.generative import Naturals
 from genjax._src.core.datatypes.generative import NoneSelection
-from genjax._src.core.datatypes.generative import PositiveReals
-from genjax._src.core.datatypes.generative import RealInterval
-from genjax._src.core.datatypes.generative import Reals
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import TaggedUnion
 from genjax._src.core.datatypes.generative import Trace
@@ -51,9 +42,11 @@ from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.datatypes.trie import trie
-from genjax._src.core.pytree import DynamicClosure
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.pytree import dynamic_closure
+from genjax._src.core.pytree.closure import DynamicClosure
+from genjax._src.core.pytree.closure import dynamic_closure
+from genjax._src.core.pytree.const import PytreeConst
+from genjax._src.core.pytree.const import const
+from genjax._src.core.pytree.pytree import Pytree
 
 
 __all__ = [
@@ -92,19 +85,10 @@ __all__ = [
     # Tagged unions.
     "TaggedUnion",
     "tagged_union",
-    # Trace types.
-    "Bottom",
-    "Reals",
-    "PositiveReals",
-    "RealInterval",
-    "Integers",
-    "Naturals",
-    "Finite",
-    "Bottom",
     # Pytree meta.
     "Pytree",
+    "PytreeConst",
+    "const",
     "DynamicClosure",
     "dynamic_closure",
-    "AddressMap",
-    "AddressLeaf",
 ]
