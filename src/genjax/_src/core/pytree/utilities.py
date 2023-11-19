@@ -38,7 +38,7 @@ def tree_stack(trees):
         treedef_list.append(treedef)
 
     grouped_leaves = zip(*leaves_list)
-    result_leaves = [jnp.stack(leaf) for leaf in grouped_leaves]
+    result_leaves = [jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves]
     return treedef_list[0].unflatten(result_leaves)
 
 

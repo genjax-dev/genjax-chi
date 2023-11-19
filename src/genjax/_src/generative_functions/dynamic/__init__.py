@@ -179,7 +179,7 @@ class ImportanceHandler(Handler):
         args = msg["args"]
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
-        sub_map = self.constraints.get_subtree(addr)
+        sub_map = self.constraints.get_submap(addr)
         self.key, sub_key = jax.random.split(self.key)
         (w, tr) = gen_fn.importance(sub_key, sub_map, args)
         retval = tr.get_retval()
@@ -216,8 +216,8 @@ class UpdateHandler(Handler):
         args = msg["args"]
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
-        sub_map = self.constraints.get_subtree(addr)
-        sub_trace = self.previous_trace.choices.get_subtree(addr)
+        sub_map = self.constraints.get_submap(addr)
+        sub_trace = self.previous_trace.choices.get_submap(addr)
         argdiffs = tree_diff(args, UnknownChange)
         self.key, sub_key = jax.random.split(self.key)
         (rd, w, tr, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
@@ -249,7 +249,7 @@ class AssessHandler(Handler):
         args = msg["args"]
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
-        sub_map = self.constraints.get_subtree(addr)
+        sub_map = self.constraints.get_submap(addr)
         self.key, sub_key = jax.random.split(self.key)
         (retval, score) = gen_fn.assess(sub_key, sub_map, args)
         self.score += score

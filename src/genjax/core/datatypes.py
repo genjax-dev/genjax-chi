@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax._src.core.datatypes.address_tree import AddressLeaf
-from genjax._src.core.datatypes.address_tree import AddressTree
+from genjax._src.core.datatypes.address_tree import AddressMap
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import Bottom
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -105,6 +105,6 @@ __all__ = [
     "Pytree",
     "DynamicClosure",
     "dynamic_closure",
-    "AddressTree",
+    "AddressMap",
     "AddressLeaf",
 ]

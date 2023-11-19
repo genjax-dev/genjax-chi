@@ -17,24 +17,18 @@ from genjax._src.generative_functions.static.static_gen_fn import Static
 from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
 )
-from genjax._src.generative_functions.static.static_gen_fn import gen_fn
 from genjax._src.generative_functions.static.static_gen_fn import partial
 from genjax._src.generative_functions.static.static_gen_fn import save
-from genjax._src.generative_functions.static.static_gen_fn import (
-    static_generative_function,
-)
 from genjax._src.generative_functions.static.static_transforms import cache
 from genjax._src.generative_functions.static.static_transforms import trace
 
 
 __all__ = [
     "StaticGenerativeFunction",
-    "static_generative_function",
     "StaticTrace",
     "trace",
     "cache",
     "save",
     "partial",
-    "gen_fn",
     "Static",
 ]

@@ -40,9 +40,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_datatypes import (
-    DynamicHierarchicalChoiceMap,
-)
 from genjax._src.generative_functions.static.static_datatypes import StaticTrace
 from genjax._src.generative_functions.static.static_transforms import assess_transform
 from genjax._src.generative_functions.static.static_transforms import cache
@@ -357,13 +354,5 @@ def partial(gen_fn, *static_args):
 # Shorthands #
 ##############
 
-static_generative_function = StaticGenerativeFunction.new
 
-
-# A decorator to pipe callables into our generative function.
-@typecheck
-def gen_fn(source: Callable):
-    return StaticGenerativeFunction.new(source)
-
-
-Static = gen_fn
+Static = StaticGenerativeFunction.new

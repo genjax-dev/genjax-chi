@@ -43,6 +43,17 @@ from jax.interpreters import batching
 from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
+from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
+from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import Any
+from genjax._src.core.typing import Bool
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import List
+from genjax._src.core.typing import Union
+from genjax._src.core.typing import Value
+
 
 #########################
 # Custom JAX primitives #
