@@ -37,7 +37,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_categorical,
 )
-from genjax._src.generative_functions.static.static_gen_fn import Static
+from genjax._src.generative_functions.static.static_gen_fn import StaticLanguage
 from genjax._src.language_decorator import gen
 
 
@@ -91,7 +91,7 @@ def build_inference_test_generator(
     )
 
     @gen(Unfold, max_length=max_length)
-    @gen(Static)
+    @gen(StaticLanguage)
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor
         observation = config.observation_tensor

@@ -348,4 +348,4 @@ def partial(gen_fn, *static_args):
 ##############
 
 
-Static = StaticGenerativeFunction.new
+StaticLanguage = StaticGenerativeFunction.new

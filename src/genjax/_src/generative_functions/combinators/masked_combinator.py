@@ -18,11 +18,12 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.typing import BoolArray
+from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class MaskTrace(Trace):
-    mask_combinator: "MaskCombinator"
+class MaskedTrace(Trace):
+    mask_combinator: "MaskedCombinator"
     inner: Trace
     check: BoolArray
 
@@ -46,26 +47,30 @@ class MaskTrace(Trace):
 
 
 @dataclass
-class MaskCombinator(GenerativeFunction):
+class MaskedCombinator(GenerativeFunction):
     inner: GenerativeFunction
 
     def flatten(self):
         return (self.inner,), ()
 
+    @typecheck
+    @classmethod
+    def new(cls, gen_fn: GenerativeFunction):
+        return MaskedCombinator(gen_fn)
+
     def simulate(self, key, args):
         (check, inner_args) = args
         tr = self.inner.simulate(key, inner_args)
-        return MaskTrace(self, tr, check)
+        return MaskedTrace(self, tr, check)
 
     def importance(self, key, choice_map, args):
         (check, inner_args) = args
         w, tr = self.inner.importance(key, choice_map, inner_args)
         w = check * w
-        return w, MaskTrace(check, tr)
+        return w, MaskedTrace(check, tr)
 
     def update(self, key, prev_trace, choice_map, argdiffs):
         pass
 
 
-def mask_combinator(gen_fn: GenerativeFunction):
-    return MaskCombinator(gen_fn)
+Masked = MaskedCombinator.new

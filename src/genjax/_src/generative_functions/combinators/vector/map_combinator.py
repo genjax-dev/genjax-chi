@@ -480,16 +480,4 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
 ##############
 
 
-@dispatch
-def map_combinator(**kwargs):
-    in_axes = kwargs["in_axes"]
-    return lambda gen_fn: MapCombinator.new(gen_fn, in_axes)
-
-
-@dispatch
-def map_combinator(gen_fn: JAXGenerativeFunction, **kwargs):
-    in_axes = kwargs["in_axes"]
-    return MapCombinator.new(gen_fn, in_axes)
-
-
-Map = map_combinator
+Map = MapCombinator.new

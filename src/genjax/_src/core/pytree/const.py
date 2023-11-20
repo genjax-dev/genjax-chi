@@ -15,6 +15,7 @@
 from dataclasses import dataclass
 
 import jax.tree_util as jtu
+import rich.tree as rich_tree
 
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
@@ -26,7 +27,10 @@ class PytreeConst(Pytree):
     const: Any
 
     def flatten(self):
-        return (), (self.const)
+        return (), (self.const,)
+
+    def __rich_tree__(self):
+        return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
 
 
 def const(v):
@@ -36,8 +40,22 @@ def const(v):
 def tree_map_static_dynamic(v):
     def _inner(v):
         if static_check_is_concrete(v):
-            return v
-        else:
             return PytreeConst(v)
+        else:
+            return v
 
     return jtu.tree_map(_inner, v)
+
+
+def tree_map_collapse_const(v):
+    def _inner(v):
+        if isinstance(v, PytreeConst):
+            return v.const
+        else:
+            return v
+
+    return jtu.tree_map(
+        _inner,
+        v,
+        is_leaf=lambda v: isinstance(v, PytreeConst),
+    )

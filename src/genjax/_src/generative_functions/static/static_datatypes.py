@@ -14,19 +14,60 @@
 
 from dataclasses import dataclass
 
+import rich.tree as rich_tree
+
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
+from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
+
+
+#######################
+# Dynamic choice map  #
+#######################
+
+
+@dataclass
+class StaticLanguageChoiceMap(ChoiceMap):
+    addrs: List[Any]
+    subtraces: List[Trace]
+
+    def flatten(self):
+        return (self.addrs, self.submaps), ()
+
+    @classmethod
+    @dispatch
+    def new(cls, addrs, submaps):
+        return StaticLanguageChoiceMap(addrs, submaps)
+
+    @classmethod
+    @dispatch
+    def new(cls):
+        return StaticLanguageChoiceMap([], [])
+
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](StaticLanguageChoiceMap)")
+        for k, v in zip(self.addrs, self.submaps):
+            if isinstance(k, Pytree):
+                subk = k.__rich_tree__()
+            else:
+                subk = rich_tree.Tree(f"[bold]{k}")
+
+            subv = v.__rich_tree__()
+            subk.add(subv)
+            tree.add(subk)
+        return tree
 
 
 #########
@@ -42,7 +83,7 @@ class StaticTrace(
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    address_choices: ChoiceMap
+    address_choices: StaticLanguageChoiceMap
     cache: Trie
     score: FloatArray
 
@@ -80,7 +121,7 @@ class StaticTrace(
         return self.gen_fn
 
     def get_choices(self):
-        return self.address_choices.strip()
+        return self.address_choices
 
     def get_retval(self):
         return self.retval

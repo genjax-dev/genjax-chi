@@ -34,56 +34,19 @@ if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator
     These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
 """
 
-from genjax._src.generative_functions.combinators.mask_combinator import MaskCombinator
-from genjax._src.generative_functions.combinators.mask_combinator import mask_combinator
-from genjax._src.generative_functions.combinators.switch.switch_combinator import (
-    SwitchCombinator,
-)
-from genjax._src.generative_functions.combinators.switch.switch_combinator import (
-    switch_combinator,
-)
+from genjax._src.generative_functions.combinators.masked_combinator import Masked
+from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
 from genjax._src.generative_functions.combinators.vector.map_combinator import Map
-from genjax._src.generative_functions.combinators.vector.map_combinator import (
-    MapCombinator,
-)
-from genjax._src.generative_functions.combinators.vector.map_combinator import MapTrace
-from genjax._src.generative_functions.combinators.vector.map_combinator import (
-    map_combinator,
-)
-from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
-    StateSpace,
-)
-from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
-    StateSpaceCombinator,
-)
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    UnfoldCombinator,
-)
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    UnfoldTrace,
-)
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    unfold_combinator,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorChoiceMap,
-)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
 )
 
 
 __all__ = [
-    "MaskCombinator",
-    "mask_combinator",
-    "MapCombinator",
-    "map_combinator",
-    "UnfoldCombinator",
-    "unfold_combinator",
-    "StateSpaceCombinator",
-    "SwitchCombinator",
-    "switch_combinator",
-    "VectorChoiceMap",
+    "Masked",
+    "Map",
+    "Unfold",
+    "Switch",
     "vector_choice_map",
 ]

@@ -172,12 +172,9 @@ class Pytree:
     ###################
 
     # Can be customized by Pytree mixers.
-    def __rich_tree__(self, tree):
-        sub_tree = gpp.tree_pformat(self)
-        tree.add(sub_tree)
-        return tree
+    def __rich_tree__(self):
+        return gpp.tree_pformat(self)
 
     # Defines default pretty printing.
     def __rich_console__(self, console, options):
-        tree = gpp.tree_pformat(self)
-        yield tree
+        yield self.__rich_tree__()
