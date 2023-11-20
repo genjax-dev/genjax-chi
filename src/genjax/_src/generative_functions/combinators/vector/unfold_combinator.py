@@ -44,7 +44,6 @@ from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -52,11 +51,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 from genjax._src.global_options import global_options
-
-
-#####
-# Unfold trace
-#####
 
 
 @dataclass
@@ -283,7 +277,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         def _inner(carry, _):
             count, key, state = carry
 
-            def _with_choicemap(key, count, state):
+            def _with_choice(key, count, state):
                 sub_choice_map = chm.get_subtree(count)
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
@@ -291,7 +285,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
                 )
                 return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
 
-            def _with_empty_choicemap(key, count, state):
+            def _with_empty_choice(key, count, state):
                 sub_choice_map = EmptyChoice()
                 key, sub_key = jax.random.split(key)
                 (w, tr) = self.kernel.importance(
@@ -302,8 +296,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
             check = jnp.less(count, length + 1)
             key, count, tr, state, score, w = jax.lax.cond(
                 check,
-                _with_choicemap,
-                _with_empty_choicemap,
+                _with_choice,
+                _with_empty_choice,
                 key,
                 count,
                 state,
@@ -834,18 +828,4 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
 ##############
 
 
-@dispatch
-def unfold_combinator(gen_fn: GenerativeFunction, max_length: IntArray):
-    assert static_check_is_concrete(max_length)
-    return UnfoldCombinator.new(gen_fn, max_length)
-
-
-@dispatch
-def unfold_combinator(gen_fn: GenerativeFunction, **kwargs):
-    assert "max_length" in kwargs
-    max_length = kwargs["max_length"]
-    assert static_check_is_concrete(max_length)
-    return UnfoldCombinator.new(gen_fn, max_length)
-
-
-Unfold = unfold_combinator
+Unfold = UnfoldCombinator.new

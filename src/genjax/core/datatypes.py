@@ -30,14 +30,14 @@ from genjax._src.core.datatypes.generative import TaggedUnion
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import all_select
 from genjax._src.core.datatypes.generative import choice_map
-from genjax._src.core.datatypes.generative import empty_choice_map
+from genjax._src.core.datatypes.generative import choice_value
+from genjax._src.core.datatypes.generative import empty_choice
 from genjax._src.core.datatypes.generative import indexed_choice_map
 from genjax._src.core.datatypes.generative import indexed_select
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.datatypes.generative import tagged_union
-from genjax._src.core.datatypes.generative import value_choice_map
 from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
@@ -59,9 +59,9 @@ __all__ = [
     # Generative datatypes.
     "ChoiceMap",
     "EmptyChoice",
-    "empty_choice_map",
+    "empty_choice",
     "ChoiceValue",
-    "value_choice_map",
+    "choice_value",
     "HierarchicalChoiceMap",
     "choice_map",
     "IndexedChoiceMap",

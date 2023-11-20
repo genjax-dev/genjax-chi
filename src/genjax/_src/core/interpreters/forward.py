@@ -279,7 +279,7 @@ def forward(f: Callable):
     @functools.wraps(f)
     @typecheck
     def wrapped(stateful_handler: StatefulHandler, *args):
-        interpreter = ForwardInterpreter.new()
+        interpreter = ForwardInterpreter()
         return interpreter.run_interpreter(
             stateful_handler,
             f,

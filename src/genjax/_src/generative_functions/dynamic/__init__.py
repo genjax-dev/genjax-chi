@@ -300,6 +300,11 @@ class DynamicGenerativeFunction(GenerativeFunction):
     def flatten(self):
         return (), (self.source,)
 
+    @typecheck
+    @classmethod
+    def new(cls, callable: Callable):
+        return DynamicGenerativeFunction(callable)
+
     def simulate(
         self,
         key: PRNGKey,
@@ -359,10 +364,4 @@ class DynamicGenerativeFunction(GenerativeFunction):
             return (retval, score)
 
 
-# A decorator to pipe callables into our generative function.
-@typecheck
-def gen_fn(source: Callable):
-    return DynamicGenerativeFunction(source)
-
-
-Dynamic = gen_fn
+DynamicLanguage = DynamicGenerativeFunction.new

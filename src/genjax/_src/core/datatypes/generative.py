@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich
+import rich.tree as rich_tree
 from jax.experimental.checkify import checkify
 
 import genjax._src.core.pretty_printing as gpp
@@ -32,8 +32,8 @@ from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
 from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
+from genjax._src.core.pytree.const import PytreeConst
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.string import PytreeString
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
@@ -105,16 +105,6 @@ class Selection(Pytree):
         submap = self.get_submap(addr)
         return submap
 
-    ###################
-    # Pretty printing #
-    ###################
-
-    # Defines custom pretty printing.
-    def __rich_console__(self, console, options):
-        tree = rich.tree.Tree("")
-        tree = self.__rich_tree__(tree)
-        yield tree
-
 
 ############################
 # Concrete leaf selections #
@@ -147,8 +137,8 @@ class NoneSelection(Selection):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        tree = tree.add("[bold](None)")
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](NoneSelection)")
         return tree
 
 
@@ -178,9 +168,8 @@ class AllSelection(Selection):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        tree = tree.add("[bold](All)")
-        return tree
+    def __rich_tree__(self):
+        return rich_tree.Tree("[bold](AllSelection)")
 
 
 ##################################
@@ -246,7 +235,8 @@ class HierarchicalSelection(Selection):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](HierarchicalSelection)")
         for k, v in self.get_submaps_shallow():
             subk = tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
@@ -282,7 +272,7 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = rich.tree.Tree("[bold](Complement)")
+        sub_tree = rich_tree.Tree("[bold](Complement)")
         for k, v in self.get_submaps_shallow():
             subk = sub_tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
@@ -343,7 +333,7 @@ class IndexedSelection(Selection):
 
     def __rich_tree__(self, tree):
         doc = gpp._pformat_array(self.indices, short_arrays=True)
-        sub_tree = rich.tree.Tree(f"[bold](Indexed,{doc})")
+        sub_tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
         self.inner.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
@@ -383,7 +373,7 @@ class ComplementIndexedSelection(IndexedSelection):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = rich.tree.Tree("[bold](Complement)")
+        sub_tree = rich_tree.Tree("[bold](Complement)")
         self.index_selection.__rich_tree__(sub_tree)
         tree.add(sub_tree)
         return tree
@@ -413,10 +403,8 @@ class EmptyChoice(Choice):
     def filter(self, selection):
         return self
 
-    def __rich_tree__(self, tree):
-        sub = rich.tree.Tree("[bold](Empty)")
-        tree.add(sub)
-        return tree
+    def __rich_tree__(self):
+        return rich_tree.Tree("[bold](EmptyChoice)")
 
 
 @dataclasses.dataclass
@@ -441,15 +429,22 @@ class ChoiceValue(Choice):
     def filter(self, selection: NoneSelection):
         return EmptyChoice()
 
-    def __rich_tree__(self, tree):
-        sub = rich.tree.Tree("[bold](Value)")
-        sub.add(self.value)
-        tree.add(sub)
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](ValueChoice)")
+        tree.add(gpp.tree_pformat(self.value))
         return tree
 
 
 @dataclasses.dataclass
 class ChoiceMap(Choice):
+    @abc.abstractmethod
+    def get_submap(self, *addrs) -> Choice:
+        pass
+
+    @abc.abstractmethod
+    def has_submap(self, *addrs) -> BoolArray:
+        pass
+
     @abc.abstractmethod
     def is_empty(self) -> BoolArray:
         pass
@@ -537,20 +532,17 @@ class ChoiceMap(Choice):
     def __add__(self, other):
         return self.safe_merge(other)
 
-    def __getitem__(self, addr):
-        submap = self.get_submap(addr)
+    @dispatch
+    def __getitem__(self, addrs: Tuple):
+        submap = self.get_submap(*addrs)
         if isinstance(submap, ChoiceValue):
             return submap.get_value()
+        else:
+            return submap
 
-    ###################
-    # Pretty printing #
-    ###################
-
-    # Defines custom pretty printing.
-    def __rich_console__(self, console, options):
-        tree = rich.tree.Tree("")
-        tree = self.__rich_tree__(tree)
-        yield tree
+    @dispatch
+    def __getitem__(self, addr: Any):
+        return self.__getitem__((addr,))
 
 
 #########
@@ -933,9 +925,9 @@ class Mask(Pytree):
         assert isinstance(self.value, ChoiceMap)
         return jnp.logical_and(self.mask, self.value.is_empty())
 
-    def get_submap(self, addr):
+    def get_submap(self, *addrs):
         assert isinstance(self.value, ChoiceMap)
-        submap = self.value.get_submap(addr)
+        submap = self.value.get_submap(*addrs)
         if isinstance(submap, EmptyChoice):
             return submap
         else:
@@ -983,31 +975,28 @@ class Mask(Pytree):
             self.value == other,
         )
 
-    def __hash__(self):
-        hash1 = hash(self.value)
-        hash2 = hash(self.mask)
-        return hash((hash1, hash2))
+    @dispatch
+    def __getitem__(self, addr: Any):
+        return self.get_submap(addr)
+
+    @dispatch
+    def __getitem__(self, *addrs: Tuple):
+        return self.get_submap(*addrs)
 
     ###################
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
+    def __rich_tree__(self):
         doc = gpp._pformat_array(self.mask, short_arrays=True)
-        sub_tree = rich.tree.Tree(f"[bold](Mask, {doc})")
+        tree = rich_tree.Tree(f"[bold](Mask, {doc})")
         if isinstance(self.value, Pytree):
-            _ = self.value.__rich_tree__(sub_tree)
+            val_tree = self.value.__rich_tree__()
+            tree.add(val_tree)
         else:
             val_tree = gpp.tree_pformat(self.value, short_arrays=True)
-            sub_tree.add(val_tree)
-        tree.add(sub_tree)
+            tree.add(val_tree)
         return tree
-
-    # Defines custom pretty printing.
-    def __rich_console__(self, console, options):
-        tree = rich.tree.Tree("")
-        tree = self.__rich_tree__(tree)
-        yield tree
 
 
 #################
@@ -1066,16 +1055,10 @@ class TaggedUnion(Pytree):
     def __rich_tree__(self, tree):
         doc = gpp._pformat_array(self.tag, short_arrays=True)
         vals_tree = gpp.tree_pformat(self.values, short_arrays=True)
-        sub_tree = rich.tree.Tree(f"[bold](TaggedUnion, {doc})")
+        sub_tree = rich_tree.Tree(f"[bold](TaggedUnion, {doc})")
         sub_tree.add(vals_tree)
         tree.add(sub_tree)
         return tree
-
-    # Defines custom pretty printing.
-    def __rich_console__(self, console, options):
-        tree = rich.tree.Tree("")
-        tree = self.__rich_tree__(tree)
-        yield tree
 
 
 #######################
@@ -1419,16 +1402,16 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
 @dataclasses.dataclass
 class DynamicHierarchicalChoiceMap(ChoiceMap):
-    dynamic_addrs: List[Any]
+    addrs: List[Any]
     submaps: List[ChoiceMap]
 
     def flatten(self):
-        return (self.dynamic_addrs, self.submaps), ()
+        return (self.addrs, self.submaps), ()
 
     @classmethod
     @dispatch
-    def new(cls, dynamic_addrs, submaps):
-        return DynamicHierarchicalChoiceMap(dynamic_addrs, submaps)
+    def new(cls, addrs, submaps):
+        return DynamicHierarchicalChoiceMap(addrs, submaps)
 
     @classmethod
     @dispatch
@@ -1439,20 +1422,40 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
         return jnp.all(jnp.array(map(lambda v: v.is_empty(), self.submaps)))
 
     @dispatch
-    def get_submap(self, addr: IntArray):
-        compares = map(lambda v: addr == v, self.dynamic_addrs)
-        masks = list(map(lambda v: mask(v[0], v[1]), zip(compares, self.submaps)))
-        return DisjointUnionChoiceMap(masks)
+    def get_submap(self):
+        return self
 
     @dispatch
-    def get_submap(self, addr: Tuple):
-        (idx, rest) = addr
-        disjoint_union_chm = self.get_submap(idx)
-        return disjoint_union_chm.get_submap(rest)
+    def get_submap(self, addr: Union[IntArray, Int]):
+        if all(map(lambda v: not isinstance(v, IntArray), self.addrs)):
+            return EmptyChoice()
+        compares = map(lambda v: addr == v, self.addrs)
+        masks = list(map(lambda v: mask(v[0], v[1]), zip(compares, self.submaps)))
+        if len(masks) == 1:
+            return masks[0]
+        else:
+            return DisjointUnionChoiceMap(masks)
+
+    @dispatch
+    def get_submap(self, addr: String):
+        s = PytreeConst(addr)
+        idxs = [i for i in range(len(self.addrs)) if self.addrs[i] == s]
+        if len(idxs) == 1:
+            (idx,) = idxs
+            submap = self.submaps[idx]
+            return submap
+        else:
+            submaps = [self.submaps[i] for i in idxs]
+            return DisjointUnionChoiceMap(submaps)
+
+    @dispatch
+    def get_submap(self, head: Any, *tail: Any):
+        submap = self.get_submap(head)
+        return submap.get_submap(*tail)
 
     @dispatch
     def has_submap(self, addr: IntArray):
-        equality_checks = jnp.array(map(lambda v: addr == v, self.dynamic_addrs))
+        equality_checks = jnp.array(map(lambda v: addr == v, self.addrs))
         return jnp.any(equality_checks)
 
     @dispatch
@@ -1469,34 +1472,44 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
     ###########
 
     @dispatch
-    def __setitem__(self, k: Any, v: Any):
+    def __setitem__(self, k: Tuple, v):
         v = (
             ChoiceValue(v)
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
-        self.dynamic_addrs.append(k)
-        self.submaps.append(v)
+        fst, *rst = k
+        if rst:
+            sub = DynamicHierarchicalChoiceMap.new()
+            sub[tuple(rst)] = v
+            self.addrs.append(fst)
+            self.submaps.append(sub)
+        else:
+            self.addrs.append(fst)
+            self.submaps.append(v)
 
     @dispatch
-    def __setitem__(self, k: String, v: Any):
+    def __setitem__(self, k: Any, v):
         v = (
             ChoiceValue(v)
             if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
             else v
         )
-        self.dynamic_addrs.append(PytreeString(k))
+        self.addrs.append(k)
         self.submaps.append(v)
 
-    @dispatch
-    def __setitem__(self, k: Tuple, v: Any):
-        v = (
-            ChoiceValue(v)
-            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-            else v
-        )
-        self.dynamic_addrs.append(k)
-        self.submaps.append(v)
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](DynamicHierarchicalChoiceMap)")
+        for k, v in zip(self.addrs, self.submaps):
+            if isinstance(k, Pytree):
+                subk = k.__rich_tree__()
+            else:
+                subk = rich_tree.Tree(f"[bold]{k}")
+
+            subv = v.__rich_tree__()
+            subk.add(subv)
+            tree.add(subk)
+        return tree
 
 
 def tree_choice_map_specialize(v):
@@ -1577,23 +1590,6 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
             return EmptyChoice()
         else:
             return new
-
-    @dispatch
-    def replace(
-        self,
-        selection: HierarchicalSelection,
-        replacement: ChoiceMap,
-    ) -> ChoiceMap:
-        complement = self.filter(selection.complement())
-        return complement.unsafe_merge(replacement)
-
-    @dispatch
-    def insert(
-        self,
-        selection: HierarchicalSelection,
-        extension: ChoiceMap,
-    ) -> ChoiceMap:
-        raise NotImplementedError
 
     def has_submap(self, addr):
         return self.trie.has_submap(addr)
@@ -1687,12 +1683,12 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         )
 
     def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
-        dynamic_addrs = []
+        addrs = []
         submaps = []
         for k, v in self.get_submaps_shallow():
-            dynamic_addrs.append(k)
+            addrs.append(k)
             submaps.append(v)
-        return DynamicHierarchicalChoiceMap(dynamic_addrs, submaps)
+        return DynamicHierarchicalChoiceMap(addrs, submaps)
 
     ###########
     # Dunders #
@@ -1706,19 +1702,17 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         )
         self.trie[k] = v
 
-    def __hash__(self):
-        return hash(self.trie)
-
     ###################
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        sub_tree = rich.tree.Tree("[bold](Hierarchical)")
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](Hierarchical)")
         for k, v in self.get_submaps_shallow():
-            subk = sub_tree.add(f"[bold]:{k}")
-            _ = v.__rich_tree__(subk)
-        tree.add(sub_tree)
+            subk = rich_tree.Tree(f"[bold]:{k}")
+            subv = v.__rich_tree__()
+            subk.add(subv)
+            tree.add(subk)
         return tree
 
 
@@ -1835,10 +1829,10 @@ class IndexedChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
+    def __rich_tree__(self):
         doc = gpp._pformat_array(self.indices, short_arrays=True)
-        sub_tree = rich.tree.Tree(f"[bold](Indexed,{doc})")
-        self.inner.__rich_tree__(sub_tree)
+        tree = rich_tree.Tree(f"[bold](IndexedChoiceMap, {doc})")
+        sub_tree = self.inner.__rich_tree__()
         tree.add(sub_tree)
         return tree
 
@@ -1870,13 +1864,13 @@ class DisjointUnionChoiceMap(ChoiceMap):
         checks = jnp.array(map(lambda v: v.has_submap(addr), self.submaps))
         return jnp.sum(checks) == 1
 
-    def get_submap(self, addr):
+    def get_submap(self, head, *tail):
         # Tracer time computation which eliminates the DisjointUnionChoiceMap
         # type, and returns a more specialized choice map.
         new_submaps = list(
             filter(
                 lambda v: not isinstance(v, EmptyChoice),
-                map(lambda v: v.get_submap(addr), self.submaps),
+                map(lambda v: v.get_submap(head), self.submaps),
             )
         )
         # Static check: if any of the submaps are `ChoiceValue` instances, we must
@@ -1891,7 +1885,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
             return EmptyChoice()
 
         elif len(new_submaps) == 1:
-            return new_submaps[0]
+            return new_submaps[0].get_submap(*tail)
 
         # We've reached the `ChoiceValue` level - now we need to perform checks
         # * There must at least one valid leaf instance.
@@ -1936,115 +1930,11 @@ class DisjointUnionChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        sub_tree = rich.tree.Tree("[bold](DisjointUnion)")
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](DisjointUnionChoiceMap)")
         for submap in self.submaps:
-            _ = submap.__rich_tree__(sub_tree)
-        tree.add(sub_tree)
-        return tree
-
-
-@dataclasses.dataclass
-class DisjointPairChoiceMap(ChoiceMap):
-    """> A choice map combinator type which represents a disjoint union of a
-    pair of choice maps.
-
-    The internal data representation of a `ChoiceMap` is often specialized to support optimized code generation for inference interfaces, but the address hierarchy which a `ChoiceMap` represents (as an assignment of choices to addresses) must be generic.
-
-    To make this more concrete, a `VectorChoiceMap` represents choices with addresses of the form `(integer_index, ...)` - but its internal data representation is a struct-of-arrays. A `HierarchicalChoiceMap` can also represent address assignments with form `(integer_index, ...)` - but supporting choice map interfaces like `merge` across choice map types with specialized internal representations is complicated.
-
-    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `Static` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
-
-    To this end, `DisjointPairChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
-    """
-
-    submap_1: ChoiceMap
-    submap_2: ChoiceMap
-
-    def flatten(self):
-        return (self.submap_1, self.submap_2), ()
-
-    @classmethod
-    def new(cls, submap_1: ChoiceMap, submap_2: ChoiceMap):
-        return DisjointPairChoiceMap(submap_1, submap_2)
-
-    def has_submap(self, addr):
-        checks = jnp.array(
-            map(lambda v: v.has_submap(addr), [self.submap_1, self.submap_2])
-        )
-        return jnp.sum(checks) == 1
-
-    def get_submap(self, addr):
-        # Tracer time computation which eliminates the DisjointPairChoiceMap
-        # type, and returns a more specialized choice map.
-        new_submaps = list(
-            filter(
-                lambda v: not isinstance(v, EmptyChoice),
-                map(lambda v: v.get_submap(addr), self.submaps),
-            )
-        )
-        # Static check: if any of the submaps are `ChoiceValue` instances, we must
-        # check that all of them are. Otherwise, the choice map is invalid.
-        check_address_leaves = list(
-            map(lambda v: isinstance(v, ChoiceValue), new_submaps)
-        )
-        if any(check_address_leaves):
-            assert all(map(lambda v: isinstance(v, ChoiceValue), new_submaps))
-
-        if len(new_submaps) == 0:
-            return EmptyChoice()
-
-        elif len(new_submaps) == 1:
-            return new_submaps[0]
-
-        # We've reached the `ChoiceValue` level - now we need to perform checks
-        # * There must at least one valid leaf instance.
-        # * There should be only one valid leaf instance.
-        elif all(check_address_leaves):
-            # Convert all to Mask instances -- this operation will preserve existing
-            # Mask instances (and jnp.logical_and with the provided flag).
-            new_submaps = list(map(lambda v: mask(True, v), new_submaps))
-
-            # Now, extract the flags and runtime check that at least one is valid.
-            masks = jnp.array(
-                list(map(lambda v: v.mask, new_submaps)),
-            )
-
-            def _check_valid():
-                check_flag = jnp.any(masks)
-                return checkify.check(
-                    check_flag,
-                    "(DisjointUnionChoiceMap.get_submap): masked leaf values have no valid data.",
-                )
-
-            global_options.optional_check(_check_valid)
-
-            # Now, extract the flags and runtime check that only one is valid.
-            def _check_only_one():
-                check_flag = jnp.sum(masks) == 1
-                return checkify.check(
-                    check_flag,
-                    "(DisjointUnionChoiceMap.get_submap): multiple valid leaves.",
-                )
-
-            global_options.optional_check(_check_only_one)
-
-            # Get the index of the valid value, and create a `TaggedUnion` with it.
-            tag = jnp.argwhere(masks, size=1).reshape(1)[0]
-            new_submaps = list(map(lambda v: v.unsafe_unmask(), new_submaps))
-            return tagged_union(tag, new_submaps)
-        else:
-            return DisjointUnionChoiceMap(new_submaps)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        sub_tree = rich.tree.Tree("[bold](DisjointPair)")
-        _ = self.submap_1.__rich_tree__(sub_tree)
-        _ = self.submap_2.__rich_tree__(sub_tree)
-        tree.add(sub_tree)
+            sub_tree = submap.__rich_tree__()
+            tree.add(sub_tree)
         return tree
 
 
@@ -2052,17 +1942,21 @@ class DisjointPairChoiceMap(ChoiceMap):
 # Shorthands #
 ##############
 
-empty_choice_map = EmptyChoice.new
-value_choice_map = ChoiceValue.new
+# Choices and choice maps
+empty_choice = EmptyChoice.new
+choice_value = ChoiceValue.new
+hierarchical_choice_map = HierarchicalChoiceMap.new
+indexed_choice_map = IndexedChoiceMap.new
+disjoint_union_choice_map = DisjointUnionChoiceMap.new
+dynamic_choice_map = DynamicHierarchicalChoiceMap.new
+
+# Selections
 all_select = AllSelection.new
 none_select = NoneSelection.new
-hierarchical_choice_map = HierarchicalChoiceMap.new
 hierarchical_select = HierarchicalSelection.new
-indexed_choice_map = IndexedChoiceMap.new
 indexed_select = IndexedSelection.new
-disjoint_union_choice_map = DisjointUnionChoiceMap.new
-disjoint_pair_choice_map = DisjointPairChoiceMap.new
-dynamic_choice_map = DynamicHierarchicalChoiceMap.new
+
+# Functional types
 mask = Mask.new
 tagged_union = TaggedUnion.new
 
@@ -2074,7 +1968,7 @@ def choice_map():
 
 @dispatch
 def choice_map(v: Any):
-    return value_choice_map(v)
+    return choice_value(v)
 
 
 @dispatch
@@ -2105,13 +1999,8 @@ def choice_map(submaps: List[ChoiceMap]):
 
 
 @dispatch
-def choice_map(submap_1: ChoiceMap, submap_2: ChoiceMap):
-    return disjoint_pair_choice_map(submap_1, submap_2)
-
-
-@dispatch
-def choice_map(dynamic_addrs: List[Any], submaps: List[ChoiceMap]):
-    return dynamic_choice_map(dynamic_addrs, submaps)
+def choice_map(addrs: List[Any], submaps: List[ChoiceMap]):
+    return dynamic_choice_map(addrs, submaps)
 
 
 @dispatch

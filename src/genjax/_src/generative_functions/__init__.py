@@ -20,7 +20,3 @@ structuring probabilistic programs.
 * The `static` module contains a statically JAX traceable function-like language for defining generative functions from programs.
 * The `combinators` module contains combinators which support transforming generative functions into new ones with structured control flow patterns of computation.
 """
-
-from .combinators import *
-from .distributions import *
-from .static import *

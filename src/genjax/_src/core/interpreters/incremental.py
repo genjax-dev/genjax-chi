@@ -38,6 +38,7 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.interpreters.forward import Environment
 from genjax._src.core.interpreters.forward import StatefulHandler
 from genjax._src.core.interpreters.staging import stage
@@ -313,7 +314,7 @@ def incremental(f: Callable):
         primals: Tuple,
         tangents: Tuple,
     ):
-        interpreter = IncrementalInterpreter.new()
+        interpreter = IncrementalInterpreter(hashable_dict())
         return interpreter.run_interpreter(
             stateful_handler,
             f,
