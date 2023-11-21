@@ -33,6 +33,7 @@ from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_tangent
 from genjax._src.core.interpreters.incremental import tree_diff_unpack_leaves
+from genjax._src.core.pytree.const import tree_map_collapse_const
 from genjax._src.core.pytree.const import tree_map_static_dynamic
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
@@ -181,7 +182,7 @@ class AddressVisitor(Pytree):
 
 
 # This explicitly makes assumptions about some common fields:
-# e.g. it assumes if you are using `StaticLanguageHandler.get_subtree`
+# e.g. it assumes if you are using `StaticLanguageHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
 @dataclasses.dataclass
 class StaticLanguageHandler(StatefulHandler):
@@ -195,7 +196,8 @@ class StaticLanguageHandler(StatefulHandler):
         self.address_visitor.visit(addr)
 
     def get_submap(self, addr):
-        return self.constraints.get_subtree(addr)
+        addr = tree_map_collapse_const(addr)
+        return self.constraints.get_submap(addr)
 
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
