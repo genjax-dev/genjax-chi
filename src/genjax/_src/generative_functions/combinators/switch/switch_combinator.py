@@ -59,7 +59,7 @@ from genjax._src.generative_functions.combinators.switch.switch_datatypes import
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchTrace,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 #####
@@ -68,7 +68,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsStatic
 
 
 @dataclass
-class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
+class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching
     control flow patterns, including control flow patterns which branch on

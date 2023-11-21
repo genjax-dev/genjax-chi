@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `genjax.dynamic` language is a generative function language which
+"""The `genjax.interpreted` language is a generative function language which
 exposes a less restrictive set of program constructs, based on normal Python programs. It implements the GFI using an effect handler style implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html) for instance, although the code in this module is quite readable and localized).
 
 The intent of this language is pedagogical - one can use it to rapidly construct models and prototype inference, but it is not intended to be used for performance critical applications, for several reasons:
 
-* Instances of `genjax.dynamic` generative functions *cannot* be invoked as callees within JAX generative function code, which prevents compositional usage (from above, within `JAXGenerativeFunction` instances).
+* Instances of `genjax.interpreted` generative functions *cannot* be invoked as callees within JAX generative function code, which prevents compositional usage (from above, within `JAXGenerativeFunction` instances).
 
 * It does not feature gradient interfaces - supporting an ad hoc Python AD implementation is out of scope for the intended applications of GenJAX.
 """
@@ -47,14 +47,14 @@ from genjax._src.core.typing import typecheck
 
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
-_DYNAMIC_STACK = []
+_interpreted_STACK = []
 
 
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
 def handle(msg):
-    assert _DYNAMIC_STACK
-    handler = _DYNAMIC_STACK[-1]
+    assert _interpreted_STACK
+    handler = _interpreted_STACK[-1]
     v = handler.process_message(msg)
     return v
 
@@ -63,18 +63,18 @@ def handle(msg):
 # It must also provide an implementation for `process_message`.
 class Handler(object):
     def __enter__(self):
-        _DYNAMIC_STACK.append(self)
+        _interpreted_STACK.append(self)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
-            assert _DYNAMIC_STACK[-1] is self
-            _DYNAMIC_STACK.pop()
+            assert _interpreted_STACK[-1] is self
+            _interpreted_STACK.pop()
         else:
-            if self in _DYNAMIC_STACK:
-                loc = _DYNAMIC_STACK.index(self)
-                for _ in range(loc, len(_DYNAMIC_STACK)):
-                    _DYNAMIC_STACK.pop()
+            if self in _interpreted_STACK:
+                loc = _interpreted_STACK.index(self)
+                for _ in range(loc, len(_interpreted_STACK)):
+                    _interpreted_STACK.pop()
 
     @abc.abstractmethod
     def process_message(self, msg):
@@ -86,7 +86,7 @@ class Handler(object):
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction, *args: Any) -> Any:
     # Must be handled.
-    assert _DYNAMIC_STACK
+    assert _interpreted_STACK
 
     initial_msg = {
         "type": "trace",
@@ -262,7 +262,7 @@ class AssessHandler(Handler):
 
 
 @dataclass
-class DynamicTrace(Trace):
+class InterpretedTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -294,7 +294,7 @@ class DynamicTrace(Trace):
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 @dataclass
-class DynamicGenerativeFunction(GenerativeFunction):
+class InterpretedGenerativeFunction(GenerativeFunction):
     source: Callable
 
     def flatten(self):
@@ -303,40 +303,40 @@ class DynamicGenerativeFunction(GenerativeFunction):
     @typecheck
     @classmethod
     def new(cls, callable: Callable):
-        return DynamicGenerativeFunction(callable)
+        return InterpretedGenerativeFunction(callable)
 
     def simulate(
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> DynamicTrace:
+    ) -> InterpretedTrace:
         # Handle trace with the `SimulateHandler`.
         with SimulateHandler.new(key) as handler:
             retval = self.source(*args)
             score = handler.score
             choices = handler.choice_state
-            return DynamicTrace(self, args, retval, choices, score)
+            return InterpretedTrace(self, args, retval, choices, score)
 
     def importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DynamicTrace]:
+    ) -> Tuple[FloatArray, InterpretedTrace]:
         with ImportanceHandler.new(key, choice_map) as handler:
             retval = self.source(*args)
             score = handler.score
             choices = handler.choice_state
             weight = handler.weight
-            return (weight, DynamicTrace(self, args, retval, choices, score))
+            return (weight, InterpretedTrace(self, args, retval, choices, score))
 
     def update(
         self,
         key: PRNGKey,
-        prev_trace: DynamicTrace,
+        prev_trace: InterpretedTrace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DynamicTrace, ChoiceMap]:
+    ) -> Tuple[Any, FloatArray, InterpretedTrace, ChoiceMap]:
         with UpdateHandler.new(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
             retval = self.source(*args)
@@ -348,7 +348,7 @@ class DynamicGenerativeFunction(GenerativeFunction):
             return (
                 retdiff,
                 weight,
-                DynamicTrace(self, args, retval, choices, score),
+                InterpretedTrace(self, args, retval, choices, score),
                 HierarchicalChoiceMap(discard),
             )
 
@@ -364,4 +364,4 @@ class DynamicGenerativeFunction(GenerativeFunction):
             return (retval, score)
 
 
-DynamicLanguage = DynamicGenerativeFunction.new
+InterpretedLanguage = InterpretedGenerativeFunction.new

@@ -46,7 +46,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 from genjax._src.global_options import global_options
 
 
@@ -137,7 +137,7 @@ class MapTrace(Trace):
 
 
 @dataclass
-class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
+class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 

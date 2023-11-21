@@ -14,8 +14,8 @@
 
 from genjax._src.generative_functions.static.static_gen_fn import StaticLanguage
 from genjax._src.generative_functions.static.static_gen_fn import partial
-from genjax._src.generative_functions.static.static_gen_fn import save
 from genjax._src.generative_functions.static.static_transforms import cache
+from genjax._src.generative_functions.static.static_transforms import save
 from genjax._src.generative_functions.static.static_transforms import trace
 
 
