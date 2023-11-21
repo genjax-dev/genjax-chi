@@ -239,7 +239,7 @@ class HierarchicalSelection(Selection):
         tree = rich_tree.Tree("[bold](HierarchicalSelection)")
         for k, v in self.get_submaps_shallow():
             subk = tree.add(f"[bold]:{k}")
-            _ = v.__rich_tree__(subk)
+            subk.add(v.__rich_tree__())
         return tree
 
 
@@ -271,12 +271,12 @@ class ComplementHierarchicalSelection(HierarchicalSelection):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        sub_tree = rich_tree.Tree("[bold](Complement)")
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](Complement)")
         for k, v in self.get_submaps_shallow():
-            subk = sub_tree.add(f"[bold]:{k}")
-            _ = v.__rich_tree__(subk)
-        tree.add(sub_tree)
+            subk = rich_tree.Tree(f"[bold]:{k}")
+            subk.add(v.__rich_tree__())
+            tree.add(subk)
         return tree
 
 
@@ -331,11 +331,10 @@ class IndexedSelection(Selection):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
+    def __rich_tree__(self):
         doc = gpp._pformat_array(self.indices, short_arrays=True)
-        sub_tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
-        self.inner.__rich_tree__(sub_tree)
-        tree.add(sub_tree)
+        tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
+        tree.add(self.inner.__rich_tree__())
         return tree
 
 
@@ -373,9 +372,8 @@ class ComplementIndexedSelection(IndexedSelection):
     ###################
 
     def __rich_tree__(self, tree):
-        sub_tree = rich_tree.Tree("[bold](Complement)")
-        self.index_selection.__rich_tree__(sub_tree)
-        tree.add(sub_tree)
+        tree = rich_tree.Tree("[bold](Complement)")
+        tree.add(self.index_selection.__rich_tree__())
         return tree
 
 
@@ -522,12 +520,6 @@ class ChoiceMap(Choice):
 
     def __eq__(self, other):
         return self.flatten() == other.flatten()
-
-    # Optional: mutable setter.
-    def __setitem__(self, key, value):
-        raise Exception(
-            f"ChoiceMap of type {type(self)} does not implement __setitem__.",
-        )
 
     def __add__(self, other):
         return self.safe_merge(other)
@@ -996,68 +988,6 @@ class Mask(Pytree):
         else:
             val_tree = gpp.tree_pformat(self.value, short_arrays=True)
             tree.add(val_tree)
-        return tree
-
-
-#################
-# Tagged unions #
-#################
-
-
-@dataclass
-class TaggedUnion(Pytree):
-    tag: IntArray
-    values: List[Any]
-
-    def flatten(self):
-        return (self.tag, self.values), ()
-
-    @classmethod
-    @typecheck
-    def new(cls, tag: IntArray, values: List[Any]):
-        return cls(tag, values)
-
-    def _static_assert_tagged_union_switch_num_callables_is_num_values(self, callables):
-        assert len(callables) == len(self.values)
-
-    def _static_assert_tagged_union_switch_returns_same_type(self, vs):
-        return True
-
-    @typecheck
-    def match(self, *callables: Callable):
-        assert len(callables) == len(self.values)
-        self._static_assert_tagged_union_switch_num_callables_is_num_values(callables)
-        vs = list(map(lambda v: v[0](v[1]), zip(callables, self.values)))
-        self._static_assert_tagged_union_switch_returns_same_type(vs)
-        vs = jnp.array(vs)
-        return vs[self.tag]
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __getattr__(self, name):
-        subs = list(map(lambda v: getattr(v, name), self.values))
-        if subs and all(map(lambda v: isinstance(v, Callable), subs)):
-
-            def wrapper(*args):
-                vs = [s(*args) for s in subs]
-                return TaggedUnion(self.tag, vs)
-
-            return wrapper
-        else:
-            return TaggedUnion(self.tag, subs)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        doc = gpp._pformat_array(self.tag, short_arrays=True)
-        vals_tree = gpp.tree_pformat(self.values, short_arrays=True)
-        sub_tree = rich_tree.Tree(f"[bold](TaggedUnion, {doc})")
-        sub_tree.add(vals_tree)
-        tree.add(sub_tree)
         return tree
 
 
@@ -1865,12 +1795,10 @@ class DisjointUnionChoiceMap(ChoiceMap):
         return jnp.sum(checks) == 1
 
     def get_submap(self, head, *tail):
-        # Tracer time computation which eliminates the DisjointUnionChoiceMap
-        # type, and returns a more specialized choice map.
         new_submaps = list(
             filter(
                 lambda v: not isinstance(v, EmptyChoice),
-                map(lambda v: v.get_submap(head), self.submaps),
+                map(lambda v: v.get_submap(head, *tail), self.submaps),
             )
         )
         # Static check: if any of the submaps are `ChoiceValue` instances, we must
@@ -1885,44 +1813,8 @@ class DisjointUnionChoiceMap(ChoiceMap):
             return EmptyChoice()
 
         elif len(new_submaps) == 1:
-            return new_submaps[0].get_submap(*tail)
+            return new_submaps[0]
 
-        # We've reached the `ChoiceValue` level - now we need to perform checks
-        # * There must at least one valid leaf instance.
-        # * There should be only one valid leaf instance.
-        elif all(check_address_leaves):
-            # Convert all to Mask instances -- this operation will preserve existing
-            # Mask instances (and jnp.logical_and with the provided flag).
-            new_submaps = list(map(lambda v: mask(True, v), new_submaps))
-
-            # Now, extract the flags and runtime check that at least one is valid.
-            masks = jnp.array(
-                list(map(lambda v: v.mask, new_submaps)),
-            )
-
-            def _check_valid():
-                check_flag = jnp.any(masks)
-                return checkify.check(
-                    check_flag,
-                    "(DisjointUnionChoiceMap.get_submap): masked leaf values have no valid data.",
-                )
-
-            global_options.optional_check(_check_valid)
-
-            # Now, extract the flags and runtime check that only one is valid.
-            def _check_only_one():
-                check_flag = jnp.sum(masks) == 1
-                return checkify.check(
-                    check_flag,
-                    "(DisjointUnionChoiceMap.get_submap): multiple valid leaves.",
-                )
-
-            global_options.optional_check(_check_only_one)
-
-            # Get the index of the valid value, and create a `TaggedUnion` with it.
-            tag = jnp.argwhere(masks, size=1).reshape(1)[0]
-            new_submaps = list(map(lambda v: v.unsafe_unmask(), new_submaps))
-            return tagged_union(tag, new_submaps)
         else:
             return DisjointUnionChoiceMap(new_submaps)
 
@@ -1945,20 +1837,19 @@ class DisjointUnionChoiceMap(ChoiceMap):
 # Choices and choice maps
 empty_choice = EmptyChoice.new
 choice_value = ChoiceValue.new
+dynamic_choice_map = DynamicHierarchicalChoiceMap.new
 hierarchical_choice_map = HierarchicalChoiceMap.new
 indexed_choice_map = IndexedChoiceMap.new
 disjoint_union_choice_map = DisjointUnionChoiceMap.new
-dynamic_choice_map = DynamicHierarchicalChoiceMap.new
 
 # Selections
-all_select = AllSelection.new
 none_select = NoneSelection.new
+all_select = AllSelection.new
 hierarchical_select = HierarchicalSelection.new
 indexed_select = IndexedSelection.new
 
 # Functional types
 mask = Mask.new
-tagged_union = TaggedUnion.new
 
 
 @dispatch

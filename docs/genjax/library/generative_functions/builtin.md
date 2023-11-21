@@ -1,10 +1,10 @@
-::: genjax._src.generative_functions.builtin
+::: genjax._src.generative_functions.static
     options:
       show_root_heading: false
 
 ## Usage
 
-The `Builtin` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. 
+The `Static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. 
 
 Below, we illustrate a simple example:
     
@@ -29,13 +29,13 @@ def joint():
 
 ## Language primitives
 
-The builtin language exposes custom primitives, which are handled by JAX interpreters to support the semantics of the generative function interface.
+The static language exposes custom primitives, which are handled by JAX interpreters to support the semantics of the generative function interface.
 
 ### `trace`
 
 The `trace` primitive provides access to the ability to invoke another generative function as a callee. 
 
-::: genjax.generative_functions.builtin.trace
+::: genjax.generative_functions.static.trace
 
 Returning to our example above:
 
@@ -68,16 +68,10 @@ print(console.render(tr))
 
 Notice how the rendered result `Trace` has addresses in its choice trie for `"p"` and `"v"` - corresponding to the invocation of the beta and Bernoulli distribution generative functions.
 
-The `trace` primitive is a critical element of structuring hierarchical generative computation in the builtin language.
+The `trace` primitive is a critical element of structuring hierarchical generative computation in the static language.
 
 ### `cache`
 
 The `cache` primitive is designed to expose a space vs. time trade-off for incremental computation in Gen's `update` interface.
 
-::: genjax.generative_functions.builtin.cache
-
-## Generative datatypes
-
-The builtin language implements a trie-like trace.
-
-::: genjax.generative_functions.builtin.BuiltinTrace
+::: genjax.generative_functions.static.cache

@@ -31,7 +31,6 @@ nav:
           - Core datatypes: genjax/library/core/datatypes.md
           - Generative datatypes: genjax/library/core/generative.md
           - Specialization, value universes, and functional types: genjax/library/core/functional_types.md
-          - Interpreters & transforms: genjax/library/core/interpreters.md
           - Runtime debugger: genjax/library/core/runtime_debugger.md
       - Generative function languages:
           - genjax/library/generative_functions/index.md
