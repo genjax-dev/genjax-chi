@@ -204,17 +204,6 @@ class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
         retval_diff = tree_diff_unknown_change(v)
         return (retval_diff, w, new_tr, discard)
 
-    @typecheck
-    def assess(
-        self,
-        key: PRNGKey,
-        evaluation_point: ChoiceValue,
-        args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
-        v = evaluation_point.get_value()
-        score = self.estimate_logpdf(key, v, *args)
-        return (v, score)
-
     ###################
     # Deserialization #
     ###################
@@ -306,6 +295,16 @@ class ExactDensity(Distribution):
         w = self.logpdf(v, *args, **kwargs)
         return (w, v)
 
-    def estimate_logpdf(self, key, v, *args, **kwargs):
+    def estimate_logpdf(self, _, v, *args, **kwargs):
         w = self.logpdf(v, *args, **kwargs)
         return w
+
+    @typecheck
+    def assess(
+        self,
+        evaluation_point: ChoiceValue,
+        args: Tuple,
+    ) -> Tuple[Any, FloatArray]:
+        v = evaluation_point.get_value()
+        score = self.logpdf(v, *args)
+        return (v, score)

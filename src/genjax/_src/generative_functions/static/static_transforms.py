@@ -559,7 +559,6 @@ def update_transform(source_fn):
 
 @dataclasses.dataclass
 class AssessHandler(StaticLanguageHandler):
-    key: PRNGKey
     score: FloatArray
     constraints: ChoiceMap
     address_visitor: AddressVisitor
@@ -567,7 +566,6 @@ class AssessHandler(StaticLanguageHandler):
 
     def flatten(self):
         return (
-            self.key,
             self.score,
             self.constraints,
             self.address_visitor,
@@ -578,12 +576,11 @@ class AssessHandler(StaticLanguageHandler):
         return (self.score,)
 
     @classmethod
-    def new(cls, key, constraints):
+    def new(cls, constraints):
         score = 0.0
         address_visitor = AddressVisitor.new()
         cache_visitor = AddressVisitor.new()
         return AssessHandler(
-            key,
             score,
             constraints,
             address_visitor,
@@ -598,8 +595,7 @@ class AssessHandler(StaticLanguageHandler):
         self.visit(addr)
         args = tuple(args)
         submap = self.get_submap(addr)
-        self.key, sub_key = jax.random.split(self.key)
-        (v, score) = gen_fn.assess(sub_key, submap, args)
+        (v, score) = gen_fn.assess(submap, args)
         self.score += score
         return jtu.tree_leaves(v)
 
@@ -612,8 +608,8 @@ class AssessHandler(StaticLanguageHandler):
 
 def assess_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, constraints, args):
-        stateful_handler = AssessHandler.new(key, constraints)
+    def wrapper(constraints, args):
+        stateful_handler = AssessHandler.new(constraints)
         retval = forward(source_fn)(stateful_handler, *args)
         (score,) = stateful_handler.yield_state()
         return (retval, score)

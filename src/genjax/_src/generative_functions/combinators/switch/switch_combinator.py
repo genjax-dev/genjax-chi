@@ -324,21 +324,20 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     @typecheck
     def assess(
         self,
-        key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
         switch = args[0]
 
-        def _assess(branch_gen_fn, key, chm, args):
-            return branch_gen_fn.assess(key, chm, args[1:])
+        def _assess(branch_gen_fn, chm, args):
+            return branch_gen_fn.assess(chm, args[1:])
 
         def _inner(br):
-            return lambda key, chm, *args: _assess(br, key, chm, args)
+            return lambda chm, *args: _assess(br, chm, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(switch, branch_functions, key, chm, *args)
+        return jax.lax.switch(switch, branch_functions, chm, *args)
 
 
 ##############

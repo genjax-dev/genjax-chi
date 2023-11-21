@@ -781,7 +781,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     @dispatch
     def assess(
         self,
-        key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
@@ -791,13 +790,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         static_args = args[2:]
 
         def _inner(carry, slice):
-            count, key, state = carry
+            count, state = carry
             chm = slice
 
             check = count == chm.get_index()
-            key, sub_key = jax.random.split(key)
 
-            (retval, score) = self.kernel.assess(sub_key, chm, (state, *static_args))
+            (retval, score) = self.kernel.assess(chm, (state, *static_args))
 
             check = jnp.less(count, length + 1)
             index = jax.lax.cond(
@@ -810,11 +808,11 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
                 lambda *args: (count + 1, retval, score),
                 lambda *args: (count, state, 0.0),
             )
-            return (count, key, state), (state, score, index)
+            return (count, state), (state, score, index)
 
-        (_, _, state), (retval, score, _) = jax.lax.scan(
+        (_, state), (retval, score, _) = jax.lax.scan(
             _inner,
-            (0, key, state),
+            (0, state),
             chm,
             length=self.max_length,
         )

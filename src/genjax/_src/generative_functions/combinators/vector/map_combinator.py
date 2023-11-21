@@ -452,7 +452,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     @typecheck
     def assess(
         self,
-        key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
@@ -468,9 +467,8 @@ class MapCombinator(JAXGenerativeFunction, SupportsStaticSugar):
         self._optional_index_check(check, indices, chm.get_index())
 
         inner = chm.inner
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-        (retval, score) = jax.vmap(self.kernel.assess, in_axes=(0, 0, self.in_axes))(
-            sub_keys, inner, args
+        (retval, score) = jax.vmap(self.kernel.assess, in_axes=(0, self.in_axes))(
+            inner, args
         )
         return (retval, jnp.sum(score))
 
