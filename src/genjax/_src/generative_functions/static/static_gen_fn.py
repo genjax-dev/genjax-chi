@@ -21,7 +21,6 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
@@ -29,121 +28,49 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
 from genjax._src.core.pytree.closure import DynamicClosure
-from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.static.static_datatypes import StaticTrace
 from genjax._src.generative_functions.static.static_transforms import assess_transform
-from genjax._src.generative_functions.static.static_transforms import cache
 from genjax._src.generative_functions.static.static_transforms import (
     importance_transform,
 )
 from genjax._src.generative_functions.static.static_transforms import simulate_transform
 from genjax._src.generative_functions.static.static_transforms import trace
 from genjax._src.generative_functions.static.static_transforms import update_transform
+from genjax._src.generative_functions.supports_callees import SupportsCalleeSugar
+from genjax._src.generative_functions.supports_callees import push_trace_overload_stack
 
 
-#####
-# Static language syntactic sugar
-#####
+#######################
+# Generative function #
+#######################
 
-
-# This class is used to allow syntactic sugar (e.g. the `@` operator)
-# in the static language for functions via the `cache` static_primitives.
-@dataclass
-class DeferredFunctionCall(Pytree):
-    fn: Callable
-    kwargs: Dict
-    args: Union[None, Tuple]
-
-    def flatten(self):
-        return (self.args,), (self.fn, self.kwargs)
-
-    @classmethod
-    def new(cls, fn, **kwargs):
-        assert not isinstance(fn, GenerativeFunction)
-        return DeferredFunctionCall(fn, kwargs, None)
-
-    def __call__(self, *args):
-        return DeferredFunctionCall(self.fn, self.kwargs, args)
-
-    def __matmul__(self, addr):
-        return cache(addr, self.fn, **self.kwargs)(*self.args)
-
-
-def save(fn, **kwargs):
-    return DeferredFunctionCall.new(fn, **kwargs)
-
-
-# Denotes that a generative function should be inlined in the
-# `@` syntactic sugar for addressing.
-class INLINE_FLAG:
-    pass
-
-
-inline = INLINE_FLAG()
-
-
-# This class is used to allow syntactic sugar (e.g. the `@` operator)
-# in the static language for generative functions via the `trace` intrinsic.
-@dataclass
-class DeferredGenerativeFunctionCall(Pytree):
-    gen_fn: GenerativeFunction
-    kwargs: Dict
-    args: Tuple
-
-    def flatten(self):
-        return (self.args,), (self.gen_fn, self.kwargs)
-
-    @classmethod
-    def new(cls, gen_fn, args, kwargs):
-        return DeferredGenerativeFunctionCall(gen_fn, kwargs, args)
-
-    def __matmul__(self, addr):
-        if addr == inline:
-            # To use inlining, the generative function must be a
-            # `StaticGenerativeFunction`.
-            assert isinstance(self.gen_fn, StaticGenerativeFunction)
-            return self.gen_fn.inline(*self.args)
-        else:
-            return trace(addr, self.gen_fn, **self.kwargs)(*self.args)
-
-
-# This mixin overloads the call functionality for this generative function
-# and allows usage of shorthand notation in the static DSL.
-class SupportsStaticSugar:
-    @dispatch
-    def __call__(self, *args: Any, **kwargs) -> DeferredGenerativeFunctionCall:
-        return DeferredGenerativeFunctionCall.new(self, args, kwargs)
-
-    @dispatch
-    def __call__(self, key: PRNGKey, args: Tuple) -> Any:
-        tr = self.simulate(key, args)
-        retval = tr.get_retval()
-        return retval
-
-
-#####
-# Generative function
-#####
+# Callee syntactic sugar handler.
+@typecheck
+def handler_trace_with_static(
+    addr,
+    gen_fn: JAXGenerativeFunction,
+    args: Tuple,
+):
+    return trace(addr, gen_fn)(*args)
 
 
 @dataclass
 class StaticGenerativeFunction(
     JAXGenerativeFunction,
-    SupportsStaticSugar,
+    SupportsCalleeSugar,
 ):
     source: Callable
 
     def flatten(self):
+        # NOTE: Experimental.
         if isinstance(self.source, DynamicClosure):
             return (self.source,), ()
         else:
@@ -167,8 +94,11 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         args: Tuple,
     ) -> StaticTrace:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
         (args, retval, address_choices, score), cache_state = simulate_transform(
-            self.source
+            syntax_sugar_handled
         )(key, args)
         return StaticTrace.new(
             self,

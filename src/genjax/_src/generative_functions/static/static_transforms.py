@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
 import functools
 import itertools
+from dataclasses import dataclass
 
 import jax
 import jax.tree_util as jtu
@@ -38,10 +38,12 @@ from genjax._src.core.pytree.const import tree_map_static_dynamic
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Union
 from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.static.static_datatypes import (
@@ -58,6 +60,37 @@ trace_p = InitialStylePrimitive("trace")
 
 # Cache intrinsic.
 cache_p = InitialStylePrimitive("cache")
+
+
+#####
+# Saving deterministic results
+#####
+
+# This class is used to allow syntactic sugar (e.g. the `@` operator)
+# in the static language for functions via the `cache` static_primitives.
+@dataclass
+class DeferredFunctionCall(Pytree):
+    fn: Callable
+    kwargs: Dict
+    args: Union[None, Tuple]
+
+    def flatten(self):
+        return (self.args,), (self.fn, self.kwargs)
+
+    @classmethod
+    def new(cls, fn, **kwargs):
+        assert not isinstance(fn, GenerativeFunction)
+        return DeferredFunctionCall(fn, kwargs, None)
+
+    def __call__(self, *args):
+        return DeferredFunctionCall(self.fn, self.kwargs, args)
+
+    def __matmul__(self, addr):
+        return cache(addr, self.fn, **self.kwargs)(*self.args)
+
+
+def save(fn, **kwargs):
+    return DeferredFunctionCall.new(fn, **kwargs)
 
 
 #####
@@ -151,7 +184,7 @@ def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
 
 
 # Usage in transforms: checks for duplicate addresses.
-@dataclasses.dataclass
+@dataclass
 class AddressVisitor(Pytree):
     visited: List
 
@@ -184,7 +217,7 @@ class AddressVisitor(Pytree):
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticLanguageHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-@dataclasses.dataclass
+@dataclass
 class StaticLanguageHandler(StatefulHandler):
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
@@ -221,7 +254,7 @@ class StaticLanguageHandler(StatefulHandler):
 ############
 
 
-@dataclasses.dataclass
+@dataclass
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
     score: FloatArray
@@ -307,7 +340,7 @@ def simulate_transform(source_fn):
 ##############
 
 
-@dataclasses.dataclass
+@dataclass
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
     score: FloatArray
@@ -412,7 +445,7 @@ def importance_transform(source_fn):
 ##########
 
 
-@dataclasses.dataclass
+@dataclass
 class UpdateHandler(StaticLanguageHandler):
     key: PRNGKey
     score: FloatArray
@@ -559,7 +592,7 @@ def update_transform(source_fn):
 #####
 
 
-@dataclasses.dataclass
+@dataclass
 class AssessHandler(StaticLanguageHandler):
     score: FloatArray
     constraints: ChoiceMap

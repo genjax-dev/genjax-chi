@@ -49,7 +49,7 @@ from genjax._src.generative_functions.combinators.staging_utils import make_zero
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 from genjax._src.global_options import global_options
 
 
@@ -121,7 +121,7 @@ class UnfoldTrace(Trace):
 
 
 @dataclass
-class UnfoldCombinator(JAXGenerativeFunction, SupportsStaticSugar):
+class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `UnfoldCombinator` accepts a kernel generative function, as well as a
     static maximum unroll length, and provides a scan-like pattern of
     generative computation.

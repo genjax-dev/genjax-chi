@@ -16,4 +16,5 @@ from genjax._src.generative_functions.drop_arguments import *
 
 from .combinators import *
 from .distributions import *
+from .interpreted import *
 from .static import *

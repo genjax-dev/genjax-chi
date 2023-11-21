@@ -39,7 +39,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 #####
@@ -111,7 +111,7 @@ class DistributionTrace(
 
 
 @dataclass
-class Distribution(JAXGenerativeFunction, SupportsStaticSugar):
+class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
     def flatten(self):
         return (), ()
 
