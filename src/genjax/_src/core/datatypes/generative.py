@@ -1239,14 +1239,13 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self,
-        key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        """> Given a `key: PRNGKey`, a complete choice map indicating
-        constraints ($u$) for all choices, and arguments ($x$), execute the
-        generative function, and return the return value of the invocation, and
-        the score of the choice map ($s$).
+        """> Given a complete choice map indicating constraints ($u$) for all
+        choices, and arguments ($x$), execute the generative function, and
+        return the return value of the invocation, and the score of the choice
+        map ($s$).
 
         Arguments:
             key: A `PRNGKey`.
@@ -1291,7 +1290,6 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
     def unzip(
         self,
-        key: PRNGKey,
         fixed: ChoiceMap,
     ) -> Tuple[
         Callable[[ChoiceMap, Tuple], FloatArray],
@@ -1300,13 +1298,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            (_, score) = self.assess(key, merged, args)
+            (_, score) = self.assess(merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            (retval, _) = self.assess(key, merged, args)
+            (retval, _) = self.assess(merged, args)
             return retval
 
         return score, retval

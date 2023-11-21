@@ -298,11 +298,10 @@ class StaticGenerativeFunction(
     @typecheck
     def assess(
         self,
-        key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        (retval, score) = assess_transform(self.source)(key, chm, args)
+        (retval, score) = assess_transform(self.source)(chm, args)
         return (retval, score)
 
     def inline(self, *args):

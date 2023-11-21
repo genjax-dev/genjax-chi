@@ -20,7 +20,5 @@ This module provides:
 
 * Custom distributions, including ones with exact posteriors (like discrete HMMs).
 
-* A language (`coryx`) based on [`oryx`](https://github.com/jax-ml/oryx) for defining new distribution objects from inverse log determinant Jacobian transformations on existing distributions.
-
 * A language (`gensp`) for defining distributions with estimated densities using inference.
 """
