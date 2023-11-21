@@ -8,7 +8,8 @@
 }
 
 .md-typeset code {
-  font-family: 'Berkeley Mono';
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas,
+    'DejaVu Sans Mono', monospace;
   font-weight: 800;
   font-variant-ligatures: discretionary-ligatures;
 }

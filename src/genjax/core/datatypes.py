@@ -16,6 +16,7 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import ComplementHierarchicalSelection
+from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
@@ -26,18 +27,17 @@ from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Mask
 from genjax._src.core.datatypes.generative import NoneSelection
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import TaggedUnion
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import all_select
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import choice_value
+from genjax._src.core.datatypes.generative import disjoint_union_choice_map
 from genjax._src.core.datatypes.generative import empty_choice
 from genjax._src.core.datatypes.generative import indexed_choice_map
 from genjax._src.core.datatypes.generative import indexed_select
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import select
-from genjax._src.core.datatypes.generative import tagged_union
 from genjax._src.core.datatypes.hashable_dict import HashableDict
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
@@ -66,6 +66,8 @@ __all__ = [
     "choice_map",
     "IndexedChoiceMap",
     "indexed_choice_map",
+    "DisjointUnionChoiceMap",
+    "disjoint_union_choice_map",
     "Trace",
     "Selection",
     "AllSelection",
@@ -82,9 +84,6 @@ __all__ = [
     # Masking.
     "Mask",
     "mask",
-    # Tagged unions.
-    "TaggedUnion",
-    "tagged_union",
     # Pytree meta.
     "Pytree",
     "PytreeConst",

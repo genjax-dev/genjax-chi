@@ -44,21 +44,38 @@ class StaticLanguageChoiceMap(ChoiceMap):
     subtraces: List[Trace]
 
     def flatten(self):
-        return (self.addrs, self.submaps), ()
+        return (self.addrs, self.subtraces), ()
 
     @classmethod
     @dispatch
-    def new(cls, addrs, submaps):
-        return StaticLanguageChoiceMap(addrs, submaps)
+    def new(cls, addrs, subtraces):
+        return StaticLanguageChoiceMap(addrs, subtraces)
 
     @classmethod
     @dispatch
     def new(cls):
         return StaticLanguageChoiceMap([], [])
 
+    @dispatch
+    def __setitem__(self, k: Tuple, v):
+        fst, *rst = k
+        if rst:
+            sub = StaticLanguageChoiceMap.new()
+            sub[tuple(rst)] = v
+            self.addrs.append(fst)
+            self.subtraces.append(sub)
+        else:
+            self.addrs.append(fst)
+            self.subtraces.append(v)
+
+    @dispatch
+    def __setitem__(self, k: Any, v):
+        self.addrs.append(k)
+        self.subtraces.append(v)
+
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](StaticLanguageChoiceMap)")
-        for k, v in zip(self.addrs, self.submaps):
+        for k, v in zip(self.addrs, self.subtraces):
             if isinstance(k, Pytree):
                 subk = k.__rich_tree__()
             else:
