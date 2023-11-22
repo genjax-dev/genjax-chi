@@ -28,11 +28,11 @@ from genjax._src.core.interpreters.forward import InitialStylePrimitive
 from genjax._src.core.interpreters.forward import StatefulHandler
 from genjax._src.core.interpreters.forward import forward
 from genjax._src.core.interpreters.forward import initial_style_bind
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.incremental import incremental
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_tangent
-from genjax._src.core.interpreters.incremental import tree_diff_unpack_leaves
 from genjax._src.core.pytree.const import tree_map_collapse_const
 from genjax._src.core.pytree.const import tree_map_static_dynamic
 from genjax._src.core.pytree.pytree import Pytree
@@ -231,6 +231,10 @@ class StaticLanguageHandler(StatefulHandler):
     def get_submap(self, addr):
         addr = tree_map_collapse_const(addr)
         return self.constraints.get_submap(addr)
+
+    def get_subtrace(self, addr):
+        addr = tree_map_collapse_const(addr)
+        return self.previous_trace.get_subtrace(addr)
 
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
@@ -511,7 +515,7 @@ class UpdateHandler(StaticLanguageHandler):
         self.visit(addr)
 
         # Run the update step.
-        subtrace = self.previous_trace
+        subtrace = self.get_subtrace(addr)
         subconstraints = self.get_submap(addr)
         argdiffs = tuple(argdiffs)
         self.key, sub_key = jax.random.split(self.key)
@@ -525,7 +529,7 @@ class UpdateHandler(StaticLanguageHandler):
 
         # We have to convert the Diff back to tracers to return
         # from the primitive.
-        return tree_diff_unpack_leaves(retval_diff)
+        return jtu.tree_leaves(retval_diff, is_leaf=lambda v: isinstance(v, Diff))
 
     # TODO: fix -- add Diff/tracer return.
     def handle_cache(self, *tracers, **params):

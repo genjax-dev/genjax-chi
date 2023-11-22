@@ -202,20 +202,13 @@ class StaticGenerativeFunction(
                 (
                     arg_primals,
                     retval_primals,
-                    static_address_choices,
-                    dynamic_addresses,
-                    dynamic_address_choices,
+                    address_choices,
                     score,
                 ),
-                (static_discard, dynamic_discard_addresses, dynamic_discard_choices),
+                discard,
             ),
             cache_state,
         ) = update_transform(syntax_sugar_handled)(key, prev, constraints, argdiffs)
-        discard = self._create_discard(
-            static_discard,
-            dynamic_discard_addresses,
-            dynamic_discard_choices,
-        )
         return (
             retval_diffs,
             weight,
@@ -223,9 +216,7 @@ class StaticGenerativeFunction(
                 self,
                 arg_primals,
                 retval_primals,
-                static_address_choices,
-                dynamic_addresses,
-                dynamic_address_choices,
+                address_choices,
                 cache_state,
                 score,
             ),
