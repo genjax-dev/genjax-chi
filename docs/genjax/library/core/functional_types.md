@@ -1,4 +1,4 @@
-# Specialization, value universes, and functional types
+# Dynamism and functional types
 
 **GenJAX** consists of two ingredients: Gen & JAX. The semantics of Gen are defined independently of the concerns of any particular computational substrate used in the implementation of Gen - it is our responsibility as the implementers to prevent these concerns from "leaking upwards" to modify the semantics of Gen and its interface specifications.
 
@@ -7,8 +7,6 @@ JAX is a unique substrate. While not formally modelled, it's appropriate to thin
 This provides the implementers of Gen a large deal of freedom in constructing code which, when traced, produces specialized code _depending on static information_. At the same time, we must be very careful to encode Gen's interfaces while respecting JAX's rules which govern how static / runtime values can be used.
 
 In this section, we will give an overview of several patterns used in GenJAX which navigate this trade off. In general, users should not be required to be aware of the details in this section - but it may be useful for advanced users who are concerned about performance properties of their code (and optimization opportunities) or advanced users who are seeking to implement new generative function languages in JAX proper.
-
-## Specialized choice map representations
 
 ## Functional types
 
@@ -24,13 +22,3 @@ GenJAX contains a system for tagging data with flags, to indicate if the data is
         members:
           - match
           - unmask
-
-### (Sum types) Tagged unions
-
-Like option types, sum types allow representing a form of type uncertainty which can be useful when working within the restricted `jax.lax` control flow model.
-
-::: genjax.core.TaggedUnion
-    options:
-        show_root_heading: true
-        members:
-          - match

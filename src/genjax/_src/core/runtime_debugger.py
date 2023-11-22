@@ -342,7 +342,7 @@ def pull(
         @genjax.gen
         def foo(x):
             v = jnp.ones(10) * x
-            x = debug.record(genjax.tfp_normal)(jnp.sum(v), 2.0) @ "x"
+            x = debug.record(genjax.normal)(jnp.sum(v), 2.0) @ "x"
             return x
 
         v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0, ))

@@ -30,7 +30,7 @@ nav:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
           - Generative datatypes: genjax/library/core/generative.md
-          - Specialization, value universes, and functional types: genjax/library/core/functional_types.md
+          - Dynamism and functional types: genjax/library/core/functional_types.md
           - Runtime debugger: genjax/library/core/runtime_debugger.md
       - Generative function languages:
           - genjax/library/generative_functions/index.md
@@ -67,8 +67,6 @@ theme:
   favicon: assets/img/gen-logo.png
   icon:
     repo: fontawesome/brands/github
-  font:
-    text: Atkinson Hyperlegible
   features:
     - optimize
     - typeset
@@ -80,7 +78,7 @@ theme:
     - content.tooltips
     - content.tabs.link
     - navigation.footer
-      navigation.expand
+    - navigation.expand
     - navigation.indexes
     - navigation.sections
     - navigation.tabs
@@ -88,6 +86,7 @@ theme:
     - navigation.top
     - navigation.tracking
     - navigation.instant
+    - navigation.instant.progress
     - navigation.path
     - navigation.prune
     - search.highlight
@@ -97,6 +96,7 @@ theme:
   palette:
     # Palette toggle for light mode
     - scheme: default
+      accent: red
       primary: white
       toggle:
         icon: material/brightness-7
@@ -104,6 +104,7 @@ theme:
 
     # Palette toggle for dark mode
     - scheme: slate
+      accent: red
       primary: black
       toggle:
         icon: material/brightness-4
@@ -138,7 +139,6 @@ extra:
     provider: mike
 
 extra_css:
-  - css/fonts.css
   - css/custom.css
   - css/mkdocstrings.css
 

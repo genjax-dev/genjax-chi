@@ -62,6 +62,11 @@ class TFPDistribution(ExactDensity):
 # Wrapper instances #
 #####################
 
+beta = TFPDistribution.new(tfd.Beta)
+"""
+A `TFPDistribution` generative function which wraps the [`tfd.Beta`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Beta) distribution from TensorFlow Probability distributions.
+"""
+
 bates = TFPDistribution.new(tfd.Bates)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Bates`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bates) distribution from TensorFlow Probability distributions.
