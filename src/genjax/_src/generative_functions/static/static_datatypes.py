@@ -22,6 +22,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.pytree.const import tree_map_static_dynamic
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
@@ -63,6 +64,14 @@ class StaticLanguageChoiceMap(ChoiceMap):
 
     def get_choices(self):
         return self.convert_to_dynamic()
+
+    def __getitem__(self, k):
+        fst, *rst = k
+        (fst, rst) = tree_map_static_dynamic((fst, rst))
+        if rst:
+            return self.subtraces[self.addrs.index(fst)][*rst]
+        else:
+            return self.subtraces[self.addrs.index(fst)]
 
     @dispatch
     def __setitem__(self, k: Tuple, v):
@@ -129,7 +138,7 @@ class StaticTrace(
         gen_fn: GenerativeFunction,
         args: Tuple,
         retval: Any,
-        address_choices: ChoiceMap,
+        address_choices: StaticLanguageChoiceMap,
         cache: Trie,
         score: FloatArray,
     ):
@@ -156,6 +165,9 @@ class StaticTrace(
 
     def get_args(self):
         return self.args
+
+    def get_subtrace(self, addr):
+        return self.address_choices[addr]
 
     @dispatch
     def project(

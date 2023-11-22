@@ -17,18 +17,34 @@ from dataclasses import dataclass
 import jax
 import plum
 import rich
-import rich.traceback as traceback
 from rich.console import Console
 
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import Dict
 
-#####
-# Pretty printing
-#####
+
+###################
+# Pretty printing #
+###################
 
 
 @dataclass
-class GenJAXConsole:
+class GenJAXConsole(Pytree):
     rich_console: Console
+    traceback_kwargs: Dict
+
+    def flatten(self):
+        return (), (self.rich_console,)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, *_):
+        if exc_type is not None:
+            self.rich_console.print_exception(
+                **self.traceback_kwargs,
+            )
+        return True
 
     def print(self, obj):
         self.rich_console.print(
@@ -51,30 +67,20 @@ class GenJAXConsole:
     def inspect(self, obj, **kwargs):
         rich.inspect(obj, console=self.rich_console, **kwargs)
 
-    def help(self, obj):
-        rich.inspect(
-            obj,
-            console=self.rich_console,
-            methods=True,
-            help=True,
-            value=False,
-            private=False,
-            dunder=False,
-        )
-
 
 def pretty(
-    overflow="ellipsis",
     show_locals=False,
     max_frames=30,
     suppress=[jax, plum],
     **kwargs,
 ):
-    rich.pretty.install(overflow=overflow)
-    traceback.install(
-        show_locals=show_locals,
-        max_frames=max_frames,
-        suppress=suppress,
+    traceback_kwargs = {
+        "show_locals": show_locals,
+        "max_frames": max_frames,
+        "suppress": suppress,
+        **kwargs,
+    }
+    return GenJAXConsole(
+        Console(soft_wrap=True),
+        traceback_kwargs,
     )
-
-    return GenJAXConsole(Console(soft_wrap=True, **kwargs))
