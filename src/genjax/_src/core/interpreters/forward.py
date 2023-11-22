@@ -17,9 +17,9 @@ lookups."""
 
 import abc
 import copy
-import dataclasses
 import functools
 import itertools as it
+from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -168,7 +168,7 @@ def initial_style_bind(prim, **params):
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
-@dataclasses.dataclass
+@dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
@@ -214,7 +214,7 @@ class Environment(Pytree):
         return copy.copy(self)
 
 
-@dataclasses.dataclass
+@dataclass
 class StatefulHandler(Pytree):
     @abc.abstractmethod
     def handles(self, primitive: jc.Primitive) -> Bool:
@@ -230,7 +230,7 @@ class StatefulHandler(Pytree):
         pass
 
 
-@dataclasses.dataclass
+@dataclass
 class ForwardInterpreter(Pytree):
     def flatten(self):
         return (), ()

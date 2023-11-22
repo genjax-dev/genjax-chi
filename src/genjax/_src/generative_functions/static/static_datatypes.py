@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import rich.tree as rich_tree
 
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
@@ -55,6 +56,13 @@ class StaticLanguageChoiceMap(ChoiceMap):
     @dispatch
     def new(cls):
         return StaticLanguageChoiceMap([], [])
+
+    def convert_to_dynamic(self):
+        submaps = [sub.strip() for sub in self.subtraces]
+        return DynamicHierarchicalChoiceMap.new(self.addrs, submaps)
+
+    def get_choices(self):
+        return self.convert_to_dynamic()
 
     @dispatch
     def __setitem__(self, k: Tuple, v):
@@ -138,7 +146,7 @@ class StaticTrace(
         return self.gen_fn
 
     def get_choices(self):
-        return self.address_choices
+        return self.address_choices.convert_to_dynamic()
 
     def get_retval(self):
         return self.retval

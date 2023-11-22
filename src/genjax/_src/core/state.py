@@ -14,8 +14,8 @@
 """This module contains a `Module` class which supports parameter learning by
 exposing primitives which allow users to sow functions with state."""
 
-import dataclasses
 import functools
+from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -48,7 +48,7 @@ def param(*args, name):
 ##############
 
 
-@dataclasses.dataclass
+@dataclass
 class StateTrie(harvest.ReapState):
     inner: Trie
 
@@ -76,7 +76,7 @@ class StateTrie(harvest.ReapState):
         return values
 
 
-@dataclasses.dataclass
+@dataclass
 class Module(Pytree):
     apply: Callable
     params: StateTrie

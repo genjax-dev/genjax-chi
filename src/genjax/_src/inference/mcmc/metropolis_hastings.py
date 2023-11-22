@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -27,7 +27,7 @@ from genjax._src.core.typing import typecheck
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
-@dataclasses.dataclass
+@dataclass
 class MetropolisHastings(MCMCKernel):
     proposal: GenerativeFunction
 

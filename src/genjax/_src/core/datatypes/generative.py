@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-import dataclasses
 from dataclasses import dataclass
 
 import jax
@@ -64,7 +63,7 @@ from genjax._src.global_options import global_options
 #############
 
 
-@dataclasses.dataclass
+@dataclass
 class Selection(Pytree):
     @abc.abstractmethod
     def complement(self) -> "Selection":
@@ -111,7 +110,7 @@ class Selection(Pytree):
 ############################
 
 
-@dataclasses.dataclass
+@dataclass
 class NoneSelection(Selection):
     def flatten(self):
         return (), ()
@@ -142,7 +141,7 @@ class NoneSelection(Selection):
         return tree
 
 
-@dataclasses.dataclass
+@dataclass
 class AllSelection(Selection):
     def flatten(self):
         return (), ()
@@ -177,7 +176,7 @@ class AllSelection(Selection):
 ##################################
 
 
-@dataclasses.dataclass
+@dataclass
 class HierarchicalSelection(Selection):
     trie: Trie
 
@@ -243,7 +242,7 @@ class HierarchicalSelection(Selection):
         return tree
 
 
-@dataclasses.dataclass
+@dataclass
 class ComplementHierarchicalSelection(HierarchicalSelection):
     trie: Trie
 
@@ -382,14 +381,14 @@ class ComplementIndexedSelection(IndexedSelection):
 ###########
 
 
-@dataclasses.dataclass
+@dataclass
 class Choice(Pytree):
     @abc.abstractmethod
     def filter(self, selection: Selection) -> "Choice":
         pass
 
 
-@dataclasses.dataclass
+@dataclass
 class EmptyChoice(Choice):
     def flatten(self):
         return (), ()
@@ -405,7 +404,7 @@ class EmptyChoice(Choice):
         return rich_tree.Tree("[bold](EmptyChoice)")
 
 
-@dataclasses.dataclass
+@dataclass
 class ChoiceValue(Choice):
     value: Any
 
@@ -433,7 +432,7 @@ class ChoiceValue(Choice):
         return tree
 
 
-@dataclasses.dataclass
+@dataclass
 class ChoiceMap(Choice):
     @abc.abstractmethod
     def get_submap(self, *addrs) -> Choice:
@@ -514,6 +513,12 @@ class ChoiceMap(Choice):
         new, _ = self.merge(other)
         return new
 
+    def get_choices(self):
+        return self
+
+    def strip(self):
+        return strip(self)
+
     ###########
     # Dunders #
     ###########
@@ -542,7 +547,7 @@ class ChoiceMap(Choice):
 #########
 
 
-@dataclasses.dataclass
+@dataclass
 class Trace(Pytree):
     """> Abstract base class for traces of generative functions.
 
@@ -764,17 +769,21 @@ class Trace(Pytree):
             print(console.render(chm))
             ```
         """
+        return strip(self)
 
-        def _check(v):
-            return isinstance(v, Trace)
 
-        def _inner(v):
-            if isinstance(v, Trace):
-                return v.strip()
-            else:
-                return v
+# Remove all trace metadata, and just return choices.
+def strip(v):
+    def _check(v):
+        return isinstance(v, Trace)
 
-        return jtu.tree_map(_inner, self.get_choices(), is_leaf=_check)
+    def _inner(v):
+        if isinstance(v, Trace):
+            return v.strip()
+        else:
+            return v
+
+    return jtu.tree_map(_inner, v.get_choices(), is_leaf=_check)
 
 
 ###########
@@ -996,7 +1005,7 @@ class Mask(Pytree):
 #######################
 
 
-@dataclasses.dataclass
+@dataclass
 class GenerativeFunction(Pytree):
     """> Abstract base class for generative functions.
 
@@ -1272,7 +1281,7 @@ class GenerativeFunction(Pytree):
         raise NotImplementedError
 
 
-@dataclasses.dataclass
+@dataclass
 class JAXGenerativeFunction(GenerativeFunction, Pytree):
     """A `GenerativeFunction` subclass for JAX compatible generative
     functions."""
@@ -1328,7 +1337,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 ########################
 
 
-@dataclasses.dataclass
+@dataclass
 class DynamicHierarchicalChoiceMap(ChoiceMap):
     addrs: List[Any]
     submaps: List[ChoiceMap]
@@ -1355,7 +1364,13 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, addr: Union[IntArray, Int]):
-        if all(map(lambda v: not isinstance(v, IntArray), self.addrs)):
+        addr = jnp.array(addr, copy=False)
+        if all(
+            map(
+                lambda v: not (isinstance(v, IntArray) or isinstance(v, Int)),
+                self.addrs,
+            )
+        ):
             return EmptyChoice()
         compares = map(lambda v: addr == v, self.addrs)
         masks = list(map(lambda v: mask(v[0], v[1]), zip(compares, self.submaps)))
@@ -1458,7 +1473,7 @@ class DynamicConvertible:
         pass
 
 
-@dataclasses.dataclass
+@dataclass
 class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     trie: Trie
 
@@ -1526,11 +1541,10 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         if value is None:
             return EmptyChoice()
         else:
-            submap = value.get_choices()
-            if isinstance(submap, Trie):
-                return HierarchicalChoiceMap(submap)
+            if isinstance(value, Trie):
+                return HierarchicalChoiceMap(value)
             else:
-                return submap
+                return value
 
     @dispatch
     def get_submap(self, addr: Any):
@@ -1765,7 +1779,7 @@ class IndexedChoiceMap(ChoiceMap):
         return tree
 
 
-@dataclasses.dataclass
+@dataclass
 class DisjointUnionChoiceMap(ChoiceMap):
     """> A choice map combinator type which represents a disjoint union over
     multiple choice maps.
@@ -1826,6 +1840,25 @@ class DisjointUnionChoiceMap(ChoiceMap):
             sub_tree = submap.__rich_tree__()
             tree.add(sub_tree)
         return tree
+
+
+########################
+# Language constructor #
+########################
+
+
+@dataclass
+class LanguageConstructor(Pytree):
+    """A `LanguageConstructor` is a type which can be used to construct
+    generative function instances."""
+
+    constructor: Callable
+
+    def flatten(self):
+        return (), (self.constructor,)
+
+    def __call__(self, *args, **kwargs):
+        return self.constructor(*args, **kwargs)
 
 
 ##############

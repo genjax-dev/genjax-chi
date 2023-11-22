@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -30,7 +30,7 @@ from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
 
 
-@dataclasses.dataclass
+@dataclass
 class EntropyEstimatorsViaInference(Pytree):
     n_lower_bound: Int
     n_upper_bound: Int

@@ -13,9 +13,11 @@
 # limitations under the License.
 
 import abc
-import dataclasses
 import functools as ft
 import types
+from dataclasses import dataclass
+from dataclasses import fields
+from dataclasses import is_dataclass
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -34,7 +36,7 @@ Dataclass = Any
 PrettyPrintable = Any
 
 
-@dataclasses.dataclass
+@dataclass
 class CustomPretty:
     @abc.abstractmethod
     def pformat_tree(self, **kwargs):
@@ -104,7 +106,7 @@ def _pformat_dataclass(obj: Dataclass, **kwargs) -> Tree:
     tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
     entries = [
         _named_entry(f.name, getattr(obj, f.name), **kwargs)
-        for f in dataclasses.fields(obj)
+        for f in fields(obj)
         if f.repr
     ]
     for entry in entries:
@@ -153,7 +155,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
         return tree
     elif isinstance(obj, CustomPretty):
         return obj.pformat_tree(**kwargs)
-    elif dataclasses.is_dataclass(obj):
+    elif is_dataclass(obj):
         return _pformat_dataclass(obj, **kwargs)
     elif isinstance(obj, list):
         return _pformat_list(obj, **kwargs)

@@ -14,7 +14,7 @@
 """This module supports a set of (WIP) integration interfaces with variants of
 Hamiltonian Monte Carlo exported by the `blackjax` sampling library."""
 
-import dataclasses
+from dataclasses import dataclass
 
 import blackjax
 import jax
@@ -29,7 +29,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
-@dataclasses.dataclass
+@dataclass
 class HamiltonianMonteCarlo(MCMCKernel):
     selection: Selection
     step_size: Any
@@ -96,7 +96,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         return self
 
 
-@dataclasses.dataclass
+@dataclass
 class NoUTurnSampler(MCMCKernel):
     selection: Selection
     step_size: Any

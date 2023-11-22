@@ -14,9 +14,9 @@
 """This module contains a debugger based around inserting/recording state from
 pure functions."""
 
-import dataclasses
 import functools
 import inspect
+from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -85,7 +85,7 @@ def tag(
 ###########
 
 
-@dataclasses.dataclass
+@dataclass
 class Frame:
     filename: typing.String
     lineno: typing.Int
@@ -98,7 +98,7 @@ class PathHighlighter(RegexHighlighter):
     highlights = [r"(?P<dim>.*/)(?P<bold>.+)"]
 
 
-@dataclasses.dataclass
+@dataclass
 class RenderSettings:
     theme: Theme
     width: typing.Int
@@ -122,7 +122,7 @@ class RenderSettings:
         )
 
 
-@dataclasses.dataclass
+@dataclass
 class DebuggerTags(harvest.ReapState):
     tagged: Trie
 
@@ -161,7 +161,7 @@ class DebuggerTags(harvest.ReapState):
             return v
 
 
-@dataclasses.dataclass
+@dataclass
 class DebuggerRecording(harvest.ReapState):
     render_settings: RenderSettings
     frames: typing.List[Frame]
