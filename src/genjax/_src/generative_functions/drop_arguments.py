@@ -127,18 +127,21 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DropArgumentsTrace]:
+    ) -> Tuple[DropArgumentsTrace, FloatArray]:
         w, tr = self.gen_fn.importance(key, choice_map, args)
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
-        return w, DropArgumentsTrace.new(
-            self,
-            inner_retval,
-            inner_score,
-            inner_chm,
-            aux,
+        return (
+            DropArgumentsTrace.new(
+                self,
+                inner_retval,
+                inner_score,
+                inner_chm,
+                aux,
+            ),
+            w,
         )
 
     def update(
@@ -147,8 +150,8 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         prev: Trace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DropArgumentsTrace, ChoiceMap]:
-        (retval_diff, w, tr, discard) = self.gen_fn.update(
+    ) -> Tuple[DropArgumentsTrace, FloatArray, Any, ChoiceMap]:
+        (tr, w, retval_diff, discard) = self.gen_fn.update(
             key, prev, choice_map, argdiffs
         )
         inner_retval = tr.get_retval()
@@ -156,8 +159,6 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return (
-            retval_diff,
-            w,
             DropArgumentsTrace.new(
                 self,
                 inner_retval,
@@ -165,6 +166,8 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
                 inner_chm,
                 aux,
             ),
+            w,
+            retval_diff,
             discard,
         )
 
@@ -173,7 +176,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DropArgumentsTrace]:
+    ) -> Tuple[FloatArray, Any]:
         return self.gen_fn.assess(key, choice_map, args)
 
     def restore_with_aux(self, interface_data, aux):

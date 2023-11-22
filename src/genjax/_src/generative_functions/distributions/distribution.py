@@ -145,9 +145,9 @@ class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[FloatArray, DistributionTrace]:
+    ) -> Tuple[DistributionTrace, FloatArray]:
         tr = self.simulate(key, args)
-        return (0.0, tr)
+        return (tr, 0.0)
 
     @dispatch
     def importance(
@@ -155,11 +155,11 @@ class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: ChoiceValue,
         args: Tuple,
-    ) -> Tuple[FloatArray, DistributionTrace]:
+    ) -> Tuple[DistributionTrace, FloatArray]:
         v = chm.get_value()
         w = self.estimate_logpdf(key, v, *args)
         score = w
-        return (w, DistributionTrace(self, args, v, score))
+        return (DistributionTrace(self, args, v, score), w)
 
     @dispatch
     def update(
@@ -168,14 +168,14 @@ class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: DistributionTrace,
         constraints: EmptyChoice,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
+    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
         retval_diff = tree_diff_no_change(v)
 
         # If no change to arguments, no need to update.
         if static_check_no_change(argdiffs):
-            return (retval_diff, 0.0, prev, EmptyChoice())
+            return (prev, 0.0, retval_diff, EmptyChoice())
 
         # Otherwise, we must compute an incremental weight.
         else:
@@ -183,7 +183,7 @@ class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
-            return (retval_diff, fwd - bwd, new_tr, EmptyChoice())
+            return (new_tr, fwd - bwd, retval_diff, EmptyChoice())
 
     @dispatch
     def update(
@@ -192,7 +192,7 @@ class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: DistributionTrace,
         constraints: ChoiceValue,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
+    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primal(argdiffs)
         v = constraints.get_value()
@@ -202,7 +202,7 @@ class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
         new_tr = DistributionTrace(self, args, v, fwd)
         discard = prev.get_choices()
         retval_diff = tree_diff_unknown_change(v)
-        return (retval_diff, w, new_tr, discard)
+        return (new_tr, w, retval_diff, discard)
 
     ###################
     # Deserialization #
@@ -304,7 +304,7 @@ class ExactDensity(Distribution):
         self,
         evaluation_point: ChoiceValue,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[FloatArray, Any]:
         v = evaluation_point.get_value()
         score = self.logpdf(v, *args)
-        return (v, score)
+        return (score, v)
