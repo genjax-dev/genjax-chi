@@ -13,14 +13,15 @@ from genjax import beta
 from genjax import bernoulli 
 from genjax import uniform 
 from genjax import gen
+from genjax import StaticLanguage
 
-@genjax.gen
+@gen(StaticLanguage)
 def beta_bernoulli_process(u):
-    p = beta(0, u) @ "p"
+    p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
     return v
 
-@genjax.gen
+@gen(StaticLanguage)
 def joint():
     u = uniform() @ "u"
     v = beta_bernoulli_process(u) @ "bbp"
@@ -45,11 +46,12 @@ import genjax
 from genjax import beta 
 from genjax import bernoulli 
 from genjax import gen
+from genjax import StaticLanguage
 
-@gen
+@gen(StaticLanguage)
 def beta_bernoulli_process(u):
     # Invoking `trace` can be sweetened, or unsweetened.
-    p = genjax.trace("p", beta)(0, u) # not sweet
+    p = genjax.trace("p", beta)(0.0, u) # not sweet
     v = bernoulli(p) @ "v" # sweet
     return v
 ```
@@ -61,7 +63,7 @@ import jax
 console = genjax.pretty()
 
 key = jax.random.PRNGKey(314159)
-tr = beta_bernoulli_process.simulate(key, (2, ))
+tr = beta_bernoulli_process.simulate(key, (2.0, ))
 
 print(console.render(tr))
 ```

@@ -22,6 +22,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.pytree.const import tree_map_collapse_const
 from genjax._src.core.pytree.const import tree_map_static_dynamic
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.serialization.pickle import PickleDataFormat
@@ -175,9 +176,12 @@ class StaticTrace(
         selection: HierarchicalSelection,
     ) -> FloatArray:
         weight = 0.0
-        for k, subtrace in self.static_address_choices.get_submaps_shallow():
-            if selection.has_submap(k):
-                weight += subtrace.project(selection.get_submap(k))
+        for k, subtrace in zip(
+            self.address_choices.addrs,
+            self.address_choices.subtraces,
+        ):
+            addr = tree_map_collapse_const(k)
+            weight += subtrace.project(selection.get_subselection(addr))
         return weight
 
     def has_cached_value(self, addr):
@@ -188,9 +192,7 @@ class StaticTrace(
 
     def get_aux(self):
         return (
-            self.static_address_choices,
-            self.dynamic_addresses,
-            self.dynamic_address_choices,
+            self.address_choices,
             self.cache,
         )
 

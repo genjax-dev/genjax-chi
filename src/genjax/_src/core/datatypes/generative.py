@@ -77,7 +77,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen
+            @genjax.gen(genjax.StaticLanguage)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -203,10 +203,10 @@ class HierarchicalSelection(Selection):
     def complement(self):
         return ComplementHierarchicalSelection(self.trie)
 
-    def has_submap(self, addr):
+    def has_addr(self, addr):
         return self.trie.has_submap(addr)
 
-    def get_submap(self, addr):
+    def get_subselection(self, addr):
         value = self.trie.get_submap(addr)
         if value is None:
             return NoneSelection()
@@ -481,7 +481,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen
+            @genjax.gen(genjax.StaticLanguage)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -594,7 +594,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen
+            @genjax.gen(genjax.StaticLanguage)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -626,7 +626,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen
+            @genjax.gen(genjax.StaticLanguage)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -683,7 +683,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen
+            @genjax.gen(genjax.StaticLanguage)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -770,6 +770,9 @@ class Trace(Pytree):
             ```
         """
         return strip(self)
+
+    def __getitem__(self, x):
+        return self.get_choices()[x]
 
 
 # Remove all trace metadata, and just return choices.
