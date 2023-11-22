@@ -77,7 +77,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.StaticLanguage)
+            @genjax.gen(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -481,7 +481,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.StaticLanguage)
+            @genjax.gen(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -594,7 +594,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.StaticLanguage)
+            @genjax.gen(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -626,7 +626,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.StaticLanguage)
+            @genjax.gen(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -683,7 +683,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.StaticLanguage)
+            @genjax.gen(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -1888,7 +1888,7 @@ mask = Mask.new
 
 @dispatch
 def choice_map():
-    return hierarchical_choice_map()
+    return dynamic_choice_map()
 
 
 @dispatch
