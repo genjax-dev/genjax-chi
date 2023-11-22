@@ -116,9 +116,7 @@ class StaticGenerativeFunction(
             (
                 args,
                 retval,
-                static_address_choices,
-                dynamic_addresses,
-                dynamic_address_choices,
+                address_choices,
                 score,
             ),
         ), cache_state = importance_transform(syntax_sugar_handled)(key, chm, args)
@@ -127,9 +125,7 @@ class StaticGenerativeFunction(
                 self,
                 args,
                 retval,
-                static_address_choices,
-                dynamic_addresses,
-                dynamic_address_choices,
+                address_choices,
                 cache_state,
                 score,
             ),
@@ -236,6 +232,6 @@ def static_gen_fn(source: Callable):
     return StaticGenerativeFunction.new(source)
 
 
-StaticLanguage = LanguageConstructor(
+Static = LanguageConstructor(
     static_gen_fn,
 )
