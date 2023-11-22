@@ -14,7 +14,7 @@
 """This module contains an implementation of (Auxiliary inference divergence
 estimator) from Cusumano-Towner et al, 2017."""
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -27,7 +27,7 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 
 
-@dataclasses.dataclass
+@dataclass
 class AuxiliaryInferenceDivergenceEstimator(Pytree):
     num_meta_p: Int
     num_meta_q: Int

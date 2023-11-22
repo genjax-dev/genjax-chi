@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -26,7 +26,7 @@ from genjax._src.generative_functions.distributions.scipy.normal import normal
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
-@dataclasses.dataclass
+@dataclass
 class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
     selection: Selection
     tau: FloatArray

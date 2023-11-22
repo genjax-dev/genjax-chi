@@ -24,6 +24,7 @@ from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
@@ -116,6 +117,9 @@ class StaticGenerativeFunction(
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, StaticTrace]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
         (
             w,
             (
@@ -126,7 +130,7 @@ class StaticGenerativeFunction(
                 dynamic_address_choices,
                 score,
             ),
-        ), cache_state = importance_transform(self.source)(key, chm, args)
+        ), cache_state = importance_transform(syntax_sugar_handled)(key, chm, args)
         return (
             w,
             StaticTrace.new(
@@ -188,6 +192,9 @@ class StaticGenerativeFunction(
         argdiffs: Tuple,
     ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
         assert static_check_tree_leaves_diff(argdiffs)
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
         (
             (
                 retval_diffs,
@@ -203,7 +210,7 @@ class StaticGenerativeFunction(
                 (static_discard, dynamic_discard_addresses, dynamic_discard_choices),
             ),
             cache_state,
-        ) = update_transform(self.source)(key, prev, constraints, argdiffs)
+        ) = update_transform(syntax_sugar_handled)(key, prev, constraints, argdiffs)
         discard = self._create_discard(
             static_discard,
             dynamic_discard_addresses,
@@ -231,7 +238,10 @@ class StaticGenerativeFunction(
         chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
-        (retval, score) = assess_transform(self.source)(chm, args)
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (retval, score) = assess_transform(syntax_sugar_handled)(chm, args)
         return (retval, score)
 
     def inline(self, *args):
@@ -261,9 +271,9 @@ class StaticGenerativeFunction(
     ###################
 
 
-#####
-# Partial binding / currying
-#####
+##############################
+# Partial binding / currying #
+##############################
 
 
 def partial(gen_fn, *static_args):
@@ -272,9 +282,10 @@ def partial(gen_fn, *static_args):
     )
 
 
-##############
-# Shorthands #
-##############
+########################
+# Language constructor #
+########################
 
-
-StaticLanguage = StaticGenerativeFunction.new
+StaticLanguage = LanguageConstructor(
+    StaticGenerativeFunction.new,
+)

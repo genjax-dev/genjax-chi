@@ -31,6 +31,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.incremental import static_check_no_change
@@ -821,9 +822,11 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (retval, score)
 
 
-##############
-# Shorthands #
-##############
+########################
+# Language constructor #
+########################
 
 
-Unfold = UnfoldCombinator.new
+Unfold = LanguageConstructor(
+    UnfoldCombinator.new,
+)

@@ -27,7 +27,7 @@ weighted with respect to their registered inference `Target` instances.
 """
 
 import abc
-import dataclasses
+from dataclasses import dataclass
 from typing import Any
 from typing import Callable
 from typing import Sequence
@@ -56,7 +56,7 @@ from genjax._src.gensp.target import Target
 #####
 
 
-@dataclasses.dataclass
+@dataclass
 class ParticleCollection(Pytree):
     particles: Any
     weights: Any
@@ -99,7 +99,7 @@ class ParticleCollection(Pytree):
         return ParticleCollection(new_particles, new_weights, self.lml_est)
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCState(Pytree):
     collection: ParticleCollection
     target: Target
@@ -132,7 +132,7 @@ class SMCState(Pytree):
 #################
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCPropagator(Pytree):
     @abc.abstractmethod
     def propagate_target(self, target: Target, *args):
@@ -178,7 +178,7 @@ class SMCPropagator(Pytree):
 # compatible in a monad-like DSL.
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCExtendPropagator(SMCPropagator):
     k: ChoiceMapDistribution
 
@@ -320,7 +320,7 @@ class SMCExtendPropagator(SMCPropagator):
         return key, previous_latents, _pullback
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCChangeTargetPropagator(SMCPropagator):
     new_target: Target
 
@@ -371,7 +371,7 @@ class SMCChangeTargetPropagator(SMCPropagator):
         return key, retained, self.apply
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCSequencePropagator(SMCPropagator):
     sequence: Sequence[SMCPropagator]
 
@@ -425,7 +425,7 @@ class SMCSequencePropagator(SMCPropagator):
 ################
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCAlgorithm(ChoiceMapDistribution):
     @abc.abstractmethod
     def get_final_target(self) -> Target:
@@ -479,7 +479,7 @@ class SMCAlgorithm(ChoiceMapDistribution):
         return key, (score, retained.get_choices())
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCInit(SMCAlgorithm):
     q: Any
     num_particles: Int
@@ -541,7 +541,7 @@ class SMCInit(SMCAlgorithm):
 #####
 
 
-@dataclasses.dataclass
+@dataclass
 class SMCCompose(SMCAlgorithm):
     prev: SMCAlgorithm
     propagator: SMCPropagator

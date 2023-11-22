@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.runtime_debugger import pull
@@ -30,7 +30,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsStatic
 ####################
 
 
-@dataclasses.dataclass
+@dataclass
 class DebugCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     gen_fn: JAXGenerativeFunction
 

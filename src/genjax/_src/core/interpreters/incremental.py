@@ -30,8 +30,8 @@ By default, `genjax` provides two types of `ChangeTangent`:
 # TODO: Think about when tangents don't share the same Pytree shape as primals.
 
 import abc
-import dataclasses
 import functools
+from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -62,7 +62,7 @@ from genjax._src.core.typing import typecheck
 ###################
 
 
-@dataclasses.dataclass
+@dataclass
 class ChangeTangent(Pytree):
     @abc.abstractmethod
     def should_flatten(self):
@@ -80,7 +80,7 @@ class ChangeTangent(Pytree):
 # (namely, that it is has not changed).
 
 
-@dataclasses.dataclass
+@dataclass
 class _UnknownChange(ChangeTangent):
     def flatten(self):
         return (), ()
@@ -92,7 +92,7 @@ class _UnknownChange(ChangeTangent):
 UnknownChange = _UnknownChange()
 
 
-@dataclasses.dataclass
+@dataclass
 class _NoChange(ChangeTangent):
     def flatten(self):
         return (), ()
@@ -104,7 +104,7 @@ class _NoChange(ChangeTangent):
 NoChange = _NoChange()
 
 
-@dataclasses.dataclass
+@dataclass
 class IntChange(ChangeTangent):
     dv: IntArray
 
@@ -115,7 +115,7 @@ class IntChange(ChangeTangent):
         return True
 
 
-@dataclasses.dataclass
+@dataclass
 class StaticIntChange(ChangeTangent):
     dv: IntArray
 
@@ -140,7 +140,7 @@ def static_check_is_change_tangent(v):
 #############################
 
 
-@dataclasses.dataclass
+@dataclass
 class Diff(Pytree):
     primal: Any
     tangent: Any
@@ -254,7 +254,7 @@ def default_propagation_rule(prim, *args, **params):
         return tree_diff_unknown_change(outval)
 
 
-@dataclasses.dataclass
+@dataclass
 class IncrementalInterpreter(Pytree):
     custom_rules: HashableDict[jc.Primitive, Callable]
 

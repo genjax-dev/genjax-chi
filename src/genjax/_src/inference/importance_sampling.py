@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 from typing import Tuple
 
 import jax
@@ -33,7 +33,7 @@ from genjax._src.core.typing import typecheck
 #####
 
 
-@dataclasses.dataclass
+@dataclass
 class BootstrapImportanceSampling(Pytree):
     """Bootstrap importance sampling for generative functions."""
 
@@ -74,7 +74,7 @@ class BootstrapImportanceSampling(Pytree):
         return self.apply(key, choice_map, *args)
 
 
-@dataclasses.dataclass
+@dataclass
 class CustomProposalImportanceSampling(Pytree):
     """Custom proposal importance sampling for generative functions."""
 
@@ -134,7 +134,7 @@ class CustomProposalImportanceSampling(Pytree):
         return self.apply(key, choice_map, *args)
 
 
-@dataclasses.dataclass
+@dataclass
 class BootstrapSamplingImportanceResampling(Pytree):
     num_particles: IntArray
     model: GenerativeFunction
@@ -177,7 +177,7 @@ class BootstrapSamplingImportanceResampling(Pytree):
         return self.apply(key, choice_map, *args)
 
 
-@dataclasses.dataclass
+@dataclass
 class CustomProposalSamplingImportanceResampling(Pytree):
     num_particles: IntArray
     model: GenerativeFunction

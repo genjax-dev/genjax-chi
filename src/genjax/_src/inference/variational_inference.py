@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -34,7 +34,7 @@ from genjax._src.generative_functions.combinators.state import StateCombinator
 from genjax._src.utilities import slash
 
 
-@dataclasses.dataclass
+@dataclass
 class VariationalInference(Pytree):
     model: GenerativeFunction
     variational_model: StateCombinator

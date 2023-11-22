@@ -14,23 +14,21 @@
 
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import typecheck
 
 
-#####
-# Language decorator
-#####
+######################
+# Language decorator #
+######################
 
 
 @typecheck
-def gen(
-    gen_fn_constructor: Callable,
-    *args,
-    **kwargs,
-) -> Callable:
+def gen(lang_constructor: LanguageConstructor, *args, **kwargs) -> Callable:
     @typecheck
-    def _inner(inner) -> GenerativeFunction:
-        return gen_fn_constructor(inner, *args, **kwargs)
+    def _inner(inner: Any) -> GenerativeFunction:
+        return lang_constructor(inner, *args, **kwargs)
 
     return _inner

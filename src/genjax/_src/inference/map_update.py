@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.tree_util as jtu
@@ -23,7 +23,7 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 
 
-@dataclasses.dataclass
+@dataclass
 class MapUpdate(Pytree):
     selection: Selection
     tau: FloatArray
