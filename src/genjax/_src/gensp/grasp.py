@@ -48,13 +48,11 @@ from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_geometric,
+    geometric,
 )
+from genjax._src.generative_functions.distributions.tensorflow_probability import normal
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_normal,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_uniform,
+    uniform,
 )
 from genjax._src.gensp.sp_distribution import SPDistribution
 from genjax._src.gensp.target import Target
@@ -115,12 +113,12 @@ categorical_enum = ADEVDistribution.new(
 
 normal_reinforce = ADEVDistribution.new(
     adevjax.normal_reinforce,
-    lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
+    lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
 normal_reparam = ADEVDistribution.new(
     adevjax.normal_reparam,
-    lambda v, μ, σ: tfp_normal.logpdf(v, μ, σ),
+    lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
 mv_normal_diag_reparam = ADEVDistribution.new(
@@ -140,12 +138,12 @@ mv_normal_reparam = ADEVDistribution.new(
 
 geometric_reinforce = ADEVDistribution.new(
     adevjax.geometric_reinforce,
-    lambda v, *args: tfp_geometric.logpdf(v, *args),
+    lambda v, *args: geometric.logpdf(v, *args),
 )
 
 uniform = ADEVDistribution.new(
     adevjax.uniform,
-    lambda v: tfp_uniform.logpdf(v, 0.0, 1.0),
+    lambda v: uniform.logpdf(v, 0.0, 1.0),
 )
 
 

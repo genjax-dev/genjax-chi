@@ -15,21 +15,12 @@
 import functools
 from dataclasses import dataclass
 
-import jax.numpy as jnp
-
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
-from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
-from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
 from genjax._src.core.pytree.closure import DynamicClosure
-from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
@@ -116,7 +107,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, StaticTrace]:
+    ) -> Tuple[StaticTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -132,7 +123,6 @@ class StaticGenerativeFunction(
             ),
         ), cache_state = importance_transform(syntax_sugar_handled)(key, chm, args)
         return (
-            w,
             StaticTrace.new(
                 self,
                 args,
@@ -143,45 +133,8 @@ class StaticGenerativeFunction(
                 cache_state,
                 score,
             ),
+            w,
         )
-
-    def _create_discard(
-        self,
-        static_address_choices,
-        dynamic_addresses,
-        dynamic_address_choices,
-    ):
-        # Handle coercion of the static address choices (a `Trie`)
-        # to a choice map.
-        if static_address_choices.is_empty():
-            static_chm = EmptyChoice()
-        else:
-            static_chm = HierarchicalChoiceMap.new(static_address_choices)
-
-        # Now deal with the dynamic address choices.
-        if not dynamic_addresses and not dynamic_address_choices:
-            return static_chm
-        else:
-            # Specialized path: all structure is the same, we can coerce into
-            # an `IndexedChoiceMap`.
-            if static_check_tree_structure_equivalence(dynamic_address_choices):
-                index_arr = jnp.stack(dynamic_addresses)
-                stacked_inner = tree_stack(dynamic_address_choices)
-                hierarchical = HierarchicalChoiceMap.new(stacked_inner)
-                dynamic = IndexedChoiceMap.new(index_arr, hierarchical)
-
-            # Fallback path: heterogeneous structure, we defer specialization
-            # to other methods.
-            else:
-                dynamic = DynamicHierarchicalChoiceMap.new(
-                    dynamic_addresses,
-                    dynamic_address_choices,
-                )
-
-            if isinstance(static_chm, EmptyChoice):
-                return dynamic
-            else:
-                return DisjointUnionChoiceMap.new([static_chm, dynamic])
 
     @dispatch
     def update(
@@ -190,7 +143,7 @@ class StaticGenerativeFunction(
         prev: Trace,
         constraints: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
+    ) -> Tuple[Trace, FloatArray, Any, ChoiceMap]:
         assert static_check_tree_leaves_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -210,8 +163,6 @@ class StaticGenerativeFunction(
             cache_state,
         ) = update_transform(syntax_sugar_handled)(key, prev, constraints, argdiffs)
         return (
-            retval_diffs,
-            weight,
             StaticTrace.new(
                 self,
                 arg_primals,
@@ -220,6 +171,8 @@ class StaticGenerativeFunction(
                 cache_state,
                 score,
             ),
+            weight,
+            retval_diffs,
             discard,
         )
 
@@ -228,12 +181,12 @@ class StaticGenerativeFunction(
         self,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
         (retval, score) = assess_transform(syntax_sugar_handled)(chm, args)
-        return (retval, score)
+        return (score, retval)
 
     def inline(self, *args):
         return self.source(*args)
@@ -277,6 +230,12 @@ def partial(gen_fn, *static_args):
 # Language constructor #
 ########################
 
+
+@typecheck
+def static_gen_fn(source: Callable):
+    return StaticGenerativeFunction.new(source)
+
+
 StaticLanguage = LanguageConstructor(
-    StaticGenerativeFunction.new,
+    static_gen_fn,
 )

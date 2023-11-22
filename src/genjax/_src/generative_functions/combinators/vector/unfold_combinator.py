@@ -269,7 +269,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: IndexedChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, UnfoldTrace]:
+    ) -> Tuple[UnfoldTrace, FloatArray]:
         length = args[0]
         self._optional_out_of_bounds_check(length)
         state = args[1]
@@ -281,7 +281,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             def _with_choice(key, count, state):
                 sub_choice_map = chm.get_subtree(count)
                 key, sub_key = jax.random.split(key)
-                (w, tr) = self.kernel.importance(
+                (tr, w) = self.kernel.importance(
                     sub_key, sub_choice_map, (state, *static_args)
                 )
                 return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
@@ -289,7 +289,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             def _with_empty_choice(key, count, state):
                 sub_choice_map = EmptyChoice()
                 key, sub_key = jax.random.split(key)
-                (w, tr) = self.kernel.importance(
+                (tr, w) = self.kernel.importance(
                     sub_key, sub_choice_map, (state, *static_args)
                 )
                 return key, count, tr, state, 0.0, 0.0
@@ -331,7 +331,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, UnfoldTrace]:
+    ) -> Tuple[UnfoldTrace, FloatArray]:
         length = args[0]
         self._optional_out_of_bounds_check(length)
         state = args[1]
@@ -347,10 +347,10 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
             def _simulate(key, chm, state):
                 tr = self.kernel.simulate(key, (state, *static_args))
-                return (0.0, tr)
+                return (tr, 0.0)
 
             check_count = jnp.less(count, length + 1)
-            (w, tr) = jax.lax.cond(
+            (tr, w) = jax.lax.cond(
                 check_count,
                 _importance,
                 _simulate,
@@ -388,7 +388,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         )
 
         w = jnp.sum(w)
-        return (w, unfold_tr)
+        return (unfold_tr, w)
 
     @dispatch
     def importance(
@@ -396,12 +396,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         _: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[FloatArray, UnfoldTrace]:
+    ) -> Tuple[UnfoldTrace, FloatArray]:
         length = args[0]
         self._optional_out_of_bounds_check(length)
         unfold_tr = self.simulate(key, args)
         w = 0.0
-        return (w, unfold_tr)
+        return (unfold_tr, w)
 
     @dispatch
     def importance(
@@ -409,7 +409,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         dynamic_chm: DynamicHierarchicalChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, UnfoldTrace]:
+    ) -> Tuple[UnfoldTrace, FloatArray]:
         length = args[0]
         self._optional_out_of_bounds_check(length)
         state = args[1]
@@ -421,7 +421,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             key, sub_key = jax.random.split(key)
 
             check_count = jnp.less(count, length + 1)
-            w, tr = self.kernel.importance(key, sub_chm, (state, *static_args))
+            tr, w = self.kernel.importance(sub_key, sub_chm, (state, *static_args))
 
             count, state, score, w = jax.lax.cond(
                 check_count,
@@ -452,7 +452,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         )
 
         w = jnp.sum(w)
-        return (w, unfold_tr)
+        return (unfold_tr, w)
 
     @dispatch
     def importance(
@@ -827,6 +827,11 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 ########################
 
 
+@typecheck
+def unfold_combinator(gen_fn: JAXGenerativeFunction, max_length: Int):
+    return UnfoldCombinator.new(gen_fn, max_length)
+
+
 Unfold = LanguageConstructor(
-    UnfoldCombinator.new,
+    unfold_combinator,
 )

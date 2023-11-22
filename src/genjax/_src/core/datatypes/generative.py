@@ -1154,7 +1154,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, Trace]:
+    ) -> Tuple[Trace, FloatArray]:
         """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
         and arguments ($x$), execute the generative function, and return an
         importance weight estimate of the conditional density evaluated at the
@@ -1168,8 +1168,8 @@ class GenerativeFunction(Pytree):
             args: Arguments to the generative function ($x$).
 
         Returns:
-            w: An importance weight.
             tr: A trace capturing the data and inference data associated with the generative function invocation.
+            w: An importance weight.
 
         The importance weight `w` is given by:
 
@@ -1189,11 +1189,11 @@ class GenerativeFunction(Pytree):
         def _inactive():
             w = 0.0
             tr = self.simulate(key, args)
-            return w, tr
+            return tr, w
 
         def _active(chm):
-            w, tr = self.importance(key, chm, args)
-            return w, tr
+            tr, w = self.importance(key, chm, args)
+            return tr, w
 
         return constraints.match(_inactive, _active)
 
@@ -1204,7 +1204,7 @@ class GenerativeFunction(Pytree):
         prev: Trace,
         new_constraints: ChoiceMap,
         diffs: Tuple,
-    ) -> Tuple[Any, FloatArray, Trace, ChoiceMap]:
+    ) -> Tuple[Trace, FloatArray, Any, ChoiceMap]:
         raise NotImplementedError
 
     @dispatch
@@ -1230,10 +1230,10 @@ class GenerativeFunction(Pytree):
                 discard = mask(False, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
-            return (retdiff, w, new_tr, discard)
+            return (new_tr, w, retdiff, discard)
 
         def _some(chm):
-            (retdiff, w, new_tr, _) = self.update(key, prev, chm, argdiffs)
+            (new_tr, w, retdiff, _) = self.update(key, prev, chm, argdiffs)
             if possible_discards.is_empty():
                 discard = EmptyChoice()
             else:
@@ -1242,7 +1242,7 @@ class GenerativeFunction(Pytree):
                 discard = mask(True, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
-            return (retdiff, w, new_tr, discard)
+            return (new_tr, w, retdiff, discard)
 
         return new_constraints.match(_none, _some)
 
@@ -1250,7 +1250,7 @@ class GenerativeFunction(Pytree):
         self,
         chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[FloatArray, Any]:
         """> Given a complete choice map indicating constraints ($u$) for all
         choices, and arguments ($x$), execute the generative function, and
         return the return value of the invocation, and the score of the choice
@@ -1262,8 +1262,8 @@ class GenerativeFunction(Pytree):
             args: Arguments to the generative function ($x$).
 
         Returns:
-            retval: The return value from the generative function invocation.
             score: The score of the choice map.
+            retval: The return value from the generative function invocation.
 
         The score ($s$) is given by:
 
@@ -1307,13 +1307,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            (_, score) = self.assess(merged, args)
+            (score, _) = self.assess(merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
-            (retval, _) = self.assess(merged, args)
+            (_, retval) = self.assess(merged, args)
             return retval
 
         return score, retval

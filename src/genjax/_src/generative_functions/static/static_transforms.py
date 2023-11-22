@@ -403,7 +403,7 @@ class ImportanceHandler(StaticLanguageHandler):
         sub_map = self.get_submap(addr)
         args = tuple(args)
         self.key, sub_key = jax.random.split(self.key)
-        (w, tr) = gen_fn.importance(sub_key, sub_map, args)
+        (tr, w) = gen_fn.importance(sub_key, sub_map, args)
         self.set_choice_state(addr, tr)
         self.score += tr.get_score()
         self.weight += w
@@ -519,7 +519,7 @@ class UpdateHandler(StaticLanguageHandler):
         subconstraints = self.get_submap(addr)
         argdiffs = tuple(argdiffs)
         self.key, sub_key = jax.random.split(self.key)
-        (retval_diff, w, tr, discard) = gen_fn.update(
+        (tr, w, retval_diff, discard) = gen_fn.update(
             sub_key, subtrace, subconstraints, argdiffs
         )
         self.score += tr.get_score()
@@ -591,9 +591,9 @@ def update_transform(source_fn):
     return wrapper
 
 
-#####
-# Assess
-#####
+##########
+# Assess #
+##########
 
 
 @dataclass
@@ -634,7 +634,7 @@ class AssessHandler(StaticLanguageHandler):
         self.visit(addr)
         args = tuple(args)
         submap = self.get_submap(addr)
-        (v, score) = gen_fn.assess(submap, args)
+        (score, v) = gen_fn.assess(submap, args)
         self.score += score
         return jtu.tree_leaves(v)
 
