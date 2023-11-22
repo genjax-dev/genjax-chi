@@ -95,7 +95,7 @@ class DropArgumentsTrace(Trace):
 
 @dataclass
 class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
-    gen_fn: GenerativeFunction
+    gen_fn: JAXGenerativeFunction
 
     def flatten(self):
         return (self.gen_fn,), ()

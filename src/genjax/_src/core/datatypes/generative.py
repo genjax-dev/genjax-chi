@@ -1096,7 +1096,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray, ChoiceMap]:
+    ) -> Tuple[ChoiceMap, FloatArray, Any]:
         """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
         function, returning a tuple containing the return value from the
         generative function call, the score ($s$) of the choice map assignment,
@@ -1109,9 +1109,9 @@ class GenerativeFunction(Pytree):
             args: Arguments to the generative function.
 
         Returns:
-            retval: the return value from the generative function invocation
-            s: the score ($s$) of the choice map assignment
             chm: the choice map assignment ($c$)
+            s: the score ($s$) of the choice map assignment
+            retval: the return value from the generative function invocation
 
         Examples:
 
@@ -1123,7 +1123,7 @@ class GenerativeFunction(Pytree):
             console = genjax.pretty()
 
             key = jax.random.PRNGKey(314159)
-            (r, w, chm) = genjax.normal.propose(key, (0.0, 1.0))
+            (chm, w, r) = genjax.normal.propose(key, (0.0, 1.0))
             print(console.render(chm))
             ```
 
@@ -1132,16 +1132,17 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+            from genjax import Static
             console = genjax.pretty()
 
-            @genjax.gen
+            @gen(Static)
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
                 return y
 
             key = jax.random.PRNGKey(314159)
-            (r, w, chm) = model.propose(key, ())
+            (chm, w, r) = model.propose(key, ())
             print(console.render(chm))
             ```
         """
@@ -1149,7 +1150,7 @@ class GenerativeFunction(Pytree):
         chm = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
-        return (retval, score, chm)
+        return (chm, score, retval)
 
     @dispatch
     def importance(
@@ -1260,7 +1261,6 @@ class GenerativeFunction(Pytree):
         map ($s$).
 
         Arguments:
-            key: A `PRNGKey`.
             chm: A complete choice map indicating constraints ($u$) for all choices.
             args: Arguments to the generative function ($x$).
 
@@ -1300,6 +1300,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         retval = tr.get_retval()
         return retval
 
+    @typecheck
     def unzip(
         self,
         fixed: ChoiceMap,

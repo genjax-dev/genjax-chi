@@ -18,18 +18,19 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.generative_functions.distributions.distribution import Distribution
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
 @dataclass
-class Dirac(Distribution):
+class Dirac(JAXGenerativeFunction, ExactDensity):
     def flatten(self):
         return (), ()
 
-    def random_weighted(self, key, v):
-        return (0.0, v)
+    def sample(self, key, v):
+        return v
 
-    def estimate_logpdf(self, key, v1, v2):
+    def estimate_logpdf(self, v1, v2):
         check = jnp.all(
             jnp.array(jtu.tree_leaves(jtu.tree_map(lambda v1, v2: v1 == v2)))
         )
