@@ -16,13 +16,10 @@
 import abc
 from dataclasses import dataclass
 
-import jax
-
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import static_check_no_change
@@ -111,15 +108,9 @@ class DistributionTrace(
 
 
 @dataclass
-class Distribution(JAXGenerativeFunction, SupportsCalleeSugar):
+class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def flatten(self):
         return (), ()
-
-    def __abstract_call__(self, *args):
-        # Abstract evaluation: value here doesn't matter, only the type.
-        key = jax.random.PRNGKey(0)
-        (_, v) = self.random_weighted(key, *args)
-        return v
 
     @abc.abstractmethod
     def random_weighted(self, *args, **kwargs):

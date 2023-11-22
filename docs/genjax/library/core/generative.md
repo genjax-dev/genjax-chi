@@ -29,8 +29,9 @@ Below, we document the abstract base class, and illustrate example usage using c
         - assess
         - update
 
+### JAX compatible generative functions
 
-The interface definitions of generative functions often interact with JAX tracing machinery. GenJAX does not strictly impose this requirement, but does provide a generative function subclass called `JAXGenerativeFunction` which provides default compatibility definitions for JAX tracing.
+The interface definitions of generative functions may interact with JAX tracing machinery. GenJAX does not strictly impose this requirement, but does provide a generative function class called `JAXGenerativeFunction` which denotes compatibility assumptions with JAX tracing.
 
 Other generative function languages which utilize callee generative functions can enforce JAX compatibility by typechecking on `JAXGenerativeFunction`.
 
