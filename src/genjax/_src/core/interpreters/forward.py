@@ -236,14 +236,14 @@ class ForwardInterpreter(Pytree):
     def _eval_jaxpr_forward(
         self,
         stateful_handler,
-        jaxpr: jc.Jaxpr,
+        _jaxpr: jc.Jaxpr,
         consts: List[Value],
         args: List[Value],
     ):
         env = Environment.new()
-        jax_util.safe_map(env.write, jaxpr.constvars, consts)
-        jax_util.safe_map(env.write, jaxpr.invars, args)
-        for eqn in jaxpr.eqns:
+        jax_util.safe_map(env.write, _jaxpr.constvars, consts)
+        jax_util.safe_map(env.write, _jaxpr.invars, args)
+        for eqn in _jaxpr.eqns:
             invals = jax_util.safe_map(env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
@@ -255,17 +255,17 @@ class ForwardInterpreter(Pytree):
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)
 
-        return jax_util.safe_map(env.read, jaxpr.outvars)
+        return jax_util.safe_map(env.read, _jaxpr.outvars)
 
     def run_interpreter(self, stateful_handler, fn, *args, **kwargs):
         def _inner(*args):
             return fn(*args, **kwargs)
 
-        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        _closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+        _jaxpr, consts = _closed_jaxpr.jaxpr, _closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
             stateful_handler,
-            jaxpr,
+            _jaxpr,
             consts,
             flat_args,
         )

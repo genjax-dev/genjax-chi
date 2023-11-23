@@ -244,10 +244,10 @@ def tree_diff_unknown_change(tree):
 
 # TODO: currently, only supports our default lattice
 # (`Change` and `NoChange`)
-def default_propagation_rule(prim, *args, **params):
+def default_propagation_rule(prim, *args, **_params):
     check = static_check_no_change(args)
     args = tree_diff_primal(args)
-    outval = prim.bind(*args, **params)
+    outval = prim.bind(*args, **_params)
     if check:
         return outval
     else:
@@ -263,41 +263,41 @@ class IncrementalInterpreter(Pytree):
 
     def _eval_jaxpr_forward(
         self,
-        stateful_handler,
-        jaxpr: jc.Jaxpr,
+        _stateful_handler,
+        _jaxpr: jc.Jaxpr,
         consts: List[Value],
         primals: List[Value],
         tangents: List[ChangeTangent],
     ):
         dual_env = Environment.new()
-        jax_util.safe_map(dual_env.write, jaxpr.constvars, tree_diff_no_change(consts))
-        jax_util.safe_map(dual_env.write, jaxpr.invars, tree_diff(primals, tangents))
-        for eqn in jaxpr.eqns:
-            induals = jax_util.safe_map(dual_env.read, eqn.invars)
-            subfuns, params = eqn.primitive.get_bind_params(eqn.params)
+        jax_util.safe_map(dual_env.write, _jaxpr.constvars, tree_diff_no_change(consts))
+        jax_util.safe_map(dual_env.write, _jaxpr.invars, tree_diff(primals, tangents))
+        for _eqn in _jaxpr.eqns:
+            induals = jax_util.safe_map(dual_env.read, _eqn.invars)
+            subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
-            if stateful_handler.handles(eqn.primitive):
-                outduals = stateful_handler.dispatch(eqn.primitive, *args, **params)
+            if _stateful_handler.handles(_eqn.primitive):
+                outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **_params)
             else:
-                outduals = default_propagation_rule(eqn.primitive, *args, **params)
-            if not eqn.primitive.multiple_results:
+                outduals = default_propagation_rule(_eqn.primitive, *args, **_params)
+            if not _eqn.primitive.multiple_results:
                 outduals = [outduals]
-            jax_util.safe_map(dual_env.write, eqn.outvars, outduals)
+            jax_util.safe_map(dual_env.write, _eqn.outvars, outduals)
 
-        return jax_util.safe_map(dual_env.read, jaxpr.outvars)
+        return jax_util.safe_map(dual_env.read, _jaxpr.outvars)
 
-    def run_interpreter(self, stateful_handler, fn, primals, tangents, **kwargs):
+    def run_interpreter(self, _stateful_handler, fn, primals, tangents, **kwargs):
         def _inner(*args):
             return fn(*args, **kwargs)
 
-        closed_jaxpr, (flat_primals, _, out_tree) = stage(_inner)(*primals)
+        _closed_jaxpr, (flat_primals, _, out_tree) = stage(_inner)(*primals)
         flat_tangents = jtu.tree_leaves(
             tangents, is_leaf=lambda v: isinstance(v, ChangeTangent)
         )
-        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        _jaxpr, consts = _closed_jaxpr.jaxpr, _closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
-            stateful_handler,
-            jaxpr,
+            _stateful_handler,
+            _jaxpr,
             consts,
             flat_primals,
             flat_tangents,
@@ -310,13 +310,13 @@ def incremental(f: Callable):
     @functools.wraps(f)
     @typecheck
     def wrapped(
-        stateful_handler: StatefulHandler,
+        _stateful_handler: StatefulHandler,
         primals: Tuple,
         tangents: Tuple,
     ):
         interpreter = IncrementalInterpreter(hashable_dict())
         return interpreter.run_interpreter(
-            stateful_handler,
+            _stateful_handler,
             f,
             primals,
             tangents,
