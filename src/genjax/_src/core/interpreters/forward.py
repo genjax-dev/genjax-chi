@@ -59,8 +59,6 @@ from genjax._src.core.typing import Value
 # Custom JAX primitives #
 #########################
 
-safe_map = jax_core.safe_map
-
 
 def batch_fun(fun: lu.WrappedFun, in_dims):
     fun, out_dims = batching.batch_subtrace(fun)
