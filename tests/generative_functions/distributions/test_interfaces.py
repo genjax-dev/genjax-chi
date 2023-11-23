@@ -27,7 +27,7 @@ class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
         tr = genjax.normal.simulate(key, (0.0, 1.0))
-        assert tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
+        assert tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
@@ -42,7 +42,7 @@ class TestDistributions:
             ChoiceValue(1.0),
             (0.0, 1.0),
         )
-        v = tr.strip().get_leaf_value()
+        v = tr.strip().get_value()
         assert w == genjax.tfp_normal.logpdf(v, 0.0, 1.0)
 
         # Constraint, mask with True flag.
@@ -51,7 +51,7 @@ class TestDistributions:
             mask(True, ChoiceValue(1.0)),
             (0.0, 1.0),
         )
-        v = tr.strip().get_leaf_value()
+        v = tr.strip().get_value()
         assert v == 1.0
         assert w == genjax.tfp_normal.logpdf(v, 0.0, 1.0)
 
@@ -61,7 +61,7 @@ class TestDistributions:
             mask(False, ChoiceValue(1.0)),
             (0.0, 1.0),
         )
-        v = tr.strip().get_leaf_value()
+        v = tr.strip().get_value()
         assert v != 1.0
         assert w == 0.0
 
@@ -77,8 +77,8 @@ class TestDistributions:
             EmptyChoice(),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == tr.get_leaf_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
+        assert new_tr.get_value() == tr.get_value()
+        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
         assert w == 0.0
 
         # Constraint, no change to arguments.
@@ -89,10 +89,10 @@ class TestDistributions:
             ChoiceValue(1.0),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == 1.0
+        assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 0.0, 1.0)
         assert w == genjax.normal.logpdf(1.0, 0.0, 1.0) - genjax.normal.logpdf(
-            tr.get_leaf_value(), 0.0, 1.0
+            tr.get_value(), 0.0, 1.0
         )
 
         # No constraint, change to arguments.
@@ -103,11 +103,11 @@ class TestDistributions:
             EmptyChoice(),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == tr.get_leaf_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 1.0, 1.0)
+        assert new_tr.get_value() == tr.get_value()
+        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 1.0, 1.0)
         assert w == genjax.normal.logpdf(
-            tr.get_leaf_value(), 1.0, 1.0
-        ) - genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
+            tr.get_value(), 1.0, 1.0
+        ) - genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
 
         # Constraint, change to arguments.
         key, sub_key = jax.random.split(key)
@@ -117,10 +117,10 @@ class TestDistributions:
             ChoiceValue(1.0),
             (diff(1.0, UnknownChange), diff(2.0, UnknownChange)),
         )
-        assert new_tr.get_leaf_value() == 1.0
+        assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 1.0, 2.0)
         assert w == genjax.normal.logpdf(1.0, 1.0, 2.0) - genjax.normal.logpdf(
-            tr.get_leaf_value(), 0.0, 1.0
+            tr.get_value(), 0.0, 1.0
         )
 
         # Constraint is masked (True), no change to arguments.
@@ -131,10 +131,10 @@ class TestDistributions:
             mask(True, ChoiceValue(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == 1.0
+        assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 0.0, 1.0)
         assert w == genjax.normal.logpdf(1.0, 0.0, 1.0) - genjax.normal.logpdf(
-            tr.get_leaf_value(), 0.0, 1.0
+            tr.get_value(), 0.0, 1.0
         )
 
         # Constraint is masked (True), change to arguments.
@@ -145,10 +145,10 @@ class TestDistributions:
             mask(True, ChoiceValue(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == 1.0
+        assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 1.0, 1.0)
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0) - genjax.normal.logpdf(
-            tr.get_leaf_value(), 0.0, 1.0
+            tr.get_value(), 0.0, 1.0
         )
 
         # Constraint is masked (False), no change to arguments.
@@ -159,8 +159,8 @@ class TestDistributions:
             mask(False, ChoiceValue(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == tr.get_leaf_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
+        assert new_tr.get_value() == tr.get_value()
+        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
         assert w == 0.0
 
         # Constraint is masked (False), change to arguments.
@@ -171,8 +171,8 @@ class TestDistributions:
             mask(False, ChoiceValue(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
-        assert new_tr.get_leaf_value() == tr.get_leaf_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_leaf_value(), 1.0, 1.0)
+        assert new_tr.get_value() == tr.get_value()
+        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 1.0, 1.0)
         assert w == genjax.normal.logpdf(
-            tr.get_leaf_value(), 1.0, 1.0
-        ) - genjax.normal.logpdf(tr.get_leaf_value(), 0.0, 1.0)
+            tr.get_value(), 1.0, 1.0
+        ) - genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)

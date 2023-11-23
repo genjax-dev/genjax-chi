@@ -31,6 +31,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import tree_diff_primal
@@ -478,4 +479,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 ##############
 
 
-Map = MapCombinator.new
+@dispatch
+def map_combinator(gen_fn: JAXGenerativeFunction):
+    return MapCombinator.new(gen_fn)
+
+
+Map = LanguageConstructor(
+    map_combinator,
+)

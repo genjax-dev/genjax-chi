@@ -35,9 +35,21 @@ if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator
 """
 
 from genjax._src.generative_functions.combinators.masked_combinator import Masked
+from genjax._src.generative_functions.combinators.masked_combinator import (
+    masked_combinator,
+)
 from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
+from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+    switch_combinator,
+)
 from genjax._src.generative_functions.combinators.vector.map_combinator import Map
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    map_combinator,
+)
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    unfold_combinator,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
 )
@@ -45,8 +57,12 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 __all__ = [
     "Masked",
+    "masked_combinator",
     "Map",
+    "map_combinator",
     "Unfold",
+    "unfold_combinator",
     "Switch",
+    "switch_combinator",
     "vector_choice_map",
 ]

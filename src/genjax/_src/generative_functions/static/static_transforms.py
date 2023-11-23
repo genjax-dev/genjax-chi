@@ -21,6 +21,8 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
@@ -34,7 +36,7 @@ from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_tangent
 from genjax._src.core.pytree.const import tree_map_collapse_const
-from genjax._src.core.pytree.const import tree_map_static_dynamic
+from genjax._src.core.pytree.const import tree_map_const
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
@@ -123,7 +125,7 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 
 
 def _trace(gen_fn, addr, *args):
-    addr = tree_map_static_dynamic(addr)
+    addr = tree_map_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         gen_fn,
         addr,
@@ -229,8 +231,11 @@ class StaticLanguageHandler(StatefulHandler):
         self.address_visitor.visit(addr)
 
     def get_submap(self, addr):
-        addr = tree_map_collapse_const(addr)
-        return self.constraints.get_submap(addr)
+        if isinstance(self.constraints, EmptyChoice):
+            return self.constraints
+        else:
+            addr = tree_map_collapse_const(addr)
+            return self.constraints.get_submap(addr)
 
     def get_subtrace(self, addr):
         addr = tree_map_collapse_const(addr)
@@ -491,7 +496,7 @@ class UpdateHandler(StaticLanguageHandler):
         weight = 0.0
         address_visitor = AddressVisitor.new()
         address_choices = StaticLanguageChoiceMap.new()
-        discard_choices = StaticLanguageChoiceMap.new()
+        discard_choices = DynamicHierarchicalChoiceMap.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return UpdateHandler(

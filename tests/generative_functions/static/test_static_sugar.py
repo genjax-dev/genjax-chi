@@ -12,24 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax
+
 import genjax
 
 
-class TestCoreTraceTypes:
-    def test_bottom_bottom(self):
-        tt1 = genjax.Bottom()
-        tt2 = genjax.Bottom()
-        check, _ = tt1.on_support(tt2)
-        assert check
+class TestBuiltinSugar:
+    def test_builtin_sugar(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
 
-    def test_bottom_against_reals(self):
-        tt1 = genjax.Bottom()
-        tt2 = genjax.Reals((3, 4))
-        check, _ = tt1.on_support(tt2)
-        assert check
+        key = jax.random.PRNGKey(314159)
+        tr = simple_normal.simulate(key, ())
 
-    def test_reals_against_bottom(self):
-        tt1 = genjax.Reals((3, 4))
-        tt2 = genjax.Bottom()
-        check, _ = tt1.on_support(tt2)
-        assert check
+        key = jax.random.PRNGKey(314159)
+        v = simple_normal(key, ())
+        assert tr.get_retval() == v

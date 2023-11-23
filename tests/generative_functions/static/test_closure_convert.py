@@ -12,23 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import jax
+import jax.numpy as jnp
 
 import genjax
 
 
-class TestAssessSimpleNormal:
-    def test_simple_normal_assess(self):
-        @genjax.gen
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
+class TestClosureConvert:
+    def test_closure_convert(self):
+        def emits_cc_gen_fn(v):
+            @genjax.gen(genjax.Static)
+            @genjax.dynamic_closure(v)
+            def model(v):
+                x = genjax.normal(jnp.sum(v), 1.0) @ "x"
+                return x
+
+            return model
+
+        @genjax.gen(genjax.Static)
+        def model():
+            x = jnp.ones(5)
+            gen_fn = emits_cc_gen_fn(x)
+            v = gen_fn() @ "x"
+            return (v, gen_fn)
 
         key = jax.random.PRNGKey(314159)
-        key, sub_key = jax.random.split(key)
-        tr = jax.jit(genjax.simulate(simple_normal))(sub_key, ())
-        jitted = jax.jit(genjax.assess(simple_normal))
-        chm = tr.get_choices().strip()
-        (retval, score) = jitted(key, chm, ())
-        assert score == tr.get_score()
+        _ = jax.jit(genjax.simulate(model))(key, ())
+        assert True

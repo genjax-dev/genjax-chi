@@ -20,18 +20,18 @@ import genjax
 
 class TestInline:
     def test_inline_simulate(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -40,26 +40,26 @@ class TestInline:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(higher_model.simulate)(sub_key, ())
         choices = tr.strip()
-        assert choices.has_subtree("y1")
-        assert choices.has_subtree("y2")
+        assert choices.has_submap("y1")
+        assert choices.has_submap("y2")
         tr = jax.jit(higher_higher_model.simulate)(key, ())
         choices = tr.strip()
-        assert choices.has_subtree("y1")
-        assert choices.has_subtree("y2")
+        assert choices.has_submap("y1")
+        assert choices.has_submap("y2")
 
     def test_inline_importance(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -67,26 +67,26 @@ class TestInline:
         key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({"y1": 3.0})
         key, sub_key = jax.random.split(key)
-        (w, tr) = jax.jit(higher_model.importance)(sub_key, chm, ())
+        (tr, w) = jax.jit(higher_model.importance)(sub_key, chm, ())
         choices = tr.strip()
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
-        (w, tr) = jax.jit(higher_higher_model.importance)(key, chm, ())
+        (tr, w) = jax.jit(higher_higher_model.importance)(key, chm, ())
         choices = tr.strip()
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
     def test_inline_update(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -97,7 +97,7 @@ class TestInline:
         tr = jax.jit(higher_model.simulate)(sub_key, ())
         old_value = tr.strip()["y1"]
         key, sub_key = jax.random.split(key)
-        (rd, w, tr, _) = jax.jit(higher_model.update)(sub_key, tr, chm, ())
+        (tr, w, rd, _) = jax.jit(higher_model.update)(sub_key, tr, chm, ())
         choices = tr.strip()
         assert w == genjax.normal.logpdf(
             choices["y1"], 0.0, 1.0
@@ -105,7 +105,7 @@ class TestInline:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(higher_higher_model.simulate)(sub_key, ())
         old_value = tr.strip()["y1"]
-        (rd, w, tr, _) = jax.jit(higher_higher_model.update)(key, tr, chm, ())
+        (tr, w, rd, _) = jax.jit(higher_higher_model.update)(key, tr, chm, ())
         choices = tr.strip()
         assert w == pytest.approx(
             genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
@@ -114,31 +114,29 @@ class TestInline:
         )
 
     def test_inline_assess(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def higher_higher_model():
             y = higher_model.inline()
             return y
 
         key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({"y1": 3.0, "y2": 3.0})
-        key, sub_key = jax.random.split(key)
-        (ret, score) = jax.jit(higher_model.assess)(sub_key, chm, ())
+        (score, ret) = jax.jit(higher_model.assess)(chm, ())
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
         ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
-        key, sub_key = jax.random.split(key)
-        (ret, score) = jax.jit(higher_higher_model.assess)(sub_key, chm, ())
+        (score, ret) = jax.jit(higher_higher_model.assess)(chm, ())
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
         ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
