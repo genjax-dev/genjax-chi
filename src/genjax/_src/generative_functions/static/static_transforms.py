@@ -249,11 +249,11 @@ class StaticLanguageHandler(StatefulHandler):
     def set_discard_state(self, addr, ch: Choice):
         self.discard_choices[addr] = ch
 
-    def dispatch(self, prim, *tracers, **params):
+    def dispatch(self, prim, *tracers, **_params):
         if prim == trace_p:
-            return self.handle_trace(*tracers, **params)
+            return self.handle_trace(*tracers, **_params)
         elif prim == cache_p:
-            return self.handle_cache(*tracers, **params)
+            return self.handle_cache(*tracers, **_params)
         else:
             raise Exception("Illegal primitive: {}".format(prim))
 
@@ -305,9 +305,9 @@ class SimulateHandler(StaticLanguageHandler):
             self.score,
         )
 
-    def handle_trace(self, *tracers, **params):
-        in_tree = params.get("in_tree")
-        num_consts = params.get("num_consts")
+    def handle_trace(self, *tracers, **_params):
+        in_tree = _params.get("in_tree")
+        num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
         gen_fn, addr, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
@@ -320,7 +320,7 @@ class SimulateHandler(StaticLanguageHandler):
         v = tr.get_retval()
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, *args, **params):
+    def handle_cache(self, *args, **_params):
         raise NotImplementedError
 
 
@@ -399,9 +399,9 @@ class ImportanceHandler(StaticLanguageHandler):
             cache_visitor,
         )
 
-    def handle_trace(self, *tracers, **params):
-        in_tree = params.get("in_tree")
-        num_consts = params.get("num_consts")
+    def handle_trace(self, *tracers, **_params):
+        in_tree = _params.get("in_tree")
+        num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
         gen_fn, addr, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
@@ -415,9 +415,9 @@ class ImportanceHandler(StaticLanguageHandler):
         v = tr.get_retval()
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, *tracers, **params):
-        addr = params.get("addr")
-        in_tree = params.get("in_tree")
+    def handle_cache(self, *tracers, **_params):
+        addr = _params.get("addr")
+        in_tree = _params.get("in_tree")
         self.cache_visitor.visit(addr)
         fn, args = jtu.tree_unflatten(in_tree, *tracers)
         retval = fn(*args)
@@ -512,11 +512,12 @@ class UpdateHandler(StaticLanguageHandler):
             cache_visitor,
         )
 
-    def handle_trace(self, *tracers, **params):
-        in_tree = params.get("in_tree")
-        num_consts = params.get("num_consts")
+    def handle_trace(self, *tracers, **_params):
+        in_tree = _params.get("in_tree")
+        num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
         gen_fn, addr, *argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        addr = tree_diff_primal(addr)
         self.visit(addr)
 
         # Run the update step.
@@ -537,9 +538,9 @@ class UpdateHandler(StaticLanguageHandler):
         return jtu.tree_leaves(retval_diff, is_leaf=lambda v: isinstance(v, Diff))
 
     # TODO: fix -- add Diff/tracer return.
-    def handle_cache(self, *tracers, **params):
-        addr = params.get("addr")
-        in_tree = params.get("in_tree")
+    def handle_cache(self, *tracers, **_params):
+        addr = _params.get("addr")
+        in_tree = _params.get("in_tree")
         self.cache_visitor.visit(addr)
         fn, args = jtu.tree_unflatten(in_tree, tracers)
         has_value = self.previous_trace.has_cached_value(addr)
@@ -631,9 +632,9 @@ class AssessHandler(StaticLanguageHandler):
             cache_visitor,
         )
 
-    def handle_trace(self, *tracers, **params):
-        in_tree = params.get("in_tree")
-        num_consts = params.get("num_consts")
+    def handle_trace(self, *tracers, **_params):
+        in_tree = _params.get("in_tree")
+        num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
         gen_fn, addr, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
@@ -643,8 +644,8 @@ class AssessHandler(StaticLanguageHandler):
         self.score += score
         return jtu.tree_leaves(v)
 
-    def handle_cache(self, *tracers, **params):
-        in_tree = params.get("in_tree")
+    def handle_cache(self, *tracers, **_params):
+        in_tree = _params.get("in_tree")
         fn, *args = jtu.tree_unflatten(in_tree, tracers)
         retval = fn(*args)
         return jtu.tree_leaves(retval)
