@@ -1,0 +1,740 @@
+# Copyright 2022 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import dataclasses
+from typing import Any
+
+import jax
+import jax.numpy as jnp
+import pytest
+
+import genjax
+
+
+#############
+# Datatypes #
+#############
+
+##################################
+# Generative function interfaces #
+##################################
+
+
+class TestSimulate:
+    def test_simple_normal_simulate(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        fn = jax.jit(simple_normal.simulate)
+        key, sub_key = jax.random.split(key)
+        tr = fn(sub_key, ())
+        chm = tr.get_choices()
+        (_, score1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
+        test_score = score1 + score2
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_simple_normal_multiple_returns(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal_multiple_returns():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1, y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        fn = jax.jit(simple_normal_multiple_returns.simulate)
+        tr = fn(sub_key, ())
+        y1_ = tr["y1"]
+        y2_ = tr["y2"]
+        y1, y2 = tr.get_retval()
+        assert y1 == y1_
+        assert y2 == y2_
+        (_, score1) = genjax.normal.importance(key, genjax.choice_value(y1), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, genjax.choice_value(y2), (0.0, 1.0))
+        test_score = score1 + score2
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_hierarchical_simple_normal_multiple_returns(self):
+        @genjax.gen(genjax.Static)
+        def _submodel():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1, y2
+
+        @genjax.gen(genjax.Static)
+        def hierarchical_simple_normal_multiple_returns():
+            y1, y2 = genjax.trace("y1", _submodel)()
+            return y1, y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        fn = jax.jit(hierarchical_simple_normal_multiple_returns.simulate)
+        tr = fn(sub_key, ())
+        y1_ = tr["y1", "y1"]
+        y2_ = tr["y1", "y2"]
+        y1, y2 = tr.get_retval()
+        assert y1 == y1_
+        assert y2 == y2_
+        (_, score1) = genjax.normal.importance(key, genjax.choice_value(y1), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, genjax.choice_value(y2), (0.0, 1.0))
+        test_score = score1 + score2
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+
+class TestAssess:
+    def test_simple_normal_assess(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_normal))(sub_key, ())
+        jitted = jax.jit(genjax.assess(simple_normal))
+        chm = tr.get_choices().strip()
+        (retval, score) = jitted(key, chm, ())
+        assert score == tr.get_score()
+
+
+class TestClosureConvert:
+    def test_closure_convert(self):
+        def emits_cc_gen_fn(v):
+            @genjax.gen(genjax.Static)
+            @genjax.dynamic_closure(v)
+            def model(v):
+                x = genjax.normal(jnp.sum(v), 1.0) @ "x"
+                return x
+
+            return model
+
+        @genjax.gen(genjax.Static)
+        def model():
+            x = jnp.ones(5)
+            gen_fn = emits_cc_gen_fn(x)
+            v = gen_fn() @ "x"
+            return (v, gen_fn)
+
+        key = jax.random.PRNGKey(314159)
+        _ = jax.jit(genjax.simulate(model))(key, ())
+        assert True
+
+
+@dataclasses.dataclass
+class CustomTree(genjax.Pytree):
+    x: Any
+    y: Any
+
+    def flatten(self):
+        return (self.x, self.y), ()
+
+
+@genjax.gen(genjax.Static)
+def simple_normal(custom_tree):
+    y1 = genjax.trace("y1", genjax.normal)(custom_tree.x, 1.0)
+    y2 = genjax.trace("y2", genjax.normal)(custom_tree.y, 1.0)
+    return CustomTree(y1, y2)
+
+
+@dataclasses.dataclass
+class _CustomNormal(genjax.ExactDensity):
+    def logpdf(self, v, custom_tree):
+        return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
+
+    def sample(self, key, custom_tree):
+        return genjax.normal.sample(key, custom_tree.x, custom_tree.y)
+
+
+CustomNormal = _CustomNormal()
+
+
+@genjax.gen(genjax.Static)
+def custom_normal(custom_tree):
+    y = genjax.trace("y", CustomNormal)(custom_tree)
+    return CustomTree(y, y)
+
+
+class TestCustomPytree:
+    def test_simple_normal_simulate(self):
+        key = jax.random.PRNGKey(314159)
+        init_tree = CustomTree(3.0, 5.0)
+        fn = jax.jit(genjax.simulate(simple_normal))
+        tr = fn(key, (init_tree,))
+        chm = tr.get_choices()
+        (score1, _) = genjax.normal.importance(
+            key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
+        )
+        (score2, _) = genjax.normal.importance(
+            key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
+        )
+        test_score = score1 + score2
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_custom_normal_simulate(self):
+        key = jax.random.PRNGKey(314159)
+        init_tree = CustomTree(3.0, 5.0)
+        fn = jax.jit(genjax.simulate(custom_normal))
+        tr = fn(key, (init_tree,))
+        chm = tr.get_choices()
+        (score, _) = genjax.normal.importance(
+            key, chm.get_subtree("y").get_choices(), (init_tree.x, init_tree.y)
+        )
+        test_score = score
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_simple_normal_importance(self):
+        key = jax.random.PRNGKey(314159)
+        init_tree = CustomTree(3.0, 5.0)
+        chm = genjax.choice_map({"y1": 5.0})
+        fn = jax.jit(genjax.importance(simple_normal))
+        (w, tr) = fn(key, chm, (init_tree,))
+        chm = tr.get_choices()
+        (score1, _) = genjax.normal.importance(
+            key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
+        )
+        (score2, _) = genjax.normal.importance(
+            key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
+        )
+        test_score = score1 + score2
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+        assert w == pytest.approx(score1, 0.01)
+
+
+class TestGradients:
+    def test_simple_normal_assess(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(genjax.simulate(simple_normal))(key, ())
+        jitted = jax.jit(genjax.assess(simple_normal))
+        chm = tr.get_choices().strip()
+        (_, score) = jitted(key, chm, ())
+        assert score == tr.get_score()
+
+
+class TestImportance:
+    def test_importance_simple_normal(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        fn = genjax.importance(simple_normal)
+        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
+        key, sub_key = jax.random.split(key)
+        (_, tr) = fn(sub_key, chm, ())
+        out = tr.get_choices()
+        y1 = chm[("y1",)]
+        y2 = chm[("y2",)]
+        (score_1, _) = genjax.normal.importance(key, chm.get_subtree("y1"), (0.0, 1.0))
+        (score_2, _) = genjax.normal.importance(key, chm.get_subtree("y2"), (0.0, 1.0))
+        test_score = score_1 + score_2
+        assert y1 == out[("y1",)]
+        assert y2 == out[("y2",)]
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_importance_weight_correctness(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        # Full constraints.
+        key = jax.random.PRNGKey(314159)
+        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
+        (w, tr) = simple_normal.importance(key, chm, ())
+        y1 = tr["y1"]
+        y2 = tr["y2"]
+        assert y1 == 0.5
+        assert y2 == 0.5
+        (score_1, _) = genjax.normal.importance(key, chm.get_subtree("y1"), (0.0, 1.0))
+        (score_2, _) = genjax.normal.importance(key, chm.get_subtree("y2"), (0.0, 1.0))
+        test_score = score_1 + score_2
+        assert tr.get_score() == pytest.approx(test_score, 0.0001)
+        assert w == pytest.approx(test_score, 0.0001)
+
+        # Partial constraints.
+        chm = genjax.choice_map({("y2",): 0.5})
+        (w, tr) = simple_normal.importance(key, chm, ())
+        y1 = tr["y1"]
+        y2 = tr["y2"]
+        assert y2 == 0.5
+        score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)
+        score_2 = genjax.normal.logpdf(y2, 0.0, 1.0)
+        test_score = score_1 + score_2
+        assert tr.get_score() == pytest.approx(test_score, 0.0001)
+        assert w == pytest.approx(score_2, 0.0001)
+
+        # No constraints.
+        chm = genjax.EmptyChoice()
+        (w, tr) = simple_normal.importance(key, chm, ())
+        y1 = tr["y1"]
+        y2 = tr["y2"]
+        score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)
+        score_2 = genjax.normal.logpdf(y2, 0.0, 1.0)
+        test_score = score_1 + score_2
+        assert tr.get_score() == pytest.approx(test_score, 0.0001)
+        assert w == 0.0
+
+
+####################################################
+#          Remember: the update weight math        #
+#                                                  #
+#   log p(r′,t′;x′) + log q(r;x,t) - log p(r,t;x)  #
+#       - log q(r′;x′,t′) - q(t′;x′,t+u)           #
+#                                                  #
+####################################################
+
+
+class TestUpdate:
+    def test_simple_normal_update(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_normal.simulate)(sub_key, ())
+        jitted = jax.jit(simple_normal.update)
+
+        new = genjax.choice_map({("y1",): 2.0})
+        original_chm = tr.get_choices()
+        original_score = tr.get_score()
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        updated_chm = updated.get_choices()
+        y1 = updated_chm[("y1",)]
+        y2 = updated_chm[("y2",)]
+        (_, score1) = genjax.normal.importance(
+            key, updated_chm.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_chm.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert original_chm[("y1",)] == discard[("y1",)]
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+        new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
+        original_score = tr.get_score()
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        updated_chm = updated.get_choices()
+        y1 = updated_chm[("y1",)]
+        y2 = updated_chm[("y2",)]
+        (_, score1) = genjax.normal.importance(
+            key, updated_chm.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_chm.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_simple_linked_normal_update(self):
+        @genjax.gen(genjax.Static)
+        def simple_linked_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
+            y3 = genjax.trace("y3", genjax.normal)(y1 + y2, 1.0)
+            return y1 + y2 + y3
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
+        jitted = jax.jit(simple_linked_normal.update)
+
+        new = genjax.choice_map({("y1",): 2.0})
+        original_chm = tr.get_choices()
+        original_score = tr.get_score()
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        updated_chm = updated.get_choices().strip()
+        y1 = updated_chm["y1"]
+        y2 = updated_chm["y2"]
+        y3 = updated_chm["y3"]
+        score1 = genjax.normal.logpdf(y1, 0.0, 1.0)
+        score2 = genjax.normal.logpdf(y2, y1, 1.0)
+        score3 = genjax.normal.logpdf(y3, y1 + y2, 1.0)
+        test_score = score1 + score2 + score3
+        assert original_chm[("y1",)] == discard[("y1",)]
+        assert updated.get_score() == pytest.approx(original_score + w, 0.01)
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_simple_hierarchical_normal(self):
+        @genjax.gen(genjax.Static)
+        def _inner(x):
+            y1 = genjax.trace("y1", genjax.normal)(x, 1.0)
+            return y1
+
+        @genjax.gen(genjax.Static)
+        def simple_hierarchical_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", _inner)(y1)
+            y3 = genjax.trace("y3", _inner)(y1 + y2)
+            return y1 + y2 + y3
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_hierarchical_normal.simulate)(sub_key, ())
+        jitted = jax.jit(simple_hierarchical_normal.update)
+
+        new = genjax.choice_map({("y1",): 2.0})
+        original_chm = tr.get_choices()
+        original_score = tr.get_score()
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        updated_chm = updated.get_choices().strip()
+        y1 = updated_chm["y1"]
+        y2 = updated_chm["y2", "y1"]
+        y3 = updated_chm["y3", "y1"]
+        assert y1 == new["y1"]
+        assert y2 == original_chm["y2", "y1"]
+        assert y3 == original_chm["y3", "y1"]
+        score1 = genjax.normal.logpdf(y1, 0.0, 1.0)
+        score2 = genjax.normal.logpdf(y2, y1, 1.0)
+        score3 = genjax.normal.logpdf(y3, y1 + y2, 1.0)
+        test_score = score1 + score2 + score3
+        assert original_chm[("y1",)] == discard[("y1",)]
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_update_weight_correctness(self):
+        @genjax.gen(genjax.Static)
+        def simple_linked_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
+            y3 = genjax.trace("y3", genjax.normal)(y1 + y2, 1.0)
+            return y1 + y2 + y3
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
+        jitted = jax.jit(simple_linked_normal.update)
+
+        old_y1 = tr["y1"]
+        old_y2 = tr["y2"]
+        old_y3 = tr["y3"]
+        new_y1 = 2.0
+        new = genjax.choice_map({("y1",): new_y1})
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, _) = jitted(sub_key, tr, new, ())
+
+        # Test new scores.
+        assert updated["y1"] == new_y1
+        sel = genjax.select("y1")
+        assert updated.project(sel) == genjax.normal.logpdf(new_y1, 0.0, 1.0)
+        assert updated["y2"] == old_y2
+        sel = genjax.select("y2")
+        assert updated.project(sel) == pytest.approx(
+            genjax.normal.logpdf(old_y2, new_y1, 1.0), 0.0001
+        )
+        assert updated["y3"] == old_y3
+        sel = genjax.select("y3")
+        assert updated.project(sel) == pytest.approx(
+            genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0), 0.0001
+        )
+
+        # Test weight correctness.
+        δ_y3 = genjax.normal.logpdf(
+            old_y3, new_y1 + old_y2, 1.0
+        ) - genjax.normal.logpdf(old_y3, old_y1 + old_y2, 1.0)
+        δ_y2 = genjax.normal.logpdf(old_y2, new_y1, 1.0) - genjax.normal.logpdf(
+            old_y2, old_y1, 1.0
+        )
+        δ_y1 = genjax.normal.logpdf(new_y1, 0.0, 1.0) - genjax.normal.logpdf(
+            old_y1, 0.0, 1.0
+        )
+        assert w == pytest.approx((δ_y3 + δ_y2 + δ_y1), 0.0001)
+
+        # Test composition of update calls.
+        new_y3 = 2.0
+        new = genjax.choice_map({("y3",): new_y3})
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, _) = jitted(sub_key, updated, new, ())
+        assert updated["y3"] == 2.0
+        correct_w = genjax.normal.logpdf(
+            new_y3, new_y1 + old_y2, 1.0
+        ) - genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0)
+        assert w == pytest.approx(correct_w, 0.0001)
+
+    def test_update_pytree_argument(self):
+        @dataclass
+        class SomePytree(genjax.Pytree):
+            x: FloatArray
+            y: FloatArray
+
+            def flatten(self):
+                return (self.x, self.y), ()
+
+        @genjax.gen(genjax.Static)
+        def simple_linked_normal_with_tree_argument(tree):
+            y1 = genjax.trace("y1", genjax.normal)(tree.x, tree.y)
+            return y1
+
+        key = jax.random.PRNGKey(314159)
+        init_tree = SomePytree(0.0, 1.0)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_linked_normal_with_tree_argument.simulate)(
+            sub_key, (init_tree,)
+        )
+        jitted = jax.jit(simple_linked_normal_with_tree_argument.update)
+        new_y1 = 2.0
+        constraints = genjax.choice_map({("y1",): new_y1})
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, _) = jitted(
+            sub_key, tr, constraints, (genjax.tree_diff_no_change(init_tree),)
+        )
+        assert updated["y1"] == new_y1
+        new_tree = SomePytree(1.0, 2.0)
+        key, sub_key = jax.random.split(key)
+        (updated, w, _, _) = jitted(
+            sub_key, tr, constraints, (genjax.tree_diff_unknown_change(new_tree),)
+        )
+        assert updated["y1"] == new_y1
+
+
+#####################
+# Language features #
+#####################
+
+
+class TestStaticLanguageSugar:
+    def test_static_sugar(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        tr = simple_normal.simulate(key, ())
+
+        key = jax.random.PRNGKey(314159)
+        v = simple_normal(key, ())
+        assert tr.get_retval() == v
+
+
+class TestStaticAddressChecks:
+    def test_simple_normal_addr_dup(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal_addr_dup():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y1"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        with pytest.raises(Exception):
+            _ = genjax.simulate(simple_normal_addr_dup)(key, ())
+
+    def test_simple_normal_addr_tracer(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal_addr_tracer():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ y1
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        with pytest.raises(Exception):
+            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
+
+
+class TestDynamicAddresses:
+    def test_dynamic_addresses_and_interfaces(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal(index: genjax.typing.IntArray):
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace(index, genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        tr = simple_normal.simulate(key, (3,))
+
+    def test_basic_smc_pattern(self):
+        @genjax.gen(genjax.Static)(genjax.Unfold, max_length=10)
+        def chain(z):
+            new_z = genjax.tfp_normal(0.0, 1.0) @ "z"
+            new_x = genjax.tfp_normal(new_z, 1.0) @ "x"
+            return new_z
+
+        @genjax.gen(genjax.Static)
+        def temporal_proposal(obs, t):
+            obs_at_t = obs[t, "x"].match(lambda: 1.0, lambda v: v)
+            new_z = genjax.tfp_normal(obs_at_t, 1.0) @ (t, "z")
+
+        key = jax.random.PRNGKey(314159)
+        obs = genjax.choice_map({(3, "x"): 3.0})
+        dynamic_constraints = temporal_proposal.propose(key, (obs, 3))
+
+
+class TestForwardRef:
+    def test_forward_ref(self):
+        def make_gen_fn():
+            @genjax.gen(genjax.Static)
+            def proposal(x):
+                x = outlier(x) @ "x"
+                return x
+
+            @genjax.gen(genjax.Static)
+            def outlier(prob):
+                is_outlier = genjax.bernoulli(prob) @ "is_outlier"
+                return is_outlier
+
+            return proposal
+
+        key = jax.random.PRNGKey(314159)
+        proposal = make_gen_fn()
+        tr = proposal.simulate(key, (0.3,))
+        assert True
+
+
+class TestInline:
+    def test_inline_simulate(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        @genjax.gen(genjax.Static)
+        def higher_model():
+            y = simple_normal.inline()
+            return y
+
+        @genjax.gen(genjax.Static)
+        def higher_higher_model():
+            y = higher_model.inline()
+            return y
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(higher_model.simulate)(sub_key, ())
+        choices = tr.strip()
+        assert choices.has_submap("y1")
+        assert choices.has_submap("y2")
+        tr = jax.jit(higher_higher_model.simulate)(key, ())
+        choices = tr.strip()
+        assert choices.has_submap("y1")
+        assert choices.has_submap("y2")
+
+    def test_inline_importance(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        @genjax.gen(genjax.Static)
+        def higher_model():
+            y = simple_normal.inline()
+            return y
+
+        @genjax.gen(genjax.Static)
+        def higher_higher_model():
+            y = higher_model.inline()
+            return y
+
+        key = jax.random.PRNGKey(314159)
+        chm = genjax.choice_map({"y1": 3.0})
+        key, sub_key = jax.random.split(key)
+        (tr, w) = jax.jit(higher_model.importance)(sub_key, chm, ())
+        choices = tr.strip()
+        assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
+        (tr, w) = jax.jit(higher_higher_model.importance)(key, chm, ())
+        choices = tr.strip()
+        assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
+
+    def test_inline_update(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        @genjax.gen(genjax.Static)
+        def higher_model():
+            y = simple_normal.inline()
+            return y
+
+        @genjax.gen(genjax.Static)
+        def higher_higher_model():
+            y = higher_model.inline()
+            return y
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        chm = genjax.choice_map({"y1": 3.0})
+        tr = jax.jit(higher_model.simulate)(sub_key, ())
+        old_value = tr.strip()["y1"]
+        key, sub_key = jax.random.split(key)
+        (tr, w, rd, _) = jax.jit(higher_model.update)(sub_key, tr, chm, ())
+        choices = tr.strip()
+        assert w == genjax.normal.logpdf(
+            choices["y1"], 0.0, 1.0
+        ) - genjax.normal.logpdf(old_value, 0.0, 1.0)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(higher_higher_model.simulate)(sub_key, ())
+        old_value = tr.strip()["y1"]
+        (tr, w, rd, _) = jax.jit(higher_higher_model.update)(key, tr, chm, ())
+        choices = tr.strip()
+        assert w == pytest.approx(
+            genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
+            - genjax.normal.logpdf(old_value, 0.0, 1.0),
+            0.0001,
+        )
+
+    def test_inline_assess(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        @genjax.gen(genjax.Static)
+        def higher_model():
+            y = simple_normal.inline()
+            return y
+
+        @genjax.gen(genjax.Static)
+        def higher_higher_model():
+            y = higher_model.inline()
+            return y
+
+        key = jax.random.PRNGKey(314159)
+        chm = genjax.choice_map({"y1": 3.0, "y2": 3.0})
+        (score, ret) = jax.jit(higher_model.assess)(chm, ())
+        assert score == genjax.normal.logpdf(
+            chm["y1"], 0.0, 1.0
+        ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
+        (score, ret) = jax.jit(higher_higher_model.assess)(chm, ())
+        assert score == genjax.normal.logpdf(
+            chm["y1"], 0.0, 1.0
+        ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
