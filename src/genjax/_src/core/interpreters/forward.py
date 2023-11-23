@@ -152,7 +152,6 @@ def initial_style_bind(prim, **params):
                 num_consts=len(_jaxpr.literals),
                 **params,
             )
-            assert False
             return tree_util.tree_unflatten(out_tree(), outs)
 
         return wrapped

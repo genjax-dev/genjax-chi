@@ -822,9 +822,9 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (retval, score)
 
 
-########################
-# Language constructor #
-########################
+#########################
+# Language constructors #
+#########################
 
 
 @typecheck

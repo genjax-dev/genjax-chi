@@ -474,9 +474,9 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (retval, jnp.sum(score))
 
 
-##############
-# Shorthands #
-##############
+#########################
+# Language constructors #
+#########################
 
 
 @dispatch
