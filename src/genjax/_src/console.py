@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import jax
 import plum
 import rich
+from rich import traceback
 from rich.console import Console
 
 from genjax._src.core.pytree.pytree import Pytree
@@ -39,11 +40,22 @@ class GenJAXConsole(Pytree):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, *_):
+    def __exit__(self, exc_type, exc_value, tb):
         if exc_type is not None:
-            self.rich_console.print_exception(
+            show_locals = self.traceback_kwargs["show_locals"]
+            trace = traceback.Traceback.extract(
+                exc_type,
+                exc_value,
+                tb,
+                show_locals=show_locals,
+                locals_hide_sunder=True,
+                locals_hide_dunder=True,
+            )
+            rich_tb = traceback.Traceback(
+                trace,
                 **self.traceback_kwargs,
             )
+            self.rich_console.print(rich_tb)
         return True
 
     def print(self, obj):
@@ -69,15 +81,13 @@ class GenJAXConsole(Pytree):
 
 
 def pretty(
-    show_locals=False,
-    max_frames=30,
-    suppress=[jax, plum],
     **kwargs,
 ):
     traceback_kwargs = {
-        "show_locals": show_locals,
-        "max_frames": max_frames,
-        "suppress": suppress,
+        "word_wrap": True,
+        "show_locals": False,
+        "max_frames": 30,
+        "suppress": [jax, plum],
         **kwargs,
     }
     return GenJAXConsole(
