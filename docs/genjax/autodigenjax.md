@@ -1,6 +1,6 @@
 # Write you a (mini) GenJAX
 
-```python exec="yes" source="tabbed-left" session="ex-dida"
+```python exec="yes" source="material-block" session="ex-dida"
 from abc import abstractmethod
 from dataclasses import dataclass
 import re
@@ -8,20 +8,9 @@ import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 from genjax import pretty
-from ansi2html import Ansi2HTMLConverter
+
 console = pretty()
 tfd = tfp.distributions
-
-def pprint_jaxpr(fn):
-    conv = Ansi2HTMLConverter()
-
-    def wrapped(*args):
-        jaxpr = jax.make_jaxpr(f)(*args)
-        s = jaxpr.pretty_print(use_color=True)
-        html = conv.convert(s)
-        console.print(html)
-
-    return wrapped
 ```
 
 This is a "build a miniature GenJAX" tutorial: we construct a small probabilistic programming system (featuring a subset of Gen's generative function interfaces) using JAX. (1)
@@ -33,7 +22,7 @@ This is a "build a miniature GenJAX" tutorial: we construct a small probabilisti
 
 Let's start by assuming we have access to distributions. Distributions are objects which support a `sample` and `logprob` interface. We'll write a `Distribution` class which features JAX compatible interfaces (e.g. `sample` will accept a `jax.random.PRNGKey`):
 
-```python exec="yes" source="tabbed-left" session="ex-dida"
+```python exec="yes" source="material-block" session="ex-dida"
 @dataclass
 class Distribution:
     @abstractmethod
@@ -68,7 +57,7 @@ _The first insight of Gen is that the return value type need not be the same as 
 
 Let's define a normal distribution for use later:
 
-```python exec="yes" source="tabbed-left" session="ex-dida"
+```python exec="yes" source="material-block" session="ex-dida"
 @dataclass
 class _Normal(Distribution):
     def sample(key, mu, sigma):
@@ -89,7 +78,7 @@ Let's take a miniature step forward: we could build up new types of kind $\textb
 
 What if we write a "product combinator" using these concepts?
 
-```python exec="yes" source="tabbed-left" session="ex-dida"
+```python exec="yes" source="material-block" session="ex-dida"
 @dataclass
 class ProductCombinator(Distribution):
     product_components: List[Distribution]
@@ -108,11 +97,11 @@ class ProductCombinator(Distribution):
 
 ## Programmatic composition
 
-Now we're going to introduce a powerful layer of abstraction for composing generative functions together. We're going to rely on JAX to support this abstraction layer - JAX will allow us to use _metaprogramming_ to implement the semantics that we've discussed above for _programs_ which denote values of type $\textbf{G} \ \tau \ \ R$.
+Now we're going to introduce a powerful layer of abstraction for composing generative functions together. We're going to rely on JAX to support this abstraction layer - JAX will allow us to use _metaprogramming_ to implement the semantics that we've discussed above for _programs_ which denote values of type $\textbf{G} \ \tau \ R$.
 
-### Aside: the `Jaxpr` representation
+### The `Jaxpr` representation
 
-```python exec="yes" source="tabbed-left" session="ex-dida"
+```python exec="yes" source="tabbed-left" result="ansi" session="ex-dida"
 # A little numerical example.
 def f(x, y):
     z = x * y
@@ -121,5 +110,25 @@ def f(x, y):
     p = q * q
     return p
 
-pprint_jaxpr(f)(3.0, 5.0)
+jaxpr = jax.make_jaxpr(f)(3.0, 5.0)
+print(jaxpr)
+```
+
+### `Jaxpr` interpreters
+
+To gain access to `Jaxpr` instances, we're going to use a utility function called `stage`.
+
+```python exec="yes" source="tabbed-left" result="ansi" session="ex-dida"
+from genjax.core import stage
+
+# Gives us access to a `Jaxpr`, as well as input and output
+# Python dataclass information.
+jaxpr, (args, in_tree, out_tree) = stage(f)(3.0, 5.0)
+print(jaxpr)
+```
+
+The `stage` function is very similar to `jax.make_jaxpr` - just a bit smarter and useful for "initial style" interpreters.
+
+```python exec="yes" source="tabbed-left" result="ansi" session="ex-dida"
+
 ```
