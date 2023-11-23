@@ -15,7 +15,7 @@
 import functools
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
@@ -105,7 +105,7 @@ class StaticGenerativeFunction(
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceMap,
+        chm: Choice,
         args: Tuple,
     ) -> Tuple[StaticTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -137,9 +137,9 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: ChoiceMap,
+        constraints: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[Trace, FloatArray, Any, Choice]:
         assert static_check_tree_leaves_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -175,7 +175,7 @@ class StaticGenerativeFunction(
     @typecheck
     def assess(
         self,
-        chm: ChoiceMap,
+        chm: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(

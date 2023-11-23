@@ -17,17 +17,22 @@ import jax
 import genjax
 
 
-class TestAssessSimpleNormal:
-    def test_simple_normal_assess(self):
-        @genjax.gen
-        def simple_normal():
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
-            return y1 + y2
+class TestForwardRef:
+    def test_forward_ref(self):
+        def make_gen_fn():
+            @genjax.gen(genjax.Static)
+            def proposal(x):
+                x = outlier(x) @ "x"
+                return x
+
+            @genjax.gen(genjax.Static)
+            def outlier(prob):
+                is_outlier = genjax.bernoulli(prob) @ "is_outlier"
+                return is_outlier
+
+            return proposal
 
         key = jax.random.PRNGKey(314159)
-        tr = jax.jit(genjax.simulate(simple_normal))(key, ())
-        jitted = jax.jit(genjax.assess(simple_normal))
-        chm = tr.get_choices().strip()
-        (_, score) = jitted(key, chm, ())
-        assert score == tr.get_score()
+        proposal = make_gen_fn()
+        tr = proposal.simulate(key, (0.3,))
+        assert True

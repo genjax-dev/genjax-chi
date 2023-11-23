@@ -29,7 +29,6 @@ nav:
       - Core:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
-          - Generative datatypes: genjax/library/core/generative.md
           - Dynamism and functional types: genjax/library/core/functional_types.md
           - Runtime debugger: genjax/library/core/runtime_debugger.md
       - Generative function languages:
@@ -38,7 +37,7 @@ nav:
               - genjax/library/generative_functions/distributions/index.md
           #     - Coryx: genjax/library/generative_functions/distributions/coryx.md
           #     - GenSP: genjax/library/generative_functions/distributions/gensp.md
-          - Builtin language: genjax/library/generative_functions/builtin.md
+          - Static language: genjax/library/generative_functions/static.md
           - Combinators:
               - genjax/library/generative_functions/combinators/index.md
               - Map combinator: genjax/library/generative_functions/combinators/map.md
@@ -56,6 +55,8 @@ nav:
     #      - Differentiable programming:
     #          - genjax/library/diff_prog/index.md
     #          - Differentiable state: genjax/library/diff_prog/state.md
+  - Autodi(GenJAX):
+      - genjax/autodigenjax.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md

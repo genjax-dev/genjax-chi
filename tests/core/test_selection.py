@@ -20,15 +20,15 @@ import genjax
 class TestSelections:
     def test_hierarchical_selection(self):
         new = genjax.select("x", ("z", "y"))
-        assert new.has_subtree("z")
-        assert new.has_subtree("x")
+        assert new.has_addr("z")
+        assert new.has_addr("x")
         v = new["x"]
         assert isinstance(v, genjax.AllSelection)
         v = new["z", "y"]
         assert isinstance(v, genjax.AllSelection)
 
     def test_hierarchical_selection_filter(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)

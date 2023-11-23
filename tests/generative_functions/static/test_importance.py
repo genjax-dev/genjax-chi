@@ -20,7 +20,7 @@ import genjax
 
 class TestImportance:
     def test_importance_simple_normal(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -42,7 +42,7 @@ class TestImportance:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_importance_weight_correctness(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)

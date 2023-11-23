@@ -34,17 +34,26 @@ class PytreeConst(Pytree):
 
 
 def const(v):
-    return PytreeConst(v)
+    if isinstance(v, PytreeConst):
+        return v
+    else:
+        return PytreeConst(v)
 
 
-def tree_map_static_dynamic(v):
+def tree_map_const(v):
     def _inner(v):
-        if static_check_is_concrete(v):
+        if isinstance(v, PytreeConst):
+            return v
+        elif static_check_is_concrete(v):
             return PytreeConst(v)
         else:
             return v
 
-    return jtu.tree_map(_inner, v)
+    return jtu.tree_map(
+        _inner,
+        v,
+        is_leaf=lambda v: isinstance(v, PytreeConst),
+    )
 
 
 def tree_map_collapse_const(v):

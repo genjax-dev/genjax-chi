@@ -30,7 +30,7 @@ class CustomTree(genjax.Pytree):
         return (self.x, self.y), ()
 
 
-@genjax.gen
+@genjax.gen(genjax.Static)
 def simple_normal(custom_tree):
     y1 = genjax.trace("y1", genjax.normal)(custom_tree.x, 1.0)
     y2 = genjax.trace("y2", genjax.normal)(custom_tree.y, 1.0)
@@ -49,7 +49,7 @@ class _CustomNormal(genjax.ExactDensity):
 CustomNormal = _CustomNormal()
 
 
-@genjax.gen
+@genjax.gen(genjax.Static)
 def custom_normal(custom_tree):
     y = genjax.trace("y", CustomNormal)(custom_tree)
     return CustomTree(y, y)

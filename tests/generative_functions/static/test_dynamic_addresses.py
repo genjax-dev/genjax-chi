@@ -19,7 +19,7 @@ import genjax
 
 class TestDynamicAddresses:
     def test_dynamic_addresses_and_interfaces(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal(index: genjax.typing.IntArray):
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace(index, genjax.normal)(0.0, 1.0)
@@ -29,13 +29,13 @@ class TestDynamicAddresses:
         tr = simple_normal.simulate(key, (3,))
 
     def test_basic_smc_pattern(self):
-        @genjax.gen(genjax.Unfold, max_length=10)
+        @genjax.gen(genjax.Static)(genjax.Unfold, max_length=10)
         def chain(z):
             new_z = genjax.tfp_normal(0.0, 1.0) @ "z"
             new_x = genjax.tfp_normal(new_z, 1.0) @ "x"
             return new_z
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def temporal_proposal(obs, t):
             obs_at_t = obs[t, "x"].match(lambda: 1.0, lambda v: v)
             new_z = genjax.tfp_normal(obs_at_t, 1.0) @ (t, "z")

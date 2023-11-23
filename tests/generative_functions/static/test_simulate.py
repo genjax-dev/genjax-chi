@@ -20,28 +20,24 @@ import genjax
 
 class TestSimulate:
     def test_simple_normal_simulate(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        fn = jax.jit(genjax.simulate(simple_normal))
+        fn = jax.jit(simple_normal.simulate)
         key, sub_key = jax.random.split(key)
         tr = fn(sub_key, ())
         chm = tr.get_choices()
-        (score1, _) = genjax.normal.importance(
-            key, chm.get_subtree("y1").get_choices(), (0.0, 1.0)
-        )
-        (score2, _) = genjax.normal.importance(
-            key, chm.get_subtree("y2").get_choices(), (0.0, 1.0)
-        )
+        (_, score1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_normal_multiple_returns(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def simple_normal_multiple_returns():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -49,50 +45,40 @@ class TestSimulate:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        fn = jax.jit(genjax.simulate(simple_normal_multiple_returns))
+        fn = jax.jit(simple_normal_multiple_returns.simulate)
         tr = fn(sub_key, ())
-        chm = tr.get_choices()
         y1_ = tr["y1"]
         y2_ = tr["y2"]
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        (score1, _) = genjax.normal.importance(
-            key, genjax.value_choice_map(y1), (0.0, 1.0)
-        )
-        (score2, _) = genjax.normal.importance(
-            key, genjax.value_choice_map(y2), (0.0, 1.0)
-        )
+        (_, score1) = genjax.normal.importance(key, genjax.choice_value(y1), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, genjax.choice_value(y2), (0.0, 1.0))
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_hierarchical_simple_normal_multiple_returns(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def _submodel():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
             return y1, y2
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def hierarchical_simple_normal_multiple_returns():
             y1, y2 = genjax.trace("y1", _submodel)()
             return y1, y2
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        fn = jax.jit(genjax.simulate(hierarchical_simple_normal_multiple_returns))
+        fn = jax.jit(hierarchical_simple_normal_multiple_returns.simulate)
         tr = fn(sub_key, ())
-        chm = tr.get_choices()
         y1_ = tr["y1", "y1"]
         y2_ = tr["y1", "y2"]
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        (score1, _) = genjax.normal.importance(
-            key, genjax.value_choice_map(y1), (0.0, 1.0)
-        )
-        (score2, _) = genjax.normal.importance(
-            key, genjax.value_choice_map(y2), (0.0, 1.0)
-        )
+        (_, score1) = genjax.normal.importance(key, genjax.choice_value(y1), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, genjax.choice_value(y2), (0.0, 1.0))
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)

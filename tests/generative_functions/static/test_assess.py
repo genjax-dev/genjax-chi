@@ -13,30 +13,22 @@
 # limitations under the License.
 
 import jax
-import pytest
 
 import genjax
 
 
-class TestStaticAddressChecks:
-    def test_simple_normal_addr_dup(self):
-        @genjax.gen
-        def simple_normal_addr_dup():
+class TestAssessSimpleNormal:
+    def test_simple_normal_assess(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_dup)(key, ())
-
-    def test_simple_normal_addr_tracer(self):
-        @genjax.gen
-        def simple_normal_addr_tracer():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ y1
-            return y1 + y2
-
-        key = jax.random.PRNGKey(314159)
-        with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(genjax.simulate(simple_normal))(sub_key, ())
+        jitted = jax.jit(genjax.assess(simple_normal))
+        chm = tr.get_choices().strip()
+        (retval, score) = jitted(key, chm, ())
+        assert score == tr.get_score()

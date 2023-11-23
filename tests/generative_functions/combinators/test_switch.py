@@ -184,7 +184,7 @@ class TestSwitch:
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, _, tr, _) = jax.jit(switch.update)(
-            sub_key, tr, genjax.empty_choice_map(), (diff(0, NoChange),)
+            sub_key, tr, genjax.empty_choice(), (diff(0, NoChange),)
         )
         assert score == tr.get_score()
         assert v1 == tr["y1"]
@@ -205,7 +205,7 @@ class TestSwitch:
         (rd, w, tr, d) = jax.jit(switch.update)(
             key,
             tr,
-            genjax.mask(jnp.array(True), genjax.empty_choice_map()),
+            genjax.mask(jnp.array(True), genjax.empty_choice()),
             genjax.tree_diff_no_change((1, 0.0)),
         )
         assert isinstance(d, genjax.EmptyChoice)
@@ -213,7 +213,7 @@ class TestSwitch:
         (rd, w, tr, d) = jax.jit(switch.update)(
             key,
             tr,
-            genjax.mask(jnp.array(False), genjax.empty_choice_map()),
+            genjax.mask(jnp.array(False), genjax.empty_choice()),
             genjax.tree_diff_no_change((1, 0.0)),
         )
         assert isinstance(d, genjax.EmptyChoice)
@@ -251,7 +251,7 @@ class TestSwitch:
         (_, new_wt, new_tr, _) = switch.update(
             update_key,
             tr,
-            genjax.empty_choice_map(),
+            genjax.empty_choice(),
             (diff(1, UnknownChange),),
         )
         assert new_tr.chm.index == 1

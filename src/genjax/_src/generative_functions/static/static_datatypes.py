@@ -23,7 +23,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.const import tree_map_collapse_const
-from genjax._src.core.pytree.const import tree_map_static_dynamic
+from genjax._src.core.pytree.const import tree_map_const
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
@@ -66,9 +66,14 @@ class StaticLanguageChoiceMap(ChoiceMap):
     def get_choices(self):
         return self.convert_to_dynamic()
 
-    def __getitem__(self, k):
-        fst, *rst = k
-        (fst, rst) = tree_map_static_dynamic((fst, rst))
+    @dispatch
+    def __getitem__(self, k: Any):
+        addr = tree_map_const(k)
+        return self.subtraces[self.addrs.index(addr)]
+
+    @dispatch
+    def __getitem__(self, k: Tuple):
+        fst, *rst = tree_map_const(k)
         if rst:
             return self.subtraces[self.addrs.index(fst)][*rst]
         else:
@@ -76,7 +81,7 @@ class StaticLanguageChoiceMap(ChoiceMap):
 
     @dispatch
     def __setitem__(self, k: Tuple, v):
-        fst, *rst = k
+        fst, *rst = tree_map_const(k)
         if rst:
             sub = StaticLanguageChoiceMap.new()
             sub[tuple(rst)] = v
@@ -88,7 +93,8 @@ class StaticLanguageChoiceMap(ChoiceMap):
 
     @dispatch
     def __setitem__(self, k: Any, v):
-        self.addrs.append(k)
+        addr = tree_map_const(k)
+        self.addrs.append(addr)
         self.subtraces.append(v)
 
     def __rich_tree__(self):

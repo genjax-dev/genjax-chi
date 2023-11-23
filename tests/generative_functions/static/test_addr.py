@@ -13,21 +13,30 @@
 # limitations under the License.
 
 import jax
+import pytest
 
 import genjax
 
 
-class TestBuiltinSugar:
-    def test_builtin_sugar(self):
-        @genjax.gen
-        def simple_normal():
+class TestStaticAddressChecks:
+    def test_simple_normal_addr_dup(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal_addr_dup():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            y2 = genjax.normal(0.0, 1.0) @ "y1"
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        tr = simple_normal.simulate(key, ())
+        with pytest.raises(Exception):
+            _ = genjax.simulate(simple_normal_addr_dup)(key, ())
+
+    def test_simple_normal_addr_tracer(self):
+        @genjax.gen(genjax.Static)
+        def simple_normal_addr_tracer():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ y1
+            return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        v = simple_normal(key, ())
-        assert tr.get_retval() == v
+        with pytest.raises(Exception):
+            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
