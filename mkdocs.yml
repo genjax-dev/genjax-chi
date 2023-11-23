@@ -35,14 +35,17 @@ nav:
           - genjax/library/generative_functions/index.md
           - Distributions:
               - genjax/library/generative_functions/distributions/index.md
-          #     - Coryx: genjax/library/generative_functions/distributions/coryx.md
-          #     - GenSP: genjax/library/generative_functions/distributions/gensp.md
+              - Reference: genjax/library/generative_functions/distributions/exported.md
+              - Oryx distributions as generative functions: genjax/library/generative_functions/distributions/oryx.md
           - Static language: genjax/library/generative_functions/static.md
           - Combinators:
               - genjax/library/generative_functions/combinators/index.md
+              - Masked combinator: genjax/library/generative_functions/combinators/masked.md
               - Map combinator: genjax/library/generative_functions/combinators/map.md
+              - Repeat combinator: genjax/library/generative_functions/combinators/repeat.md
               - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
               - Switch combinator: genjax/library/generative_functions/combinators/switch.md
+          - Interpreted language: genjax/library/generative_functions/interpreted.md
       - Extension modules:
           - genjax/library/extensions/index.md
           - Gaussian processes: genjax/library/extensions/tinygp.md

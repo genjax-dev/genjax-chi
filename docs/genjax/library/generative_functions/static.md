@@ -1,6 +1,6 @@
 ::: genjax._src.generative_functions.static
     options:
-      show_root_heading: false
+      show_root_heading: true
 
 ## Usage
 
@@ -13,15 +13,15 @@ from genjax import beta
 from genjax import bernoulli 
 from genjax import uniform 
 from genjax import gen
-from genjax import StaticLanguage
+from genjax import Static
 
-@gen(StaticLanguage)
+@gen(Static)
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
     return v
 
-@gen(StaticLanguage)
+@gen(Static)
 def joint():
     u = uniform() @ "u"
     v = beta_bernoulli_process(u) @ "bbp"
@@ -46,9 +46,9 @@ import genjax
 from genjax import beta 
 from genjax import bernoulli 
 from genjax import gen
-from genjax import StaticLanguage
+from genjax import Static
 
-@gen(StaticLanguage)
+@gen(Static)
 def beta_bernoulli_process(u):
     # Invoking `trace` can be sweetened, or unsweetened.
     p = genjax.trace("p", beta)(0.0, u) # not sweet

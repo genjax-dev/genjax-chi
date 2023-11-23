@@ -32,6 +32,7 @@ import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import static_check_no_change
@@ -340,9 +341,9 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return jax.lax.switch(switch, branch_functions, chm, *args)
 
 
-##############
-# Shorthands #
-##############
+#########################
+# Language constructors #
+#########################
 
 
 @typecheck
@@ -350,4 +351,6 @@ def switch_combinator(*gen_fn: JAXGenerativeFunction):
     return SwitchCombinator.new(*gen_fn)
 
 
-Switch = switch_combinator
+Switch = LanguageConstructor(
+    switch_combinator,
+)

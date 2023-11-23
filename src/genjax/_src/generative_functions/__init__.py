@@ -14,9 +14,8 @@
 """This module contains several standard generative function classes useful for
 structuring probabilistic programs.
 
-* The `distributions` module exports standard distributions from several sources, including SciPy (`scipy`), TensorFlow Probability Distributions (`tfd`), and custom distributions.
-    * The `distributions` module also contains a small `oryx`-like language called `coryx` which implements the generative function interface for programs with inverse log determinant Jacobian (ildj) compatible return value functions of distribution random choices.
-    * The `distributions` module also contains an implementation of `gensp`, a research language for probabilistic programming with estimated densities.
-* The `static` module contains a statically JAX traceable function-like language for defining generative functions from programs.
-* The `combinators` module contains combinators which support transforming generative functions into new ones with structured control flow patterns of computation.
+* The `distributions` module exports standard distributions from TensorFlow Probability Distributions (`tfd`), as well as custom distributions.
+* The `static` module contains a JAX compatible (meaning, traceable and transformable) language for defining generative functions from Python functions.
+* The `combinators` module contains combinators which support transforming generative functions into new ones with structured control flow patterns of computation, and other effects.
+* The `interpreted` module exposes an expressive (allowed to use arbitrary Python) language for sketching models and pedagogy. **This language cannot be used compositionally with the languaged described above**.
 """

@@ -106,9 +106,9 @@ class MaskedCombinator(GenerativeFunction):
         )
 
 
-########################
-# Language constructor #
-########################
+#########################
+# Language constructors #
+#########################
 
 
 @typecheck
