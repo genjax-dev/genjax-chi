@@ -15,7 +15,6 @@
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import ComplementHierarchicalSelection
 from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -78,7 +77,6 @@ __all__ = [
     "select",
     "IndexedSelection",
     "indexed_select",
-    "ComplementHierarchicalSelection",
     "GenerativeFunction",
     "JAXGenerativeFunction",
     # Masking.

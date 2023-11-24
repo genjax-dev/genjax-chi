@@ -34,6 +34,9 @@ class PytreeConst(Pytree):
 
 
 def const(v):
+    # The value must be concrete!
+    # It cannot be a JAX traced value.
+    assert static_check_is_concrete(v)
     if isinstance(v, PytreeConst):
         return v
     else:

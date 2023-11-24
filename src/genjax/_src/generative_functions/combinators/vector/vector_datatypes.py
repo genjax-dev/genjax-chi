@@ -19,15 +19,12 @@ import jax.tree_util as jtu
 import rich
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import ComplementIndexedSelection
 from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import IndexedChoiceMap
 from genjax._src.core.datatypes.generative import IndexedSelection
-from genjax._src.core.datatypes.generative import Mask
+from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import choice_map
-from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
@@ -35,6 +32,7 @@ from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 
 
 ######################################
@@ -44,9 +42,9 @@ from genjax._src.core.typing import dispatch
 # The data types in this section are used in `Map` and `Unfold`, currently.
 
 
-#####
-# VectorChoiceMap
-#####
+#####################
+# Vector choice map #
+#####################
 
 
 @dataclass
@@ -86,61 +84,26 @@ class VectorChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
-    @dispatch
+    @typecheck
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> ChoiceMap:
         return VectorChoiceMap.new(self.inner.filter(selection))
 
-    @dispatch
-    def filter(
-        self,
-        selection: IndexedSelection,
-    ) -> Mask:
-        filtered = self.inner.filter(selection.inner)
-        flags = jnp.logical_and(
-            selection.indices >= 0,
-            selection.indices
-            < static_check_tree_leaves_have_matching_leading_dim(self.inner),
-        )
-
-        def _take(v):
-            return jnp.take(v, selection.indices, mode="clip")
-
-        return mask(flags, jtu.tree_map(_take, filtered))
-
-    @dispatch
-    def filter(
-        self,
-        selection: ComplementIndexedSelection,
-    ) -> Mask:
-        filtered = self.inner.filter(selection.inner.complement())
-        flags = jnp.logical_not(
-            jnp.logical_and(
-                selection.indices >= 0,
-                selection.indices
-                < static_check_tree_leaves_have_matching_leading_dim(self.inner),
-            )
-        )
-
-        def _take(v):
-            return jnp.take(v, selection.indices, mode="clip")
-
-        return mask(flags, jtu.tree_map(_take, filtered))
-
     def get_selection(self):
         subselection = self.inner.get_selection()
-        return subselection
+        # Static: get the leading dimension size value.
+        dim = static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        return IndexedSelection(jnp.arange(dim), subselection)
 
-    def has_subtree(self, addr):
-        return self.inner.has_subtree(addr)
+    def has_submap(self, addr):
+        return self.inner.has_submap(addr)
 
-    def get_subtree(self, addr):
-        return self.inner.get_subtree(addr)
-
-    def get_subtrees_shallow(self):
-        return self.inner.get_subtrees_shallow()
+    def get_submap(self, addr):
+        return self.inner.get_submap(addr)
 
     @dispatch
     def merge(self, other: "VectorChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:
@@ -165,13 +128,6 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def merge(self, other: EmptyChoice) -> Tuple[ChoiceMap, ChoiceMap]:
         return self, other
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __hash__(self):
-        return hash(self.inner)
 
     ###################
     # Pretty printing #
