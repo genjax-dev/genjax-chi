@@ -76,7 +76,7 @@ class RepeatCombinator(JAXGenerativeFunction):
         r = jnp.arange(self.repeats)
         mapped = map_combinator(
             self.inner,
-            in_axes=(0, *(None for _ in args)),
+            (0, *(None for _ in args)),
         )
         map_trace = mapped.simulate(key, (r, *args))
         return RepeatTrace(map_trace, args)
@@ -91,7 +91,7 @@ class RepeatCombinator(JAXGenerativeFunction):
         r = jnp.arange(self.repeats)
         mapped = map_combinator(
             self.inner,
-            in_axes=(0, *(None for _ in args)),
+            (0, *(None for _ in args)),
         )
         (map_trace, w) = mapped.importance(key, choice, (r, *args))
         return RepeatTrace(map_trace, args), w
@@ -107,7 +107,7 @@ class RepeatCombinator(JAXGenerativeFunction):
         r = jnp.arange(self.repeats)
         mapped = map_combinator(
             self.inner,
-            in_axes=(0, *(None for _ in argdiffs)),
+            (0, *(None for _ in argdiffs)),
         )
         (map_trace, w, rd, d) = mapped.update(
             key,
@@ -127,7 +127,7 @@ class RepeatCombinator(JAXGenerativeFunction):
         r = jnp.arange(self.repeats)
         mapped = map_combinator(
             self.inner,
-            in_axes=(0, *(None for _ in args)),
+            (0, *(None for _ in args)),
         )
         return mapped.assess(choice, (r, *args))
 

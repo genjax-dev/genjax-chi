@@ -51,11 +51,6 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 from genjax._src.global_options import global_options
 
 
-#####
-# Map trace
-#####
-
-
 @dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
@@ -130,11 +125,6 @@ class MapTrace(Trace):
             selection,
         )
         return jnp.sum(inner_project)
-
-
-#####
-# Map
-#####
 
 
 @dataclass
@@ -398,7 +388,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         discard = VectorChoiceMap(discard)
         return (retval_diff, w, map_tr, discard)
 
-    # The choice map passed in here is empty, but perhaps
+    # The choice map passed in here is empty, but
     # the arguments have changed.
     @dispatch
     def update(
@@ -480,8 +470,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
 @dispatch
-def map_combinator(gen_fn: JAXGenerativeFunction):
-    return MapCombinator.new(gen_fn)
+def map_combinator(
+    gen_fn: JAXGenerativeFunction,
+    in_axes=Tuple,
+):
+    return MapCombinator.new(gen_fn, in_axes)
 
 
 Map = LanguageConstructor(
