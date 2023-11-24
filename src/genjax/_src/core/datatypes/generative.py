@@ -38,6 +38,7 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import Array
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -55,6 +56,11 @@ from genjax._src.core.typing import typecheck
 from genjax._src.global_options import global_options
 
 
+#############
+# Utilities #
+#############
+
+
 ########################
 # Generative datatypes #
 ########################
@@ -67,7 +73,6 @@ from genjax._src.global_options import global_options
 
 @dataclass
 class Selection(Pytree):
-    @abc.abstractmethod
     def complement(self) -> "Selection":
         """Return a `Selection` which filters addresses to the complement set
         of the provided `Selection`.
@@ -94,22 +99,54 @@ class Selection(Pytree):
             print(console.render(filtered))
             ```
         """
+        return ComplementSelection(self)
 
-    def get_selection(self):
-        return self
+    @abc.abstractmethod
+    def get_subselection(self, addr) -> "Selection":
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def has_addr(self, addr) -> BoolArray:
+        raise NotImplementedError
 
     ###########
     # Dunders #
     ###########
 
     def __getitem__(self, addr):
-        submap = self.get_subselection(addr)
-        return submap
+        subselection = self.get_subselection(addr)
+        return subselection
 
 
-############################
-# Concrete leaf selections #
-############################
+@dataclass
+class ComplementSelection(Selection):
+    selection: Selection
+
+    def flatten(self):
+        return (self.selection,), ()
+
+    def complement(self):
+        return self.selection
+
+    def has_addr(self, addr):
+        return jnp.logical_not(self.selection.has_addr(addr))
+
+    def get_subselection(self, addr):
+        return self.selection.get_subselection(addr).complement()
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](Complement)")
+        tree.add(self.selection.__rich_tree__())
+        return tree
+
+
+#######################
+# Concrete selections #
+#######################
 
 
 @dataclass
@@ -124,15 +161,11 @@ class NoneSelection(Selection):
     def complement(self):
         return AllSelection()
 
-    def get_value(self):
-        raise Exception(
-            "NoneSelection is a Selection: it does not provide a leaf value."
-        )
+    def has_addr(self, addr):
+        return False
 
-    def set_leaf_value(self):
-        raise Exception(
-            "NoneSelection is a Selection: it does not provide a leaf choice value."
-        )
+    def get_subselection(self, addr):
+        return self
 
     ###################
     # Pretty printing #
@@ -155,15 +188,11 @@ class AllSelection(Selection):
     def complement(self):
         return NoneSelection()
 
-    def get_value(self):
-        raise Exception(
-            "AllSelection is a Selection: it does not provide a leaf value."
-        )
+    def has_addr(self, addr):
+        return True
 
-    def set_leaf_value(self):
-        raise Exception(
-            "AllSelection is a Selection: it does not provide a leaf choice value."
-        )
+    def get_subselection(self, addr):
+        return self
 
     ###################
     # Pretty printing #
@@ -176,6 +205,73 @@ class AllSelection(Selection):
 ##################################
 # Concrete structured selections #
 ##################################
+
+
+@dataclass
+class DynamicHierarchicalSelection(Selection):
+    addrs: List[Any]
+    subselections: List[Selection]
+
+    def flatten(self):
+        return (self.addrs, self.subselections), ()
+
+    @classmethod
+    @dispatch
+    def new(cls, addrs, subselections):
+        return DynamicHierarchicalSelection(addrs, subselections)
+
+    @classmethod
+    @dispatch
+    def new(cls):
+        return DynamicHierarchicalSelection([], [])
+
+    @dispatch
+    def has_addr(self, addr: PytreeConst):
+        return addr in self.addrs
+
+    @dispatch
+    def has_addr(self, addr: Array):
+        return jnp.any(map(lambda v: v == addr, self.addrs))
+
+    @dispatch
+    def has_addr(self, addr: Any):
+        k = tree_map_const(addr)
+        return self.has_addr(k)
+
+    @dispatch
+    def has_addr(self, addr: Tuple):
+        pass
+
+    ###########
+    # Dunders #
+    ###########
+
+    @dispatch
+    def __setitem__(self, k: Tuple, v: Selection):
+        fst, *rst = k
+        if rst:
+            sub = DynamicHierarchicalSelection.new()
+            sub[tuple(rst)] = v
+            self[fst] = sub
+        else:
+            addr = tree_map_const(fst)
+            self.addrs.append(addr)
+            self.subselections.append(v)
+
+    @dispatch
+    def __setitem__(self, k: PytreeConst, v: Selection):
+        self.addrs.append(tree_map_const(k))
+        self.subselections.append(v)
+
+    @dispatch
+    def __setitem__(self, k: IntArray, v: Selection):
+        self.addrs.append(tree_map_const(k))
+        self.subselections.append(v)
+
+    @dispatch
+    def __setitem__(self, k: Any, v: Selection):
+        addr = tree_map_const(k)
+        self[addr] = v
 
 
 @dataclass
@@ -202,9 +298,6 @@ class HierarchicalSelection(Selection):
             trie[k] = v
         return HierarchicalSelection(trie)
 
-    def complement(self):
-        return ComplementHierarchicalSelection(self.trie)
-
     def has_addr(self, addr):
         return self.trie.has_submap(addr)
 
@@ -219,7 +312,9 @@ class HierarchicalSelection(Selection):
             else:
                 return subselect
 
-    def get_submaps_shallow(self):
+    # Extra method which is useful to generate an iterator
+    # over keys and subselections at the first level.
+    def get_subselections_shallow(self):
         def _inner(v):
             addr = v[0]
             submap = v[1].get_selection()
@@ -238,46 +333,9 @@ class HierarchicalSelection(Selection):
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](HierarchicalSelection)")
-        for k, v in self.get_submaps_shallow():
+        for k, v in self.get_subselections_shallow():
             subk = tree.add(f"[bold]:{k}")
             subk.add(v.__rich_tree__())
-        return tree
-
-
-@dataclass
-class ComplementHierarchicalSelection(HierarchicalSelection):
-    trie: Trie
-
-    def flatten(self):
-        return (self.selection,), ()
-
-    def complement(self):
-        return HierarchicalSelection(self.trie)
-
-    def has_submap(self, addr):
-        return jnp.logical_not(self.trie.has_submap(addr))
-
-    def get_submap(self, addr):
-        value = self.trie.get_submap(addr)
-        if value is None:
-            return AllSelection()
-        else:
-            subselect = value.get_selection()
-            if isinstance(subselect, Trie):
-                return HierarchicalSelection(subselect).complement()
-            else:
-                return subselect.complement()
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](Complement)")
-        for k, v in self.get_submaps_shallow():
-            subk = rich_tree.Tree(f"[bold]:{k}")
-            subk.add(v.__rich_tree__())
-            tree.add(subk)
         return tree
 
 
@@ -312,21 +370,18 @@ class IndexedSelection(Selection):
         return IndexedSelection(idxs, inner)
 
     @dispatch
-    def has_submap(self, addr: IntArray):
+    def has_addr(self, addr: IntArray):
         return jnp.isin(addr, self.indices)
 
     @dispatch
-    def has_submap(self, addr: Tuple):
+    def has_addr(self, addr: Tuple):
         if len(addr) <= 1:
             return False
         (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
+        return jnp.logical_and(idx in self.indices, self.inner.has_addr(addr))
 
-    def get_submap(self, addr):
-        return self.index_selection.get_submap(addr)
-
-    def complement(self):
-        return ComplementIndexedSelection(self)
+    def get_subselection(self, addr):
+        return self.index_selection.get_subselection(addr)
 
     ###################
     # Pretty printing #
@@ -336,45 +391,6 @@ class IndexedSelection(Selection):
         doc = gpp._pformat_array(self.indices, short_arrays=True)
         tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
         tree.add(self.inner.__rich_tree__())
-        return tree
-
-
-@dataclass
-class ComplementIndexedSelection(IndexedSelection):
-    index_selection: Selection
-
-    def __init__(self, index_selection):
-        self.index_selection = index_selection
-
-    def flatten(self):
-        return (self.index_selection,), ()
-
-    @dispatch
-    def has_submap(self, addr: IntArray):
-        return jnp.logical_not(jnp.isin(addr, self.indices))
-
-    @dispatch
-    def has_submap(self, addr: Tuple):
-        if len(addr) <= 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_not(
-            jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
-        )
-
-    def get_submap(self, addr):
-        return self.index_selection.get_submap(addr).complement()
-
-    def complement(self):
-        return self.index_selection
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self, tree):
-        tree = rich_tree.Tree("[bold](Complement)")
-        tree.add(self.index_selection.__rich_tree__())
         return tree
 
 
@@ -425,7 +441,7 @@ class ChoiceValue(Choice):
         return self
 
     @dispatch
-    def filter(self, selection: NoneSelection):
+    def filter(self, selection):
         return EmptyChoice()
 
     def __rich_tree__(self):
@@ -1445,12 +1461,7 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
     ###########
 
     @dispatch
-    def __setitem__(self, k: Tuple, v):
-        v = (
-            ChoiceValue(v)
-            if not isinstance(v, Choice) and not isinstance(v, Trace)
-            else v
-        )
+    def __setitem__(self, k: Tuple, v: ChoiceValue):
         fst, *rst = k
         if rst:
             sub = DynamicHierarchicalChoiceMap.new()
@@ -1462,14 +1473,26 @@ class DynamicHierarchicalChoiceMap(ChoiceMap):
             self.submaps.append(v)
 
     @dispatch
-    def __setitem__(self, k: Any, v):
+    def __setitem__(self, k: PytreeConst, v: ChoiceValue):
+        self.addrs.append(k)
+        self.submaps.append(v)
+
+    @dispatch
+    def __setitem__(self, k: Any, v: ChoiceValue):
+        addr = tree_map_const(k)
+        self.addrs.append(addr)
+        self.submaps.append(v)
+
+    @dispatch
+    def __setitem__(self, k: Any, v: Any):
+        # Check if `v` is already a `Choice` or a `Trace`
+        # Wrap in `ChoiceValue`, or otherwise leave alone.
         v = (
             ChoiceValue(v)
             if not isinstance(v, Choice) and not isinstance(v, Trace)
             else v
         )
-        self.addrs.append(tree_map_const(k))
-        self.submaps.append(v)
+        self[k] = v
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](DynamicHierarchicalChoiceMap)")
@@ -1909,6 +1932,7 @@ disjoint_union_choice_map = DisjointUnionChoiceMap.new
 # Selections
 none_select = NoneSelection.new
 all_select = AllSelection.new
+dynamic_selection = DynamicHierarchicalSelection.new
 hierarchical_select = HierarchicalSelection.new
 indexed_select = IndexedSelection.new
 
@@ -1960,7 +1984,7 @@ def choice_map(addrs: List[Any], submaps: List[ChoiceMap]):
 
 @dispatch
 def select():
-    return all_select()
+    return dynamic_selection()
 
 
 @dispatch

@@ -18,8 +18,6 @@ Type annotations in the codebase are exported out of this module for
 consistency.
 """
 
-import typing
-
 import beartype.typing as btyping
 import jax
 import jax.numpy as jnp
@@ -31,16 +29,17 @@ from plum import dispatch
 from plum import parametric
 
 
-Dataclass = typing.Any
-PrettyPrintable = typing.Any
+Any = btyping.Any
+Dataclass = btyping.Any
+PrettyPrintable = btyping.Any
 PRNGKey = jtyping.UInt[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 IntArray = jtyping.Int[jtyping.Array, "..."]
-Any = typing.Any
-Union = typing.Union
+Array = jtyping.Array
+Union = btyping.Union
 Callable = btyping.Callable
-Sequence = typing.Sequence
+Sequence = btyping.Sequence
 Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
@@ -50,10 +49,13 @@ Hashable = btyping.Hashable
 FrozenSet = btyping.FrozenSet
 Optional = btyping.Optional
 Type = btyping.Type
+
+# Types of Python literals.
 Int = int
 Float = float
 Bool = bool
 String = str
+
 Address = Union[String, Int, Tuple["Address"]]
 Value = Any
 
@@ -104,6 +106,7 @@ __all__ = [
     "IntArray",
     "Value",
     "Tuple",
+    "Array",
     "Any",
     "Union",
     "Callable",
