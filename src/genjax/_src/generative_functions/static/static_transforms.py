@@ -21,7 +21,6 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
@@ -48,9 +47,7 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_datatypes import (
-    StaticLanguageChoiceMap,
-)
+from genjax._src.generative_functions.static.static_datatypes import Trie
 
 
 ##############
@@ -95,9 +92,9 @@ def save(fn, **kwargs):
     return DeferredFunctionCall.new(fn, **kwargs)
 
 
-#####
-# Address checks
-#####
+##################
+# Address checks #
+##################
 
 
 # Usage in intrinsics: ensure that addresses do not contain JAX traced values.
@@ -125,6 +122,7 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 
 
 def _trace(gen_fn, addr, *args):
+    static_check_address_type(addr)
     addr = tree_map_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         gen_fn,
@@ -140,10 +138,10 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
-        gen_fn: A generative function invoked as a callee of `StaticLanguageGenerativeFunction`.
+        gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
 
     Returns:
-        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticLanguageGenerativeFunction` transformations.
+        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
     assert isinstance(gen_fn, GenerativeFunction)
     return lambda *args: _trace(gen_fn, addr, *args)
@@ -165,10 +163,10 @@ def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
 
     Arguments:
         addr: An address denoting the site of a function invocation.
-        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `StaticLanguageGenerativeFunction` traces.
+        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `StaticGenerativeFunction` traces.
 
     Returns:
-        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticLanguageGenerativeFunction` transformations.
+        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
     # fn must be deterministic.
     assert not isinstance(fn, GenerativeFunction)
@@ -179,10 +177,6 @@ def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
 ######################################
 #  Generative function interpreters  #
 ######################################
-
-#####
-# Transform address checks
-#####
 
 
 # Usage in transforms: checks for duplicate addresses.
@@ -211,9 +205,9 @@ class AddressVisitor(Pytree):
             new.visit(addr)
 
 
-#####
-# StaticLanguage handler
-#####
+###########################
+# Static language handler #
+###########################
 
 
 # This explicitly makes assumptions about some common fields:
@@ -243,10 +237,12 @@ class StaticLanguageHandler(StatefulHandler):
 
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
+        addr = tree_map_collapse_const(addr)
         self.address_choices[addr] = tr
 
     @typecheck
     def set_discard_state(self, addr, ch: Choice):
+        addr = tree_map_collapse_const(addr)
         self.discard_choices[addr] = ch
 
     def dispatch(self, prim, *tracers, **_params):
@@ -268,7 +264,7 @@ class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
     score: FloatArray
     address_visitor: AddressVisitor
-    address_choices: StaticLanguageChoiceMap
+    address_choices: Trie
     cache_state: Trie
     cache_visitor: AddressVisitor
 
@@ -286,7 +282,7 @@ class SimulateHandler(StaticLanguageHandler):
     def new(cls, key: PRNGKey):
         score = 0.0
         address_visitor = AddressVisitor.new()
-        address_choices = StaticLanguageChoiceMap.new()
+        address_choices = Trie.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return SimulateHandler(
@@ -356,7 +352,7 @@ class ImportanceHandler(StaticLanguageHandler):
     weight: FloatArray
     constraints: ChoiceMap
     address_visitor: AddressVisitor
-    address_choices: StaticLanguageChoiceMap
+    address_choices: Trie
     cache_state: Trie
     cache_visitor: AddressVisitor
 
@@ -385,7 +381,7 @@ class ImportanceHandler(StaticLanguageHandler):
         score = 0.0
         weight = 0.0
         address_visitor = AddressVisitor.new()
-        address_choices = StaticLanguageChoiceMap.new()
+        address_choices = Trie.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return ImportanceHandler(
@@ -462,8 +458,8 @@ class UpdateHandler(StaticLanguageHandler):
     previous_trace: Trace
     constraints: ChoiceMap
     address_visitor: AddressVisitor
-    address_choices: StaticLanguageChoiceMap
-    discard_choices: StaticLanguageChoiceMap
+    address_choices: Trie
+    discard_choices: Trie
     cache_state: Trie
     cache_visitor: AddressVisitor
 
@@ -495,8 +491,8 @@ class UpdateHandler(StaticLanguageHandler):
         score = 0.0
         weight = 0.0
         address_visitor = AddressVisitor.new()
-        address_choices = StaticLanguageChoiceMap.new()
-        discard_choices = DynamicHierarchicalChoiceMap.new()
+        address_choices = Trie.new()
+        discard_choices = Trie.new()
         cache_state = Trie.new()
         cache_visitor = AddressVisitor.new()
         return UpdateHandler(
@@ -517,7 +513,6 @@ class UpdateHandler(StaticLanguageHandler):
         num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
         gen_fn, addr, *argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
-        addr = tree_diff_primal(addr)
         self.visit(addr)
 
         # Run the update step.

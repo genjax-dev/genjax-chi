@@ -14,101 +14,20 @@
 
 from dataclasses import dataclass
 
-import rich.tree as rich_tree
-
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import DynamicHierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.const import tree_map_collapse_const
-from genjax._src.core.pytree.const import tree_map_const
-from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-
-
-#######################
-# Dynamic choice map  #
-#######################
-
-
-@dataclass
-class StaticLanguageChoiceMap(ChoiceMap):
-    addrs: List[Any]
-    subtraces: List[Trace]
-
-    def flatten(self):
-        return (self.addrs, self.subtraces), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, addrs, subtraces):
-        return StaticLanguageChoiceMap(addrs, subtraces)
-
-    @classmethod
-    @dispatch
-    def new(cls):
-        return StaticLanguageChoiceMap([], [])
-
-    def convert_to_dynamic(self):
-        submaps = [sub.strip() for sub in self.subtraces]
-        return DynamicHierarchicalChoiceMap.new(self.addrs, submaps)
-
-    def get_choices(self):
-        return self.convert_to_dynamic()
-
-    @dispatch
-    def __getitem__(self, k: Any):
-        addr = tree_map_const(k)
-        return self.subtraces[self.addrs.index(addr)]
-
-    @dispatch
-    def __getitem__(self, k: Tuple):
-        fst, *rst = tree_map_const(k)
-        if rst:
-            return self.subtraces[self.addrs.index(fst)][*rst]
-        else:
-            return self.subtraces[self.addrs.index(fst)]
-
-    @dispatch
-    def __setitem__(self, k: Tuple, v):
-        fst, *rst = tree_map_const(k)
-        if rst:
-            sub = StaticLanguageChoiceMap.new()
-            sub[tuple(rst)] = v
-            self.addrs.append(fst)
-            self.subtraces.append(sub)
-        else:
-            self.addrs.append(fst)
-            self.subtraces.append(v)
-
-    @dispatch
-    def __setitem__(self, k: Any, v):
-        addr = tree_map_const(k)
-        self.addrs.append(addr)
-        self.subtraces.append(v)
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](StaticLanguageChoiceMap)")
-        for k, v in zip(self.addrs, self.subtraces):
-            if isinstance(k, Pytree):
-                subk = k.__rich_tree__()
-            else:
-                subk = rich_tree.Tree(f"[bold]{k}")
-
-            subv = v.__rich_tree__()
-            subk.add(subv)
-            tree.add(subk)
-        return tree
 
 
 #########
@@ -124,7 +43,7 @@ class StaticTrace(
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    address_choices: StaticLanguageChoiceMap
+    address_choices: Trie
     cache: Trie
     score: FloatArray
 
@@ -145,7 +64,7 @@ class StaticTrace(
         gen_fn: GenerativeFunction,
         args: Tuple,
         retval: Any,
-        address_choices: StaticLanguageChoiceMap,
+        address_choices: Trie,
         cache: Trie,
         score: FloatArray,
     ):
@@ -162,7 +81,7 @@ class StaticTrace(
         return self.gen_fn
 
     def get_choices(self):
-        return self.address_choices.convert_to_dynamic()
+        return HierarchicalChoiceMap(self.address_choices).strip()
 
     def get_retval(self):
         return self.retval

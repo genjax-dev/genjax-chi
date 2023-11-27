@@ -16,6 +16,7 @@ import functools
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
@@ -169,7 +170,7 @@ class StaticGenerativeFunction(
             ),
             weight,
             retval_diffs,
-            discard,
+            HierarchicalChoiceMap(discard),
         )
 
     @typecheck

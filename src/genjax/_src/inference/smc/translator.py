@@ -12,13 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import abc
 from dataclasses import dataclass
 
 import jax
+import jax.numpy as jnp
 
+from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.static.static_gen_fn import (
@@ -26,12 +33,99 @@ from genjax._src.generative_functions.static.static_gen_fn import (
 )
 
 
+#####################
+# Trace translators #
+#####################
+
+
 @dataclass
-class TraceKernel(Pytree):
-    gen_fn: StaticGenerativeFunction
+class TraceTranslator(Pytree):
+    @abc.abstractmethod
+    def inverse(self, prev_model_trace, prev_observations):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def run_transform(self, prev_model_trace):
+        raise NotImplementedError
+
+
+@dataclass
+class DeterministicTraceTranslator(TraceTranslator):
+    forward: Callable  # bijection forward
+    backward: Callable  # bijection inverse
+    p_new: GenerativeFunction
+    p_args: Tuple
+    new_obs: Choice
 
     def flatten(self):
-        return (self.gen_fn,), ()
+        return (
+            self.p_new,
+            self.p_args,
+            self.new_obs,
+        ), (self.forward, self.backward)
+
+    @classmethod
+    def new(
+        cls,
+        p_new: GenerativeFunction,
+        p_args: Tuple,
+        new_obs: Choice,
+        forward: Callable,
+        backward: Callable,
+    ):
+        return DeterministicTraceTranslator(forward, backward, p_new, p_args, new_obs)
+
+    def value_and_jacobian_correction(self, forward, trace):
+        grad_tree, no_grad_tree = tree_grad_split(trace.get_choices())
+
+        def _inner(differentiable):
+            choices = tree_zipper(differentiable, no_grad_tree)
+            out_choices = forward(choices)
+            return out_choices
+
+        inner_jacfwd = jax.jacfwd(_inner)
+        J = inner_jacfwd(grad_tree)
+        return jnp.slogdet(J)
+
+    def run_transform(self, key: PRNGKey, prev_model_trace: Trace):
+        results, log_abs_det = self.value_and_jacobian_correction(
+            self.forward, prev_model_trace
+        )
+        constraints = results.merge(self.new_obs)
+        new_trace, _ = self.p_new.importance(key, constraints, self.p_args)
+        return new_trace, log_abs_det
+
+    def apply(self, key: PRNGKey, prev_model_trace: Trace):
+        new_model_trace, log_abs_det = self.run_transform(key, prev_model_trace)
+        prev_model_score = prev_model_trace.get_score()
+        new_model_score = new_model_trace.get_score()
+        log_weight = new_model_score - prev_model_score + log_abs_det
+        return new_model_trace, log_weight
+
+
+@typecheck
+def deterministic_trace_translator(
+    p_new: GenerativeFunction,
+    p_args: Tuple,
+    new_obs: Choice,
+    forward: Callable,
+    backward: Callable,
+):
+    return DeterministicTraceTranslator.new(p_new, p_args, new_obs, forward, backward)
+
+
+###########################
+# Trace kernels for SMCP3 #
+###########################
+
+
+@dataclass
+class TraceKernel(Pytree):
+    forward: StaticGenerativeFunction
+    backward: StaticGenerativeFunction
+
+    def flatten(self):
+        return (self.forward, self.backward), ()
 
     def assess(self, key, choices, args):
         (r, w) = self.gen_fn.assess(key, choices, args)
@@ -59,9 +153,9 @@ class TraceKernel(Pytree):
         return J
 
 
-#####
-# Language decorator
-#####
+######################
+# Language decorator #
+######################
 
 
 @typecheck
