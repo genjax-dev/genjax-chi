@@ -53,7 +53,7 @@ class MetropolisHastings(MCMCKernel):
         )
         proposal_args_bwd = (new, *proposal_args)
         key, sub_key = jax.random.split(key)
-        (bwd_weight, _) = self.proposal.importance(sub_key, discard, proposal_args_bwd)
+        (_, bwd_weight) = self.proposal.importance(sub_key, discard, proposal_args_bwd)
         alpha = weight - fwd_weight + bwd_weight
         check = jnp.log(random.uniform(sub_key)) < alpha
         # TODO: Use WHERE here (not COND).

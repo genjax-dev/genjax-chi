@@ -74,8 +74,7 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         argdiffs = Diff.no_change(args)
 
         # Forward proposal.
-        key, sub_key = jax.random.split(key)
-        forward_gradient_trie = gen_fn.choice_grad(sub_key, trace, self.selection)
+        forward_gradient_trie = gen_fn.choice_grad(trace, self.selection)
         forward_values = trace.strip().filter(self.selection)
         forward_mu = jtu.tree_map(
             self._grad_step_no_none,
@@ -90,13 +89,13 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
         )
 
         # Get model weight.
-        (_, weight, new_trace, _) = gen_fn.update(
+        key, sub_key = jax.random.split(key)
+        (new_trace, weight, _, _) = gen_fn.update(
             sub_key, trace, proposed_values, argdiffs
         )
 
         # Backward proposal.
-        key, sub_key = jax.random.split(key)
-        backward_gradient_trie = gen_fn.choice_grad(sub_key, new_trace, self.selection)
+        backward_gradient_trie = gen_fn.choice_grad(new_trace, self.selection)
         backward_mu = jtu.tree_map(
             self._grad_step_no_none,
             proposed_values,

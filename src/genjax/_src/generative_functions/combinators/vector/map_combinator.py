@@ -353,7 +353,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 key, prev, submap, original_args, argdiffs
             )
 
-        (retval_diff, w, tr, discard) = jax.vmap(
+        (tr, w, retval_diff, discard) = jax.vmap(
             _update_inner,
             in_axes=(0, 0, 0, None, self.in_axes, self.in_axes),
         )(sub_keys, index_array, inner_trace, chm, original_args, argdiffs)
@@ -362,7 +362,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         discard = VectorChoiceMap(discard)
-        return (retval_diff, w, map_tr, discard)
+        return (map_tr, w, retval_diff, discard)
 
     @dispatch
     def update(

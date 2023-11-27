@@ -19,22 +19,22 @@ import jax.numpy as jnp
 import genjax
 from genjax import gen
 from genjax import normal
-from genjax import tfp_uniform
 from genjax import trace
+from genjax import uniform
 from genjax.inference.mcmc import MetropolisHastings
 
 
 class TestMetropolisHastings:
     def test_simple_inf(self):
-        @gen
+        @gen(genjax.Static)
         def normalModel(mu):
             x = trace("x", normal)(mu, 1.0)
             return x
 
-        @gen
+        @gen(genjax.Static)
         def proposal(nowAt, d):
             current = nowAt["x"]
-            x = trace("x", tfp_uniform)(current - d, current + d)
+            x = trace("x", uniform)(current - d, current + d)
             return x
 
         key = jax.random.PRNGKey(314159)
@@ -51,7 +51,7 @@ class TestMetropolisHastings:
                 assert tr.get_score() == new.get_score()
 
     def test_map_combinator(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def model():
             loc = genjax.normal(0.0, 1.0) @ "loc"
             xs = (
@@ -59,7 +59,7 @@ class TestMetropolisHastings:
             )
             return xs
 
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def proposal(choices):
             loc = choices["loc"]
             xs = (
@@ -68,7 +68,7 @@ class TestMetropolisHastings:
             return xs
 
         key = jax.random.PRNGKey(314159)
-        trace = genjax.simulate(model)(key, ())
+        trace = model.simulate(key, ())
         key, sub_key = jax.random.split(key)
         genjax.inference.mcmc.mh(proposal).apply(sub_key, trace, ())
         assert True

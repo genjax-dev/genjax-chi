@@ -32,6 +32,7 @@ from genjax.inference import smc
 class TestSimpleSMC:
     def test_smoke_initialize_and_update(self):
         @gen(genjax.Unfold, max_length=10)
+        @gen(genjax.Static)
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
             x = normal(z, 1.0) @ "x"
@@ -63,6 +64,7 @@ class TestSimpleSMC:
 
     def test_smoke_sis_with_scan(self):
         @gen(genjax.Unfold, max_length=10)
+        @gen(genjax.Static)
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
             x = normal(z, 1.0) @ "x"
@@ -108,6 +110,7 @@ class TestSimpleSMC:
 
     def test_smoke_smc_with_scan(self):
         @gen(genjax.Unfold, max_length=10)
+        @gen(genjax.Static)
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
             x = normal(z, 1.0) @ "x"
@@ -156,13 +159,14 @@ class TestSimpleSMC:
         assert True
 
     def test_smoke_smc_with_nested_switch(self):
-        @genjax.gen
+        @genjax.gen(genjax.Static)
         def outlier():
             return genjax.tfp_normal(0.0, 1.0) @ "reflection_point"
 
         branching = genjax.Switch(outlier, outlier)
 
         @genjax.gen(genjax.Map, in_axes=(0,))
+        @genjax.gen(genjax.Static)
         def inner_chain(v):
             outlier = genjax.bernoulli(0.3) @ "outlier"
             idx = outlier.astype(int)
@@ -170,6 +174,7 @@ class TestSimpleSMC:
             return c
 
         @genjax.gen(genjax.Unfold, max_length=17)
+        @genjax.gen(genjax.Static)
         def chain(z):
             c = inner_chain(z) @ "chain"
             return c

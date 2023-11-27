@@ -191,18 +191,14 @@ class StaticGenerativeFunction(
     def restore_with_aux(self, interface_data, aux):
         (original_args, retval, score, _) = interface_data
         (
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             cache,
         ) = aux
         return StaticTrace.new(
             self,
             original_args,
             retval,
-            static_address_choices,
-            dynamic_addresses,
-            dynamic_address_choices,
+            address_choices,
             cache,
             score,
         )

@@ -155,7 +155,7 @@ class TestSwitch:
         )
         assert score == flip_score
         assert w == 0.0
-        chm = genjax.choice_map({"y3": True})
+        chm = genjax.choice_map({"y3": 1})
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (1,))
         flip = tr.get_submap("y3")
