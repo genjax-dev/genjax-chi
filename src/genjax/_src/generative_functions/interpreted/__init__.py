@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `genjax.interpreted` language is a generative function language which
+"""The `genjax.Interpreted` language is a generative function language which
 exposes a less restrictive set of program constructs, based on normal Python programs. It implements the GFI using an effect handler style implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html) for instance, although the code in this module is quite readable and localized).
 
 The intent of this language is pedagogical - one can use it to rapidly construct models and prototype inference, but it is not intended to be used for performance critical applications, for several reasons:
 
-* Instances of `genjax.interpreted` generative functions *cannot* be invoked as callees within JAX generative function code, which prevents compositional usage (from above, within `JAXGenerativeFunction` instances).
+* Instances of `genjax.Interpreted` generative functions *cannot* be invoked as callees within JAX generative function code, which prevents compositional usage (from above, within `JAXGenerativeFunction` instances).
 
 * It does not feature gradient interfaces - supporting an ad hoc Python AD implementation is out of scope for the intended applications of GenJAX.
 """
@@ -48,14 +48,14 @@ from genjax._src.core.typing import typecheck
 
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
-_interpreted_STACK = []
+_INTERPRETED_STACK = []
 
 
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
 def handle(msg):
-    assert _interpreted_STACK
-    handler = _interpreted_STACK[-1]
+    assert _INTERPRETED_STACK
+    handler = _INTERPRETED_STACK[-1]
     v = handler.process_message(msg)
     return v
 
@@ -64,18 +64,18 @@ def handle(msg):
 # It must also provide an implementation for `process_message`.
 class Handler(object):
     def __enter__(self):
-        _interpreted_STACK.append(self)
+        _INTERPRETED_STACK.append(self)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
-            assert _interpreted_STACK[-1] is self
-            _interpreted_STACK.pop()
+            assert _INTERPRETED_STACK[-1] is self
+            _INTERPRETED_STACK.pop()
         else:
-            if self in _interpreted_STACK:
-                loc = _interpreted_STACK.index(self)
-                for _ in range(loc, len(_interpreted_STACK)):
-                    _interpreted_STACK.pop()
+            if self in _INTERPRETED_STACK:
+                loc = _INTERPRETED_STACK.index(self)
+                for _ in range(loc, len(_INTERPRETED_STACK)):
+                    _INTERPRETED_STACK.pop()
 
     @abc.abstractmethod
     def process_message(self, msg):
@@ -87,7 +87,7 @@ class Handler(object):
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction, *args: Any) -> Any:
     # Must be handled.
-    assert _interpreted_STACK
+    assert _INTERPRETED_STACK
 
     initial_msg = {
         "type": "trace",
@@ -377,6 +377,6 @@ def interpreted_gen_fn(source: Callable):
     return InterpretedGenerativeFunction.new(source)
 
 
-InterpretedLanguage = LanguageConstructor(
+Interpreted = LanguageConstructor(
     interpreted_gen_fn,
 )
