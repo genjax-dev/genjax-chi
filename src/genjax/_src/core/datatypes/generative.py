@@ -27,29 +27,18 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.pytree.checks import (
-    static_check_tree_leaves_have_matching_leading_dim,
-)
-from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
-from genjax._src.core.pytree.const import PytreeConst
-from genjax._src.core.pytree.const import tree_map_collapse_const
-from genjax._src.core.pytree.const import tree_map_const
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import Array
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import String
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
@@ -208,73 +197,6 @@ class AllSelection(Selection):
 
 
 @dataclass
-class DynamicHierarchicalSelection(Selection):
-    addrs: List[Any]
-    subselections: List[Selection]
-
-    def flatten(self):
-        return (self.addrs, self.subselections), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, addrs, subselections):
-        return DynamicHierarchicalSelection(addrs, subselections)
-
-    @classmethod
-    @dispatch
-    def new(cls):
-        return DynamicHierarchicalSelection([], [])
-
-    @dispatch
-    def has_addr(self, addr: PytreeConst):
-        return addr in self.addrs
-
-    @dispatch
-    def has_addr(self, addr: Array):
-        return jnp.any(map(lambda v: v == addr, self.addrs))
-
-    @dispatch
-    def has_addr(self, addr: Any):
-        k = tree_map_const(addr)
-        return self.has_addr(k)
-
-    @dispatch
-    def has_addr(self, addr: Tuple):
-        pass
-
-    ###########
-    # Dunders #
-    ###########
-
-    @dispatch
-    def __setitem__(self, k: Tuple, v: Selection):
-        fst, *rst = k
-        if rst:
-            sub = DynamicHierarchicalSelection.new()
-            sub[tuple(rst)] = v
-            self[fst] = sub
-        else:
-            addr = tree_map_const(fst)
-            self.addrs.append(addr)
-            self.subselections.append(v)
-
-    @dispatch
-    def __setitem__(self, k: PytreeConst, v: Selection):
-        self.addrs.append(tree_map_const(k))
-        self.subselections.append(v)
-
-    @dispatch
-    def __setitem__(self, k: IntArray, v: Selection):
-        self.addrs.append(tree_map_const(k))
-        self.subselections.append(v)
-
-    @dispatch
-    def __setitem__(self, k: Any, v: Selection):
-        addr = tree_map_const(k)
-        self[addr] = v
-
-
-@dataclass
 class HierarchicalSelection(Selection):
     trie: Trie
 
@@ -336,61 +258,6 @@ class HierarchicalSelection(Selection):
         for k, v in self.get_subselections_shallow():
             subk = tree.add(f"[bold]:{k}")
             subk.add(v.__rich_tree__())
-        return tree
-
-
-@dataclass
-class IndexedSelection(Selection):
-    indices: IntArray
-    inner: Selection
-
-    def flatten(self):
-        return (
-            self.indices,
-            self.inner,
-        ), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, idx: Union[Int, IntArray]):
-        idxs = jnp.array(idx)
-        return IndexedSelection(idxs, AllSelection())
-
-    @classmethod
-    @dispatch
-    def new(cls, idx: Any, inner: Selection):
-        idxs = jnp.array(idx)
-        return IndexedSelection(idxs, inner)
-
-    @classmethod
-    @dispatch
-    def new(cls, idx: Any, *inner: Any):
-        idxs = jnp.array(idx)
-        inner = select(*inner)
-        return IndexedSelection(idxs, inner)
-
-    @dispatch
-    def has_addr(self, addr: IntArray):
-        return jnp.isin(addr, self.indices)
-
-    @dispatch
-    def has_addr(self, addr: Tuple):
-        if len(addr) <= 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_addr(addr))
-
-    def get_subselection(self, addr):
-        return self.index_selection.get_subselection(addr)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.indices, short_arrays=True)
-        tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
-        tree.add(self.inner.__rich_tree__())
         return tree
 
 
@@ -1360,174 +1227,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
 
 @dataclass
-class DynamicHierarchicalChoiceMap(ChoiceMap):
-    addrs: List[Any]
-    submaps: List[ChoiceMap]
-
-    def flatten(self):
-        return (self.addrs, self.submaps), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, addrs, submaps):
-        return DynamicHierarchicalChoiceMap(addrs, submaps)
-
-    @classmethod
-    @dispatch
-    def new(cls):
-        return DynamicHierarchicalChoiceMap([], [])
-
-    def is_empty(self):
-        return jnp.all(jnp.array(map(lambda v: v.is_empty(), self.submaps)))
-
-    @dispatch
-    def get_submap(self):
-        return self
-
-    @dispatch
-    def get_submap(self, addr: Union[IntArray, Int]):
-        addr = jnp.array(addr, copy=False)
-        if all(
-            map(
-                lambda v: not (isinstance(v, IntArray) or isinstance(v, Int)),
-                self.addrs,
-            )
-        ):
-            return EmptyChoice()
-        compares = map(lambda v: addr == v, self.addrs)
-        masks = list(map(lambda v: mask(v[0], v[1]), zip(compares, self.submaps)))
-        if len(masks) == 1:
-            return masks[0]
-        else:
-            return DisjointUnionChoiceMap.new(masks)
-
-    @dispatch
-    def get_submap(self, addr: String):
-        s = PytreeConst(addr)
-        idxs = [i for i in range(len(self.addrs)) if self.addrs[i] == s]
-        if len(idxs) == 1:
-            (idx,) = idxs
-            submap = self.submaps[idx]
-            return submap
-        else:
-            submaps = [self.submaps[i] for i in idxs]
-            return DisjointUnionChoiceMap.new(submaps)
-
-    @dispatch
-    def get_submap(self, head: Any, *tail: Any):
-        submap = self.get_submap(head)
-        return submap.get_submap(*tail)
-
-    @dispatch
-    def has_submap(self, addr: IntArray):
-        equality_checks = jnp.array(map(lambda v: addr == v, self.addrs))
-        return jnp.any(equality_checks)
-
-    @dispatch
-    def has_submap(self, addr: Tuple):
-        (idx, rest) = addr
-        disjoint_union_chm = self.get_submap(idx)
-        return jnp.logical_and(
-            self.has_submap(idx),
-            disjoint_union_chm.has_submap(rest),
-        )
-
-    @dispatch
-    def has_submap(self, addr: Any):
-        addr = tree_map_const(addr)
-        return addr in self.addrs
-
-    @dispatch
-    def filter(
-        self,
-        selection: HierarchicalSelection,
-    ) -> ChoiceMap:
-        filtered_addrs = []
-        filtered_submaps = []
-        for (k, submap) in zip(self.addrs, self.submaps):
-            addr = tree_map_collapse_const(k)
-            if selection.has_addr(addr):
-                subselection = selection.get_subselection(addr)
-                filtered = submap.filter(subselection)
-                filtered_addrs.append(k)
-                filtered_submaps.append(filtered)
-        return DynamicHierarchicalChoiceMap.new(
-            filtered_addrs,
-            filtered_submaps,
-        )
-
-    ###########
-    # Dunders #
-    ###########
-
-    @dispatch
-    def __setitem__(self, k: Tuple, v: ChoiceValue):
-        fst, *rst = k
-        if rst:
-            sub = DynamicHierarchicalChoiceMap.new()
-            sub[tuple(rst)] = v
-            self[fst] = sub
-        else:
-            addr = tree_map_const(fst)
-            self.addrs.append(addr)
-            self.submaps.append(v)
-
-    @dispatch
-    def __setitem__(self, k: PytreeConst, v: ChoiceValue):
-        self.addrs.append(k)
-        self.submaps.append(v)
-
-    @dispatch
-    def __setitem__(self, k: Any, v: ChoiceValue):
-        addr = tree_map_const(k)
-        self.addrs.append(addr)
-        self.submaps.append(v)
-
-    @dispatch
-    def __setitem__(self, k: Any, v: Any):
-        # Check if `v` is already a `Choice` or a `Trace`
-        # Wrap in `ChoiceValue`, or otherwise leave alone.
-        v = (
-            ChoiceValue(v)
-            if not isinstance(v, Choice) and not isinstance(v, Trace)
-            else v
-        )
-        self[k] = v
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](DynamicHierarchicalChoiceMap)")
-        for k, v in zip(self.addrs, self.submaps):
-            if isinstance(k, Pytree):
-                subk = k.__rich_tree__()
-            else:
-                subk = rich_tree.Tree(f"[bold]{k}")
-
-            subv = v.__rich_tree__()
-            subk.add(subv)
-            tree.add(subk)
-        return tree
-
-
-def tree_choice_map_specialize(v):
-    def _convert(v):
-        if isinstance(v, DynamicHierarchicalChoiceMap):
-            return v.maybe_specialize()
-        else:
-            return v
-
-    return jtu.tree_map(
-        _convert, v, is_leaf=lambda v: isinstance(v, DynamicHierarchicalChoiceMap)
-    )
-
-
-class DynamicConvertible:
-    @abc.abstractmethod
-    def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
-        pass
-
-
-@dataclass
-class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
+class HierarchicalChoiceMap(ChoiceMap):
     trie: Trie
 
     def flatten(self):
@@ -1571,12 +1271,12 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
         selection: HierarchicalSelection,
     ) -> ChoiceMap:
         def _inner(k, v):
-            sub = selection.get_submap(k)
+            sub = selection.get_subselection(k)
             under = v.filter(sub)
             return k, under
 
         trie = Trie.new()
-        iter = self.get_submaps_shallow()
+        iter = self.get_subselections_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoice):
                 trie[k] = v
@@ -1632,7 +1332,7 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     def get_submaps_shallow(self):
         def _inner(v):
             addr = v[0]
-            submap = v[1].get_choices()
+            submap = v[1]
             if isinstance(submap, Trie):
                 submap = HierarchicalChoiceMap(submap)
             return (addr, submap)
@@ -1677,14 +1377,6 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
             f"Merging with choice map type {type(other)} not supported.",
         )
 
-    def dynamic_convert(self) -> DynamicHierarchicalChoiceMap:
-        addrs = []
-        submaps = []
-        for k, v in self.get_submaps_shallow():
-            addrs.append(k)
-            submaps.append(v)
-        return DynamicHierarchicalChoiceMap(addrs, submaps)
-
     ###########
     # Dunders #
     ###########
@@ -1702,133 +1394,12 @@ class HierarchicalChoiceMap(ChoiceMap, DynamicConvertible):
     ###################
 
     def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](Hierarchical)")
+        tree = rich_tree.Tree("[bold](HierarchicalChoiceMap)")
         for k, v in self.get_submaps_shallow():
             subk = rich_tree.Tree(f"[bold]:{k}")
             subv = v.__rich_tree__()
             subk.add(subv)
             tree.add(subk)
-        return tree
-
-
-@dataclass
-class IndexedChoiceMap(ChoiceMap):
-    indices: IntArray
-    inner: ChoiceMap
-
-    def flatten(self):
-        return (self.indices, self.inner), ()
-
-    @classmethod
-    @dispatch
-    def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
-        # Promote raw integers (or scalars) to non-null leading dim.
-        indices = jnp.array(indices, copy=False)
-
-        # Verify that dimensions are consistent before creating an
-        # `IndexedChoiceMap`.
-        _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
-
-        # if you try to wrap around an EmptyChoice, do nothing.
-        if isinstance(inner, EmptyChoice):
-            return inner
-
-        return IndexedChoiceMap(indices, inner)
-
-    @classmethod
-    @dispatch
-    def new(cls, indices: List, inner: ChoiceMap) -> ChoiceMap:
-        indices = jnp.array(indices)
-        return IndexedChoiceMap.new(indices, inner)
-
-    @classmethod
-    @dispatch
-    def new(cls, indices: Any, inner: Dict) -> ChoiceMap:
-        inner = choice_map(inner)
-        return IndexedChoiceMap.new(indices, inner)
-
-    def is_empty(self):
-        return self.inner.is_empty()
-
-    @dispatch
-    def filter(
-        self,
-        selection: HierarchicalSelection,
-    ) -> ChoiceMap:
-        return IndexedChoiceMap(self.indices, self.inner.filter(selection))
-
-    def has_submap(self, addr):
-        if not isinstance(addr, Tuple) and len(addr) == 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
-
-    @dispatch
-    def filter(
-        self,
-        selection: IndexedSelection,
-    ) -> ChoiceMap:
-        flags = jnp.isin(selection.indices, self.indices)
-        filtered_inner = self.inner.filter(selection.inner)
-        masked = mask(flags, filtered_inner)
-        return IndexedChoiceMap(self.indices, masked)
-
-    def has_submap(self, addr):
-        if not isinstance(addr, Tuple) and len(addr) == 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
-
-    @dispatch
-    def get_submap(self, addr: Tuple):
-        if len(addr) == 1:
-            return self.get_submap(addr[0])
-        idx, *rest = addr
-        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = slice_index[0]
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        submap = submap.get_submap(tuple(rest))
-        if isinstance(submap, EmptyChoice):
-            return submap
-        else:
-            return mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, idx: IntArray):
-        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = slice_index[0]
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        return mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, idx: Int):
-        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = slice_index[0]
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        return mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, addr: Any):
-        return EmptyChoice()
-
-    def get_selection(self):
-        return self.inner.get_selection()
-
-    def merge(self, _: ChoiceMap):
-        raise Exception("TODO: can't merge IndexedChoiceMaps")
-
-    def get_index(self):
-        return self.indices
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.indices, short_arrays=True)
-        tree = rich_tree.Tree(f"[bold](IndexedChoiceMap, {doc})")
-        sub_tree = self.inner.__rich_tree__()
-        tree.add(sub_tree)
         return tree
 
 
@@ -1924,17 +1495,14 @@ class LanguageConstructor(Pytree):
 # Choices and choice maps
 empty_choice = EmptyChoice.new
 choice_value = ChoiceValue.new
-dynamic_choice_map = DynamicHierarchicalChoiceMap.new
 hierarchical_choice_map = HierarchicalChoiceMap.new
-indexed_choice_map = IndexedChoiceMap.new
 disjoint_union_choice_map = DisjointUnionChoiceMap.new
 
 # Selections
 none_select = NoneSelection.new
 all_select = AllSelection.new
-dynamic_selection = DynamicHierarchicalSelection.new
 hierarchical_select = HierarchicalSelection.new
-indexed_select = IndexedSelection.new
+
 
 # Functional types
 mask = Mask.new
@@ -1942,7 +1510,7 @@ mask = Mask.new
 
 @dispatch
 def choice_map():
-    return dynamic_choice_map()
+    return hierarchical_choice_map()
 
 
 @dispatch
@@ -1956,35 +1524,19 @@ def choice_map(submaps: Dict):
 
 
 @dispatch
-def choice_map(indices: List[Int], submaps: List[ChoiceMap]):
-    # submaps must have same Pytree structure to use
-    # optimized representation.
-    if static_check_tree_structure_equivalence(submaps):
-        index_arr = jnp.array(indices)
-        return indexed_choice_map(index_arr, submaps)
-    else:
-        return dynamic_choice_map(indices, submaps)
-
-
-@dispatch
-def choice_map(index: Int, submap: ChoiceMap):
-    expanded = jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), submap)
-    return indexed_choice_map([index], expanded)
-
-
-@dispatch
 def choice_map(submaps: List[ChoiceMap]):
     return disjoint_union_choice_map(submaps)
 
 
-@dispatch
-def choice_map(addrs: List[Any], submaps: List[ChoiceMap]):
-    return dynamic_choice_map(addrs, submaps)
+# TODO: experimental for dynamic addresses.
+# @dispatch
+# def choice_map(addrs: List[Any], submaps: List[ChoiceMap]):
+#    return dynamic_choice_map(addrs, submaps)
 
 
 @dispatch
 def select():
-    return dynamic_selection()
+    return hierarchical_select()
 
 
 @dispatch
@@ -1995,8 +1547,3 @@ def select(subselects: Dict):
 @dispatch
 def select(*addrs: Any):
     return hierarchical_select(*addrs)
-
-
-@dispatch
-def select(idx: Union[Int, IntArray], *args):
-    return indexed_select(idx, *args)
