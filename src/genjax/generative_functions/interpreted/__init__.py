@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.interpreted import InterpretedLanguage
-from genjax._src.generative_functions.interpreted import trace
+from genjax._src.generative_functions.interpreted import Interpreted
 
 
 __all__ = [
-    "InterpretedLanguage",
+    "Interpreted",
 ]
