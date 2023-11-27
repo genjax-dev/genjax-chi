@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 from typing import Any
 
 import jax
@@ -20,6 +20,7 @@ import jax.numpy as jnp
 import pytest
 
 import genjax
+from genjax.typing import FloatArray
 
 
 #############
@@ -107,10 +108,10 @@ class TestAssess:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(genjax.simulate(simple_normal))(sub_key, ())
-        jitted = jax.jit(genjax.assess(simple_normal))
+        tr = jax.jit(simple_normal.simulate)(sub_key, ())
+        jitted = jax.jit(simple_normal.assess)
         chm = tr.get_choices().strip()
-        (retval, score) = jitted(key, chm, ())
+        (score, retval) = jitted(chm, ())
         assert score == tr.get_score()
 
 
@@ -133,11 +134,11 @@ class TestClosureConvert:
             return (v, gen_fn)
 
         key = jax.random.PRNGKey(314159)
-        _ = jax.jit(genjax.simulate(model))(key, ())
+        _ = jax.jit(model.simulate)(key, ())
         assert True
 
 
-@dataclasses.dataclass
+@dataclass
 class CustomTree(genjax.Pytree):
     x: Any
     y: Any
@@ -153,8 +154,8 @@ def simple_normal(custom_tree):
     return CustomTree(y1, y2)
 
 
-@dataclasses.dataclass
-class _CustomNormal(genjax.ExactDensity):
+@dataclass
+class _CustomNormal(genjax.JAXGenerativeFunction, genjax.ExactDensity):
     def logpdf(self, v, custom_tree):
         return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
 
@@ -175,14 +176,14 @@ class TestCustomPytree:
     def test_simple_normal_simulate(self):
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
-        fn = jax.jit(genjax.simulate(simple_normal))
+        fn = jax.jit(simple_normal.simulate)
         tr = fn(key, (init_tree,))
         chm = tr.get_choices()
-        (score1, _) = genjax.normal.importance(
-            key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
+        (_, score1) = genjax.normal.importance(
+            key, chm.get_submap("y1"), (init_tree.x, 1.0)
         )
-        (score2, _) = genjax.normal.importance(
-            key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
+        (_, score2) = genjax.normal.importance(
+            key, chm.get_submap("y2"), (init_tree.y, 1.0)
         )
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
@@ -190,11 +191,11 @@ class TestCustomPytree:
     def test_custom_normal_simulate(self):
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
-        fn = jax.jit(genjax.simulate(custom_normal))
+        fn = jax.jit(custom_normal.simulate)
         tr = fn(key, (init_tree,))
         chm = tr.get_choices()
-        (score, _) = genjax.normal.importance(
-            key, chm.get_subtree("y").get_choices(), (init_tree.x, init_tree.y)
+        (_, score) = genjax.normal.importance(
+            key, chm.get_submap("y"), (init_tree.x, init_tree.y)
         )
         test_score = score
         assert tr.get_score() == pytest.approx(test_score, 0.01)
@@ -203,14 +204,14 @@ class TestCustomPytree:
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
         chm = genjax.choice_map({"y1": 5.0})
-        fn = jax.jit(genjax.importance(simple_normal))
-        (w, tr) = fn(key, chm, (init_tree,))
+        fn = jax.jit(simple_normal.importance)
+        (tr, w) = fn(key, chm, (init_tree,))
         chm = tr.get_choices()
-        (score1, _) = genjax.normal.importance(
-            key, chm.get_subtree("y1").get_choices(), (init_tree.x, 1.0)
+        (_, score1) = genjax.normal.importance(
+            key, chm.get_submap("y1"), (init_tree.x, 1.0)
         )
-        (score2, _) = genjax.normal.importance(
-            key, chm.get_subtree("y2").get_choices(), (init_tree.y, 1.0)
+        (_, score2) = genjax.normal.importance(
+            key, chm.get_submap("y2"), (init_tree.y, 1.0)
         )
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
@@ -226,10 +227,10 @@ class TestGradients:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        tr = jax.jit(genjax.simulate(simple_normal))(key, ())
-        jitted = jax.jit(genjax.assess(simple_normal))
-        chm = tr.get_choices().strip()
-        (_, score) = jitted(key, chm, ())
+        tr = jax.jit(simple_normal.simulate)(key, ())
+        jitted = jax.jit(simple_normal.assess)
+        chm = tr.get_choices()
+        (score, _) = jitted(chm, ())
         assert score == tr.get_score()
 
 
@@ -242,15 +243,15 @@ class TestImportance:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        fn = genjax.importance(simple_normal)
+        fn = simple_normal.importance
         chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
         key, sub_key = jax.random.split(key)
-        (_, tr) = fn(sub_key, chm, ())
+        (tr, _) = fn(sub_key, chm, ())
         out = tr.get_choices()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
-        (score_1, _) = genjax.normal.importance(key, chm.get_subtree("y1"), (0.0, 1.0))
-        (score_2, _) = genjax.normal.importance(key, chm.get_subtree("y2"), (0.0, 1.0))
+        (_, score_1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
+        (_, score_2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
         test_score = score_1 + score_2
         assert y1 == out[("y1",)]
         assert y2 == out[("y2",)]
@@ -266,20 +267,20 @@ class TestImportance:
         # Full constraints.
         key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
-        (w, tr) = simple_normal.importance(key, chm, ())
+        (tr, w) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         assert y1 == 0.5
         assert y2 == 0.5
-        (score_1, _) = genjax.normal.importance(key, chm.get_subtree("y1"), (0.0, 1.0))
-        (score_2, _) = genjax.normal.importance(key, chm.get_subtree("y2"), (0.0, 1.0))
+        (_, score_1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
+        (_, score_2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
         test_score = score_1 + score_2
         assert tr.get_score() == pytest.approx(test_score, 0.0001)
         assert w == pytest.approx(test_score, 0.0001)
 
         # Partial constraints.
         chm = genjax.choice_map({("y2",): 0.5})
-        (w, tr) = simple_normal.importance(key, chm, ())
+        (tr, w) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         assert y2 == 0.5
@@ -291,7 +292,7 @@ class TestImportance:
 
         # No constraints.
         chm = genjax.EmptyChoice()
-        (w, tr) = simple_normal.importance(key, chm, ())
+        (tr, w) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)
@@ -565,34 +566,6 @@ class TestStaticAddressChecks:
         key = jax.random.PRNGKey(314159)
         with pytest.raises(Exception):
             _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
-
-
-class TestDynamicAddresses:
-    def test_dynamic_addresses_and_interfaces(self):
-        @genjax.gen(genjax.Static)
-        def simple_normal(index: genjax.typing.IntArray):
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace(index, genjax.normal)(0.0, 1.0)
-            return y1 + y2
-
-        key = jax.random.PRNGKey(314159)
-        tr = simple_normal.simulate(key, (3,))
-
-    def test_basic_smc_pattern(self):
-        @genjax.gen(genjax.Static)(genjax.Unfold, max_length=10)
-        def chain(z):
-            new_z = genjax.tfp_normal(0.0, 1.0) @ "z"
-            new_x = genjax.tfp_normal(new_z, 1.0) @ "x"
-            return new_z
-
-        @genjax.gen(genjax.Static)
-        def temporal_proposal(obs, t):
-            obs_at_t = obs[t, "x"].match(lambda: 1.0, lambda v: v)
-            new_z = genjax.tfp_normal(obs_at_t, 1.0) @ (t, "z")
-
-        key = jax.random.PRNGKey(314159)
-        obs = genjax.choice_map({(3, "x"): 3.0})
-        dynamic_constraints = temporal_proposal.propose(key, (obs, 3))
 
 
 class TestForwardRef:
