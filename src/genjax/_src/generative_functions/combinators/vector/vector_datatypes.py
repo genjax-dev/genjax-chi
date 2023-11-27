@@ -40,7 +40,6 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
 
 
 ######################################
@@ -185,11 +184,8 @@ class IndexedChoiceMap(ChoiceMap):
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
         slice_index = slice_index[0]
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        submap = submap.get_submap(tuple(rest))
-        if isinstance(submap, EmptyChoice):
-            return submap
-        else:
-            return mask(jnp.isin(idx, self.indices), submap)
+        submap = mask(jnp.isin(idx, self.indices), submap)
+        return submap.get_submap(tuple(rest))
 
     @dispatch
     def get_submap(self, idx: IntArray):
@@ -272,7 +268,15 @@ class VectorChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
-    @typecheck
+    @dispatch
+    def filter(
+        self,
+        selection: IndexedSelection,
+    ) -> ChoiceMap:
+        inner = self.inner.filter(selection.inner)
+        return IndexedChoiceMap(selection.indices, inner)
+
+    @dispatch
     def filter(
         self,
         selection: Selection,

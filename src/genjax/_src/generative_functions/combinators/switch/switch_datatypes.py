@@ -198,6 +198,5 @@ class SwitchTrace(Trace):
         return jnp.choose(self.chm.index, weights, mode="wrap")
 
     def get_subtrace(self, concrete_index):
-        switch_chm = self.get_choices()
-        subtrace = switch_chm.submaps[concrete_index]
+        subtrace = self.chm.submaps[concrete_index]
         return subtrace

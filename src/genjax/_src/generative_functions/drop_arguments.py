@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -173,11 +174,10 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
 
     def assess(
         self,
-        key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
-        return self.gen_fn.assess(key, choice_map, args)
+        return self.gen_fn.assess(choice_map, args)
 
     def restore_with_aux(self, interface_data, aux):
         return self.gen_fn.restore_with_aux(interface_data, aux)
@@ -187,8 +187,11 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
 # Shorthands #
 ##############
 
-DropArguments = DropArgumentsGenerativeFunction.new
-
 
 def drop_arguments(gen_fn: JAXGenerativeFunction):
-    return DropArguments(gen_fn)
+    return DropArgumentsGenerativeFunction.new(gen_fn)
+
+
+DropArguments = LanguageConstructor(
+    drop_arguments,
+)

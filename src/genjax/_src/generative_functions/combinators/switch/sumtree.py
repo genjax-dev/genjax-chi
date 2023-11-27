@@ -123,13 +123,3 @@ class DataSharedSumTree(Pytree):
             lambda args: build_from_payload(args[0], args[1], self.payload),
             zip(static_visitations, static_forms),
         )
-
-    # Collapse the sum type.
-    def project(self):
-        static_visitations = self.visitations.seq
-        static_forms = self.forms.seq
-        return build_from_payload(
-            static_visitations[0],
-            static_forms[0],
-            self.payload,
-        )

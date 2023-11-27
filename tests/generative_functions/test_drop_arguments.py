@@ -21,9 +21,9 @@ from genjax import typing
 
 class TestDropArguments:
     def test_drop_arguments_as_kernel_in_map(self):
-        @genjax.map_combinator(in_axes=(0,))
-        @genjax.drop_arguments
-        @genjax.gen
+        @genjax.gen(genjax.Map, in_axes=(0,))
+        @genjax.gen(genjax.DropArguments)
+        @genjax.gen(genjax.Static)
         @typing.typecheck
         def model(x: typing.FloatArray):
             y = genjax.normal(x, 1.0) @ "y"
@@ -32,7 +32,7 @@ class TestDropArguments:
         key = jax.random.PRNGKey(314159)
         chm = genjax.indexed_choice_map([0], {"y": jnp.array([5.0])})
         tr = model.simulate(key, (jnp.ones(5),))
-        _, _, tr, _ = model.update(
+        tr, _, _, _ = model.update(
             key, tr, chm, genjax.tree_diff_no_change((jnp.ones(5),))
         )
         v = tr.strip()["y"]

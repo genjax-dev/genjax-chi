@@ -433,7 +433,9 @@ class ChoiceMap(Choice):
         submap = self.get_submap(addrs)
         if isinstance(submap, ChoiceValue):
             return submap.get_value()
-        else:
+        elif isinstance(submap, Mask):
+            if isinstance(submap.value, ChoiceValue):
+                return Mask(submap.mask, submap.value.get_value())
             return submap
 
     @dispatch
@@ -880,11 +882,19 @@ class Mask(Pytree):
 
     @dispatch
     def __getitem__(self, addr: Any):
-        return self.get_submap(addr)
+        masked = self.get_submap(addr)
+        if isinstance(masked.value, ChoiceValue):
+            return Mask(masked.mask, masked.value.get_value())
+        else:
+            return masked
 
     @dispatch
     def __getitem__(self, addrs: Tuple):
-        return self.get_submap(addrs)
+        masked = self.get_submap(addrs)
+        if isinstance(masked.value, ChoiceValue):
+            return Mask(masked.mask, masked.value.get_value())
+        else:
+            return masked
 
     ###################
     # Pretty printing #
