@@ -20,6 +20,7 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -59,6 +60,10 @@ class SwitchChoiceMap(ChoiceMap):
 
     def flatten(self):
         return (self.index, self.submaps), ()
+
+    @classmethod
+    def new(cls, index, submaps):
+        return SwitchChoiceMap(index, submaps)
 
     def is_empty(self):
         # Concrete evaluation -- when possible.
@@ -130,7 +135,7 @@ class SwitchChoiceMap(ChoiceMap):
         raise NotImplementedError
 
     @dispatch
-    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+    def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         new_submaps, new_discard = list(
             zip(*map(lambda v: v.merge(other), self.submaps))
         )
@@ -142,20 +147,18 @@ class SwitchChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
+    def __rich_tree__(self):
         doc = gpp._pformat_array(self.index, short_arrays=True)
-        sub_tree = Tree(f"[bold](Switch,{doc})")
+        tree = Tree(f"[bold](Switch,{doc})")
         for submap in self.submaps:
-            sub_root = Tree("")
-            submap_tree = submap.__rich_tree__(sub_root)
-            sub_tree.add(submap_tree)
-        tree.add(sub_tree)
+            submap_tree = submap.__rich_tree__()
+            tree.add(submap_tree)
         return tree
 
 
-#####
-# SwitchTrace
-#####
+################
+# Switch trace #
+################
 
 
 @dataclass
@@ -179,7 +182,7 @@ class SwitchTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return self.chm
+        return self.chm.strip()
 
     def get_gen_fn(self):
         return self.gen_fn

@@ -235,7 +235,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -244,7 +244,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         inner = chm.inner.get_choices()
-        (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
+        (tr, w) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
             sub_keys, inner, args
         )
 
@@ -252,7 +252,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        return (w, map_tr)
+        return (map_tr, w)
 
     @dispatch
     def importance(
@@ -260,24 +260,24 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: IndexedChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _importance(key, index, chm, args):
-            submap = chm.get_subtree(index)
+            submap = chm.get_submap(index)
             return self.kernel.importance(key, submap, args)
 
-        (w, tr) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
+        (tr, w) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
             sub_keys, index_array, chm, args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        return (w, map_tr)
+        return (map_tr, w)
 
     @dispatch
     def importance(
@@ -285,10 +285,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         map_tr = self.simulate(key, args)
         w = 0.0
-        return (w, map_tr)
+        return (map_tr, w)
 
     @dispatch
     def importance(
@@ -296,7 +296,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: HierarchicalChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         indchm = IndexedChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
@@ -348,7 +348,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             original_args: Tuple,
             argdiffs: Tuple,
         ):
-            submap = chm.get_subtree(index)
+            submap = chm.get_submap(index)
             return self.maybe_restore_arguments_kernel_update(
                 key, prev, submap, original_args, argdiffs
             )

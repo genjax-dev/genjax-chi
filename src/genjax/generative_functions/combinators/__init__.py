@@ -33,6 +33,12 @@ from genjax._src.generative_functions.combinators.vector.unfold_combinator impor
     unfold_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    indexed_choice_map,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    indexed_select,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
 )
 
@@ -49,4 +55,6 @@ __all__ = [
     "Switch",
     "switch_combinator",
     "vector_choice_map",
+    "indexed_select",
+    "indexed_choice_map",
 ]

@@ -20,8 +20,6 @@ from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import IndexedChoiceMap
-from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Mask
 from genjax._src.core.datatypes.generative import NoneSelection
@@ -32,8 +30,6 @@ from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import choice_value
 from genjax._src.core.datatypes.generative import disjoint_union_choice_map
 from genjax._src.core.datatypes.generative import empty_choice
-from genjax._src.core.datatypes.generative import indexed_choice_map
-from genjax._src.core.datatypes.generative import indexed_select
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.datatypes.generative import none_select
 from genjax._src.core.datatypes.generative import select
@@ -63,8 +59,6 @@ __all__ = [
     "choice_value",
     "HierarchicalChoiceMap",
     "choice_map",
-    "IndexedChoiceMap",
-    "indexed_choice_map",
     "DisjointUnionChoiceMap",
     "disjoint_union_choice_map",
     "Trace",
@@ -75,8 +69,6 @@ __all__ = [
     "none_select",
     "HierarchicalSelection",
     "select",
-    "IndexedSelection",
-    "indexed_select",
     "GenerativeFunction",
     "JAXGenerativeFunction",
     # Masking.

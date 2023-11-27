@@ -228,7 +228,7 @@ class HierarchicalSelection(Selection):
         if value is None:
             return NoneSelection()
         else:
-            subselect = value.get_selection()
+            subselect = value
             if isinstance(subselect, Trie):
                 return HierarchicalSelection(subselect)
             else:
@@ -285,6 +285,13 @@ class EmptyChoice(Choice):
     def filter(self, selection):
         return self
 
+    def is_empty(self):
+        return True
+
+    @dispatch
+    def merge(self, other):
+        return other, self
+
     def __rich_tree__(self):
         return rich_tree.Tree("[bold](EmptyChoice)")
 
@@ -300,8 +307,15 @@ class ChoiceValue(Choice):
     def new(cls, v):
         return ChoiceValue(v)
 
+    def is_empty(self):
+        return False
+
     def get_value(self):
         return self.value
+
+    @dispatch
+    def merge(self, other: "ChoiceValue"):
+        return self, other
 
     @dispatch
     def filter(self, selection: AllSelection):
@@ -320,11 +334,11 @@ class ChoiceValue(Choice):
 @dataclass
 class ChoiceMap(Choice):
     @abc.abstractmethod
-    def get_submap(self, *addrs) -> Choice:
+    def get_submap(self, addr) -> Choice:
         pass
 
     @abc.abstractmethod
-    def has_submap(self, *addrs) -> BoolArray:
+    def has_submap(self, addr) -> BoolArray:
         pass
 
     @abc.abstractmethod
@@ -416,7 +430,7 @@ class ChoiceMap(Choice):
 
     @dispatch
     def __getitem__(self, addrs: Tuple):
-        submap = self.get_submap(*addrs)
+        submap = self.get_submap(addrs)
         if isinstance(submap, ChoiceValue):
             return submap.get_value()
         else:
@@ -814,9 +828,9 @@ class Mask(Pytree):
         assert isinstance(self.value, ChoiceMap)
         return jnp.logical_and(self.mask, self.value.is_empty())
 
-    def get_submap(self, *addrs):
+    def get_submap(self, addrs):
         assert isinstance(self.value, ChoiceMap)
-        submap = self.value.get_submap(*addrs)
+        submap = self.value.get_submap(addrs)
         if isinstance(submap, EmptyChoice):
             return submap
         else:
@@ -869,8 +883,8 @@ class Mask(Pytree):
         return self.get_submap(addr)
 
     @dispatch
-    def __getitem__(self, *addrs: Tuple):
-        return self.get_submap(*addrs)
+    def __getitem__(self, addrs: Tuple):
+        return self.get_submap(addrs)
 
     ###################
     # Pretty printing #
@@ -1111,7 +1125,7 @@ class GenerativeFunction(Pytree):
         _, possible_discards = discard_option.merge(possible_constraints)
 
         def _none():
-            (retdiff, w, new_tr, _) = self.update(key, prev, EmptyChoice(), argdiffs)
+            (new_tr, w, retdiff, _) = self.update(key, prev, EmptyChoice(), argdiffs)
             if possible_discards.is_empty():
                 discard = EmptyChoice()
             else:
@@ -1276,7 +1290,7 @@ class HierarchicalChoiceMap(ChoiceMap):
             return k, under
 
         trie = Trie.new()
-        iter = self.get_subselections_shallow()
+        iter = self.get_submaps_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoice):
                 trie[k] = v
@@ -1306,12 +1320,8 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, addr: IntArray):
-        if static_check_is_concrete(addr):
-            value = self.trie.get_submap(addr)
-            return self._lift_value(value)
-        else:
-            dynamic_chm = self.dynamic_convert()
-            return dynamic_chm.get_submap(addr)
+        value = self.trie.get_submap(addr)
+        return self._lift_value(value)
 
     @dispatch
     def get_submap(self, addr: Tuple):
