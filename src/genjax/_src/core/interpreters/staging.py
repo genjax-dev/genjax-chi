@@ -18,9 +18,6 @@ from jax import api_util
 from jax import core as jax_core
 from jax import tree_util as jtu
 from jax._src import dtypes
-
-# Unsafe!
-from jax._src.api_util import argnums_partial_except
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
@@ -73,21 +70,11 @@ def stage(f):
 
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
-        static_argnums = list(
-            filter(
-                lambda v: v is not None,
-                [i if static_check_concrete(v) else None for (i, v) in enumerate(args)],
-            )
-        )
-        args = list(map(static_unwrap_concrete, args))
-        fun, dyn_args = argnums_partial_except(
-            fun, static_argnums, args, allow_invalid=False
-        )
-        flat_dyn_args, in_tree = jtu.tree_flatten(dyn_args)
+        flat_args, in_tree = jtu.tree_flatten(args)
         flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
-        flat_avals = safe_map(get_shaped_aval, flat_dyn_args)
+        flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
-        return typed_jaxpr, (flat_dyn_args, in_tree, out_tree)
+        return typed_jaxpr, (flat_args, in_tree, out_tree)
 
     return wrapped
 

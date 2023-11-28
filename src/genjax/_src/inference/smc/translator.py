@@ -18,7 +18,8 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import Choice, ChoiceMap
+from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.pytree import Pytree
