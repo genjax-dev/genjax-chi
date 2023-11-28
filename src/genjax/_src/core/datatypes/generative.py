@@ -1005,7 +1005,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[ChoiceMap, FloatArray, Any]:
+    ) -> Tuple[Choice, FloatArray, Any]:
         """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
         function, returning a tuple containing the return value from the
         generative function call, the score ($s$) of the choice map assignment,
@@ -1065,7 +1065,7 @@ class GenerativeFunction(Pytree):
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceMap,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
         """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
@@ -1117,7 +1117,7 @@ class GenerativeFunction(Pytree):
         prev: Trace,
         new_constraints: Choice,
         diffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[Trace, FloatArray, Any, Choice]:
         raise NotImplementedError
 
     @dispatch
@@ -1161,7 +1161,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self,
-        chm: ChoiceMap,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """> Given a complete choice map indicating constraints ($u$) for all
@@ -1212,11 +1212,8 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     @typecheck
     def unzip(
         self,
-        fixed: ChoiceMap,
-    ) -> Tuple[
-        Callable[[ChoiceMap, Tuple], FloatArray],
-        Callable[[ChoiceMap, Tuple], Any],
-    ]:
+        fixed: Choice,
+    ) -> Tuple[Callable[[Choice, Tuple], FloatArray], Callable[[Choice, Tuple], Any],]:
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
