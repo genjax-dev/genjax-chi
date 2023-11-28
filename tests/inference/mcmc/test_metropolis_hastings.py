@@ -55,7 +55,10 @@ class TestMetropolisHastings:
         def model():
             loc = genjax.normal(0.0, 1.0) @ "loc"
             xs = (
-                genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ "xs"
+                genjax.Map(genjax.normal, in_axes=(None, 0))(
+                    loc, jnp.arange(10, dtype=float)
+                )
+                @ "xs"
             )
             return xs
 
@@ -63,7 +66,10 @@ class TestMetropolisHastings:
         def proposal(choices):
             loc = choices["loc"]
             xs = (
-                genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ "xs"
+                genjax.Map(genjax.normal, in_axes=(None, 0))(
+                    loc, jnp.arange(10, dtype=float)
+                )
+                @ "xs"
             )
             return xs
 
