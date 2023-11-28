@@ -202,7 +202,7 @@ class TestSimpleSMC:
                 ),
             )
 
-        smc_state = genjax.smc.smc_initialize(chain, 5).apply(
+        smc_state = jax.jit(genjax.smc.smc_initialize(chain, 5).apply)(
             key, make_choice_map(0), (0, jnp.ones(361))
         )
 
@@ -210,6 +210,6 @@ class TestSimpleSMC:
             genjax.tree_diff_unknown_change(1),
             genjax.tree_diff_no_change(jnp.ones(361)),
         )
-        smc_state = genjax.smc.smc_update().apply(
+        smc_state = jax.jit(genjax.smc.smc_update().apply)(
             key, smc_state, argdiffs, make_choice_map(1)
         )
