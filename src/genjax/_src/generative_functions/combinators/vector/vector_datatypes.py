@@ -155,12 +155,6 @@ class IndexedChoiceMap(ChoiceMap):
     ) -> ChoiceMap:
         return IndexedChoiceMap(self.indices, self.inner.filter(selection))
 
-    def has_submap(self, addr):
-        if not isinstance(addr, Tuple) and len(addr) == 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
-
     @dispatch
     def filter(
         self,
@@ -171,9 +165,16 @@ class IndexedChoiceMap(ChoiceMap):
         masked = mask(flags, filtered_inner)
         return IndexedChoiceMap(self.indices, masked)
 
-    def has_submap(self, addr):
+    @dispatch
+    def has_submap(self, addr: IntArray):
+        return addr in self.indices
         if not isinstance(addr, Tuple) and len(addr) == 1:
             return False
+        (idx, addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
+
+    @dispatch
+    def has_submap(self, addr: Tuple):
         (idx, addr) = addr
         return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
 
@@ -183,7 +184,7 @@ class IndexedChoiceMap(ChoiceMap):
             return self.get_submap(addr[0])
         idx, *rest = addr
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = slice_index[0]
+        slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         submap = submap.get_submap(tuple(rest))
         if isinstance(submap, EmptyChoice):
@@ -194,15 +195,7 @@ class IndexedChoiceMap(ChoiceMap):
     @dispatch
     def get_submap(self, idx: IntArray):
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = slice_index[0]
-        slice_index = self.indices[slice_index]
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        return mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, idx: Int):
-        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = slice_index[0]
+        slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         return mask(jnp.isin(idx, self.indices), submap)
 
