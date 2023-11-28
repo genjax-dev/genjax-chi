@@ -4050,13 +4050,13 @@ watchmedo = ["PyYAML (>=3.10)"]
 
 [[package]]
 name = "wcwidth"
-version = "0.2.9"
+version = "0.2.12"
 description = "Measures the displayed width of unicode strings in a terminal"
 optional = false
 python-versions = "*"
 files = [
-    {file = "wcwidth-0.2.9-py2.py3-none-any.whl", hash = "sha256:9a929bd8380f6cd9571a968a9c8f4353ca58d7cd812a4822bba831f8d685b223"},
-    {file = "wcwidth-0.2.9.tar.gz", hash = "sha256:a675d1a4a2d24ef67096a04b85b02deeecd8e226f57b5e3a72dbb9ed99d27da8"},
+    {file = "wcwidth-0.2.12-py2.py3-none-any.whl", hash = "sha256:f26ec43d96c8cbfed76a5075dac87680124fa84e0855195a6184da9c187f133c"},
+    {file = "wcwidth-0.2.12.tar.gz", hash = "sha256:f01c104efdf57971bcb756f054dd58ddec5204dd15fa31d6503ea57947d97c02"},
 ]
 
 [[package]]
