@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,13 +18,14 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import Choice, ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Callable
+from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
@@ -45,7 +46,11 @@ class TraceTranslator(Pytree):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def run_transform(self, prev_model_trace):
+    def apply(
+        self,
+        key: PRNGKey,
+        prev_model_trace: Trace,
+    ) -> Tuple[Trace, FloatArray]:
         raise NotImplementedError
 
 
@@ -95,7 +100,12 @@ class DeterministicTraceTranslator(TraceTranslator):
         new_trace, _ = self.p_new.importance(key, constraints, self.p_args)
         return new_trace, log_abs_det
 
-    def apply(self, key: PRNGKey, prev_model_trace: Trace):
+    @typecheck
+    def apply(
+        self,
+        key: PRNGKey,
+        prev_model_trace: Trace,
+    ) -> Tuple[Trace, FloatArray]:
         new_model_trace, log_abs_det = self.run_transform(key, prev_model_trace)
         prev_model_score = prev_model_trace.get_score()
         new_model_score = new_model_trace.get_score()
@@ -112,6 +122,76 @@ def deterministic_trace_translator(
     backward: Callable,
 ):
     return DeterministicTraceTranslator.new(p_new, p_args, new_obs, forward, backward)
+
+
+#####################################
+# Simple extending trace translator #
+#####################################
+
+
+@dataclass
+class SimpleExtendingTraceTranslator(TraceTranslator):
+    choice_map_bijection: Callable
+    p_argdiffs: Tuple
+    q_forward: GenerativeFunction
+    q_forward_args: Tuple
+    new_observations: Choice
+
+    def flatten(self):
+        return (
+            self.p_argdiffs,
+            self.q_forward,
+            self.q_forward_args,
+            self.new_observations,
+        ), (self.choice_map_bijection,)
+
+    @classmethod
+    def new(
+        cls,
+        p_argdiffs: Tuple,
+        q_forward: GenerativeFunction,
+        q_forward_args: Tuple,
+        new_obs: Choice,
+        choice_map_bijection: Callable,
+    ):
+        return SimpleExtendingTraceTranslator(
+            choice_map_bijection,
+            p_argdiffs,
+            q_forward,
+            q_forward_args,
+            new_obs,
+        )
+
+    def apply(self, key: PRNGKey, prev_model_trace: Trace):
+        prev_model_choices = prev_model_trace.get_choices()
+        forward_proposal_trace = self.q_forward.simulate(
+            key, (prev_model_choices, *self.q_forward_args)
+        )
+        forward_proposal_score = forward_proposal_trace.get_score()
+        constraints = forward_proposal_trace.get_choices().merge(self.new_obs)
+        (new_model_trace, log_model_weight, _, discard) = prev_model_trace.update(
+            key, constraints, self.p_argdiffs
+        )
+        assert discard.is_empty()
+        log_weight = log_model_weight - forward_proposal_score
+        return (new_model_trace, log_weight)
+
+
+@typecheck
+def simple_extending_trace_translator(
+    p_argdiffs: Tuple,
+    q_forward: GenerativeFunction,
+    q_forward_args: Tuple,
+    new_obs: ChoiceMap,
+    choice_map_bijection: Callable,
+):
+    return SimpleExtendingTraceTranslator.new(
+        p_argdiffs,
+        q_forward,
+        q_forward_args,
+        new_obs,
+        choice_map_bijection,
+    )
 
 
 ###########################
