@@ -21,6 +21,7 @@ from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import typecheck
 from genjax._src.inference.smc.state import SMCAlgorithm
 from genjax._src.inference.smc.state import SMCState
 from genjax._src.inference.smc.utils import dynamic_check_empty
@@ -31,6 +32,11 @@ class SMCForwardUpdate(SMCAlgorithm):
     def flatten(self):
         return (), ()
 
+    @classmethod
+    def new(cls):
+        return SMCForwardUpdate()
+
+    @typecheck
     def apply(
         self,
         key: PRNGKey,
@@ -42,7 +48,7 @@ class SMCForwardUpdate(SMCAlgorithm):
         particles = state.get_particles()
         n_particles = state.get_num_particles()
         sub_keys = jax.random.split(key, n_particles)
-        (_, log_weights, particles, discard) = jax.vmap(
+        (particles, log_weights, _, discard) = jax.vmap(
             target_model.update, in_axes=(0, 0, None, None)
         )(sub_keys, particles, obs, new_argdiffs)
         dynamic_check_empty(discard)

@@ -20,6 +20,7 @@ import rich.tree as rich_tree
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import AllSelection
+from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -250,7 +251,7 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def new(
         cls,
-        inner: ChoiceMap,
+        inner: Choice,
     ) -> ChoiceMap:
         # Static assertion: all leaves must have same first dim size.
         static_check_tree_leaves_have_matching_leading_dim(inner)

@@ -51,7 +51,7 @@ class SMCInitializeFromPrior(SMCAlgorithm):
         model_args: Tuple,
     ):
         sub_keys = jax.random.split(key, self.n_particles)
-        (lws, particles) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
+        (particles, lws) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
             sub_keys, obs, model_args
         )
         return SMCState(self.n_particles, particles, lws, 0.0, True)
@@ -99,7 +99,7 @@ class SMCInitializeFromProposal(SMCAlgorithm):
 
         def _inner(key, proposal):
             constraints = obs.merge(proposal)
-            _, (model_score, particle) = self.model.importance(
+            (particle, model_score) = self.model.importance(
                 key, constraints, model_args
             )
             return model_score, particle

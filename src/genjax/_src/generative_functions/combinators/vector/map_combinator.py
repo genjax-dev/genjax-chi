@@ -243,7 +243,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        inner = chm.inner.get_choices()
+        inner = chm.inner
         (tr, w) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
             sub_keys, inner, args
         )
@@ -330,7 +330,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: IndexedChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -371,7 +371,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: VectorChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -381,7 +381,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         )
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        (retval_diff, w, tr, discard) = jax.vmap(
+        (tr, w, retval_diff, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
         )(sub_keys, prev.inner, chm.inner, original_args, argdiffs)
@@ -390,7 +390,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         discard = VectorChoiceMap(discard)
-        return (retval_diff, w, map_tr, discard)
+        return (map_tr, w, retval_diff, discard)
 
     # The choice map passed in here is empty, but
     # the arguments have changed.
@@ -401,7 +401,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: EmptyChoice,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
@@ -410,14 +410,14 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
-        (retval_diff, w, tr, discard) = jax.vmap(
+        (tr, w, retval_diff, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
         )(sub_keys, prev.inner, chm, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
-        return (retval_diff, w, map_tr, discard)
+        return (map_tr, w, retval_diff, discard)
 
     @dispatch
     def update(
@@ -426,7 +426,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         maybe_idx_chm = IndexedChoiceMap.convert(chm)
         return self.update(key, prev, maybe_idx_chm, argdiffs)
 
@@ -462,10 +462,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self._optional_index_check(check, indices, chm.get_index())
 
         inner = chm.inner
-        (retval, score) = jax.vmap(self.kernel.assess, in_axes=(0, self.in_axes))(
+        (score, retval) = jax.vmap(self.kernel.assess, in_axes=(0, self.in_axes))(
             inner, args
         )
-        return (retval, jnp.sum(score))
+        return (jnp.sum(score), retval)
 
 
 #########################

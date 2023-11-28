@@ -56,6 +56,10 @@ class SMCResample(SMCAlgorithm):
     def flatten(self):
         return (self.resampling_method,), ()
 
+    @classmethod
+    def new(cls, resampling_method):
+        return SMCResample(resampling_method)
+
     @dispatch
     def apply(
         self,

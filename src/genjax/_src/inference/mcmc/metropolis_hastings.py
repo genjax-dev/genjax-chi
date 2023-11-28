@@ -48,7 +48,7 @@ class MetropolisHastings(MCMCKernel):
         fwd_weight = proposal_tr.get_score()
         diffs = tree_diff_no_change(model_args)
         key, sub_key = jax.random.split(key)
-        (_, weight, new, discard) = model.update(
+        (new, weight, _, discard) = model.update(
             sub_key, trace, proposal_tr.strip(), diffs
         )
         proposal_args_bwd = (new, *proposal_args)

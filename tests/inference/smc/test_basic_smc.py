@@ -161,7 +161,7 @@ class TestSimpleSMC:
     def test_smoke_smc_with_nested_switch(self):
         @genjax.gen(genjax.Static)
         def outlier():
-            return genjax.tfp_normal(0.0, 1.0) @ "reflection_point"
+            return genjax.normal(0.0, 1.0) @ "reflection_point"
 
         branching = genjax.Switch(outlier, outlier)
 
