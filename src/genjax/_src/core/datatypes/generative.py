@@ -695,6 +695,7 @@ def strip(v):
 ###########
 
 
+@dataclass
 class Mask(Pytree):
     """The `Mask` datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
@@ -710,9 +711,8 @@ class Mask(Pytree):
     * Using `Mask.match` - which allows a user to provide "none" and "some" lambdas. The "none" lambda should accept no arguments, while the "some" lambda should accept an argument whose type is the same as the masked value. These lambdas should return the same type (`Pytree`, array, etc) of value.
     """
 
-    def __init__(self, mask: BoolArray, value: Any):
-        self.mask = mask
-        self.value = value
+    mask: BoolArray
+    value: Any
 
     def flatten(self):
         return (self.mask, self.value), ()
