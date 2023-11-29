@@ -1536,13 +1536,13 @@ test = ["click", "pre-commit", "pytest (>=7.0)", "pytest-asyncio (>=0.19.0)", "p
 
 [[package]]
 name = "jupyter-server"
-version = "2.10.0"
+version = "2.11.1"
 description = "The backend—i.e. core services, APIs, and REST endpoints—to Jupyter web applications."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jupyter_server-2.10.0-py3-none-any.whl", hash = "sha256:dde56c9bc3cb52d7b72cc0f696d15d7163603526f1a758eb4a27405b73eab2a5"},
-    {file = "jupyter_server-2.10.0.tar.gz", hash = "sha256:47b8f5e63440125cb1bb8957bf12b18453ee5ed9efe42d2f7b2ca66a7019a278"},
+    {file = "jupyter_server-2.11.1-py3-none-any.whl", hash = "sha256:4b3a16e3ed16fd202588890f10b8ca589bd3e29405d128beb95935f059441373"},
+    {file = "jupyter_server-2.11.1.tar.gz", hash = "sha256:fe80bab96493acf5f7d6cd9a1575af8fbd253dc2591aa4d015131a1e03b5799a"},
 ]
 
 [package.dependencies]
@@ -1551,7 +1551,7 @@ argon2-cffi = "*"
 jinja2 = "*"
 jupyter-client = ">=7.4.4"
 jupyter-core = ">=4.12,<5.0.dev0 || >=5.1.dev0"
-jupyter-events = ">=0.6.0"
+jupyter-events = ">=0.9.0"
 jupyter-server-terminals = "*"
 nbconvert = ">=6.4.4"
 nbformat = ">=5.3.0"
