@@ -18,9 +18,9 @@
 
 # Closed modules.
 from genjax import gensp
-from genjax import grasp
 from genjax import inference
 from genjax import typing
+from genjax import vi
 from genjax.core import serialization
 
 from .console import *
