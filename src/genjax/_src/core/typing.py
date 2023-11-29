@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ Type annotations in the codebase are exported out of this module for
 consistency.
 """
 
-import typing
-
 import beartype.typing as btyping
 import jax
 import jax.numpy as jnp
@@ -31,16 +29,17 @@ from plum import dispatch
 from plum import parametric
 
 
-Dataclass = typing.Any
-PrettyPrintable = typing.Any
+Any = btyping.Any
+Dataclass = btyping.Any
+PrettyPrintable = btyping.Any
 PRNGKey = jtyping.UInt[jtyping.Array, "..."]
-FloatArray = typing.Union[float, jtyping.Float[jtyping.Array, "..."]]
-BoolArray = typing.Union[bool, jtyping.Bool[jtyping.Array, "..."]]
-IntArray = typing.Union[int, jtyping.Int[jtyping.Array, "..."]]
-Any = typing.Any
-Union = typing.Union
+Array = jtyping.Array
+Union = btyping.Union
+IntArray = jtyping.Int[jtyping.Array, "..."]
+FloatArray = jtyping.Float[jtyping.Array, "..."]
+BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
-Sequence = typing.Sequence
+Sequence = btyping.Sequence
 Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
@@ -50,10 +49,13 @@ Hashable = btyping.Hashable
 FrozenSet = btyping.FrozenSet
 Optional = btyping.Optional
 Type = btyping.Type
+
+# Types of Python literals.
 Int = int
 Float = float
 Bool = bool
 String = str
+
 Address = Union[String, Int, Tuple["Address"]]
 Value = Any
 
@@ -85,6 +87,10 @@ def static_check_is_array(v):
     )
 
 
+def static_check_is_concrete(x):
+    return not isinstance(x, jax.core.Tracer)
+
+
 # TODO: the dtype comparison needs to be replaced with something
 # more robust.
 def static_check_supports_grad(v):
@@ -100,6 +106,7 @@ __all__ = [
     "IntArray",
     "Value",
     "Tuple",
+    "Array",
     "Any",
     "Union",
     "Callable",
@@ -114,6 +121,7 @@ __all__ = [
     "Type",
     "Generic",
     "TypeVar",
+    "static_check_is_concrete",
     "static_check_is_array",
     "static_check_supports_grad",
     "typecheck",

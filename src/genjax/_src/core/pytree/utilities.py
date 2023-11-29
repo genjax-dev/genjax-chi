@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,11 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.typing import static_check_supports_grad
 
 
-#####
-# Utilities
-#####
-
-
 def tree_stack(trees):
     """Takes a list of trees and stacks every corresponding leaf.
 
@@ -41,7 +36,7 @@ def tree_stack(trees):
         treedef_list.append(treedef)
 
     grouped_leaves = zip(*leaves_list)
-    result_leaves = [jnp.stack(leaf) for leaf in grouped_leaves]
+    result_leaves = [jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves]
     return treedef_list[0].unflatten(result_leaves)
 
 

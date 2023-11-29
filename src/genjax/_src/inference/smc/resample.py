@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import dispatch
 from genjax._src.inference.smc.state import SMCAlgorithm
@@ -55,6 +55,10 @@ class SMCResample(SMCAlgorithm):
 
     def flatten(self):
         return (self.resampling_method,), ()
+
+    @classmethod
+    def new(cls, resampling_method):
+        return SMCResample(resampling_method)
 
     @dispatch
     def apply(

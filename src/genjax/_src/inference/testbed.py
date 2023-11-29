@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,8 +35,9 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     discrete_hmm_config,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_categorical,
+    categorical,
 )
+from genjax._src.generative_functions.static.static_gen_fn import Static
 from genjax._src.language_decorator import gen
 
 
@@ -90,18 +91,17 @@ def build_inference_test_generator(
     )
 
     @gen(Unfold, max_length=max_length)
+    @gen(Static)
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor
         observation = config.observation_tensor
-        z = tfp_categorical(transition[state, :]) @ "z"
-        _ = tfp_categorical(observation[z, :]) @ "x"
+        z = categorical(transition[state, :]) @ "z"
+        _ = categorical(observation[z, :]) @ "x"
         return z
 
     def inference_test_generator(key: PRNGKey):
         key, sub_key = jax.random.split(key)
-        initial_state = tfp_categorical.sample(
-            sub_key, jnp.ones(config.linear_grid_dim)
-        )
+        initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
         tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
         z_sel = select("z")
         x_sel = select("x")

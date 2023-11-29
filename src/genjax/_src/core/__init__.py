@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module provides the core functionality and JAX compatibility layer
-which `GenJAX` generative function and inference modules are built on top of.
+which several `GenJAX` generative function and inference modules are built on
+top of.
+
 It contains (truncated, and in no particular order):
 
 * Core data types for the associated data types of generative functions.

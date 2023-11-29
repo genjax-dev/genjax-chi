@@ -50,7 +50,11 @@ def tests(session):
         "--ignore",
         "scratch",
         "--ignore",
+        "notebooks",
+        "--ignore",
         "benchmarks",
+        "--ignore",
+        "notebooks",
         "-n",
         "auto",
     )

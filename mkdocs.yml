@@ -20,43 +20,42 @@ edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
-  #  - Home:
-  #      - index.md
-  #      - Comparisons to Gen.jl: genjax/diff_jl.md
+  - Overview:
+    - index.md
   - Inference notebooks: genjax/notebooks.md
   - Library reference:
       - genjax/library/index.md
       - Core:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
-          - Generative datatypes: genjax/library/core/generative.md
-          - Specialization, value universes, and functional types: genjax/library/core/functional_types.md
-          - Interpreters & transforms: genjax/library/core/interpreters.md
+          - Dynamism and functional types: genjax/library/core/functional_types.md
           - Runtime debugger: genjax/library/core/runtime_debugger.md
       - Generative function languages:
           - genjax/library/generative_functions/index.md
           - Distributions:
               - genjax/library/generative_functions/distributions/index.md
-          #     - Coryx: genjax/library/generative_functions/distributions/coryx.md
-          #     - GenSP: genjax/library/generative_functions/distributions/gensp.md
-          - Builtin language: genjax/library/generative_functions/builtin.md
+              - Reference: genjax/library/generative_functions/distributions/exported.md
+              - Oryx distributions as generative functions: genjax/library/generative_functions/distributions/oryx.md
+          - Static language: genjax/library/generative_functions/static.md
           - Combinators:
               - genjax/library/generative_functions/combinators/index.md
+              - Masked combinator: genjax/library/generative_functions/combinators/masked.md
               - Map combinator: genjax/library/generative_functions/combinators/map.md
+              - Repeat combinator: genjax/library/generative_functions/combinators/repeat.md
               - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
               - Switch combinator: genjax/library/generative_functions/combinators/switch.md
+          - Interpreted language: genjax/library/generative_functions/interpreted.md
+      - Inference:
+          - genjax/library/inference/index.md
+          - Importance sampling: genjax/library/inference/is.md
+          - Sequential Monte Carlo: genjax/library/inference/smc.md
+          - Variational inference: genjax/library/inference/vi.md
       - Extension modules:
           - genjax/library/extensions/index.md
           - Gaussian processes: genjax/library/extensions/tinygp.md
           - HMC/NUTS: genjax/library/extensions/blackjax.md
-    #      - Inference:
-    #          - genjax/library/inference/index.md
-    #          - Importance sampling: genjax/library/inference/is.md
-    #          - Markov chain Monte Carlo: genjax/library/inference/mcmc.md
-    #          - Variational inference: genjax/library/inference/vi.md
-    #      - Differentiable programming:
-    #          - genjax/library/diff_prog/index.md
-    #          - Differentiable state: genjax/library/diff_prog/state.md
+  - Autodi(GenJAX):
+      - genjax/autodigenjax.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
@@ -68,8 +67,6 @@ theme:
   favicon: assets/img/gen-logo.png
   icon:
     repo: fontawesome/brands/github
-  font:
-    text: Atkinson Hyperlegible
   features:
     - optimize
     - typeset
@@ -81,7 +78,7 @@ theme:
     - content.tooltips
     - content.tabs.link
     - navigation.footer
-      navigation.expand
+    - navigation.expand
     - navigation.indexes
     - navigation.sections
     - navigation.tabs
@@ -89,6 +86,7 @@ theme:
     - navigation.top
     - navigation.tracking
     - navigation.instant
+    - navigation.instant.progress
     - navigation.path
     - navigation.prune
     - search.highlight
@@ -98,6 +96,7 @@ theme:
   palette:
     # Palette toggle for light mode
     - scheme: default
+      accent: red
       primary: white
       toggle:
         icon: material/brightness-7
@@ -105,6 +104,7 @@ theme:
 
     # Palette toggle for dark mode
     - scheme: slate
+      accent: red
       primary: black
       toggle:
         icon: material/brightness-4
@@ -139,7 +139,6 @@ extra:
     provider: mike
 
 extra_css:
-  - css/fonts.css
   - css/custom.css
   - css/mkdocstrings.css
 

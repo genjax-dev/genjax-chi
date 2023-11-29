@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.interpreters.staging import is_concrete
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.inference.smc.state import SMCAlgorithm
 from genjax._src.inference.smc.state import SMCState
 
@@ -51,7 +51,7 @@ class SMCInitializeFromPrior(SMCAlgorithm):
         model_args: Tuple,
     ):
         sub_keys = jax.random.split(key, self.n_particles)
-        (lws, particles) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
+        (particles, lws) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
             sub_keys, obs, model_args
         )
         return SMCState(self.n_particles, particles, lws, 0.0, True)
@@ -81,7 +81,7 @@ class SMCInitializeFromProposal(SMCAlgorithm):
         proposal: GenerativeFunction,
         n_particles: Int,
     ):
-        assert is_concrete(n_particles)
+        assert static_check_is_concrete(n_particles)
         return SMCInitializeFromPrior(n_particles, model, proposal)
 
     def apply(
@@ -99,7 +99,7 @@ class SMCInitializeFromProposal(SMCAlgorithm):
 
         def _inner(key, proposal):
             constraints = obs.merge(proposal)
-            _, (model_score, particle) = self.model.importance(
+            (particle, model_score) = self.model.importance(
                 key, constraints, model_args
             )
             return model_score, particle

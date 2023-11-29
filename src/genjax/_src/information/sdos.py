@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,32 +14,30 @@
 """This module contains an implementation of (Symmetric divergence over
 datasets) from Domke, 2021."""
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
-    GenSPDistribution,
-)
-from genjax._src.generative_functions.distributions.gensp.target import Target
+from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
+from genjax._src.gensp.target import Target
 
 
-@dataclasses.dataclass
+@dataclass
 class SymmetricDivergenceOverDatasets(Pytree):
     num_meta_p: Int
     num_meta_q: Int
     p: GenerativeFunction
-    q: GenSPDistribution
+    q: ChoiceMapDistribution
     inf_selection: Selection
 
     def flatten(self):
@@ -53,7 +51,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
     def new(
         cls,
         p: GenerativeFunction,
-        q: GenSPDistribution,
+        q: ChoiceMapDistribution,
         inf_selection: Selection,
         num_meta_p: Int,
         num_meta_q: Int,
@@ -99,7 +97,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
         # Compute estimate of log q(z | x)
         constraints = obs_chm
         target = Target(self.p, p_args, constraints)
-        latent_chm = ValueChoiceMap.new(latent_chm)
+        latent_chm = ChoiceValue.new(latent_chm)
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
             sub_key, key_indices_q, latent_chm, (target,)

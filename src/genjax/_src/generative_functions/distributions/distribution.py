@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,33 +16,27 @@
 import abc
 from dataclasses import dataclass
 
-import jax
-
-from genjax._src.core.datatypes.address_tree import AddressLeaf
 from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.datatypes.generative import ValueChoiceMap
-from genjax._src.core.datatypes.generative import tt_lift
+from genjax._src.core.interpreters.incremental import static_check_no_change
+from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
-from genjax._src.core.transforms.incremental import static_check_no_change
-from genjax._src.core.transforms.incremental import static_check_tree_leaves_diff
-from genjax._src.core.transforms.incremental import tree_diff_no_change
-from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 #####
@@ -53,7 +47,6 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuil
 @dataclass
 class DistributionTrace(
     Trace,
-    AddressLeaf,
     SupportsPickleSerialization,
 ):
     gen_fn: GenerativeFunction
@@ -77,7 +70,7 @@ class DistributionTrace(
         return self.score
 
     def get_choices(self):
-        return ValueChoiceMap(self.value)
+        return ChoiceValue(self.value)
 
     def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, AllSelection):
@@ -85,7 +78,7 @@ class DistributionTrace(
         else:
             return 0.0
 
-    def get_leaf_value(self):
+    def get_value(self):
         return self.value
 
     def set_leaf_value(self, v):
@@ -115,25 +108,9 @@ class DistributionTrace(
 
 
 @dataclass
-class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
+class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def flatten(self):
         return (), ()
-
-    def __abstract_call__(self, *args):
-        # Abstract evaluation: value here doesn't matter, only the type.
-        key = jax.random.PRNGKey(0)
-        (_, v) = self.random_weighted(key, *args)
-        return v
-
-    @typecheck
-    def get_trace_type(self, *args, **kwargs) -> TraceType:
-        # `get_trace_type` is compile time - the key value
-        # doesn't matter, just the type.
-        key = jax.random.PRNGKey(0)
-        (_, (_, ttype)) = jax.make_jaxpr(self.random_weighted, return_shape=True)(
-            key, *args
-        )
-        return tt_lift(ttype)
 
     @abc.abstractmethod
     def random_weighted(self, *args, **kwargs):
@@ -157,39 +134,39 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[FloatArray, DistributionTrace]:
+    ) -> Tuple[DistributionTrace, FloatArray]:
         tr = self.simulate(key, args)
-        return (0.0, tr)
+        return (tr, 0.0)
 
     @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: ValueChoiceMap,
+        chm: ChoiceValue,
         args: Tuple,
-    ) -> Tuple[FloatArray, DistributionTrace]:
-        v = chm.get_leaf_value()
+    ) -> Tuple[DistributionTrace, FloatArray]:
+        v = chm.get_value()
         w = self.estimate_logpdf(key, v, *args)
         score = w
-        return (w, DistributionTrace(self, args, v, score))
+        return (DistributionTrace(self, args, v, score), w)
 
     @dispatch
     def update(
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: EmptyChoiceMap,
+        constraints: EmptyChoice,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
+    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
         retval_diff = tree_diff_no_change(v)
 
         # If no change to arguments, no need to update.
         if static_check_no_change(argdiffs):
-            return (retval_diff, 0.0, prev, EmptyChoiceMap())
+            return (prev, 0.0, retval_diff, EmptyChoice())
 
         # Otherwise, we must compute an incremental weight.
         else:
@@ -197,37 +174,26 @@ class Distribution(JAXGenerativeFunction, SupportsBuiltinSugar):
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
-            return (retval_diff, fwd - bwd, new_tr, EmptyChoiceMap())
+            return (new_tr, fwd - bwd, retval_diff, EmptyChoice())
 
     @dispatch
     def update(
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: ValueChoiceMap,
+        constraints: ChoiceValue,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DistributionTrace, Any]:
+    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
         static_check_tree_leaves_diff(argdiffs)
         args = tree_diff_primal(argdiffs)
-        v = constraints.get_leaf_value()
+        v = constraints.get_value()
         fwd = self.estimate_logpdf(key, v, *args)
         bwd = prev.get_score()
         w = fwd - bwd
         new_tr = DistributionTrace(self, args, v, fwd)
         discard = prev.get_choices()
         retval_diff = tree_diff_unknown_change(v)
-        return (retval_diff, w, new_tr, discard)
-
-    @typecheck
-    def assess(
-        self,
-        key: PRNGKey,
-        evaluation_point: ValueChoiceMap,
-        args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
-        v = evaluation_point.get_leaf_value()
-        score = self.estimate_logpdf(key, v, *args)
-        return (v, score)
+        return (new_tr, w, retval_diff, discard)
 
     ###################
     # Deserialization #
@@ -320,6 +286,16 @@ class ExactDensity(Distribution):
         w = self.logpdf(v, *args, **kwargs)
         return (w, v)
 
-    def estimate_logpdf(self, key, v, *args, **kwargs):
+    def estimate_logpdf(self, _, v, *args, **kwargs):
         w = self.logpdf(v, *args, **kwargs)
         return w
+
+    @typecheck
+    def assess(
+        self,
+        evaluation_point: ChoiceValue,
+        args: Tuple,
+    ) -> Tuple[FloatArray, Any]:
+        v = evaluation_point.get_value()
+        score = self.logpdf(v, *args)
+        return (score, v)

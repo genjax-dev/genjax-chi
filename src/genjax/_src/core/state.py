@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
 """This module contains a `Module` class which supports parameter learning by
 exposing primitives which allow users to sow functions with state."""
 
-import dataclasses
 import functools
+from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
+from oryx import harvest
 
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Callable
 
 
@@ -48,7 +48,7 @@ def param(*args, name):
 ##############
 
 
-@dataclasses.dataclass
+@dataclass
 class StateTrie(harvest.ReapState):
     inner: Trie
 
@@ -76,7 +76,7 @@ class StateTrie(harvest.ReapState):
         return values
 
 
-@dataclasses.dataclass
+@dataclass
 class Module(Pytree):
     apply: Callable
     params: StateTrie

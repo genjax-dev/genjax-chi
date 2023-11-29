@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,11 @@
 # For the internals, see _src.
 
 # Closed modules.
+from genjax import gensp
+from genjax import incremental
 from genjax import inference
 from genjax import typing
-from genjax.core import interpreters
 from genjax.core import serialization
-from genjax.generative_functions import gentle
-from genjax.generative_functions.distributions import coryx
-from genjax.generative_functions.distributions import gensp
 
 from .console import *
 from .core import *
@@ -33,7 +31,6 @@ from .generative_functions import *
 from .global_options import *
 from .inference import *
 from .information import *
-from .interface import *
 from .language_decorator import *
 
 

@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,32 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import ValueChoiceMap
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.distributions.gensp.gensp_distribution import (
-    GenSPDistribution,
-)
-from genjax._src.generative_functions.distributions.gensp.target import Target
+from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
+from genjax._src.gensp.target import Target
 
 
-@dataclasses.dataclass
+@dataclass
 class EntropyEstimatorsViaInference(Pytree):
     n_lower_bound: Int
     n_upper_bound: Int
     model: GenerativeFunction
-    proposal: GenSPDistribution
+    proposal: ChoiceMapDistribution
     targets: Selection
 
     def flatten(self):
@@ -51,7 +49,7 @@ class EntropyEstimatorsViaInference(Pytree):
     def new(
         cls,
         model: GenerativeFunction,
-        proposal: GenSPDistribution,
+        proposal: ChoiceMapDistribution,
         targets: Selection,
         n_lower_bound: Int,
         n_upper_bound: Int,
@@ -94,7 +92,7 @@ class EntropyEstimatorsViaInference(Pytree):
         key, *sub_keys = jax.random.split(key, self.n_upper_bound + 1)
         sub_keys = jnp.array(sub_keys)
         _, (log_q, _) = jax.vmap(self.proposal.assess, in_axes=(0, None, None))(
-            sub_keys, ValueChoiceMap(latents), (target,)
+            sub_keys, ChoiceValue(latents), (target,)
         )
         log_w = log_q - log_p
         return key, -jnp.mean(log_w), (log_p, log_q)

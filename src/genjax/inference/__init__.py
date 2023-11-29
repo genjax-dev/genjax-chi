@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ from genjax.inference import map_opt
 from genjax.inference import mcmc
 from genjax.inference import smc
 from genjax.inference import testbed
+from genjax.inference import translator
+from genjax.inference import vi
 
 
 __all__ = [
@@ -24,5 +26,7 @@ __all__ = [
     "importance_sampling",
     "map_opt",
     "smc",
+    "translator",
     "testbed",
+    "vi",
 ]

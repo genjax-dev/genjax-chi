@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import FloatArray
@@ -95,10 +96,14 @@ class DropArgumentsTrace(Trace):
 
 @dataclass
 class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
-    gen_fn: GenerativeFunction
+    gen_fn: JAXGenerativeFunction
 
     def flatten(self):
         return (self.gen_fn,), ()
+
+    @classmethod
+    def new(cls, gen_fn):
+        return DropArgumentsGenerativeFunction(gen_fn)
 
     def simulate(
         self,
@@ -123,18 +128,21 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DropArgumentsTrace]:
+    ) -> Tuple[DropArgumentsTrace, FloatArray]:
         w, tr = self.gen_fn.importance(key, choice_map, args)
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
-        return w, DropArgumentsTrace.new(
-            self,
-            inner_retval,
-            inner_score,
-            inner_chm,
-            aux,
+        return (
+            DropArgumentsTrace.new(
+                self,
+                inner_retval,
+                inner_score,
+                inner_chm,
+                aux,
+            ),
+            w,
         )
 
     def update(
@@ -143,8 +151,8 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         prev: Trace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, DropArgumentsTrace, ChoiceMap]:
-        (retval_diff, w, tr, discard) = self.gen_fn.update(
+    ) -> Tuple[DropArgumentsTrace, FloatArray, Any, ChoiceMap]:
+        (tr, w, retval_diff, discard) = self.gen_fn.update(
             key, prev, choice_map, argdiffs
         )
         inner_retval = tr.get_retval()
@@ -152,8 +160,6 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return (
-            retval_diff,
-            w,
             DropArgumentsTrace.new(
                 self,
                 inner_retval,
@@ -161,16 +167,17 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
                 inner_chm,
                 aux,
             ),
+            w,
+            retval_diff,
             discard,
         )
 
     def assess(
         self,
-        key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, DropArgumentsTrace]:
-        return self.gen_fn.assess(key, choice_map, args)
+    ) -> Tuple[FloatArray, Any]:
+        return self.gen_fn.assess(choice_map, args)
 
     def restore_with_aux(self, interface_data, aux):
         return self.gen_fn.restore_with_aux(interface_data, aux)
@@ -180,8 +187,11 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
 # Shorthands #
 ##############
 
-DropArguments = DropArgumentsGenerativeFunction.new
-
 
 def drop_arguments(gen_fn: JAXGenerativeFunction):
-    return DropArguments(gen_fn)
+    return DropArgumentsGenerativeFunction.new(gen_fn)
+
+
+DropArguments = LanguageConstructor(
+    drop_arguments,
+)
