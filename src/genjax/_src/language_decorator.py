@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,28 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
+from genjax._src.core.typing import Any
 from genjax._src.core.typing import Callable
-from genjax._src.generative_functions.builtin.builtin_gen_fn import (
-    BuiltinGenerativeFunction,
-)
+from genjax._src.core.typing import typecheck
 
 
-#####
-# Language decorator
-#####
-
-# TODO: possibly just shorthand `gen = BuiltinGenerativeFunction.new`
-# and defer wrapping into higher combinators via `functools` idioms.
+######################
+# Language decorator #
+######################
 
 
-def gen(callable: Callable, **kwargs) -> GenerativeFunction:
-    if inspect.isclass(callable) or inspect.ismethod(callable):
-        return lambda source: callable(
-            BuiltinGenerativeFunction.new(source),
-            **kwargs,
-        )
-    else:
-        return BuiltinGenerativeFunction.new(callable)
+@typecheck
+def gen(lang_constructor: LanguageConstructor, *args, **kwargs) -> Callable:
+    @typecheck
+    def _inner(inner: Any) -> GenerativeFunction:
+        return lang_constructor(inner, *args, **kwargs)
+
+    return _inner

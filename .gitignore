@@ -1,3 +1,4 @@
+data
 *.pyc
 *.so
 *.egg-info
@@ -32,5 +33,6 @@ cmake_install.cmake
 scratch
 docs/_build
 notebooks/hidden
+notebooks/dippl/data
 
 /.luarc.json

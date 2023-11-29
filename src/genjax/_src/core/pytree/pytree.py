@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.pytree.utilities import tree_stack
 from genjax._src.core.pytree.utilities import tree_unstack
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
 
 
 class Pytree:
@@ -143,11 +142,6 @@ class Pytree:
         """
         return cls(*data, *xs)
 
-    @classmethod
-    @dispatch
-    def new(cls, *args, **kwargs):
-        return cls(*args, **kwargs)
-
     # This exposes slicing the struct-of-array representation,
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
@@ -178,12 +172,9 @@ class Pytree:
     ###################
 
     # Can be customized by Pytree mixers.
-    def __rich_tree__(self, tree):
-        sub_tree = gpp.tree_pformat(self)
-        tree.add(sub_tree)
-        return tree
+    def __rich_tree__(self):
+        return gpp.tree_pformat(self)
 
     # Defines default pretty printing.
     def __rich_console__(self, console, options):
-        tree = gpp.tree_pformat(self)
-        yield tree
+        yield self.__rich_tree__()

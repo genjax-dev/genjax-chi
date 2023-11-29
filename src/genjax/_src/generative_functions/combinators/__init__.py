@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,14 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `combinators` module exposes _generative function combinators_,
+"""The `combinators` module exposes _generative function combinators_:
 generative functions which accept other generative functions as configuration
-arguments, and implement structured patterns of control flow (as well as other
-types of modifications) as their generative function interface implementations.
+arguments, and implement their own interfaces using structured patterns of
+control flow (as well as other types of modifications). If one thinks of a
+control flow primitive as an operation on deterministic types, a combinator can
+be thought of as lifting the operation to support generative function
+semantics.
 
-GenJAX features several standard combinators:
+GenJAX exposes several standard combinators:
 
-* `UnfoldCombinator` - which exposes a scan-like pattern for generative computation in a state space pattern via implementations utilizing `jax.lax.scan`.
-* `MapCombinator` - which exposes generative vectorization over input arguments, whose implementation utilizes `jax.vmap`.
-* `SwitchCombinator` - which exposes stochastic branching patterns utilizing `jax.lax.switch`.
+* `MaskedCombinator` - which can mask a generative computation based on a runtime determined `BoolArray` argument.
+* `MapCombinator` - which exposes generative vectorization over input arguments. The implementation utilizes `jax.vmap`.
+* `RepeatCombinator` - which wraps `MapCombinator` to support vectorized IID sampling for fixed input arguments.
+* `UnfoldCombinator` - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing `jax.lax.scan`.
+* `SwitchCombinator` - which exposes stochastic branching patterns, by utilizing `jax.lax.switch`.
 """

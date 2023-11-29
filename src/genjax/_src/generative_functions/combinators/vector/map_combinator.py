@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,18 +24,15 @@ import numpy as np
 from jax.experimental import checkify
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoiceMap
+from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import IndexedChoiceMap
-from genjax._src.core.datatypes.generative import IndexedSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import TraceType
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.transforms.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
@@ -44,20 +41,18 @@ from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexedChoiceMap,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexedSelection,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorTraceType,
-)
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 from genjax._src.global_options import global_options
-
-
-#####
-# Map trace
-#####
 
 
 @dataclass
@@ -81,7 +76,7 @@ class MapTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap.new(self.inner)
+        return VectorChoiceMap.new(self.inner.strip())
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -136,13 +131,8 @@ class MapTrace(Trace):
         return jnp.sum(inner_project)
 
 
-#####
-# Map
-#####
-
-
 @dataclass
-class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
@@ -225,15 +215,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return d_axis_size
 
     @typecheck
-    def get_trace_type(
-        self,
-        *args,
-    ) -> TraceType:
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        kernel_tt = self.kernel.get_trace_type(*args)
-        return VectorTraceType(kernel_tt, broadcast_dim_length)
-
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -254,7 +235,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -262,8 +243,8 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        inner = chm.inner.get_choices()
-        (w, tr) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
+        inner = chm.inner
+        (tr, w) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
             sub_keys, inner, args
         )
 
@@ -271,7 +252,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        return (w, map_tr)
+        return (map_tr, w)
 
     @dispatch
     def importance(
@@ -279,35 +260,35 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: IndexedChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _importance(key, index, chm, args):
-            submap = chm.get_subtree(index)
+            submap = chm.get_submap(index)
             return self.kernel.importance(key, submap, args)
 
-        (w, tr) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
+        (tr, w) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
             sub_keys, index_array, chm, args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        return (w, map_tr)
+        return (map_tr, w)
 
     @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         map_tr = self.simulate(key, args)
         w = 0.0
-        return (w, map_tr)
+        return (map_tr, w)
 
     @dispatch
     def importance(
@@ -315,7 +296,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         key: PRNGKey,
         chm: HierarchicalChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, MapTrace]:
+    ) -> Tuple[MapTrace, FloatArray]:
         indchm = IndexedChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
@@ -349,7 +330,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: MapTrace,
         chm: IndexedChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -367,12 +348,12 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             original_args: Tuple,
             argdiffs: Tuple,
         ):
-            submap = chm.get_subtree(index)
+            submap = chm.get_submap(index)
             return self.maybe_restore_arguments_kernel_update(
                 key, prev, submap, original_args, argdiffs
             )
 
-        (retval_diff, w, tr, discard) = jax.vmap(
+        (tr, w, retval_diff, discard) = jax.vmap(
             _update_inner,
             in_axes=(0, 0, 0, None, self.in_axes, self.in_axes),
         )(sub_keys, index_array, inner_trace, chm, original_args, argdiffs)
@@ -381,7 +362,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         discard = VectorChoiceMap(discard)
-        return (retval_diff, w, map_tr, discard)
+        return (map_tr, w, retval_diff, discard)
 
     @dispatch
     def update(
@@ -390,7 +371,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: MapTrace,
         chm: VectorChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -400,7 +381,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         )
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        (retval_diff, w, tr, discard) = jax.vmap(
+        (tr, w, retval_diff, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
         )(sub_keys, prev.inner, chm.inner, original_args, argdiffs)
@@ -409,18 +390,18 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         discard = VectorChoiceMap(discard)
-        return (retval_diff, w, map_tr, discard)
+        return (map_tr, w, retval_diff, discard)
 
-    # The choice map passed in here is empty, but perhaps
+    # The choice map passed in here is empty, but
     # the arguments have changed.
     @dispatch
     def update(
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: EmptyChoiceMap,
+        chm: EmptyChoice,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
@@ -429,14 +410,14 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
-        (retval_diff, w, tr, discard) = jax.vmap(
+        (tr, w, retval_diff, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
         )(sub_keys, prev.inner, chm, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
-        return (retval_diff, w, map_tr, discard)
+        return (map_tr, w, retval_diff, discard)
 
     @dispatch
     def update(
@@ -445,7 +426,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         prev: MapTrace,
         chm: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, MapTrace, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         maybe_idx_chm = IndexedChoiceMap.convert(chm)
         return self.update(key, prev, maybe_idx_chm, argdiffs)
 
@@ -466,7 +447,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     @typecheck
     def assess(
         self,
-        key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[Any, FloatArray]:
@@ -482,103 +462,25 @@ class MapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self._optional_index_check(check, indices, chm.get_index())
 
         inner = chm.inner
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-        (retval, score) = jax.vmap(self.kernel.assess, in_axes=(0, 0, self.in_axes))(
-            sub_keys, inner, args
+        (score, retval) = jax.vmap(self.kernel.assess, in_axes=(0, self.in_axes))(
+            inner, args
         )
-        return (retval, jnp.sum(score))
+        return (jnp.sum(score), retval)
 
 
-##############
-# Masked map #
-##############
-
-
-@dataclass
-class MaskedMapTrace(Trace):
-    gen_fn: GenerativeFunction
-    mask: BoolArray
-    inner: Trace
-    args: Tuple
-    retval: Any
-    score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.mask,
-            self.inner,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
-
-    def get_score(self):
-        return self.get_score()
-
-    def get_gen_fn(self):
-        return self.gen_fn
-
-    def get_args(self):
-        return self.args
-
-    def get_retval(self):
-        return self.retval
-
-    def get_score(self):
-        return self.score
-
-
-@dataclass
-class MaskedMapCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
-    map_combinator: MapCombinator
-
-    def flatten(self):
-        return (self.map_combinator,), ()
-
-    def simulate(self, key, args):
-        mask_array, *normal_args = args
-        tr = self.map_combinator.simulate(key, tuple(normal_args))
-        inner_tr = tr.inner
-        score = jnp.sum(jnp.multiply(inner_tr.get_score(), mask_array))
-        retval = tr.get_retval()
-        masked_retval = mask(mask_array, retval)
-        return MaskedMapTrace(
-            self, mask_array, inner_tr, normal_args, masked_retval, score
-        )
-
-    def importance(self, key, chm, args):
-        mask_array, *normal_args = args
-        masked_chm = mask(mask_array, chm)
-        w, tr = self.map_combinator.importance(key, masked_chm, normal_args)
-        inner_tr = tr.inner
-        score = jnp.sum(jnp.multiply(inner_tr.get_score(), mask_array))
-        retval = tr.get_retval()
-        masked_retval = mask(mask_array, retval)
-        return w, MaskedMapTrace(
-            self, mask_array, inner_tr, normal_args, masked_retval, score
-        )
-
-
-##############
-# Shorthands #
-##############
-
-Map = MapCombinator.new
-
-
-@dispatch
-def map_combinator(
-    **kwargs,
-):
-    in_axes = kwargs["in_axes"]
-    return lambda gen_fn: Map(gen_fn, in_axes)
+#########################
+# Language constructors #
+#########################
 
 
 @dispatch
 def map_combinator(
     gen_fn: JAXGenerativeFunction,
-    **kwargs,
+    in_axes=Tuple,
 ):
-    in_axes = kwargs["in_axes"]
-    return Map(gen_fn, in_axes)
+    return MapCombinator.new(gen_fn, in_axes)
+
+
+Map = LanguageConstructor(
+    map_combinator,
+)

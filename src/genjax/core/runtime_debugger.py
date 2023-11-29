@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.runtime_debugger import pull
@@ -22,7 +22,7 @@ from genjax._src.core.runtime_debugger import record_value
 from genjax._src.core.runtime_debugger import tag
 from genjax._src.core.typing import Any
 from genjax._src.core.typing import dispatch
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
 
 
 ####################
@@ -30,8 +30,8 @@ from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuil
 ####################
 
 
-@dataclasses.dataclass
-class DebugCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+@dataclass
+class DebugCombinator(JAXGenerativeFunction, SupportsStaticSugar):
     gen_fn: JAXGenerativeFunction
 
     def flatten(self):

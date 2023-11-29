@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Sequence
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Type
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
@@ -45,6 +46,7 @@ __all__ = [
     "Int",
     "Bool",
     "Float",
+    "Type",
     "typecheck",
     "dispatch",
 ]

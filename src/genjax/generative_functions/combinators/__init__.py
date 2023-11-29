@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,59 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module holds a set of generative function implementations called
-generative function combinators.
 
-These combinators accept generative functions as arguments, and return
-generative functions with modified choice map shapes and behavior.
-
-They are used to express common patterns of computation, including
-if-else (`SwitchCombinator`), mapping across vectorial arguments (`MapCombinator`), and dependent for-loops (`UnfoldCombinator`).
-
-.. attention::
-
-    The implementations of these combinators are similar to those in `Gen.jl`, but JAX imposes extra restrictions on their construction and usage.
-
-    In contrast to `Gen.jl`, `UnfoldCombinator` must have the number of
-    unfold steps specified ahead of time as a static constant. The length of the unfold chain cannot depend on a variable whose value is known
-    only at runtime.
-
-    Similarly, for `MapCombinator` - the shape of the vectorial arguments
-    which will be mapped over must be known at JAX tracing time.
-
-    These restrictions are not due to the implementation, but are fundamental to JAX's programming model (as it stands currently).
-"""
-
+from genjax._src.generative_functions.combinators.masked_combinator import Masked
+from genjax._src.generative_functions.combinators.masked_combinator import (
+    masked_combinator,
+)
 from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
 from genjax._src.generative_functions.combinators.switch.switch_combinator import (
-    SwitchCombinator,
+    switch_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.map_combinator import Map
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
-    MapCombinator,
-)
-from genjax._src.generative_functions.combinators.vector.map_combinator import MapTrace
-from genjax._src.generative_functions.combinators.vector.map_combinator import (
     map_combinator,
 )
-from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
-    StateSpace,
-)
-from genjax._src.generative_functions.combinators.vector.state_space_combinator import (
-    StateSpaceCombinator,
+from genjax._src.generative_functions.combinators.vector.repeat_combinator import Repeat
+from genjax._src.generative_functions.combinators.vector.repeat_combinator import (
+    repeat_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    UnfoldCombinator,
-)
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    UnfoldTrace,
-)
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
     unfold_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorChoiceMap,
+    indexed_choice_map,
+)
+from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    indexed_select,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
@@ -71,18 +44,17 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 
 __all__ = [
-    "MapTrace",
-    "MapCombinator",
+    "Masked",
+    "masked_combinator",
     "Map",
     "map_combinator",
-    "UnfoldTrace",
-    "UnfoldCombinator",
+    "Repeat",
+    "repeat_combinator",
     "Unfold",
     "unfold_combinator",
-    "StateSpaceCombinator",
-    "StateSpace",
-    "SwitchCombinator",
     "Switch",
-    "VectorChoiceMap",
+    "switch_combinator",
     "vector_choice_map",
+    "indexed_select",
+    "indexed_choice_map",
 ]

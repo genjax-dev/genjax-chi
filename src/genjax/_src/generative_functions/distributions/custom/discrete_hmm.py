@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import numpy as np
 from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
