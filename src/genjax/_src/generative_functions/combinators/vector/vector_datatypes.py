@@ -208,8 +208,13 @@ class IndexedChoiceMap(ChoiceMap):
     def get_selection(self):
         return self.inner.get_selection()
 
-    def merge(self, _: ChoiceMap):
-        raise Exception("TODO: can't merge IndexedChoiceMaps")
+    # TODO: this will fail silently if the indices of the incoming map
+    # are different than the original map.
+    @dispatch
+    def merge(self, new: "IndexedChoiceMap"):
+        new_inner, discard = self.inner.merge(new.inner)
+        assert discard.is_empty()
+        return IndexedChoiceMap(self.indices, new_inner)
 
     def get_index(self):
         return self.indices
@@ -378,10 +383,9 @@ class VectorChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        sub_tree = rich_tree.Tree("[bold](Vector)")
-        self.inner.__rich_tree__(sub_tree)
-        tree.add(sub_tree)
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](VectorChoiceMap)")
+        tree.add(self.inner.__rich_tree__())
         return tree
 
 

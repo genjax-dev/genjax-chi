@@ -17,6 +17,7 @@ import jax.numpy as jnp
 
 import genjax
 from genjax import typing
+from genjax.incremental import tree_diff_no_change
 
 
 class TestDropArguments:
@@ -32,9 +33,7 @@ class TestDropArguments:
         key = jax.random.PRNGKey(314159)
         chm = genjax.indexed_choice_map([0], {"y": jnp.array([5.0])})
         tr = model.simulate(key, (jnp.ones(5),))
-        tr, _, _, _ = model.update(
-            key, tr, chm, genjax.tree_diff_no_change((jnp.ones(5),))
-        )
+        tr, _, _, _ = model.update(key, tr, chm, tree_diff_no_change((jnp.ones(5),)))
         v = tr.get_choices()[0, "y"]
         assert v == 5.0
         sel = genjax.indexed_select([0], genjax.select("y"))

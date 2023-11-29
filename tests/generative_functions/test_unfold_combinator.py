@@ -17,9 +17,10 @@ import jax.numpy as jnp
 import pytest
 
 import genjax
-from genjax import NoChange
-from genjax import UnknownChange
-from genjax import diff
+from genjax.incremental import NoChange
+from genjax.incremental import UnknownChange
+from genjax.incremental import diff
+from genjax.incremental import tree_diff_no_change
 
 
 class TestUnfoldSimpleNormal:
@@ -138,7 +139,7 @@ class TestUnfoldSimpleNormal:
             sub_key,
             tr,
             chm,
-            (genjax.diff(6, genjax.UnknownChange), genjax.diff(0.1, genjax.NoChange)),
+            (diff(6, UnknownChange), diff(0.1, NoChange)),
         )
         newly_introduced_choice = genjax.indexed_select([6], "z")
         newly_introduced_score = new_tr.project(newly_introduced_choice)
@@ -222,7 +223,7 @@ class TestUnfoldSimpleNormal:
             y_sel = genjax.indexed_select([t], genjax.select("y"))
             diffs = (
                 diff(t, UnknownChange),
-                genjax.tree_diff_no_change(model_args),
+                tree_diff_no_change(model_args),
             )
 
             # Score underneath the selection should be 0.0
@@ -269,7 +270,7 @@ class TestUnfoldSimpleNormal:
                 [t],
                 genjax.choice_map({"x": jnp.array([1.0])}),
             )
-            diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
+            diffs = (diff(5, NoChange), diff(0.0, NoChange))
             old_score = new_tr.project(x_sel)
             old_x = new_tr.filter(x_sel)[t, "x"].unsafe_unmask()
             old_z = new_tr.filter(z_sel)[t, "z"].unsafe_unmask()
@@ -297,7 +298,7 @@ class TestUnfoldSimpleNormal:
             [0],
             genjax.choice_map({"z": jnp.array([1.0])}),
         )
-        diffs = (genjax.diff(5, NoChange), genjax.diff(0.0, NoChange))
+        diffs = (diff(5, NoChange), diff(0.0, NoChange))
 
         # This should be the Markov blanket of the update.
         vzsel = genjax.indexed_select([0, 1], genjax.select("z"))

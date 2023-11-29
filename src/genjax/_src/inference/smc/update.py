@@ -25,6 +25,12 @@ from genjax._src.core.typing import typecheck
 from genjax._src.inference.smc.state import SMCAlgorithm
 from genjax._src.inference.smc.state import SMCState
 from genjax._src.inference.smc.utils import dynamic_check_empty
+from genjax._src.inference.translator import ExtendingTraceTranslator
+
+
+############################
+# Step forward using prior #
+############################
 
 
 @dataclass
@@ -65,3 +71,45 @@ class SMCForwardUpdate(SMCAlgorithm):
 @dispatch
 def smc_update():
     return SMCForwardUpdate.new()
+
+
+#####################################
+# Step forward using extension step #
+#####################################
+
+
+@dataclass
+class SMCExtendUpdate(SMCAlgorithm):
+    translator: ExtendingTraceTranslator
+
+    def flatten(self):
+        return (self.translator), ()
+
+    @typecheck
+    @classmethod
+    def new(cls, translator: ExtendingTraceTranslator):
+        return SMCExtendUpdate(translator)
+
+    @typecheck
+    def apply(
+        self,
+        key: PRNGKey,
+        state: SMCState,
+    ) -> SMCState:
+        particles = state.get_particles()
+        n_particles = state.get_num_particles()
+        sub_keys = jax.random.split(key, n_particles)
+        (particles, log_weights) = jax.vmap(self.translator.apply)(sub_keys, particles)
+        new_state = SMCState(
+            n_particles,
+            particles,
+            state.log_weights + log_weights,
+            0.0,
+            state.valid,  # TODO: extend translators with dynamic checks.
+        )
+        return new_state
+
+
+@dispatch
+def smc_update(translator: ExtendingTraceTranslator):
+    return SMCExtendUpdate.new(translator)

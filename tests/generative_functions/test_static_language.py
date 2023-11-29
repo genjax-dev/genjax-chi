@@ -20,6 +20,8 @@ import jax.numpy as jnp
 import pytest
 
 import genjax
+from genjax.incremental import tree_diff_no_change
+from genjax.incremental import tree_diff_unknown_change
 from genjax.typing import FloatArray
 
 
@@ -512,13 +514,13 @@ class TestUpdate:
         constraints = genjax.choice_map({("y1",): new_y1})
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(
-            sub_key, tr, constraints, (genjax.tree_diff_no_change(init_tree),)
+            sub_key, tr, constraints, (tree_diff_no_change(init_tree),)
         )
         assert updated["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(
-            sub_key, tr, constraints, (genjax.tree_diff_unknown_change(new_tree),)
+            sub_key, tr, constraints, (tree_diff_unknown_change(new_tree),)
         )
         assert updated["y1"] == new_y1
 

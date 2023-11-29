@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -54,75 +55,32 @@ class TraceTranslator(Pytree):
     ) -> Tuple[Trace, FloatArray]:
         raise NotImplementedError
 
-
-@dataclass
-class DeterministicTraceTranslator(TraceTranslator):
-    forward: Callable  # bijection forward
-    backward: Callable  # bijection inverse
-    p_new: GenerativeFunction
-    p_args: Tuple
-    new_obs: Choice
-
-    def flatten(self):
-        return (
-            self.p_new,
-            self.p_args,
-            self.new_obs,
-        ), (self.forward, self.backward)
-
-    @classmethod
-    def new(
-        cls,
-        p_new: GenerativeFunction,
-        p_args: Tuple,
-        new_obs: Choice,
-        forward: Callable,
-        backward: Callable,
-    ):
-        return DeterministicTraceTranslator(forward, backward, p_new, p_args, new_obs)
-
-    def value_and_jacobian_correction(self, forward, trace):
-        grad_tree, no_grad_tree = tree_grad_split(trace.get_choices())
-
-        def _inner(differentiable):
-            choices = tree_zipper(differentiable, no_grad_tree)
-            out_choices = forward(choices)
-            return out_choices
-
-        inner_jacfwd = jax.jacfwd(_inner)
-        J = inner_jacfwd(grad_tree)
-        return jnp.slogdet(J)
-
-    def run_transform(self, key: PRNGKey, prev_model_trace: Trace):
-        results, log_abs_det = self.value_and_jacobian_correction(
-            self.forward, prev_model_trace
-        )
-        constraints = results.merge(self.new_obs)
-        new_trace, _ = self.p_new.importance(key, constraints, self.p_args)
-        return new_trace, log_abs_det
-
     @typecheck
-    def apply(
+    def __call__(
         self,
         key: PRNGKey,
         prev_model_trace: Trace,
     ) -> Tuple[Trace, FloatArray]:
-        new_model_trace, log_abs_det = self.run_transform(key, prev_model_trace)
-        prev_model_score = prev_model_trace.get_score()
-        new_model_score = new_model_trace.get_score()
-        log_weight = new_model_score - prev_model_score + log_abs_det
-        return new_model_trace, log_weight
+        return self.apply(key, prev_model_trace)
 
 
-@typecheck
-def deterministic_trace_translator(
-    p_new: GenerativeFunction,
-    p_args: Tuple,
-    new_obs: Choice,
-    forward: Callable,
-    backward: Callable,
-):
-    return DeterministicTraceTranslator.new(p_new, p_args, new_obs, forward, backward)
+############################
+# Jacobian det array stack #
+############################
+
+
+def stack_differentiable(v):
+    grad_tree, _ = tree_grad_split(v)
+    leaves = jtu.tree_leaves(grad_tree)
+    stacked = jnp.stack(leaves) if len(leaves) > 1 else leaves[0]
+    return stacked
+
+
+def safe_slogdet(v):
+    if v.shape == ():
+        return jnp.linalg.slogdet(jnp.array([[v]], copy=False))
+    else:
+        return jnp.linalg.slogdet(v)
 
 
 #####################################
@@ -131,8 +89,9 @@ def deterministic_trace_translator(
 
 
 @dataclass
-class SimpleExtendingTraceTranslator(TraceTranslator):
-    choice_map_bijection: Callable
+class ExtendingTraceTranslator(TraceTranslator):
+    choice_map_forward: Callable  # part of bijection
+    choice_map_inverse: Callable  # part of bijection
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
     q_forward_args: Tuple
@@ -144,7 +103,7 @@ class SimpleExtendingTraceTranslator(TraceTranslator):
             self.q_forward,
             self.q_forward_args,
             self.new_observations,
-        ), (self.choice_map_bijection,)
+        ), (self.choice_map_forward, self.choice_map_inverse)
 
     @classmethod
     def new(
@@ -153,45 +112,68 @@ class SimpleExtendingTraceTranslator(TraceTranslator):
         q_forward: GenerativeFunction,
         q_forward_args: Tuple,
         new_obs: Choice,
-        choice_map_bijection: Callable,
+        choice_map_forward: Callable,
+        choice_map_inverse: Callable,
     ):
-        return SimpleExtendingTraceTranslator(
-            choice_map_bijection,
+        return ExtendingTraceTranslator(
+            choice_map_forward,
+            choice_map_inverse,
             p_argdiffs,
             q_forward,
             q_forward_args,
             new_obs,
         )
 
+    def value_and_jacobian_correction(self, forward, trace):
+        grad_tree, no_grad_tree = tree_grad_split(trace.get_choices())
+
+        def _inner(differentiable):
+            choices = tree_zipper(differentiable, no_grad_tree)
+            out_choices = forward(choices)
+            return out_choices, out_choices
+
+        inner_jacfwd = jax.jacfwd(_inner, has_aux=True)
+        J, transformed = inner_jacfwd(grad_tree)
+        J = stack_differentiable(J)
+        (_, J_log_abs_det) = safe_slogdet(J)
+        return transformed, J_log_abs_det
+
     def apply(self, key: PRNGKey, prev_model_trace: Trace):
         prev_model_choices = prev_model_trace.get_choices()
         forward_proposal_trace = self.q_forward.simulate(
-            key, (prev_model_choices, *self.q_forward_args)
+            key, (self.new_observations, prev_model_choices, *self.q_forward_args)
+        )
+        transformed, log_abs_det = self.value_and_jacobian_correction(
+            self.choice_map_forward, forward_proposal_trace
         )
         forward_proposal_score = forward_proposal_trace.get_score()
-        constraints = forward_proposal_trace.get_choices().merge(self.new_obs)
+        constraints = transformed.merge(self.new_observations)
         (new_model_trace, log_model_weight, _, discard) = prev_model_trace.update(
             key, constraints, self.p_argdiffs
         )
+        # This type of trace translator does not handle proposing
+        # to existing latents.
         assert discard.is_empty()
-        log_weight = log_model_weight - forward_proposal_score
+        log_weight = log_model_weight - forward_proposal_score - log_abs_det
         return (new_model_trace, log_weight)
 
 
 @typecheck
-def simple_extending_trace_translator(
+def extending_trace_translator(
     p_argdiffs: Tuple,
     q_forward: GenerativeFunction,
     q_forward_args: Tuple,
     new_obs: ChoiceMap,
-    choice_map_bijection: Callable,
+    choice_map_forward: Callable,
+    choice_map_backward: Callable,
 ):
-    return SimpleExtendingTraceTranslator.new(
+    return ExtendingTraceTranslator.new(
         p_argdiffs,
         q_forward,
         q_forward_args,
         new_obs,
-        choice_map_bijection,
+        choice_map_forward,
+        choice_map_backward,
     )
 
 

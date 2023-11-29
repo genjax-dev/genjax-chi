@@ -17,10 +17,10 @@ import jax
 import genjax
 from genjax import ChoiceValue
 from genjax import EmptyChoice
-from genjax import NoChange
-from genjax import UnknownChange
-from genjax import diff
 from genjax import mask
+from genjax.incremental import NoChange
+from genjax.incremental import UnknownChange
+from genjax.incremental import diff
 
 
 class TestDistributions:

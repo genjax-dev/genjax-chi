@@ -82,7 +82,14 @@ class UnfoldTrace(Trace):
         return self.args
 
     def get_choices(self):
-        mask_flags = jnp.arange(self.unfold.max_length) <= self.dynamic_length
+        mask_flags = (
+            (
+                jnp.expand_dims(jnp.arange(self.unfold.max_length), -1)
+                <= self.dynamic_length
+            ).T
+            if jnp.array(self.dynamic_length, copy=False).shape
+            else jnp.arange(self.unfold.max_length) <= self.dynamic_length
+        )
         return VectorChoiceMap.new(mask(mask_flags, self.inner.strip()))
 
     def get_gen_fn(self):

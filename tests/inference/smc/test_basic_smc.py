@@ -18,14 +18,16 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 import genjax
-from genjax import NoChange
-from genjax import UnknownChange
 from genjax import choice_map
-from genjax import diff
 from genjax import gen
 from genjax import indexed_choice_map
 from genjax import indexed_select
 from genjax import normal
+from genjax.incremental import NoChange
+from genjax.incremental import UnknownChange
+from genjax.incremental import diff
+from genjax.incremental import tree_diff_no_change
+from genjax.incremental import tree_diff_unknown_change
 from genjax.inference import smc
 
 
@@ -207,8 +209,8 @@ class TestSimpleSMC:
         )
 
         argdiffs = (
-            genjax.tree_diff_unknown_change(1),
-            genjax.tree_diff_no_change(jnp.ones(361)),
+            tree_diff_unknown_change(1),
+            tree_diff_no_change(jnp.ones(361)),
         )
         smc_state = jax.jit(genjax.smc.smc_update().apply)(
             key, smc_state, argdiffs, make_choice_map(1)
