@@ -18,6 +18,7 @@
 
 # Closed modules.
 from genjax import gensp
+from genjax import incremental
 from genjax import inference
 from genjax import typing
 from genjax import vi

@@ -17,9 +17,10 @@ from jax import numpy as jnp
 
 import genjax
 from genjax import Mask
-from genjax import NoChange
-from genjax import UnknownChange
-from genjax import diff
+from genjax.incremental import NoChange
+from genjax.incremental import UnknownChange
+from genjax.incremental import diff
+from genjax.incremental import tree_diff_no_change
 
 
 class TestSwitch:
@@ -206,7 +207,7 @@ class TestSwitch:
             key,
             tr,
             genjax.mask(jnp.array(True), genjax.empty_choice()),
-            genjax.tree_diff_no_change((1, 0.0)),
+            tree_diff_no_change((1, 0.0)),
         )
         assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0
@@ -214,7 +215,7 @@ class TestSwitch:
             key,
             tr,
             genjax.mask(jnp.array(False), genjax.empty_choice()),
-            genjax.tree_diff_no_change((1, 0.0)),
+            tree_diff_no_change((1, 0.0)),
         )
         assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0

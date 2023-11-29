@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Tuple
 
 import jax
 import jax.numpy as jnp
@@ -25,6 +24,7 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
 
 
