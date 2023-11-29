@@ -843,6 +843,11 @@ class Mask(Pytree):
         check = self.value.has_submap(addr)
         return jnp.logical_and(self.mask, check)
 
+    def filter(self, selection: Selection):
+        choices = self.value.get_choices()
+        assert isinstance(choices, Choice)
+        return Mask.new(self.mask, choices.filter(selection))
+
     def get_choices(self):
         choices = self.value.get_choices()
         return Mask.new(self.mask, choices)
@@ -1098,7 +1103,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         constraints: Mask,
         args: Tuple,
-    ) -> Tuple[FloatArray, Trace]:
+    ) -> Tuple[Trace, FloatArray]:
         def _inactive():
             w = 0.0
             tr = self.simulate(key, args)
@@ -1127,7 +1132,7 @@ class GenerativeFunction(Pytree):
         prev: Trace,
         new_constraints: Mask,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, Trace, Mask]:
+    ) -> Tuple[Trace, FloatArray, Any, Mask]:
         # The semantics of the merge operation entail that the second returned value
         # is the discarded values after the merge.
         discard_option = prev.strip()

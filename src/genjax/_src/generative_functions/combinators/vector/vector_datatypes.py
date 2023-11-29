@@ -20,12 +20,10 @@ import rich.tree as rich_tree
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import choice_map
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.datatypes.generative import select
@@ -41,6 +39,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import static_check_is_concrete
 
 
 ######################################
@@ -168,15 +167,11 @@ class IndexedChoiceMap(ChoiceMap):
     @dispatch
     def has_submap(self, addr: IntArray):
         return addr in self.indices
-        if not isinstance(addr, Tuple) and len(addr) == 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
 
     @dispatch
     def has_submap(self, addr: Tuple):
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(addr))
+        (idx, *addr) = addr
+        return jnp.logical_and(idx in self.indices, self.inner.has_submap(tuple(addr)))
 
     @dispatch
     def get_submap(self, addr: Tuple):
@@ -191,6 +186,13 @@ class IndexedChoiceMap(ChoiceMap):
             return submap
         else:
             return mask(jnp.isin(idx, self.indices), submap)
+
+    @dispatch
+    def get_submap(self, idx: Int):
+        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
+        slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
+        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        return mask(jnp.isin(idx, self.indices), submap)
 
     @dispatch
     def get_submap(self, idx: IntArray):
@@ -231,7 +233,7 @@ class IndexedChoiceMap(ChoiceMap):
 
 @dataclass
 class VectorChoiceMap(ChoiceMap):
-    inner: Union[ChoiceMap, Trace]
+    inner: Any
 
     def flatten(self):
         return (self.inner,), ()
@@ -248,20 +250,20 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def new(
         cls,
-        inner: Choice,
+        inner: Dict,
     ) -> ChoiceMap:
-        # Static assertion: all leaves must have same first dim size.
-        static_check_tree_leaves_have_matching_leading_dim(inner)
-        return VectorChoiceMap(inner)
+        chm = choice_map(inner)
+        return VectorChoiceMap.new(chm)
 
     @classmethod
     @dispatch
     def new(
         cls,
-        inner: Dict,
+        inner: Any,
     ) -> ChoiceMap:
-        chm = choice_map(inner)
-        return VectorChoiceMap.new(chm)
+        # Static assertion: all leaves must have same first dim size.
+        static_check_tree_leaves_have_matching_leading_dim(inner)
+        return VectorChoiceMap(inner)
 
     def is_empty(self):
         return self.inner.is_empty()
@@ -272,7 +274,12 @@ class VectorChoiceMap(ChoiceMap):
         selection: IndexedSelection,
     ) -> ChoiceMap:
         inner = self.inner.filter(selection.inner)
-        return IndexedChoiceMap(selection.indices, inner)
+        dim = static_check_tree_leaves_have_matching_leading_dim(inner)
+        check = selection.indices <= dim
+        idxs = check * selection.indices
+        return IndexedChoiceMap(
+            selection.indices, jtu.tree_map(lambda v: v[idxs], inner)
+        )
 
     @dispatch
     def filter(
@@ -289,11 +296,59 @@ class VectorChoiceMap(ChoiceMap):
         )
         return IndexedSelection(jnp.arange(dim), subselection)
 
-    def has_submap(self, addr):
-        return self.inner.has_submap(addr)
+    @dispatch
+    def has_submap(self, addr: IntArray):
+        dim = static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        return addr < dim
 
-    def get_submap(self, addr):
-        return self.inner.get_submap(addr)
+    @dispatch
+    def has_submap(self, addr: Tuple):
+        (idx, *addr) = addr
+        dim = static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        return jnp.logical_and(idx < dim, self.inner.has_submap(tuple(addr)))
+
+    @dispatch
+    def get_submap(self, idx: Int):
+        dim = static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        check = idx < dim
+        idx = check * idx
+        sliced = jtu.tree_map(lambda v: v[idx], self.inner)
+        return sliced
+
+    @dispatch
+    def get_submap(self, idx: IntArray):
+        dim = static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        check = idx < dim
+        idx = check * idx
+        sliced = jtu.tree_map(lambda v: v[idx], self.inner)
+        if static_check_is_concrete(check) and check:
+            return sliced
+        else:
+            return mask(idx < dim, sliced)
+
+    @dispatch
+    def get_submap(self, addr: Tuple):
+        (idx, *addr) = addr
+        # First address element must be an (IntArray) index.
+        assert isinstance(idx, IntArray) or isinstance(idx, Int)
+        dim = static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        check = idx < dim
+        idx = check * idx
+        sliced = jtu.tree_map(lambda v: v[idx], self.inner.get_submap(tuple(addr)))
+        if static_check_is_concrete(check) and check:
+            return sliced
+        else:
+            return mask(idx < dim, sliced)
 
     @dispatch
     def merge(self, other: "VectorChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:

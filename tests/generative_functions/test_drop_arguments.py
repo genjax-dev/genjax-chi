@@ -35,7 +35,7 @@ class TestDropArguments:
         tr, _, _, _ = model.update(
             key, tr, chm, genjax.tree_diff_no_change((jnp.ones(5),))
         )
-        v = tr.strip()["y"]
-        assert v[0] == 5.0
+        v = tr.get_choices()[0, "y"]
+        assert v == 5.0
         sel = genjax.indexed_select([0], genjax.select("y"))
         assert tr.project(sel) == genjax.normal.logpdf(5.0, 1.0, 1.0)
