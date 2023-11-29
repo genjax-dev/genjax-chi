@@ -1,26 +1,26 @@
+---
+hide:
+    - navigation
+    - toc
+---
+
 # Overview
 
-**GenJAX: a probabilistic programming library designed to scale probabilistic modeling and inference into high performance settings.** (1)
+**GenJAX: scaling probabilistic programming with programmable inference onto parallel accelerators.** (1)
 { .annotate }
 
-1.  Here, _high performance_ means massively parallel, either cores or devices.
-
-    For those whom this overview page may be irrelevant: the value proposition is about putting expressive models and customizable Bayesian inference on GPUs, TPUs, etc - without sacrificing abstraction or modularity.
+1. Long: the value proposition is about putting expressive probabilistic models and customizable Bayesian inference on GPUs, TPUs, etc - without sacrificing abstraction or modularity.
 
 ---
 
-[**Gen**][gen] is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [**JAX**][jax] (2) - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. 
+[**Gen**][gen] is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [**JAX**][jax] - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. 
 { .annotate }
 
 1.  By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms. 
 
-    The set of generative functions is extensible! You can implement your own - allowing advanced users to performance optimize their critical modeling/inference code paths.
-
-    You can (and we, at the [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/), do!) use these objects for machine learning - including robotics, natural language processing, reasoning about agents, and modelling / creating systems which exhibit human-like reasoning.
+    The set of generative functions is extensible: you can implement your own - allowing advanced users to performance optimize their critical modeling/inference code paths.
 
     A precise mathematical formulation of generative functions is given in [Marco Cusumano-Towner's PhD thesis][marco_thesis].
-
-2.  If the usage of JAX is not a dead giveaway, GenJAX is written in Python.
 
 ## What sort of things can you use GenJAX for?
 
@@ -37,7 +37,7 @@
 
 ## Why Gen?
 
-GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX - it's worth starting by understanding what problems Gen purports to solve.
+GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX - it's worth starting by understanding what problems Gen is designed to solve.
 
 ### The evolution of probabilistic programming languages
 

@@ -26,3 +26,9 @@
 .md-source {
   font-weight: 600;
 }
+
+.md-content {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 800px;
+}
