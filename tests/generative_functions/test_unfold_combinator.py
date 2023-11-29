@@ -52,7 +52,7 @@ class TestUnfoldSimpleNormal:
         t = -1
         key, sub_key = jax.random.split(key)
         (tr, _) = chain.importance(sub_key, chm, (t, 0.3))
-        assert tr["z"][0] != special
+        assert tr[0, "z"] != special
 
         for t in range(0, 10):
             key, sub_key = jax.random.split(key)
@@ -90,8 +90,8 @@ class TestUnfoldSimpleNormal:
         key, sub_key = jax.random.split(key)
         (tr, wt) = model.importance(sub_key, obs_chm(obs, 9), (9, 0.0))
         for i in range(0, 9):
-            assert tr["x"][i] != 9
-        assert tr["x"][9] == 9
+            assert tr[i, "x"] != 9
+        assert tr[9, "x"] == 9
 
     def test_unfold_two_layer_index_importance(self):
         @genjax.gen(genjax.Unfold, max_length=10)
@@ -156,17 +156,19 @@ class TestUnfoldSimpleNormal:
         model = genjax.Unfold(one_step, max_length=5)
         key, sub_key = jax.random.split(key)
         true_tr = model.simulate(sub_key, (4, (0.0)))
-        true_x = true_tr["x"]
+        true_x = jax.vmap(lambda idx: true_tr.get_choices()[idx, "x"])(
+            jnp.arange(5)
+        ).unsafe_unmask()
         chm = genjax.vector_choice_map(
             genjax.choice_map({("x"): true_x}),
         )
         key, importance_key = jax.random.split(key)
         (importance_tr, _) = model.importance(importance_key, chm, (4, (0.0)))
-        assert importance_tr["x"][0] == true_x[0]
-        assert importance_tr["x"][1] == true_x[1]
-        assert importance_tr["x"][2] == true_x[2]
-        assert importance_tr["x"][3] == true_x[3]
-        assert importance_tr["x"][4] == true_x[4]
+        assert importance_tr[0, "x"] == true_x[0]
+        assert importance_tr[1, "x"] == true_x[1]
+        assert importance_tr[2, "x"] == true_x[2]
+        assert importance_tr[3, "x"] == true_x[3]
+        assert importance_tr[4, "x"] == true_x[4]
 
     def test_update_pytree_state(self):
         @genjax.gen(genjax.Static)

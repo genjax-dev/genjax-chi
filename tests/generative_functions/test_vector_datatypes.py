@@ -24,7 +24,7 @@ class TestVectorChoiceMap:
     def test_vector_choice_map_construction(self):
         chm = genjax.choice_map({"z": jnp.array([3.0])})
         v_chm = genjax.vector_choice_map(chm)
-        assert v_chm.has_submap("z")
+        assert v_chm.has_submap((0, "z"))
 
 
 class TestIndexChoiceMap:
@@ -101,7 +101,7 @@ class TestVectorTrace:
         key, sub_key = jax.random.split(key)
         vec_tr = jax.jit(model.simulate)(sub_key, (map_over,))
         sel = genjax.indexed_select(jnp.array([1]), genjax.select("z"))
-        score = genjax.normal.logpdf(vec_tr.get_choices()["z"][1], map_over[1], 1.0)
+        score = genjax.normal.logpdf(vec_tr.get_choices()[1, "z"], map_over[1], 1.0)
         assert score == vec_tr.project(sel)
 
         # Example generated using Unfold.

@@ -31,6 +31,7 @@ from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.incremental import static_check_no_change
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
@@ -81,7 +82,8 @@ class UnfoldTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap.new(self.inner.strip())
+        mask_flags = jnp.arange(self.unfold.max_length) <= self.dynamic_length
+        return VectorChoiceMap.new(mask(mask_flags, self.inner.strip()))
 
     def get_gen_fn(self):
         return self.unfold
@@ -359,7 +361,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 _importance,
                 _simulate,
                 sub_key,
-                chm,
+                chm.inner,
                 state,
             )
 

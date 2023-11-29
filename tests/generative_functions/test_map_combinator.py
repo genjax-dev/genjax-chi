@@ -71,7 +71,8 @@ class TestMapCombinator:
         zv = jnp.array([3.0, -1.0, 2.0])
         chm = genjax.indexed_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
         (tr, _) = model.importance(sub_key, chm, (map_over,))
-        assert all(tr["z"] == zv)
+        for i in range(0, 3):
+            assert tr[i, "z"] == zv[i]
 
     def test_map_nested_indexed_choice_map_importance(self):
         @genjax.gen(genjax.Map, in_axes=(0,))
