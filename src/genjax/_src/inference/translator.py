@@ -33,6 +33,7 @@ from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
@@ -180,7 +181,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         return (new_model_trace, log_weight)
 
 
-@typecheck
+@dispatch
 def extending_trace_translator(
     p_argdiffs: Tuple,
     q_forward: GenerativeFunction,
@@ -198,6 +199,24 @@ def extending_trace_translator(
         choice_map_forward,
         choice_map_backward,
         check_bijection,
+    )
+
+
+@dispatch
+def extending_trace_translator(
+    p_argdiffs: Tuple,
+    q_forward: GenerativeFunction,
+    q_forward_args: Tuple,
+    new_obs: ChoiceMap,
+):
+    return ExtendingTraceTranslator.new(
+        p_argdiffs,
+        q_forward,
+        q_forward_args,
+        new_obs,
+        lambda v: v,
+        lambda v: v,
+        False,
     )
 
 
