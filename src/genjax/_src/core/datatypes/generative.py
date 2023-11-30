@@ -19,9 +19,10 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich.tree as rich_tree
-from jax.experimental.checkify import checkify
+from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
+from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
@@ -42,7 +43,6 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
-from genjax._src.global_options import global_options
 
 
 #############
@@ -815,7 +815,7 @@ class Mask(Pytree):
             check_flag = jnp.all(self.mask)
             checkify.check(check_flag, "Mask is False, the masked value is invalid.\n")
 
-        global_options.optional_check(_check)
+        optional_check(_check)
         return self.value
 
     def unsafe_unmask(self):

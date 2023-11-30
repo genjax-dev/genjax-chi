@@ -12,9 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.global_options import global_options
+
+from genjax._src.core.typing import Callable
+from genjax._src.core.typing import typecheck
 
 
-__all__ = [
-    "global_options",
-]
+_GLOBAL_CHECKIFY_HANDLER = []
+
+
+def yes_checkify():
+    _GLOBAL_CHECKIFY_HANDLER.append(True)
+
+
+def no_checkify():
+    _GLOBAL_CHECKIFY_HANDLER.pop()
+
+
+@typecheck
+def optional_check(check: Callable):
+    if _GLOBAL_CHECKIFY_HANDLER:
+        check()
