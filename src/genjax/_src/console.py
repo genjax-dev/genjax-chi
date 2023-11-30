@@ -96,15 +96,40 @@ def console(
     enforce_checkify=False,
     **pretty_kwargs,
 ):
-    traceback_kwargs = {
-        "word_wrap": True,
-        "show_locals": False,
-        "max_frames": 30,
-        "suppress": [jax, plum],
-        **pretty_kwargs,
-    }
-    return GenJAXConsole(
-        Console(soft_wrap=True),
-        traceback_kwargs,
-        enforce_checkify,
-    )
+    try:
+        # Try to ignore these packages in pretty printing.
+        import asyncio
+
+        import ipykernel
+        import tornado
+        import traitlets
+
+        traceback_kwargs = {
+            "word_wrap": True,
+            "show_locals": False,
+            "max_frames": 30,
+            "suppress": [
+                jax,
+                plum,
+                asyncio,
+                tornado,
+                traitlets,
+                ipykernel,
+            ],
+            **pretty_kwargs,
+        }
+    except:
+        traceback_kwargs = {
+            "word_wrap": True,
+            "show_locals": False,
+            "max_frames": 30,
+            "suppress": [jax, plum],
+            **pretty_kwargs,
+        }
+
+    finally:
+        return GenJAXConsole(
+            Console(soft_wrap=True),
+            traceback_kwargs,
+            enforce_checkify,
+        )
