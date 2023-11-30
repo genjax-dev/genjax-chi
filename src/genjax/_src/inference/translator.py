@@ -18,7 +18,9 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jax.experimental.checkify import check
 
+from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -26,6 +28,7 @@ from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
+from genjax._src.core.typing import Bool
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
@@ -92,6 +95,7 @@ def safe_slogdet(v):
 class ExtendingTraceTranslator(TraceTranslator):
     choice_map_forward: Callable  # part of bijection
     choice_map_inverse: Callable  # part of bijection
+    check_bijection: Bool
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
     q_forward_args: Tuple
@@ -103,7 +107,7 @@ class ExtendingTraceTranslator(TraceTranslator):
             self.q_forward,
             self.q_forward_args,
             self.new_observations,
-        ), (self.choice_map_forward, self.choice_map_inverse)
+        ), (self.choice_map_forward, self.choice_map_inverse, self.check_bijection)
 
     @classmethod
     def new(
@@ -114,10 +118,12 @@ class ExtendingTraceTranslator(TraceTranslator):
         new_obs: Choice,
         choice_map_forward: Callable,
         choice_map_inverse: Callable,
+        check_bijection: Bool,
     ):
         return ExtendingTraceTranslator(
             choice_map_forward,
             choice_map_inverse,
+            check_bijection,
             p_argdiffs,
             q_forward,
             q_forward_args,
@@ -125,7 +131,8 @@ class ExtendingTraceTranslator(TraceTranslator):
         )
 
     def value_and_jacobian_correction(self, forward, trace):
-        grad_tree, no_grad_tree = tree_grad_split(trace.get_choices())
+        trace_choices = trace.get_choices()
+        grad_tree, no_grad_tree = tree_grad_split(trace_choices)
 
         def _inner(differentiable):
             choices = tree_zipper(differentiable, no_grad_tree)
@@ -134,6 +141,21 @@ class ExtendingTraceTranslator(TraceTranslator):
 
         inner_jacfwd = jax.jacfwd(_inner, has_aux=True)
         J, transformed = inner_jacfwd(grad_tree)
+        if self.check_bijection:
+
+            def optional_check_bijection_is_bijection():
+                backwards = self.choice_map_inverse(transformed)
+                flattened = jtu.tree_leaves(
+                    jtu.tree_map(
+                        lambda v1, v2: jnp.all(v1 == v2),
+                        trace_choices,
+                        backwards,
+                    )
+                )
+                check_flag = jnp.all(jnp.array(flattened))
+                check(check_flag, "Bijection check failed")
+
+            optional_check(optional_check_bijection_is_bijection)
         J = stack_differentiable(J)
         (_, J_log_abs_det) = safe_slogdet(J)
         return transformed, J_log_abs_det
@@ -166,6 +188,7 @@ def extending_trace_translator(
     new_obs: ChoiceMap,
     choice_map_forward: Callable,
     choice_map_backward: Callable,
+    check_bijection=False,
 ):
     return ExtendingTraceTranslator.new(
         p_argdiffs,
@@ -174,6 +197,7 @@ def extending_trace_translator(
         new_obs,
         choice_map_forward,
         choice_map_backward,
+        check_bijection,
     )
 
 

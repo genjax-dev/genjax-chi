@@ -205,10 +205,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     def _optional_out_of_bounds_check(self, count: IntArray):
         def _check():
-            check_flag = jnp.less(count + 1, self.max_length)
+            check_flag = jnp.less_equal(count + 1, self.max_length)
             checkify.check(
                 check_flag,
-                f"\nUnfoldCombinator received a length argument ({count}) longer than specified max length ({self.max_length})",
+                "UnfoldCombinator received an index argument (idx = {count}) with idx + 1 > max length ({max_length})",
+                count=jnp.array(count, copy=False),
+                max_length=jnp.array(self.max_length),
             )
 
         optional_check(_check)

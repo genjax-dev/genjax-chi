@@ -813,7 +813,10 @@ class Mask(Pytree):
         # contexts.
         def _check():
             check_flag = jnp.all(self.mask)
-            checkify.check(check_flag, "Mask is False, the masked value is invalid.\n")
+            checkify.check(
+                check_flag,
+                "Attempted to unmask when the mask flag is False: the masked value is invalid.\n",
+            )
 
         optional_check(_check)
         return self.value
