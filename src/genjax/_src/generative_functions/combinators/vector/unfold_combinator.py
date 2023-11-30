@@ -23,6 +23,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.experimental import checkify
 
+from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
@@ -56,7 +57,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
-from genjax._src.global_options import global_options
 
 
 @dataclass
@@ -205,13 +205,13 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     def _optional_out_of_bounds_check(self, count: IntArray):
         def _check():
-            check_flag = jnp.less(self.max_length, count + 1)
+            check_flag = jnp.less(count + 1, self.max_length)
             checkify.check(
                 check_flag,
                 f"\nUnfoldCombinator received a length argument ({count}) longer than specified max length ({self.max_length})",
             )
 
-        global_options.optional_check(_check)
+        optional_check(_check)
 
     @typecheck
     def simulate(

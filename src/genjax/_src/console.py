@@ -20,7 +20,10 @@ import rich
 from rich import traceback
 from rich.console import Console
 
+from genjax._src.checkify import no_checkify
+from genjax._src.checkify import yes_checkify
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import Bool
 from genjax._src.core.typing import Dict
 
 
@@ -33,14 +36,23 @@ from genjax._src.core.typing import Dict
 class GenJAXConsole(Pytree):
     rich_console: Console
     traceback_kwargs: Dict
+    enforce_checkify: Bool
 
     def flatten(self):
-        return (), (self.rich_console,)
+        return (), (
+            self.rich_console,
+            self.traceback_kwargs,
+            self.enforce_checkify,
+        )
 
     def __enter__(self):
+        if self.enforce_checkify:
+            yes_checkify()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
+        if self.enforce_checkify:
+            no_checkify()
         if exc_type is not None:
             show_locals = self.traceback_kwargs["show_locals"]
             trace = traceback.Traceback.extract(
@@ -80,17 +92,19 @@ class GenJAXConsole(Pytree):
         rich.inspect(obj, console=self.rich_console, **kwargs)
 
 
-def pretty(
-    **kwargs,
+def console(
+    enforce_checkify=False,
+    **pretty_kwargs,
 ):
     traceback_kwargs = {
         "word_wrap": True,
         "show_locals": False,
         "max_frames": 30,
         "suppress": [jax, plum],
-        **kwargs,
+        **pretty_kwargs,
     }
     return GenJAXConsole(
         Console(soft_wrap=True),
         traceback_kwargs,
+        enforce_checkify,
     )

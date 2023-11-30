@@ -23,6 +23,7 @@ import jax.tree_util as jtu
 import numpy as np
 from jax.experimental import checkify
 
+from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -52,7 +53,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
-from genjax._src.global_options import global_options
 
 
 @dataclass
@@ -442,7 +442,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference:\n{truth}\nPassed in:\n{index}",
             )
 
-        global_options.optional_check(_check)
+        optional_check(_check)
 
     @typecheck
     def assess(

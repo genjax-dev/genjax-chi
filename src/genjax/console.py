@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.console import pretty
+from genjax._src.console import console
 
 
-__all__ = ["pretty"]
+__all__ = ["console"]
