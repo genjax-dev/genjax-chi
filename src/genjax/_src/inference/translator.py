@@ -166,7 +166,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         forward_proposal_trace = self.q_forward.simulate(
             key, (self.new_observations, prev_model_choices, *self.q_forward_args)
         )
-        transformed, log_abs_det = self.value_and_jacobian_correction(
+        transformed, J_log_abs_det = self.value_and_jacobian_correction(
             self.choice_map_forward, forward_proposal_trace
         )
         forward_proposal_score = forward_proposal_trace.get_score()
@@ -177,7 +177,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         # This type of trace translator does not handle proposing
         # to existing latents.
         assert discard.is_empty()
-        log_weight = log_model_weight - forward_proposal_score - log_abs_det
+        log_weight = log_model_weight - forward_proposal_score - J_log_abs_det
         return (new_model_trace, log_weight)
 
 
