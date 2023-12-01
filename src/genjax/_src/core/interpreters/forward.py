@@ -20,17 +20,6 @@ from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
-from adevjax.hashable_dict import HashableDict
-from adevjax.hashable_dict import hashable_dict
-from adevjax.pytree import Pytree
-from adevjax.staging import stage
-from adevjax.typing import Any
-from adevjax.typing import Bool
-from adevjax.typing import Callable
-from adevjax.typing import List
-from adevjax.typing import Union
-from adevjax.typing import Value
-from adevjax.typing import typecheck
 from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
@@ -50,6 +39,7 @@ from genjax._src.core.typing import Callable
 from genjax._src.core.typing import List
 from genjax._src.core.typing import Union
 from genjax._src.core.typing import Value
+from genjax._src.core.typing import typecheck
 
 
 #########################
