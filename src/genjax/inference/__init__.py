@@ -18,7 +18,6 @@ from genjax.inference import mcmc
 from genjax.inference import smc
 from genjax.inference import testbed
 from genjax.inference import translator
-from genjax.inference import vi
 
 
 __all__ = [
@@ -28,5 +27,4 @@ __all__ = [
     "smc",
     "translator",
     "testbed",
-    "vi",
 ]
