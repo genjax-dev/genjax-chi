@@ -12,29 +12,6 @@ files = [
 ]
 
 [[package]]
-name = "adevjax"
-version = "0.0.1"
-description = ""
-optional = false
-python-versions = ">=3.9,<3.13"
-files = []
-develop = false
-
-[package.dependencies]
-beartype = "^0.16.4"
-jax = "^0.4.20"
-jaxtyping = "^0.2.23"
-plum-dispatch = "^2.2.2"
-rich = "^13.7.0"
-tensorflow-probability = "^0.21.0"
-
-[package.source]
-type = "git"
-url = "https://github.com/probcomp/adevjax"
-reference = "HEAD"
-resolved_reference = "8000910b636ed17117e99a1c6dbfa5e2e863717d"
-
-[[package]]
 name = "aiofiles"
 version = "22.1.0"
 description = "File support for asyncio."
@@ -4252,4 +4229,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "a503b9d7a3bed19f23dc7fe90a1503a4a5d3029e308122e30f5c6992d4ef8a28"
+content-hash = "eeb3f0e00a76f9d6e28cc5235acd4ddbe3da02800c21652f898abe5e30cec819"
