@@ -118,6 +118,12 @@ class IndexedChoiceMap(ChoiceMap):
 
     @classmethod
     @dispatch
+    def new(cls, idx: Int, inner: ChoiceMap) -> ChoiceMap:
+        idx = jnp.array(idx)
+        return IndexedChoiceMap.new(idx, inner)
+
+    @classmethod
+    @dispatch
     def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
         # Promote raw integers (or scalars) to non-null leading dim.
         indices = jnp.array(indices, copy=False)
@@ -198,7 +204,8 @@ class IndexedChoiceMap(ChoiceMap):
     def get_submap(self, idx: IntArray):
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
         slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
+        inner = jtu.tree_map(lambda v: jnp.array(v, copy=False), self.inner)
+        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, inner)
         return mask(jnp.isin(idx, self.indices), submap)
 
     @dispatch
