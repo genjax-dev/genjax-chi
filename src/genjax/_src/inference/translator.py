@@ -48,10 +48,6 @@ from genjax._src.generative_functions.static.static_gen_fn import (
 @dataclass
 class TraceTranslator(Pytree):
     @abc.abstractmethod
-    def inverse(self, prev_model_trace, prev_observations):
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def apply(
         self,
         key: PRNGKey,
@@ -224,46 +220,116 @@ def extending_trace_translator(
 # Trace kernels for SMCP3 #
 ###########################
 
+# Note that this class of trace translators is strictly more general
+# than `ExtendingTraceTranslator`, but more advanced to use
+# (a power tool).
+
 
 @dataclass
-class TraceKernel(Pytree):
-    forward: StaticGenerativeFunction
-    backward: StaticGenerativeFunction
+class TraceKernelTraceTranslator(TraceTranslator):
+    """
+    A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
+
+    Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.Static` language.
+
+    The K kernel should return a choice map of new choices to perform the update move with (`x_new`). It may also sample auxiliary randomness ('aux') to construct these new choices. It represents the distribution P(x_new, aux | x).
+
+    The L kernel should explicitly trace any auxiliary randomness ('aux') sampled in K. It is used to improve the weight quality - by attempting to invert the (potentially stochastic) logic of K to produce ('aux'). It represents the distribution P(aux | x_new)
+
+    Then, E_aux[P(aux | x_new) / P(x_new, aux | x)] = E_aux[1 / w] = 1 / P(x_new), allowing us to use the proposal from K as a valid proposal with the weight contribution of 1 / w.
+    """
+
+    model_argdiffs: Tuple
+    K: StaticGenerativeFunction
+    K_args: Tuple
+    L: StaticGenerativeFunction
+    L_args: Tuple
 
     def flatten(self):
-        return (self.forward, self.backward), ()
+        return (
+            self.model_argdiffs,
+            self.K,
+            self.K_args,
+            self.L,
+            self.L_args,
+        ), ()
 
-    def assess(self, key, choices, args):
-        (r, w) = self.gen_fn.assess(key, choices, args)
-        (chm, aux) = r
-        return ((chm, aux), w)
+    @classmethod
+    def new(
+        cls,
+        model_argdiffs: Tuple,
+        K: StaticGenerativeFunction,
+        K_args: Tuple,
+        L: StaticGenerativeFunction,
+        L_args: Tuple,
+    ):
+        return TraceKernelTraceTranslator(
+            model_argdiffs,
+            K,
+            K_args,
+            L,
+            L_args,
+        )
 
-    def propose(self, key, args):
-        tr = self.gen_fn.simulate(key, args)
-        choices = tr.get_choices()
-        score = tr.get_score()
-        retval = tr.get_retval()
-        (chm, aux) = retval
-        return (choices, score, (chm, aux))
+    def value_and_jacobian_correction(
+        self,
+        prev_model_choices,
+        K_aux_choices,
+    ):
+        grad_tree, no_grad_tree = tree_grad_split(prev_model_choices)
 
-    def jacfwd_retval(self, key, choices, trace, proposal_args):
-        grad_tree, no_grad_tree = tree_grad_split((choices, trace))
-
-        def _inner(differentiable: Tuple):
-            choices, trace = tree_zipper(differentiable, no_grad_tree)
-            ((chm, aux), _) = self.gen_fn.assess(key, choices, (trace, proposal_args))
-            return (chm, aux)
+        def _inner(differentiable):
+            prev_model_choices = tree_zipper(differentiable, no_grad_tree)
+            (_, new_choices) = self.K.assess(
+                K_aux_choices, (prev_model_choices, *self.K_args)
+            )
+            return new_choices
 
         inner_jacfwd = jax.jacfwd(_inner)
         J = inner_jacfwd(grad_tree)
-        return J
+        (_, J_log_abs_det) = safe_slogdet(J)
+        return J_log_abs_det
 
-
-######################
-# Language decorator #
-######################
+    @typecheck
+    def apply(
+        self,
+        key: PRNGKey,
+        prev_model_trace: Trace,
+    ) -> Tuple[Trace, FloatArray]:
+        key, sub_key = jax.random.split(key)
+        prev_model_choices = prev_model_trace.get_choices()
+        aux_choices, K_score, new_choices = self.K.propose(
+            sub_key, (prev_model_choices, self.K_args)
+        )
+        assert isinstance(new_choices, Choice)
+        J_log_abs_det = self.value_and_jacobian_correction(
+            aux_choices, prev_model_choices
+        )
+        (new_model_trace, update_weight, _, discard) = prev_model_trace.update(
+            key, new_choices, self.model_argdiffs
+        )
+        assert discard.is_empty()
+        new_model_choices = new_model_trace.get_choices()
+        L_score = self.L.assess(
+            aux_choices,
+            (new_model_choices, self.L_args),
+        )
+        weight = update_weight + (L_score - K_score) + J_log_abs_det
+        return new_model_trace, weight
 
 
 @typecheck
-def trace_kernel(gen_fn: StaticGenerativeFunction):
-    return TraceKernel.new(gen_fn)
+def trace_kernel_translator(
+    model_argdiffs: Tuple,
+    K: StaticGenerativeFunction,
+    K_args: Tuple,
+    L: StaticGenerativeFunction,
+    L_args: Tuple,
+):
+    return TraceKernelTraceTranslator.new(
+        model_argdiffs,
+        K,
+        K_args,
+        L,
+        L_args,
+    )
