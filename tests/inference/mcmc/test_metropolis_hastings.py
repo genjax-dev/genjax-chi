@@ -17,7 +17,7 @@ import jax
 import jax.numpy as jnp
 
 import genjax
-from genjax import gen
+from genjax import lang
 from genjax import normal
 from genjax import trace
 from genjax import uniform
@@ -26,12 +26,12 @@ from genjax.inference.mcmc import MetropolisHastings
 
 class TestMetropolisHastings:
     def test_simple_inf(self):
-        @gen(genjax.Static)
+        @lang(genjax.Static)
         def normalModel(mu):
             x = trace("x", normal)(mu, 1.0)
             return x
 
-        @gen(genjax.Static)
+        @lang(genjax.Static)
         def proposal(nowAt, d):
             current = nowAt["x"]
             x = trace("x", uniform)(current - d, current + d)
@@ -51,7 +51,7 @@ class TestMetropolisHastings:
                 assert tr.get_score() == new.get_score()
 
     def test_map_combinator(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def model():
             loc = genjax.normal(0.0, 1.0) @ "loc"
             xs = (
@@ -62,7 +62,7 @@ class TestMetropolisHastings:
             )
             return xs
 
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def proposal(choices):
             loc = choices["loc"]
             xs = (

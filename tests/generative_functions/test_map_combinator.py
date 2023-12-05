@@ -20,8 +20,8 @@ import genjax
 
 class TestMapCombinator:
     def test_map_simple_normal(self):
-        @genjax.gen(genjax.Map, in_axes=(0,))
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Map, in_axes=(0,))
+        @genjax.lang(genjax.Static)
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -33,7 +33,7 @@ class TestMapCombinator:
         assert map_score == jnp.sum(tr.inner.get_score())
 
     def test_map_vector_choice_map_importance(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -51,7 +51,7 @@ class TestMapCombinator:
         ) + genjax.normal.logpdf(3.0, 2.0, 1.0)
 
     def test_map_indexed_choice_map_importance(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -75,14 +75,14 @@ class TestMapCombinator:
             assert tr[i, "z"] == zv[i]
 
     def test_map_nested_indexed_choice_map_importance(self):
-        @genjax.gen(genjax.Map, in_axes=(0,))
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Map, in_axes=(0,))
+        @genjax.lang(genjax.Static)
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
-        @genjax.gen(genjax.Map, in_axes=(0,))
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Map, in_axes=(0,))
+        @genjax.lang(genjax.Static)
         def higher_model(x):
             return model(x) @ "outer"
 
@@ -95,7 +95,7 @@ class TestMapCombinator:
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)
 
     def test_map_vmap_pytree(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def foo(y, args):
             loc, scale = args
             x = genjax.normal(loc, scale) @ "x"

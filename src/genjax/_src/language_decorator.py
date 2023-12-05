@@ -26,7 +26,7 @@ from genjax._src.core.typing import typecheck
 
 
 @typecheck
-def gen(lang_constructor: LanguageConstructor, *args, **kwargs) -> Callable:
+def lang(lang_constructor: LanguageConstructor, *args, **kwargs) -> Callable:
     @typecheck
     def _inner(inner: Any) -> GenerativeFunction:
         return lang_constructor(inner, *args, **kwargs)

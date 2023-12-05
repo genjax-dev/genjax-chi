@@ -73,7 +73,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.Static)
+            @genjax.lang(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -380,7 +380,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.Static)
+            @genjax.lang(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -495,7 +495,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.Static)
+            @genjax.lang(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -527,7 +527,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.Static)
+            @genjax.lang(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -584,7 +584,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.pretty()
 
-            @genjax.gen(genjax.Static)
+            @genjax.lang(genjax.Static)
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -996,7 +996,7 @@ class GenerativeFunction(Pytree):
             import genjax
             console = genjax.pretty()
 
-            @genjax.gen
+            @genjax.lang
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"

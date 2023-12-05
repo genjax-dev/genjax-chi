@@ -19,9 +19,9 @@ import jax.tree_util as jtu
 
 import genjax
 from genjax import choice_map
-from genjax import gen
 from genjax import indexed_choice_map
 from genjax import indexed_select
+from genjax import lang
 from genjax import normal
 from genjax.incremental import NoChange
 from genjax.incremental import UnknownChange
@@ -33,8 +33,8 @@ from genjax.inference import smc
 
 class TestSimpleSMC:
     def test_smoke_initialize_and_update(self):
-        @gen(genjax.Unfold, max_length=10)
-        @gen(genjax.Static)
+        @lang(genjax.Unfold, max_length=10)
+        @lang(genjax.Static)
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
             x = normal(z, 1.0) @ "x"
@@ -65,8 +65,8 @@ class TestSimpleSMC:
         assert True
 
     def test_smoke_sis_with_scan(self):
-        @gen(genjax.Unfold, max_length=10)
-        @gen(genjax.Static)
+        @lang(genjax.Unfold, max_length=10)
+        @lang(genjax.Static)
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
             x = normal(z, 1.0) @ "x"
@@ -111,8 +111,8 @@ class TestSimpleSMC:
         assert True
 
     def test_smoke_smc_with_scan(self):
-        @gen(genjax.Unfold, max_length=10)
-        @gen(genjax.Static)
+        @lang(genjax.Unfold, max_length=10)
+        @lang(genjax.Static)
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
             x = normal(z, 1.0) @ "x"
@@ -161,22 +161,22 @@ class TestSimpleSMC:
         assert True
 
     def test_smoke_smc_with_nested_switch(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def outlier():
             return genjax.normal(0.0, 1.0) @ "reflection_point"
 
         branching = genjax.Switch(outlier, outlier)
 
-        @genjax.gen(genjax.Map, in_axes=(0,))
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Map, in_axes=(0,))
+        @genjax.lang(genjax.Static)
         def inner_chain(v):
             outlier = genjax.bernoulli(0.3) @ "outlier"
             idx = outlier.astype(int)
             c = branching(idx) @ "reflection_or_outlier"
             return c
 
-        @genjax.gen(genjax.Unfold, max_length=17)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=17)
+        @genjax.lang(genjax.Static)
         def chain(z):
             c = inner_chain(z) @ "chain"
             return c
