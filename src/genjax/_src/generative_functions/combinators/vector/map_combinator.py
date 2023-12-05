@@ -144,7 +144,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import genjax
         console = genjax.pretty()
 
-        @genjax.gen
+        @genjax.lang
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"

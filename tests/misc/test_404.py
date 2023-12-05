@@ -22,14 +22,14 @@ import genjax
 _global = jnp.arange(3, dtype=float)
 
 
-@genjax.gen(genjax.Static)
+@genjax.lang(genjax.Static)
 def localization_kernel(x):
     y = genjax.normal(jnp.sum(_global), 1.0) @ "x"
     return x + y
 
 
 def wrap(fn):
-    @genjax.gen(genjax.Static)
+    @genjax.lang(genjax.Static)
     def inner(carry, *static_args):
         idx, state = carry
         newstate = fn.inline(state, *static_args)

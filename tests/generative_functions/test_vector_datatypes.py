@@ -75,7 +75,7 @@ class TestIndexChoiceMap:
 
 class TestVectorTrace:
     def test_vector_trace_static_selection(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -90,8 +90,8 @@ class TestVectorTrace:
 
     def test_vector_trace_index_selection(self):
         # Example generated using Map.
-        @genjax.gen(genjax.Map, in_axes=(0,))
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Map, in_axes=(0,))
+        @genjax.lang(genjax.Static)
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -105,8 +105,8 @@ class TestVectorTrace:
         assert score == vec_tr.project(sel)
 
         # Example generated using Unfold.
-        @genjax.gen(genjax.Unfold, max_length=10)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=10)
+        @genjax.lang(genjax.Static)
         def chain(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -131,8 +131,8 @@ class TestVectorTrace:
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
         assert proj_score == z_score
 
-        @genjax.gen(genjax.Unfold, max_length=10)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=10)
+        @genjax.lang(genjax.Static)
         def two_layer_chain(z):
             z1 = genjax.trace("z1", genjax.normal)(z, 1.0)
             _ = genjax.trace("z2", genjax.normal)(z1, 1.0)

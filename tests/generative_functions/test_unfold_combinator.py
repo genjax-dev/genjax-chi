@@ -25,7 +25,7 @@ from genjax.incremental import tree_diff_no_change
 
 class TestUnfoldSimpleNormal:
     def test_unfold_simple_normal(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -38,8 +38,8 @@ class TestUnfoldSimpleNormal:
         assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
 
     def test_unfold_index_importance(self):
-        @genjax.gen(genjax.Unfold, max_length=10)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=10)
+        @genjax.lang(genjax.Static)
         def chain(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -61,7 +61,7 @@ class TestUnfoldSimpleNormal:
             sel = genjax.select("z")
             assert tr.get_score() == tr.project(sel)
 
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def f(x):
             x = genjax.normal(x, 1.0) @ "x"
             return x
@@ -95,8 +95,8 @@ class TestUnfoldSimpleNormal:
         assert tr[9, "x"] == 9
 
     def test_unfold_two_layer_index_importance(self):
-        @genjax.gen(genjax.Unfold, max_length=10)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=10)
+        @genjax.lang(genjax.Static)
         def two_layer_chain(x):
             z1 = genjax.trace("z1", genjax.normal)(x, 1.0)
             z2 = genjax.trace("z2", genjax.normal)(z1, 1.0)
@@ -124,7 +124,7 @@ class TestUnfoldSimpleNormal:
             assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
 
     def test_unfold_index_update(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -148,7 +148,7 @@ class TestUnfoldSimpleNormal:
         )
 
     def test_off_by_one_issue_415(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def one_step(_dummy_state):
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
@@ -172,7 +172,7 @@ class TestUnfoldSimpleNormal:
         assert importance_tr[4, "x"] == true_x[4]
 
     def test_update_pytree_state(self):
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Static)
         def next_step(state):
             (x_prev, z_prev) = state
             x = genjax.normal(_phi * x_prev, _q) @ "x"
@@ -246,8 +246,8 @@ class TestUnfoldSimpleNormal:
     ####################################################
 
     def test_update_check_weight_computations(self):
-        @genjax.gen(genjax.Unfold, max_length=10)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=10)
+        @genjax.lang(genjax.Static)
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
             _ = genjax.normal(z, 1.0) @ "x"
@@ -333,8 +333,8 @@ class TestUnfoldSimpleNormal:
         assert w == pytest.approx(new_score - old_score, 0.0001)
 
     def test_update_check_score_correctness(self):
-        @genjax.gen(genjax.Unfold, max_length=5)
-        @genjax.gen(genjax.Static)
+        @genjax.lang(genjax.Unfold, max_length=5)
+        @genjax.lang(genjax.Static)
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
             _ = genjax.normal(z, 1.0) @ "x"

@@ -151,7 +151,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.pretty()
 
         # A kernel generative function.
-        @genjax.gen
+        @genjax.lang
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x

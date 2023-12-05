@@ -86,11 +86,11 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import genjax
         console = genjax.pretty()
 
-        @genjax.gen
+        @genjax.lang
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
-        @genjax.gen
+        @genjax.lang
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
