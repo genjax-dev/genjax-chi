@@ -86,7 +86,7 @@ class Pytree:
             import jax.tree_util as jtu
             from genjax.core import Pytree
             from dataclasses import dataclass
-            console = genjax.pretty()
+            console = genjax.console()
 
             @dataclass
             class MyFoo(Pytree):
@@ -122,7 +122,7 @@ class Pytree:
             import jax.tree_util as jtu
             from genjax.core import Pytree
             from dataclasses import dataclass
-            console = genjax.pretty()
+            console = genjax.console()
 
             @dataclass
             class MyFoo(Pytree):

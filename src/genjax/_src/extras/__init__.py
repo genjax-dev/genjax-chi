@@ -48,7 +48,7 @@ class LazyLoader(types.ModuleType):
         import jax
         import genjax
         import tinygp.kernels as kernels
-        console = genjax.pretty()
+        console = genjax.console()
 
         # Extension module
         tinygp = genjax.extras.tinygp

@@ -42,6 +42,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import chi
 from genjax._src.generative_functions.distributions.tensorflow_probability import chi2
+from genjax._src.generative_functions.distributions.tensorflow_probability import flip
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     geometric,
 )
@@ -123,6 +124,7 @@ __all__ = [
     "beta",
     "bates",
     "bernoulli",
+    "flip",
     "chi",
     "chi2",
     "geometric",

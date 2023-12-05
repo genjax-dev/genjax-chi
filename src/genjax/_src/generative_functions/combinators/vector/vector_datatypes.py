@@ -324,6 +324,11 @@ class VectorChoiceMap(ChoiceMap):
         return jnp.logical_and(idx < dim, self.inner.has_submap(tuple(addr)))
 
     @dispatch
+    def get_submap(self, slc: slice):
+        sliced = jtu.tree_map(lambda v: v[slc], self.inner)
+        return sliced
+
+    @dispatch
     def get_submap(self, idx: Int):
         dim = static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
@@ -349,18 +354,9 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def get_submap(self, addr: Tuple):
         (idx, *addr) = addr
-        # First address element must be an (IntArray) index.
-        assert isinstance(idx, IntArray) or isinstance(idx, Int)
-        dim = static_check_tree_leaves_have_matching_leading_dim(
-            self.inner,
-        )
-        check = idx < dim
-        idx = check * idx
-        sliced = jtu.tree_map(lambda v: v[idx], self.inner.get_submap(tuple(addr)))
-        if static_check_is_concrete(check) and check:
-            return sliced
-        else:
-            return mask(idx < dim, sliced)
+        sliced = self.get_submap(idx)
+        sliced = sliced.get_submap(tuple(addr))
+        return sliced
 
     @dispatch
     def merge(self, other: "VectorChoiceMap") -> Tuple[ChoiceMap, ChoiceMap]:

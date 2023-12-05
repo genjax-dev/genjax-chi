@@ -84,7 +84,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
-        console = genjax.pretty()
+        console = genjax.console()
 
         @genjax.lang
         def branch_1():

@@ -148,7 +148,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
-        console = genjax.pretty()
+        console = genjax.console()
 
         # A kernel generative function.
         @genjax.lang
