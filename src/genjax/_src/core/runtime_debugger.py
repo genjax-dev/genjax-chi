@@ -297,7 +297,7 @@ def pull(
         import jax.numpy as jnp
         import genjax
         import genjax.core.runtime_debugger as debug
-        console = genjax.pretty()
+        console = genjax.console()
 
         def foo(x):
             v = jnp.ones(10) * x
@@ -315,7 +315,7 @@ def pull(
         import jax.numpy as jnp
         import genjax
         import genjax.core.runtime_debugger as debug
-        console = genjax.pretty()
+        console = genjax.console()
 
         def foo(x):
             v = jnp.ones(10) * x
@@ -336,7 +336,7 @@ def pull(
         import jax.numpy as jnp
         import genjax
         import genjax.core.runtime_debugger as debug
-        console = genjax.pretty()
+        console = genjax.console()
         key = jax.random.PRNGKey(314159)
 
         @genjax.lang

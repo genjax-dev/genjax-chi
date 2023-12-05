@@ -7,16 +7,16 @@ import re
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
-from genjax import pretty
+from genjax import console
 
-console = pretty()
+console = console()
 tfd = tfp.distributions
 ```
 
-This is a "build a miniature GenJAX" tutorial: we construct a small probabilistic programming system (featuring a subset of Gen's generative function interfaces) using JAX. (1)
+This is a "build a miniature GenJAX" tutorial: we construct a small probabilistic programming system (featuring a subset of Gen's generative function interfaces) (1). Along the way, we explore exactly why Gen is designed the way that it is.
 { .annotate }
 
-1. The implementation of the language here _is a small scale version of the implementation for GenJAX's `Static` language_. Therefore, it is useful to work through this tutorial to understand the implementation of that language.
+1. The implementation of the JAX interpreter language here _is a small scale version of the implementation for GenJAX's `Static` language_. Therefore, it is useful to work through this tutorial to understand the implementation of that language.
 
 ## Distributions
 
@@ -51,7 +51,7 @@ On the other hand, we'll see that by adding this new ingredient, we've given our
 
 ---
 
-_The first insight of Gen is that the return value type need not be the same as the support type for all type instances of the kind $\textbf{G} \ \tau \ R$_.
+_A key design insight in Gen: the return value type need not be the same as the support type for all type instances of the kind $\textbf{G} \ \tau \ R$_.
 
 ---
 
@@ -69,21 +69,35 @@ class _Normal(Distribution):
 Normal = _Normal()
 ```
 
-## Distribution combinators
+## The interface on types of kind $\textbf{G} \ \tau \ R$
 
-Let's take a miniature step forward: we could build up new types of kind $\textbf{G} \ \tau \ R$ _by specifying the ingredients $\mathbb{P}$ and $f$_.
+Let's a step forward: we're going to build up new types of kind $\textbf{G} \ \tau \ R$ _by specifying the ingredients $\mathbb{P}$ and $f$_.
 
 - $\mathbb{P}$ is the measure over the space denoted by $\tau$.
 - $f$ is the "return value function" - a function from $\tau \rightarrow R$.
+
+We're going to call our new objects "generative functions". I'm going to provide their interface directly now, and we'll see over a series of examples _why the interface methods have the signatures that they do_.
+
+```python exec="yes" source="material-block" session="ex-dida"
+@dataclass
+class GenerativeFunction:
+    def simulate(key: PRNGKey, args: Tuple) -> Tuple[Any, Any]:
+        pass
+
+    def assess(tau_value: Any, args: Tuple) -> Tuple[Any, Any]:
+        pass
+```
+
+### Introducing products
 
 What if we write a "product combinator" using these concepts?
 
 ```python exec="yes" source="material-block" session="ex-dida"
 @dataclass
-class ProductCombinator(Distribution):
+class ProductCombinator(GenerativeFunction):
     product_components: List[Distribution]
 
-    def sample(key, mixture_args):
+    def simulate(key, mixture_args):
         sub_keys = jax.random.split(key, len(self.product_components))
         samples = []
         for (component, args) in zip(self.product_components, mixture_args):
@@ -91,8 +105,37 @@ class ProductCombinator(Distribution):
             samples.append(s)
         return tuple(samples)
 
-    def logpdf(key, v, mixture_args):
+    def assess(key, v, mixture_args):
         pass
+```
+
+The idea behind this combinator is that we want a type of object which accepts a sequence of $(\textbf{G} \ \tau_1 \ R_1, ..., \textbf{G} \ \tau_n \ R_n)$, and creates a new instance of type $\textbf{G} \ (\tau_1 ... \otimes \tau_2) \ (R_1 ... \otimes R_n)$.
+
+### Introducing sequencing
+
+While `ProductCombinator` is neat - we still haven't really used that return value degree of freedom. Let's try something interesting: we'll call it the `DoCombinator`.
+
+```python exec="yes" source="material-block" session="ex-dida"
+@dataclass
+class DoCombinator(GenerativeFunction):
+    first: GenerativeFunction
+    and_then: Callable[[Any], GenerativeFunction]
+
+    def simulate(key, args):
+        (first_args, final_args) = args
+        key, sub_key = jax.random.split(key)
+        v = first.simulate(sub_key, first_args)
+        next_gen_fn = self.and_then(v)
+        final = next_gen_fn.simulate(key, final_args)
+        return final
+
+    def assess(choices, args):
+        (first_args, final_args) = args
+        (first_choices, final_choices) = choices
+        first_score, first_retval = first.assess(first_choices, first_args)
+        next_gen_fn = self.and_then(v)
+        final_score, final_retval = next_gen_fn.assess(final_choices, final_args)
+        return (final_score + first_score), final_retval
 ```
 
 ## Programmatic composition

@@ -247,7 +247,7 @@ class ExactDensity(Distribution):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             v = genjax.normal.sample(key, 0.0, 1.0)
@@ -259,7 +259,7 @@ class ExactDensity(Distribution):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))

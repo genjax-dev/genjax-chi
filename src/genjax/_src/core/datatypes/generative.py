@@ -71,7 +71,7 @@ class Selection(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
-            console = genjax.pretty()
+            console = genjax.console()
 
             @genjax.lang(genjax.Static)
             def model():
@@ -378,7 +378,7 @@ class ChoiceMap(Choice):
             import jax
             import genjax
             from genjax import bernoulli
-            console = genjax.pretty()
+            console = genjax.console()
 
             @genjax.lang(genjax.Static)
             def model():
@@ -437,6 +437,8 @@ class ChoiceMap(Choice):
             if isinstance(submap.value, ChoiceValue):
                 return Mask(submap.mask, submap.value.get_value())
             return submap
+        else:
+            return submap
 
     @dispatch
     def __getitem__(self, addr: Any):
@@ -473,7 +475,7 @@ class Trace(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
@@ -493,7 +495,7 @@ class Trace(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
-            console = genjax.pretty()
+            console = genjax.console()
 
             @genjax.lang(genjax.Static)
             def model():
@@ -525,7 +527,7 @@ class Trace(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
-            console = genjax.pretty()
+            console = genjax.console()
 
             @genjax.lang(genjax.Static)
             def model():
@@ -549,7 +551,7 @@ class Trace(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
@@ -582,7 +584,7 @@ class Trace(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
-            console = genjax.pretty()
+            console = genjax.console()
 
             @genjax.lang(genjax.Static)
             def model():
@@ -662,7 +664,7 @@ class Trace(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
@@ -746,7 +748,7 @@ class Mask(Pytree):
             import jax
             import jax.numpy as jnp
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             masked = genjax.mask(False, jnp.ones(5))
             v1 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
@@ -784,7 +786,7 @@ class Mask(Pytree):
             import jax
             import jax.numpy as jnp
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             masked = genjax.mask(True, jnp.ones(5))
             print(console.render(masked.unmask()))
@@ -797,7 +799,7 @@ class Mask(Pytree):
             import jax.numpy as jnp
             import jax.experimental.checkify as checkify
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
             genjax.global_options.allow_checkify(True)
 
             masked = genjax.mask(False, jnp.ones(5))
@@ -982,7 +984,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
@@ -994,7 +996,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             @genjax.lang
             def model():
@@ -1037,7 +1039,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            console = genjax.pretty()
+            console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
             (chm, w, r) = genjax.normal.propose(key, (0.0, 1.0))
@@ -1050,7 +1052,7 @@ class GenerativeFunction(Pytree):
             import jax
             import genjax
             from genjax import Static
-            console = genjax.pretty()
+            console = genjax.console()
 
             @gen(Static)
             def model():
