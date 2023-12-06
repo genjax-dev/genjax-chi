@@ -120,14 +120,14 @@ class Trie(Pytree, CustomPretty):
     ###################
 
     def __rich_tree__(self, tree):
-        for (k, v) in self.get_submaps_shallow():
+        for k, v in self.get_submaps_shallow():
             subk = tree.add(f"[bold]:{k}")
             _ = v.__rich_tree__(subk)
         return tree
 
     def pformat_tree(self, **kwargs):
         tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-        for (k, v) in self.inner.items():
+        for k, v in self.inner.items():
             subk = tree.add(f"[bold]:{k}")
             submap = gpp._pformat(v, **kwargs)
             subk.add(submap)

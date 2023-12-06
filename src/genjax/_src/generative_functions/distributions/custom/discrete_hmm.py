@@ -57,7 +57,10 @@ class DiscreteHMMConfiguration(Pytree):
     observation_tensor: FloatArray
 
     def flatten(self):
-        return (self.transition_tensor, self.observation_tensor,), (
+        return (
+            self.transition_tensor,
+            self.observation_tensor,
+        ), (
             self.linear_grid_dim,
             self.adjacency_distance_trans,
             self.adjacency_distance_obs,

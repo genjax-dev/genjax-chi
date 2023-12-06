@@ -39,7 +39,7 @@ def minimum_covering_leaves(pytrees: Sequence):
             lambda v: get_call_fallback(local, v, lambda v: v + 1, 1),
             tree,
         )
-        for (k, v) in local.items():
+        for k, v in local.items():
             get_call_fallback(leaf_schema, k, lambda u: v if v > u else u, v)
 
     return leaf_schema
@@ -61,7 +61,7 @@ def set_payload(leaf_schema, pytree):
             payload[aval] = shared
         shared.append(k)
 
-    for (k, limit) in leaf_schema.items():
+    for k, limit in leaf_schema.items():
         dtype = k.dtype
         shape = k.shape
         if k in payload:

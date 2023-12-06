@@ -134,40 +134,7 @@ def mypy(session) -> None:
 @session(python=python_version)
 def lint(session: Session) -> None:
     session.run_always("poetry", "install", "--with", "dev", external=True)
-    session.install(
-        "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
-    )
-
-    # Source
-    session.run("isort", "src")
-    session.run("black", "src")
-    session.run("docformatter", "--in-place", "--recursive", "src")
-    session.run(
-        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "src"
-    )
-    session.run("flake8", "src")
-
-    # Tests
-    session.run("isort", "tests")
-    session.run("black", "tests")
-    session.run(
-        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "tests"
-    )
-    session.run("flake8", "tests")
-
-    # Notebooks
-    session.run("isort", "notebooks")
-    session.run("black", "notebooks")
-    session.run("docformatter", "--in-place", "--recursive", "notebooks")
-    session.run(
-        "autoflake8",
-        "--in-place",
-        "--recursive",
-        "--exclude",
-        "__init__.py",
-        "notebooks",
-    )
-    session.run("flake8", "notebooks")
+    session.run("ruff", "format", ".")
 
 
 @session(python=python_version)

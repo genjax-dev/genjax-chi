@@ -65,6 +65,7 @@ cache_p = InitialStylePrimitive("cache")
 # Saving deterministic results
 #####
 
+
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the static language for functions via the `cache` static_primitives.
 @dataclass

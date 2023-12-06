@@ -1223,7 +1223,10 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     def unzip(
         self,
         fixed: Choice,
-    ) -> Tuple[Callable[[Choice, Tuple], FloatArray], Callable[[Choice, Tuple], Any],]:
+    ) -> Tuple[
+        Callable[[Choice, Tuple], FloatArray],
+        Callable[[Choice, Tuple], Any],
+    ]:
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)

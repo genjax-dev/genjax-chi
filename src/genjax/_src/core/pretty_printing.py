@@ -81,7 +81,7 @@ def _dict_entry(key: PrettyPrintable, value: PrettyPrintable, **kwargs) -> Tree:
 
 def _pformat_dict(obj: Dict, **kwargs) -> Tree:
     tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
-    for (k, v) in obj.items():
+    for k, v in obj.items():
         sub_tree = _dict_entry(k, v, **kwargs)
         tree.add(sub_tree)
     return tree

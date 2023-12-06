@@ -57,8 +57,8 @@ def _batch_fun(in_dims, *in_vals, **params):
     with jax_core.new_main(
         batching.BatchTrace, axis_name=jax_core.no_axis_name
     ) as main:
-        out_vals = (
-            yield (
+        out_vals = yield (
+            (
                 main,
                 in_dims,
             )
