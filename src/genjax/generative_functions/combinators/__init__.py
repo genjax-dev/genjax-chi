@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.combinators.masked_combinator import Masked
-from genjax._src.generative_functions.combinators.masked_combinator import (
-    masked_combinator,
+from genjax._src.generative_functions.combinators.masking_combinator import Masking
+from genjax._src.generative_functions.combinators.masking_combinator import (
+    masking_combinator,
 )
 from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
 from genjax._src.generative_functions.combinators.switch.switch_combinator import (
@@ -44,8 +44,8 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 
 __all__ = [
-    "Masked",
-    "masked_combinator",
+    "Masking",
+    "masking_combinator",
     "Map",
     "map_combinator",
     "Repeat",

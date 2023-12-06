@@ -20,10 +20,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import numpy as np
-from jax.experimental import checkify
 
-from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -34,8 +31,10 @@ from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.pytree.checks import (
+    static_check_tree_leaves_have_matching_leading_dim,
+)
 from genjax._src.core.typing import Any
-from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
@@ -419,31 +418,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return (map_tr, w, retval_diff, discard)
 
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: MapTrace,
-        chm: ChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
-        maybe_idx_chm = IndexedChoiceMap.convert(chm)
-        return self.update(key, prev, maybe_idx_chm, argdiffs)
-
-    def _optional_index_check(
-        self,
-        check: BoolArray,
-        truth: IntArray,
-        index: IntArray,
-    ):
-        def _check():
-            checkify.check(
-                not np.all(check),
-                f"\nMapCombinator {self} received a choice map with mismatched indices in assess.\nReference:\n{truth}\nPassed in:\n{index}",
-            )
-
-        optional_check(_check)
-
     @typecheck
     def assess(
         self,
@@ -452,14 +426,14 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     ) -> Tuple[Any, FloatArray]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        indices = jnp.array([i for i in range(0, broadcast_dim_length)])
-        check = jnp.count_nonzero(indices - chm.get_index()) == 0
+        chm_dim = static_check_tree_leaves_have_matching_leading_dim(chm)
 
-        # This inserts a `checkify.check` for bounds checking.
-        # If there is an index failure, `assess` must fail
-        # because we must provide a constraint for every generative
-        # function call.
-        self._optional_index_check(check, indices, chm.get_index())
+        # The argument leaves and choice map leaves must have matching
+        # broadcast dimension.
+        #
+        # Otherwise, a user may have passed in an invalid (not fully constrained)
+        # VectorChoiceMap (or messed up the arguments in some way).
+        assert chm_dim == broadcast_dim_length
 
         inner = chm.inner
         (score, retval) = jax.vmap(self.kernel.assess, in_axes=(0, self.in_axes))(

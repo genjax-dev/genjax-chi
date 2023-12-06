@@ -29,8 +29,8 @@ from genjax._src.core.typing import typecheck
 
 
 @dataclass
-class MaskedTrace(Trace):
-    mask_combinator: "MaskedCombinator"
+class MaskingTrace(Trace):
+    mask_combinator: "MaskingCombinator"
     inner: Trace
     check: BoolArray
 
@@ -54,7 +54,18 @@ class MaskedTrace(Trace):
 
 
 @dataclass
-class MaskedCombinator(GenerativeFunction):
+class MaskingCombinator(GenerativeFunction):
+    """A combinator which enables dynamic masking of generative function.
+    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
+    returns a new `GenerativeFunction` which accepts a boolean array as the
+    first argument denoting if the invocation of the generative function should
+    be masked or not.
+
+    The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
+
+    If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
+    """
+
     inner: GenerativeFunction
 
     def flatten(self):
@@ -63,17 +74,17 @@ class MaskedCombinator(GenerativeFunction):
     @typecheck
     @classmethod
     def new(cls, gen_fn: GenerativeFunction):
-        return MaskedCombinator(gen_fn)
+        return MaskingCombinator(gen_fn)
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> MaskedTrace:
+    ) -> MaskingTrace:
         (check, inner_args) = args
         tr = self.inner.simulate(key, inner_args)
-        return MaskedTrace(self, tr, check)
+        return MaskingTrace(self, tr, check)
 
     @typecheck
     def importance(
@@ -81,25 +92,25 @@ class MaskedCombinator(GenerativeFunction):
         key: PRNGKey,
         choice: Choice,
         args: Tuple,
-    ) -> Tuple[MaskedTrace, FloatArray]:
+    ) -> Tuple[MaskingTrace, FloatArray]:
         (check, inner_args) = args
         w, tr = self.inner.importance(key, choice, inner_args)
         w = check * w
-        return MaskedTrace(check, tr), w
+        return MaskingTrace(check, tr), w
 
     @typecheck
     def update(
         self,
         key: PRNGKey,
-        prev_trace: MaskedTrace,
+        prev_trace: MaskingTrace,
         choice: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[MaskedTrace, FloatArray, Any, Choice]:
+    ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
         (check_diff, inner_argdiffs) = argdiffs
         check = tree_diff_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
-            MaskedTrace(check, tr),
+            MaskingTrace(check, tr),
             w * check,
             mask(check, rd),
             mask(check, d),
@@ -112,10 +123,10 @@ class MaskedCombinator(GenerativeFunction):
 
 
 @typecheck
-def masked_combinator(gen_fn: GenerativeFunction):
-    return MaskedCombinator.new(gen_fn)
+def masking_combinator(gen_fn: GenerativeFunction):
+    return MaskingCombinator.new(gen_fn)
 
 
-Masked = LanguageConstructor(
-    masked_combinator,
+Masking = LanguageConstructor(
+    masking_combinator,
 )
