@@ -45,6 +45,7 @@ from genjax._src.generative_functions.supports_callees import push_trace_overloa
 # Generative function #
 #######################
 
+
 # Callee syntactic sugar handler.
 @typecheck
 def handler_trace_with_static(
@@ -113,14 +114,17 @@ class StaticGenerativeFunction(
             handler_trace_with_static, self.source
         )
         (
-            w,
             (
-                args,
-                retval,
-                address_choices,
-                score,
+                w,
+                (
+                    args,
+                    retval,
+                    address_choices,
+                    score,
+                ),
             ),
-        ), cache_state = importance_transform(syntax_sugar_handled)(key, chm, args)
+            cache_state,
+        ) = importance_transform(syntax_sugar_handled)(key, chm, args)
         return (
             StaticTrace.new(
                 self,

@@ -242,7 +242,6 @@ class DebuggerRecording(harvest.ReapState):
         stack: typing.List[Frame],
         locals: typing.List[typing.Any],
     ) -> RenderResult:
-
         path_highlighter = PathHighlighter()
 
         def render_locals(locals: typing.Any) -> typing.Iterable[ConsoleRenderable]:
@@ -263,7 +262,6 @@ class DebuggerRecording(harvest.ReapState):
             )
 
         for frame, recorded in zip(stack, locals):
-
             text = Text.assemble(
                 path_highlighter(Text(frame.filename, style="pygments.string")),
                 (":", "pygments.text"),

@@ -31,6 +31,7 @@ NAMESPACE = "state"
 collect = functools.partial(harvest.reap, tag=NAMESPACE)
 inject = functools.partial(harvest.plant, tag=NAMESPACE)
 
+
 # "clobber" here means that parameters get shared across sites with
 # the same name and tag.
 def param(*args, name):

@@ -242,6 +242,7 @@ def tree_diff_unknown_change(tree):
 # Generalized tangent transform #
 #################################
 
+
 # TODO: currently, only supports our default lattice
 # (`Change` and `NoChange`)
 def default_propagation_rule(prim, *args, **_params):
