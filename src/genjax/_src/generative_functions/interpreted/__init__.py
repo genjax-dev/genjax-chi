@@ -86,19 +86,22 @@ class Handler(object):
 # A primitive used in our language to denote invoking another generative function.
 # It's behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
-def trace(addr: Any, gen_fn: GenerativeFunction, *args: Any) -> Any:
+def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable[..., Any]:
     # Must be handled.
     assert _INTERPRETED_STACK
 
-    initial_msg = {
-        "type": "trace",
-        "addr": addr,
-        "gen_fn": gen_fn,
-        "args": args,
-    }
+    def invoke(*args: Tuple):
+        return handle(
+            {
+                "type": "trace",
+                "addr": addr,
+                "gen_fn": gen_fn,
+                "args": args,
+            }
+        )
 
     # Defer the behavior of this call to the handler.
-    return handle(initial_msg)
+    return invoke
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
@@ -292,12 +295,9 @@ class InterpretedTrace(Trace):
 
 # Callee syntactic sugar handler.
 @typecheck
-def handler_trace_with_interpreted(
-        addr,
-        gen_fn: GenerativeFunction,
-        args: Tuple,
-):
-    return trace(addr, gen_fn,*args)
+def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple):
+    return trace(addr, gen_fn)(*args)
+
 
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
