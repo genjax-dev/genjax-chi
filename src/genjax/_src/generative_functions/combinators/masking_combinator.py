@@ -15,7 +15,7 @@
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
@@ -26,6 +26,7 @@ from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 @dataclass
@@ -54,7 +55,7 @@ class MaskingTrace(Trace):
 
 
 @dataclass
-class MaskingCombinator(GenerativeFunction):
+class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
     `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
     returns a new `GenerativeFunction` which accepts a boolean array as the
@@ -66,14 +67,14 @@ class MaskingCombinator(GenerativeFunction):
     If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
     """
 
-    inner: GenerativeFunction
+    inner: JAXGenerativeFunction
 
     def flatten(self):
         return (self.inner,), ()
 
     @typecheck
     @classmethod
-    def new(cls, gen_fn: GenerativeFunction):
+    def new(cls, gen_fn: JAXGenerativeFunction):
         return MaskingCombinator(gen_fn)
 
     @typecheck
@@ -123,7 +124,7 @@ class MaskingCombinator(GenerativeFunction):
 
 
 @typecheck
-def masking_combinator(gen_fn: GenerativeFunction):
+def masking_combinator(gen_fn: JAXGenerativeFunction):
     return MaskingCombinator.new(gen_fn)
 
 
