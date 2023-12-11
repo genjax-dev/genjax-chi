@@ -44,6 +44,7 @@ from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
+from genjax._src.generative_functions.supports_callees import push_trace_overload_stack
 
 
 # Our main idiom to express non-standard interpretation is an
@@ -289,6 +290,15 @@ class InterpretedTrace(Trace):
         return 0.0
 
 
+# Callee syntactic sugar handler.
+@typecheck
+def handler_trace_with_interpreted(
+        addr,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+):
+    return trace(addr, gen_fn,*args)
+
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 @dataclass
@@ -309,9 +319,12 @@ class InterpretedGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ) -> InterpretedTrace:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_interpreted, self.source
+        )
         # Handle trace with the `SimulateHandler`.
         with SimulateHandler.new(key) as handler:
-            retval = self.source(*args)
+            retval = syntax_sugar_handled()
             score = handler.score
             choices = handler.choice_state
             return InterpretedTrace(self, args, retval, choices, score)
