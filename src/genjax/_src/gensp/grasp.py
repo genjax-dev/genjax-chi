@@ -54,9 +54,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     uniform,
 )
-from genjax._src.gensp.sp_distribution import SPDistribution
-from genjax._src.gensp.target import Target
-from genjax._src.gensp.target import target
+from genjax._src.gensp.core import SPDistribution
+from genjax._src.gensp.core import Target
+from genjax._src.gensp.core import target
 
 
 tfd = tfp.distributions

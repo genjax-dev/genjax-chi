@@ -26,9 +26,9 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
-from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
-from genjax._src.gensp.sp_distribution import SPDistribution
-from genjax._src.gensp.target import Target
+from genjax._src.gensp.core import SPDistribution
+from genjax._src.gensp.core import Marginal
+from genjax._src.gensp.core import Target
 
 
 def _logsumexp_with_extra(arr, x):
@@ -160,5 +160,5 @@ def importance_sampler(N: Int):
 
 
 @dispatch
-def importance_sampler(N: Int, proposal: ChoiceMapDistribution):
+def importance_sampler(N: Int, proposal: Marginal):
     return CustomImportance.new(N, proposal)
