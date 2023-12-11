@@ -26,8 +26,8 @@ from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
-from genjax._src.gensp.target import Target
+from genjax._src.gensp.core import Marginal
+from genjax._src.gensp.core import Target
 
 
 @dataclass
@@ -35,7 +35,7 @@ class EntropyEstimatorsViaInference(Pytree):
     n_lower_bound: Int
     n_upper_bound: Int
     model: GenerativeFunction
-    proposal: ChoiceMapDistribution
+    proposal: Marginal
     targets: Selection
 
     def flatten(self):
@@ -49,7 +49,7 @@ class EntropyEstimatorsViaInference(Pytree):
     def new(
         cls,
         model: GenerativeFunction,
-        proposal: ChoiceMapDistribution,
+        proposal: Marginal,
         targets: Selection,
         n_lower_bound: Int,
         n_upper_bound: Int,

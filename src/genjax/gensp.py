@@ -11,17 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module supports a GenJAX implementation of Alexander K.
-
-Lew's framework for programming with composable estimatedimate densities
-(RAVI/GenSP)
-https://arxiv.org/abs/2203.02836
-and his Gen implementation
-GenGenSP.
+"""
+This module supports a GenJAX implementation of [Probabilistic programming with stochastic probabilities](https://dl.acm.org/doi/abs/10.1145/3591290).
 """
 
-from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
-from genjax._src.gensp.choice_map_distribution import choice_map_distribution
+from genjax._src.gensp.core import Marginal
+from genjax._src.gensp.core import marginal
 from genjax._src.gensp.inference.importance_sampling import CustomImportance
 from genjax._src.gensp.inference.importance_sampling import DefaultImportance
 from genjax._src.gensp.inference.importance_sampling import importance_sampler
@@ -37,11 +32,8 @@ from genjax._src.gensp.inference.sequential_monte_carlo import SMCExtendPropagat
 from genjax._src.gensp.inference.sequential_monte_carlo import SMCInit
 from genjax._src.gensp.inference.sequential_monte_carlo import SMCPropagator
 from genjax._src.gensp.inference.sequential_monte_carlo import SMCSequencePropagator
-from genjax._src.gensp.marginal import Marginal
-from genjax._src.gensp.marginal import marginal
-from genjax._src.gensp.target import Target
-from genjax._src.gensp.target import accum_score
-from genjax._src.gensp.target import target
+from genjax._src.gensp.core import Target
+from genjax._src.gensp.core import target
 
 
 __all__ = [
@@ -49,8 +41,6 @@ __all__ = [
     "target",
     "Marginal",
     "marginal",
-    "ChoiceMapDistribution",
-    "choice_map_distribution",
     "CustomImportance",
     "DefaultImportance",
     "importance_sampler",
@@ -66,5 +56,4 @@ __all__ = [
     "ChangeTarget",
     "Compose",
     "Sequence",
-    "accum_score",
 ]
