@@ -219,6 +219,22 @@ class TestCustomPytree:
         assert w == pytest.approx(score1, 0.01)
 
 
+class TestGradients:
+    def test_simple_normal_assess(self):
+        @genjax.lang(genjax.Interpreted)
+        def simple_normal():
+            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        tr = simple_normal.simulate(key, ())
+        chm = tr.get_choices()
+        (score, _) = simple_normal.assess(chm, ())
+        assert score == tr.get_score()
+
+# Where we left off: port TestImportance
+
 #####################
 # Language features #
 #####################

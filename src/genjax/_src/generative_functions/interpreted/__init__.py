@@ -254,7 +254,7 @@ class AssessHandler(Handler):
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
-        (retval, score) = gen_fn.assess(sub_map, args)
+        (score, retval) = gen_fn.assess(sub_map, args)
         self.score += score
         return retval
 
@@ -382,7 +382,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         with AssessHandler.new(choice_map) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
-            return retval, score
+            return score, retval
 
 
 ########################
