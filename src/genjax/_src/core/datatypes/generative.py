@@ -444,6 +444,10 @@ class ChoiceMap(Choice):
     def __getitem__(self, addr: Any):
         return self.__getitem__((addr,))
 
+    @abc.abstractmethod
+    def __setitem__(self, key, value):
+        pass
+
 
 #########
 # Trace #

@@ -37,15 +37,16 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import UnknownChange
 from genjax._src.core.interpreters.incremental import tree_diff
 from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.typing import Any
+from genjax._src.core.typing import Any, FloatArray
 from genjax._src.core.typing import Callable
-from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.supports_callees import push_trace_overload_stack
-
+from genjax._src.generative_functions.supports_callees import (
+    push_trace_overload_stack,
+    SupportsCalleeSugar,
+)
 
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
@@ -86,7 +87,7 @@ class Handler(object):
 # A primitive used in our language to denote invoking another generative function.
 # It's behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
-def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable[..., Any]:
+def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     # Must be handled.
     assert _INTERPRETED_STACK
 
@@ -133,7 +134,7 @@ class AddressVisitor:
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: FloatArray
+    score: float
     choice_state: Trie
     trace_visitor: AddressVisitor
 
@@ -162,8 +163,8 @@ class SimulateHandler(Handler):
 @dataclass
 class ImportanceHandler(Handler):
     key: PRNGKey
-    score: FloatArray
-    weight: FloatArray
+    score: float
+    weight: float
     constraints: ChoiceMap
     choice_state: Trie
     trace_visitor: AddressVisitor
@@ -197,7 +198,7 @@ class ImportanceHandler(Handler):
 @dataclass
 class UpdateHandler(Handler):
     key: PRNGKey
-    weight: FloatArray
+    weight: float
     previous_trace: Trace
     constraints: ChoiceMap
     discard: ChoiceMap
@@ -222,7 +223,7 @@ class UpdateHandler(Handler):
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
-        sub_trace = self.previous_trace.choices.get_submap(addr)
+        sub_trace = self.previous_trace.get_choices().get_submap(addr)
         argdiffs = tree_diff(args, UnknownChange)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
@@ -235,7 +236,7 @@ class UpdateHandler(Handler):
 
 @dataclass
 class AssessHandler(Handler):
-    score: FloatArray
+    score: FloatArray | float
     constraints: ChoiceMap
     trace_visitor: AddressVisitor
 
@@ -269,7 +270,7 @@ class InterpretedTrace(Trace):
     args: Tuple
     retval: Any
     choices: Trie
-    score: FloatArray
+    score: float
 
     def flatten(self):
         return (self.gen_fn, self.args, self.retval, self.choices, self.score), ()
@@ -302,7 +303,7 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 @dataclass
-class InterpretedGenerativeFunction(GenerativeFunction):
+class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     source: Callable
 
     def flatten(self):
@@ -324,7 +325,7 @@ class InterpretedGenerativeFunction(GenerativeFunction):
         )
         # Handle trace with the `SimulateHandler`.
         with SimulateHandler.new(key) as handler:
-            retval = syntax_sugar_handled()
+            retval = syntax_sugar_handled(*args)
             score = handler.score
             choices = handler.choice_state
             return InterpretedTrace(self, args, retval, choices, score)
@@ -335,7 +336,7 @@ class InterpretedGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[InterpretedTrace, FloatArray]:
+    ) -> Tuple[InterpretedTrace, FloatArray | float]:
         with ImportanceHandler.new(key, choice_map) as handler:
             retval = self.source(*args)
             score = handler.score
@@ -353,7 +354,7 @@ class InterpretedGenerativeFunction(GenerativeFunction):
         prev_trace: InterpretedTrace,
         choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[InterpretedTrace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[InterpretedTrace, float, Any, ChoiceMap]:
         with UpdateHandler.new(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
             retval = self.source(*args)
@@ -374,11 +375,14 @@ class InterpretedGenerativeFunction(GenerativeFunction):
         self,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray, Any]:
+    ) -> Tuple[FloatArray | float, Any]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_interpreted, self.source
+        )
         with AssessHandler.new(choice_map) as handler:
-            retval = self.source(*args)
+            retval = syntax_sugar_handled(*args)
             score = handler.score
-            return (score, retval)
+            return retval, score
 
 
 ########################
