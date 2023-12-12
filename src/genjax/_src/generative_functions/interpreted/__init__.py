@@ -201,7 +201,7 @@ class UpdateHandler(Handler):
     weight: float
     previous_trace: Trace
     constraints: ChoiceMap
-    discard: ChoiceMap
+    discard: Trie
     choice_state: Trie
     trace_visitor: AddressVisitor
 
@@ -270,7 +270,7 @@ class InterpretedTrace(Trace):
     args: Tuple
     retval: Any
     choices: Trie
-    score: float
+    score: float | FloatArray
 
     def flatten(self):
         return (self.gen_fn, self.args, self.retval, self.choices, self.score), ()
@@ -309,8 +309,8 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     def flatten(self):
         return (), (self.source,)
 
-    @typecheck
     @classmethod
+    @typecheck
     def new(cls, callable: Callable):
         return InterpretedGenerativeFunction(callable)
 
@@ -337,8 +337,11 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         choice_map: ChoiceMap,
         args: Tuple,
     ) -> Tuple[InterpretedTrace, FloatArray | float]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_interpreted, self.source
+        )
         with ImportanceHandler.new(key, choice_map) as handler:
-            retval = self.source(*args)
+            retval = syntax_sugar_handled(*args)
             score = handler.score
             choices = handler.choice_state
             weight = handler.weight

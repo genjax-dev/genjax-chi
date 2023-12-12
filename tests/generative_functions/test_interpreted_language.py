@@ -182,9 +182,6 @@ class TestCustomPytree:
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
-    @pytest.mark.skip(
-        reason="this requires CustomNormal to inherit simulate from somebody"
-    )
     def test_custom_normal_simulate(self):
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
@@ -233,7 +230,82 @@ class TestGradients:
         (score, _) = simple_normal.assess(chm, ())
         assert score == tr.get_score()
 
-# Where we left off: port TestImportance
+
+class TestImportance:
+    def test_importance_simple_normal(self):
+        @genjax.lang(genjax.Interpreted)
+        def simple_normal():
+            y1 = trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        fn = simple_normal.importance
+        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
+        key, sub_key = jax.random.split(key)
+        (tr, _) = fn(sub_key, chm, ())
+        out = tr.get_choices()
+        y1 = chm[("y1",)]
+        y2 = chm[("y2",)]
+        (_, score_1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
+        (_, score_2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
+        test_score = score_1 + score_2
+        # TODO: get_value() not needed in Static language
+        assert y1 == out[("y1",)].get_value()
+        assert y2 == out[("y2",)].get_value()
+        assert tr.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_importance_weight_correctness(self):
+        @genjax.lang(genjax.Interpreted)
+        def simple_normal():
+            y1 = trace("y1", genjax.normal)(0.0, 1.0)
+            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            return y1 + y2
+
+        # Full constraints.
+        key = jax.random.PRNGKey(314159)
+        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
+        (tr, w) = simple_normal.importance(key, chm, ())
+        y1 = tr["y1"]
+        y2 = tr["y2"]
+        # TODO: Static language does not require get_value here
+        assert y1.get_value() == 0.5
+        assert y2.get_value() == 0.5
+        (_, score_1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
+        (_, score_2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
+        test_score = score_1 + score_2
+        assert tr.get_score() == pytest.approx(test_score, 0.0001)
+        assert w == pytest.approx(test_score, 0.0001)
+
+        # Partial constraints.
+        chm = genjax.choice_map({("y2",): 0.5})
+        (tr, w) = simple_normal.importance(key, chm, ())
+        y1 = tr["y1"].get_value()
+        y2 = tr["y2"].get_value()
+        assert y2 == 0.5
+        score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)
+        score_2 = genjax.normal.logpdf(y2, 0.0, 1.0)
+        test_score = score_1 + score_2
+        assert tr.get_score() == pytest.approx(test_score, 0.0001)
+        assert w == pytest.approx(score_2, 0.0001)
+
+        # No constraints.
+        # chm = genjax.EmptyChoice()
+        # NB: in the interpreted language, get_submap will be called on this item,
+        # so beartype thinks this object should have that capability. Oddly,
+        # genjax.ChoiceMap() is not the same animal as genjax.choice_map({}). The
+        # former doesn't work. This needs cleaning up.
+        chm = genjax.choice_map({})
+        (tr, w) = simple_normal.importance(key, chm, ())
+        # standard remark about get_value()
+        y1 = tr["y1"].get_value()
+        y2 = tr["y2"].get_value()
+        score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)
+        score_2 = genjax.normal.logpdf(y2, 0.0, 1.0)
+        test_score = score_1 + score_2
+        assert tr.get_score() == pytest.approx(test_score, 0.0001)
+        assert w == 0.0
+
 
 #####################
 # Language features #
