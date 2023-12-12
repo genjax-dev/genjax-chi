@@ -27,14 +27,17 @@ from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.generative import ChoiceMap
+from genjax._src.core.datatypes.generative import ChoiceMap, Choice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import UnknownChange
+from genjax._src.core.interpreters.incremental import (
+    UnknownChange,
+    tree_diff_unknown_change,
+)
 from genjax._src.core.interpreters.incremental import tree_diff
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import Any, FloatArray
@@ -224,7 +227,7 @@ class UpdateHandler(Handler):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
         sub_trace = self.previous_trace.get_choices().get_submap(addr)
-        argdiffs = tree_diff(args, UnknownChange)
+        argdiffs = tree_diff_unknown_change(args)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
         retval = tr.get_retval()
@@ -355,12 +358,15 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev_trace: InterpretedTrace,
-        choice_map: ChoiceMap,
+        choice_map: Choice,
         argdiffs: Tuple,
     ) -> Tuple[InterpretedTrace, float, Any, ChoiceMap]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_interpreted, self.source
+        )
         with UpdateHandler.new(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
-            retval = self.source(*args)
+            retval = syntax_sugar_handled(*args)
             choices = handler.choice_state
             weight = handler.weight
             discard = handler.discard
@@ -386,6 +392,9 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
             retval = syntax_sugar_handled(*args)
             score = handler.score
             return score, retval
+
+    def inline(self, *args):
+        return self.source(*args)
 
 
 ########################
