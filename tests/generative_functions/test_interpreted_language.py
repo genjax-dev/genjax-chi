@@ -1,3 +1,17 @@
+# Copyright 2023 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from dataclasses import dataclass
 from typing import Any
 import jax
@@ -10,10 +24,16 @@ from genjax._src.core.interpreters.incremental import (
     tree_diff_no_change,
     tree_diff_unknown_change,
 )
-from genjax._src.generative_functions.interpreted import (
-    trace,
-    InterpretedGenerativeFunction,
-)
+from genjax._src.generative_functions.interpreted import trace
+
+
+#############
+# Datatypes #
+#############
+
+##################################
+# Generative function interfaces #
+##################################
 
 
 class TestSimulate:
@@ -349,7 +369,7 @@ class TestUpdate:
         new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        (updated, w, _, discard) = simple_normal.update(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
         y1 = updated_chm[("y1",)]
         y2 = updated_chm[("y2",)]
@@ -408,14 +428,15 @@ class TestUpdate:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(simple_hierarchical_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_hierarchical_normal.update)
+        tr = simple_hierarchical_normal.simulate(sub_key, ())
 
         new = genjax.choice_map({("y1",): 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        (updated, w, _, discard) = simple_hierarchical_normal.update(
+            sub_key, tr, new, ()
+        )
         updated_chm = updated.get_choices().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2", "y1"]
@@ -441,8 +462,7 @@ class TestUpdate:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_linked_normal.update)
+        tr = simple_linked_normal.simulate(sub_key, ())
 
         old_y1 = tr["y1"]
         old_y2 = tr["y2"]
@@ -450,7 +470,7 @@ class TestUpdate:
         new_y1 = 2.0
         new = genjax.choice_map({("y1",): new_y1})
         key, sub_key = jax.random.split(key)
-        (updated, w, _, _) = jitted(sub_key, tr, new, ())
+        (updated, w, _, _) = simple_linked_normal.update(sub_key, tr, new, ())
 
         # Test new scores.
         assert updated["y1"] == new_y1
@@ -483,7 +503,7 @@ class TestUpdate:
         new_y3 = 2.0
         new = genjax.choice_map({("y3",): new_y3})
         key, sub_key = jax.random.split(key)
-        (updated, w, _, _) = jitted(sub_key, updated, new, ())
+        (updated, w, _, _) = simple_linked_normal.update(sub_key, updated, new, ())
         assert updated["y3"] == 2.0
         correct_w = genjax.normal.logpdf(
             new_y3, new_y1 + old_y2, 1.0
@@ -507,9 +527,7 @@ class TestUpdate:
         key = jax.random.PRNGKey(314159)
         init_tree = SomePytree(0.0, 1.0)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(simple_linked_normal_with_tree_argument.simulate)(
-            sub_key, (init_tree,)
-        )
+        tr = simple_linked_normal_with_tree_argument.simulate(sub_key, (init_tree,))
         new_y1 = 2.0
         constraints = genjax.choice_map({("y1",): new_y1})
         key, sub_key = jax.random.split(key)
@@ -556,7 +574,7 @@ class TestInterpretedAddressChecks:
 
         key = jax.random.PRNGKey(314159)
         with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_dup)(key, ())
+            _ = simple_normal_addr_dup.simulate(key, ())
 
     def test_simple_normal_addr_tracer(self):
         @genjax.lang(genjax.Interpreted)
@@ -670,18 +688,18 @@ class TestInline:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         chm = genjax.choice_map({"y1": 3.0})
-        tr = jax.jit(higher_model.simulate)(sub_key, ())
+        tr = higher_model.simulate(sub_key, ())
         old_value = tr.strip()["y1"]
         key, sub_key = jax.random.split(key)
-        (tr, w, rd, _) = jax.jit(higher_model.update)(sub_key, tr, chm, ())
+        (tr, w, rd, _) = higher_model.update(sub_key, tr, chm, ())
         choices = tr.strip()
         assert w == genjax.normal.logpdf(
             choices["y1"], 0.0, 1.0
         ) - genjax.normal.logpdf(old_value, 0.0, 1.0)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(higher_higher_model.simulate)(sub_key, ())
+        tr = higher_higher_model.simulate(sub_key, ())
         old_value = tr.strip()["y1"]
-        (tr, w, rd, _) = jax.jit(higher_higher_model.update)(key, tr, chm, ())
+        (tr, w, rd, _) = higher_higher_model.update(key, tr, chm, ())
         choices = tr.strip()
         assert w == pytest.approx(
             genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
@@ -690,29 +708,29 @@ class TestInline:
         )
 
     def test_inline_assess(self):
-        @genjax.lang(genjax.Static)
+        @genjax.lang(genjax.Interpreted)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Static)
+        @genjax.lang(genjax.Interpreted)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Static)
+        @genjax.lang(genjax.Interpreted)
         def higher_higher_model():
             y = higher_model.inline()
             return y
 
         key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({"y1": 3.0, "y2": 3.0})
-        (score, ret) = jax.jit(higher_model.assess)(chm, ())
+        (score, ret) = higher_model.assess(chm, ())
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
         ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
-        (score, ret) = jax.jit(higher_higher_model.assess)(chm, ())
+        (score, ret) = higher_higher_model.assess(chm, ())
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
         ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)

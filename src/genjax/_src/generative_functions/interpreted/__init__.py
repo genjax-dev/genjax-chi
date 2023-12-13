@@ -282,7 +282,7 @@ class InterpretedTrace(Trace):
         return self.gen_fn
 
     def get_choices(self):
-        return HierarchicalChoiceMap(self.choices)
+        return HierarchicalChoiceMap(self.choices).strip()
 
     def get_retval(self):
         return self.retval

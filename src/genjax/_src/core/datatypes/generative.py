@@ -1334,12 +1334,6 @@ class HierarchicalChoiceMap(ChoiceMap):
         else:
             if isinstance(value, Trie):
                 return HierarchicalChoiceMap(value)
-            elif isinstance(value, ChoiceValue):
-                return value
-            elif gv := getattr(value, "get_value", None):
-                # TODO(colin): admittedly very dubious
-                # This is meant to cover the case DistributionTrace in Interpreted
-                return ChoiceValue(gv())
             else:
                 return value
 
