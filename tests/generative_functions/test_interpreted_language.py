@@ -36,9 +36,15 @@ from genjax._src.generative_functions.interpreted import trace
 ##################################
 
 
+with_both_languages = pytest.mark.parametrize(
+    "lang", (genjax.Interpreted, genjax.Static), ids=("Interpreted", "Static")
+)
+
+
+@with_both_languages
 class TestSimulate:
-    def test_simple_normal_sugar(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_sugar(self, lang):
+        @genjax.lang(lang)
         def normal_sugar():
             y = genjax.normal(0.0, 1.0) @ "y"
             return y
@@ -50,11 +56,11 @@ class TestSimulate:
         _, score = genjax.normal.importance(key, chm.get_submap("y"), (0.0, 1.0))
         assert tr.get_score() == pytest.approx(score, 0.01)
 
-    def test_simple_normal_simulate(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_simulate(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
@@ -66,11 +72,11 @@ class TestSimulate:
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_simple_normal_multiple_returns(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_multiple_returns(self, lang):
+        @genjax.lang(lang)
         def simple_normal_multiple_returns():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1, y2
 
         key = jax.random.PRNGKey(314159)
@@ -86,16 +92,16 @@ class TestSimulate:
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_hierarchical_simple_normal_multiple_returns(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_hierarchical_simple_normal_multiple_returns(self, lang):
+        @genjax.lang(lang)
         def _submodel():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1, y2
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def hierarchical_simple_normal_multiple_returns():
-            y1, y2 = trace("y1", _submodel)()
+            y1, y2 = _submodel() @ "y1"
             return y1, y2
 
         key = jax.random.PRNGKey(314159)
@@ -112,9 +118,10 @@ class TestSimulate:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
 
+@with_both_languages
 class TestAssess:
-    def test_simple_normal_assess(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_assess(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -128,10 +135,11 @@ class TestAssess:
         assert score == tr.get_score()
 
 
+@with_both_languages
 class TestClosureConvert:
-    def test_closure_convert(self):
+    def test_closure_convert(self, lang):
         def emits_cc_gen_fn(v):
-            @genjax.lang(genjax.Interpreted)
+            @genjax.lang(lang)
             @genjax.dynamic_closure(v)
             def model(v):
                 x = genjax.normal(jnp.sum(v), 1.0) @ "x"
@@ -139,7 +147,7 @@ class TestClosureConvert:
 
             return model
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def model():
             x = jnp.ones(5)
             gen_fn = emits_cc_gen_fn(x)
@@ -236,13 +244,13 @@ class TestCustomPytree:
         assert w == pytest.approx(score1, 0.01)
 
 
+@with_both_languages
 class TestGradients:
-    def test_simple_normal_assess(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_assess(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            # y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
@@ -252,12 +260,13 @@ class TestGradients:
         assert score == tr.get_score()
 
 
+@with_both_languages
 class TestImportance:
-    def test_importance_simple_normal(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_importance_simple_normal(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
@@ -275,11 +284,11 @@ class TestImportance:
         assert y2 == out[("y2",)]
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_importance_weight_correctness(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_importance_weight_correctness(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
         # Full constraints.
@@ -334,7 +343,7 @@ class TestImportance:
 ####################################################
 
 
-@pytest.mark.skip(reason="update isn't working at all right now.")
+# @pytest.mark.skip(reason="update isn't working at all right now.")
 class TestUpdate:
     def test_simple_normal_update(self):
         @genjax.lang(genjax.Interpreted)
@@ -401,10 +410,9 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = simple_linked_normal.update(sub_key, tr, new, ())
         updated_chm = updated.get_choices().strip()
-        # TODO: remove need for get_value()
-        y1 = updated_chm["y1"].get_value()
-        y2 = updated_chm["y2"].get_value()
-        y3 = updated_chm["y3"].get_value()
+        y1 = updated_chm["y1"]
+        y2 = updated_chm["y2"]
+        y3 = updated_chm["y3"]
         score1 = genjax.normal.logpdf(y1, 0.0, 1.0)
         score2 = genjax.normal.logpdf(y2, y1, 1.0)
         score3 = genjax.normal.logpdf(y3, y1 + y2, 1.0)
@@ -413,6 +421,7 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
+    @pytest.mark.skip(reason="not working yet")
     def test_simple_hierarchical_normal(self):
         @genjax.lang(genjax.Interpreted)
         def _inner(x):
@@ -452,6 +461,7 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
+    @pytest.mark.skip(reason="not working yet")
     def test_update_weight_correctness(self):
         @genjax.lang(genjax.Interpreted)
         def simple_linked_normal():
@@ -548,9 +558,10 @@ class TestUpdate:
 #####################
 
 
+@with_both_languages
 class TestInterpretedLanguageSugar:
-    def test_interpreted_sugar(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_interpreted_sugar(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -564,9 +575,10 @@ class TestInterpretedLanguageSugar:
         assert tr.get_retval() == v
 
 
+@with_both_languages
 class TestInterpretedAddressChecks:
-    def test_simple_normal_addr_dup(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_addr_dup(self, lang):
+        @genjax.lang(lang)
         def simple_normal_addr_dup():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y1"
@@ -576,8 +588,8 @@ class TestInterpretedAddressChecks:
         with pytest.raises(Exception):
             _ = simple_normal_addr_dup.simulate(key, ())
 
-    def test_simple_normal_addr_tracer(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_addr_tracer(self, lang):
+        @genjax.lang(lang)
         def simple_normal_addr_tracer():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ y1
@@ -588,15 +600,16 @@ class TestInterpretedAddressChecks:
             _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
 
 
+@with_both_languages
 class TestForwardRef:
-    def test_forward_ref(self):
+    def test_forward_ref(self, lang):
         def make_gen_fn():
-            @genjax.lang(genjax.Interpreted)
+            @genjax.lang(lang)
             def proposal(x):
                 x = outlier(x) @ "x"
                 return x
 
-            @genjax.lang(genjax.Interpreted)
+            @genjax.lang(lang)
             def outlier(prob):
                 is_outlier = genjax.bernoulli(prob) @ "is_outlier"
                 return is_outlier
@@ -609,20 +622,21 @@ class TestForwardRef:
         assert True
 
 
+@with_both_languages
 class TestInline:
-    def test_inline_simulate(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_inline_simulate(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -638,19 +652,19 @@ class TestInline:
         assert choices.has_submap("y1")
         assert choices.has_submap("y2")
 
-    def test_inline_importance(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_inline_importance(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -665,22 +679,22 @@ class TestInline:
         choices = tr.strip()
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
-    @pytest.mark.skip(
-        reason="at the moment, update is universally broken in Interpreted"
-    )
-    def test_inline_update(self):
-        @genjax.lang(genjax.Interpreted)
+    # @pytest.mark.skip(
+    #     reason="at the moment, update is universally broken in Interpreted"
+    # )
+    def test_inline_update(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -707,19 +721,19 @@ class TestInline:
             0.0001,
         )
 
-    def test_inline_assess(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_inline_assess(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def higher_higher_model():
             y = higher_model.inline()
             return y

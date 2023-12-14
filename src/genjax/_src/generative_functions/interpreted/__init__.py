@@ -226,7 +226,8 @@ class UpdateHandler(Handler):
         addr = msg["addr"]
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
-        sub_trace = self.previous_trace.get_choices().get_submap(addr)
+        # sub_trace = self.previous_trace.get_choices().get_submap(addr)
+        sub_trace = self.previous_trace.get_subtrace(addr)
         argdiffs = tree_diff_unknown_change(args)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
@@ -283,6 +284,9 @@ class InterpretedTrace(Trace):
 
     def get_choices(self):
         return HierarchicalChoiceMap(self.choices).strip()
+
+    def get_subtrace(self, addr):
+        return self.choices[addr]
 
     def get_retval(self):
         return self.retval
@@ -360,7 +364,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         prev_trace: InterpretedTrace,
         choice_map: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[InterpretedTrace, float, Any, ChoiceMap]:
+    ) -> Tuple[InterpretedTrace, FloatArray | float, Any, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
