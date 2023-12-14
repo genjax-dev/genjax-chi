@@ -2868,13 +2868,13 @@ twisted = ["twisted"]
 
 [[package]]
 name = "prompt-toolkit"
-version = "3.0.42"
+version = "3.0.43"
 description = "Library for building powerful interactive command lines in Python"
 optional = false
 python-versions = ">=3.7.0"
 files = [
-    {file = "prompt_toolkit-3.0.42-py3-none-any.whl", hash = "sha256:3b50b5fc50660dc8e39dfe464b170959ad82ff185ffa53bfd3be02222e7156a1"},
-    {file = "prompt_toolkit-3.0.42.tar.gz", hash = "sha256:bfbf7d6ea9744e4ec94c9a69539e8106c77a2a607d728ded87c9182a4aec39be"},
+    {file = "prompt_toolkit-3.0.43-py3-none-any.whl", hash = "sha256:a11a29cb3bf0a28a387fe5122cdb649816a957cd9261dcedf8c9f1fef33eacf6"},
+    {file = "prompt_toolkit-3.0.43.tar.gz", hash = "sha256:3527b7af26106cbc65a040bcc84839a3566ec1b051bb0bfe953631e704b0ff7d"},
 ]
 
 [package.dependencies]
