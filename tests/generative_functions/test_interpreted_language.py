@@ -343,7 +343,6 @@ class TestImportance:
 ####################################################
 
 
-# @pytest.mark.skip(reason="update isn't working at all right now.")
 class TestUpdate:
     def test_simple_normal_update(self):
         @genjax.lang(genjax.Interpreted)
@@ -421,11 +420,10 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    @pytest.mark.skip(reason="not working yet")
     def test_simple_hierarchical_normal(self):
         @genjax.lang(genjax.Interpreted)
         def _inner(x):
-            y1 = trace("y1", genjax.normal)(x, 1.0)
+            y1 = genjax.normal(x, 1.0) @ "y1"
             return y1
 
         @genjax.lang(genjax.Interpreted)
@@ -461,7 +459,6 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    @pytest.mark.skip(reason="not working yet")
     def test_update_weight_correctness(self):
         @genjax.lang(genjax.Interpreted)
         def simple_linked_normal():
@@ -679,9 +676,6 @@ class TestInline:
         choices = tr.strip()
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
-    # @pytest.mark.skip(
-    #     reason="at the moment, update is universally broken in Interpreted"
-    # )
     def test_inline_update(self, lang):
         @genjax.lang(lang)
         def simple_normal():

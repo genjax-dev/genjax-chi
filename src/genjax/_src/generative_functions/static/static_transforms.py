@@ -48,7 +48,7 @@ from genjax._src.core.typing import Union
 from genjax._src.core.typing import static_check_is_concrete
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.static.static_datatypes import Trie
-
+from genjax.core.exceptions import AddressReuse, StaticAddressJAX
 
 ##############
 # Primitives #
@@ -102,7 +102,7 @@ def save(fn, **kwargs):
 def static_check_address_type(addr):
     check = all(jtu.tree_leaves(jtu.tree_map(static_check_is_concrete, addr)))
     if not check:
-        raise Exception("Static addresses must not contained JAX traced values.")
+        raise StaticAddressJAX(addr)
 
 
 #####
@@ -194,9 +194,7 @@ class AddressVisitor(Pytree):
 
     def visit(self, addr):
         if addr in self.visited:
-            raise Exception(
-                f"Already visited this address {addr}. Duplicate addresses are not allowed."
-            )
+            raise AddressReuse(addr)
         else:
             self.visited.append(addr)
 

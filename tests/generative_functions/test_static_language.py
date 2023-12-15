@@ -18,8 +18,11 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import pytest
+from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 import genjax
+from genjax import PytreeConst
+from genjax.core.exceptions import *
 from genjax.incremental import tree_diff_no_change
 from genjax.incremental import tree_diff_unknown_change
 from genjax.typing import FloatArray
@@ -555,8 +558,9 @@ class TestStaticAddressChecks:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_dup)(key, ())
+        with pytest.raises(AddressReuse) as exc_info:
+            _ = simple_normal_addr_dup.simulate(key, ())
+        assert exc_info.value.args == (PytreeConst(const="y1"),)
 
     def test_simple_normal_addr_tracer(self):
         @genjax.lang(genjax.Static)
@@ -566,8 +570,9 @@ class TestStaticAddressChecks:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
+        with pytest.raises(StaticAddressJAX) as exc_info:
+            _ = simple_normal_addr_tracer.simulate(key, ())
+        assert isinstance(exc_info.value.args[0], DynamicJaxprTracer)
 
 
 class TestForwardRef:

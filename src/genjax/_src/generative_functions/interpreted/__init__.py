@@ -26,8 +26,16 @@ import itertools
 from dataclasses import dataclass
 
 import jax
+import jaxtyping
+from beartype import beartype
+from plum import dispatch
 
-from genjax._src.core.datatypes.generative import ChoiceMap, Choice
+from genjax._src.core.datatypes.generative import (
+    ChoiceMap,
+    EmptyChoice,
+    AllSelection,
+    HierarchicalSelection,
+)
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import LanguageConstructor
@@ -40,16 +48,16 @@ from genjax._src.core.interpreters.incremental import (
 )
 from genjax._src.core.interpreters.incremental import tree_diff
 from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.typing import Any, FloatArray
+from genjax._src.core.typing import Any, FloatArray, ArrayLike
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import List
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.supports_callees import (
     push_trace_overload_stack,
     SupportsCalleeSugar,
 )
+from genjax.core.exceptions import AddressReuse
 
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
@@ -110,6 +118,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
 @dataclass
+@beartype
 class AddressVisitor:
     visited: List
 
@@ -119,7 +128,7 @@ class AddressVisitor:
 
     def visit(self, addr):
         if addr in self.visited:
-            raise Exception(f"Already visited the address {addr}.")
+            raise AddressReuse(addr)
         else:
             self.visited.append(addr)
 
@@ -135,9 +144,11 @@ class AddressVisitor:
 
 
 @dataclass
+@beartype
 class SimulateHandler(Handler):
     key: PRNGKey
     score: float
+    score: jaxtyping.ArrayLike
     choice_state: Trie
     trace_visitor: AddressVisitor
 
@@ -164,6 +175,7 @@ class SimulateHandler(Handler):
 
 
 @dataclass
+@beartype
 class ImportanceHandler(Handler):
     key: PRNGKey
     score: float
@@ -199,9 +211,10 @@ class ImportanceHandler(Handler):
 
 
 @dataclass
+@beartype
 class UpdateHandler(Handler):
     key: PRNGKey
-    weight: float
+    weight: jaxtyping.ArrayLike
     previous_trace: Trace
     constraints: ChoiceMap
     discard: Trie
@@ -227,9 +240,19 @@ class UpdateHandler(Handler):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
         # sub_trace = self.previous_trace.get_choices().get_submap(addr)
-        sub_trace = self.previous_trace.get_subtrace(addr)
+        # TODO(colin): think about this with McCoy. Having get_choices() implicitly
+        # call strip() makes a _lot_ of interpreted code the same as the static code,
+        # and it seems good not to ask people to add or remove strip() as they move
+        # from one to another, and also means the type of thing you get from get_choices()
+        # is more stable. Maybe we can move get_subtrace higher in the stack?
+        if st := getattr(self.previous_trace, "get_subtrace", None):
+            sub_trace = st(addr)
+        else:
+            sub_trace = self.previous_trace.get_choices().get_submap(addr)
         argdiffs = tree_diff_unknown_change(args)
         self.key, sub_key = jax.random.split(self.key)
+        # if isinstance(sub_map, EmptyChoice):
+        #     sub_map = HierarchicalChoiceMap.new({})
         (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
         retval = tr.get_retval()
         self.weight += w
@@ -239,8 +262,9 @@ class UpdateHandler(Handler):
 
 
 @dataclass
+@beartype
 class AssessHandler(Handler):
-    score: FloatArray | float
+    score: jaxtyping.ArrayLike
     constraints: ChoiceMap
     trace_visitor: AddressVisitor
 
@@ -269,12 +293,13 @@ class AssessHandler(Handler):
 
 
 @dataclass
+@beartype
 class InterpretedTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
     choices: Trie
-    score: float | FloatArray
+    score: jaxtyping.ArrayLike
 
     def flatten(self):
         return (self.gen_fn, self.args, self.retval, self.choices, self.score), ()
@@ -297,12 +322,16 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: Selection):
-        return 0.0
+    def project(self, selection: HierarchicalSelection) -> ArrayLike:
+        weight = 0.0
+        for k, subtrace in self.choices.get_submaps_shallow():
+            if selection.has_addr(k):
+                weight += subtrace.project(selection.get_subselection(k))
+        return weight
 
 
 # Callee syntactic sugar handler.
-@typecheck
+@beartype
 def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple):
     return trace(addr, gen_fn)(*args)
 
@@ -310,6 +339,7 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 @dataclass
+@beartype
 class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     source: Callable
 
@@ -317,11 +347,9 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         return (), (self.source,)
 
     @classmethod
-    @typecheck
-    def new(cls, callable: Callable):
-        return InterpretedGenerativeFunction(callable)
+    def new(cls, f: Callable):
+        return InterpretedGenerativeFunction(f)
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -337,13 +365,12 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
             choices = handler.choice_state
             return InterpretedTrace(self, args, retval, choices, score)
 
-    @typecheck
     def importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[InterpretedTrace, FloatArray | float]:
+    ) -> Tuple[InterpretedTrace, jaxtyping.ArrayLike]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
@@ -357,14 +384,14 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 weight,
             )
 
-    @typecheck
+    @dispatch
     def update(
         self,
         key: PRNGKey,
-        prev_trace: InterpretedTrace,
-        choice_map: Choice,
+        prev_trace: Trace,
+        choice_map: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[InterpretedTrace, FloatArray | float, Any, ChoiceMap]:
+    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
@@ -383,7 +410,12 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 HierarchicalChoiceMap(discard),
             )
 
-    @typecheck
+    @dispatch
+    def update(
+        self, key: PRNGKey, prev_trace: Trace, choice: EmptyChoice, argdiffs: Tuple
+    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
+        return self.update(key, prev_trace, HierarchicalChoiceMap.new({}), argdiffs)
+
     def assess(
         self,
         choice_map: ChoiceMap,
