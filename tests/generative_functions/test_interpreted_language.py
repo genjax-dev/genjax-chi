@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import Any
 import jax
 import jax.numpy as jnp
+from jaxtyping import ArrayLike
+
 import genjax
 import pytest
 
@@ -343,12 +345,13 @@ class TestImportance:
 ####################################################
 
 
+@with_both_languages
 class TestUpdate:
-    def test_simple_normal_update(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_normal_update(self, lang):
+        @genjax.lang(lang)
         def simple_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(0.0, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
@@ -391,12 +394,12 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_simple_linked_normal_update(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_linked_normal_update(self, lang):
+        @genjax.lang(lang)
         def simple_linked_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(y1, 1.0)
-            y3 = trace("y3", genjax.normal)(y1 + y2, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(y1, 1.0) @ "y2"
+            y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
             return y1 + y2 + y3
 
         key = jax.random.PRNGKey(314159)
@@ -420,17 +423,17 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_simple_hierarchical_normal(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_simple_hierarchical_normal(self, lang):
+        @genjax.lang(lang)
         def _inner(x):
             y1 = genjax.normal(x, 1.0) @ "y1"
             return y1
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def simple_hierarchical_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", _inner)(y1)
-            y3 = trace("y3", _inner)(y1 + y2)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = _inner(y1) @ "y2"
+            y3 = _inner(y1 + y2) @ "y3"
             return y1 + y2 + y3
 
         key = jax.random.PRNGKey(314159)
@@ -459,12 +462,12 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_update_weight_correctness(self):
-        @genjax.lang(genjax.Interpreted)
+    def test_update_weight_correctness(self, lang):
+        @genjax.lang(lang)
         def simple_linked_normal():
-            y1 = trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = trace("y2", genjax.normal)(y1, 1.0)
-            y3 = trace("y3", genjax.normal)(y1 + y2, 1.0)
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(y1, 1.0) @ "y2"
+            y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
             return y1 + y2 + y3
 
         key = jax.random.PRNGKey(314159)
@@ -517,18 +520,18 @@ class TestUpdate:
         ) - genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0)
         assert w == pytest.approx(correct_w, 0.0001)
 
-    def test_update_pytree_argument(self):
+    def test_update_pytree_argument(self, lang):
         @dataclass
         class SomePytree(genjax.Pytree):
-            x: FloatArray
-            y: FloatArray
+            x: ArrayLike
+            y: ArrayLike
 
             def flatten(self):
                 return (self.x, self.y), ()
 
-        @genjax.lang(genjax.Interpreted)
+        @genjax.lang(lang)
         def simple_linked_normal_with_tree_argument(tree):
-            y1 = trace("y1", genjax.normal)(tree.x, tree.y)
+            y1 = genjax.normal(tree.x, tree.y) @ "y1"
             return y1
 
         key = jax.random.PRNGKey(314159)
