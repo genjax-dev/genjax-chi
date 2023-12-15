@@ -1286,31 +1286,31 @@ tpu = ["jaxlib (==0.4.23)", "libtpu-nightly (==0.1.dev20231213)", "requests"]
 
 [[package]]
 name = "jaxlib"
-version = "0.4.22"
+version = "0.4.23"
 description = "XLA library for JAX"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "jaxlib-0.4.22-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:427133b7db416890e9e2226d0b57b0a840c0a7ed462556ece2541b7cd6878b44"},
-    {file = "jaxlib-0.4.22-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:35b0860336ffacc7821e3c074baea6ca0e9330db5b1b2ab7f9c7958cb10d9dc8"},
-    {file = "jaxlib-0.4.22-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:4c53bed838f5b834f0ef2f8d83572e2c086c0e404b313878ab2ecb20107b6906"},
-    {file = "jaxlib-0.4.22-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:bb1e6214bd9b1f5cd86b4a9ee4d53cd8f3cd9b7d4f5d2e443e2a1e002f380e8e"},
-    {file = "jaxlib-0.4.22-cp310-cp310-win_amd64.whl", hash = "sha256:393cdb98da72253471f6b9e70c563d2be9c1a6c9aa1408b0b7b97a20d1648cca"},
-    {file = "jaxlib-0.4.22-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:067a10265a85c4f3e3f82bfc0e19dafb9ae658d729733d299e42a463c45e54d4"},
-    {file = "jaxlib-0.4.22-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4c24bc83e8e22fba51f960dac2941516134ccddc74b38fd23fe8b0099617365b"},
-    {file = "jaxlib-0.4.22-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:e3acdc28efa46d178d8f601474872611ea3ad59ecf9a7331086192ec5ca5e443"},
-    {file = "jaxlib-0.4.22-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:7b3a70b9202786fc093cc5ffb4ee5e636da04a3f44715c3855dbfa748343cf7f"},
-    {file = "jaxlib-0.4.22-cp311-cp311-win_amd64.whl", hash = "sha256:ba07db6afb4d7add63904aa55ae6dd2808c3bd8877d8bd00261b9041b4753449"},
-    {file = "jaxlib-0.4.22-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:d4c42d5acbaf13b1cdcd9d73e2edee0fc02ddd8991eed5d427ec99c85ffef634"},
-    {file = "jaxlib-0.4.22-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:44d4711b55ad6110966e9607f177b92a3066f8fb148a6d277277b773e82e1722"},
-    {file = "jaxlib-0.4.22-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:ba6f260f38f8a9c52456796de99ab06d3e070384148351af07e72d61427b8066"},
-    {file = "jaxlib-0.4.22-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:21d294f4dd0c2d4c6b5d906274977c994ce574ea123ae14e1786d26784c5c7a0"},
-    {file = "jaxlib-0.4.22-cp312-cp312-win_amd64.whl", hash = "sha256:9255f61753aadf63a10c84ae40465343290cdc4683c2ced9ff0ab8f500fafc1b"},
-    {file = "jaxlib-0.4.22-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:63b4c7c520d07d6a3807bb775106a817b4841bfa57bf06eade9a2c551e861dfa"},
-    {file = "jaxlib-0.4.22-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:5b52ff3c7538a9ef76c4e2d3e232ff98783c8e9f3124c56f89f99f23ee6af100"},
-    {file = "jaxlib-0.4.22-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:b5c57ec0d0117f969520802d6a2dfaa7b2834778126efc81a36bbca5b023817c"},
-    {file = "jaxlib-0.4.22-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:62279004b3ac9ad2a067cb42d597e0c7b2322e49ac5ab5e8f7b594733df19e9f"},
-    {file = "jaxlib-0.4.22-cp39-cp39-win_amd64.whl", hash = "sha256:0d2713251f72254da9c9dee155b35507284c47e0b4b9e40233dab1c37630c21a"},
+    {file = "jaxlib-0.4.23-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:e3756e0601af7636ae58f42d24af70e46048ffef89bd5e05c303b899a2177c36"},
+    {file = "jaxlib-0.4.23-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:1fdb1b791e3ee17cad44460b3f42c9a61a86910a877229d30bd3654f4463d5a0"},
+    {file = "jaxlib-0.4.23-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:a3de5e061a173f434fd1b88074f1610e4e881ff712ff3be61e655bae2fab8ea0"},
+    {file = "jaxlib-0.4.23-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:7275fbe5a489c683c5502603d55e508323cda2f4bd9521aa8383c674fb0ab2f3"},
+    {file = "jaxlib-0.4.23-cp310-cp310-win_amd64.whl", hash = "sha256:f774941542aa8fd866e4c860082aebdd17c34ea35c2a6a74e46631b6fb377a99"},
+    {file = "jaxlib-0.4.23-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:8e12d7e29b3e12d535b24bbbdb6bf9d66cf64926a6a38fdd91d4565f7cc57111"},
+    {file = "jaxlib-0.4.23-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d646ff9bc0ce0ebb573b676b21fa6db422c2ef6a0d56ccc00db483b29965415b"},
+    {file = "jaxlib-0.4.23-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:22fb2c2b76276d396ddb1edfe41c6d943216f04fa8c00638b16d6c56cad403b8"},
+    {file = "jaxlib-0.4.23-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:984766d309b21ca83846503babdfded4e3aef817c670f281092bcbc177c58492"},
+    {file = "jaxlib-0.4.23-cp311-cp311-win_amd64.whl", hash = "sha256:99c345b9e58c158e5fe6c621084aa1fdf7eb9eb9172c27729918d20272124ea8"},
+    {file = "jaxlib-0.4.23-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:505104fe6062b443955288a38547e9872cb6e107d63d9f8540fb10d1c8d8efd0"},
+    {file = "jaxlib-0.4.23-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:278cda29cc7473406093bc3f9fa925a8396063d22a4cd20d7e0ea0d37dcb5039"},
+    {file = "jaxlib-0.4.23-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:b33bc2f8a2163801941d4316fad095778fe32f5519d8d146e6e4504e6a82fe7d"},
+    {file = "jaxlib-0.4.23-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:a229a2b90a2980dd682a16c373b4ac4493e703a262108f5489e8a4591daaa559"},
+    {file = "jaxlib-0.4.23-cp312-cp312-win_amd64.whl", hash = "sha256:ce7dd9295ccdac6a4739b4a344caa1ea2e555e686216b74313ec7562b00695f0"},
+    {file = "jaxlib-0.4.23-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:4dd538c04a2a121b03ab5f0cb8b12998aaa9539d7ec54629feb799a840c92b55"},
+    {file = "jaxlib-0.4.23-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:81d6f4edcd761c27cae555d3d82fbd958292888a4f803f2c366778786d8ce8ce"},
+    {file = "jaxlib-0.4.23-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:c78d2accacb34da96ccd7fd2a7e87ed3e93ba74af40c2b2b19e09289fe3381cf"},
+    {file = "jaxlib-0.4.23-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:99a37d4732bafe1608b8f45df27f27e6a6bf1f23e001fe940fe9a5ab3675fd77"},
+    {file = "jaxlib-0.4.23-cp39-cp39-win_amd64.whl", hash = "sha256:fdf8920a8b00d3e4574978e799c865615132df75f6579e4eec0c50e105df6c66"},
 ]
 
 [package.dependencies]
