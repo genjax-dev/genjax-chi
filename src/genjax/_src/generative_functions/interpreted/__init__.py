@@ -143,23 +143,13 @@ class AddressVisitor:
 #####################################
 
 
-@dataclass
 @beartype
 class SimulateHandler(Handler):
-    key: PRNGKey
-    score: float
-    score: jaxtyping.ArrayLike
-    choice_state: Trie
-    trace_visitor: AddressVisitor
-
-    @classmethod
-    def new(cls, key: PRNGKey):
-        return SimulateHandler(
-            key,
-            0.0,
-            Trie.new(),
-            AddressVisitor.new(),
-        )
+    def __init__(self, key: PRNGKey):
+        self.key = key
+        self.score: ArrayLike = 0.0
+        self.choice_state: Trie = Trie.new()
+        self.trace_visitor: AddressVisitor = AddressVisitor.new()
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -174,26 +164,15 @@ class SimulateHandler(Handler):
         return retval
 
 
-@dataclass
 @beartype
 class ImportanceHandler(Handler):
-    key: PRNGKey
-    score: float
-    weight: float
-    constraints: ChoiceMap
-    choice_state: Trie
-    trace_visitor: AddressVisitor
-
-    @classmethod
-    def new(cls, key: PRNGKey, constraints: ChoiceMap):
-        return ImportanceHandler(
-            key,
-            0.0,
-            0.0,
-            constraints,
-            Trie.new(),
-            AddressVisitor.new(),
-        )
+    def __init__(self, key: PRNGKey, constraints: ChoiceMap):
+        self.key = key
+        self.constraints = constraints
+        self.score: ArrayLike = 0.0
+        self.weight: ArrayLike = 0.0
+        self.choice_state: Trie = Trie.new()
+        self.trace_visitor: AddressVisitor = AddressVisitor.new()
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -210,28 +189,16 @@ class ImportanceHandler(Handler):
         return retval
 
 
-@dataclass
 @beartype
 class UpdateHandler(Handler):
-    key: PRNGKey
-    weight: jaxtyping.ArrayLike
-    previous_trace: Trace
-    constraints: ChoiceMap
-    discard: Trie
-    choice_state: Trie
-    trace_visitor: AddressVisitor
-
-    @classmethod
-    def new(cls, key: PRNGKey, previous_trace: Trace, constraints: ChoiceMap):
-        return UpdateHandler(
-            key,
-            0.0,
-            previous_trace,
-            constraints,
-            Trie.new(),
-            Trie.new(),
-            AddressVisitor.new(),
-        )
+    def __init__(self, key: PRNGKey, previous_trace: Trace, constraints: ChoiceMap):
+        self.key: PRNGKey = key
+        self.previous_trace: Trace = previous_trace
+        self.constraints: ChoiceMap = constraints
+        self.weight: ArrayLike = 0.0
+        self.discard: Trie = Trie.new()
+        self.choice_state: Trie = Trie.new()
+        self.trace_visitor: AddressVisitor = AddressVisitor.new()
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -261,20 +228,12 @@ class UpdateHandler(Handler):
         return retval
 
 
-@dataclass
 @beartype
 class AssessHandler(Handler):
-    score: jaxtyping.ArrayLike
-    constraints: ChoiceMap
-    trace_visitor: AddressVisitor
-
-    @classmethod
-    def new(cls, constraints: ChoiceMap):
-        return AssessHandler(
-            0.0,
-            constraints,
-            AddressVisitor.new(),
-        )
+    def __init__(self, constraints: ChoiceMap):
+        self.constraints = constraints
+        self.score: ArrayLike = 0.0
+        self.trace_visitor: AddressVisitor = AddressVisitor.new()
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -359,7 +318,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
             handler_trace_with_interpreted, self.source
         )
         # Handle trace with the `SimulateHandler`.
-        with SimulateHandler.new(key) as handler:
+        with SimulateHandler(key) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
             choices = handler.choice_state
@@ -374,7 +333,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
-        with ImportanceHandler.new(key, choice_map) as handler:
+        with ImportanceHandler(key, choice_map) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
             choices = handler.choice_state
@@ -395,7 +354,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
-        with UpdateHandler.new(key, prev_trace, choice_map) as handler:
+        with UpdateHandler(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
             choices = handler.choice_state
@@ -424,7 +383,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
-        with AssessHandler.new(choice_map) as handler:
+        with AssessHandler(choice_map) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
             return score, retval
