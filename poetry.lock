@@ -1489,13 +1489,13 @@ test = ["codecov", "coverage", "ipykernel (>=6.12)", "ipython", "mypy", "pre-com
 
 [[package]]
 name = "jupyter-core"
-version = "5.5.0"
+version = "5.5.1"
 description = "Jupyter core package. A base package on which Jupyter projects rely."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jupyter_core-5.5.0-py3-none-any.whl", hash = "sha256:e11e02cd8ae0a9de5c6c44abf5727df9f2581055afe00b22183f621ba3585805"},
-    {file = "jupyter_core-5.5.0.tar.gz", hash = "sha256:880b86053bf298a8724994f95e99b99130659022a4f7f45f563084b6223861d3"},
+    {file = "jupyter_core-5.5.1-py3-none-any.whl", hash = "sha256:220dfb00c45f0d780ce132bb7976b58263f81a3ada6e90a9b6823785a424f739"},
+    {file = "jupyter_core-5.5.1.tar.gz", hash = "sha256:1553311a97ccd12936037f36b9ab4d6ae8ceea6ad2d5c90d94a909e752178e40"},
 ]
 
 [package.dependencies]
