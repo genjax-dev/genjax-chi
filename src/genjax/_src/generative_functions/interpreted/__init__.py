@@ -23,7 +23,7 @@ The intent of this language is pedagogical - one can use it to rapidly construct
 
 import abc
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax
 import jaxtyping
@@ -33,13 +33,11 @@ from plum import dispatch
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
-    AllSelection,
     HierarchicalSelection,
 )
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import (
@@ -143,13 +141,13 @@ class AddressVisitor:
 #####################################
 
 
+@dataclass
 @beartype
 class SimulateHandler(Handler):
-    def __init__(self, key: PRNGKey):
-        self.key = key
-        self.score: ArrayLike = 0.0
-        self.choice_state: Trie = Trie.new()
-        self.trace_visitor: AddressVisitor = AddressVisitor.new()
+    key: PRNGKey
+    score: ArrayLike = 0.0
+    choice_state: Trie = field(default_factory=Trie.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -164,15 +162,15 @@ class SimulateHandler(Handler):
         return retval
 
 
+@dataclass
 @beartype
 class ImportanceHandler(Handler):
-    def __init__(self, key: PRNGKey, constraints: ChoiceMap):
-        self.key = key
-        self.constraints = constraints
-        self.score: ArrayLike = 0.0
-        self.weight: ArrayLike = 0.0
-        self.choice_state: Trie = Trie.new()
-        self.trace_visitor: AddressVisitor = AddressVisitor.new()
+    key: PRNGKey
+    constraints: ChoiceMap
+    score: ArrayLike = 0.0
+    weight: ArrayLike = 0.0
+    choice_state: Trie = field(default_factory=Trie.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -189,16 +187,16 @@ class ImportanceHandler(Handler):
         return retval
 
 
+@dataclass
 @beartype
 class UpdateHandler(Handler):
-    def __init__(self, key: PRNGKey, previous_trace: Trace, constraints: ChoiceMap):
-        self.key: PRNGKey = key
-        self.previous_trace: Trace = previous_trace
-        self.constraints: ChoiceMap = constraints
-        self.weight: ArrayLike = 0.0
-        self.discard: Trie = Trie.new()
-        self.choice_state: Trie = Trie.new()
-        self.trace_visitor: AddressVisitor = AddressVisitor.new()
+    key: PRNGKey
+    previous_trace: Trace
+    constraints: ChoiceMap
+    weight: ArrayLike = 0.0
+    discard: Trie = field(default_factory=Trie.new)
+    choice_state: Trie = field(default_factory=Trie.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -228,12 +226,12 @@ class UpdateHandler(Handler):
         return retval
 
 
+@dataclass
 @beartype
 class AssessHandler(Handler):
-    def __init__(self, constraints: ChoiceMap):
-        self.constraints = constraints
-        self.score: ArrayLike = 0.0
-        self.trace_visitor: AddressVisitor = AddressVisitor.new()
+    constraints: ChoiceMap
+    score: ArrayLike = 0.0
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
