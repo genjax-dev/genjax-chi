@@ -32,8 +32,9 @@ from plum import parametric
 Any = btyping.Any
 Dataclass = btyping.Any
 PrettyPrintable = btyping.Any
-PRNGKey = jtyping.UInt[jtyping.Array, "..."]
+PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
+ArrayLike = jtyping.ArrayLike
 Union = btyping.Union
 IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
@@ -107,6 +108,7 @@ __all__ = [
     "Value",
     "Tuple",
     "Array",
+    "ArrayLike",
     "Any",
     "Union",
     "Callable",

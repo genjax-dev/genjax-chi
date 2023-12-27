@@ -56,8 +56,8 @@ class StaticTrace(
             self.score,
         ), ()
 
-    @typecheck
     @classmethod
+    @typecheck
     def new(
         cls,
         gen_fn: GenerativeFunction,
@@ -129,7 +129,7 @@ class StaticTrace(
         args, retval, score = self.args, self.retval, self.score
         choices_payload = []
         addr_payload = []
-        for addr, subtrace in self.static_address_choices.get_submaps_shallow():
+        for addr, subtrace in self.address_choices.get_submaps_shallow():
             inner_payload = subtrace.dumps(backend)
             choices_payload.append(inner_payload)
             addr_payload.append(addr)
