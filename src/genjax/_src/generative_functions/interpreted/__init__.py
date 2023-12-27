@@ -115,14 +115,10 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
-@dataclass
+@dataclass(eq=False)
 @beartype
 class AddressVisitor:
-    visited: List
-
-    @classmethod
-    def new(cls):
-        return AddressVisitor([])
+    visited: List = field(default_factory=list)
 
     def visit(self, addr):
         if addr in self.visited:
@@ -131,7 +127,7 @@ class AddressVisitor:
             self.visited.append(addr)
 
     def merge(self, other):
-        new = AddressVisitor.new()
+        new = AddressVisitor()
         for addr in itertools.chain(self.visited, other.visited):
             new.visit(addr)
 
@@ -141,13 +137,13 @@ class AddressVisitor:
 #####################################
 
 
-@dataclass
+@dataclass(eq=False)
 @beartype
 class SimulateHandler(Handler):
     key: PRNGKey
     score: ArrayLike = 0.0
     choice_state: Trie = field(default_factory=Trie.new)
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -162,7 +158,7 @@ class SimulateHandler(Handler):
         return retval
 
 
-@dataclass
+@dataclass(eq=False)
 @beartype
 class ImportanceHandler(Handler):
     key: PRNGKey
@@ -170,7 +166,7 @@ class ImportanceHandler(Handler):
     score: ArrayLike = 0.0
     weight: ArrayLike = 0.0
     choice_state: Trie = field(default_factory=Trie.new)
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -187,7 +183,7 @@ class ImportanceHandler(Handler):
         return retval
 
 
-@dataclass
+@dataclass(eq=False)
 @beartype
 class UpdateHandler(Handler):
     key: PRNGKey
@@ -196,7 +192,7 @@ class UpdateHandler(Handler):
     weight: ArrayLike = 0.0
     discard: Trie = field(default_factory=Trie.new)
     choice_state: Trie = field(default_factory=Trie.new)
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -226,12 +222,12 @@ class UpdateHandler(Handler):
         return retval
 
 
-@dataclass
+@dataclass(eq=False)
 @beartype
 class AssessHandler(Handler):
     constraints: ChoiceMap
     score: ArrayLike = 0.0
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor.new)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
         gen_fn = msg["gen_fn"]
@@ -302,10 +298,6 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 
     def flatten(self):
         return (), (self.source,)
-
-    @classmethod
-    def new(cls, f: Callable):
-        return InterpretedGenerativeFunction(f)
 
     def simulate(
         self,
@@ -396,7 +388,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 
 
 def interpreted_gen_fn(source: Callable):
-    return InterpretedGenerativeFunction.new(source)
+    return InterpretedGenerativeFunction(source)
 
 
 Interpreted = LanguageConstructor(
