@@ -33,8 +33,6 @@ from .information import *
 from .language_decorator import *
 
 
-__version__ = "0.0.1"
-
 ####################################################
 #
 #   The exports defined above are the public API.
