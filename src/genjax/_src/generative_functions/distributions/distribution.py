@@ -30,7 +30,7 @@ from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
 from genjax._src.core.serialization.pickle import PickleDataFormat
 from genjax._src.core.serialization.pickle import PickleSerializationBackend
 from genjax._src.core.serialization.pickle import SupportsPickleSerialization
-from genjax._src.core.typing import Any
+from genjax._src.core.typing import Any, ArrayLike
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import Tuple
@@ -72,7 +72,7 @@ class DistributionTrace(
     def get_choices(self):
         return ChoiceValue(self.value)
 
-    def project(self, selection: Selection) -> FloatArray:
+    def project(self, selection: Selection) -> ArrayLike:
         if isinstance(selection, AllSelection):
             return self.get_score()
         else:

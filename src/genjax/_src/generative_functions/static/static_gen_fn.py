@@ -70,8 +70,8 @@ class StaticGenerativeFunction(
         else:
             return (), (self.source,)
 
-    @typecheck
     @classmethod
+    @typecheck
     def new(cls, source: Callable):
         gen_fn = StaticGenerativeFunction(source)
         functools.update_wrapper(gen_fn, source)
