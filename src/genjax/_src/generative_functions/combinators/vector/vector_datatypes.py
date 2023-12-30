@@ -21,7 +21,6 @@ import rich.tree as rich_tree
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import choice_map
@@ -133,9 +132,16 @@ class IndexedChoiceMap(ChoiceMap):
         _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
 
         # if you try to wrap around an EmptyChoice, do nothing.
-        if isinstance(inner, EmptyChoice):
-            return inner
-
+        # if isinstance(inner, EmptyChoice):
+        #     return inner
+        # TODO(colin): I've killed this because it doesn't make sense.
+        # Wouldn't the user like an error signalled if they pass a
+        # nonempty indices array paired with an empty choice? The previous
+        # check ought to have fixed that. So are there people who call
+        # IndexedChoiceMap(jnp.array(), ChoiceMap()) and are happy not to
+        # get an IndexedChoiceMap back? Do we really want an auto-lowering
+        # of type this way? Do we really want an overload method that takes
+        # a naked int as key?
         return IndexedChoiceMap(indices, inner)
 
     @classmethod
@@ -188,7 +194,7 @@ class IndexedChoiceMap(ChoiceMap):
         slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         submap = submap.get_submap(tuple(rest))
-        if isinstance(submap, EmptyChoice):
+        if submap == ChoiceMap():
             return submap
         else:
             return mask(jnp.isin(idx, self.indices), submap)
@@ -210,7 +216,7 @@ class IndexedChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, _: Any):
-        return EmptyChoice()
+        return ChoiceMap()
 
     def get_selection(self):
         return self.inner.get_selection()
@@ -254,9 +260,14 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def new(
         cls,
-        inner: EmptyChoice,
-    ) -> EmptyChoice:
-        return inner
+        inner: ChoiceMap,
+    ) -> ChoiceMap:
+        static_check_tree_leaves_have_matching_leading_dim(inner)
+        # Arguably, we could check for len(inner) == 0 and return inner in that case
+        # This is the same as the fallthrough case. But can we really construct a
+        # VectorChoiceMap out of _anything_?  If so, maybe we can just delete this
+        # specialization.
+        return VectorChoiceMap(inner)
 
     @classmethod
     @dispatch
@@ -379,7 +390,12 @@ class VectorChoiceMap(ChoiceMap):
         return VectorChoiceMap(new), IndexedChoiceMap(indices, discard)
 
     @dispatch
-    def merge(self, other: EmptyChoice) -> Tuple[ChoiceMap, ChoiceMap]:
+    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+        # TODO(colin): what is really expected here? What if we had a
+        # choicemap that "happened" to have compatible integer keys?
+        assert (
+            len(other) == 0
+        ), "Seemingly non-integer-indexed ChoiceMap cannot merge with VectorChoiceMap"
         return self, other
 
     ###################

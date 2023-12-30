@@ -15,8 +15,7 @@
 import jax
 
 import genjax
-from genjax import ChoiceValue
-from genjax import EmptyChoice
+from genjax import ChoiceMap, ChoiceValue
 from genjax import mask
 from genjax.incremental import NoChange
 from genjax.incremental import UnknownChange
@@ -33,7 +32,7 @@ class TestDistributions:
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        (tr, w) = genjax.normal.importance(key, EmptyChoice(), (0.0, 1.0))
+        (tr, w) = genjax.normal.importance(key, ChoiceMap(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.
@@ -74,7 +73,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            EmptyChoice(),
+            ChoiceMap(),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()
@@ -100,7 +99,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            EmptyChoice(),
+            ChoiceMap(),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()

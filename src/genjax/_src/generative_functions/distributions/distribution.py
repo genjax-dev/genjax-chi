@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
@@ -134,9 +134,14 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoice,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
+        assert len(chm) == 0
+        # TODO(colin): there are two importance methods, in the
+        # case that the choicemap is empty or a choice value. We
+        # could unify the two cases by checking len == 0, 1, or
+        # throw if > 1.
         tr = self.simulate(key, args)
         return (tr, 0.0)
 
@@ -157,16 +162,19 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: EmptyChoice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
+        # TODO(colin): here's another case where we want a choice
+        # map with at most one element in the domain; can we
+        # unify these two?
         static_check_tree_leaves_diff(argdiffs)
         v = prev.get_retval()
         retval_diff = tree_diff_no_change(v)
 
         # If no change to arguments, no need to update.
         if static_check_no_change(argdiffs):
-            return (prev, 0.0, retval_diff, EmptyChoice())
+            return (prev, 0.0, retval_diff, ChoiceMap())
 
         # Otherwise, we must compute an incremental weight.
         else:
@@ -174,7 +182,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
-            return (new_tr, fwd - bwd, retval_diff, EmptyChoice())
+            return (new_tr, fwd - bwd, retval_diff, ChoiceMap())
 
     @dispatch
     def update(

@@ -41,6 +41,8 @@ def static_check_tree_leaves_have_matching_leading_dim(tree):
     leaves = jtu.tree_leaves(broadcast_dim_tree)
     leaf_lengths = set(leaves)
     # all the leaves must have the same first dim size.
-    assert len(leaf_lengths) == 1
-    max_index = list(leaf_lengths).pop()
-    return max_index
+    # TODO(colin): this becomes <2 instead of ==1 b/c we now create a
+    # VectorChoiceMap(ChoiceMap()) in order to dodge duplicative EmptyChoice specialization,
+    # perhaps temporarily...but such a thing should be allowed to satisfy this definition vacuously
+    assert len(leaf_lengths) < 2
+    return leaf_lengths.pop() if leaf_lengths else 0

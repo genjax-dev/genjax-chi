@@ -22,7 +22,6 @@ from rich.tree import Tree
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import Selection
@@ -67,10 +66,13 @@ class SwitchChoiceMap(ChoiceMap):
 
     def is_empty(self):
         # Concrete evaluation -- when possible.
-        if all(map(lambda sm: isinstance(sm, EmptyChoice), self.submaps)):
+        if all(len(sm) == 0 for sm in self.submaps):
             return True
         else:
-            flags = jnp.array([sm.is_empty() for sm in self.submaps])
+            # TODO(colin): hm. I guess this is necessary if the sequence doesn't support random access?
+            # Otherwise I'd want len(self.submaps[self.index]) == 0. In fact, why is there an IF here
+            # at all?
+            flags = jnp.array([len(sm) == 0 for sm in self.submaps])
             return flags[self.index]
 
     def filter(
@@ -95,21 +97,19 @@ class SwitchChoiceMap(ChoiceMap):
     def get_submap(self, addr):
         submaps = list(map(lambda v: v.get_submap(addr), self.submaps))
 
-        # Here, we create an index map before we filter out
-        # EmptyChoice instances.
+        # Here, we create an index map before we filter out empty ChoiceMaps.
         counter = 0
         index_map = []
         for v in submaps:
-            if isinstance(v, EmptyChoice):
+            # TODO(colin): here's a point where the behavior could differ betweeen EmptyChoice and an empty HierarchicalChoiceMap.
+            if len(v) == 0:
                 index_map.append(-1)
             else:
                 index_map.append(counter)
                 counter += 1
         index_map = jnp.array(index_map)
 
-        non_empty_submaps = list(
-            filter(lambda v: not isinstance(v, EmptyChoice), submaps)
-        )
+        non_empty_submaps = list(filter(lambda v: len(v) > 0, submaps))
         indexer = index_map[self.index]
 
         def chooser(*trees):

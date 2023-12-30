@@ -32,7 +32,6 @@ from plum import dispatch
 
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
-    EmptyChoice,
     HierarchicalSelection,
 )
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -359,12 +358,12 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 HierarchicalChoiceMap(discard),
             )
 
-    @dispatch
-    def update(
-        self, key: PRNGKey, prev_trace: Trace, choice: EmptyChoice, argdiffs: Tuple
-    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
-        return self.update(key, prev_trace, HierarchicalChoiceMap.new({}), argdiffs)
-
+    # @dispatch
+    # def update(
+    #     self, key: PRNGKey, prev_trace: Trace, choice: EmptyChoice, argdiffs: Tuple
+    # ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
+    #     return self.update(key, prev_trace, HierarchicalChoiceMap.new({}), argdiffs)
+    #
     def assess(
         self,
         choice_map: ChoiceMap,

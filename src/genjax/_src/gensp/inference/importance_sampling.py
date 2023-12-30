@@ -21,7 +21,6 @@ import numpy as np
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.typing import Int
 from genjax._src.core.typing import PRNGKey
 from genjax._src.core.typing import dispatch
@@ -52,7 +51,7 @@ class DefaultImportance(SPDistribution):
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(sub_key, self.num_particles)
         (lws, tr) = jax.vmap(target.importance, in_axes=(0, None))(
-            sub_keys, EmptyChoice()
+            sub_keys, ChoiceMap()
         )
         tw = jax.scipy.special.logsumexp(lws)
         lnw = lws - tw
@@ -73,9 +72,7 @@ class DefaultImportance(SPDistribution):
     ):
         key, sub_key = jax.random.split(key)
         sub_keys = jax.random.split(key, self.num_particles - 1)
-        (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(
-            sub_keys, EmptyChoice()
-        )
+        (lws, _) = jax.vmap(target.importance, in_axes=(0, None))(sub_keys, ChoiceMap())
         inner_chm = chm.get_value()
         assert isinstance(inner_chm, ChoiceMap)
         (retained_w, retained_tr) = target.importance(key, inner_chm)

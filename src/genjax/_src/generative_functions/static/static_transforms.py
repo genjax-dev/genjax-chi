@@ -21,7 +21,6 @@ import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
@@ -214,6 +213,9 @@ class AddressVisitor(Pytree):
 # in your code, that your derived instance has a `constraints` field.
 @dataclass
 class StaticLanguageHandler(StatefulHandler):
+    # TODO(colin): there are a lot of type errors here because the
+    #
+
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
     # (`trace_p`, for random choices, and `cache_p`, for deterministic caching)
@@ -224,11 +226,15 @@ class StaticLanguageHandler(StatefulHandler):
         self.address_visitor.visit(addr)
 
     def get_submap(self, addr):
-        if isinstance(self.constraints, EmptyChoice):
-            return self.constraints
-        else:
-            addr = tree_map_collapse_const(addr)
-            return self.constraints.get_submap(addr)
+        # TODO(colin): again, here, we want the empty choice map to have the same behavior as
+        # EmptyChoice. For example, if the addr doesn't exist, we want the behavior to be the
+        # same in that case.
+
+        # if isinstance(self.constraints, EmptyChoice):
+        #     return self.constraints
+        # else:
+        addr = tree_map_collapse_const(addr)
+        return self.constraints.get_submap(addr)
 
     def get_subtrace(self, addr):
         addr = tree_map_collapse_const(addr)

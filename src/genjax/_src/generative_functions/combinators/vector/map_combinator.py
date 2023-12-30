@@ -22,7 +22,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -34,7 +33,7 @@ from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
-from genjax._src.core.typing import Any
+from genjax._src.core.typing import Any, ArrayLike
 from genjax._src.core.typing import FloatArray
 from genjax._src.core.typing import IntArray
 from genjax._src.core.typing import PRNGKey
@@ -278,26 +277,33 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w)
 
-    @dispatch
-    def importance(
-        self,
-        key: PRNGKey,
-        chm: EmptyChoice,
-        args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
-        map_tr = self.simulate(key, args)
-        w = 0.0
-        return (map_tr, w)
+    # @dispatch
+    # def importance(
+    #     self,
+    #     key: PRNGKey,
+    #     chm: EmptyChoice,
+    #     args: Tuple,
+    # ) -> Tuple[MapTrace, FloatArray]:
+    #     map_tr = self.simulate(key, args)
+    #     w = 0.0
+    #     return (map_tr, w)
 
     @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: HierarchicalChoiceMap,
+        chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
-        indchm = IndexedChoiceMap.convert(chm)
-        return self.importance(key, indchm, args)
+    ) -> Tuple[MapTrace, ArrayLike]:
+        # TODO(colin): the convert method doesn't exist. If it did, we'd like the empty choice map to
+        # become an empty IndexedChoiceMap and then perhaps we could proceed as above.
+        if len(chm) == 0:
+            return self.simulate(key, args), 0.0
+        raise NotImplementedError(
+            "Convert from nonempty ChoiceMap to IndexedChoiceMap for mapped importance"
+        )
+        # indchm = IndexedChoiceMap.convert(chm)
+        # return self.importance(key, indchm, args)
 
     @dispatch
     def maybe_restore_arguments_kernel_update(
@@ -398,25 +404,31 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: EmptyChoice,
+        chm: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
-        prev_inaxes_tree = jtu.tree_map(
-            lambda v: None if v.shape == () else 0, prev.inner
-        )
-        args = tree_diff_primal(argdiffs)
-        original_args = prev.get_args()
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-        (tr, w, retval_diff, discard) = jax.vmap(
-            self.maybe_restore_arguments_kernel_update,
-            in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
-        )(sub_keys, prev.inner, chm, original_args, argdiffs)
-        w = jnp.sum(w)
-        retval = tr.get_retval()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
-        return (map_tr, w, retval_diff, discard)
+        # TODO(colin): This implementation is so similar to the specialization for VectorChoiceMap
+        # we're going to try to reuse it.
+        if len(chm) == 0:
+            return self.update(key, prev, VectorChoiceMap.new(ChoiceMap()), argdiffs)
+        else:
+            raise NotImplementedError
+        # prev_inaxes_tree = jtu.tree_map(
+        #     lambda v: None if v.shape == () else 0, prev.inner
+        # )
+        # args = tree_diff_primal(argdiffs)
+        # original_args = prev.get_args()
+        # self._static_check_broadcastable(args)
+        # broadcast_dim_length = self._static_broadcast_dim_length(args)
+        # sub_keys = jax.random.split(key, broadcast_dim_length)
+        # (tr, w, retval_diff, discard) = jax.vmap(
+        #     self.maybe_restore_arguments_kernel_update,
+        #     in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
+        # )(sub_keys, prev.inner, chm, original_args, argdiffs)
+        # w = jnp.sum(w)
+        # retval = tr.get_retval()
+        # map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
+        # return (map_tr, w, retval_diff, discard)
 
     @typecheck
     def assess(

@@ -40,7 +40,6 @@ from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.pytree.pytree import Pytree
