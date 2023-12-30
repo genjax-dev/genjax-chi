@@ -115,6 +115,9 @@ class Trie(Pytree, CustomPretty):
     def __hash__(self):
         return hash(self.inner)
 
+    def __len__(self):
+        return len(self.inner)
+
     ###################
     # Pretty printing #
     ###################

@@ -26,7 +26,6 @@ from jax.experimental import checkify
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
@@ -302,7 +301,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
 
             def _with_empty_choice(key, count, state):
-                sub_choice_map = EmptyChoice()
+                sub_choice_map = ChoiceMap()
                 key, sub_key = jax.random.split(key)
                 (tr, w) = self.kernel.importance(
                     sub_key, sub_choice_map, (state, *static_args)
@@ -409,23 +408,16 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        _: EmptyChoice,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[UnfoldTrace, FloatArray]:
+        assert len(chm) == 0
+        # TODO(colin): can this case be unified with either of the above ones?
         length = args[0]
         self._optional_out_of_bounds_check(length)
         unfold_tr = self.simulate(key, args)
         w = 0.0
         return (unfold_tr, w)
-
-    @dispatch
-    def importance(
-        self,
-        key: PRNGKey,
-        chm: ChoiceMap,
-        args: Tuple,
-    ):
-        raise NotImplementedError
 
     @dispatch
     def _update_fallback(
@@ -475,58 +467,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             _inner,
             (0, key, state),
             (prev, chm),
-            length=self.max_length,
-        )
-
-        unfold_tr = UnfoldTrace(
-            self,
-            tr,
-            length,
-            (length, state, *static_args),
-            tree_diff_primal(retval_diff),
-            jnp.sum(score),
-        )
-
-        w = jnp.sum(w)
-        return (unfold_tr, w, retval_diff, discard)
-
-    @dispatch
-    def _update_specialized(
-        self,
-        key: PRNGKey,
-        prev: UnfoldTrace,
-        chm: EmptyChoice,
-        length: Diff,
-        state: Any,
-        *static_args: Any,
-    ):
-        length, state, static_args = tree_diff_primal((length, state, static_args))
-
-        def _inner(carry, slice):
-            count, key, state = carry
-            (prev,) = slice
-            key, sub_key = jax.random.split(key)
-
-            (tr, w, retval_diff, discard) = self.kernel.update(
-                sub_key,
-                prev,
-                chm,
-                tree_diff_no_change((state, *static_args)),
-            )
-
-            check = jnp.less(count, length + 1)
-            count, state, score, weight = jax.lax.cond(
-                check,
-                lambda *args: (count + 1, retval_diff, tr.get_score(), w),
-                lambda *args: (count, state, 0.0, 0.0),
-            )
-            return (count, key, state), (state, score, weight, tr, discard)
-
-        prev_inner_trace = prev.inner
-        (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            (prev_inner_trace,),
             length=self.max_length,
         )
 
@@ -666,7 +606,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             retval,
             new_score,
         )
-        return (new_tr, w, retval_diff, EmptyChoice())
+        return (new_tr, w, retval_diff, ChoiceMap())
 
     @dispatch
     def _update_specialized(
@@ -678,6 +618,9 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         state: Any,
         *static_args: Any,
     ):
+        # TODO(colin): we deleted the update_specialized for EmptyChoice above,
+        # but we will probably have to put it back. First thing to check is
+        # to see if we can reuse the VectorCM implementation with an empty vector?
         raise NotImplementedError
 
     @dispatch

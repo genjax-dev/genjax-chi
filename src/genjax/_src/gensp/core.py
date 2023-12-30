@@ -27,7 +27,6 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.interpreters.forward import InitialStylePrimitive

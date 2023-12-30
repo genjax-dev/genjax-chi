@@ -207,15 +207,9 @@ def tree_diff_unpack_leaves(v):
 
 
 def static_check_tree_leaves_diff(v):
-    def _inner(v):
-        if static_check_is_diff(v):
-            return True
-        else:
-            return False
-
     return all(
         jtu.tree_leaves(
-            jtu.tree_map(_inner, v, is_leaf=static_check_is_diff),
+            jtu.tree_map(static_check_is_diff, v, is_leaf=static_check_is_diff),
         )
     )
 

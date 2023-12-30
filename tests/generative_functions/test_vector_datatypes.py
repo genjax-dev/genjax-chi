@@ -66,7 +66,7 @@ class TestIndexChoiceMap:
             [0, 3], genjax.choice_map({"z": jnp.array([3.0, 5.0])})
         )
         st = chm.get_submap((2, "x"))
-        assert st == genjax.EmptyChoice()
+        assert len(st) == 0
         # When index is not available, always returns the first index slice inside of a Mask with a False flag.
         st = chm.get_submap((2, "z"))
         assert isinstance(st, genjax.Mask)

@@ -16,7 +16,6 @@ from genjax._src.core.datatypes.generative import AllSelection
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.generative import DisjointUnionChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -53,7 +52,6 @@ __all__ = [
     "trie",
     # Generative datatypes.
     "ChoiceMap",
-    "EmptyChoice",
     "empty_choice",
     "ChoiceValue",
     "choice_value",

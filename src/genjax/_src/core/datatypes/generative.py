@@ -274,29 +274,6 @@ class Choice(Pytree):
 
 
 @dataclass
-class EmptyChoice(Choice):
-    def flatten(self):
-        return (), ()
-
-    @classmethod
-    def new(cls):
-        return EmptyChoice()
-
-    def filter(self, selection):
-        return self
-
-    def is_empty(self):
-        return True
-
-    @dispatch
-    def merge(self, other):
-        return other, self
-
-    def __rich_tree__(self):
-        return rich_tree.Tree("[bold](EmptyChoice)")
-
-
-@dataclass
 class ChoiceValue(Choice):
     value: Any
 
@@ -307,6 +284,7 @@ class ChoiceValue(Choice):
     def new(cls, v):
         return ChoiceValue(v)
 
+    # TODO(colin): get rid of this in favor of len(chm) == 0
     def is_empty(self):
         return False
 
@@ -323,7 +301,10 @@ class ChoiceValue(Choice):
 
     @dispatch
     def filter(self, selection):
-        return EmptyChoice()
+        return ChoiceMap()
+
+    def __len__(self):
+        return 1
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ValueChoice)")
@@ -334,23 +315,30 @@ class ChoiceValue(Choice):
 @dataclass
 class ChoiceMap(Choice):
     @abc.abstractmethod
-    def get_submap(self, addr) -> Choice:
-        pass
+    def get_submap(self, addr) -> "ChoiceMap":
+        return self
 
     @abc.abstractmethod
-    def has_submap(self, addr) -> BoolArray:
-        pass
+    def has_submap(self, addr) -> bool:
+        return False
 
     @abc.abstractmethod
-    def is_empty(self) -> BoolArray:
-        pass
+    def is_empty(self) -> bool:
+        # TODO(colin): who uses this?
+        return True
 
     @abc.abstractmethod
     def merge(
         self,
         other: "ChoiceMap",
     ) -> Tuple["ChoiceMap", "ChoiceMap"]:
-        pass
+        return other, self
+
+    def flatten(self) -> Tuple[Tuple, Tuple]:
+        return (), ()
+
+    def __len__(self):
+        return 0
 
     @dispatch
     def filter(
@@ -364,7 +352,7 @@ class ChoiceMap(Choice):
         self,
         selection: NoneSelection,
     ) -> "ChoiceMap":
-        return EmptyChoice()
+        return self
 
     @dispatch
     def filter(
@@ -394,13 +382,11 @@ class ChoiceMap(Choice):
             print(console.render(filtered))
             ```
         """
-        raise NotImplementedError
+        return self
 
     def get_selection(self) -> "Selection":
         """Convert a `ChoiceMap` to a `Selection`."""
-        raise Exception(
-            f"`get_selection` is not implemented for choice map of type {type(self)}",
-        )
+        return NoneSelection()
 
     def safe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
         new, discard = self.merge(other)
@@ -838,7 +824,7 @@ class Mask(Pytree):
     def get_submap(self, addrs):
         assert isinstance(self.value, ChoiceMap)
         submap = self.value.get_submap(addrs)
-        if isinstance(submap, EmptyChoice):
+        if submap == ChoiceMap():
             return submap
         else:
             return Mask.new(self.mask, submap)
@@ -1145,9 +1131,9 @@ class GenerativeFunction(Pytree):
         _, possible_discards = discard_option.merge(possible_constraints)
 
         def _none():
-            (new_tr, w, retdiff, _) = self.update(key, prev, EmptyChoice(), argdiffs)
+            (new_tr, w, retdiff, _) = self.update(key, prev, ChoiceMap(), argdiffs)
             if possible_discards.is_empty():
-                discard = EmptyChoice()
+                discard = ChoiceMap()
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = mask(False, possible_discards)
@@ -1158,7 +1144,7 @@ class GenerativeFunction(Pytree):
         def _some(chm):
             (new_tr, w, retdiff, _) = self.update(key, prev, chm, argdiffs)
             if possible_discards.is_empty():
-                discard = EmptyChoice()
+                discard = ChoiceMap()
             else:
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
@@ -1286,7 +1272,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     def new(cls, trie: Trie):
         check = trie.is_empty()
         if static_check_is_concrete(check) and check:
-            return EmptyChoice()
+            return ChoiceMap()
         else:
             return HierarchicalChoiceMap(trie)
 
@@ -1312,12 +1298,12 @@ class HierarchicalChoiceMap(ChoiceMap):
         trie = Trie.new()
         iter = self.get_submaps_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoice):
+            if len(v) > 0:
                 trie[k] = v
 
         new = HierarchicalChoiceMap(trie)
         if new.is_empty():
-            return EmptyChoice()
+            return ChoiceMap()
         else:
             return new
 
@@ -1326,7 +1312,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     def _lift_value(self, value):
         if value is None:
-            return EmptyChoice()
+            return ChoiceMap()
         else:
             if isinstance(value, Trie):
                 return HierarchicalChoiceMap(value)
@@ -1345,19 +1331,9 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, addr: Tuple):
-        first, *rest = addr
-        top = self.get_submap(first)
-        if isinstance(top, EmptyChoice):
-            return top
-        else:
-            if rest:
-                if len(rest) == 1:
-                    rest = rest[0]
-                else:
-                    rest = tuple(rest)
-                return top.get_submap(rest)
-            else:
-                return top
+        top = self.trie.get_submap(addr[0])
+        rest = addr[1:]
+        return top.get_submap(rest) if rest else self._lift_value(top)
 
     def get_submaps_shallow(self):
         def _inner(v):
@@ -1394,18 +1370,14 @@ class HierarchicalChoiceMap(ChoiceMap):
         return HierarchicalChoiceMap(Trie(new)), HierarchicalChoiceMap(Trie(discard))
 
     @dispatch
-    def merge(self, other: EmptyChoice):
-        return self, other
-
-    @dispatch
     def merge(self, other: ChoiceValue):
         return other, self
 
     @dispatch
     def merge(self, other: ChoiceMap):
-        raise Exception(
-            f"Merging with choice map type {type(other)} not supported.",
-        )
+        if len(other) == 0:
+            return self, other
+        raise NotImplemented("Merging with nonempty choice map not supported.")
 
     ###########
     # Dunders #
@@ -1418,6 +1390,9 @@ class HierarchicalChoiceMap(ChoiceMap):
             else v
         )
         self.trie[k] = v
+
+    def __len__(self):
+        return len(self.trie)
 
     ###################
     # Pretty printing #
@@ -1455,7 +1430,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
     @classmethod
     def new(cls, submaps: List[ChoiceMap]):
         if not submaps:
-            return EmptyChoice()
+            return ChoiceMap()
         else:
             return DisjointUnionChoiceMap(submaps)
 
@@ -1466,7 +1441,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
     def get_submap(self, head, *tail):
         new_submaps = list(
             filter(
-                lambda v: not isinstance(v, EmptyChoice),
+                lambda v: len(v) > 0,
                 map(lambda v: v.get_submap(head, *tail), self.submaps),
             )
         )
@@ -1479,7 +1454,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
             assert all(map(lambda v: isinstance(v, ChoiceValue), new_submaps))
 
         if len(new_submaps) == 0:
-            return EmptyChoice()
+            return ChoiceMap()
 
         elif len(new_submaps) == 1:
             return new_submaps[0]
@@ -1523,7 +1498,7 @@ class LanguageConstructor(Pytree):
 ##############
 
 # Choices and choice maps
-empty_choice = EmptyChoice.new
+empty_choice = ChoiceMap
 choice_value = ChoiceValue.new
 hierarchical_choice_map = HierarchicalChoiceMap.new
 disjoint_union_choice_map = DisjointUnionChoiceMap.new
