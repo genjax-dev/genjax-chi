@@ -21,13 +21,13 @@ from jaxtyping import ArrayLike
 import genjax
 import pytest
 
-from genjax import ExactDensity, FloatArray
+from genjax import ExactDensity
 from genjax._src.core.interpreters.incremental import (
     tree_diff_no_change,
     tree_diff_unknown_change,
 )
 from genjax._src.generative_functions.interpreted import trace
-
+from genjax.core.exceptions import StaticAddressJAX, AddressReuse
 
 #############
 # Datatypes #
@@ -585,7 +585,7 @@ class TestInterpretedAddressChecks:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        with pytest.raises(Exception):
+        with pytest.raises(AddressReuse):
             _ = simple_normal_addr_dup.simulate(key, ())
 
     def test_simple_normal_addr_tracer(self, lang):
@@ -595,9 +595,10 @@ class TestInterpretedAddressChecks:
             y2 = genjax.normal(0.0, 1.0) @ y1
             return y1 + y2
 
-        key = jax.random.PRNGKey(314159)
-        with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
+        if lang == genjax.Static:
+            key = jax.random.PRNGKey(314159)
+            with pytest.raises(StaticAddressJAX):
+                _ = simple_normal_addr_tracer.simulate(key, ())
 
 
 @with_both_languages
