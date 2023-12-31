@@ -286,7 +286,7 @@ class ChoiceMap(Pytree):
 
     @abc.abstractmethod
     def is_empty(self) -> bool:
-        # TODO(colin): who uses this?
+        # TODO(colin): consider retiring in favor of len(chm) == 0
         return True
 
     @abc.abstractmethod
@@ -407,7 +407,6 @@ class ChoiceValue(ChoiceMap):
     def get_value(self):
         return self.value
 
-    @dispatch
     def merge(self, other: "ChoiceValue"):
         return self, other
 
@@ -1103,17 +1102,6 @@ class GenerativeFunction(Pytree):
 
         return constraints.match(_inactive, _active)
 
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: Trace,
-        new_constraints: ChoiceMap,
-        diffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, ChoiceMap]:
-        raise NotImplementedError
-
-    @dispatch
     def update(
         self,
         key: PRNGKey,
@@ -1250,6 +1238,12 @@ class HierarchicalChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.trie,), ()
 
+    # TODO(colin): I really think that this should recursively convert
+    # Python dicts to the obvious nested choice map instead of stopping
+    # at the first level. Vector items within should also be promoted
+    # to VectorChoiceMaps. Also there is code duplication with __setitem__
+    # below. The code which switches on the type of the value should have
+    # one implementation.
     @classmethod
     @dispatch
     def new(cls, constraints: Dict):
