@@ -32,8 +32,9 @@ from .inference import *
 from .information import *
 from .language_decorator import *
 
+from importlib import metadata
 
-__version__ = "0.0.1"
+__version__ = metadata.version("genjax")
 
 ####################################################
 #
