@@ -32,6 +32,7 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split
 from genjax._src.core.pytree.utilities import tree_zipper
 from genjax._src.core.typing import Any
+from genjax._src.core.typing import ArrayLike
 from genjax._src.core.typing import BoolArray
 from genjax._src.core.typing import Callable
 from genjax._src.core.typing import Dict
@@ -404,6 +405,12 @@ class ChoiceValue(ChoiceMap):
     def is_empty(self):
         return False
 
+    def get_submap(self, addr) -> "ChoiceMap":
+        return ChoiceMap()
+
+    def has_submap(self, addr) -> bool:
+        return False
+
     def get_value(self):
         return self.value
 
@@ -546,7 +553,7 @@ class Trace(Pytree):
     def project(
         self,
         selection: NoneSelection,
-    ) -> FloatArray:
+    ) -> ArrayLike:
         return 0.0
 
     @dispatch
@@ -626,7 +633,7 @@ class Trace(Pytree):
     def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         return self.strip().merge(other.strip())
 
-    def has_submap(self, addr) -> BoolArray:
+    def has_submap(self, addr) -> bool:
         choices = self.get_choices()
         return choices.has_submap(addr)
 
@@ -1057,7 +1064,7 @@ class GenerativeFunction(Pytree):
     def importance(
         self,
         key: PRNGKey,
-        choice: ChoiceMap,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
         """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
@@ -1102,6 +1109,17 @@ class GenerativeFunction(Pytree):
 
         return constraints.match(_inactive, _active)
 
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: Trace,
+        new_constraints: ChoiceMap,
+        argdiffs: Tuple,
+    ) -> Tuple[Trace, FloatArray, Any, Mask]:
+        return NotImplemented
+
+    @dispatch
     def update(
         self,
         key: PRNGKey,
@@ -1142,7 +1160,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self,
-        choice: ChoiceMap,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """> Given a complete choice map indicating constraints ($u$) for all

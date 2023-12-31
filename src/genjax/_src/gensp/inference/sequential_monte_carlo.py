@@ -298,7 +298,7 @@ class SMCExtendPropagator(SMCPropagator):
             key, merged, new_target.args
         )
         key, (_, _, previous_trace, discard) = new_retained_trace.update(
-            key, EmptyChoice(), argdiffs
+            key, ChoiceMap(), argdiffs
         )
         previous_latents = retained.filter(discard.get_selection().complement())
         key, (_, forward_weight_retained) = self.k.assess(
@@ -379,7 +379,7 @@ class SMCSequencePropagator(SMCPropagator):
         return (self.sequence,)
 
     @classmethod
-    def new(fst: SMCPropagator, snd: SMCPropagator):
+    def new(cls, fst: SMCPropagator, snd: SMCPropagator):
         if isinstance(fst, SMCSequencePropagator) and isinstance(
             snd, SMCSequencePropagator
         ):
