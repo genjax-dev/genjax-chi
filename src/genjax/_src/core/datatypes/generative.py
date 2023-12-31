@@ -400,10 +400,6 @@ class ChoiceValue(ChoiceMap):
     def flatten(self):
         return (self.value,), ()
 
-    @classmethod
-    def new(cls, v):
-        return ChoiceValue(v)
-
     # TODO(colin): get rid of this in favor of len(chm) == 0
     def is_empty(self):
         return False
@@ -1500,7 +1496,7 @@ class LanguageConstructor(Pytree):
 
 # Choices and choice maps
 empty_choice = ChoiceMap
-choice_value = ChoiceValue.new
+choice_value = ChoiceValue
 hierarchical_choice_map = HierarchicalChoiceMap.new
 disjoint_union_choice_map = DisjointUnionChoiceMap.new
 

@@ -516,7 +516,7 @@ class SMCInit(SMCAlgorithm):
         # Set retained.
         key, kept = self.q.importance(
             key,
-            ChoiceValue.new(choices),
+            ChoiceValue(choices),
             (target,),
         )
 
