@@ -265,55 +265,17 @@ class HierarchicalSelection(Selection):
 # Choices #
 ###########
 
-
-@dataclass
-class Choice(Pytree):
-    @abc.abstractmethod
-    def filter(self, selection: Selection) -> "Choice":
-        pass
-
-
-@dataclass
-class ChoiceValue(Choice):
-    value: Any
-
-    def flatten(self):
-        return (self.value,), ()
-
-    @classmethod
-    def new(cls, v):
-        return ChoiceValue(v)
-
-    # TODO(colin): get rid of this in favor of len(chm) == 0
-    def is_empty(self):
-        return False
-
-    def get_value(self):
-        return self.value
-
-    @dispatch
-    def merge(self, other: "ChoiceValue"):
-        return self, other
-
-    @dispatch
-    def filter(self, selection: AllSelection):
-        return self
-
-    @dispatch
-    def filter(self, selection):
-        return ChoiceMap()
-
-    def __len__(self):
-        return 1
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](ValueChoice)")
-        tree.add(gpp.tree_pformat(self.value))
-        return tree
+#
+# @dataclass
+# class Choice(Pytree):
+#     @abc.abstractmethod
+#     def filter(self, selection: Selection) -> "Choice":
+#         pass
+#
 
 
 @dataclass
-class ChoiceMap(Choice):
+class ChoiceMap(Pytree):
     @abc.abstractmethod
     def get_submap(self, addr) -> "ChoiceMap":
         return self
@@ -429,6 +391,45 @@ class ChoiceMap(Choice):
     @dispatch
     def __getitem__(self, addr: Any):
         return self.__getitem__((addr,))
+
+
+@dataclass
+class ChoiceValue(ChoiceMap):
+    value: Any
+
+    def flatten(self):
+        return (self.value,), ()
+
+    @classmethod
+    def new(cls, v):
+        return ChoiceValue(v)
+
+    # TODO(colin): get rid of this in favor of len(chm) == 0
+    def is_empty(self):
+        return False
+
+    def get_value(self):
+        return self.value
+
+    @dispatch
+    def merge(self, other: "ChoiceValue"):
+        return self, other
+
+    @dispatch
+    def filter(self, selection: AllSelection):
+        return self
+
+    @dispatch
+    def filter(self, selection):
+        return ChoiceMap()
+
+    def __len__(self):
+        return 1
+
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](ChoiceValue)")
+        tree.add(gpp.tree_pformat(self.value))
+        return tree
 
 
 #########
@@ -592,7 +593,7 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        choices: Choice,
+        choices: ChoiceMap,
         argdiffs: Tuple,
     ):
         gen_fn = self.get_gen_fn()
@@ -602,7 +603,7 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        choices: Choice,
+        choices: ChoiceMap,
     ):
         gen_fn = self.get_gen_fn()
         args = self.get_args()
@@ -836,7 +837,7 @@ class Mask(Pytree):
 
     def filter(self, selection: Selection):
         choices = self.value.get_choices()
-        assert isinstance(choices, Choice)
+        assert isinstance(choices, ChoiceMap)
         return Mask.new(self.mask, choices.filter(selection))
 
     def get_choices(self):
@@ -1001,7 +1002,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[Choice, FloatArray, Any]:
+    ) -> Tuple[ChoiceMap, FloatArray, Any]:
         """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
         function, returning a tuple containing the return value from the
         generative function call, the score ($s$) of the choice map assignment,
@@ -1061,7 +1062,7 @@ class GenerativeFunction(Pytree):
     def importance(
         self,
         key: PRNGKey,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
         """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
@@ -1111,9 +1112,9 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         prev: Trace,
-        new_constraints: Choice,
+        new_constraints: ChoiceMap,
         diffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, Choice]:
+    ) -> Tuple[Trace, FloatArray, Any, ChoiceMap]:
         raise NotImplementedError
 
     @dispatch
@@ -1157,7 +1158,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """> Given a complete choice map indicating constraints ($u$) for all
@@ -1208,10 +1209,10 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     @typecheck
     def unzip(
         self,
-        fixed: Choice,
+        fixed: ChoiceMap,
     ) -> Tuple[
-        Callable[[Choice, Tuple], FloatArray],
-        Callable[[Choice, Tuple], Any],
+        Callable[[ChoiceMap, Tuple], FloatArray],
+        Callable[[ChoiceMap, Tuple], Any],
     ]:
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)

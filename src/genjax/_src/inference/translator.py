@@ -21,7 +21,6 @@ import jax.tree_util as jtu
 from jax.experimental.checkify import check
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
@@ -96,7 +95,7 @@ class ExtendingTraceTranslator(TraceTranslator):
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
     q_forward_args: Tuple
-    new_observations: Choice
+    new_observations: ChoiceMap
 
     def flatten(self):
         return (
@@ -112,7 +111,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         p_argdiffs: Tuple,
         q_forward: GenerativeFunction,
         q_forward_args: Tuple,
-        new_obs: Choice,
+        new_obs: ChoiceMap,
         choice_map_forward: Callable,
         choice_map_inverse: Callable,
         check_bijection: Bool,
@@ -301,7 +300,7 @@ class TraceKernelTraceTranslator(TraceTranslator):
         aux_choices, K_score, new_choices = self.K.propose(
             sub_key, (prev_model_choices, self.K_args)
         )
-        assert isinstance(new_choices, Choice)
+        assert isinstance(new_choices, ChoiceMap)
         J_log_abs_det = self.value_and_jacobian_correction(
             aux_choices, prev_model_choices
         )

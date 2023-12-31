@@ -19,7 +19,6 @@ from dataclasses import dataclass
 import jax
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import Trace
@@ -246,7 +245,7 @@ class StaticLanguageHandler(StatefulHandler):
         self.address_choices[addr] = tr
 
     @typecheck
-    def set_discard_state(self, addr, ch: Choice):
+    def set_discard_state(self, addr, ch: ChoiceMap):
         addr = tree_map_collapse_const(addr)
         self.discard_choices[addr] = ch
 

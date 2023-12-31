@@ -13,14 +13,12 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Sequence
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -135,7 +133,7 @@ class SwitchChoiceMap(ChoiceMap):
         raise NotImplementedError
 
     @dispatch
-    def merge(self, other: Choice) -> Tuple[Choice, Choice]:
+    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         new_submaps, new_discard = list(
             zip(*map(lambda v: v.merge(other), self.submaps))
         )

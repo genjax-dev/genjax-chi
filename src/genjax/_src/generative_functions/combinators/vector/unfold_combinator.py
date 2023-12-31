@@ -24,7 +24,6 @@ import jax.tree_util as jtu
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
@@ -640,9 +639,9 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: Choice,
+        chm: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[UnfoldTrace, FloatArray, Any, Choice]:
+    ) -> Tuple[UnfoldTrace, FloatArray, Any, ChoiceMap]:
         length = argdiffs[0]
         state = argdiffs[1]
         static_args = argdiffs[2:]

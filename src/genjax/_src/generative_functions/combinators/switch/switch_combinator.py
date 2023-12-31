@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
@@ -194,7 +194,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: Choice,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[SwitchTrace, FloatArray]:
         switch = args[0]
@@ -210,7 +210,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ):
         def _inner_update(br, key):
@@ -263,7 +263,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ):
         def _inner_importance(br, key, prev, constraints, argdiffs):
@@ -312,7 +312,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: SwitchTrace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[SwitchTrace, FloatArray, Any, Any]:
         index_argdiff = argdiffs[0]
@@ -325,7 +325,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     @typecheck
     def assess(
         self,
-        chm: Choice,
+        chm: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         switch = args[0]
