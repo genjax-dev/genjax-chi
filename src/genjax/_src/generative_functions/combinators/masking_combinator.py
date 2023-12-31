@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
@@ -91,7 +91,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray]:
         (check, inner_args) = args
@@ -104,9 +104,9 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev_trace: MaskingTrace,
-        choice: Choice,
+        choice: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
+    ) -> Tuple[MaskingTrace, FloatArray, Any, ChoiceMap]:
         (check_diff, inner_argdiffs) = argdiffs
         check = tree_diff_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import Choice
+from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
@@ -101,9 +101,9 @@ class RepeatCombinator(JAXGenerativeFunction):
         self,
         key: PRNGKey,
         prev: RepeatTrace,
-        choice: Choice,
+        choice: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[RepeatTrace, FloatArray, Any, Choice]:
+    ) -> Tuple[RepeatTrace, FloatArray, Any, ChoiceMap]:
         pass
 
     @dispatch
