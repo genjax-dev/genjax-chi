@@ -617,9 +617,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         state: Any,
         *static_args: Any,
     ):
-        # TODO(colin): we deleted the update_specialized for EmptyChoice above,
-        # but we will probably have to put it back. First thing to check is
-        # to see if we can reuse the VectorCM implementation with an empty vector?
         raise NotImplementedError
 
     @dispatch

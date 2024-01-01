@@ -358,12 +358,6 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 HierarchicalChoiceMap(discard),
             )
 
-    # @dispatch
-    # def update(
-    #     self, key: PRNGKey, prev_trace: Trace, choice: EmptyChoice, argdiffs: Tuple
-    # ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
-    #     return self.update(key, prev_trace, HierarchicalChoiceMap.new({}), argdiffs)
-    #
     def assess(
         self,
         choice_map: ChoiceMap,
