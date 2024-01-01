@@ -212,9 +212,6 @@ class AddressVisitor(Pytree):
 # in your code, that your derived instance has a `constraints` field.
 @dataclass
 class StaticLanguageHandler(StatefulHandler):
-    # TODO(colin): there are a lot of type errors here because the
-    #
-
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
     # (`trace_p`, for random choices, and `cache_p`, for deterministic caching)

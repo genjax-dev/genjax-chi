@@ -266,15 +266,6 @@ class HierarchicalSelection(Selection):
 # Choices #
 ###########
 
-#
-# @dataclass
-# class Choice(Pytree):
-#     @abc.abstractmethod
-#     def filter(self, selection: Selection) -> "Choice":
-#         pass
-#
-
-
 @dataclass
 class ChoiceMap(Pytree):
     @abc.abstractmethod

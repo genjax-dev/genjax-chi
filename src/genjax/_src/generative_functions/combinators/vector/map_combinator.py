@@ -277,17 +277,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w)
 
-    # @dispatch
-    # def importance(
-    #     self,
-    #     key: PRNGKey,
-    #     chm: EmptyChoice,
-    #     args: Tuple,
-    # ) -> Tuple[MapTrace, FloatArray]:
-    #     map_tr = self.simulate(key, args)
-    #     w = 0.0
-    #     return (map_tr, w)
-
     @dispatch
     def importance(
         self,
@@ -413,22 +402,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return self.update(key, prev, VectorChoiceMap.new(ChoiceMap()), argdiffs)
         else:
             raise NotImplementedError
-        # prev_inaxes_tree = jtu.tree_map(
-        #     lambda v: None if v.shape == () else 0, prev.inner
-        # )
-        # args = tree_diff_primal(argdiffs)
-        # original_args = prev.get_args()
-        # self._static_check_broadcastable(args)
-        # broadcast_dim_length = self._static_broadcast_dim_length(args)
-        # sub_keys = jax.random.split(key, broadcast_dim_length)
-        # (tr, w, retval_diff, discard) = jax.vmap(
-        #     self.maybe_restore_arguments_kernel_update,
-        #     in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
-        # )(sub_keys, prev.inner, chm, original_args, argdiffs)
-        # w = jnp.sum(w)
-        # retval = tr.get_retval()
-        # map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
-        # return (map_tr, w, retval_diff, discard)
 
     @typecheck
     def assess(
