@@ -20,21 +20,17 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import Sequence
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    ChoiceMap,
+    EmptyChoice,
+    GenerativeFunction,
+    HierarchicalSelection,
+    Selection,
+    Trace,
+    mask,
+)
+from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
 
 ###############################
 # Switch combinator datatypes #

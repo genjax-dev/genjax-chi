@@ -18,8 +18,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import Selection, Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.distributions.tensorflow_probability import normal

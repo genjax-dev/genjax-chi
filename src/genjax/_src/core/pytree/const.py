@@ -18,8 +18,7 @@ import jax.tree_util as jtu
 import rich.tree as rich_tree
 
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import static_check_is_concrete
+from genjax._src.core.typing import Any, static_check_is_concrete
 
 
 @dataclass

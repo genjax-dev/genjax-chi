@@ -12,23 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    JAXGenerativeFunction,
+    Selection,
+    Trace,
+)
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    Int,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
@@ -117,19 +121,13 @@ class RepeatCombinator(JAXGenerativeFunction):
         return jnp.sum(ws), r
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@typecheck
-def repeat_combinator(
-    gen_fn: JAXGenerativeFunction,
-    num_repeats: Int,
-):
-    return RepeatCombinator(num_repeats, gen_fn)
+def Repeat(*, repeats):
+    def decorator(f):
+        return functools.update_wrapper(RepeatCombinator(repeats, f), f)
 
-
-Repeat = LanguageConstructor(
-    repeat_combinator,
-)
+    return decorator

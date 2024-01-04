@@ -19,45 +19,46 @@ import adevjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from adevjax import ADEVPrimitive
-from adevjax import baseline
-from adevjax import flip_enum
-from adevjax import flip_mvd
-from adevjax import geometric_reinforce
-from adevjax import mv_normal_diag_reparam
-from adevjax import normal_reinforce
-from adevjax import normal_reparam
-from adevjax import sample_with_key
+from adevjax import (
+    ADEVPrimitive,
+    baseline,
+    flip_enum,
+    flip_mvd,
+    geometric_reinforce,
+    mv_normal_diag_reparam,
+    normal_reinforce,
+    normal_reparam,
+    sample_with_key,
+)
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import (
+    AllSelection,
+    ChoiceMap,
+    ChoiceValue,
+    EmptyChoice,
+    GenerativeFunction,
+    Selection,
+)
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import (
+    Any,
+    Callable,
+    FloatArray,
+    Int,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     geometric,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import normal
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    normal,
     uniform,
 )
-from genjax._src.gensp.core import SPDistribution
-from genjax._src.gensp.core import Target
-from genjax._src.gensp.core import target
-
+from genjax._src.gensp.core import SPDistribution, Target, target
 
 tfd = tfp.distributions
 

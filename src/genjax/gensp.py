@@ -15,26 +15,26 @@
 This module supports a GenJAX implementation of [Probabilistic programming with stochastic probabilities](https://dl.acm.org/doi/abs/10.1145/3591290).
 """
 
-from genjax._src.gensp.core import Marginal
-from genjax._src.gensp.core import marginal
-from genjax._src.gensp.inference.importance_sampling import CustomImportance
-from genjax._src.gensp.inference.importance_sampling import DefaultImportance
-from genjax._src.gensp.inference.importance_sampling import importance_sampler
-from genjax._src.gensp.inference.sequential_monte_carlo import ChangeTarget
-from genjax._src.gensp.inference.sequential_monte_carlo import Compose
-from genjax._src.gensp.inference.sequential_monte_carlo import Extend
-from genjax._src.gensp.inference.sequential_monte_carlo import Init
-from genjax._src.gensp.inference.sequential_monte_carlo import ParticleCollection
-from genjax._src.gensp.inference.sequential_monte_carlo import Sequence
-from genjax._src.gensp.inference.sequential_monte_carlo import SMCChangeTargetPropagator
-from genjax._src.gensp.inference.sequential_monte_carlo import SMCCompose
-from genjax._src.gensp.inference.sequential_monte_carlo import SMCExtendPropagator
-from genjax._src.gensp.inference.sequential_monte_carlo import SMCInit
-from genjax._src.gensp.inference.sequential_monte_carlo import SMCPropagator
-from genjax._src.gensp.inference.sequential_monte_carlo import SMCSequencePropagator
-from genjax._src.gensp.core import Target
-from genjax._src.gensp.core import target
-
+from genjax._src.gensp.core import Marginal, Target, marginal, target
+from genjax._src.gensp.inference.importance_sampling import (
+    CustomImportance,
+    DefaultImportance,
+    importance_sampler,
+)
+from genjax._src.gensp.inference.sequential_monte_carlo import (
+    ChangeTarget,
+    Compose,
+    Extend,
+    Init,
+    ParticleCollection,
+    Sequence,
+    SMCChangeTargetPropagator,
+    SMCCompose,
+    SMCExtendPropagator,
+    SMCInit,
+    SMCPropagator,
+    SMCSequencePropagator,
+)
 
 __all__ = [
     "Target",

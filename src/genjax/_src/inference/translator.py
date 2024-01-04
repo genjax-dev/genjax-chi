@@ -21,24 +21,26 @@ import jax.tree_util as jtu
 from jax.experimental.checkify import check
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    ChoiceMap,
+    GenerativeFunction,
+    Trace,
+)
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.typing import Bool
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.typing import (
+    Bool,
+    Callable,
+    FloatArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
 )
-
 
 #####################
 # Trace translators #

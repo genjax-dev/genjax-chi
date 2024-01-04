@@ -19,34 +19,41 @@ from dataclasses import dataclass
 import jax
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    ChoiceMap,
+    EmptyChoice,
+    GenerativeFunction,
+    Trace,
+)
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.forward import InitialStylePrimitive
-from genjax._src.core.interpreters.forward import StatefulHandler
-from genjax._src.core.interpreters.forward import forward
-from genjax._src.core.interpreters.forward import initial_style_bind
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.incremental import incremental
-from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_tangent
-from genjax._src.core.pytree.const import tree_map_collapse_const
-from genjax._src.core.pytree.const import tree_map_const
+from genjax._src.core.interpreters.forward import (
+    InitialStylePrimitive,
+    StatefulHandler,
+    forward,
+    initial_style_bind,
+)
+from genjax._src.core.interpreters.incremental import (
+    Diff,
+    incremental,
+    static_check_no_change,
+    tree_diff_primal,
+    tree_diff_tangent,
+)
+from genjax._src.core.pytree.const import tree_map_collapse_const, tree_map_const
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import (
+    Any,
+    Callable,
+    Dict,
+    FloatArray,
+    List,
+    PRNGKey,
+    Tuple,
+    Union,
+    static_check_is_concrete,
+    typecheck,
+)
 from genjax._src.generative_functions.static.static_datatypes import Trie
 from genjax.core.exceptions import AddressReuse, StaticAddressJAX
 

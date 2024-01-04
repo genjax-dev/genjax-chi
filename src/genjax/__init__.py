@@ -17,10 +17,9 @@
 # For the internals, see _src.
 
 # Closed modules.
-from genjax import gensp
-from genjax import incremental
-from genjax import inference
-from genjax import typing
+from importlib import metadata
+
+from genjax import gensp, incremental, inference, typing
 from genjax.core import serialization
 
 from .console import *
@@ -30,9 +29,6 @@ from .extras import *
 from .generative_functions import *
 from .inference import *
 from .information import *
-from .language_decorator import *
-
-from importlib import metadata
 
 __version__ = metadata.version("genjax")
 

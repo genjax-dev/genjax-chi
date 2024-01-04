@@ -22,6 +22,7 @@ The intent of this language is pedagogical - one can use it to rapidly construct
 """
 
 import abc
+import functools
 import itertools
 from dataclasses import dataclass, field
 
@@ -33,27 +34,30 @@ from plum import dispatch
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
+    GenerativeFunction,
+    HierarchicalChoiceMap,
     HierarchicalSelection,
+    Trace,
 )
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import (
     UnknownChange,
+    tree_diff,
+    tree_diff_primal,
     tree_diff_unknown_change,
 )
-from genjax._src.core.interpreters.incremental import tree_diff
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.typing import Any, FloatArray, ArrayLike
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import (
+    Any,
+    ArrayLike,
+    Callable,
+    FloatArray,
+    List,
+    PRNGKey,
+    Tuple,
+)
 from genjax._src.generative_functions.supports_callees import (
-    push_trace_overload_stack,
     SupportsCalleeSugar,
+    push_trace_overload_stack,
 )
 from genjax.core.exceptions import AddressReuse
 
@@ -382,15 +386,10 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         return self.source(*args)
 
 
-########################
-# Language constructor #
-########################
+#############
+# Decorator #
+#############
 
 
-def interpreted_gen_fn(source: Callable):
-    return InterpretedGenerativeFunction(source)
-
-
-Interpreted = LanguageConstructor(
-    interpreted_gen_fn,
-)
+def Interpreted(f):
+    return functools.update_wrapper(InterpretedGenerativeFunction(f), f)
