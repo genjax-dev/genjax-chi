@@ -13,17 +13,16 @@
 # limitations under the License.
 """The `combinators` module exposes _generative function combinators_:
 generative functions which accept other generative functions as configuration
-arguments, and implement their own interfaces using structured patterns of
-control flow (as well as other types of modifications). If one thinks of a
+arguments, and implement their own generative function interfaces using structured patterns of
+control flow (and other types of useful modifications). If one thinks of a
 control flow primitive as an operation on deterministic types, a combinator can
 be thought of as lifting the operation to support generative function
 semantics.
 
-GenJAX exposes several standard combinators:
+GenJAX exposes several combinators:
 
-* `MaskedCombinator` - which can mask a generative computation based on a runtime determined `BoolArray` argument.
-* `MapCombinator` - which exposes generative vectorization over input arguments. The implementation utilizes `jax.vmap`.
-* `RepeatCombinator` - which wraps `MapCombinator` to support vectorized IID sampling for fixed input arguments.
-* `UnfoldCombinator` - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing `jax.lax.scan`.
-* `SwitchCombinator` - which exposes stochastic branching patterns, by utilizing `jax.lax.switch`.
+* [`MaskedCombinator`](masked.md) - which can mask a generative computation based on a runtime determined `BoolArray` argument.
+* [`MapCombinator`](map.md) - which exposes generative vectorization over input arguments. The implementation essentially wraps [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html) into the interfaces.
+* [`UnfoldCombinator`](unfold.md) - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing the control flow primitive [`jax.lax.scan`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.scan.html).
+* [`SwitchCombinator`](switch.md) - which exposes stochastic branching patterns, by utilizing the control flow primitive [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html).
 """

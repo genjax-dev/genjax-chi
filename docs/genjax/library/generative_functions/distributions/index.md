@@ -31,5 +31,3 @@ To support [TensorFlow Probability distributions (`tfp.distributions`)](https://
 ::: genjax.generative_functions.distributions.TFPDistribution
     options:
       members: false
-
-### Custom distributions implemented in `genjax`
