@@ -9,7 +9,7 @@
 ::: genjax.generative_functions.distributions.Distribution
     options:
       show_root_heading: true
-      members: 
+      members:
         - random_weighted
         - estimate_logpdf
 
