@@ -20,10 +20,8 @@ from textwrap import dedent
 
 import nox
 
-
 try:
-    from nox_poetry import Session
-    from nox_poetry import session
+    from nox_poetry import Session, session
 except ImportError:
     message = f"""\
     Nox failed to import the 'nox-poetry' package.
@@ -134,6 +132,7 @@ def mypy(session) -> None:
 @session(python=python_version)
 def lint(session: Session) -> None:
     session.run_always("poetry", "install", "--with", "dev", external=True)
+    session.run("ruff", "check", "--select", "I", "--fix", ".")
     session.run("ruff", "format", ".")
 
 

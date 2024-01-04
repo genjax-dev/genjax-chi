@@ -19,14 +19,9 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from plum import dispatch
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.typing import IntArray, PRNGKey, Tuple, typecheck
 
 #######################
 # Importance sampling #

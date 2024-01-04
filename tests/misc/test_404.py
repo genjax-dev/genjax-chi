@@ -13,11 +13,9 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-
 
 _global = jnp.arange(3, dtype=float)
 

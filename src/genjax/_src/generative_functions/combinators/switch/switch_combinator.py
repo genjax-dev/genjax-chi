@@ -30,24 +30,28 @@ from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.combinators.staging_utils import (
-    get_discard_data_shape,
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    JAXGenerativeFunction,
+    Trace,
+    mask,
+)
+from genjax._src.core.interpreters.incremental import (
+    static_check_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    List,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
 )
 from genjax._src.generative_functions.combinators.staging_utils import (
+    get_discard_data_shape,
     get_trace_data_shape,
 )
 from genjax._src.generative_functions.combinators.switch.sumtree import (
@@ -55,12 +59,9 @@ from genjax._src.generative_functions.combinators.switch.sumtree import (
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
-)
-from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchTrace,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
-
 
 #####
 # SwitchCombinator

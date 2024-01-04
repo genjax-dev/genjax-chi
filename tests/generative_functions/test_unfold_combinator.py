@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-
-import genjax
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
-from genjax.incremental import tree_diff_no_change
+from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_change
 
 
 class TestUnfoldSimpleNormal:

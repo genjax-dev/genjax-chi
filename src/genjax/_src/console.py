@@ -20,12 +20,9 @@ import rich
 from rich import traceback
 from rich.console import Console
 
-from genjax._src.checkify import no_checkify
-from genjax._src.checkify import yes_checkify
+from genjax._src.checkify import no_checkify, yes_checkify
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Bool
-from genjax._src.core.typing import Dict
-
+from genjax._src.core.typing import Bool, Dict
 
 ###################
 # Pretty printing #

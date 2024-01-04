@@ -15,30 +15,35 @@
 import functools
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    HierarchicalChoiceMap,
+    JAXGenerativeFunction,
+    Trace,
+)
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.pytree.closure import DynamicClosure
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.static.static_datatypes import StaticTrace
-from genjax._src.generative_functions.static.static_transforms import assess_transform
-from genjax._src.generative_functions.static.static_transforms import (
-    importance_transform,
+from genjax._src.core.typing import (
+    Any,
+    Callable,
+    FloatArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
 )
-from genjax._src.generative_functions.static.static_transforms import simulate_transform
-from genjax._src.generative_functions.static.static_transforms import trace
-from genjax._src.generative_functions.static.static_transforms import update_transform
-from genjax._src.generative_functions.supports_callees import SupportsCalleeSugar
-from genjax._src.generative_functions.supports_callees import push_trace_overload_stack
-
+from genjax._src.generative_functions.static.static_datatypes import StaticTrace
+from genjax._src.generative_functions.static.static_transforms import (
+    assess_transform,
+    importance_transform,
+    simulate_transform,
+    trace,
+    update_transform,
+)
+from genjax._src.generative_functions.supports_callees import (
+    SupportsCalleeSugar,
+    push_trace_overload_stack,
+)
 
 #######################
 # Generative function #

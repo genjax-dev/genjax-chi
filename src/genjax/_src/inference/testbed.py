@@ -21,17 +21,11 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMMConfiguration,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     discrete_hmm_config,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (

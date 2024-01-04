@@ -21,20 +21,10 @@ from dataclasses import dataclass
 import jax.core as jc
 import jax.tree_util as jtu
 from oryx import harvest
-from pygments.token import Comment
-from pygments.token import Keyword
-from pygments.token import Name
-from pygments.token import Number
-from pygments.token import Operator
-from pygments.token import String
+from pygments.token import Comment, Keyword, Name, Number, Operator, String, Token
 from pygments.token import Text as TextToken
-from pygments.token import Token
 from rich import pretty
-from rich.console import Console
-from rich.console import ConsoleOptions
-from rich.console import ConsoleRenderable
-from rich.console import RenderResult
-from rich.console import group
+from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult, group
 from rich.constrain import Constrain
 from rich.highlighter import RegexHighlighter
 from rich.panel import Panel
@@ -47,7 +37,6 @@ from rich.theme import Theme
 import genjax._src.core.typing as typing
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import typecheck
-
 
 RECORDING_NAMESPACE = "debug_record"
 TAGGING_NAMESPACE = "debug_tag"

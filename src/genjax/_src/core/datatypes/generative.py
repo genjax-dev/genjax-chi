@@ -25,25 +25,27 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import (
+    tree_diff_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.typing import (
+    Any,
+    BoolArray,
+    Callable,
+    Dict,
+    FloatArray,
+    IntArray,
+    List,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    static_check_is_concrete,
+    typecheck,
+)
 
 #############
 # Utilities #

@@ -14,20 +14,18 @@
 
 from dataclasses import dataclass
 from typing import Any
-import jax
-import jax.numpy as jnp
-from jaxtyping import ArrayLike
 
 import genjax
+import jax
+import jax.numpy as jnp
 import pytest
-
 from genjax import ExactDensity, FloatArray
 from genjax._src.core.interpreters.incremental import (
     tree_diff_no_change,
     tree_diff_unknown_change,
 )
 from genjax._src.generative_functions.interpreted import trace
-
+from jaxtyping import ArrayLike
 
 #############
 # Datatypes #

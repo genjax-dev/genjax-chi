@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax.inference import importance_sampling
-from genjax.inference import map_opt
-from genjax.inference import mcmc
-from genjax.inference import smc
-from genjax.inference import testbed
-from genjax.inference import translator
-
+from genjax.inference import (
+    importance_sampling,
+    map_opt,
+    mcmc,
+    smc,
+    testbed,
+    translator,
+)
 
 __all__ = [
     "mcmc",

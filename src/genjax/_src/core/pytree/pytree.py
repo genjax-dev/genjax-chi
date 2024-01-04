@@ -19,8 +19,7 @@ import abc
 import jax.tree_util as jtu
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.pytree.utilities import tree_unstack
+from genjax._src.core.pytree.utilities import tree_stack, tree_unstack
 from genjax._src.core.typing import Tuple
 
 

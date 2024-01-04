@@ -23,15 +23,13 @@ This is useful to avoid unnecessary allocations in e.g. `MapCombinator` which us
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
+from genjax._src.core.datatypes.generative import (
+    ChoiceMap,
+    GenerativeFunction,
+    JAXGenerativeFunction,
+    Trace,
+)
+from genjax._src.core.typing import Any, FloatArray, PRNGKey, Tuple, typecheck
 
 
 @dataclass

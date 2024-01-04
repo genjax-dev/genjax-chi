@@ -13,13 +13,9 @@
 # limitations under the License.
 
 
-import jax
-
 import genjax
-from genjax import MetropolisHastings
-from genjax import normal, Static
-from genjax import tfp_uniform
-from genjax import trace
+import jax
+from genjax import MetropolisHastings, Static, normal, tfp_uniform, trace
 
 
 @Static
