@@ -30,10 +30,10 @@ print(console.render(beta_bernoulli_process))
 
 ## Usage
 
-The `Static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. 
+The `Static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions.
 
 Below, we illustrate a simple example:
-    
+
 ```python
 @Static
 def beta_bernoulli_process(u):
@@ -54,7 +54,7 @@ The static language exposes custom primitives, which are handled by JAX interpre
 
 ### `trace`
 
-The `trace` primitive provides access to the ability to invoke another generative function as a callee. 
+The `trace` primitive provides access to the ability to invoke another generative function as a callee.
 
 ::: genjax.generative_functions.static.trace
 

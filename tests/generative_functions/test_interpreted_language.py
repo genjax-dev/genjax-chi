@@ -743,3 +743,19 @@ class TestInline:
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
         ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
+
+
+@with_both_languages
+class TestCombinator:
+    def test_docstring(self, lang):
+        @lang
+        def model1():
+            """model docstring"""
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        @lang
+        def model2():
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        assert model1.__doc__ == "model docstring"
+        assert model2.__doc__ is None

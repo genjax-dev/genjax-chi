@@ -1,6 +1,6 @@
 # Library reference
 
-This is the API documentation for modules and symbols which are exposed publicly from `genjax`. 
+This is the API documentation for modules and symbols which are exposed publicly from `genjax`.
 
 At a high level, the `genjax` package consists of several modules, many of which rely on functionality from the `genjax.core` module, and build upon datatypes, transformation infrastructure, and generative datatypes which are defined there. Generative function languages use the core datatypes and infrastructure to implement the generative function interface. Inference and learning algorithms are then implemented using the interface.
 
