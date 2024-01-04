@@ -11,20 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows
-branching control flow for combinations of generative functions which can
-return different shaped choice maps.
-
-It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.switch`_.
-
-Generative functions which are passed in as branches to `SwitchCombinator`
-must accept the same argument types, and return the same type of return value.
-
-The internal choice maps for the branch generative functions
-can have different shape/dtype choices. The resulting `SwitchTrace` will efficiently share `(shape, dtype)` storage across branches.
-
-.. _jax.lax.switch: https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html
-"""
 
 from dataclasses import dataclass
 
@@ -80,7 +66,6 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
@@ -94,11 +79,14 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
-        # Creating a `SwitchCombinator` via the preferred `new` class method.
+        #######################################################################
+        # Creating a `SwitchCombinator` via the preferred `new` class method. #
+        #######################################################################
+
         switch = genjax.SwitchCombinator.new(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
-        jitted = jax.jit(genjax.simulate(switch))
+        jitted = jax.jit(switch.simulate)
         _ = jitted(key, (0, ))
         tr = jitted(key, (1, ))
 

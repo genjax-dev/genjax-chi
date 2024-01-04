@@ -1,8 +1,12 @@
 # Map combinator
+::: genjax._src.generative_functions.combinators.vector.map_combinator
+    options:
+      show_root_heading: true
+      members: false
 
-GenJAX's `MapCombinator` is a combinator which exposes vectorization to the input arguments of generative functions. Users can construct this generative function by using the `genjax.Map` language constructor with the `genjax.gen` decorator or by using the `genjax.map_combinator` function directly.
+---
 
-::: genjax.generative_functions.combinators.Map
+::: genjax._src.generative_functions.combinators.vector.map_combinator.MapCombinator
     options:
       show_root_heading: true
       members:
