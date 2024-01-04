@@ -38,7 +38,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     categorical,
 )
 from genjax._src.generative_functions.static.static_gen_fn import Static
-from genjax._src.language_decorator import lang
 
 
 @dataclass
@@ -90,8 +89,8 @@ def build_inference_test_generator(
         observation_variance,
     )
 
-    @lang(Unfold, max_length=max_length)
-    @lang(Static)
+    @Unfold(max_length=max_length)
+    @Static
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor
         observation = config.observation_tensor

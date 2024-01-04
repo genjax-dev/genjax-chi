@@ -46,7 +46,7 @@ with_both_languages = pytest.mark.parametrize(
 @with_both_languages
 class TestSimulate:
     def test_simple_normal_sugar(self, lang):
-        @genjax.lang(lang)
+        @lang
         def normal_sugar():
             y = genjax.normal(0.0, 1.0) @ "y"
             return y
@@ -59,7 +59,7 @@ class TestSimulate:
         assert tr.get_score() == pytest.approx(score, 0.01)
 
     def test_simple_normal_simulate(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -75,7 +75,7 @@ class TestSimulate:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_normal_multiple_returns(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal_multiple_returns():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -95,13 +95,13 @@ class TestSimulate:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_hierarchical_simple_normal_multiple_returns(self, lang):
-        @genjax.lang(lang)
+        @lang
         def _submodel():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1, y2
 
-        @genjax.lang(lang)
+        @lang
         def hierarchical_simple_normal_multiple_returns():
             y1, y2 = _submodel() @ "y1"
             return y1, y2
@@ -123,7 +123,7 @@ class TestSimulate:
 @with_both_languages
 class TestAssess:
     def test_simple_normal_assess(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -141,7 +141,7 @@ class TestAssess:
 class TestClosureConvert:
     def test_closure_convert(self, lang):
         def emits_cc_gen_fn(v):
-            @genjax.lang(lang)
+            @lang
             @genjax.dynamic_closure(v)
             def model(v):
                 x = genjax.normal(jnp.sum(v), 1.0) @ "x"
@@ -149,7 +149,7 @@ class TestClosureConvert:
 
             return model
 
-        @genjax.lang(lang)
+        @lang
         def model():
             x = jnp.ones(5)
             gen_fn = emits_cc_gen_fn(x)
@@ -170,7 +170,7 @@ class CustomTree(genjax.Pytree):
         return (self.x, self.y), ()
 
 
-@genjax.lang(genjax.Interpreted)
+@genjax.Interpreted
 def simple_normal(custom_tree):
     y1 = trace("y1", genjax.normal)(custom_tree.x, 1.0)
     y2 = trace("y2", genjax.normal)(custom_tree.y, 1.0)
@@ -189,7 +189,7 @@ class _CustomNormal(ExactDensity):
 CustomNormal = _CustomNormal()
 
 
-@genjax.lang(genjax.Interpreted)
+@genjax.Interpreted
 def custom_normal(custom_tree):
     y = CustomNormal(custom_tree) @ "y"
     return CustomTree(y, y)
@@ -249,7 +249,7 @@ class TestCustomPytree:
 @with_both_languages
 class TestGradients:
     def test_simple_normal_assess(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -265,7 +265,7 @@ class TestGradients:
 @with_both_languages
 class TestImportance:
     def test_importance_simple_normal(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -287,7 +287,7 @@ class TestImportance:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_importance_weight_correctness(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -348,7 +348,7 @@ class TestImportance:
 @with_both_languages
 class TestUpdate:
     def test_simple_normal_update(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -395,7 +395,7 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_linked_normal_update(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_linked_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(y1, 1.0) @ "y2"
@@ -424,12 +424,12 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_hierarchical_normal(self, lang):
-        @genjax.lang(lang)
+        @lang
         def _inner(x):
             y1 = genjax.normal(x, 1.0) @ "y1"
             return y1
 
-        @genjax.lang(lang)
+        @lang
         def simple_hierarchical_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = _inner(y1) @ "y2"
@@ -463,7 +463,7 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_update_weight_correctness(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_linked_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(y1, 1.0) @ "y2"
@@ -529,7 +529,7 @@ class TestUpdate:
             def flatten(self):
                 return (self.x, self.y), ()
 
-        @genjax.lang(lang)
+        @lang
         def simple_linked_normal_with_tree_argument(tree):
             y1 = genjax.normal(tree.x, tree.y) @ "y1"
             return y1
@@ -561,7 +561,7 @@ class TestUpdate:
 @with_both_languages
 class TestInterpretedLanguageSugar:
     def test_interpreted_sugar(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -578,7 +578,7 @@ class TestInterpretedLanguageSugar:
 @with_both_languages
 class TestInterpretedAddressChecks:
     def test_simple_normal_addr_dup(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal_addr_dup():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y1"
@@ -589,7 +589,7 @@ class TestInterpretedAddressChecks:
             _ = simple_normal_addr_dup.simulate(key, ())
 
     def test_simple_normal_addr_tracer(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal_addr_tracer():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ y1
@@ -604,12 +604,12 @@ class TestInterpretedAddressChecks:
 class TestForwardRef:
     def test_forward_ref(self, lang):
         def make_gen_fn():
-            @genjax.lang(lang)
+            @lang
             def proposal(x):
                 x = outlier(x) @ "x"
                 return x
 
-            @genjax.lang(lang)
+            @lang
             def outlier(prob):
                 is_outlier = genjax.bernoulli(prob) @ "is_outlier"
                 return is_outlier
@@ -625,18 +625,18 @@ class TestForwardRef:
 @with_both_languages
 class TestInline:
     def test_inline_simulate(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(lang)
+        @lang
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(lang)
+        @lang
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -653,18 +653,18 @@ class TestInline:
         assert choices.has_submap("y2")
 
     def test_inline_importance(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(lang)
+        @lang
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(lang)
+        @lang
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -680,18 +680,18 @@ class TestInline:
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
     def test_inline_update(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(lang)
+        @lang
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(lang)
+        @lang
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -719,18 +719,18 @@ class TestInline:
         )
 
     def test_inline_assess(self, lang):
-        @genjax.lang(lang)
+        @lang
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(lang)
+        @lang
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(lang)
+        @lang
         def higher_higher_model():
             y = higher_model.inline()
             return y
