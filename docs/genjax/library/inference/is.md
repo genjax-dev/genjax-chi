@@ -1,6 +1,6 @@
 # Importance sampling
 
-This module exposes two variants of importance sampling: 
+This module exposes two variants of importance sampling:
 
 * bootstrap sampling, which uses the generative function's builtin proposal distribution family as a proposal
 * custom proposals, which allows the programmer to provide other generative functions as proposals.
@@ -9,13 +9,13 @@ This module exposes two variants of importance sampling:
 
 ::: genjax.inference.importance_sampling.BootstrapIS
     options:
-      members: 
+      members:
       - new
       - apply
 
 ::: genjax.inference.importance_sampling.BootstrapSIR
     options:
-      members: 
+      members:
       - new
       - apply
 
@@ -23,7 +23,7 @@ This module exposes two variants of importance sampling:
 
 ::: genjax.inference.importance_sampling.CustomProposalIS
     options:
-      members: 
+      members:
       - new
       - apply
 
@@ -32,6 +32,6 @@ Sampling importance resampling runs importance sampling, and then resamples a si
 
 ::: genjax.inference.importance_sampling.CustomProposalSIR
     options:
-      members: 
+      members:
       - new
       - apply

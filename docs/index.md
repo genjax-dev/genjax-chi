@@ -13,10 +13,10 @@ hide:
 
 ---
 
-[**Gen**][gen] is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [**JAX**][jax] - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics. 
+[**Gen**][gen] is a multi-paradigm (generative, differentiable, incremental) system for probabilistic programming. **GenJAX** is an implementation of Gen on top of [**JAX**][jax] - exposing the ability to programmatically construct and manipulate **generative functions** (1) (computational objects which represent probability measures over structured sample spaces), with compilation to native devices, accelerators, and other parallel fabrics.
 { .annotate }
 
-1.  By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms. 
+1.  By design, generative functions expose a concise interface for expressing approximate and differentiable inference algorithms.
 
     The set of generative functions is extensible: you can implement your own - allowing advanced users to performance optimize their critical modeling/inference code paths.
 
@@ -44,7 +44,7 @@ GenJAX is a [Gen][gen] implementation. If you're considering using GenJAX - it's
 Probabilistic modeling and inference is hard: understanding a domain well enough to construct a probabilistic model in the Bayesian paradigm is challenging, and that's half the battle - the other half is designing effective inference algorithms to probe the implications of the model (1).
 { .annotate }
 
-1.  Some probabilistic programming languages restrict the set of allowable models, providing (in return) efficient (often, exact) inference. 
+1.  Some probabilistic programming languages restrict the set of allowable models, providing (in return) efficient (often, exact) inference.
 
     Gen considers a wide class of models - include Bayesian nonparametrics, open-universe models, and models over rich structures (like programs!) - which don't natively support efficient exact inference.
 
@@ -92,7 +92,7 @@ Gen addresses this goal by introducing a separation between modeling and inferen
 The interface provides an abstraction layer that inference algorithms can call to compute the necessary (_and hard to get right_!) math (1). Probabilistic application developers can also extend the interface to new modeling languages - and immediately gain access to advanced inference procedures.
 { .annotate }
 
-1.  Examples of hard-to-get-right math: importance weights, accept reject ratios, and gradient estimators. 
+1.  Examples of hard-to-get-right math: importance weights, accept reject ratios, and gradient estimators.
 
     For simple models and inference, one might painlessly derive these quantities. As soon as the model/inference gets complicated, however, you might find yourself thanking the interface.
 

@@ -1,0 +1,26 @@
+name: pre-commit hooks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - nightly
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11.5
+
+  # - uses: pre-commit/action@v3.0.0
+
+    - uses: psf/black@stable
+      with:
+        options: "--check --verbose"
+        src: "./src ./tests"
+        version: "~= 23.0"
