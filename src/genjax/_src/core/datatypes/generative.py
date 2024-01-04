@@ -958,8 +958,8 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """> Given a `key: PRNGKey` and arguments `x: Tuple`, the generative
-        function sample a choice map $c \\sim p(\\cdot; x)$, as well as any
+        """
+        Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c \\sim p(\\cdot; x)$, as well as any
         untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
         (x, c, r)$.
 
@@ -977,7 +977,6 @@ class GenerativeFunction(Pytree):
             tr: A trace capturing the data and inference data associated with the generative function invocation.
 
         Examples:
-
             Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
 
             ```python exec="yes" source="tabbed-left"
@@ -1015,7 +1014,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[Choice, FloatArray, Any]:
-        """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
+        """Given a `key: PRNGKey` and arguments ($x$), execute the generative
         function, returning a tuple containing the return value from the
         generative function call, the score ($s$) of the choice map assignment,
         and the choice map ($c$).
@@ -1032,7 +1031,6 @@ class GenerativeFunction(Pytree):
             retval: the return value from the generative function invocation
 
         Examples:
-
             Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
 
             ```python exec="yes" source="tabbed-left"
@@ -1050,10 +1048,9 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            from genjax import Static
             console = genjax.console()
 
-            @gen(Static)
+            @genjax.Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1077,7 +1074,7 @@ class GenerativeFunction(Pytree):
         choice: Choice,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
-        """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
+        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
         and arguments ($x$), execute the generative function, and return an
         importance weight estimate of the conditional density evaluated at the
         non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
@@ -1173,13 +1170,13 @@ class GenerativeFunction(Pytree):
         choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
-        """> Given a complete choice map indicating constraints ($u$) for all
+        """Given a complete choice map indicating constraints ($u$) for all
         choices, and arguments ($x$), execute the generative function, and
         return the return value of the invocation, and the score of the choice
         map ($s$).
 
         Arguments:
-            chm: A complete choice map indicating constraints ($u$) for all choices.
+            choice: A complete choice map indicating constraints ($u$) for all choices.
             args: Arguments to the generative function ($x$).
 
         Returns:
