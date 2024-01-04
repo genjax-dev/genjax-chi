@@ -55,26 +55,6 @@ class StaticTrace(
             self.score,
         ), ()
 
-    @classmethod
-    @typecheck
-    def new(
-        cls,
-        gen_fn: GenerativeFunction,
-        args: Tuple,
-        retval: Any,
-        address_choices: Trie,
-        cache: Trie,
-        score: Any,
-    ):
-        return StaticTrace(
-            gen_fn,
-            args,
-            retval,
-            address_choices,
-            cache,
-            score,
-        )
-
     def get_gen_fn(self):
         return self.gen_fn
 

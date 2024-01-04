@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -145,10 +146,6 @@ class NoneSelection(Selection):
     def flatten(self):
         return (), ()
 
-    @classmethod
-    def new(cls):
-        return NoneSelection()
-
     def complement(self):
         return AllSelection()
 
@@ -171,10 +168,6 @@ class NoneSelection(Selection):
 class AllSelection(Selection):
     def flatten(self):
         return (), ()
-
-    @classmethod
-    def new(cls):
-        return AllSelection()
 
     def complement(self):
         return NoneSelection()
@@ -206,20 +199,10 @@ class HierarchicalSelection(Selection):
         return (self.trie,), ()
 
     @classmethod
-    @dispatch
-    def new(cls, *addrs: Any):
-        trie = Trie.new()
-        for addr in addrs:
+    def from_addresses(cls, *addresses: Any):
+        trie = Trie()
+        for addr in addresses:
             trie[addr] = AllSelection()
-        return HierarchicalSelection(trie)
-
-    @classmethod
-    @dispatch
-    def new(cls, selections: Dict):
-        trie = Trie.new()
-        for k, v in selections.items():
-            assert isinstance(v, Selection)
-            trie[k] = v
         return HierarchicalSelection(trie)
 
     def has_addr(self, addr):
@@ -280,10 +263,6 @@ class EmptyChoice(Choice):
     def flatten(self):
         return (), ()
 
-    @classmethod
-    def new(cls):
-        return EmptyChoice()
-
     def filter(self, selection):
         return self
 
@@ -304,10 +283,6 @@ class ChoiceValue(Choice):
 
     def flatten(self):
         return (self.value,), ()
-
-    @classmethod
-    def new(cls, v):
-        return ChoiceValue(v)
 
     def is_empty(self):
         return False
@@ -721,15 +696,10 @@ class Mask(Pytree):
     def flatten(self):
         return (self.mask, self.value), ()
 
-    @classmethod
-    def new(cls, mask: BoolArray, inner):
-        if isinstance(inner, Mask):
-            return Mask(
-                jnp.logical_and(mask, inner.mask),
-                inner.value,
-            )
-        else:
-            return Mask(mask, inner)
+    def __post_init__(self):
+        if isinstance(self.value, Mask):
+            self.mask = jnp.logical_and(self.mask, self.value.mask)
+            self.value = self.value.value
 
     @typecheck
     def match(self, none: Callable, some: Callable) -> Any:
@@ -843,7 +813,7 @@ class Mask(Pytree):
         if isinstance(submap, EmptyChoice):
             return submap
         else:
-            return Mask.new(self.mask, submap)
+            return Mask(self.mask, submap)
 
     def has_submap(self, addr):
         assert isinstance(self.value, ChoiceMap)
@@ -853,11 +823,11 @@ class Mask(Pytree):
     def filter(self, selection: Selection):
         choices = self.value.get_choices()
         assert isinstance(choices, Choice)
-        return Mask.new(self.mask, choices.filter(selection))
+        return Mask(self.mask, choices.filter(selection))
 
     def get_choices(self):
         choices = self.value.get_choices()
-        return Mask.new(self.mask, choices)
+        return Mask(self.mask, choices)
 
     ###########################
     # Address leaf interfaces #
@@ -866,7 +836,7 @@ class Mask(Pytree):
     def get_value(self):
         assert isinstance(self.value, ChoiceValue)
         v = self.value.get_value()
-        return Mask.new(self.mask, v)
+        return Mask(self.mask, v)
 
     def try_value(self):
         if isinstance(self.value, ChoiceValue):
@@ -1152,7 +1122,7 @@ class GenerativeFunction(Pytree):
                 discard = EmptyChoice()
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
-                discard = mask(False, possible_discards)
+                discard = Mask(False, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
@@ -1164,7 +1134,7 @@ class GenerativeFunction(Pytree):
             else:
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
-                discard = mask(True, possible_discards)
+                discard = Mask(True, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
@@ -1264,16 +1234,15 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
 @dataclass
 class HierarchicalChoiceMap(ChoiceMap):
-    trie: Trie
+    trie: Trie = field(default_factory=Trie)
 
     def flatten(self):
         return (self.trie,), ()
 
     @classmethod
-    @dispatch
-    def new(cls, constraints: Dict):
+    def from_dict(cls, constraints: Dict):
         assert isinstance(constraints, Dict)
-        trie = Trie.new()
+        trie = Trie()
         for k, v in constraints.items():
             v = (
                 ChoiceValue(v)
@@ -1281,21 +1250,6 @@ class HierarchicalChoiceMap(ChoiceMap):
                 else v
             )
             trie[k] = v
-        return HierarchicalChoiceMap(trie)
-
-    @classmethod
-    @dispatch
-    def new(cls, trie: Trie):
-        check = trie.is_empty()
-        if static_check_is_concrete(check) and check:
-            return EmptyChoice()
-        else:
-            return HierarchicalChoiceMap(trie)
-
-    @classmethod
-    @dispatch
-    def new(cls):
-        trie = Trie.new()
         return HierarchicalChoiceMap(trie)
 
     def is_empty(self):
@@ -1311,7 +1265,7 @@ class HierarchicalChoiceMap(ChoiceMap):
             under = v.filter(sub)
             return k, under
 
-        trie = Trie.new()
+        trie = Trie()
         iter = self.get_submaps_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoice):
@@ -1375,7 +1329,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
 
     def get_selection(self):
-        trie = Trie.new()
+        trie = Trie()
         for k, v in self.get_submaps_shallow():
             trie[k] = v.get_selection()
         return HierarchicalSelection(trie)
@@ -1449,17 +1403,10 @@ class DisjointUnionChoiceMap(ChoiceMap):
     To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
     """
 
-    submaps: List[ChoiceMap]
+    submaps: List[ChoiceMap] = field(default_factory=list)
 
     def flatten(self):
         return (self.submaps,), ()
-
-    @classmethod
-    def new(cls, submaps: List[ChoiceMap]):
-        if not submaps:
-            return EmptyChoice()
-        else:
-            return DisjointUnionChoiceMap(submaps)
 
     def has_submap(self, addr):
         checks = jnp.array(map(lambda v: v.has_submap(addr), self.submaps))
@@ -1482,12 +1429,10 @@ class DisjointUnionChoiceMap(ChoiceMap):
 
         if len(new_submaps) == 0:
             return EmptyChoice()
-
         elif len(new_submaps) == 1:
             return new_submaps[0]
-
         else:
-            return DisjointUnionChoiceMap.new(new_submaps)
+            return DisjointUnionChoiceMap(new_submaps)
 
     ###################
     # Pretty printing #
@@ -1506,39 +1451,26 @@ class DisjointUnionChoiceMap(ChoiceMap):
 ##############
 
 # Choices and choice maps
-empty_choice = EmptyChoice.new
-choice_value = ChoiceValue.new
-hierarchical_choice_map = HierarchicalChoiceMap.new
-disjoint_union_choice_map = DisjointUnionChoiceMap.new
-
-# Selections
-none_select = NoneSelection.new
-all_select = AllSelection.new
-hierarchical_select = HierarchicalSelection.new
+choice_value = ChoiceValue
 
 
-# Functional types
-mask = Mask.new
-
-
-@dispatch
-def choice_map():
-    return hierarchical_choice_map()
-
-
-@dispatch
-def choice_map(v: Any):
-    return choice_value(v)
-
-
-@dispatch
-def choice_map(submaps: Dict):
-    return hierarchical_choice_map(submaps)
-
-
-@dispatch
-def choice_map(submaps: List[ChoiceMap]):
-    return disjoint_union_choice_map(submaps)
+def choice_map(
+    *vs,
+) -> Union[ChoiceValue, HierarchicalChoiceMap, DisjointUnionChoiceMap]:
+    if len(vs) == 0:
+        return HierarchicalChoiceMap()
+    elif len(vs) == 1:
+        v = vs[0]
+        if isinstance(v, dict):
+            return HierarchicalChoiceMap.from_dict(v)
+        else:
+            return ChoiceValue(v)
+    else:
+        if not all(map(lambda m: isinstance(m, ChoiceMap), vs)):
+            raise TypeError(
+                "To create a union ChoiceMap, all arguments must be ChoiceMaps"
+            )
+        return DisjointUnionChoiceMap(*vs)
 
 
 # TODO: experimental for dynamic addresses.
@@ -1547,16 +1479,4 @@ def choice_map(submaps: List[ChoiceMap]):
 #    return dynamic_choice_map(addrs, submaps)
 
 
-@dispatch
-def select():
-    return hierarchical_select()
-
-
-@dispatch
-def select(subselects: Dict):
-    return hierarchical_select(subselects)
-
-
-@dispatch
-def select(*addrs: Any):
-    return hierarchical_select(*addrs)
+select = HierarchicalSelection.from_addresses

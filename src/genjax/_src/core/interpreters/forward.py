@@ -16,7 +16,7 @@ import abc
 import copy
 import functools
 import itertools as it
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -147,14 +147,10 @@ VarOrLiteral = Union[jc.Var, jc.Literal]
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value]
+    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
 
     def flatten(self):
         return (self.env,), ()
-
-    @classmethod
-    def new(cls):
-        return Environment(hashable_dict())
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
@@ -217,7 +213,7 @@ class ForwardInterpreter(Pytree):
         consts: List[Value],
         args: List[Value],
     ):
-        env = Environment.new()
+        env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)
         jax_util.safe_map(env.write, _jaxpr.invars, args)
         for eqn in _jaxpr.eqns:

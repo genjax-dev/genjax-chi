@@ -15,14 +15,12 @@
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import (
     MetropolisAdjustedLangevinAlgorithm,
-    mala,
 )
-from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings, mh
+from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings
 
 __all__ = [
     "MCMCKernel",
     "MetropolisAdjustedLangevinAlgorithm",
-    "mala",
     "MetropolisHastings",
     "mh",
 ]

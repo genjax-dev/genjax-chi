@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import (
     Choice,
     JAXGenerativeFunction,
+    Mask,
     Trace,
-    mask,
 )
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.typing import (
@@ -46,10 +46,10 @@ class MaskingTrace(Trace):
         return self.mask_combinator
 
     def get_choices(self):
-        return mask(self.check, self.inner.get_choices())
+        return Mask(self.check, self.inner.get_choices())
 
     def get_retval(self):
-        return mask(self.check, self.inner.get_retval())
+        return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
         return self.check * self.inner.get_score()
@@ -75,11 +75,6 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     def flatten(self):
         return (self.inner,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, gen_fn: JAXGenerativeFunction):
-        return MaskingCombinator(gen_fn)
 
     @typecheck
     def simulate(
@@ -117,8 +112,8 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (
             MaskingTrace(check, tr),
             w * check,
-            mask(check, rd),
-            mask(check, d),
+            Mask(check, rd),
+            Mask(check, d),
         )
 
 
@@ -128,6 +123,6 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
 def Masking(f) -> MaskingCombinator:
-    gf = MaskingCombinator.new(f)
+    gf = MaskingCombinator(f)
     functools.update_wrapper(gf, f)
     return gf

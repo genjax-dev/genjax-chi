@@ -39,15 +39,6 @@ class BootstrapIS(Pytree):
         return (self.model,), (self.num_particles,)
 
     @typecheck
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-    ):
-        return BootstrapIS(num_particles, model)
-
-    @typecheck
     def apply(
         self,
         key: PRNGKey,
@@ -80,16 +71,6 @@ class CustomProposalIS(Pytree):
 
     def flatten(self):
         return (self.model, self.proposal), (self.num_particles,)
-
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-        proposal: GenerativeFunction,
-    ):
-        return CustomProposalIS(num_particles, model, proposal)
 
     @typecheck
     def apply(
@@ -140,18 +121,6 @@ class BootstrapSIR(Pytree):
         return (self.model,), (self.num_particles,)
 
     @typecheck
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-    ):
-        return BootstrapSIR(
-            num_particles,
-            model,
-        )
-
-    @typecheck
     def apply(
         self,
         key: PRNGKey,
@@ -184,20 +153,6 @@ class CustomProposalSIR(Pytree):
 
     def flatten(self):
         return (self.model, self.proposal), (self.num_particles,)
-
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-        proposal: GenerativeFunction,
-    ):
-        return CustomProposalSIR(
-            num_particles,
-            model,
-            proposal,
-        )
 
     @typecheck
     def apply(
@@ -247,7 +202,7 @@ def importance_sampling(
     model: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return BootstrapIS.new(n_particles, model)
+    return BootstrapIS(n_particles, model)
 
 
 @dispatch
@@ -256,7 +211,7 @@ def importance_sampling(
     proposal: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return CustomProposalIS.new(n_particles, model, proposal)
+    return CustomProposalIS(n_particles, model, proposal)
 
 
 @dispatch
@@ -264,7 +219,7 @@ def sampling_importance_resampling(
     model: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return BootstrapSIR.new(n_particles, model)
+    return BootstrapSIR(n_particles, model)
 
 
 @dispatch
@@ -273,4 +228,4 @@ def sampling_importance_resampling(
     proposal: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return CustomProposalSIR.new(n_particles, model, proposal)
+    return CustomProposalSIR(n_particles, model, proposal)

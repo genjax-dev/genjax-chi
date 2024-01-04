@@ -44,20 +44,6 @@ class SymmetricDivergenceOverDatasets(Pytree):
             self.num_meta_q,
         )
 
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        p: GenerativeFunction,
-        q: Marginal,
-        inf_selection: Selection,
-        num_meta_p: Int,
-        num_meta_q: Int,
-    ):
-        return SymmetricDivergenceOverDatasets(
-            num_meta_p, num_meta_q, p, q, inf_selection
-        )
-
     def _estimate_log_ratio(self, key: PRNGKey, p_args: Tuple):
         # Inner functions -- to be mapped over.
         # Keys are folded in, for working memory.
@@ -137,10 +123,3 @@ class SymmetricDivergenceOverDatasets(Pytree):
 
     def __call__(self, key: PRNGKey, p_args: Tuple):
         return self.estimate(key, p_args)
-
-
-##############
-# Shorthands #
-##############
-
-sdos = SymmetricDivergenceOverDatasets.new
