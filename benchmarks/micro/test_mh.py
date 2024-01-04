@@ -17,19 +17,18 @@ import jax
 
 import genjax
 from genjax import MetropolisHastings
-from genjax import normal
+from genjax import normal, Static
 from genjax import tfp_uniform
 from genjax import trace
-from genjax._src.language_decorator import gen
 
 
-@gen
+@Static
 def normalModel():
     x = trace("x", normal)(0.0, 1.0)
     return x
 
 
-@gen
+@Static
 def proposal(nowAt, d):
     current = nowAt["x"]
     x = trace("x", tfp_uniform)(current - d, current + d)

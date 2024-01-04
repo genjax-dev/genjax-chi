@@ -32,7 +32,6 @@ import jax
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import static_check_no_change
@@ -86,11 +85,11 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import genjax
         console = genjax.console()
 
-        @genjax.lang
+        @genjax.Static
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
-        @genjax.lang
+        @genjax.Static
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
@@ -341,16 +340,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return jax.lax.switch(switch, branch_functions, chm, *args)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
-
-@typecheck
-def switch_combinator(*gen_fn: JAXGenerativeFunction):
-    return SwitchCombinator.new(*gen_fn)
-
-
-Switch = LanguageConstructor(
-    switch_combinator,
-)
+Switch = SwitchCombinator.new

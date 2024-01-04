@@ -17,6 +17,7 @@ kernels (a kernel generative function can accept their previous output as
 input)."""
 
 from dataclasses import dataclass
+import functools
 
 import jax
 import jax.numpy as jnp
@@ -30,7 +31,6 @@ from genjax._src.core.datatypes.generative import EmptyChoice
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import Diff
@@ -151,8 +151,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.console()
 
         # A kernel generative function.
-        @genjax.lang
-        def random_walk(prev):
+        @genjax.Static        def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
 
@@ -770,16 +769,15 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (score, retval)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@typecheck
-def unfold_combinator(gen_fn: JAXGenerativeFunction, max_length: Int):
-    return UnfoldCombinator.new(gen_fn, max_length)
+def Unfold(*, max_length):
+    def decorator(f):
+        return functools.update_wrapper(
+            UnfoldCombinator.new(f, max_length=max_length), f
+        )
 
-
-Unfold = LanguageConstructor(
-    unfold_combinator,
-)
+    return decorator

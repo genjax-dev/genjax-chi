@@ -16,6 +16,7 @@ broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
 
 from dataclasses import dataclass
+import functools
 
 import jax
 import jax.numpy as jnp
@@ -27,7 +28,6 @@ from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import HierarchicalSelection
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import tree_diff_primal
@@ -143,7 +143,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import genjax
         console = genjax.console()
 
-        @genjax.lang
+        @genjax.Static
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
@@ -442,19 +442,13 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (jnp.sum(score), retval)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@dispatch
-def map_combinator(
-    gen_fn: JAXGenerativeFunction,
-    in_axes=Tuple,
-):
-    return MapCombinator.new(gen_fn, in_axes)
+def Map(in_axes: Tuple):
+    def decorator(f):
+        return functools.update_wrapper(MapCombinator.new(f, in_axes), f)
 
-
-Map = LanguageConstructor(
-    map_combinator,
-)
+    return decorator

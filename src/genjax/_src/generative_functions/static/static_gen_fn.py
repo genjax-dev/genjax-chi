@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.pytree.closure import DynamicClosure
@@ -223,16 +222,8 @@ def partial(gen_fn, *static_args):
     )
 
 
-########################
-# Language constructor #
-########################
+#############
+# Decorator #
+#############
 
-
-@typecheck
-def static_gen_fn(source: Callable):
-    return StaticGenerativeFunction.new(source)
-
-
-Static = LanguageConstructor(
-    static_gen_fn,
-)
+Static = StaticGenerativeFunction.new

@@ -25,14 +25,14 @@ from genjax.incremental import diff
 
 class TestExtendingTraceTranslator:
     def test_extending_trace_translator_vs_manual_update(self):
-        @genjax.lang(genjax.Unfold, max_length=10)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def model(z):
             z = genjax.normal(z, 1.0) @ "z"
             x = genjax.normal(z, 1.0) @ "x"
             return z
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         @typecheck
         def proposal(obs_chm: ChoiceMap, prev_particle: ChoiceMap, *args):
             masked_x = obs_chm[t, "x"]
@@ -41,7 +41,7 @@ class TestExtendingTraceTranslator:
             return z
 
         def get_translator(t, obs):
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             @typecheck
             def proposal(obs_chm: ChoiceMap, prev_particle: ChoiceMap, *args):
                 masked_x = obs_chm[t, "x"]
@@ -101,15 +101,15 @@ from genjax.typing import typecheck
 
 class TestExtendingTraceTranslator:
     def test_extending_trace_translator_vs_manual_update(self):
-        @genjax.lang(genjax.Unfold, max_length=10)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def model(z):
             z = genjax.normal(z, 1.0) @ "z"
             x = genjax.normal(z, 1.0) @ "x"
             return z
 
         def get_translator(t, obs):
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             @typecheck
             def proposal(obs_chm: ChoiceMap, prev_particle: ChoiceMap, *args):
                 masked_x = obs_chm[t, "x"]
@@ -147,7 +147,7 @@ class TestExtendingTraceTranslator:
         t2, log_weight = translator(sub_key, t1)
 
         # Proposal slice at 2.
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         @typecheck
         def proposal(obs_chm: ChoiceMap, *args):
             masked_x = obs_chm[2, "x"]
