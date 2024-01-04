@@ -22,40 +22,39 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 nav:
   - Overview:
     - index.md
-  - Inference notebooks: genjax/notebooks.md
+  - Tutorial notebooks: genjax/notebooks.md
   - Library reference:
       - genjax/library/index.md
       - Core:
           - genjax/library/core/index.md
           - Core datatypes: genjax/library/core/datatypes.md
           - Dynamism and functional types: genjax/library/core/functional_types.md
-          - Runtime debugger: genjax/library/core/runtime_debugger.md
+      # - Runtime debugger: genjax/library/core/runtime_debugger.md
       - Generative function languages:
           - genjax/library/generative_functions/index.md
           - Distributions:
               - genjax/library/generative_functions/distributions/index.md
               - Reference: genjax/library/generative_functions/distributions/exported.md
-              - Oryx distributions as generative functions: genjax/library/generative_functions/distributions/oryx.md
+        # - Oryx distributions as generative functions: genjax/library/generative_functions/distributions/oryx.md
           - Static language: genjax/library/generative_functions/static.md
           - Combinators:
               - genjax/library/generative_functions/combinators/index.md
               - Masked combinator: genjax/library/generative_functions/combinators/masked.md
               - Map combinator: genjax/library/generative_functions/combinators/map.md
-              - Repeat combinator: genjax/library/generative_functions/combinators/repeat.md
+        # - Repeat combinator: genjax/library/generative_functions/combinators/repeat.md
               - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
               - Switch combinator: genjax/library/generative_functions/combinators/switch.md
           - Interpreted language: genjax/library/generative_functions/interpreted.md
       - Inference:
           - genjax/library/inference/index.md
-          - Importance sampling: genjax/library/inference/is.md
           - Sequential Monte Carlo: genjax/library/inference/smc.md
-          - Variational inference: genjax/library/inference/vi.md
+      # - Variational inference: genjax/library/inference/vi.md
       - Extension modules:
           - genjax/library/extensions/index.md
           - Gaussian processes: genjax/library/extensions/tinygp.md
           - HMC/NUTS: genjax/library/extensions/blackjax.md
-  - Autodi(GenJAX):
-      - genjax/autodigenjax.md
+  # - Autodi(GenJAX):
+    # - genjax/autodigenjax.md
   - For developers:
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
