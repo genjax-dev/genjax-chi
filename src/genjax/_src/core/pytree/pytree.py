@@ -56,12 +56,10 @@ class Pytree:
         For more information, consider [JAX's documentation on Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
 
         Returns:
-
             dynamic: Dynamic data which supports JAX tracer values.
             static: Static data which is JAX trace time constant.
 
         Examples:
-
             Let's assume that you are implementing a new dataclass. Here's how you would define the dataclass using the `Pytree` mixin.
 
             ```python
@@ -114,7 +112,6 @@ class Pytree:
         `unflatten` allows usage of `jtu.tree_unflatten` to create instances of a declared class that mixes `Pytree` from a `PyTreeDef` for that class and leaf data.
 
         Examples:
-
             Our example from `flatten` above also applies here - where we use `jtu.tree_unflatten` to create a new instance of `MyFoo` from a `PyTreeDef` and leaf data.
 
             ```python exec="yes" source="tabbed-left"
@@ -152,11 +149,9 @@ class Pytree:
         `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
 
         Arguments:
-
             index_or_index_array: An `Int` index or an array of indices which will be used to index into the leaf arrays of the `Pytree` instance.
 
         Returns:
-
             new_instance: A `Pytree` instance of the same type, whose leaf values are the results of indexing into the leaf arrays with `index_or_index_array`.
         """
         return jtu.tree_map(lambda v: v[index_or_index_array], self)
