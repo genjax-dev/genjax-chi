@@ -60,7 +60,7 @@ Now, programs written in the DSL which utilize `trace` have generative function 
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import jax
-console = genjax.pretty()
+console = genjax.console()
 
 key = jax.random.PRNGKey(314159)
 tr = beta_bernoulli_process.simulate(key, (2.0, ))
