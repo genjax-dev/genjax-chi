@@ -24,6 +24,6 @@ repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.1.11
   hooks:
-    # TODO enable this when we're prepared to clean up ruff's linter warnings.
-    # - id: ruff
+    - id: ruff
+      args: [ check --extend-select I --fix ]
     - id: ruff-format
