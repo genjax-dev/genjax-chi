@@ -32,8 +32,8 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalSelection,
     JAXGenerativeFunction,
+    Mask,
     Trace,
-    mask,
 )
 from genjax._src.core.interpreters.incremental import (
     Diff,
@@ -92,7 +92,7 @@ class UnfoldTrace(Trace):
             if jnp.array(self.dynamic_length, copy=False).shape
             else jnp.arange(self.unfold.max_length) <= self.dynamic_length
         )
-        return VectorChoiceMap.new(mask(mask_flags, self.inner.strip()))
+        return VectorChoiceMap.new(Mask(mask_flags, self.inner.strip()))
 
     def get_gen_fn(self):
         return self.unfold
@@ -173,21 +173,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     def flatten(self):
         return (self.kernel,), (self.max_length,)
-
-    @typecheck
-    @classmethod
-    def new(cls, kernel: JAXGenerativeFunction, max_length: Int) -> "UnfoldCombinator":
-        """The preferred constructor for `UnfoldCombinator` generative function
-        instances. The shorthand symbol is `Unfold = UnfoldCombinator.new`.
-
-        Arguments:
-            kernel: A kernel `JAXGenerativeFunction` instance.
-            max_length: A static maximum possible unroll length.
-
-        Returns:
-            instance: An `UnfoldCombinator` instance.
-        """
-        return UnfoldCombinator(max_length, kernel)
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
@@ -778,8 +763,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def Unfold(*, max_length):
     def decorator(f):
-        return functools.update_wrapper(
-            UnfoldCombinator.new(f, max_length=max_length), f
-        )
+        return functools.update_wrapper(UnfoldCombinator(max_length, f), f)
 
     return decorator

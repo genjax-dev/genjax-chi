@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import copy
-import dataclasses
 import functools
+from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -35,18 +35,14 @@ from genjax._src.core.typing import List, Union, Value
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
-@dataclasses.dataclass
+@dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value]
+    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
 
     def flatten(self):
         return (self.env,), ()
-
-    @classmethod
-    def new(cls):
-        return Environment(hashable_dict())
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
@@ -93,7 +89,7 @@ class CPSInterpreter(Pytree):
         args: List[Value],
         allowlist: List[jc.Primitive],
     ):
-        env = Environment.new()
+        env = Environment()
         jax_util.safe_map(env.write, jaxpr.constvars, consts)
         jax_util.safe_map(env.write, jaxpr.invars, args)
 

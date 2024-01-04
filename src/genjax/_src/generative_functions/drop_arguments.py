@@ -49,18 +49,6 @@ class DropArgumentsTrace(Trace):
             self.aux,
         ), ()
 
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        gen_fn: GenerativeFunction,
-        retval: Any,
-        score: FloatArray,
-        choice_map: ChoiceMap,
-        aux: Tuple,
-    ):
-        return DropArgumentsTrace(gen_fn, retval, score, choice_map, aux)
-
     def get_gen_fn(self):
         return self.gen_fn
 
@@ -98,10 +86,6 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
     def flatten(self):
         return (self.gen_fn,), ()
 
-    @classmethod
-    def new(cls, gen_fn):
-        return DropArgumentsGenerativeFunction(gen_fn)
-
     def simulate(
         self,
         key: PRNGKey,
@@ -112,7 +96,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         inner_score = tr.get_score()
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
-        return DropArgumentsTrace.new(
+        return DropArgumentsTrace(
             self,
             inner_retval,
             inner_score,
@@ -132,7 +116,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return (
-            DropArgumentsTrace.new(
+            DropArgumentsTrace(
                 self,
                 inner_retval,
                 inner_score,
@@ -157,7 +141,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return (
-            DropArgumentsTrace.new(
+            DropArgumentsTrace(
                 self,
                 inner_retval,
                 inner_score,

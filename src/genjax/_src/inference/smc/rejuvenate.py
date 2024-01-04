@@ -19,7 +19,7 @@ import jax
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.typing import PRNGKey, Tuple, dispatch
-from genjax._src.inference.mcmc.metropolis_hastings import mh
+from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings
 from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 
 
@@ -38,7 +38,7 @@ class SMCProposalMetropolisHastingsRejuvenate(SMCAlgorithm):
     ) -> SMCState:
         particles = state.get_particles()
         n_particles = state.get_num_particles()
-        kernel = mh(self.proposal)
+        kernel = MetropolisHastings(self.proposal)
         sub_keys = jax.random.split(key, n_particles)
         _, rejuvenated_particles = jax.vmap(kernel.apply, in_axes=(0, 0, None))(
             sub_keys, particles, proposal_args

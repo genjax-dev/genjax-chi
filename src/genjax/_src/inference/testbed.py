@@ -26,7 +26,6 @@ from genjax._src.generative_functions.combinators.vector.unfold_combinator impor
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
     DiscreteHMMConfiguration,
-    discrete_hmm_config,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
@@ -75,7 +74,7 @@ def build_inference_test_generator(
     transition_variance: FloatArray,
     observation_variance: FloatArray,
 ):
-    config = discrete_hmm_config(
+    config = DiscreteHMMConfiguration(
         state_space_size,
         transition_distance_truncation,
         observation_distance_truncation,
@@ -86,8 +85,8 @@ def build_inference_test_generator(
     @Unfold(max_length=max_length)
     @Static
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
-        transition = config.transition_tensor
-        observation = config.observation_tensor
+        transition = config.transition_tensor()
+        observation = config.observation_tensor()
         z = categorical(transition[state, :]) @ "z"
         _ = categorical(observation[z, :]) @ "x"
         return z

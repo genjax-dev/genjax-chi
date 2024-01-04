@@ -32,6 +32,7 @@ from beartype import beartype
 from plum import dispatch
 
 from genjax._src.core.datatypes.generative import (
+    Choice,
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
@@ -146,7 +147,7 @@ class AddressVisitor:
 class SimulateHandler(Handler):
     key: PRNGKey
     score: ArrayLike = 0.0
-    choice_state: Trie = field(default_factory=Trie.new)
+    choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -169,7 +170,7 @@ class ImportanceHandler(Handler):
     constraints: ChoiceMap
     score: ArrayLike = 0.0
     weight: ArrayLike = 0.0
-    choice_state: Trie = field(default_factory=Trie.new)
+    choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -194,8 +195,8 @@ class UpdateHandler(Handler):
     previous_trace: Trace
     constraints: ChoiceMap
     weight: ArrayLike = 0.0
-    discard: Trie = field(default_factory=Trie.new)
-    choice_state: Trie = field(default_factory=Trie.new)
+    discard: Trie = field(default_factory=Trie)
+    choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -337,17 +338,18 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 weight,
             )
 
-    @dispatch
     def update(
         self,
         key: PRNGKey,
         prev_trace: Trace,
-        choice_map: ChoiceMap,
+        choice_map: Choice,
         argdiffs: Tuple,
     ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
+        if isinstance(choice_map, EmptyChoice):
+            choice_map = HierarchicalChoiceMap()
         with UpdateHandler(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
@@ -362,12 +364,6 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 retdiff,
                 HierarchicalChoiceMap(discard),
             )
-
-    @dispatch
-    def update(
-        self, key: PRNGKey, prev_trace: Trace, choice: EmptyChoice, argdiffs: Tuple
-    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
-        return self.update(key, prev_trace, HierarchicalChoiceMap.new({}), argdiffs)
 
     def assess(
         self,

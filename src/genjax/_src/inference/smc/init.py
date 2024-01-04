@@ -36,14 +36,6 @@ class SMCInitializeFromPrior(SMCAlgorithm):
     def flatten(self):
         return (self.model,), (self.n_particles,)
 
-    @classmethod
-    def new(
-        cls,
-        model: GenerativeFunction,
-        n_particles: Int,
-    ):
-        return SMCInitializeFromPrior(n_particles, model)
-
     def apply(
         self,
         key: PRNGKey,
@@ -55,14 +47,6 @@ class SMCInitializeFromPrior(SMCAlgorithm):
             sub_keys, obs, model_args
         )
         return SMCState(self.n_particles, particles, lws, 0.0, True)
-
-
-@dispatch
-def smc_initialize(
-    model: GenerativeFunction,
-    n_particles: Int,
-) -> SMCAlgorithm:
-    return SMCInitializeFromPrior.new(model, n_particles)
 
 
 @dataclass
@@ -108,6 +92,19 @@ class SMCInitializeFromProposal(SMCAlgorithm):
         model_scores, particles = jax.vmap(_inner)(sub_keys, proposals)
         lws = model_scores - proposal_scores
         return SMCState(self.n_particles, particles, lws, 0.0, True)
+
+
+# TODO(colin, mccoy): All the other functions have n_particles first, because static;
+# but it feels like proposal is a bit like the optional argument but it's sandwiched
+# between two required ones. Can we consider making n_particles the first argument?
+
+
+@dispatch
+def smc_initialize(
+    model: GenerativeFunction,
+    n_particles: Int,
+) -> SMCAlgorithm:
+    return SMCInitializeFromPrior(n_particles, model)
 
 
 @dispatch

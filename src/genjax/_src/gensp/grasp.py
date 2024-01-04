@@ -76,10 +76,6 @@ class ADEVDistribution(ExactDensity):
     def flatten(self):
         return (self.adev_primitive,), (self.differentiable_logpdf,)
 
-    @classmethod
-    def new(cls, adev_prim, diff_logpdf):
-        return ADEVDistribution(diff_logpdf, adev_prim)
-
     def sample(self, key, *args):
         return sample_with_key(self.adev_primitive, key, *args)
 
@@ -91,45 +87,45 @@ class ADEVDistribution(ExactDensity):
             return lp
 
 
-flip_enum = ADEVDistribution.new(
+flip_enum = ADEVDistribution(
     adevjax.flip_enum,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-flip_mvd = ADEVDistribution.new(
+flip_mvd = ADEVDistribution(
     adevjax.flip_mvd,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
 
-flip_reinforce = ADEVDistribution.new(
+flip_reinforce = ADEVDistribution(
     adevjax.flip_reinforce,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-categorical_enum = ADEVDistribution.new(
+categorical_enum = ADEVDistribution(
     adevjax.categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
 )
 
-normal_reinforce = ADEVDistribution.new(
+normal_reinforce = ADEVDistribution(
     adevjax.normal_reinforce,
     lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
-normal_reparam = ADEVDistribution.new(
+normal_reparam = ADEVDistribution(
     adevjax.normal_reparam,
     lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
-mv_normal_diag_reparam = ADEVDistribution.new(
+mv_normal_diag_reparam = ADEVDistribution(
     adevjax.mv_normal_diag_reparam,
     lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
         loc=loc, scale_diag=scale_diag
     ).log_prob(v),
 )
 
-mv_normal_reparam = ADEVDistribution.new(
+mv_normal_reparam = ADEVDistribution(
     adevjax.mv_normal_reparam,
     lambda v, loc, covariance_matrix: tfd.MultivariateNormalFullCovariance(
         loc=loc,
@@ -137,12 +133,12 @@ mv_normal_reparam = ADEVDistribution.new(
     ).log_prob(v),
 )
 
-geometric_reinforce = ADEVDistribution.new(
+geometric_reinforce = ADEVDistribution(
     adevjax.geometric_reinforce,
     lambda v, *args: geometric.logpdf(v, *args),
 )
 
-uniform = ADEVDistribution.new(
+uniform = ADEVDistribution(
     adevjax.uniform,
     lambda v: uniform.logpdf(v, 0.0, 1.0),
 )
@@ -155,10 +151,6 @@ class Baselined(ExactDensity):
     def flatten(self):
         return (self.adev_dist,), ()
 
-    @classmethod
-    def new(cls, adev_dist: ADEVDistribution):
-        return Baselined(adev_dist)
-
     def sample(self, key, b, *args):
         baselined = adevjax.baseline(self.adev_dist.adev_primitive)
         return sample_with_key(baselined, key, b, *args)
@@ -167,12 +159,7 @@ class Baselined(ExactDensity):
         return self.adev_dist.logpdf(v, *args)
 
 
-@typecheck
-def baseline(adev_dist: ADEVDistribution):
-    return Baselined.new(adev_dist)
-
-
-baselined_flip = baseline(flip_reinforce)
+baselined_flip = Baselined(flip_reinforce)
 
 
 #######################################

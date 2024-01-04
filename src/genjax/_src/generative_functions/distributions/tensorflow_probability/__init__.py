@@ -42,10 +42,6 @@ class TFPDistribution(JAXGenerativeFunction, ExactDensity):
         key = jax.random.PRNGKey(0)
         return self.sample(key, *args)
 
-    @classmethod
-    def new(cls, callable):
-        return cls(callable)
-
     def sample(self, key, *args):
         dist = self.make_distribution(*args)
         return dist.sample(seed=key)
@@ -63,164 +59,164 @@ class TFPDistribution(JAXGenerativeFunction, ExactDensity):
 # Wrapper instances #
 #####################
 
-beta = TFPDistribution.new(tfd.Beta)
+beta = TFPDistribution(tfd.Beta)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Beta`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Beta) distribution from TensorFlow Probability distributions.
 """
 
-bates = TFPDistribution.new(tfd.Bates)
+bates = TFPDistribution(tfd.Bates)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Bates`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bates) distribution from TensorFlow Probability distributions.
 """
 
-bernoulli = TFPDistribution.new(lambda logits: tfd.Bernoulli(logits=logits))
+bernoulli = TFPDistribution(lambda logits: tfd.Bernoulli(logits=logits))
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
 
-flip = TFPDistribution.new(lambda p: tfd.Bernoulli(probs=p))
+flip = TFPDistribution(lambda p: tfd.Bernoulli(probs=p))
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
 """
 
-chi = TFPDistribution.new(tfd.Chi)
+chi = TFPDistribution(tfd.Chi)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Chi`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi) distribution from TensorFlow Probability distributions.
 """
 
-chi2 = TFPDistribution.new(tfd.Chi2)
+chi2 = TFPDistribution(tfd.Chi2)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Chi2`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi2) distribution from TensorFlow Probability distributions.
 """
 
-geometric = TFPDistribution.new(tfd.Geometric)
+geometric = TFPDistribution(tfd.Geometric)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Geometric`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Geometric) distribution from TensorFlow Probability distributions.
 """
 
-gumbel = TFPDistribution.new(tfd.Gumbel)
+gumbel = TFPDistribution(tfd.Gumbel)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Gumbel`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Gumbel) distribution from TensorFlow Probability distributions.
 """
 
-half_cauchy = TFPDistribution.new(tfd.HalfCauchy)
+half_cauchy = TFPDistribution(tfd.HalfCauchy)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.HalfCauchy`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/HalfCauchy) distribution from TensorFlow Probability distributions.
 """
 
-half_normal = TFPDistribution.new(tfd.HalfNormal)
+half_normal = TFPDistribution(tfd.HalfNormal)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.HalfNormal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/HalfNormal) distribution from TensorFlow Probability distributions.
 """
 
-half_student_t = TFPDistribution.new(tfd.HalfStudentT)
+half_student_t = TFPDistribution(tfd.HalfStudentT)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.HalfStudentT`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/HalfStudentT) distribution from TensorFlow Probability distributions.
 """
 
-inverse_gamma = TFPDistribution.new(tfd.InverseGamma)
+inverse_gamma = TFPDistribution(tfd.InverseGamma)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.InverseGamma`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/InverseGamma) distribution from TensorFlow Probability distributions.
 """
 
-kumaraswamy = TFPDistribution.new(tfd.Kumaraswamy)
+kumaraswamy = TFPDistribution(tfd.Kumaraswamy)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Kumaraswamy`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Kumaraswamy) distribution from TensorFlow Probability distributions.
 """
 
-logit_normal = TFPDistribution.new(tfd.LogitNormal)
+logit_normal = TFPDistribution(tfd.LogitNormal)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.LogitNormal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/LogitNormal) distribution from TensorFlow Probability distributions.
 """
 
-moyal = TFPDistribution.new(tfd.Moyal)
+moyal = TFPDistribution(tfd.Moyal)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Moyal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Moyal) distribution from TensorFlow Probability distributions.
 """
 
-multinomial = TFPDistribution.new(tfd.Multinomial)
+multinomial = TFPDistribution(tfd.Multinomial)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Multinomial`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Multinomial) distribution from TensorFlow Probability distributions.
 """
 
-negative_binomial = TFPDistribution.new(tfd.NegativeBinomial)
+negative_binomial = TFPDistribution(tfd.NegativeBinomial)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.NegativeBinomial`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/NegativeBinomial) distribution from TensorFlow Probability distributions.
 """
 
-plackett_luce = TFPDistribution.new(tfd.PlackettLuce)
+plackett_luce = TFPDistribution(tfd.PlackettLuce)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.PlackettLuce`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/PlackettLuce) distribution from TensorFlow Probability distributions.
 """
 
-power_spherical = TFPDistribution.new(tfd.PowerSpherical)
+power_spherical = TFPDistribution(tfd.PowerSpherical)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.PowerSpherical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/PowerSpherical) distribution from TensorFlow Probability distributions.
 """
 
-skellam = TFPDistribution.new(tfd.Skellam)
+skellam = TFPDistribution(tfd.Skellam)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Skellam`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Skellam) distribution from TensorFlow Probability distributions.
 """
 
-student_t = TFPDistribution.new(tfd.StudentT)
+student_t = TFPDistribution(tfd.StudentT)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.StudentT`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/StudentT) distribution from TensorFlow Probability distributions.
 """
 
-normal = TFPDistribution.new(tfd.Normal)
+normal = TFPDistribution(tfd.Normal)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Normal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Normal) distribution from TensorFlow Probability distributions.
 """
 
-mv_normal_diag = TFPDistribution.new(
+mv_normal_diag = TFPDistribution(
     lambda μ, Σ_diag: tfd.MultivariateNormalDiag(loc=μ, scale_diag=Σ_diag)
 )
 """
 A `TFPDistribution` generative function which wraps the [`tfd.MultivariateNormalDiag`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/MultivariateNormalDiag) distribution from TensorFlow Probability distributions.
 """
 
-mv_normal = TFPDistribution.new(tfd.MultivariateNormalFullCovariance)
+mv_normal = TFPDistribution(tfd.MultivariateNormalFullCovariance)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.MultivariateNormalFullCovariance`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/MultivariateNormalFullCovariance) distribution from TensorFlow Probability distributions.
 """
 
-categorical = TFPDistribution.new(lambda logits: tfd.Categorical(logits=logits))
+categorical = TFPDistribution(lambda logits: tfd.Categorical(logits=logits))
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Categorical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Categorical) distribution from TensorFlow Probability distributions.
 """
 
-truncated_cauchy = TFPDistribution.new(tfd.TruncatedCauchy)
+truncated_cauchy = TFPDistribution(tfd.TruncatedCauchy)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.TruncatedCauchy`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/TruncatedCauchy) distribution from TensorFlow Probability distributions.
 """
 
-truncated_normal = TFPDistribution.new(tfd.TruncatedNormal)
+truncated_normal = TFPDistribution(tfd.TruncatedNormal)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.TruncatedNormal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/TruncatedNormal) distribution from TensorFlow Probability distributions.
 """
 
-uniform = TFPDistribution.new(tfd.Uniform)
+uniform = TFPDistribution(tfd.Uniform)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Uniform`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Uniform) distribution from TensorFlow Probability distributions.
 """
 
-von_mises = TFPDistribution.new(tfd.VonMises)
+von_mises = TFPDistribution(tfd.VonMises)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.VonMises`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/VonMises) distribution from TensorFlow Probability distributions.
 """
 
-von_mises_fisher = TFPDistribution.new(tfd.VonMisesFisher)
+von_mises_fisher = TFPDistribution(tfd.VonMisesFisher)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.VonMisesFisher`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/VonMisesFisher) distribution from TensorFlow Probability distributions.
 """
 
-weibull = TFPDistribution.new(tfd.Weibull)
+weibull = TFPDistribution(tfd.Weibull)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Weibull`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Weibull) distribution from TensorFlow Probability distributions.
 """
 
-zipf = TFPDistribution.new(tfd.Zipf)
+zipf = TFPDistribution(tfd.Zipf)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Zipf`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Zipf) distribution from TensorFlow Probability distributions.
 """

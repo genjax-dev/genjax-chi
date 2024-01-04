@@ -33,8 +33,8 @@ import jax
 from genjax._src.core.datatypes.generative import (
     Choice,
     JAXGenerativeFunction,
+    Mask,
     Trace,
-    mask,
 )
 from genjax._src.core.interpreters.incremental import (
     static_check_no_change,
@@ -106,24 +106,10 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    branches: List[JAXGenerativeFunction]
+    branches: Tuple[JAXGenerativeFunction, ...]
 
     def flatten(self):
         return (self.branches,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, *args: JAXGenerativeFunction) -> "SwitchCombinator":
-        """The preferred constructor for `SwitchCombinator` generative function
-        instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
-
-        Arguments:
-            *args: JAX generative functions which will act as branch callees for the invocation of branching control flow.
-
-        Returns:
-            instance: A `SwitchCombinator` instance.
-        """
-        return SwitchCombinator([*args])
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self, branch, *args):
@@ -273,7 +259,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             args = tree_diff_primal(argdiffs)
             (tr, w) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
-            discard = mask(True, stripped)
+            discard = Mask(True, stripped)
             retval = tr.get_retval()
             retval_diff = tree_diff_unknown_change(retval)
 
@@ -345,4 +331,6 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 # Decorator #
 #############
 
-Switch = SwitchCombinator.new
+
+def Switch(*args: JAXGenerativeFunction) -> SwitchCombinator:
+    return SwitchCombinator(args)

@@ -14,10 +14,11 @@
 
 import functools
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax
 import jax.tree_util as jtu
+from jaxtyping import ArrayLike
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -46,7 +47,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Dict,
-    FloatArray,
     List,
     PRNGKey,
     Tuple,
@@ -75,19 +75,14 @@ cache_p = InitialStylePrimitive("cache")
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the static language for functions via the `cache` static_primitives.
-@dataclass
+@dataclass(eq=False)
 class DeferredFunctionCall(Pytree):
     fn: Callable
     kwargs: Dict
-    args: Union[None, Tuple]
+    args: Tuple = ()
 
     def flatten(self):
         return (self.args,), (self.fn, self.kwargs)
-
-    @classmethod
-    def new(cls, fn, **kwargs):
-        assert not isinstance(fn, GenerativeFunction)
-        return DeferredFunctionCall(fn, kwargs, None)
 
     def __call__(self, *args):
         return DeferredFunctionCall(self.fn, self.kwargs, args)
@@ -97,7 +92,7 @@ class DeferredFunctionCall(Pytree):
 
 
 def save(fn, **kwargs):
-    return DeferredFunctionCall.new(fn, **kwargs)
+    return DeferredFunctionCall(fn, **kwargs)
 
 
 ##################
@@ -188,16 +183,12 @@ def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
 
 
 # Usage in transforms: checks for duplicate addresses.
-@dataclass
+@dataclass(eq=False)
 class AddressVisitor(Pytree):
-    visited: List
+    visited: List = field(default_factory=list)
 
     def flatten(self):
         return (), (self.visited,)
-
-    @classmethod
-    def new(cls):
-        return AddressVisitor([])
 
     def visit(self, addr):
         if addr in self.visited:
@@ -206,7 +197,7 @@ class AddressVisitor(Pytree):
             self.visited.append(addr)
 
     def merge(self, other):
-        new = AddressVisitor.new()
+        new = AddressVisitor()
         for addr in itertools.chain(self.visited, other.visited):
             new.visit(addr)
 
@@ -219,7 +210,7 @@ class AddressVisitor(Pytree):
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticLanguageHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-@dataclass
+@dataclass(eq=False)
 class StaticLanguageHandler(StatefulHandler):
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
@@ -265,14 +256,14 @@ class StaticLanguageHandler(StatefulHandler):
 ############
 
 
-@dataclass
+@dataclass(eq=False)
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: FloatArray
-    address_visitor: AddressVisitor
-    address_choices: Trie
-    cache_state: Trie
-    cache_visitor: AddressVisitor
+    score: ArrayLike = 0.0
+    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    address_choices: Trie = field(default_factory=Trie)
+    cache_state: Trie = field(default_factory=Trie)
+    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def flatten(self):
         return (
@@ -283,22 +274,6 @@ class SimulateHandler(StaticLanguageHandler):
             self.cache_state,
             self.cache_visitor,
         ), ()
-
-    @classmethod
-    def new(cls, key: PRNGKey):
-        score = 0.0
-        address_visitor = AddressVisitor.new()
-        address_choices = Trie.new()
-        cache_state = Trie.new()
-        cache_visitor = AddressVisitor.new()
-        return SimulateHandler(
-            key,
-            score,
-            address_visitor,
-            address_choices,
-            cache_state,
-            cache_visitor,
-        )
 
     def yield_state(self):
         return (
@@ -329,7 +304,7 @@ class SimulateHandler(StaticLanguageHandler):
 def simulate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, args):
-        stateful_handler = SimulateHandler.new(key)
+        stateful_handler = SimulateHandler(key)
         retval = forward(source_fn)(stateful_handler, *args)
         (
             address_choices,
@@ -351,16 +326,16 @@ def simulate_transform(source_fn):
 ##############
 
 
-@dataclass
+@dataclass(eq=False)
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: FloatArray
-    weight: FloatArray
     constraints: ChoiceMap
-    address_visitor: AddressVisitor
-    address_choices: Trie
-    cache_state: Trie
-    cache_visitor: AddressVisitor
+    score: ArrayLike = 0.0
+    weight: ArrayLike = 0.0
+    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    address_choices: Trie = field(default_factory=Trie)
+    cache_state: Trie = field(default_factory=Trie)
+    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def flatten(self):
         return (
@@ -380,25 +355,6 @@ class ImportanceHandler(StaticLanguageHandler):
             self.weight,
             self.address_choices,
             self.cache_state,
-        )
-
-    @classmethod
-    def new(cls, key, constraints):
-        score = 0.0
-        weight = 0.0
-        address_visitor = AddressVisitor.new()
-        address_choices = Trie.new()
-        cache_state = Trie.new()
-        cache_visitor = AddressVisitor.new()
-        return ImportanceHandler(
-            key,
-            score,
-            weight,
-            constraints,
-            address_visitor,
-            address_choices,
-            cache_state,
-            cache_visitor,
         )
 
     def handle_trace(self, *tracers, **_params):
@@ -430,7 +386,7 @@ class ImportanceHandler(StaticLanguageHandler):
 def importance_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, constraints, args):
-        stateful_handler = ImportanceHandler.new(key, constraints)
+        stateful_handler = ImportanceHandler(key, constraints)
         retval = forward(source_fn)(stateful_handler, *args)
         (
             score,
@@ -456,26 +412,26 @@ def importance_transform(source_fn):
 ##########
 
 
-@dataclass
+@dataclass(eq=False)
 class UpdateHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: FloatArray
-    weight: FloatArray
     previous_trace: Trace
     constraints: ChoiceMap
-    address_visitor: AddressVisitor
-    address_choices: Trie
-    discard_choices: Trie
-    cache_state: Trie
-    cache_visitor: AddressVisitor
+    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    score: ArrayLike = 0.0
+    weight: ArrayLike = 0.0
+    address_choices: Trie = field(default_factory=Trie)
+    discard_choices: Trie = field(default_factory=Trie)
+    cache_state: Trie = field(default_factory=Trie)
+    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def flatten(self):
         return (
             self.key,
-            self.score,
-            self.weight,
             self.previous_trace,
             self.constraints,
+            self.score,
+            self.weight,
             self.address_visitor,
             self.address_choices,
             self.discard_choices,
@@ -490,28 +446,6 @@ class UpdateHandler(StaticLanguageHandler):
             self.address_choices,
             self.discard_choices,
             self.cache_state,
-        )
-
-    @classmethod
-    def new(cls, key, previous_trace, constraints):
-        score = 0.0
-        weight = 0.0
-        address_visitor = AddressVisitor.new()
-        address_choices = Trie.new()
-        discard_choices = Trie.new()
-        cache_state = Trie.new()
-        cache_visitor = AddressVisitor.new()
-        return UpdateHandler(
-            key,
-            score,
-            weight,
-            previous_trace,
-            constraints,
-            address_visitor,
-            address_choices,
-            discard_choices,
-            cache_state,
-            cache_visitor,
         )
 
     def handle_trace(self, *tracers, **_params):
@@ -564,7 +498,7 @@ def update_transform(source_fn):
     @functools.wraps(source_fn)
     @typecheck
     def wrapper(key, previous_trace, constraints, diffs: Tuple):
-        stateful_handler = UpdateHandler.new(key, previous_trace, constraints)
+        stateful_handler = UpdateHandler(key, previous_trace, constraints)
         diff_primals = tree_diff_primal(diffs)
         diff_tangents = tree_diff_tangent(diffs)
         retval_diffs = incremental(source_fn)(
@@ -603,35 +537,23 @@ def update_transform(source_fn):
 ##########
 
 
-@dataclass
+@dataclass(eq=False)
 class AssessHandler(StaticLanguageHandler):
-    score: FloatArray
     constraints: ChoiceMap
-    address_visitor: AddressVisitor
-    cache_visitor: AddressVisitor
+    score: ArrayLike = 0.0
+    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def flatten(self):
         return (
-            self.score,
             self.constraints,
+            self.score,
             self.address_visitor,
             self.cache_visitor,
         ), ()
 
     def yield_state(self):
         return (self.score,)
-
-    @classmethod
-    def new(cls, constraints):
-        score = 0.0
-        address_visitor = AddressVisitor.new()
-        cache_visitor = AddressVisitor.new()
-        return AssessHandler(
-            score,
-            constraints,
-            address_visitor,
-            cache_visitor,
-        )
 
     def handle_trace(self, *tracers, **_params):
         in_tree = _params.get("in_tree")
@@ -655,7 +577,7 @@ class AssessHandler(StaticLanguageHandler):
 def assess_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(constraints, args):
-        stateful_handler = AssessHandler.new(constraints)
+        stateful_handler = AssessHandler(constraints)
         retval = forward(source_fn)(stateful_handler, *args)
         (score,) = stateful_handler.yield_state()
         return (retval, score)
