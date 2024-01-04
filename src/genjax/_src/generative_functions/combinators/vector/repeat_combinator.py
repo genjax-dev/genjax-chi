@@ -19,7 +19,6 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.typing import Any
@@ -117,19 +116,8 @@ class RepeatCombinator(JAXGenerativeFunction):
         return jnp.sum(ws), r
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
-
-@typecheck
-def repeat_combinator(
-    gen_fn: JAXGenerativeFunction,
-    num_repeats: Int,
-):
-    return RepeatCombinator(num_repeats, gen_fn)
-
-
-Repeat = LanguageConstructor(
-    repeat_combinator,
-)
+Repeat = RepeatCombinator

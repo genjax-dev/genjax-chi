@@ -73,7 +73,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -380,7 +380,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -497,7 +497,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -529,7 +529,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -586,7 +586,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -998,7 +998,7 @@ class GenerativeFunction(Pytree):
             import genjax
             console = genjax.console()
 
-            @genjax.lang
+            @genjax.Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1497,25 +1497,6 @@ class DisjointUnionChoiceMap(ChoiceMap):
             sub_tree = submap.__rich_tree__()
             tree.add(sub_tree)
         return tree
-
-
-########################
-# Language constructor #
-########################
-
-
-@dataclass
-class LanguageConstructor(Pytree):
-    """A `LanguageConstructor` is a type which can be used to construct
-    generative function instances."""
-
-    constructor: Callable
-
-    def flatten(self):
-        return (), (self.constructor,)
-
-    def __call__(self, *args, **kwargs):
-        return self.constructor(*args, **kwargs)
 
 
 ##############

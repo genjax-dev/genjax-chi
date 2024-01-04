@@ -28,7 +28,7 @@ class TestSelections:
         assert isinstance(v, genjax.AllSelection)
 
     def test_hierarchical_selection_filter(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
