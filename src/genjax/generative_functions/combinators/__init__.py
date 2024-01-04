@@ -13,8 +13,13 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.combinators.masking_combinator import Masking
-from genjax._src.generative_functions.combinators.switch.switch_combinator import Switch
-from genjax._src.generative_functions.combinators.vector.map_combinator import Map
+from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+    SwitchCombinator,
+)
+from genjax._src.generative_functions.combinators.vector.map_combinator import (
+    Map,
+    MapCombinator,
+)
 from genjax._src.generative_functions.combinators.vector.repeat_combinator import Repeat
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
@@ -26,9 +31,10 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 __all__ = [
     "Masking",
     "Map",
+    "MapCombinator",
     "Repeat",
     "Unfold",
-    "Switch",
+    "SwitchCombinator",
     "vector_choice_map",
     "indexed_select",
     "indexed_choice_map",
