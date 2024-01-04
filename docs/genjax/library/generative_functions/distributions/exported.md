@@ -1,4 +1,4 @@
-# Distribution reference 
+# Distribution reference
 
 Below, we list common distribution generative functions (currently, all use `TFPDistribution`), and their exported names.
 

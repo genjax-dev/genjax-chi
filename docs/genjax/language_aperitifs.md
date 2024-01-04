@@ -43,7 +43,7 @@ Invoking the `submodel` via the `inline` interface here means that the addresses
 
 ## Structured control flow with combinators
 
-The base modeling language is the `BuiltinGenerativeFunction` language shown above. The builtin language is based on pure functions, with the interface semantics implemented using program transformations. But we'd also like to take advantage of structured control flow in our generative computations. 
+The base modeling language is the `BuiltinGenerativeFunction` language shown above. The builtin language is based on pure functions, with the interface semantics implemented using program transformations. But we'd also like to take advantage of structured control flow in our generative computations.
 
 Users gain access to structured control flow via _combinators_, other generative function mini-languages which implement the interfaces in control flow compatible ways.
 

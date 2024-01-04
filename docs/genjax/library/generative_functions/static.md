@@ -4,14 +4,14 @@
 
 ## Usage
 
-The `Static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions. 
+The `Static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions.
 
 Below, we illustrate a simple example:
-    
+
 ```python
-from genjax import beta 
-from genjax import bernoulli 
-from genjax import uniform 
+from genjax import beta
+from genjax import bernoulli
+from genjax import uniform
 from genjax import gen
 from genjax import Static
 
@@ -34,7 +34,7 @@ The static language exposes custom primitives, which are handled by JAX interpre
 
 ### `trace`
 
-The `trace` primitive provides access to the ability to invoke another generative function as a callee. 
+The `trace` primitive provides access to the ability to invoke another generative function as a callee.
 
 ::: genjax.generative_functions.static.trace
 
@@ -43,8 +43,8 @@ Returning to our example above:
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
-from genjax import beta 
-from genjax import bernoulli 
+from genjax import beta
+from genjax import bernoulli
 from genjax import gen
 from genjax import Static
 

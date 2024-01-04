@@ -1,6 +1,6 @@
 # Dynamism and functional types
 
-**GenJAX** consists of two ingredients: Gen & JAX. The semantics of Gen are defined independently of the concerns of any particular computational substrate used in the implementation of Gen - but JAX (and XLA through JAX) is a unique substrate. 
+**GenJAX** consists of two ingredients: Gen & JAX. The semantics of Gen are defined independently of the concerns of any particular computational substrate used in the implementation of Gen - but JAX (and XLA through JAX) is a unique substrate.
 
 While not yet formally modelled, it's appropriate to think of JAX as separating computation into two phases: a _statics_ phase (which occurs at JAX tracing time) and a _runtime_ phase (which occurs when a computation written in JAX is actually deployed and executed on a physical device). JAX has different rules for handling values depending on which phase we are in - e.g. JAX disallows usage of runtime values to resolve Python control flow at tracing time (intuition: we don't actually know the value yet!) and will error if the user attempts to trace through a Python program with incorrect usage of runtime values.
 
