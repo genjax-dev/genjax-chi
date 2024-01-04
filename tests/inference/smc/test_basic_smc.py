@@ -17,7 +17,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from genjax import choice_map, indexed_choice_map, indexed_select, normal
+from genjax import choice_map, indexed_choice_map, normal
 from genjax.incremental import (
     NoChange,
     UnknownChange,
@@ -34,7 +34,7 @@ class TestSimpleSMC:
         @genjax.Static
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
-            x = normal(z, 1.0) @ "x"
+            _x = normal(z, 1.0) @ "x"
             return z
 
         key = jax.random.PRNGKey(314159)
@@ -66,7 +66,7 @@ class TestSimpleSMC:
         @genjax.Static
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
-            x = normal(z, 1.0) @ "x"
+            _x = normal(z, 1.0) @ "x"
             return z
 
         obs = indexed_choice_map(
@@ -104,7 +104,7 @@ class TestSimpleSMC:
             return stacked
 
         key = jax.random.PRNGKey(314159)
-        smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
+        _smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
         assert True
 
     def test_smoke_smc_with_scan(self):
@@ -112,7 +112,7 @@ class TestSimpleSMC:
         @genjax.Static
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
-            x = normal(z, 1.0) @ "x"
+            _x = normal(z, 1.0) @ "x"
             return z
 
         obs = indexed_choice_map(
@@ -121,7 +121,6 @@ class TestSimpleSMC:
         )
 
         def extending_smc(key, obs, init_state):
-            index_sel = indexed_select(0)
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
             smc_state = smc.smc_initialize(chain, 100).apply(
@@ -154,7 +153,7 @@ class TestSimpleSMC:
             return stacked
 
         key = jax.random.PRNGKey(314159)
-        smc_state = jax.jit(extending_smc)(key, obs, 0.0)
+        _smc_state = jax.jit(extending_smc)(key, obs, 0.0)
         assert True
 
     def test_smoke_smc_with_nested_switch(self):
@@ -180,7 +179,7 @@ class TestSimpleSMC:
 
         key = jax.random.PRNGKey(314159)
         init_latent = jnp.ones(361)
-        tr = chain.simulate(key, (16, init_latent))
+        _tr = chain.simulate(key, (16, init_latent))
 
         def make_choice_map(step):
             obs = jnp.ones(361)

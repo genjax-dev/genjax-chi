@@ -15,17 +15,12 @@
 import copy
 import dataclasses
 import functools
-import itertools as it
-from contextlib import contextmanager
 
 import jax.core as jc
 import jax.tree_util as jtu
-from jax import api_util, tree_util
+from jax import api_util
 from jax import util as jax_util
-from jax._src import core as jax_core
 from jax.extend import linear_util as lu
-from jax.interpreters import ad, batching, mlir
-from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.forward import initial_style_bind
