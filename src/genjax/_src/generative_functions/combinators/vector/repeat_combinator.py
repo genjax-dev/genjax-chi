@@ -14,6 +14,7 @@
 
 import functools
 from dataclasses import dataclass
+from typing import Callable
 
 import jax
 import jax.numpy as jnp
@@ -126,8 +127,10 @@ class RepeatCombinator(JAXGenerativeFunction):
 #############
 
 
-def Repeat(*, repeats):
-    def decorator(f):
-        return functools.update_wrapper(RepeatCombinator(repeats, f), f)
+def Repeat(*, repeats) -> Callable[[Callable], RepeatCombinator]:
+    def decorator(f) -> RepeatCombinator:
+        gf = RepeatCombinator(repeats, f)
+        functools.update_wrapper(gf, f)
+        return gf
 
     return decorator
