@@ -3,8 +3,8 @@
 This page describes the set of core datatypes in GenJAX, including the core JAX compatibility layer datatypes (`Pytree`), and the key Gen generative datatypes (`GenerativeFunction`, `Trace`, `Choice` & `ChoiceMap`, and `Selection`).
 
 !!! note "Key generative datatypes in Gen"
-    
-    This documentation page contains the type and interface documentation for the core generative datatypes used in Gen. The documentation on this page deals with the abstract base classes for these datatypes. 
+
+    This documentation page contains the type and interface documentation for the core generative datatypes used in Gen. The documentation on this page deals with the abstract base classes for these datatypes.
 
     **Any concrete (or specialized) implementor of these datatypes should be documented with the language which implements it.** Specific generative function languages are not documented here, although they may be used in example code fragments.
 
@@ -12,10 +12,10 @@ This page describes the set of core datatypes in GenJAX, including the core JAX 
 ## (JAX) The `Pytree` data layer
 
 GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` interface. These datatypes are used as abstract base mixins for many of the key dataclasses in GenJAX.
-    
+
 ::: genjax.core.Pytree
     options:
-      members: 
+      members:
         - flatten
         - unflatten
         - slice
@@ -39,7 +39,7 @@ Below, we document the abstract base class, and illustrate example usage using c
 
 ::: genjax.core.GenerativeFunction
     options:
-      members: 
+      members:
         - simulate
         - propose
         - importance
@@ -66,7 +66,7 @@ Traces support a set of accessor method interfaces designed to provide convenien
 
 ::: genjax.core.Trace
     options:
-      members: 
+      members:
         - get_gen_fn
         - get_retval
         - get_choices
@@ -78,7 +78,7 @@ Traces support a set of accessor method interfaces designed to provide convenien
 
 ::: genjax.core.ChoiceMap
     options:
-      members: 
+      members:
         - filter
         - insert
         - replace
@@ -87,5 +87,5 @@ Traces support a set of accessor method interfaces designed to provide convenien
 
 ::: genjax.core.Selection
     options:
-      members: 
+      members:
         - complement
