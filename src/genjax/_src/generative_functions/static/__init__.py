@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module provides a function-like modeling language. The generative
-function interfaces are implemented for objects in this language using
-transformations by JAX interpreters.
+"""This module provides a program-like generative function language. The generative
+function interfaces are implemented for the objects in this language using
+transformations applied via `Jaxpr` interpreters.
 
-The language also exposes a set of JAX primitives which allow
-hierarchical construction of generative programs. These programs can
-utilize other generative functions inside of a new JAX primitive
-(`trace`) to create hierarchical patterns of generative computation.
+To support sequencing of probabilistic computations as a capability in the modeling language, this language also exposes custom JAX primitives which denote invocation of other generative functions (as callees): model programs written in this language can
+utilize other generative functions using the exposed `trace` (or the syntactic sugared version) to create hierarchical patterns of generative computation.
 """

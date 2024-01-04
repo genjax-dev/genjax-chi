@@ -471,7 +471,6 @@ class Trace(Pytree):
         which created the `Trace`.
 
         Examples:
-
             Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
 
             ```python exec="yes" source="tabbed-left"
@@ -779,9 +778,10 @@ class Mask(Pytree):
         return some(v)
 
     def unmask(self):
-        """> Unmask the `Mask`, returning the value within.
+        """
+        > Unmask the `Mask`, returning the value within.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use `genjax.global_options.allow_checkify(True)` and then handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -801,14 +801,11 @@ class Mask(Pytree):
             import jax.numpy as jnp
             import jax.experimental.checkify as checkify
             import genjax
-            console = genjax.console()
-            genjax.global_options.allow_checkify(True)
 
-            masked = genjax.mask(False, jnp.ones(5))
-            err, _ = checkify.checkify(masked.unmask)()
-            print(console.render(err))
-
-            genjax.global_options.allow_checkify(False)
+            with genjax.console(enforce_checkify=True) as console:
+                masked = genjax.mask(False, jnp.ones(5))
+                err, _ = checkify.checkify(masked.unmask)()
+                print(console.render(err))
             ```
         """
 
