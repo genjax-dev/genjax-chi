@@ -14,5 +14,4 @@
 
 from genjax._src.console import console
 
-
 __all__ = ["console"]

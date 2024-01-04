@@ -16,14 +16,14 @@ from dataclasses import dataclass
 
 import jax
 
+from genjax._src.core.datatypes.generative import ChoiceValue
+from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.typing import PRNGKey, typecheck
 from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
 )
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.gensp.sp_distribution import SPDistribution
 from genjax._src.gensp.target import Target
-from genjax._src.core.typing import typecheck, PRNGKey
 
 ###############
 # Enumeration #

@@ -15,22 +15,14 @@
 import abc
 import functools as ft
 import types
-from dataclasses import dataclass
-from dataclasses import fields
-from dataclasses import is_dataclass
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import NamedTuple
-from typing import Tuple
+from dataclasses import dataclass, fields, is_dataclass
+from typing import Any, Callable, Dict, List, NamedTuple, Tuple
 
 import jax
 import jax._src.pretty_printer as pp
 import jax.numpy as jnp
 import numpy as np
 from rich.tree import Tree
-
 
 Dataclass = Any
 PrettyPrintable = Any

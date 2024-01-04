@@ -25,7 +25,6 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Callable
 
-
 NAMESPACE = "state"
 
 collect = functools.partial(harvest.reap, tag=NAMESPACE)

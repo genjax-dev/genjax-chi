@@ -18,12 +18,9 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import PRNGKey, Tuple, dispatch
 from genjax._src.inference.mcmc.metropolis_hastings import mh
-from genjax._src.inference.smc.state import SMCAlgorithm
-from genjax._src.inference.smc.state import SMCState
+from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 
 
 @dataclass

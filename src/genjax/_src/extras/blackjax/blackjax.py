@@ -19,13 +19,9 @@ from dataclasses import dataclass
 import blackjax
 import jax
 
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
+from genjax._src.core.datatypes.generative import Selection, Trace
+from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.typing import Any, Int, PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 

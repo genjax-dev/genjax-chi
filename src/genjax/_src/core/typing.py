@@ -23,11 +23,8 @@ import jax
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
-from beartype import BeartypeConf
-from beartype import beartype
-from plum import dispatch
-from plum import parametric
-
+from beartype import BeartypeConf, beartype
+from plum import dispatch, parametric
 
 Any = btyping.Any
 Dataclass = btyping.Any

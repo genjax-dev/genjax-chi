@@ -13,25 +13,21 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-from genjax import lang
-from genjax import normal
-from genjax import trace
-from genjax import uniform
+from genjax import normal, trace, uniform
 from genjax.inference.mcmc import MetropolisHastings
 
 
 class TestMetropolisHastings:
     def test_simple_inf(self):
-        @lang(genjax.Static)
+        @genjax.Static
         def normalModel(mu):
             x = trace("x", normal)(mu, 1.0)
             return x
 
-        @lang(genjax.Static)
+        @genjax.Static
         def proposal(nowAt, d):
             current = nowAt["x"]
             x = trace("x", uniform)(current - d, current + d)
@@ -51,22 +47,22 @@ class TestMetropolisHastings:
                 assert tr.get_score() == new.get_score()
 
     def test_map_combinator(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def model():
             loc = genjax.normal(0.0, 1.0) @ "loc"
             xs = (
-                genjax.Map(genjax.normal, in_axes=(None, 0))(
+                genjax.Map(in_axes=(None, 0))(genjax.normal)(
                     loc, jnp.arange(10, dtype=float)
                 )
                 @ "xs"
             )
             return xs
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def proposal(choices):
             loc = choices["loc"]
             xs = (
-                genjax.Map(genjax.normal, in_axes=(None, 0))(
+                genjax.Map(in_axes=(None, 0))(genjax.normal)(
                     loc, jnp.arange(10, dtype=float)
                 )
                 @ "xs"

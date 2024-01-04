@@ -12,34 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-
-import genjax
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
-from genjax.incremental import tree_diff_no_change
+from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_change
 
 
 class TestUnfoldSimpleNormal:
     def test_unfold_simple_normal(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
-        model = genjax.Unfold(kernel, max_length=10)
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(model.simulate)(sub_key, (5, 0.1))
+        tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         unfold_score = tr.get_score()
         assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
 
     def test_unfold_index_importance(self):
-        @genjax.lang(genjax.Unfold, max_length=10)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def chain(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -61,12 +57,12 @@ class TestUnfoldSimpleNormal:
             sel = genjax.select("z")
             assert tr.get_score() == tr.project(sel)
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def f(x):
             x = genjax.normal(x, 1.0) @ "x"
             return x
 
-        model = genjax.Unfold(f, max_length=10)
+        model = genjax.Unfold(max_length=10)(f)
 
         def obs_chm(x, t):
             return genjax.indexed_choice_map(
@@ -95,8 +91,8 @@ class TestUnfoldSimpleNormal:
         assert tr[9, "x"] == 9
 
     def test_unfold_two_layer_index_importance(self):
-        @genjax.lang(genjax.Unfold, max_length=10)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def two_layer_chain(x):
             z1 = genjax.trace("z1", genjax.normal)(x, 1.0)
             z2 = genjax.trace("z2", genjax.normal)(z1, 1.0)
@@ -124,18 +120,18 @@ class TestUnfoldSimpleNormal:
             assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
 
     def test_unfold_index_update(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
-        model = genjax.Unfold(kernel, max_length=10)
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(model.simulate)(sub_key, (5, 0.1))
+        tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         chm = genjax.indexed_choice_map([3], genjax.choice_map({"z": jnp.array([0.5])}))
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = model.update(
+        (new_tr, w, _, _) = kernel.update(
             sub_key,
             tr,
             chm,
@@ -148,15 +144,15 @@ class TestUnfoldSimpleNormal:
         )
 
     def test_off_by_one_issue_415(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=5)
+        @genjax.Static
         def one_step(_dummy_state):
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
         key = jax.random.PRNGKey(17)
-        model = genjax.Unfold(one_step, max_length=5)
         key, sub_key = jax.random.split(key)
-        true_tr = model.simulate(sub_key, (4, (0.0)))
+        true_tr = one_step.simulate(sub_key, (4, (0.0)))
         true_x = jax.vmap(lambda idx: true_tr.get_choices()[idx, "x"])(
             jnp.arange(5)
         ).unsafe_unmask()
@@ -164,7 +160,7 @@ class TestUnfoldSimpleNormal:
             genjax.choice_map({("x"): true_x}),
         )
         key, importance_key = jax.random.split(key)
-        (importance_tr, _) = model.importance(importance_key, chm, (4, (0.0)))
+        (importance_tr, _) = one_step.importance(importance_key, chm, (4, (0.0)))
         assert importance_tr[0, "x"] == true_x[0]
         assert importance_tr[1, "x"] == true_x[1]
         assert importance_tr[2, "x"] == true_x[2]
@@ -172,7 +168,7 @@ class TestUnfoldSimpleNormal:
         assert importance_tr[4, "x"] == true_x[4]
 
     def test_update_pytree_state(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def next_step(state):
             (x_prev, z_prev) = state
             x = genjax.normal(_phi * x_prev, _q) @ "x"
@@ -182,7 +178,7 @@ class TestUnfoldSimpleNormal:
 
         key = jax.random.PRNGKey(314159)
         max_T = 20
-        model = genjax.Unfold(next_step, max_length=max_T)
+        model = genjax.Unfold(max_length=max_T)(next_step)
         model_args = (0.0, 0.0)
 
         def obs_chm(y, t):
@@ -246,8 +242,8 @@ class TestUnfoldSimpleNormal:
     ####################################################
 
     def test_update_check_weight_computations(self):
-        @genjax.lang(genjax.Unfold, max_length=10)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
             _ = genjax.normal(z, 1.0) @ "x"
@@ -333,8 +329,8 @@ class TestUnfoldSimpleNormal:
         assert w == pytest.approx(new_score - old_score, 0.0001)
 
     def test_update_check_score_correctness(self):
-        @genjax.lang(genjax.Unfold, max_length=5)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=5)
+        @genjax.Static
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
             _ = genjax.normal(z, 1.0) @ "x"
@@ -440,3 +436,20 @@ class TestUnfoldSimpleNormal:
         assert tr.project(sel) == tr.get_score()
         sel = genjax.indexed_select([0, 1, 2, 3, 4], genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+
+    def test_combinator(self):
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
+        def model():
+            """model docstring"""
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        # Prove that mandatory keyword argument is enforced
+        with pytest.raises(Exception):
+
+            @genjax.Unfold()  # type: ignore
+            @genjax.Static
+            def bad_model():
+                return genjax.normal(0.0, 1.0) @ "y"
+
+        assert model.__doc__ == "model docstring"

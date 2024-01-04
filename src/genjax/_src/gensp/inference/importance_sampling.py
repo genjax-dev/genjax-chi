@@ -19,16 +19,9 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from genjax._src.gensp.core import SPDistribution
-from genjax._src.gensp.core import Marginal
-from genjax._src.gensp.core import Target
+from genjax._src.core.datatypes.generative import ChoiceMap, ChoiceValue, EmptyChoice
+from genjax._src.core.typing import Int, PRNGKey, dispatch, typecheck
+from genjax._src.gensp.core import Marginal, SPDistribution, Target
 
 
 def _logsumexp_with_extra(arr, x):

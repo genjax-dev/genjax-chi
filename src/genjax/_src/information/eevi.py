@@ -18,16 +18,14 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import (
+    ChoiceValue,
+    GenerativeFunction,
+    Selection,
+)
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
-from genjax._src.gensp.core import Marginal
-from genjax._src.gensp.core import Target
+from genjax._src.core.typing import Int, PRNGKey, Tuple, typecheck
+from genjax._src.gensp.core import Marginal, Target
 
 
 @dataclass

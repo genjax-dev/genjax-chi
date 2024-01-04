@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
+from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction, Trace
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    Int,
+    IntArray,
+    PRNGKey,
+    Tuple,
+    typecheck,
+)
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 
 
@@ -144,8 +145,20 @@ class StateSpaceCombinator(GenerativeFunction):
         pass
 
 
-##############
-# Shorthands #
-##############
+#############
+# Decorator #
+#############
 
-StateSpace = StateSpaceCombinator.new
+
+def StateSpace(*, max_length, initial_model, transition_model):
+    def decorator(f):
+        return functools.update_wrapper(
+            StateSpaceCombinator.new(
+                max_length=max_length,
+                initial_model=initial_model,
+                transition_model=transition_model,
+            ),
+            f,
+        )
+
+    return decorator

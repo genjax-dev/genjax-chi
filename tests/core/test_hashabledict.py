@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.tree_util as jtu
-
 import genjax
+import jax.tree_util as jtu
 
 
 class TestHashableDict:

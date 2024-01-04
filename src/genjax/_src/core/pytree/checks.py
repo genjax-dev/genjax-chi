@@ -15,8 +15,7 @@
 
 import jax.tree_util as jtu
 
-from genjax._src.core.typing import List
-from genjax._src.core.typing import static_check_is_array
+from genjax._src.core.typing import List, static_check_is_array
 
 
 def static_check_tree_structure_equivalence(trees: List):

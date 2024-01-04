@@ -13,11 +13,12 @@
 # limitations under the License.
 
 from genjax._src.core.serialization.backend import SerializationBackend
-from genjax._src.core.serialization.pickle import PickleSerializationBackend
-from genjax._src.core.serialization.pickle import SupportsPickleDeserialization
-from genjax._src.core.serialization.pickle import SupportsPickleSerialization
-from genjax._src.core.serialization.pickle import pickle_backend
-
+from genjax._src.core.serialization.pickle import (
+    PickleSerializationBackend,
+    SupportsPickleDeserialization,
+    SupportsPickleSerialization,
+    pickle_backend,
+)
 
 __all__ = [
     "SerializationBackend",

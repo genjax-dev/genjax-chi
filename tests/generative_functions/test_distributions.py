@@ -12,15 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-
 import genjax
-from genjax import ChoiceValue
-from genjax import EmptyChoice
-from genjax import mask
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
+import jax
+from genjax import ChoiceValue, EmptyChoice, mask
+from genjax.incremental import NoChange, UnknownChange, diff
 
 
 class TestDistributions:
