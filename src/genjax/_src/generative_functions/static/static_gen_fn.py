@@ -231,4 +231,8 @@ def partial(gen_fn, *static_args):
 # Decorator #
 #############
 
-Static = StaticGenerativeFunction.new
+
+def Static(f) -> StaticGenerativeFunction:
+    gf = StaticGenerativeFunction(f)
+    functools.update_wrapper(gf, f)
+    return gf

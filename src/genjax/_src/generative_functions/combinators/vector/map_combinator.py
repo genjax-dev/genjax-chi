@@ -17,6 +17,7 @@ their arguments."""
 
 import functools
 from dataclasses import dataclass
+from typing import Callable
 
 import jax
 import jax.numpy as jnp
@@ -447,8 +448,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def Map(in_axes: Tuple):
-    def decorator(f):
-        return functools.update_wrapper(MapCombinator.new(f, in_axes), f)
+def Map(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
+    def decorator(f) -> MapCombinator:
+        gf = MapCombinator.new(f, in_axes)
+        functools.update_wrapper(gf, f)
+        return gf
 
     return decorator
