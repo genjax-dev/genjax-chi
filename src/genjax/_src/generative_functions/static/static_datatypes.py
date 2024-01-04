@@ -14,20 +14,19 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    GenerativeFunction,
+    HierarchicalChoiceMap,
+    HierarchicalSelection,
+    Trace,
+)
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.serialization.pickle import PickleDataFormat
-from genjax._src.core.serialization.pickle import PickleSerializationBackend
-from genjax._src.core.serialization.pickle import SupportsPickleSerialization
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.serialization.pickle import (
+    PickleDataFormat,
+    PickleSerializationBackend,
+    SupportsPickleSerialization,
+)
+from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch, typecheck
 
 #########
 # Trace #

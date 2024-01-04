@@ -18,15 +18,10 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from genjax._src.inference.smc.state import SMCAlgorithm
-from genjax._src.inference.smc.state import SMCState
+from genjax._src.core.typing import PRNGKey, Tuple, dispatch, typecheck
+from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 from genjax._src.inference.smc.utils import dynamic_check_empty
 from genjax._src.inference.translator import ExtendingTraceTranslator
-
 
 ############################
 # Step forward using prior #

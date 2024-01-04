@@ -12,25 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-from jax import numpy as jnp
-
 import genjax
+import jax
 from genjax import Mask
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
-from genjax.incremental import tree_diff_no_change
+from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_change
+from jax import numpy as jnp
 
 
 class TestSwitch:
     def test_switch_simulate_in_gen_fn(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def model():
             b = genjax.bernoulli(0.5) @ "b"
             s = genjax.Switch(f, f)(jnp.int32(b)) @ "s"
@@ -42,12 +38,12 @@ class TestSwitch:
         assert True
 
     def test_switch_simulate(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_bernoulli():
             y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
@@ -76,12 +72,12 @@ class TestSwitch:
         assert tr.get_args() == (1,)
 
     def test_switch_simulate_in_gen_fn(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def model():
             b = genjax.bernoulli(0.5) @ "b"
             s = genjax.Switch(f, f)(jnp.int32(b)) @ "s"
@@ -92,12 +88,12 @@ class TestSwitch:
         assert True
 
     def test_switch_choice_map_behavior(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_bernoulli():
             y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
@@ -111,12 +107,12 @@ class TestSwitch:
         assert isinstance(tr["y3"], Mask)
 
     def test_switch_importance(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_bernoulli():
             y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
@@ -171,7 +167,7 @@ class TestSwitch:
         assert w == score
 
     def test_switch_update_single_branch_no_change(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -192,11 +188,11 @@ class TestSwitch:
         assert v2 == tr["y2"]
 
     def test_switch_update_with_masking(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def branch_1(v):
             return genjax.normal(v, 1.0) @ "v"
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def branch_2(v):
             return genjax.normal(v, 3.0) @ "v"
 
@@ -225,12 +221,12 @@ class TestSwitch:
         outlier_stddev = 10.0
         sample_value = 2.0
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def regular():
             x = genjax.normal(0.0, regular_stddev) @ "x"
             return x
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def outlier():
             x = genjax.normal(0.0, outlier_stddev) @ "x"
             return x
@@ -260,11 +256,11 @@ class TestSwitch:
         )
 
     def test_switch_vectorized_access(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def f1():
             return genjax.normal(0.0, 1.0) @ "y"
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def f2():
             return genjax.normal(0.0, 2.0) @ "y"
 
@@ -279,16 +275,16 @@ class TestSwitch:
         assert (y.mask == jnp.array([True, True, True])).all()
 
     def test_switch_with_empty_gen_fn(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def empty():
             return 0.0
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def model():
             b = genjax.bernoulli(0.5) @ "b"
             s = genjax.Switch(f, empty)(jnp.int32(b)) @ "s"

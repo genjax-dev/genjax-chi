@@ -21,11 +21,8 @@ from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.distributions.distribution import Distribution
-
 
 tfd = tfp.distributions
 

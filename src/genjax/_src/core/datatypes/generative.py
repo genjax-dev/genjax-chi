@@ -25,25 +25,27 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import (
+    tree_diff_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.typing import (
+    Any,
+    BoolArray,
+    Callable,
+    Dict,
+    FloatArray,
+    IntArray,
+    List,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    static_check_is_concrete,
+    typecheck,
+)
 
 #############
 # Utilities #
@@ -73,7 +75,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -380,7 +382,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -497,7 +499,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -529,7 +531,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -586,7 +588,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -998,7 +1000,7 @@ class GenerativeFunction(Pytree):
             import genjax
             console = genjax.console()
 
-            @genjax.lang
+            @genjax.Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1497,25 +1499,6 @@ class DisjointUnionChoiceMap(ChoiceMap):
             sub_tree = submap.__rich_tree__()
             tree.add(sub_tree)
         return tree
-
-
-########################
-# Language constructor #
-########################
-
-
-@dataclass
-class LanguageConstructor(Pytree):
-    """A `LanguageConstructor` is a type which can be used to construct
-    generative function instances."""
-
-    constructor: Callable
-
-    def flatten(self):
-        return (), (self.constructor,)
-
-    def __call__(self, *args, **kwargs):
-        return self.constructor(*args, **kwargs)
 
 
 ##############

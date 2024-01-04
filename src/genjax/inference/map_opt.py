@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.map_update import MapUpdate
-from genjax._src.inference.map_update import map_update
-
+from genjax._src.inference.map_update import MapUpdate, map_update
 
 __all__ = [
     "MapUpdate",

@@ -15,39 +15,39 @@
 broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
 
+import functools
 from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    ChoiceMap,
+    EmptyChoice,
+    GenerativeFunction,
+    HierarchicalChoiceMap,
+    HierarchicalSelection,
+    JAXGenerativeFunction,
+    Selection,
+    Trace,
+)
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
@@ -143,7 +143,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import genjax
         console = genjax.console()
 
-        @genjax.lang
+        @genjax.Static
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
@@ -442,19 +442,13 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (jnp.sum(score), retval)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@dispatch
-def map_combinator(
-    gen_fn: JAXGenerativeFunction,
-    in_axes=Tuple,
-):
-    return MapCombinator.new(gen_fn, in_axes)
+def Map(in_axes: Tuple):
+    def decorator(f):
+        return functools.update_wrapper(MapCombinator.new(f, in_axes), f)
 
-
-Map = LanguageConstructor(
-    map_combinator,
-)
+    return decorator

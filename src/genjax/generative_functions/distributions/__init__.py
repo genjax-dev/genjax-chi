@@ -13,107 +13,53 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.distributions.custom import discrete_hmm
-from genjax._src.generative_functions.distributions.custom.dirac import Dirac
-from genjax._src.generative_functions.distributions.custom.dirac import dirac
+from genjax._src.generative_functions.distributions.custom.dirac import Dirac, dirac
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMMConfiguration,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     forward_filtering_backward_sampling,
 )
-from genjax._src.generative_functions.distributions.distribution import Distribution
-from genjax._src.generative_functions.distributions.distribution import ExactDensity
+from genjax._src.generative_functions.distributions.distribution import (
+    Distribution,
+    ExactDensity,
+)
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     TFPDistribution,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     TFPMixture,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import bates
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    bates,
     bernoulli,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import beta
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    beta,
     categorical,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import chi
-from genjax._src.generative_functions.distributions.tensorflow_probability import chi2
-from genjax._src.generative_functions.distributions.tensorflow_probability import flip
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    chi,
+    chi2,
+    flip,
     geometric,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import gumbel
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    gumbel,
     half_cauchy,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     half_normal,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     half_student_t,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     inverse_gamma,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     kumaraswamy,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     logit_normal,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     mixture,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import moyal
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    moyal,
     multinomial,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     mv_normal,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     mv_normal_diag,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     negative_binomial,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import normal
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    normal,
     plackett_luce,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     power_spherical,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     skellam,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     student_t,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     truncated_cauchy,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     truncated_normal,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     uniform,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     von_mises,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     von_mises_fisher,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
     weibull,
+    zipf,
 )
-from genjax._src.generative_functions.distributions.tensorflow_probability import zipf
-
 
 __all__ = [
     "Distribution",
