@@ -19,8 +19,6 @@ jobs:
 
   # - uses: pre-commit/action@v3.0.0
 
-    - uses: psf/black@stable
+    - uses: chartboost/ruff-action@v1
       with:
-        options: "--check --verbose"
-        src: "./src ./tests"
-        version: "~= 23.0"
+        args: format --check
