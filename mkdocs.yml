@@ -49,13 +49,14 @@ nav:
           - genjax/library/inference/index.md
           - Sequential Monte Carlo: genjax/library/inference/smc.md
       # - Variational inference: genjax/library/inference/vi.md
-      - Extension modules:
-          - genjax/library/extensions/index.md
-          - Gaussian processes: genjax/library/extensions/tinygp.md
-          - HMC/NUTS: genjax/library/extensions/blackjax.md
+    # - Extension plugins:
+      # - genjax/library/extensions/index.md
+      # - Gaussian processes: genjax/library/extensions/tinygp.md
+      # - HMC/NUTS: genjax/library/extensions/blackjax.md
   # - Autodi(GenJAX):
     # - genjax/autodigenjax.md
   - For developers:
+      - Developing: developing.md
       - Code of conduct: codeofconduct.md
       - Contributing: contributing.md
       - License: license.md
