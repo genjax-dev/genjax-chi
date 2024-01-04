@@ -127,5 +127,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def Masking(f):
-    return functools.update_wrapper(MaskingCombinator.new(f), f)
+def Masking(f) -> MaskingCombinator:
+    gf = MaskingCombinator.new(f)
+    functools.update_wrapper(gf, f)
+    return gf

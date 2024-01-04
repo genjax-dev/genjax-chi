@@ -14,6 +14,7 @@
 
 import functools
 from dataclasses import dataclass
+from typing import Callable
 
 from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction, Trace
 from genjax._src.core.typing import (
@@ -150,15 +151,16 @@ class StateSpaceCombinator(GenerativeFunction):
 #############
 
 
-def StateSpace(*, max_length, initial_model, transition_model):
-    def decorator(f):
-        return functools.update_wrapper(
-            StateSpaceCombinator.new(
-                max_length=max_length,
-                initial_model=initial_model,
-                transition_model=transition_model,
-            ),
-            f,
+def StateSpace(
+    *, max_length, initial_model, transition_model
+) -> Callable[[Callable], StateSpaceCombinator]:
+    def decorator(f) -> StateSpaceCombinator:
+        gf = StateSpaceCombinator.new(
+            max_length=max_length,
+            initial_model=initial_model,
+            transition_model=transition_model,
         )
+        functools.update_wrapper(gf, f)
+        return gf
 
     return decorator

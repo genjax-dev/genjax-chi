@@ -391,5 +391,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def Interpreted(f):
-    return functools.update_wrapper(InterpretedGenerativeFunction(f), f)
+def Interpreted(f) -> InterpretedGenerativeFunction:
+    gf = InterpretedGenerativeFunction(f)
+    functools.update_wrapper(gf, f)
+    return gf
