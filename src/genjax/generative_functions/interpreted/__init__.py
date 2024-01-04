@@ -14,7 +14,6 @@
 
 from genjax._src.generative_functions.interpreted import Interpreted
 
-
 __all__ = [
     "Interpreted",
 ]

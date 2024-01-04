@@ -20,9 +20,7 @@ from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import BoolArray, FloatArray, IntArray
 
 
 @dataclass

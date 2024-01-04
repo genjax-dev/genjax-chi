@@ -18,11 +18,9 @@ from dataclasses import dataclass
 import rich
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.hashable_dict import HashableDict
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
+from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
-
 
 ########
 # Trie #

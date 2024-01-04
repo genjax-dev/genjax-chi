@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-from jax import numpy as jnp
-
 import genjax
+import jax
 from genjax import Mask
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
-from genjax.incremental import tree_diff_no_change
+from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_change
+from jax import numpy as jnp
 
 
 class TestSwitch:

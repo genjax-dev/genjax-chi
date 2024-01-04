@@ -19,14 +19,9 @@ from genjax._src.generative_functions.combinators.vector.repeat_combinator impor
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     indexed_choice_map,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     indexed_select,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     vector_choice_map,
 )
-
 
 __all__ = [
     "Masking",

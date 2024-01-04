@@ -14,11 +14,9 @@
 
 from genjax._src.inference.smc.init import smc_initialize
 from genjax._src.inference.smc.rejuvenate import smc_rejuvenate
-from genjax._src.inference.smc.resample import multinomial_resampling
-from genjax._src.inference.smc.resample import smc_resample
+from genjax._src.inference.smc.resample import multinomial_resampling, smc_resample
 from genjax._src.inference.smc.state import SMCState
 from genjax._src.inference.smc.update import smc_update
-
 
 __all__ = [
     "SMCState",

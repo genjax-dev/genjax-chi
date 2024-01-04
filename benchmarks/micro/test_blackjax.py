@@ -13,13 +13,11 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-from genjax import normal, Static
+from genjax import Static, normal
 from genjax._src.extras import blackjax
-
 
 blackjax = blackjax()
 

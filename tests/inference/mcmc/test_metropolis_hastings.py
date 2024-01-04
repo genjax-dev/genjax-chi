@@ -13,13 +13,10 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-from genjax import normal
-from genjax import trace
-from genjax import uniform
+from genjax import normal, trace, uniform
 from genjax.inference.mcmc import MetropolisHastings
 
 

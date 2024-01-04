@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import genjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
-
-import genjax
 
 
 class TestVectorChoiceMap:

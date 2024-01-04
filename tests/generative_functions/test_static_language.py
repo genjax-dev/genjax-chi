@@ -15,18 +15,15 @@
 from dataclasses import dataclass
 from typing import Any
 
+import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from jax._src.interpreters.partial_eval import DynamicJaxprTracer
-
-import genjax
 from genjax import PytreeConst
 from genjax.core.exceptions import *
-from genjax.incremental import tree_diff_no_change
-from genjax.incremental import tree_diff_unknown_change
+from genjax.incremental import tree_diff_no_change, tree_diff_unknown_change
 from genjax.typing import FloatArray
-
+from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 #############
 # Datatypes #

@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-
-import genjax
 from genjax import ChoiceMap
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
+from genjax.incremental import NoChange, UnknownChange, diff
 
 
 class TestExtendingTraceTranslator:
@@ -87,14 +84,11 @@ class TestExtendingTraceTranslator:
         assert log_weight == pytest.approx(up_weight - proposal_weight, 1e-4)
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
 from genjax import ChoiceMap
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
+from genjax.incremental import NoChange, UnknownChange, diff
 from genjax.inference.translator import extending_trace_translator
 from genjax.typing import typecheck
 

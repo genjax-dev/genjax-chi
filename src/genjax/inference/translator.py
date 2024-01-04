@@ -14,7 +14,6 @@
 
 from genjax._src.inference.translator import extending_trace_translator
 
-
 __all__ = [
     "extending_trace_translator",
 ]
