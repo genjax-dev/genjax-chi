@@ -24,10 +24,6 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     Selection,
 )
-from genjax._src.core.interpreters.forward import (
-    InitialStylePrimitive,
-    initial_style_bind,
-)
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
