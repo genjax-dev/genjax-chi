@@ -28,30 +28,3 @@ from .inference import *
 from .information import *
 
 __version__ = metadata.version("genjax")
-
-####################################################
-#
-#   The exports defined above are the public API.
-#
-#                        /\_/\____,
-#              ,___/\_/\ \  ~     /
-#              \     ~  \ )   XXX
-#                XXX     /    /\_/\___,
-#                   \o-o/-o-o/   ~    /
-#                    ) /     \    XXX
-#                   _|    / \ \_/
-#                ,-/   _  \_/   \
-#               / (   /____,__|  )
-#              (  |_ (    )  \) _|
-#             _/ _)   \   \__/   (_
-#            (,-(,(,(,/      \,),),)
-#
-#
-#       "Abandon all hope, ye who enter _src."
-#
-####################################################
-
-try:
-    del genjax._src  # noqa: F405
-except NameError:
-    pass
