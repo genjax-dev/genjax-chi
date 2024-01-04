@@ -776,6 +776,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def Unfold(*, max_length):
     def decorator(f):
-        return UnfoldCombinator.new(f, max_length=max_length)
+        return functools.update_wrapper(
+            UnfoldCombinator.new(f, max_length=max_length), f
+        )
 
     return decorator

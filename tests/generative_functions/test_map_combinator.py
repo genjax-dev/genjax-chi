@@ -104,3 +104,12 @@ class TestMapCombinator:
 
         key = jax.random.PRNGKey(314159)
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), 1.0)))
+
+    def test_combinator(self):
+        @genjax.Map(in_axes=())
+        @genjax.Static
+        def model():
+            """model docstring"""
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        assert model.__doc__ == "model docstring"

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+import functools
 
 from genjax._src.core.datatypes.generative import ChoiceMap
 from genjax._src.core.datatypes.generative import GenerativeFunction
@@ -144,8 +145,20 @@ class StateSpaceCombinator(GenerativeFunction):
         pass
 
 
-##############
-# Shorthands #
-##############
+#############
+# Decorator #
+#############
 
-StateSpace = StateSpaceCombinator.new
+
+def StateSpace(*, max_length, initial_model, transition_model):
+    def decorator(f):
+        return functools.update_wrapper(
+            StateSpaceCombinator.new(
+                max_length=max_length,
+                initial_model=initial_model,
+                transition_model=transition_model,
+            ),
+            f,
+        )
+
+    return decorator

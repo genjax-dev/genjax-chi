@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+import functools
 
 import jax
 import jax.numpy as jnp
@@ -120,4 +121,9 @@ class RepeatCombinator(JAXGenerativeFunction):
 # Decorator #
 #############
 
-Repeat = RepeatCombinator
+
+def Repeat(*, repeats):
+    def decorator(f):
+        return functools.update_wrapper(RepeatCombinator(repeats, f), f)
+
+    return decorator

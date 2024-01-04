@@ -22,6 +22,7 @@ The intent of this language is pedagogical - one can use it to rapidly construct
 """
 
 import abc
+import functools
 import itertools
 from dataclasses import dataclass, field
 
@@ -385,4 +386,6 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 # Decorator #
 #############
 
-Interpreted = InterpretedGenerativeFunction
+
+def Interpreted(f):
+    return functools.update_wrapper(InterpretedGenerativeFunction(f), f)

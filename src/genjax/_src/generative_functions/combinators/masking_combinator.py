@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+import functools
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
@@ -122,4 +123,5 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-Masking = MaskingCombinator.new
+def Masking(f):
+    return functools.update_wrapper(MaskingCombinator.new(f), f)
