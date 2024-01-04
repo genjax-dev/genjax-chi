@@ -19,28 +19,31 @@ import jax.tree_util as jtu
 import rich.tree as rich_tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import choice_map
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.datatypes.generative import select
+from genjax._src.core.datatypes.generative import (
+    AllSelection,
+    ChoiceMap,
+    EmptyChoice,
+    HierarchicalSelection,
+    Selection,
+    choice_map,
+    mask,
+    select,
+)
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
+    static_check_tree_structure_equivalence,
 )
-from genjax._src.core.pytree.checks import static_check_tree_structure_equivalence
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Union
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import static_check_is_concrete
-
+from genjax._src.core.typing import (
+    Any,
+    Dict,
+    Int,
+    IntArray,
+    List,
+    Tuple,
+    Union,
+    dispatch,
+    static_check_is_concrete,
+)
 
 ######################################
 # Vector-shaped combinator datatypes #

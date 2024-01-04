@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.interpreters.forward import StatefulHandler
-from genjax._src.core.interpreters.forward import forward
+from genjax._src.core.interpreters.forward import StatefulHandler, forward
 from genjax._src.core.interpreters.incremental import incremental
-from genjax._src.core.interpreters.staging import concrete
-from genjax._src.core.interpreters.staging import get_shaped_aval
-from genjax._src.core.interpreters.staging import stage
-
+from genjax._src.core.interpreters.staging import concrete, get_shaped_aval, stage
 
 __all__ = [
     "forward",

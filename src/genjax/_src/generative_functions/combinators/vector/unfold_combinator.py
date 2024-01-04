@@ -16,6 +16,7 @@ statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
 input)."""
 
+import functools
 from dataclasses import dataclass
 
 import jax
@@ -24,36 +25,37 @@ import jax.tree_util as jtu
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    ChoiceMap,
+    EmptyChoice,
+    GenerativeFunction,
+    HierarchicalSelection,
+    JAXGenerativeFunction,
+    Trace,
+    mask,
+)
+from genjax._src.core.interpreters.incremental import (
+    Diff,
+    static_check_no_change,
+    tree_diff_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    Int,
+    IntArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
@@ -151,8 +153,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.console()
 
         # A kernel generative function.
-        @genjax.lang
-        def random_walk(prev):
+        @genjax.Static        def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
 
@@ -770,16 +771,15 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (score, retval)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@typecheck
-def unfold_combinator(gen_fn: JAXGenerativeFunction, max_length: Int):
-    return UnfoldCombinator.new(gen_fn, max_length)
+def Unfold(*, max_length):
+    def decorator(f):
+        return functools.update_wrapper(
+            UnfoldCombinator.new(f, max_length=max_length), f
+        )
 
-
-Unfold = LanguageConstructor(
-    unfold_combinator,
-)
+    return decorator

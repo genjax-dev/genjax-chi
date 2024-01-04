@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
 from genjax import typing
 from genjax.incremental import tree_diff_no_change
 
 
 class TestDropArguments:
     def test_drop_arguments_as_kernel_in_map(self):
-        @genjax.lang(genjax.Map, in_axes=(0,))
-        @genjax.lang(genjax.DropArguments)
-        @genjax.lang(genjax.Static)
+        @genjax.Map(in_axes=(0,))
+        @genjax.DropArguments
+        @genjax.Static
         @typing.typecheck
         def model(x: typing.FloatArray):
             y = genjax.normal(x, 1.0) @ "y"

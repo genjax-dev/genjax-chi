@@ -16,11 +16,7 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import Any, Dict, PRNGKey, Tuple, dispatch
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)

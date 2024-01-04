@@ -24,23 +24,13 @@ from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
 from jax.extend import linear_util as lu
-from jax.interpreters import ad
-from jax.interpreters import batching
-from jax.interpreters import mlir
+from jax.interpreters import ad, batching, mlir
 from jax.interpreters import partial_eval as pe
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
+from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Bool
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Union
-from genjax._src.core.typing import Value
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value, typecheck
 
 #########################
 # Custom JAX primitives #

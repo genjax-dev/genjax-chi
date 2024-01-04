@@ -13,9 +13,7 @@
 # limitations under the License.
 
 
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.typing import Callable, typecheck
 
 _GLOBAL_CHECKIFY_HANDLER = []
 

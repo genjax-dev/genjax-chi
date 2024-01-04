@@ -13,29 +13,26 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-from genjax import Normal
+from genjax import Static, normal
 from genjax._src.extras import blackjax
-from genjax._src.language_decorator import gen
-
 
 blackjax = blackjax()
 
 
-@gen
+@Static
 def model():
-    a = Normal(0.0, 1.0) @ "a"
-    _ = Normal(0.0, 1.0) @ "b"
-    _ = Normal(0.0, 1.0) @ "c"
-    _ = Normal(0.0, 1.0) @ "d"
-    _ = Normal(0.0, 1.0) @ "e"
-    _ = Normal(0.0, 1.0) @ "f"
-    _ = Normal(0.0, 1.0) @ "g"
-    _ = Normal(0.0, 1.0) @ "h"
-    _ = Normal(0.0, 1.0) @ "y"
+    a = normal(0.0, 1.0) @ "a"
+    _ = normal(0.0, 1.0) @ "b"
+    _ = normal(0.0, 1.0) @ "c"
+    _ = normal(0.0, 1.0) @ "d"
+    _ = normal(0.0, 1.0) @ "e"
+    _ = normal(0.0, 1.0) @ "f"
+    _ = normal(0.0, 1.0) @ "g"
+    _ = normal(0.0, 1.0) @ "h"
+    _ = normal(0.0, 1.0) @ "y"
     return a
 
 

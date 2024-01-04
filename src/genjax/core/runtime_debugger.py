@@ -15,15 +15,9 @@
 from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.runtime_debugger import pull
-from genjax._src.core.runtime_debugger import push
-from genjax._src.core.runtime_debugger import record_call
-from genjax._src.core.runtime_debugger import record_value
-from genjax._src.core.runtime_debugger import tag
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import dispatch
+from genjax._src.core.runtime_debugger import pull, push, record_call, record_value, tag
+from genjax._src.core.typing import Any, dispatch
 from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
-
 
 ####################
 # Debug combinator #

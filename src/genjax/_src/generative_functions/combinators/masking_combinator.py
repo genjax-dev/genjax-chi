@@ -12,20 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import mask
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    JAXGenerativeFunction,
+    Trace,
+    mask,
+)
 from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import (
+    Any,
+    BoolArray,
+    FloatArray,
+    PRNGKey,
+    Tuple,
+    typecheck,
+)
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
@@ -118,16 +122,10 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         )
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@typecheck
-def masking_combinator(gen_fn: JAXGenerativeFunction):
-    return MaskingCombinator.new(gen_fn)
-
-
-Masking = LanguageConstructor(
-    masking_combinator,
-)
+def Masking(f):
+    return functools.update_wrapper(MaskingCombinator.new(f), f)

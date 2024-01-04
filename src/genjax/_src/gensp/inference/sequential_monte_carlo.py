@@ -28,29 +28,23 @@ weighted with respect to their registered inference `Target` instances.
 
 import abc
 from dataclasses import dataclass
-from typing import Any
-from typing import Callable
-from typing import Sequence
-from typing import Tuple
+from typing import Any, Callable, Sequence, Tuple
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    ChoiceMap,
+    ChoiceValue,
+    EmptyChoice,
+    Trace,
+)
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Float
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.gensp.core import Marginal
-from genjax._src.gensp.core import SPAlgorithm
-from genjax._src.gensp.core import Target
-
+from genjax._src.core.typing import Float, Int, PRNGKey
+from genjax._src.gensp.core import Marginal, SPAlgorithm, Target
 
 #####
 # Utilities

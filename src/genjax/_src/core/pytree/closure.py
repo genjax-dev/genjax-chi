@@ -17,8 +17,7 @@ from dataclasses import dataclass
 from jax import api_util
 
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Callable, Tuple
 
 
 @dataclass

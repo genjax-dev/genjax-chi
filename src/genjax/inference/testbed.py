@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.testbed import build_inference_test_generator
-from genjax._src.inference.testbed import default_problem_generator
-
+from genjax._src.inference.testbed import (
+    build_inference_test_generator,
+    default_problem_generator,
+)
 
 __all__ = [
     "build_inference_test_generator",

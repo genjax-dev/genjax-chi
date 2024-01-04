@@ -37,21 +37,20 @@ import jax.core as jc
 import jax.tree_util as jtu
 from jax import util as jax_util
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
-from genjax._src.core.interpreters.forward import Environment
-from genjax._src.core.interpreters.forward import StatefulHandler
+from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
+from genjax._src.core.interpreters.forward import Environment, StatefulHandler
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Value
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.typing import (
+    Any,
+    Callable,
+    IntArray,
+    List,
+    Tuple,
+    Value,
+    static_check_is_concrete,
+    typecheck,
+)
 
 #######################################
 # Change type lattice and propagation #
