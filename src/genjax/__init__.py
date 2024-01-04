@@ -19,9 +19,6 @@
 # Closed modules.
 from importlib import metadata
 
-from genjax import gensp, incremental, inference, typing
-from genjax.core import serialization
-
 from .console import *
 from .core import *
 from .experimental import *
@@ -55,6 +52,6 @@ __version__ = metadata.version("genjax")
 ####################################################
 
 try:
-    del genjax._src
+    del genjax._src  # noqa: F405
 except NameError:
     pass

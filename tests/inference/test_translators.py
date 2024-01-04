@@ -18,6 +18,8 @@ import jax.numpy as jnp
 import pytest
 from genjax import ChoiceMap
 from genjax.incremental import NoChange, UnknownChange, diff
+from genjax.inference.translator import extending_trace_translator
+from genjax.typing import typecheck
 
 
 class TestExtendingTraceTranslator:
@@ -26,12 +28,13 @@ class TestExtendingTraceTranslator:
         @genjax.Static
         def model(z):
             z = genjax.normal(z, 1.0) @ "z"
-            x = genjax.normal(z, 1.0) @ "x"
+            _x = genjax.normal(z, 1.0) @ "x"
             return z
 
         @genjax.Static
         @typecheck
         def proposal(obs_chm: ChoiceMap, prev_particle: ChoiceMap, *args):
+            t = None
             masked_x = obs_chm[t, "x"]
             x = masked_x.unmask()
             z = genjax.normal(x, 0.01) @ "z"
@@ -84,22 +87,13 @@ class TestExtendingTraceTranslator:
         assert log_weight == pytest.approx(up_weight - proposal_weight, 1e-4)
 
 
-import genjax
-import jax
-import jax.numpy as jnp
-from genjax import ChoiceMap
-from genjax.incremental import NoChange, UnknownChange, diff
-from genjax.inference.translator import extending_trace_translator
-from genjax.typing import typecheck
-
-
 class TestExtendingTraceTranslator:
     def test_extending_trace_translator_vs_manual_update(self):
         @genjax.Unfold(max_length=10)
         @genjax.Static
         def model(z):
             z = genjax.normal(z, 1.0) @ "z"
-            x = genjax.normal(z, 1.0) @ "x"
+            _x = genjax.normal(z, 1.0) @ "x"
             return z
 
         def get_translator(t, obs):

@@ -69,7 +69,7 @@ class TestIndexChoiceMap:
         # When index is not available, always returns the first index slice inside of a Mask with a False flag.
         st = chm.get_submap((2, "z"))
         assert isinstance(st, genjax.Mask)
-        assert st.mask == False
+        assert st.mask is False
 
 
 class TestVectorTrace:

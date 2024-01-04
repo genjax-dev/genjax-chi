@@ -34,18 +34,18 @@ class TestSwitch:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = model.simulate(sub_key, ())
+        _tr = model.simulate(sub_key, ())
         assert True
 
     def test_switch_simulate(self):
         @genjax.Static
         def simple_normal():
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
         @genjax.Static
         def simple_bernoulli():
-            y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
+            _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
         switch = genjax.Switch(simple_normal, simple_bernoulli)
 
@@ -84,18 +84,18 @@ class TestSwitch:
             return s
 
         key = jax.random.PRNGKey(314159)
-        tr = model.simulate(key, ())
+        _tr = model.simulate(key, ())
         assert True
 
     def test_switch_choice_map_behavior(self):
         @genjax.Static
         def simple_normal():
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
         @genjax.Static
         def simple_bernoulli():
-            y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
+            _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
         switch = genjax.Switch(simple_normal, simple_bernoulli)
 
@@ -109,12 +109,12 @@ class TestSwitch:
     def test_switch_importance(self):
         @genjax.Static
         def simple_normal():
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
         @genjax.Static
         def simple_bernoulli():
-            y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
+            _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
         switch = genjax.Switch(simple_normal, simple_bernoulli)
 
@@ -169,8 +169,8 @@ class TestSwitch:
     def test_switch_update_single_branch_no_change(self):
         @genjax.Static
         def simple_normal():
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
+            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
         switch = genjax.Switch(simple_normal)
         key = jax.random.PRNGKey(314159)
@@ -292,5 +292,5 @@ class TestSwitch:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = model.simulate(sub_key, ())
+        _tr = model.simulate(sub_key, ())
         assert True

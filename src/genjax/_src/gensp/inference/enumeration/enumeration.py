@@ -14,8 +14,6 @@
 
 from dataclasses import dataclass
 
-import jax
-
 from genjax._src.core.datatypes.generative import ChoiceValue
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.typing import PRNGKey, typecheck
