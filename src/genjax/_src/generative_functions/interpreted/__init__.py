@@ -22,6 +22,7 @@ The intent of this language is pedagogical - one can use it to rapidly construct
 """
 
 import abc
+import functools
 import itertools
 from dataclasses import dataclass, field
 
@@ -37,7 +38,6 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import (
@@ -382,15 +382,10 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         return self.source(*args)
 
 
-########################
-# Language constructor #
-########################
+#############
+# Decorator #
+#############
 
 
-def interpreted_gen_fn(source: Callable):
-    return InterpretedGenerativeFunction(source)
-
-
-Interpreted = LanguageConstructor(
-    interpreted_gen_fn,
-)
+def Interpreted(f):
+    return functools.update_wrapper(InterpretedGenerativeFunction(f), f)

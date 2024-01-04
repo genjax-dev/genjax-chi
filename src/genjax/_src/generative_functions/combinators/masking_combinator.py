@@ -13,10 +13,10 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+import functools
 
 from genjax._src.core.datatypes.generative import Choice
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.generative import mask
 from genjax._src.core.interpreters.incremental import tree_diff_primal
@@ -118,16 +118,10 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         )
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@typecheck
-def masking_combinator(gen_fn: JAXGenerativeFunction):
-    return MaskingCombinator.new(gen_fn)
-
-
-Masking = LanguageConstructor(
-    masking_combinator,
-)
+def Masking(f):
+    return functools.update_wrapper(MaskingCombinator.new(f), f)
