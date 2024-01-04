@@ -16,6 +16,7 @@ broadcasting for generative functions -- mapping over vectorial versions of
 their arguments."""
 
 from dataclasses import dataclass
+import functools
 
 import jax
 import jax.numpy as jnp
@@ -448,6 +449,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def Map(in_axes: Tuple):
     def decorator(f):
-        return MapCombinator.new(f, in_axes)
+        return functools.update_wrapper(MapCombinator.new(f, in_axes), f)
 
     return decorator

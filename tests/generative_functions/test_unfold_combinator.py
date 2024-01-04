@@ -440,3 +440,20 @@ class TestUnfoldSimpleNormal:
         assert tr.project(sel) == tr.get_score()
         sel = genjax.indexed_select([0, 1, 2, 3, 4], genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+
+    def test_combinator(self):
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
+        def model():
+            """model docstring"""
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        # Prove that mandatory keyword argument is enforced
+        with pytest.raises(Exception):
+
+            @genjax.Unfold()  # type: ignore
+            @genjax.Static
+            def bad_model():
+                return genjax.normal(0.0, 1.0) @ "y"
+
+        assert model.__doc__ == "model docstring"
