@@ -26,7 +26,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
 )
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Int, PRNGKey, Tuple, typecheck
+from genjax._src.core.typing import Int, PRNGKey, Tuple
 from genjax._src.gensp.core import Marginal, Target
 
 

@@ -21,7 +21,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from adevjax import (
     ADEVPrimitive,
-    baseline,
     flip_enum,
     flip_mvd,
     geometric_reinforce,

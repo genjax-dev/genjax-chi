@@ -22,5 +22,4 @@ __all__ = [
     "MCMCKernel",
     "MetropolisAdjustedLangevinAlgorithm",
     "MetropolisHastings",
-    "mh",
 ]

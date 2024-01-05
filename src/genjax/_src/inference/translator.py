@@ -35,7 +35,6 @@ from genjax._src.core.typing import (
     FloatArray,
     PRNGKey,
     Tuple,
-    dispatch,
     typecheck,
 )
 from genjax._src.generative_functions.static.static_gen_fn import (

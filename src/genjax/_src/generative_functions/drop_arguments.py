@@ -29,7 +29,7 @@ from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Trace,
 )
-from genjax._src.core.typing import Any, FloatArray, PRNGKey, Tuple, typecheck
+from genjax._src.core.typing import Any, FloatArray, PRNGKey, Tuple
 
 
 @dataclass
