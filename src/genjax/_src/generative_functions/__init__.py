@@ -14,8 +14,8 @@
 """This module contains several standard generative function classes useful for
 structuring probabilistic programs.
 
-* The `distributions` module exports standard distributions from TensorFlow Probability Distributions (`tfd`), as well as custom distributions.
-* The `static` module contains a JAX compatible (meaning, traceable and transformable) language for defining generative functions from Python functions.
+* The `distributions` module provides generative function wrappers for standard distributions from TensorFlow Probability Distributions (`tfd`), as well as custom distributions. All of the distributions exported from this module are `GenerativeFunction`.
+* The `static` module contains a programmatic generative function language which utilizes restricted Python programs (meaning, JAX traceable and transformable) as the source language for defining generative functions.
 * The `combinators` module contains combinators which support transforming generative functions into new ones with structured control flow patterns of computation, and other effects.
-* The `interpreted` module exposes an expressive (allowed to use arbitrary Python) language for sketching models and pedagogy. **This language cannot be used compositionally with the languaged described above**.
+* The `interpreted` module exposes an expressive (allowed to use arbitrary Python) generative function language for sketching models and for learning GenJAX. **Note: this language cannot be used compositionally (as a callee) with the other languages described above**.
 """
