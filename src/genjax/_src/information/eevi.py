@@ -24,7 +24,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
 )
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Int, PRNGKey, Tuple, typecheck
+from genjax._src.core.typing import Int, PRNGKey, Tuple
 from genjax._src.gensp.core import Marginal, Target
 
 
@@ -40,20 +40,6 @@ class EntropyEstimatorsViaInference(Pytree):
         return (self.model, self.proposal, self.targets), (
             self.n_lower_bound,
             self.n_upper_bound,
-        )
-
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        model: GenerativeFunction,
-        proposal: Marginal,
-        targets: Selection,
-        n_lower_bound: Int,
-        n_upper_bound: Int,
-    ):
-        return EntropyEstimatorsViaInference(
-            n_lower_bound, n_upper_bound, model, proposal, targets
         )
 
     def _entropy_lower_bound(self, key: PRNGKey, model_args: Tuple):
@@ -108,10 +94,3 @@ class EntropyEstimatorsViaInference(Pytree):
 
     def __call__(self, key: PRNGKey, model_args: Tuple):
         return self.estimate(key, model_args)
-
-
-##############
-# Shorthands #
-##############
-
-eevi = EntropyEstimatorsViaInference.new

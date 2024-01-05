@@ -168,25 +168,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def flatten(self):
         return (self.kernel,), (self.in_axes,)
 
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        kernel: JAXGenerativeFunction,
-        in_axes: Tuple,
-    ) -> "MapCombinator":
-        """The preferred constructor for `MapCombinator` generative function
-        instances. The shorthand symbol is `Map = MapCombinator.new`.
-
-        Arguments:
-            kernel: A single `JAXGenerativeFunction` instance.
-            in_axes: A tuple specifying which `args` to broadcast over.
-
-        Returns:
-            instance: A `MapCombinator` instance.
-        """
-        return MapCombinator(in_axes, kernel)
-
     def __abstract_call__(self, *args) -> Any:
         return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)
 
@@ -450,7 +431,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def Map(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
     def decorator(f) -> MapCombinator:
-        gf = MapCombinator.new(f, in_axes)
+        gf = MapCombinator(in_axes, f)
         functools.update_wrapper(gf, f)
         return gf
 

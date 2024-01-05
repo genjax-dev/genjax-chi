@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.typing import PRNGKey, Tuple, dispatch, typecheck
+from genjax._src.core.typing import PRNGKey, Tuple, typecheck
 from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 from genjax._src.inference.smc.utils import dynamic_check_empty
 from genjax._src.inference.translator import ExtendingTraceTranslator
@@ -32,10 +32,6 @@ from genjax._src.inference.translator import ExtendingTraceTranslator
 class SMCForwardUpdate(SMCAlgorithm):
     def flatten(self):
         return (), ()
-
-    @classmethod
-    def new(cls):
-        return SMCForwardUpdate()
 
     @typecheck
     def apply(
@@ -63,11 +59,6 @@ class SMCForwardUpdate(SMCAlgorithm):
         return new_state
 
 
-@dispatch
-def smc_update():
-    return SMCForwardUpdate.new()
-
-
 #####################################
 # Step forward using extension step #
 #####################################
@@ -79,11 +70,6 @@ class SMCExtendUpdate(SMCAlgorithm):
 
     def flatten(self):
         return (self.translator), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, translator: ExtendingTraceTranslator):
-        return SMCExtendUpdate(translator)
 
     @typecheck
     def apply(
@@ -103,8 +89,3 @@ class SMCExtendUpdate(SMCAlgorithm):
             state.valid,  # TODO: extend translators with dynamic checks.
         )
         return new_state
-
-
-@dispatch
-def smc_update(translator: ExtendingTraceTranslator):
-    return SMCExtendUpdate.new(translator)

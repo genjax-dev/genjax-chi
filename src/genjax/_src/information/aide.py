@@ -35,16 +35,6 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
     def flatten(self):
         return (self.p, self.q), (self.num_meta_p, self.num_meta_q)
 
-    @classmethod
-    def new(
-        cls,
-        p: GenerativeFunction,
-        q: GenerativeFunction,
-        num_meta_p: Int,
-        num_meta_q: Int,
-    ):
-        return AuxiliaryInferenceDivergenceEstimator(num_meta_p, num_meta_q, p, q)
-
     def _estimate_log_ratio(
         self,
         key: PRNGKey,
@@ -108,5 +98,3 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 ##############
 # Shorthands #
 ##############
-
-aide = AuxiliaryInferenceDivergenceEstimator.new
