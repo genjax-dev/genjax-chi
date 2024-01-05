@@ -1,16 +1,34 @@
 [tool.poetry]
-name = "genjax"
+name = "GenJAX"
 version = "0.0.1"
-description = "Gen ⊗ JAX"
+description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
-  "McCoy R. Becker <mccoyb@mit.edu>, MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>",
+  "McCoy R. Becker <mccoyb@mit.edu>",
+  "MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>"
+]
+maintainers = [
+  "McCoy R. Becker <mccoyb@mit.edu>",
+  "Colin Smith <colin.smith@gmail.com>",
+  "Sam Ritchie <sam@mentat.org>",
 ]
 license = "Apache 2.0"
 readme = "README.md"
 homepage = "https://github.com/probcomp/genjax"
 repository = "https://github.com/probcomp/genjax"
 documentation = "https://probcomp.github.io/genjax/"
-classifiers = ["Development Status :: 4 - Beta"]
+keywords = [
+  "artificial-intelligence",
+  "probabilistic-programming",
+  "bayesian-inference",
+  "differentiable-programming"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12"
+]
 
 [tool.poetry.urls]
 Changelog = "https://github.com/probcomp/genjax/releases"
@@ -130,6 +148,9 @@ show_error_context = true
 
 [tool.poetry-dynamic-versioning]
 enable = true
+vcs = "git"
+style = "pep440"
+
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"
