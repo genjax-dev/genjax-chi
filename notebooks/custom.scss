@@ -1,20 +1,4 @@
 @charset "utf-8";
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-
-@font-face {
-  font-family: 'Berkeley';
-  src: url(assets/font/BerkeleyMonoVariable-Regular.ttf) format('truetype');
-  font-style: normal;
-  font-weight: 100 1000;
-}
-
-@font-face {
-  font-family: 'Berkeley';
-  src: url(assets/font/BerkeleyMonoVariable-Italic.ttf) format('truetype');
-  font-style: italic;
-  font-weight: 100 1000;
-}
-
 
 /*-- scss:rules --*/
 
@@ -23,34 +7,16 @@ html {
   overflow-x: hidden;
 }
 
-span.navbar-title {
-  font-family: "Atkinson Hyperlegible", sans-serif;
-}
-
 body {
-  font-family: "Atkinson Hyperlegible", sans-serif;
-  font-feature-settings: "kern","liga";
-  font-size: 0.9rem;
+  font-family: Inter, Roboto, 'Helvetica Neue', 'Arial Nova', 'Nimbus Sans',
+    Arial, sans-serif;
+  font-weight: normal;
 }
 
-span, code {
-  font-weight: 100;
-  font-variant-ligatures: common-ligatures;
-}
-
-span.nav-page-text{
-  font-family: "Atkinson Hyperlegible", sans-serif;
-  font-weight: 1000;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: "Atkinson Hyperlegible", sans-serif;
-  font-weight: 700;
+code {
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code',
+    'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  font-variant-ligatures: discretionary-ligatures;
 }
 
 img.img-fluid {
