@@ -132,7 +132,7 @@ def mypy(session) -> None:
 @session(python=python_version)
 def lint(session: Session) -> None:
     session.run_always("poetry", "install", "--with", "dev", external=True)
-    session.run("ruff", "check", "--select", "I", "--fix", ".")
+    session.run("ruff", "check", "--fix", ".")
     session.run("ruff", "format", ".")
 
 

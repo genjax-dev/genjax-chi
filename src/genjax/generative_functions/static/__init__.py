@@ -13,9 +13,15 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.static.static_gen_fn import Static, partial
-from genjax._src.generative_functions.static.static_transforms import cache, save, trace
+from genjax._src.generative_functions.static.static_transforms import (
+    cache,
+    save,
+    trace,
+    trace_p,
+)
 
 __all__ = [
+    "trace_p",
     "trace",
     "cache",
     "save",
