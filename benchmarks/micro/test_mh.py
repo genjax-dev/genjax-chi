@@ -15,7 +15,7 @@
 
 import genjax
 import jax
-from genjax import MetropolisHastings, Static, normal, uniform, trace
+from genjax import MetropolisHastings, Static, normal, trace, uniform
 
 
 @Static
