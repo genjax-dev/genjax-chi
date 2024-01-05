@@ -42,6 +42,7 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 @dataclass
 class RepeatTrace(Trace):
     inner_trace: Trace
+    args: Tuple
 
     def flatten(self):
         return (self.inner_trace,), ()
@@ -127,10 +128,8 @@ class RepeatCombinator(JAXGenerativeFunction):
 #############
 
 
-def Repeat(*, repeats) -> Callable[[Callable], RepeatCombinator]:
-    def decorator(f) -> RepeatCombinator:
-        gf = RepeatCombinator(repeats, f)
-        functools.update_wrapper(gf, f)
-        return gf
+def Repeat(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
+    def decorator(f) -> JAXGenerativeFunction:
+        return RepeatCombinator(repeats, f)
 
     return decorator
