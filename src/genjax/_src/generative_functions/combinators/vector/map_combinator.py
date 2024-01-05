@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows
-broadcasting for generative functions -- mapping over vectorial versions of
-their arguments."""
+"""
+The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee. 
+
+This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
+"""
 
 import functools
 from dataclasses import dataclass
@@ -137,12 +139,26 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     `vmap`-based implementations of the generative function interface methods.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import jax.numpy as jnp
         import genjax
         console = genjax.console()
+
+        #############################################################
+        # One way to create a `MapCombinator`: using the decorator. #
+        #############################################################
+
+        @genjax.Map(in_axes = (0, ))
+        @genjax.Static
+        def mapped(x):
+            noise1 = genjax.normal(0.0, 1.0) @ "noise1"
+            noise2 = genjax.normal(0.0, 1.0) @ "noise2"
+            return x + noise1 + noise2
+
+        #####################################################
+        # The other way: use the `new` constructor directly #
+        #####################################################
 
         @genjax.Static
         def add_normal_noise(x):
@@ -150,13 +166,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
-
-        # Creating a `MapCombinator` via the preferred `new` class method.
         mapped = genjax.MapCombinator.new(add_normal_noise, in_axes=(0,))
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
-        tr = jax.jit(genjax.simulate(mapped))(key, (arr, ))
+        tr = jax.jit(mapped.simulate)(key, (arr, ))
 
         print(console.render(tr))
         ```
@@ -167,6 +181,25 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     def flatten(self):
         return (self.kernel,), (self.in_axes,)
+
+    @typecheck
+    @classmethod
+    def new(
+        cls,
+        kernel: JAXGenerativeFunction,
+        in_axes: Tuple,
+    ) -> "MapCombinator":
+        """The preferred direct constructor for `MapCombinator` generative function
+        instances.
+
+        Arguments:
+            kernel: A single `JAXGenerativeFunction` instance.
+            in_axes: A tuple specifying which `args` to broadcast over.
+
+        Returns:
+            instance: A `MapCombinator` instance.
+        """
+        return MapCombinator(in_axes, kernel)
 
     def __abstract_call__(self, *args) -> Any:
         return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)

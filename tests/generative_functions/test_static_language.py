@@ -157,7 +157,7 @@ def simple_normal(custom_tree):
 
 
 @dataclass
-class _CustomNormal(genjax.ExactDensity):
+class _CustomNormal(genjax.JAXGenerativeFunction, genjax.ExactDensity):
     def logpdf(self, v, custom_tree):
         return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
 
