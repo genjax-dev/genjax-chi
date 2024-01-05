@@ -22,15 +22,12 @@ density evaluations when the density in question is one produced by an
 inference algorithm (see SDOS, for example).
 """
 
-from genjax._src.information.aide import AuxiliaryInferenceDivergenceEstimator, aide
-from genjax._src.information.eevi import EntropyEstimatorsViaInference, eevi
-from genjax._src.information.sdos import SymmetricDivergenceOverDatasets, sdos
+from genjax._src.information.aide import AuxiliaryInferenceDivergenceEstimator
+from genjax._src.information.eevi import EntropyEstimatorsViaInference
+from genjax._src.information.sdos import SymmetricDivergenceOverDatasets
 
 __all__ = [
     "AuxiliaryInferenceDivergenceEstimator",
-    "aide",
     "SymmetricDivergenceOverDatasets",
-    "sdos",
     "EntropyEstimatorsViaInference",
-    "eevi",
 ]

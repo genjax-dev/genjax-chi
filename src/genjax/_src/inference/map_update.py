@@ -31,10 +31,6 @@ class MapUpdate(Pytree):
     def flatten(self):
         return (self.tau,), (self.selection,)
 
-    @classmethod
-    def new(cls, selection, tau):
-        return MapUpdate(selection, tau)
-
     def _grad_step_no_none(self, v1, v2):
         if v2 is None:
             return v1
@@ -59,10 +55,3 @@ class MapUpdate(Pytree):
 
     def __call__(self, key, trace):
         return self.apply(key, trace)
-
-
-##############
-# Shorthands #
-##############
-
-map_update = MapUpdate.new

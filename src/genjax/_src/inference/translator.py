@@ -35,7 +35,6 @@ from genjax._src.core.typing import (
     FloatArray,
     PRNGKey,
     Tuple,
-    dispatch,
     typecheck,
 )
 from genjax._src.generative_functions.static.static_gen_fn import (
@@ -108,27 +107,6 @@ class ExtendingTraceTranslator(TraceTranslator):
             self.new_observations,
         ), (self.choice_map_forward, self.choice_map_inverse, self.check_bijection)
 
-    @classmethod
-    def new(
-        cls,
-        p_argdiffs: Tuple,
-        q_forward: GenerativeFunction,
-        q_forward_args: Tuple,
-        new_obs: Choice,
-        choice_map_forward: Callable,
-        choice_map_inverse: Callable,
-        check_bijection: Bool,
-    ):
-        return ExtendingTraceTranslator(
-            choice_map_forward,
-            choice_map_inverse,
-            check_bijection,
-            p_argdiffs,
-            q_forward,
-            q_forward_args,
-            new_obs,
-        )
-
     def value_and_jacobian_correction(self, forward, trace):
         trace_choices = trace.get_choices()
         grad_tree, no_grad_tree = tree_grad_split(trace_choices)
@@ -179,42 +157,23 @@ class ExtendingTraceTranslator(TraceTranslator):
         return (new_model_trace, log_weight)
 
 
-@dispatch
 def extending_trace_translator(
     p_argdiffs: Tuple,
     q_forward: GenerativeFunction,
     q_forward_args: Tuple,
     new_obs: ChoiceMap,
-    choice_map_forward: Callable,
-    choice_map_backward: Callable,
+    choice_map_forward: Callable = lambda v: v,
+    choice_map_backward: Callable = lambda v: v,
     check_bijection=False,
 ):
-    return ExtendingTraceTranslator.new(
-        p_argdiffs,
-        q_forward,
-        q_forward_args,
-        new_obs,
+    return ExtendingTraceTranslator(
         choice_map_forward,
         choice_map_backward,
         check_bijection,
-    )
-
-
-@dispatch
-def extending_trace_translator(
-    p_argdiffs: Tuple,
-    q_forward: GenerativeFunction,
-    q_forward_args: Tuple,
-    new_obs: ChoiceMap,
-):
-    return ExtendingTraceTranslator.new(
         p_argdiffs,
         q_forward,
         q_forward_args,
         new_obs,
-        lambda v: v,
-        lambda v: v,
-        False,
     )
 
 
@@ -255,23 +214,6 @@ class TraceKernelTraceTranslator(TraceTranslator):
             self.L,
             self.L_args,
         ), ()
-
-    @classmethod
-    def new(
-        cls,
-        model_argdiffs: Tuple,
-        K: StaticGenerativeFunction,
-        K_args: Tuple,
-        L: StaticGenerativeFunction,
-        L_args: Tuple,
-    ):
-        return TraceKernelTraceTranslator(
-            model_argdiffs,
-            K,
-            K_args,
-            L,
-            L_args,
-        )
 
     def value_and_jacobian_correction(
         self,
@@ -318,20 +260,3 @@ class TraceKernelTraceTranslator(TraceTranslator):
         )
         weight = update_weight + (L_score - K_score) + J_log_abs_det
         return new_model_trace, weight
-
-
-@typecheck
-def trace_kernel_translator(
-    model_argdiffs: Tuple,
-    K: StaticGenerativeFunction,
-    K_args: Tuple,
-    L: StaticGenerativeFunction,
-    L_args: Tuple,
-):
-    return TraceKernelTraceTranslator.new(
-        model_argdiffs,
-        K,
-        K_args,
-        L,
-        L_args,
-    )

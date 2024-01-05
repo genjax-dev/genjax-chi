@@ -72,5 +72,5 @@ class TestMetropolisHastings:
         key = jax.random.PRNGKey(314159)
         trace = model.simulate(key, ())
         key, sub_key = jax.random.split(key)
-        genjax.inference.mcmc.mh(proposal).apply(sub_key, trace, ())
+        genjax.inference.mcmc.MetropolisHastings(proposal).apply(sub_key, trace, ())
         assert True

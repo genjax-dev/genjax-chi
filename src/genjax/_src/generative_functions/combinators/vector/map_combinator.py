@@ -464,7 +464,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def Map(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
     def decorator(f) -> MapCombinator:
-        gf = MapCombinator.new(f, in_axes)
+        gf = MapCombinator(in_axes, f)
         functools.update_wrapper(gf, f)
         return gf
 

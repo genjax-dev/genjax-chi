@@ -15,7 +15,7 @@
 exposing primitives which allow users to sow functions with state."""
 
 import functools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -50,15 +50,10 @@ def param(*args, name):
 
 @dataclass
 class StateTrie(harvest.ReapState):
-    inner: Trie
+    inner: Trie = field(default_factory=Trie)
 
     def flatten(self):
         return (self.inner,), ()
-
-    @classmethod
-    def new(cls):
-        trie = Trie.new()
-        return StateTrie(trie)
 
     def sow(self, values, tree, name, mode):
         if name in self.inner:
@@ -98,7 +93,7 @@ class Module(Pytree):
     def init(cls, apply):
         _collect = functools.partial(
             harvest.reap,
-            state=StateTrie.new(),
+            state=StateTrie(),
             tag=NAMESPACE,
         )
 
@@ -109,10 +104,3 @@ class Module(Pytree):
             return Module.new(params, inject(jax_partial))
 
         return wrapped
-
-
-##############
-# Shorthands #
-##############
-
-init = Module.init
