@@ -22,6 +22,7 @@ from genjax._src.core.datatypes.generative import (
     Trace,
 )
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.typing import (
     Any,
@@ -85,6 +86,12 @@ class StaticGenerativeFunction(
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
+
+    def _stage(self, *args):
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        return stage(syntax_sugar_handled)(*args)
 
     @typecheck
     def simulate(
