@@ -252,6 +252,12 @@ class HierarchicalSelection(Selection):
 
 @dataclass
 class Choice(Pytree):
+    """
+    `Choice` is the abstract base class of the type of random choices.
+
+    The type `Choice` denotes an event which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
+    """
+
     @abc.abstractmethod
     def filter(self, selection: Selection) -> "Choice":
         pass
@@ -259,6 +265,10 @@ class Choice(Pytree):
 
 @dataclass
 class EmptyChoice(Choice):
+    """
+    A `Choice` implementor which denotes an empty event.
+    """
+
     def flatten(self):
         return (), ()
 
@@ -445,7 +455,6 @@ class Trace(Pytree):
         which created the `Trace`.
 
         Examples:
-
             Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
 
             ```python exec="yes" source="tabbed-left"
@@ -748,9 +757,10 @@ class Mask(Pytree):
         return some(v)
 
     def unmask(self):
-        """> Unmask the `Mask`, returning the value within.
+        """
+        > Unmask the `Mask`, returning the value within.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use `genjax.global_options.allow_checkify(True)` and then handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -770,14 +780,11 @@ class Mask(Pytree):
             import jax.numpy as jnp
             import jax.experimental.checkify as checkify
             import genjax
-            console = genjax.console()
-            genjax.global_options.allow_checkify(True)
 
-            masked = genjax.mask(False, jnp.ones(5))
-            err, _ = checkify.checkify(masked.unmask)()
-            print(console.render(err))
-
-            genjax.global_options.allow_checkify(False)
+            with genjax.console(enforce_checkify=True) as console:
+                masked = genjax.mask(False, jnp.ones(5))
+                err, _ = checkify.checkify(masked.unmask)()
+                print(console.render(err))
             ```
         """
 
@@ -930,8 +937,8 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """> Given a `key: PRNGKey` and arguments `x: Tuple`, the generative
-        function sample a choice map $c \\sim p(\\cdot; x)$, as well as any
+        """
+        Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c \\sim p(\\cdot; x)$, as well as any
         untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
         (x, c, r)$.
 
@@ -949,7 +956,6 @@ class GenerativeFunction(Pytree):
             tr: A trace capturing the data and inference data associated with the generative function invocation.
 
         Examples:
-
             Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
 
             ```python exec="yes" source="tabbed-left"
@@ -987,7 +993,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[Choice, FloatArray, Any]:
-        """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
+        """Given a `key: PRNGKey` and arguments ($x$), execute the generative
         function, returning a tuple containing the return value from the
         generative function call, the score ($s$) of the choice map assignment,
         and the choice map ($c$).
@@ -1004,7 +1010,6 @@ class GenerativeFunction(Pytree):
             retval: the return value from the generative function invocation
 
         Examples:
-
             Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
 
             ```python exec="yes" source="tabbed-left"
@@ -1022,10 +1027,9 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            from genjax import Static
             console = genjax.console()
 
-            @gen(Static)
+            @genjax.Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1049,7 +1053,7 @@ class GenerativeFunction(Pytree):
         choice: Choice,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
-        """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
+        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
         and arguments ($x$), execute the generative function, and return an
         importance weight estimate of the conditional density evaluated at the
         non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
@@ -1145,13 +1149,13 @@ class GenerativeFunction(Pytree):
         choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
-        """> Given a complete choice map indicating constraints ($u$) for all
+        """Given a complete choice map indicating constraints ($u$) for all
         choices, and arguments ($x$), execute the generative function, and
         return the return value of the invocation, and the score of the choice
         map ($s$).
 
         Arguments:
-            chm: A complete choice map indicating constraints ($u$) for all choices.
+            choice: A complete choice map indicating constraints ($u$) for all choices.
             args: Arguments to the generative function ($x$).
 
         Returns:
@@ -1173,6 +1177,16 @@ class GenerativeFunction(Pytree):
     ) -> Trace:
         raise NotImplementedError
 
+
+@dataclass
+class JAXGenerativeFunction(GenerativeFunction, Pytree):
+    """A `GenerativeFunction` subclass for JAX compatible generative
+    functions.
+
+    Mixing in this class denotes that a generative function implementation can be used within a calling context where JAX transformations are being applied, or JAX tracing is being applied (e.g. `jax.jit`). As a callee in other generative functions, this type exposes an `__abstract_call__` method which can be use to customize the behavior under abstract tracing (a default is provided, and users are not expected to interact with this functionality).
+
+    Compatibility with JAX tracing allows generative functions that mixin this class to expose several default methods which support convenient access to gradient computation using `jax.grad`."""
+
     # This is used to support tracing.
     # Below, a default implementation: GenerativeFunctions
     # may customize this to improve compilation time.
@@ -1184,12 +1198,6 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return retval
 
-
-@dataclass
-class JAXGenerativeFunction(GenerativeFunction, Pytree):
-    """A `GenerativeFunction` subclass for JAX compatible generative
-    functions."""
-
     @typecheck
     def unzip(
         self,
@@ -1198,6 +1206,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], FloatArray],
         Callable[[Choice, Tuple], Any],
     ]:
+        """
+        The `unzip` method expects a fixed (under gradients) `Choice` argument, and returns two `Callable` instances: the first exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> score` where `score` is the log density returned by the `assess` method, and the second exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the returned value from the `assess` method.
+
+        Arguments:
+            fixed: A fixed choice map.
+        """
+
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)

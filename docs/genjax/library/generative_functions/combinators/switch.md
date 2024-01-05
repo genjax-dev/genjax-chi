@@ -1,8 +1,14 @@
 # Switch combinator
 
-GenJAX's `SwitchCombinator` is a combinator which branching control flow for generative computation by utilizing `jax.lax.switch`.
+::: genjax._src.generative_functions.combinators.switch
+    options:
+      show_root_heading: true
 
-::: genjax.generative_functions.combinators.Switch
+---
+
+The `SwitchCombinator` is the première combinator for expressing branching control flow patterns for generative computation. Where `if ... else ...` statements are used in imperative programming languages, the `SwitchCombinator` is used to express the same patterns where the branches are generative function callees.
+
+::: genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator
     options:
       show_root_heading: true
       members:

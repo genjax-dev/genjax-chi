@@ -14,6 +14,7 @@
 
 from genjax._src.core.datatypes.generative import (
     AllSelection,
+    Choice,
     ChoiceMap,
     ChoiceValue,
     DisjointUnionChoiceMap,
@@ -43,6 +44,7 @@ __all__ = [
     # Trie type.
     "Trie",
     # Generative datatypes.
+    "Choice",
     "ChoiceMap",
     "EmptyChoice",
     "ChoiceValue",
