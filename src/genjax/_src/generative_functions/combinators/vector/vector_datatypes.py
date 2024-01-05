@@ -27,11 +27,9 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Selection,
     choice_map,
-    select,
 )
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
-    static_check_tree_structure_equivalence,
 )
 from genjax._src.core.typing import (
     Any,

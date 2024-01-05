@@ -44,7 +44,6 @@ from genjax._src.core.interpreters.incremental import (
 from genjax._src.core.typing import (
     Any,
     FloatArray,
-    List,
     PRNGKey,
     Tuple,
     dispatch,

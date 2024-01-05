@@ -44,7 +44,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     Tuple,
     dispatch,
-    static_check_is_concrete,
     typecheck,
 )
 

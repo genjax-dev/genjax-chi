@@ -50,7 +50,6 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
-    Union,
     static_check_is_concrete,
     typecheck,
 )

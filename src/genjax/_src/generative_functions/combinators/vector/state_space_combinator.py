@@ -20,7 +20,6 @@ from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction,
 from genjax._src.core.typing import (
     Any,
     FloatArray,
-    Int,
     IntArray,
     PRNGKey,
     Tuple,

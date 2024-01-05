@@ -77,7 +77,7 @@ class Environment(Pytree):
         return copy.copy(self)
 
 
-@dataclasses.dataclass
+@dataclass
 class CPSInterpreter(Pytree):
     def flatten(self):
         return (), ()

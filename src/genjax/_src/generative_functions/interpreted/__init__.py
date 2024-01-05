@@ -29,7 +29,6 @@ from dataclasses import dataclass, field
 import jax
 import jaxtyping
 from beartype import beartype
-from plum import dispatch
 
 from genjax._src.core.datatypes.generative import (
     Choice,

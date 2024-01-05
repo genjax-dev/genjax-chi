@@ -26,7 +26,7 @@ from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleSerialization,
 )
-from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch, typecheck
+from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch
 
 #########
 # Trace #
