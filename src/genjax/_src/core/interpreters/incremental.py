@@ -147,6 +147,7 @@ class Diff(Pytree):
     def flatten(self):
         return (self.primal, self.tangent), ()
 
+    # TODO(colin): ask McCoy: the check is safe to run from JAX, or no?
     @classmethod
     def new(cls, primal, tangent):
         assert not isinstance(primal, Diff)
@@ -269,7 +270,7 @@ class IncrementalInterpreter(Pytree):
         primals: List[Value],
         tangents: List[ChangeTangent],
     ):
-        dual_env = Environment.new()
+        dual_env = Environment()
         jax_util.safe_map(dual_env.write, _jaxpr.constvars, tree_diff_no_change(consts))
         jax_util.safe_map(dual_env.write, _jaxpr.invars, tree_diff(primals, tangents))
         for _eqn in _jaxpr.eqns:

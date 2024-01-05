@@ -107,13 +107,6 @@ class StaticGenerativeFunction(
         else:
             return (), (self.source,)
 
-    @classmethod
-    @typecheck
-    def new(cls, source: Callable):
-        gen_fn = StaticGenerativeFunction(source)
-        functools.update_wrapper(gen_fn, source)
-        return gen_fn
-
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
@@ -137,7 +130,7 @@ class StaticGenerativeFunction(
         (args, retval, address_choices, score), cache_state = simulate_transform(
             syntax_sugar_handled
         )(key, args)
-        return StaticTrace.new(
+        return StaticTrace(
             self,
             args,
             retval,
@@ -169,7 +162,7 @@ class StaticGenerativeFunction(
             cache_state,
         ) = importance_transform(syntax_sugar_handled)(key, chm, args)
         return (
-            StaticTrace.new(
+            StaticTrace(
                 self,
                 args,
                 retval,
@@ -207,7 +200,7 @@ class StaticGenerativeFunction(
             cache_state,
         ) = update_transform(syntax_sugar_handled)(key, prev, constraints, argdiffs)
         return (
-            StaticTrace.new(
+            StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -241,7 +234,7 @@ class StaticGenerativeFunction(
             address_choices,
             cache,
         ) = aux
-        return StaticTrace.new(
+        return StaticTrace(
             self,
             original_args,
             retval,
@@ -261,7 +254,7 @@ class StaticGenerativeFunction(
 
 
 def partial(gen_fn, *static_args):
-    return StaticGenerativeFunction.new(
+    return StaticGenerativeFunction(
         lambda *args: gen_fn.inline(*args, *static_args),
     )
 

@@ -33,10 +33,6 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
     def flatten(self):
         return (self.selection, self.tau), ()
 
-    @classmethod
-    def new(cls, selection, tau):
-        return MetropolisAdjustedLangevinAlgorithm(selection, tau)
-
     def _grad_step_no_none(self, v1, v2):
         if v2 is None:
             return v1
@@ -114,10 +110,3 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
 
     def reversal(self):
         return self
-
-
-##############
-# Shorthands #
-##############
-
-mala = MetropolisAdjustedLangevinAlgorithm.new
