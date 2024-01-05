@@ -25,6 +25,8 @@
 [nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci-nightly.yml/badge.svg?style=flat-square
 [actions]: https://github.com/probcomp/genjax/actions
 
+> A GPU-accelerated measure manipulator.
+
 <div align="center">
 <b>(Early stage)</b> 🔪 expect sharp edges 🔪
 </div>
