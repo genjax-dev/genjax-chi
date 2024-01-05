@@ -20,7 +20,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 from genjax import PytreeConst
-from genjax.core.exceptions import *
+from genjax.core.exceptions import AddressReuse, StaticAddressJAX
 from genjax.incremental import tree_diff_no_change, tree_diff_unknown_change
 from genjax.typing import FloatArray
 from jax._src.interpreters.partial_eval import DynamicJaxprTracer
@@ -332,8 +332,8 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
-        y1 = updated_chm[("y1",)]
-        y2 = updated_chm[("y2",)]
+        _y1 = updated_chm[("y1",)]
+        _y2 = updated_chm[("y2",)]
         (_, score1) = genjax.normal.importance(
             key, updated_chm.get_submap("y1"), (0.0, 1.0)
         )
@@ -350,8 +350,8 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
-        y1 = updated_chm[("y1",)]
-        y2 = updated_chm[("y2",)]
+        _y1 = updated_chm[("y1",)]
+        _y2 = updated_chm[("y2",)]
         (_, score1) = genjax.normal.importance(
             key, updated_chm.get_submap("y1"), (0.0, 1.0)
         )
@@ -589,7 +589,7 @@ class TestForwardRef:
 
         key = jax.random.PRNGKey(314159)
         proposal = make_gen_fn()
-        tr = proposal.simulate(key, (0.3,))
+        _tr = proposal.simulate(key, (0.3,))
         assert True
 
 
@@ -705,7 +705,7 @@ class TestInline:
             y = higher_model.inline()
             return y
 
-        key = jax.random.PRNGKey(314159)
+        _key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({"y1": 3.0, "y2": 3.0})
         (score, ret) = jax.jit(higher_model.assess)(chm, ())
         assert score == genjax.normal.logpdf(

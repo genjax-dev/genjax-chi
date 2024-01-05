@@ -105,7 +105,11 @@ indent-width = 4
 [tool.ruff.lint]
 extend-select = ["I"]
 select = ["E4", "E7", "E9", "F"]
-ignore = []
+# F811 silences errors from GenJAX's type-based dispatch. Remove this if we can
+# find some way to teach ruff about these overloads.
+#
+# F403 disables errors from `*` imports, which we currently use heavily.
+ignore = ["F811", "F403"]
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
