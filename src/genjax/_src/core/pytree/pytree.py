@@ -24,7 +24,7 @@ from genjax._src.core.typing import Tuple
 
 
 class Pytree:
-    """> Abstract base class which registers a class with JAX's `Pytree`
+    """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
     system.
 
     Users who mixin this ABC for class definitions are required to
@@ -142,7 +142,7 @@ class Pytree:
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
     def slice(self, index_or_index_array):
-        """> Utility available to any class which mixes `Pytree` base. This
+        """Utility available to any class which mixes `Pytree` base. This
         method supports indexing/slicing on indices when leaves are arrays.
 
         `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.

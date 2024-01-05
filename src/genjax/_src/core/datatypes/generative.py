@@ -270,6 +270,12 @@ class HierarchicalSelection(Selection):
 
 @dataclass
 class Choice(Pytree):
+    """
+    `Choice` is the abstract base class of the type of random choices.
+
+    The type `Choice` denotes an event which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
+    """
+
     @abc.abstractmethod
     def filter(self, selection: Selection) -> "Choice":
         pass
@@ -277,6 +283,10 @@ class Choice(Pytree):
 
 @dataclass
 class EmptyChoice(Choice):
+    """
+    A `Choice` implementor which denotes an empty event.
+    """
+
     def flatten(self):
         return (), ()
 
@@ -1198,6 +1208,16 @@ class GenerativeFunction(Pytree):
     ) -> Trace:
         raise NotImplementedError
 
+
+@dataclass
+class JAXGenerativeFunction(GenerativeFunction, Pytree):
+    """A `GenerativeFunction` subclass for JAX compatible generative
+    functions.
+
+    Mixing in this class denotes that a generative function implementation can be used within a calling context where JAX transformations are being applied, or JAX tracing is being applied (e.g. `jax.jit`). As a callee in other generative functions, this type exposes an `__abstract_call__` method which can be use to customize the behavior under abstract tracing (a default is provided, and users are not expected to interact with this functionality).
+
+    Compatibility with JAX tracing allows generative functions that mixin this class to expose several default methods which support convenient access to gradient computation using `jax.grad`."""
+
     # This is used to support tracing.
     # Below, a default implementation: GenerativeFunctions
     # may customize this to improve compilation time.
@@ -1209,12 +1229,6 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return retval
 
-
-@dataclass
-class JAXGenerativeFunction(GenerativeFunction, Pytree):
-    """A `GenerativeFunction` subclass for JAX compatible generative
-    functions."""
-
     @typecheck
     def unzip(
         self,
@@ -1223,6 +1237,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], FloatArray],
         Callable[[Choice, Tuple], Any],
     ]:
+        """
+        The `unzip` method expects a fixed (under gradients) `Choice` argument, and returns two `Callable` instances: the first exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> score` where `score` is the log density returned by the `assess` method, and the second exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the returned value from the `assess` method.
+
+        Arguments:
+            fixed: A fixed choice map.
+        """
+
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
