@@ -161,7 +161,7 @@ class TestSimpleSMC:
         def outlier():
             return genjax.normal(0.0, 1.0) @ "reflection_point"
 
-        branching = genjax.SwitchCombinator.new(outlier, outlier)
+        branching = genjax.Switch(outlier, outlier)
 
         @genjax.Map(in_axes=(0,))
         @genjax.Static

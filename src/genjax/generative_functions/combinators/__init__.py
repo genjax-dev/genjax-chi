@@ -14,6 +14,7 @@
 
 from genjax._src.generative_functions.combinators.masking_combinator import Masking
 from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+    Switch,
     SwitchCombinator,
 )
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
@@ -34,6 +35,7 @@ __all__ = [
     "MapCombinator",
     "Repeat",
     "Unfold",
+    "Switch",
     "SwitchCombinator",
     "vector_choice_map",
     "indexed_select",
