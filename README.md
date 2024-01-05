@@ -1,6 +1,6 @@
 <br>
 <p align="center">
-<img width="400px" src="https://raw.githubusercontent.com/probcomp/genjax/main/docs/assets/img/logo.png?token=GHSAT0AAAAAABYGVMC6WSATH2PKWLSTATBIZMYON5A"/>
+<img width="400px" src="./docs/assets/img/logo.png"/>
 </p>
 <br>
 
