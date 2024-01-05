@@ -1,4 +1,4 @@
-# Modeling & inference notebooks
+# Tutorial notebooks
 
 !!! info "Link to the notebook repository"
 

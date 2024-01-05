@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="McCoy Reynolds Becker">
+
+<title>Gen ⊗ JAX – genjax_scratch</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-sidebar floating">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+      <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"></ol></nav>
+      <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+      </a>
+      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-center sidebar-header">
+      <a href="../index.html" class="sidebar-logo-link">
+      <img src="../logo.png" alt="" class="sidebar-logo py-0 d-lg-inline d-none">
+      </a>
+      <div class="sidebar-tools-main tools-wide">
+    <a href="../" rel="" title="Home" class="quarto-navigation-tool px-1" aria-label="Home"><i class="bi bi-house-heart"></i></a>
+    <a href="http://probcomp.csail.mit.edu/" rel="" title="MIT Probabilistic Computing Project" class="quarto-navigation-tool px-1" aria-label="MIT Probabilistic Computing Project"><i class="bi bi-building"></i></a>
+    <a href="https://github.com/probcomp/genjax" rel="" title="GitHub repository" class="quarto-navigation-tool px-1" aria-label="GitHub repository"><i class="bi bi-github"></i></a>
+</div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false">
+ <span class="menu-text">Getting started</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../concepts/introduction/intro_to_genjax.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../concepts/combinators/intro_to_combinators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">(WIP) Generative function combinators</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="false">
+ <span class="menu-text">Inference programming</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../intermediate/gaussian_processes/gaussian_processes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">(WIP) Gaussian processes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../advanced/gen_sp/gen_sp.ipynb" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><code>GenSP</code> (density estimates)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+
+<div class="cell" data-tags="[]" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> genjax</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@genjax.lang</span>(genjax.Static)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model(x):</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> genjax.normal(<span class="fl">0.0</span>, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"x"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> genjax.normal(x, <span class="fl">1.0</span>) <span class="op">@</span> <span class="st">"y"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>jaxpr, _ <span class="op">=</span> model.stage(<span class="fl">3.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>jaxpr</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div class="ansi-escaped-output">
+<pre>let _normal = { <span class="ansi-blue-fg ansi-bold">lambda </span>; a<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>    b<span class="ansi-magenta-fg">:f32[1]</span> = pjit[
+      name=_normal_real
+      jaxpr={ <span class="ansi-blue-fg ansi-bold">lambda </span>; c<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>          d<span class="ansi-magenta-fg">:f32[1]</span> = pjit[
+            name=_uniform
+            jaxpr={ <span class="ansi-blue-fg ansi-bold">lambda </span>; e<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> f<span class="ansi-magenta-fg">:f32[]</span> g<span class="ansi-magenta-fg">:f32[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>                h<span class="ansi-magenta-fg">:f32[1]</span> = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] f
+                i<span class="ansi-magenta-fg">:f32[1]</span> = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] g
+                j<span class="ansi-magenta-fg">:u32[1]</span> = random_bits[bit_width=32 shape=(1,)] e
+                k<span class="ansi-magenta-fg">:u32[1]</span> = shift_right_logical j 9
+                l<span class="ansi-magenta-fg">:u32[1]</span> = or k 1065353216
+                m<span class="ansi-magenta-fg">:f32[1]</span> = bitcast_convert_type[new_dtype=float32] l
+                n<span class="ansi-magenta-fg">:f32[1]</span> = sub m 1.0
+                o<span class="ansi-magenta-fg">:f32[1]</span> = sub i h
+                p<span class="ansi-magenta-fg">:f32[1]</span> = mul n o
+                q<span class="ansi-magenta-fg">:f32[1]</span> = add p h
+                r<span class="ansi-magenta-fg">:f32[1]</span> = max h q
+              <span class="ansi-blue-fg ansi-bold">in </span>(r,) }
+          ] c -0.9999999403953552 1.0
+          s<span class="ansi-magenta-fg">:f32[1]</span> = erf_inv d
+          t<span class="ansi-magenta-fg">:f32[1]</span> = mul 1.4142135381698608 s
+        <span class="ansi-blue-fg ansi-bold">in </span>(t,) }
+    ] a
+  <span class="ansi-blue-fg ansi-bold">in </span>(b,) } in
+let _normal_real = { <span class="ansi-blue-fg ansi-bold">lambda </span>; c<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>    d<span class="ansi-magenta-fg">:f32[1]</span> = pjit[
+      name=_uniform
+      jaxpr={ <span class="ansi-blue-fg ansi-bold">lambda </span>; e<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> f<span class="ansi-magenta-fg">:f32[]</span> g<span class="ansi-magenta-fg">:f32[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>          h<span class="ansi-magenta-fg">:f32[1]</span> = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] f
+          i<span class="ansi-magenta-fg">:f32[1]</span> = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] g
+          j<span class="ansi-magenta-fg">:u32[1]</span> = random_bits[bit_width=32 shape=(1,)] e
+          k<span class="ansi-magenta-fg">:u32[1]</span> = shift_right_logical j 9
+          l<span class="ansi-magenta-fg">:u32[1]</span> = or k 1065353216
+          m<span class="ansi-magenta-fg">:f32[1]</span> = bitcast_convert_type[new_dtype=float32] l
+          n<span class="ansi-magenta-fg">:f32[1]</span> = sub m 1.0
+          o<span class="ansi-magenta-fg">:f32[1]</span> = sub i h
+          p<span class="ansi-magenta-fg">:f32[1]</span> = mul n o
+          q<span class="ansi-magenta-fg">:f32[1]</span> = add p h
+          r<span class="ansi-magenta-fg">:f32[1]</span> = max h q
+        <span class="ansi-blue-fg ansi-bold">in </span>(r,) }
+    ] c -0.9999999403953552 1.0
+    s<span class="ansi-magenta-fg">:f32[1]</span> = erf_inv d
+    t<span class="ansi-magenta-fg">:f32[1]</span> = mul 1.4142135381698608 s
+  <span class="ansi-blue-fg ansi-bold">in </span>(t,) } in
+let _uniform = { <span class="ansi-blue-fg ansi-bold">lambda </span>; e<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> f<span class="ansi-magenta-fg">:f32[]</span> g<span class="ansi-magenta-fg">:f32[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>    h<span class="ansi-magenta-fg">:f32[1]</span> = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] f
+    i<span class="ansi-magenta-fg">:f32[1]</span> = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] g
+    j<span class="ansi-magenta-fg">:u32[1]</span> = random_bits[bit_width=32 shape=(1,)] e
+    k<span class="ansi-magenta-fg">:u32[1]</span> = shift_right_logical j 9
+    l<span class="ansi-magenta-fg">:u32[1]</span> = or k 1065353216
+    m<span class="ansi-magenta-fg">:f32[1]</span> = bitcast_convert_type[new_dtype=float32] l
+    n<span class="ansi-magenta-fg">:f32[1]</span> = sub m 1.0
+    o<span class="ansi-magenta-fg">:f32[1]</span> = sub i h
+    p<span class="ansi-magenta-fg">:f32[1]</span> = mul n o
+    q<span class="ansi-magenta-fg">:f32[1]</span> = add p h
+    r<span class="ansi-magenta-fg">:f32[1]</span> = max h q
+  <span class="ansi-blue-fg ansi-bold">in </span>(r,) } in
+{ <span class="ansi-blue-fg ansi-bold">lambda </span>; u<span class="ansi-magenta-fg">:f32[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>    v<span class="ansi-magenta-fg">:f32[]</span> = trace[
+      _jaxpr={ <span class="ansi-blue-fg ansi-bold">lambda </span>; w<span class="ansi-magenta-fg">:f32[]</span> x<span class="ansi-magenta-fg">:f32[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>          y<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> = random_seed[impl=fry] 0
+          z<span class="ansi-magenta-fg">:u32[2]</span> = random_unwrap y
+          ba<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> = random_wrap[impl=fry] z
+          bb<span class="ansi-magenta-fg">:f32[1]</span> = pjit[name=_normal jaxpr=_normal] ba
+          bc<span class="ansi-magenta-fg">:f32[1]</span> = mul bb 1.0
+          bd<span class="ansi-magenta-fg">:f32[1]</span> = add bc 0.0
+          be<span class="ansi-magenta-fg">:f32[]</span> = convert_element_type[new_dtype=float32 weak_type=False] x
+          bf<span class="ansi-magenta-fg">:f32[1]</span> = mul bd be
+          bg<span class="ansi-magenta-fg">:f32[]</span> = convert_element_type[new_dtype=float32 weak_type=False] w
+          bh<span class="ansi-magenta-fg">:f32[1]</span> = add bf bg
+          bi<span class="ansi-magenta-fg">:f32[]</span> = reshape[dimensions=None new_sizes=()] bh
+        <span class="ansi-blue-fg ansi-bold">in </span>(bi,) }
+      in_tree=PyTreeDef((CustomNode(TFPDistribution[(&lt;class 'tensorflow_probability.substrates.jax.distributions.normal.Normal'&gt;,)], []), CustomNode(PytreeConst[('x',)], []), *, *))
+      num_consts=0
+      out_tree=&lt;function transformation_with_aux.&lt;locals&gt;.&lt;lambda&gt; at 0x147764220&gt;
+    ] 0.0 1.0
+    _<span class="ansi-magenta-fg">:f32[]</span> = trace[
+      _jaxpr={ <span class="ansi-blue-fg ansi-bold">lambda </span>; bj<span class="ansi-magenta-fg">:f32[]</span> bk<span class="ansi-magenta-fg">:f32[]</span>. <span class="ansi-blue-fg ansi-bold">let
+</span>          bl<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> = random_seed[impl=fry] 0
+          bm<span class="ansi-magenta-fg">:u32[2]</span> = random_unwrap bl
+          bn<span class="ansi-magenta-fg">:key&lt;fry&gt;[]</span> = random_wrap[impl=fry] bm
+          bo<span class="ansi-magenta-fg">:f32[1]</span> = pjit[name=_normal jaxpr=_normal] bn
+          bp<span class="ansi-magenta-fg">:f32[1]</span> = mul bo 1.0
+          bq<span class="ansi-magenta-fg">:f32[1]</span> = add bp 0.0
+          br<span class="ansi-magenta-fg">:f32[]</span> = convert_element_type[new_dtype=float32 weak_type=False] bk
+          bs<span class="ansi-magenta-fg">:f32[1]</span> = mul bq br
+          bt<span class="ansi-magenta-fg">:f32[1]</span> = add bs bj
+          bu<span class="ansi-magenta-fg">:f32[]</span> = reshape[dimensions=None new_sizes=()] bt
+        <span class="ansi-blue-fg ansi-bold">in </span>(bu,) }
+      in_tree=PyTreeDef((CustomNode(TFPDistribution[(&lt;class 'tensorflow_probability.substrates.jax.distributions.normal.Normal'&gt;,)], []), CustomNode(PytreeConst[('y',)], []), *, *))
+      num_consts=0
+      out_tree=&lt;function transformation_with_aux.&lt;locals&gt;.&lt;lambda&gt; at 0x1477654e0&gt;
+    ] v 1.0
+  <span class="ansi-blue-fg ansi-bold">in </span>() }</pre>
+</div>
+</div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>genjax.interpreters.forward</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<pre><code>&lt;function genjax._src.core.interpreters.forward.forward(f: collections.abc.Callable)&gt;</code></pre>
+</div>
+</div>
+<div class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax <span class="im">import</span> trace_p</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> genjax.core.interpreters <span class="im">import</span> StatefulHandler</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-tags="[]" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="at">@dataclass</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DependencyTrackingInterpreter(Pytree):</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    out_dependencies: <span class="bu">dict</span> <span class="op">=</span> {}</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    in_dependencies: <span class="bu">dict</span> <span class="op">=</span> {}</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> flatten(<span class="va">self</span>):</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (), ()</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _eval_jaxpr_forward(</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>        _jaxpr: jc.Jaxpr,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>        consts: List[Value],</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>        args: List[Value],</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    ):</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>        env <span class="op">=</span> Environment.new()</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>        jax_util.safe_map(env.write, _jaxpr.constvars, consts)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>        jax_util.safe_map(env.write, _jaxpr.invars, args)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> eqn <span class="kw">in</span> _jaxpr.eqns:</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>            invals <span class="op">=</span> jax_util.safe_map(env.read, eqn.invars)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>            subfuns, params <span class="op">=</span> eqn.primitive.get_bind_params(eqn.params)</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>            args <span class="op">=</span> subfuns <span class="op">+</span> invals</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> eqn.primitive <span class="op">==</span> trace_p:</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>                <span class="co"># Relying on special info about how `trace_p` is setup (and how it invokes</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>                <span class="co"># this thing called `Primitive.bind`)</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>                in_tree <span class="op">=</span> params.get(<span class="st">"in_tree"</span>)</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>                num_consts <span class="op">=</span> params.get(<span class="st">"num_consts"</span>)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>                passed_in_tracers <span class="op">=</span> args[num_consts:]</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>                gen_fn, addr, <span class="op">*</span>call_args <span class="op">=</span> jtu.tree_unflatten(in_tree, passed_in_tracers)</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>                </span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>                <span class="co"># outvar is the register on left hand side of equations in Jaxpr</span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> outvar <span class="kw">in</span> eqn.outvars:</span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>                    out_dependencies[outvar] <span class="op">=</span> addr</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>                    </span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> invar <span class="kw">in</span> eqn.invars:</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>                    in_dependencies[invar] <span class="op">=</span> addr</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>                    </span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>                outvals <span class="op">=</span> eqn.primitive.bind(<span class="op">*</span>args, <span class="op">**</span>params)    </span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>                outvals <span class="op">=</span> eqn.primitive.bind(<span class="op">*</span>args, <span class="op">**</span>params)</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">not</span> eqn.primitive.multiple_results:</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>                outvals <span class="op">=</span> [outvals]</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>            jax_util.safe_map(env.write, eqn.outvars, outvals)</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> jax_util.safe_map(env.read, _jaxpr.outvars)</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> run_interpreter(<span class="va">self</span>, fn, <span class="op">*</span>args, <span class="op">**</span>kwargs):</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>        <span class="kw">def</span> _inner(<span class="op">*</span>args):</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> fn(<span class="op">*</span>args, <span class="op">**</span>kwargs)</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>        _closed_jaxpr, (flat_args, _, out_tree) <span class="op">=</span> stage(_inner)(<span class="op">*</span>args)</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>        _jaxpr, consts <span class="op">=</span> _closed_jaxpr.jaxpr, _closed_jaxpr.literals</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>        flat_out <span class="op">=</span> <span class="va">self</span>._eval_jaxpr_forward(</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>            _jaxpr,</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>            consts,</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>            flat_args,</span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> jtu.tree_unflatten(out_tree(), flat_out)</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> track_dependencies(f: Callable):</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> wrapped(<span class="op">*</span>args):</span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>        interpreter <span class="op">=</span> DependencyTrackingInterpreter()</span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> interpreter.run_interpreter(</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>            f,</span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span>args,</span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> wrapper</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">© Copyright 2022 <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a><div class="toc-actions"><div><i class="bi bi-github"></i></div><div class="action-links"><p><a href="https://github.dev/probcomp/genjax/blob/main/hidden/genjax_scratch.ipynb" class="toc-action">Edit this page</a></p><p><a href="https://github.com/probcomp/genjax/issues/new" class="toc-action">Report an issue</a></p></div></div></div>
+    <div class="nav-footer-right">
+      &nbsp;
+    </div>
+  </div>
+</footer>
+
+
+
+</body></html>

@@ -1,6 +1,10 @@
-# Distribution reference
+---
+hide:
+  - toc
+---
+# Distribution reference 
 
-Below, we list common distribution generative functions (currently, all use `TFPDistribution`), and their exported names.
+Below, we list all the public exported distribution generative functions and (when applicable) their shorthand (instanced) names.
 
 ::: genjax.generative_functions.distributions
     options:
