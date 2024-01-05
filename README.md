@@ -1,6 +1,6 @@
 <br>
 <p align="center">
-<img width="400px" src="./docs/assets/img/logo.png"/>
+<img width="400px" src="https://raw.githubusercontent.com/probcomp/genjax/main/docs/assets/img/logo.png?token=GHSAT0AAAAAABYGVMC6WSATH2PKWLSTATBIZMYON5A"/>
 </p>
 <br>
 
@@ -45,6 +45,77 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 </div>
 
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
+
+## Quickstart
+
+Install GenJAX via [PyPI](https://pypi.org/project/genjax/):
+
+```sh
+pip install genjax
+```
+
+Then install [JAX](https://github.com/google/jax) using [this
+guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the
+command for the architecture you're targeting. To run GenJAX without GPU
+support:
+
+```sh
+pip install jax[cpu]==0.4.20
+```
+
+On a Linux machine with a GPU, run either of the following commands, depending
+on which CUDA version (11 or 12) you have installed:
+
+```sh
+pip install jax[cuda11_pip]==0.4.20
+pip install jax[cuda12_pip]==0.4.20
+```
+
+The following code snippet defines a generative function called `beta_bernoulli` that
+
+- takes a shape parameter `beta`
+- uses this to create and draw a value `p` from a [Beta
+  distribution](https://en.wikipedia.org/wiki/Beta_distribution)
+- Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
+  returns that value
+
+JIT-compiles the function with JAX and then runs it with GenJAX:
+
+```python
+import genjax
+import jax
+
+@genjax.Static
+def beta_bernoulli(beta):
+    p = genjax.beta(0.0, beta) @ "p"
+    v = genjax.bernoulli(p) @ "v"
+    return v
+
+key = jax.random.PRNGKey(314159)
+trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
+choices = trace.get_choices()
+```
+
+`choices` is a record of all random choices made during the execution of the
+generative function `beta_bernoulli`. Print it with a `genjax.console()`
+instance:
+
+```python
+console = genjax.console()
+console.print(choices)
+```
+
+resulting in:
+
+```
+(HierarchicalChoiceMap)
+├── :p
+│   └── (ValueChoice)
+│       └──  f32[]
+└── :v
+    └── (ValueChoice)
+        └──  i32[]
+```
 
 ## References
 
