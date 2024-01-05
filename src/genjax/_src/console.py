@@ -115,7 +115,7 @@ def console(
             ],
             **pretty_kwargs,
         }
-    except:
+    except Exception:
         traceback_kwargs = {
             "word_wrap": True,
             "show_locals": False,
