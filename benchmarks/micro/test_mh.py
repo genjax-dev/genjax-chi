@@ -15,7 +15,7 @@
 
 import genjax
 import jax
-from genjax import MetropolisHastings, Static, normal, tfp_uniform, trace
+from genjax import MetropolisHastings, Static, normal, uniform, trace
 
 
 @Static
@@ -27,7 +27,7 @@ def normalModel():
 @Static
 def proposal(nowAt, d):
     current = nowAt["x"]
-    x = trace("x", tfp_uniform)(current - d, current + d)
+    x = trace("x", uniform)(current - d, current + d)
     return x
 
 
