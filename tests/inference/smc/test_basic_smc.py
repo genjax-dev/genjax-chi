@@ -53,7 +53,7 @@ class TestSimpleSMC:
             choice_map({"x": jnp.array([1.0])}),
         )
         key, sub_key = jax.random.split(key)
-        smc_state = smc.smc_update().apply(
+        smc_state = smc.SMCForwardUpdate().apply(
             sub_key,
             smc_state,
             (diff(1, UnknownChange), diff(init_state, NoChange)),
@@ -88,7 +88,7 @@ class TestSimpleSMC:
                 obs_slice = xs
                 t = t + 1
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_update().apply(
+                smc_state = smc.SMCForwardUpdate().apply(
                     sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
@@ -133,14 +133,14 @@ class TestSimpleSMC:
                 obs_slice = xs
                 t = t + 1
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_update().apply(
+                smc_state = smc.SMCForwardUpdate().apply(
                     sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_resample(smc.multinomial_resampling).apply(
+                smc_state = smc.SMCResample(smc.multinomial_resampling).apply(
                     sub_key, smc_state
                 )
                 return (key, smc_state, t), (smc_state,)
@@ -208,6 +208,6 @@ class TestSimpleSMC:
             tree_diff_unknown_change(1),
             tree_diff_no_change(jnp.ones(361)),
         )
-        smc_state = jax.jit(genjax.smc.smc_update().apply)(
+        smc_state = jax.jit(smc.SMCForwardUpdate().apply)(
             key, smc_state, argdiffs, make_choice_map(1)
         )

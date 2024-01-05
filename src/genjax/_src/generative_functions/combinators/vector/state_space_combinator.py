@@ -20,7 +20,6 @@ from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction,
 from genjax._src.core.typing import (
     Any,
     FloatArray,
-    Int,
     IntArray,
     PRNGKey,
     Tuple,
@@ -86,32 +85,6 @@ class StateSpaceCombinator(GenerativeFunction):
         return (self.initial_model, self.transition_model), (self.max_length,)
 
     @typecheck
-    @classmethod
-    def new(
-        cls,
-        initial_model: GenerativeFunction,
-        transition_model: GenerativeFunction,
-        max_length: Int,
-    ) -> "StateSpaceCombinator":
-        """The preferred constructor for `StateSpaceCombinator` generative
-        function instances. The shorthand symbol is `Unfold =
-        StateSpaceCombinator.new`.
-
-        Arguments:
-            initial_model: A `GenerativeFunction` instance.
-            transition_model: A kernel `GenerativeFunction` instance.
-            max_length: A static maximum possible unroll length.
-
-        Returns:
-            instance: A `StateSpaceCombinator` instance.
-        """
-        return StateSpaceCombinator(
-            max_length,
-            initial_model,
-            transition_model,
-        )
-
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -155,7 +128,7 @@ def StateSpace(
     *, max_length, initial_model, transition_model
 ) -> Callable[[Callable], StateSpaceCombinator]:
     def decorator(f) -> StateSpaceCombinator:
-        gf = StateSpaceCombinator.new(
+        gf = StateSpaceCombinator(
             max_length=max_length,
             initial_model=initial_model,
             transition_model=transition_model,

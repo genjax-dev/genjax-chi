@@ -50,14 +50,9 @@ class DiscreteHMMConfiguration(Pytree):
     adjacency_distance_obs: IntArray
     sigma_trans: FloatArray
     sigma_obs: FloatArray
-    transition_tensor: FloatArray
-    observation_tensor: FloatArray
 
     def flatten(self):
-        return (
-            self.transition_tensor,
-            self.observation_tensor,
-        ), (
+        return (), (
             self.linear_grid_dim,
             self.adjacency_distance_trans,
             self.adjacency_distance_obs,
@@ -73,40 +68,22 @@ class DiscreteHMMConfiguration(Pytree):
             config.adjacency_distance_obs,
             config.sigma_trans,
             config.sigma_obs,
-            jnp.array(transition_tensor),
-            jnp.array(observation_tensor),
         )
 
-    @classmethod
-    def new(
-        cls,
-        linear_grid_dim: IntArray,
-        adjacency_distance_trans: IntArray,
-        adjacency_distance_obs: IntArray,
-        sigma_trans: FloatArray,
-        sigma_obs: FloatArray,
-    ):
-        transition_tensor = scaled_circulant(
-            linear_grid_dim,
-            adjacency_distance_trans,
-            sigma_trans if sigma_trans > 0.0 else -np.inf,
-            1 / sigma_trans if sigma_trans > 0.0 else -np.inf,
+    def transition_tensor(self):
+        return scaled_circulant(
+            self.linear_grid_dim,
+            self.adjacency_distance_trans,
+            self.sigma_trans if self.sigma_trans > 0.0 else -np.inf,
+            1 / self.sigma_trans if self.sigma_trans > 0.0 else -np.inf,
         )
 
-        observation_tensor = scaled_circulant(
-            linear_grid_dim,
-            adjacency_distance_obs,
-            sigma_obs if sigma_obs > 0.0 else -np.inf,
-            1 / sigma_obs if sigma_obs > 0.0 else np.inf,
-        )
-        return DiscreteHMMConfiguration(
-            linear_grid_dim,
-            adjacency_distance_trans,
-            adjacency_distance_obs,
-            sigma_trans,
-            sigma_obs,
-            jnp.array(transition_tensor),
-            jnp.array(observation_tensor),
+    def observation_tensor(self):
+        return scaled_circulant(
+            self.linear_grid_dim,
+            self.adjacency_distance_obs,
+            self.sigma_obs if self.sigma_obs > 0.0 else -np.inf,
+            1 / self.sigma_obs if self.sigma_obs > 0.0 else np.inf,
         )
 
 
@@ -123,9 +100,10 @@ def forward_filtering_backward_sampling(
     key: PRNGKey, config: DiscreteHMMConfiguration, observation_sequence
 ):
     init = int(config.linear_grid_dim / 2)
-    prior = jnp.log(jax.nn.softmax(config.transition_tensor[init, :]))
-    transition_n = jnp.log(jax.nn.softmax(config.transition_tensor))
-    obs_n = jnp.log(jax.nn.softmax(config.observation_tensor))
+    tt = config.transition_tensor()
+    prior = jnp.log(jax.nn.softmax(tt[init, :]))
+    transition_n = jnp.log(jax.nn.softmax(tt))
+    obs_n = jnp.log(jax.nn.softmax(config.observation_tensor()))
 
     # Computing the alphas and forward filter distributions:
     #
@@ -297,4 +275,3 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
 ##############
 
 DiscreteHMM = _DiscreteHMMLatentSequencePosterior()
-discrete_hmm_config = DiscreteHMMConfiguration.new

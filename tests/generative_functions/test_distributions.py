@@ -14,7 +14,7 @@
 
 import genjax
 import jax
-from genjax import ChoiceValue, EmptyChoice, mask
+from genjax import ChoiceValue, EmptyChoice, Mask
 from genjax.incremental import NoChange, UnknownChange, diff
 
 
@@ -43,7 +43,7 @@ class TestDistributions:
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
             key,
-            mask(True, ChoiceValue(1.0)),
+            Mask(True, ChoiceValue(1.0)),
             (0.0, 1.0),
         )
         v = tr.strip().get_value()
@@ -53,7 +53,7 @@ class TestDistributions:
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
             key,
-            mask(False, ChoiceValue(1.0)),
+            Mask(False, ChoiceValue(1.0)),
             (0.0, 1.0),
         )
         v = tr.strip().get_value()
@@ -123,7 +123,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(True, ChoiceValue(1.0)),
+            Mask(True, ChoiceValue(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == 1.0
@@ -137,7 +137,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(True, ChoiceValue(1.0)),
+            Mask(True, ChoiceValue(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == 1.0
@@ -151,7 +151,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(False, ChoiceValue(1.0)),
+            Mask(False, ChoiceValue(1.0)),
             (diff(0.0, NoChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()
@@ -163,7 +163,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            mask(False, ChoiceValue(1.0)),
+            Mask(False, ChoiceValue(1.0)),
             (diff(1.0, UnknownChange), diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()

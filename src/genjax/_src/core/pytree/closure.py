@@ -28,13 +28,6 @@ class DynamicClosure(Pytree):
     def flatten(self):
         return (self.dyn_args,), (self.fn,)
 
-    @classmethod
-    def new(cls, callable, *dyn_args):
-        if isinstance(callable, DynamicClosure):
-            return DynamicClosure(callable.fn, (*callable.dyn_args, *dyn_args))
-        else:
-            return DynamicClosure(callable, dyn_args)
-
     def __call__(self, *args):
         return self.fn(*self.dyn_args, *args)
 
@@ -44,4 +37,4 @@ class DynamicClosure(Pytree):
 
 
 def dynamic_closure(*args):
-    return lambda fn: DynamicClosure.new(fn, *args)
+    return lambda fn: DynamicClosure(fn, args)

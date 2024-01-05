@@ -120,7 +120,7 @@ class DebuggerTags(harvest.ReapState):
 
     @classmethod
     def new(cls):
-        trie = Trie.new()
+        trie = Trie()
         return DebuggerTags(trie)
 
     def sow(self, values, tree, meta, _):

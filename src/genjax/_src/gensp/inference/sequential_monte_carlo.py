@@ -373,6 +373,8 @@ class SMCSequencePropagator(SMCPropagator):
     def flatten(self):
         return (self.sequence,)
 
+    # TODO(colin): possible alternatives to this are overloading `+` operator
+    # or adding a `.then` method
     @classmethod
     def new(fst: SMCPropagator, snd: SMCPropagator):
         if isinstance(fst, SMCSequencePropagator) and isinstance(
