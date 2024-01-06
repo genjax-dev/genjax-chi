@@ -792,21 +792,18 @@ class Mask(Pytree):
             print(console.render(masked.unmask()))
             ```
 
-            Here's an example which uses `jax.experimental.checkify`. To enable runtime checks, the user must enable them explicitly in `genjax`.
+            To enable runtime checks, the user must enable them explicitly in `genjax`.
 
             ```python exec="yes" source="tabbed-left"
             import jax
             import jax.numpy as jnp
-            import jax.experimental.checkify as checkify
             import genjax
-            console = genjax.console()
-            genjax.global_options.allow_checkify(True)
+            console = genjax.console(enforce_checkify=True)
 
             masked = genjax.mask(False, jnp.ones(5))
-            err, _ = checkify.checkify(masked.unmask)()
-            print(console.render(err))
-
-            genjax.global_options.allow_checkify(False)
+            with console:
+                err, _ = checkify(masked.unmask)()
+                err.throw()
             ```
         """
 
@@ -998,7 +995,7 @@ class GenerativeFunction(Pytree):
             import genjax
             console = genjax.console()
 
-            @genjax.lang
+            @genjax.Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1054,7 +1051,7 @@ class GenerativeFunction(Pytree):
             from genjax import Static
             console = genjax.console()
 
-            @gen(Static)
+            @Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1171,7 +1168,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self,
-        choice: Choice,
+        chm: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """> Given a complete choice map indicating constraints ($u$) for all

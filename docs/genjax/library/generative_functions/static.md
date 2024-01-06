@@ -12,7 +12,6 @@ Below, we illustrate a simple example:
 from genjax import beta 
 from genjax import bernoulli 
 from genjax import uniform 
-from genjax import gen
 from genjax import Static
 
 @gen(Static)
@@ -45,10 +44,9 @@ Returning to our example above:
 import genjax
 from genjax import beta 
 from genjax import bernoulli 
-from genjax import gen
 from genjax import Static
 
-@gen(Static)
+@genjax.Static
 def beta_bernoulli_process(u):
     # Invoking `trace` can be sweetened, or unsweetened.
     p = genjax.trace("p", beta)(0.0, u) # not sweet
@@ -60,7 +58,7 @@ Now, programs written in the DSL which utilize `trace` have generative function 
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import jax
-console = genjax.pretty()
+console = genjax.console()
 
 key = jax.random.PRNGKey(314159)
 tr = beta_bernoulli_process.simulate(key, (2.0, ))
