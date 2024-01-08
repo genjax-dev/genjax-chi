@@ -34,5 +34,5 @@ scratch
 docs/_build
 notebooks/hidden
 notebooks/dippl/data
-
+site
 /.luarc.json
