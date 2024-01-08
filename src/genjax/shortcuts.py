@@ -67,14 +67,14 @@ def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
         chm["x"] = 3.0
         ```
 
-    When called with a dictionary argument, the equivalent HierarchicalChoiceMap
+    When called with a dictionary argument, the equivalent :py:class:`HierarchicalChoiceMap`
     will be created and returned. (Exception: in the event that all the keys in
-    the dict are integers, an IndexedChoiceMap is produced.)
+    the dict are integers, an :py:class:`IndexedChoiceMap` is produced.)
 
-    When called with a single argument of any other type, constructs a ChoiceValue.
+    When called with a single argument of any other type, constructs a :py:class:`ChoiceValue`.
 
-    Finally, if called with a sequence of other ChoiceMap objects, produces a
-    DisjointUnionChoiceMap.
+    Finally, if called with a sequence of other :py:class:`ChoiceMap` objects, produces a
+    :py:class:`DisjointUnionChoiceMap`.
     """
     if len(vs) == 0:
         return HierarchicalChoiceMap()
@@ -100,10 +100,10 @@ def indexed_choice_map(
 ) -> Union[IndexedChoiceMap, EmptyChoice]:
     """Construct an indexed choice map from an array of indices and an inner choice map.
 
-    The indices may be a bare integer, or a list or [[jnp.Array]] of integers; it will be
-    promoted to a [[jnp.Array]] if needed.
+    The indices may be a bare integer, or a list or :py:class:`jnp.Array` of integers;
+    it will be promoted to a :py:class:`jnp.Array` if needed.
 
-    The inner choice map can of any form accepted by the shortcut [[choice_map]].
+    The inner choice map can of any form accepted by the shortcut py:func:`choice_map`.
     """
     if isinstance(inner, EmptyChoice):
         return inner
@@ -116,8 +116,8 @@ def indexed_choice_map(
 def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
     """Construct a vector choice map from the given one.
 
-    If `c` is the [[EmptyChoice]], it is returned unmodified; otherwise
-    `c` may be of any type accepted by the [[choice_map]] shortcut;
+    If `c` is the :py:class:`EmptyChoice`, it is returned unmodified; otherwise
+    `c` may be of any type accepted by the :py:func:`choice_map` shortcut;
     the result is `VectorChoiceMap(choice_map(c))`.
     """
     if isinstance(c, EmptyChoice):
