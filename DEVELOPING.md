@@ -108,20 +108,14 @@ version of `jax` and `jaxlib` resolve with the versions of packages in the
 ### Documentation environment setup
 
 If you want to deploy the documentation and Jupyter notebooks to static HTML,
-you'll need [quarto](https://quarto.org/docs/get-started/).
-
-In addition, you'll need `mkdocs`:
-
-```bash
-pip install mkdocs
-```
+you'll need to install [quarto](https://quarto.org/docs/get-started/) on your
+machine.
 
 GenJAX builds documentation using an insiders-only version of
 [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). GenJAX will
 attempt to fetch this repository during the documentation build step.
 
-With these dependencies installed (`mkdocs` into your active Python environment)
-and on path, you can fully build the documentation:
+Run the following command to fully build the documentation:
 
 ```bash
 nox -r -s docs-build
