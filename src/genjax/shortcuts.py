@@ -40,6 +40,10 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 
 def trie_from_dict(constraints: dict):
+    """Recurses over `constraints`, a Python dictionary, to produce the
+    Trie with the same structure. Non-dict values are mapped through
+    [[choice_map]].
+    """
     trie = Trie()
     for k, v in constraints.items():
         if isinstance(v, dict):
@@ -49,7 +53,10 @@ def trie_from_dict(constraints: dict):
     return trie
 
 
-def choice_map(*vs) -> ChoiceMap:
+ChoiceMappable = Union[Choice, dict]
+
+
+def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
     """Shortcut constructor for GenJAX ChoiceMap objects.
 
     When called with no arguments, returns an empty (mutable) choice map which
@@ -62,7 +69,7 @@ def choice_map(*vs) -> ChoiceMap:
 
     When called with a dictionary argument, the equivalent HierarchicalChoiceMap
     will be created and returned. (Exception: in the event that all the keys in
-    the dictory are integers, an IndexedChoiceMap is produced.)
+    the dict are integers, an IndexedChoiceMap is produced.)
 
     When called with a single argument of any other type, constructs a ChoiceValue.
 
@@ -83,16 +90,21 @@ def choice_map(*vs) -> ChoiceMap:
         else:
             return ChoiceValue(v)
     else:
-        if not all(map(lambda m: isinstance(m, ChoiceMap), vs)):
-            raise TypeError(
-                "To create a union ChoiceMap, all arguments must be ChoiceMaps"
-            )
-        return DisjointUnionChoiceMap(*vs)
+        if all(map(lambda m: isinstance(m, ChoiceMap), vs)):
+            return DisjointUnionChoiceMap(vs)
+        raise TypeError("To create a union ChoiceMap, all arguments must be ChoiceMaps")
 
 
 def indexed_choice_map(
-    ks: ArrayLike, inner: ChoiceMap
+    ks: ArrayLike, inner: ChoiceMappable
 ) -> Union[IndexedChoiceMap, EmptyChoice]:
+    """Construct an indexed choice map from an array of indices and an inner choice map.
+
+    The indices may be a bare integer, or a list or [[jnp.Array]] of integers; it will be
+    promoted to a [[jnp.Array]] if needed.
+
+    The inner choice map can of any form accepted by the shortcut [[choice_map]].
+    """
     if isinstance(inner, EmptyChoice):
         return inner
 
@@ -101,15 +113,16 @@ def indexed_choice_map(
     return IndexedChoiceMap(jnp.array(ks), choice_map(inner))
 
 
-def vector_choice_map(c):
+def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
+    """Construct a vector choice map from the given one.
+
+    If `c` is the [[EmptyChoice]], it is returned unmodified; otherwise
+    `c` may be of any type accepted by the [[choice_map]] shortcut;
+    the result is `VectorChoiceMap(choice_map(c))`.
+    """
     if isinstance(c, EmptyChoice):
         return c
-    elif isinstance(c, ChoiceMap):
-        return VectorChoiceMap(c)
-    elif isinstance(c, dict):
-        return VectorChoiceMap(choice_map(c))
-    else:
-        raise NotImplementedError(f"Creating VectorChoiceMap from {type(c)}")
+    return VectorChoiceMap(choice_map(c))
 
 
 def indexed_select(idx: Union[int, IntArray], *choices: Selection):
