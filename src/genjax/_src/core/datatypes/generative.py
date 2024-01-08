@@ -14,7 +14,6 @@
 
 import abc
 from dataclasses import dataclass, field
-from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -37,7 +36,6 @@ from genjax._src.core.typing import (
     Any,
     BoolArray,
     Callable,
-    Dict,
     FloatArray,
     IntArray,
     List,
@@ -1250,19 +1248,6 @@ class HierarchicalChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.trie,), ()
 
-    @classmethod
-    def from_dict(cls, constraints: Dict):
-        assert isinstance(constraints, Dict)
-        trie = Trie()
-        for k, v in constraints.items():
-            v = (
-                ChoiceValue(v)
-                if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-                else v
-            )
-            trie[k] = v
-        return HierarchicalChoiceMap(trie)
-
     def is_empty(self):
         return self.trie.is_empty()
 
@@ -1463,26 +1448,6 @@ class DisjointUnionChoiceMap(ChoiceMap):
 
 # Choices and choice maps
 choice_value = ChoiceValue
-
-
-def choice_map(
-    *vs,
-) -> Union[ChoiceValue, HierarchicalChoiceMap, DisjointUnionChoiceMap]:
-    if len(vs) == 0:
-        return HierarchicalChoiceMap()
-    elif len(vs) == 1:
-        v = vs[0]
-        if isinstance(v, dict):
-            return HierarchicalChoiceMap.from_dict(v)
-        else:
-            return ChoiceValue(v)
-    else:
-        if not all(map(lambda m: isinstance(m, ChoiceMap), vs)):
-            raise TypeError(
-                "To create a union ChoiceMap, all arguments must be ChoiceMaps"
-            )
-        return DisjointUnionChoiceMap(*vs)
-
 
 # TODO: experimental for dynamic addresses.
 # @dispatch

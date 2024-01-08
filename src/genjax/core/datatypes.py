@@ -27,7 +27,6 @@ from genjax._src.core.datatypes.generative import (
     NoneSelection,
     Selection,
     Trace,
-    choice_map,
     choice_value,
     select,
 )
@@ -50,7 +49,6 @@ __all__ = [
     "ChoiceValue",
     "choice_value",
     "HierarchicalChoiceMap",
-    "choice_map",
     "DisjointUnionChoiceMap",
     "Trace",
     "Selection",

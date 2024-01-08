@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee. 
+The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
 """
@@ -78,7 +78,7 @@ class MapTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap.new(self.inner.strip())
+        return VectorChoiceMap(self.inner.strip())
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -181,25 +181,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     def flatten(self):
         return (self.kernel,), (self.in_axes,)
-
-    @typecheck
-    @classmethod
-    def new(
-        cls,
-        kernel: JAXGenerativeFunction,
-        in_axes: Tuple,
-    ) -> "MapCombinator":
-        """The preferred direct constructor for `MapCombinator` generative function
-        instances.
-
-        Arguments:
-            kernel: A single `JAXGenerativeFunction` instance.
-            in_axes: A tuple specifying which `args` to broadcast over.
-
-        Returns:
-            instance: A `MapCombinator` instance.
-        """
-        return MapCombinator(in_axes, kernel)
 
     def __abstract_call__(self, *args) -> Any:
         return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)

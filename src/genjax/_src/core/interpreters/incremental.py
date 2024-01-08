@@ -121,10 +121,8 @@ class StaticIntChange(ChangeTangent):
     def flatten(self):
         return (), (self.dv,)
 
-    @classmethod
-    def new(cls, dv):
-        assert static_check_is_concrete(dv)
-        return StaticIntChange(dv)
+    def __post_init__(self):
+        assert static_check_is_concrete(self.dv)
 
     def should_flatten(self):
         return True
@@ -147,12 +145,9 @@ class Diff(Pytree):
     def flatten(self):
         return (self.primal, self.tangent), ()
 
-    # TODO(colin): ask McCoy: the check is safe to run from JAX, or no?
-    @classmethod
-    def new(cls, primal, tangent):
-        assert not isinstance(primal, Diff)
-        static_check_is_change_tangent(tangent)
-        return Diff(primal, tangent)
+    def __post_init__(self):
+        assert not isinstance(self.primal, Diff)
+        static_check_is_change_tangent(self.tangent)
 
     def get_primal(self):
         return self.primal
@@ -330,4 +325,4 @@ def incremental(f: Callable):
 # Shorthands #
 ##############
 
-diff = Diff.new
+diff = Diff

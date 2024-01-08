@@ -373,27 +373,6 @@ class SMCSequencePropagator(SMCPropagator):
     def flatten(self):
         return (self.sequence,)
 
-    # TODO(colin): possible alternatives to this are overloading `+` operator
-    # or adding a `.then` method
-    @classmethod
-    def new(fst: SMCPropagator, snd: SMCPropagator):
-        if isinstance(fst, SMCSequencePropagator) and isinstance(
-            snd, SMCSequencePropagator
-        ):
-            return SMCSequencePropagator(
-                [*fst.sequence, *snd.sequence],
-            )
-        elif isinstance(fst, SMCSequencePropagator):
-            return SMCSequencePropagator(
-                [*fst.sequence, snd],
-            )
-        elif isinstance(snd, SMCSequencePropagator):
-            return SMCSequencePropagator(
-                [fst, *snd.sequence],
-            )
-        else:
-            return SMCSequencePropagator([fst, snd])
-
     def propagate_target(self, target: Target, args_sequence: Sequence[Tuple]):
         for propagator, args in zip(self.sequence, args_sequence):
             target = propagator.propagate_target(target, *args)
