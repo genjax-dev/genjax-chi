@@ -157,7 +157,7 @@ def docs_build(session: Session) -> None:
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("mkdocs", "build")
+    session.run("poetry", "run", "mkdocs", "build")
     session.run("quarto", "render", "notebooks", external=True)
 
 
