@@ -11,8 +11,8 @@ Up front, here's a representative program, (with syntactic sugar, using the cons
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
-from genjax import beta 
-from genjax import bernoulli 
+from genjax import beta
+from genjax import bernoulli
 from genjax import Static
 
 @Static
@@ -35,6 +35,11 @@ The `Static` language is a common foundation for constructing models. It exposes
 Below, we illustrate a simple example:
 
 ```python
+from genjax import beta
+from genjax import bernoulli
+from genjax import uniform
+from genjax import Static
+
 @Static
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
@@ -63,8 +68,8 @@ Returning to our example above:
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
-from genjax import beta 
-from genjax import bernoulli 
+from genjax import beta
+from genjax import bernoulli
 from genjax import Static
 
 @Static

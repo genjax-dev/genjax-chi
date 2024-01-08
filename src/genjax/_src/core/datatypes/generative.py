@@ -51,11 +51,9 @@ from genjax._src.core.typing import (
 # Utilities #
 #############
 
-
 ########################
 # Generative datatypes #
 ########################
-
 
 #############
 # Selection #
@@ -773,12 +771,11 @@ class Mask(Pytree):
             print(console.render(masked.unmask()))
             ```
 
-            Here's an example which uses `jax.experimental.checkify`. To enable runtime checks, the user must enable them explicitly in `genjax`.
+            To enable runtime checks, the user must enable them explicitly in `genjax`.
 
             ```python exec="yes" source="tabbed-left"
             import jax
             import jax.numpy as jnp
-            import jax.experimental.checkify as checkify
             import genjax
 
             with genjax.console(enforce_checkify=True) as console:
@@ -1029,7 +1026,7 @@ class GenerativeFunction(Pytree):
             import genjax
             console = genjax.console()
 
-            @genjax.Static
+            @Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1146,7 +1143,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self,
-        choice: Choice,
+        chm: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """Given a complete choice map indicating constraints ($u$) for all
@@ -1491,6 +1488,5 @@ def choice_map(
 # @dispatch
 # def choice_map(addrs: List[Any], submaps: List[ChoiceMap]):
 #    return dynamic_choice_map(addrs, submaps)
-
 
 select = HierarchicalSelection.from_addresses
