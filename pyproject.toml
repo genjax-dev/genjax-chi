@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "GenJAX"
-version = "0.0.1.post48.dev0+8bfc950a"
+version = "0.0.1"
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
   "McCoy R. Becker <mccoyb@mit.edu>",
