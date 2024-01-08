@@ -1,4 +1,3 @@
-
 # Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,10 +31,7 @@ class TestShortcuts:
         hcm = genjax.HierarchicalChoiceMap()
         hcm["x"] = 3
         hcm["y"] = 4
-        assert genjax.choice_map({
-            "x": 3,
-            "y": 4
-        }) == hcm
+        assert genjax.choice_map({"x": 3, "y": 4}) == hcm
 
     def test_hierarchical_choice_map_from_dict(self):
         hcm = genjax.HierarchicalChoiceMap()
@@ -43,19 +39,22 @@ class TestShortcuts:
         hcm["x", "xb"] = 4
         hcm["y", "ya"] = 5
         hcm["y", "yb"] = 6
-        assert genjax.choice_map({
-            "x": { "xa": 3, "xb": 4 },
-            "y": { "ya": 5, "yb": 6 },
-        }) == hcm
+        assert (
+            genjax.choice_map(
+                {
+                    "x": {"xa": 3, "xb": 4},
+                    "y": {"ya": 5, "yb": 6},
+                }
+            )
+            == hcm
+        )
 
     def test_indexed_choice_map(self):
-        icm1 = genjax.indexed_choice_map(jnp.array([1, 2, 3]), genjax.choice_map({"x": jnp.array([10, 20, 30])}))
-        icm2 = genjax.choice_map({
-            1: 10,
-            2: 20,
-            3: 30
-        })
+        icm1 = genjax.indexed_choice_map(
+            jnp.array([1, 2, 3]), genjax.choice_map({"x": jnp.array([10, 20, 30])})
+        )
+        icm2 = genjax.choice_map({1: 10, 2: 20, 3: 30})
         for j in range(1, 4):
             for m in [icm1, icm2]:
                 assert m.has_submap((j, "x"))
-                assert m[(j, "x")].unmask() == 10*j
+                assert m[(j, "x")].unmask() == 10 * j

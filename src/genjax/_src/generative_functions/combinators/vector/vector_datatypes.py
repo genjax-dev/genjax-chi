@@ -152,7 +152,7 @@ class IndexedChoiceMap(ChoiceMap):
             return self.get_submap(addr[0])
         idx = addr[0]
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        #slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
+        # slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         submap = submap.get_submap(addr[1:])
         if isinstance(submap, EmptyChoice):

@@ -87,8 +87,14 @@ class SMCInitializeFromProposal(SMCAlgorithm):
         lws = model_scores - proposal_scores
         return SMCState(self.n_particles, particles, lws, 0.0, True)
 
+
 @dispatch
-def smc_initialize(model: GenerativeFunction, proposal: Optional[GenerativeFunction] = None, *, n_particles: int) -> SMCAlgorithm:
+def smc_initialize(
+    model: GenerativeFunction,
+    proposal: Optional[GenerativeFunction] = None,
+    *,
+    n_particles: int,
+) -> SMCAlgorithm:
     if proposal is not None:
         return SMCInitializeFromProposal(n_particles, model, proposal)
     else:

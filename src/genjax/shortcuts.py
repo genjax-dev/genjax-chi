@@ -48,6 +48,7 @@ def trie_from_dict(constraints: dict):
             trie[k] = choice_map(v)
     return trie
 
+
 def choice_map(*vs) -> ChoiceMap:
     """Shortcut constructor for GenJAX ChoiceMap objects.
 
@@ -89,13 +90,16 @@ def choice_map(*vs) -> ChoiceMap:
         return DisjointUnionChoiceMap(*vs)
 
 
-def indexed_choice_map(ks: ArrayLike, inner: ChoiceMap) -> Union[IndexedChoiceMap, EmptyChoice]:
+def indexed_choice_map(
+    ks: ArrayLike, inner: ChoiceMap
+) -> Union[IndexedChoiceMap, EmptyChoice]:
     if isinstance(inner, EmptyChoice):
         return inner
 
     indices = jnp.array(ks, copy=False)
     static_check_tree_leaves_have_matching_leading_dim((inner, indices))
     return IndexedChoiceMap(jnp.array(ks), choice_map(inner))
+
 
 def vector_choice_map(c):
     if isinstance(c, EmptyChoice):
@@ -107,6 +111,7 @@ def vector_choice_map(c):
     else:
         raise NotImplementedError(f"Creating VectorChoiceMap from {type(c)}")
 
+
 def indexed_select(idx: Union[int, IntArray], *choices: Selection):
     idx = jnp.atleast_1d(idx)
     if len(choices) == 0:
@@ -117,9 +122,4 @@ def indexed_select(idx: Union[int, IntArray], *choices: Selection):
         return IndexedSelection(idx, HierarchicalSelection.from_addresses(choices))
 
 
-__all__ = [
-    "choice_map",
-    "indexed_choice_map",
-    "vector_choice_map",
-    "indexed_select"
-]
+__all__ = ["choice_map", "indexed_choice_map", "vector_choice_map", "indexed_select"]
