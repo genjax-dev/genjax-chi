@@ -39,11 +39,10 @@ website:
             text: Introduction
           - href: concepts/combinators/intro_to_combinators.ipynb
             text: (WIP) Generative function combinators
-          - href: concepts/incremental_computation/incremental.ipynb
-            text: (WIP) Incremental computing
+          #- href: concepts/incremental_computation/incremental.ipynb
+          #  text: (WIP) Incremental computing
           #          - href: concepts/gradient_interfaces/gradient_interfaces.ipynb
           #            text: Differentiable programming
-      - text: '---'
       - section: 'Inference programming'
         contents:
           - href: intermediate/gaussian_processes/gaussian_processes.ipynb
@@ -68,8 +67,6 @@ format:
   html:
     theme:
       light: [cosmo, custom.scss]
-    mainfont: 'Atkinson Hyperlegible'
-    monofont: 'Berkeley'
     toc: true
     code-copy: true
     code-overflow: wrap

@@ -13,31 +13,20 @@
 # limitations under the License.
 
 import copy
-import dataclasses
 import functools
-import itertools as it
-from contextlib import contextmanager
+from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
 from jax import api_util
-from jax import tree_util
 from jax import util as jax_util
-from jax._src import core as jax_core
 from jax.extend import linear_util as lu
-from jax.interpreters import ad
-from jax.interpreters import batching
-from jax.interpreters import mlir
-from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.interpreters.forward import initial_style_bind
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Union
-from genjax._src.core.typing import Value
-
+from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.pytree import Pytree
+from genjax._src.core.typing import List, Union, Value
 
 ###################
 # CPS interpreter #
@@ -46,18 +35,14 @@ from genjax._src.core.typing import Value
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
-@dataclasses.dataclass
+@dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value]
+    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
 
     def flatten(self):
         return (self.env,), ()
-
-    @classmethod
-    def new(cls):
-        return Environment(hashable_dict())
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
@@ -92,7 +77,7 @@ class Environment(Pytree):
         return copy.copy(self)
 
 
-@dataclasses.dataclass
+@dataclass
 class CPSInterpreter(Pytree):
     def flatten(self):
         return (), ()
@@ -104,7 +89,7 @@ class CPSInterpreter(Pytree):
         args: List[Value],
         allowlist: List[jc.Primitive],
     ):
-        env = Environment.new()
+        env = Environment()
         jax_util.safe_map(env.write, jaxpr.constvars, consts)
         jax_util.safe_map(env.write, jaxpr.invars, args)
 

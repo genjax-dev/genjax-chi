@@ -15,18 +15,15 @@
 from dataclasses import dataclass
 from typing import Any
 
+import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from jax._src.interpreters.partial_eval import DynamicJaxprTracer
-
-import genjax
 from genjax import PytreeConst
-from genjax.core.exceptions import *
-from genjax.incremental import tree_diff_no_change
-from genjax.incremental import tree_diff_unknown_change
+from genjax.core.exceptions import AddressReuse, StaticAddressJAX
+from genjax.incremental import tree_diff_no_change, tree_diff_unknown_change
 from genjax.typing import FloatArray
-
+from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 #############
 # Datatypes #
@@ -39,7 +36,7 @@ from genjax.typing import FloatArray
 
 class TestSimulate:
     def test_simple_normal_simulate(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -56,7 +53,7 @@ class TestSimulate:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_normal_multiple_returns(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal_multiple_returns():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -77,13 +74,13 @@ class TestSimulate:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_hierarchical_simple_normal_multiple_returns(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def _submodel():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
             return y1, y2
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def hierarchical_simple_normal_multiple_returns():
             y1, y2 = genjax.trace("y1", _submodel)()
             return y1, y2
@@ -105,7 +102,7 @@ class TestSimulate:
 
 class TestAssess:
     def test_simple_normal_assess(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -123,7 +120,7 @@ class TestAssess:
 class TestClosureConvert:
     def test_closure_convert(self):
         def emits_cc_gen_fn(v):
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             @genjax.dynamic_closure(v)
             def model(v):
                 x = genjax.normal(jnp.sum(v), 1.0) @ "x"
@@ -131,7 +128,7 @@ class TestClosureConvert:
 
             return model
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def model():
             x = jnp.ones(5)
             gen_fn = emits_cc_gen_fn(x)
@@ -152,7 +149,7 @@ class CustomTree(genjax.Pytree):
         return (self.x, self.y), ()
 
 
-@genjax.lang(genjax.Static)
+@genjax.Static
 def simple_normal(custom_tree):
     y1 = genjax.trace("y1", genjax.normal)(custom_tree.x, 1.0)
     y2 = genjax.trace("y2", genjax.normal)(custom_tree.y, 1.0)
@@ -160,7 +157,7 @@ def simple_normal(custom_tree):
 
 
 @dataclass
-class _CustomNormal(genjax.ExactDensity):
+class _CustomNormal(genjax.JAXGenerativeFunction, genjax.ExactDensity):
     def logpdf(self, v, custom_tree):
         return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
 
@@ -171,7 +168,7 @@ class _CustomNormal(genjax.ExactDensity):
 CustomNormal = _CustomNormal()
 
 
-@genjax.lang(genjax.Static)
+@genjax.Static
 def custom_normal(custom_tree):
     y = genjax.trace("y", CustomNormal)(custom_tree)
     return CustomTree(y, y)
@@ -225,7 +222,7 @@ class TestCustomPytree:
 
 class TestGradients:
     def test_simple_normal_assess(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -241,7 +238,7 @@ class TestGradients:
 
 class TestImportance:
     def test_importance_simple_normal(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -263,7 +260,7 @@ class TestImportance:
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_importance_weight_correctness(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -318,7 +315,7 @@ class TestImportance:
 
 class TestUpdate:
     def test_simple_normal_update(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
@@ -335,8 +332,8 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
-        y1 = updated_chm[("y1",)]
-        y2 = updated_chm[("y2",)]
+        _y1 = updated_chm[("y1",)]
+        _y2 = updated_chm[("y2",)]
         (_, score1) = genjax.normal.importance(
             key, updated_chm.get_submap("y1"), (0.0, 1.0)
         )
@@ -353,8 +350,8 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
-        y1 = updated_chm[("y1",)]
-        y2 = updated_chm[("y2",)]
+        _y1 = updated_chm[("y1",)]
+        _y2 = updated_chm[("y2",)]
         (_, score1) = genjax.normal.importance(
             key, updated_chm.get_submap("y1"), (0.0, 1.0)
         )
@@ -366,7 +363,7 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_linked_normal_update(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_linked_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
@@ -396,12 +393,12 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_hierarchical_normal(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def _inner(x):
             y1 = genjax.trace("y1", genjax.normal)(x, 1.0)
             return y1
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_hierarchical_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", _inner)(y1)
@@ -434,7 +431,7 @@ class TestUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_update_weight_correctness(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_linked_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             y2 = genjax.trace("y2", genjax.normal)(y1, 1.0)
@@ -501,7 +498,7 @@ class TestUpdate:
             def flatten(self):
                 return (self.x, self.y), ()
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_linked_normal_with_tree_argument(tree):
             y1 = genjax.trace("y1", genjax.normal)(tree.x, tree.y)
             return y1
@@ -535,7 +532,7 @@ class TestUpdate:
 
 class TestStaticLanguageSugar:
     def test_static_sugar(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -551,7 +548,7 @@ class TestStaticLanguageSugar:
 
 class TestStaticAddressChecks:
     def test_simple_normal_addr_dup(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal_addr_dup():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y1"
@@ -563,7 +560,7 @@ class TestStaticAddressChecks:
         assert exc_info.value.args == (PytreeConst(const="y1"),)
 
     def test_simple_normal_addr_tracer(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal_addr_tracer():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ y1
@@ -578,12 +575,12 @@ class TestStaticAddressChecks:
 class TestForwardRef:
     def test_forward_ref(self):
         def make_gen_fn():
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def proposal(x):
                 x = outlier(x) @ "x"
                 return x
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def outlier(prob):
                 is_outlier = genjax.bernoulli(prob) @ "is_outlier"
                 return is_outlier
@@ -592,24 +589,24 @@ class TestForwardRef:
 
         key = jax.random.PRNGKey(314159)
         proposal = make_gen_fn()
-        tr = proposal.simulate(key, (0.3,))
+        _tr = proposal.simulate(key, (0.3,))
         assert True
 
 
 class TestInline:
     def test_inline_simulate(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -626,18 +623,18 @@ class TestInline:
         assert choices.has_submap("y2")
 
     def test_inline_importance(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -653,18 +650,18 @@ class TestInline:
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
     def test_inline_update(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_higher_model():
             y = higher_model.inline()
             return y
@@ -692,23 +689,23 @@ class TestInline:
         )
 
     def test_inline_assess(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_model():
             y = simple_normal.inline()
             return y
 
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def higher_higher_model():
             y = higher_model.inline()
             return y
 
-        key = jax.random.PRNGKey(314159)
+        _key = jax.random.PRNGKey(314159)
         chm = genjax.choice_map({"y1": 3.0, "y2": 3.0})
         (score, ret) = jax.jit(higher_model.assess)(chm, ())
         assert score == genjax.normal.logpdf(

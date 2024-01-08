@@ -16,11 +16,7 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
+from genjax._src.core.typing import Any, Dict, PRNGKey, Tuple, dispatch
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
@@ -33,10 +29,6 @@ class SugaredGenerativeFunctionCall(Pytree):
 
     def flatten(self):
         return (self.args,), (self.gen_fn, self.kwargs)
-
-    @classmethod
-    def new(cls, gen_fn, args, kwargs):
-        return SugaredGenerativeFunctionCall(gen_fn, kwargs, args)
 
     def __matmul__(self, addr):
         return handle_off_trace_stack(addr, self.gen_fn, self.args)
@@ -69,7 +61,7 @@ def push_trace_overload_stack(handler, fn):
 class SupportsCalleeSugar:
     @dispatch
     def __call__(self, *args: Any, **kwargs) -> SugaredGenerativeFunctionCall:
-        return SugaredGenerativeFunctionCall.new(self, args, kwargs)
+        return SugaredGenerativeFunctionCall(self, kwargs, args)
 
     @dispatch
     def __call__(self, key: PRNGKey, args: Tuple) -> Any:

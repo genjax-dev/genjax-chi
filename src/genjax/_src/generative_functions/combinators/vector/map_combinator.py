@@ -11,43 +11,46 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows
-broadcasting for generative functions -- mapping over vectorial versions of
-their arguments."""
+"""
+The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee. 
 
+This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
+"""
+
+import functools
 from dataclasses import dataclass
+from typing import Callable
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import (
+    ChoiceMap,
+    EmptyChoice,
+    GenerativeFunction,
+    HierarchicalChoiceMap,
+    HierarchicalSelection,
+    JAXGenerativeFunction,
+    Selection,
+    Trace,
+)
 from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedSelection,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
@@ -136,26 +139,38 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     `vmap`-based implementations of the generative function interface methods.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import jax.numpy as jnp
         import genjax
         console = genjax.console()
 
-        @genjax.lang
+        #############################################################
+        # One way to create a `MapCombinator`: using the decorator. #
+        #############################################################
+
+        @genjax.Map(in_axes = (0, ))
+        @genjax.Static
+        def mapped(x):
+            noise1 = genjax.normal(0.0, 1.0) @ "noise1"
+            noise2 = genjax.normal(0.0, 1.0) @ "noise2"
+            return x + noise1 + noise2
+
+        #####################################################
+        # The other way: use the `new` constructor directly #
+        #####################################################
+
+        @genjax.Static
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
-
-        # Creating a `MapCombinator` via the preferred `new` class method.
         mapped = genjax.MapCombinator.new(add_normal_noise, in_axes=(0,))
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
-        tr = jax.jit(genjax.simulate(mapped))(key, (arr, ))
+        tr = jax.jit(mapped.simulate)(key, (arr, ))
 
         print(console.render(tr))
         ```
@@ -174,8 +189,8 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         kernel: JAXGenerativeFunction,
         in_axes: Tuple,
     ) -> "MapCombinator":
-        """The preferred constructor for `MapCombinator` generative function
-        instances. The shorthand symbol is `Map = MapCombinator.new`.
+        """The preferred direct constructor for `MapCombinator` generative function
+        instances.
 
         Arguments:
             kernel: A single `JAXGenerativeFunction` instance.
@@ -442,19 +457,15 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return (jnp.sum(score), retval)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@dispatch
-def map_combinator(
-    gen_fn: JAXGenerativeFunction,
-    in_axes=Tuple,
-):
-    return MapCombinator.new(gen_fn, in_axes)
+def Map(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
+    def decorator(f) -> MapCombinator:
+        gf = MapCombinator(in_axes, f)
+        functools.update_wrapper(gf, f)
+        return gf
 
-
-Map = LanguageConstructor(
-    map_combinator,
-)
+    return decorator

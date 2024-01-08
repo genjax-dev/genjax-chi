@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -25,35 +26,34 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
+from genjax._src.core.interpreters.incremental import (
+    tree_diff_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Dict
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.typing import (
+    Any,
+    BoolArray,
+    Callable,
+    Dict,
+    FloatArray,
+    IntArray,
+    List,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 
 #############
 # Utilities #
 #############
 
-
 ########################
 # Generative datatypes #
 ########################
-
 
 #############
 # Selection #
@@ -73,7 +73,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -143,10 +143,6 @@ class NoneSelection(Selection):
     def flatten(self):
         return (), ()
 
-    @classmethod
-    def new(cls):
-        return NoneSelection()
-
     def complement(self):
         return AllSelection()
 
@@ -169,10 +165,6 @@ class NoneSelection(Selection):
 class AllSelection(Selection):
     def flatten(self):
         return (), ()
-
-    @classmethod
-    def new(cls):
-        return AllSelection()
 
     def complement(self):
         return NoneSelection()
@@ -204,20 +196,10 @@ class HierarchicalSelection(Selection):
         return (self.trie,), ()
 
     @classmethod
-    @dispatch
-    def new(cls, *addrs: Any):
-        trie = Trie.new()
-        for addr in addrs:
+    def from_addresses(cls, *addresses: Any):
+        trie = Trie()
+        for addr in addresses:
             trie[addr] = AllSelection()
-        return HierarchicalSelection(trie)
-
-    @classmethod
-    @dispatch
-    def new(cls, selections: Dict):
-        trie = Trie.new()
-        for k, v in selections.items():
-            assert isinstance(v, Selection)
-            trie[k] = v
         return HierarchicalSelection(trie)
 
     def has_addr(self, addr):
@@ -268,6 +250,12 @@ class HierarchicalSelection(Selection):
 
 @dataclass
 class Choice(Pytree):
+    """
+    `Choice` is the abstract base class of the type of random choices.
+
+    The type `Choice` denotes an event which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
+    """
+
     @abc.abstractmethod
     def filter(self, selection: Selection) -> "Choice":
         pass
@@ -275,12 +263,12 @@ class Choice(Pytree):
 
 @dataclass
 class EmptyChoice(Choice):
+    """
+    A `Choice` implementor which denotes an empty event.
+    """
+
     def flatten(self):
         return (), ()
-
-    @classmethod
-    def new(cls):
-        return EmptyChoice()
 
     def filter(self, selection):
         return self
@@ -302,10 +290,6 @@ class ChoiceValue(Choice):
 
     def flatten(self):
         return (self.value,), ()
-
-    @classmethod
-    def new(cls, v):
-        return ChoiceValue(v)
 
     def is_empty(self):
         return False
@@ -380,7 +364,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -469,7 +453,6 @@ class Trace(Pytree):
         which created the `Trace`.
 
         Examples:
-
             Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
 
             ```python exec="yes" source="tabbed-left"
@@ -497,7 +480,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -529,7 +512,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -586,7 +569,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.lang(genjax.Static)
+            @genjax.Static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -719,15 +702,10 @@ class Mask(Pytree):
     def flatten(self):
         return (self.mask, self.value), ()
 
-    @classmethod
-    def new(cls, mask: BoolArray, inner):
-        if isinstance(inner, Mask):
-            return Mask(
-                jnp.logical_and(mask, inner.mask),
-                inner.value,
-            )
-        else:
-            return Mask(mask, inner)
+    def __post_init__(self):
+        if isinstance(self.value, Mask):
+            self.mask = jnp.logical_and(self.mask, self.value.mask)
+            self.value = self.value.value
 
     @typecheck
     def match(self, none: Callable, some: Callable) -> Any:
@@ -777,9 +755,10 @@ class Mask(Pytree):
         return some(v)
 
     def unmask(self):
-        """> Unmask the `Mask`, returning the value within.
+        """
+        > Unmask the `Mask`, returning the value within.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use `genjax.global_options.allow_checkify(True)` and then handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -798,12 +777,11 @@ class Mask(Pytree):
             import jax
             import jax.numpy as jnp
             import genjax
-            console = genjax.console(enforce_checkify=True)
 
-            masked = genjax.mask(False, jnp.ones(5))
-            with console:
-                err, _ = checkify(masked.unmask)()
-                err.throw()
+            with genjax.console(enforce_checkify=True) as console:
+                masked = genjax.mask(False, jnp.ones(5))
+                err, _ = checkify.checkify(masked.unmask)()
+                print(console.render(err))
             ```
         """
 
@@ -838,7 +816,7 @@ class Mask(Pytree):
         if isinstance(submap, EmptyChoice):
             return submap
         else:
-            return Mask.new(self.mask, submap)
+            return Mask(self.mask, submap)
 
     def has_submap(self, addr):
         assert isinstance(self.value, ChoiceMap)
@@ -848,11 +826,11 @@ class Mask(Pytree):
     def filter(self, selection: Selection):
         choices = self.value.get_choices()
         assert isinstance(choices, Choice)
-        return Mask.new(self.mask, choices.filter(selection))
+        return Mask(self.mask, choices.filter(selection))
 
     def get_choices(self):
         choices = self.value.get_choices()
-        return Mask.new(self.mask, choices)
+        return Mask(self.mask, choices)
 
     ###########################
     # Address leaf interfaces #
@@ -861,7 +839,7 @@ class Mask(Pytree):
     def get_value(self):
         assert isinstance(self.value, ChoiceValue)
         v = self.value.get_value()
-        return Mask.new(self.mask, v)
+        return Mask(self.mask, v)
 
     def try_value(self):
         if isinstance(self.value, ChoiceValue):
@@ -956,8 +934,8 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """> Given a `key: PRNGKey` and arguments `x: Tuple`, the generative
-        function sample a choice map $c \\sim p(\\cdot; x)$, as well as any
+        """
+        Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c \\sim p(\\cdot; x)$, as well as any
         untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
         (x, c, r)$.
 
@@ -975,7 +953,6 @@ class GenerativeFunction(Pytree):
             tr: A trace capturing the data and inference data associated with the generative function invocation.
 
         Examples:
-
             Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
 
             ```python exec="yes" source="tabbed-left"
@@ -1013,7 +990,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[Choice, FloatArray, Any]:
-        """> Given a `key: PRNGKey` and arguments ($x$), execute the generative
+        """Given a `key: PRNGKey` and arguments ($x$), execute the generative
         function, returning a tuple containing the return value from the
         generative function call, the score ($s$) of the choice map assignment,
         and the choice map ($c$).
@@ -1030,7 +1007,6 @@ class GenerativeFunction(Pytree):
             retval: the return value from the generative function invocation
 
         Examples:
-
             Here's an example using a `genjax` distribution (`normal`). Distributions are generative functions, so they support the interface.
 
             ```python exec="yes" source="tabbed-left"
@@ -1048,7 +1024,6 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
-            from genjax import Static
             console = genjax.console()
 
             @Static
@@ -1075,7 +1050,7 @@ class GenerativeFunction(Pytree):
         choice: Choice,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
-        """> Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
+        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
         and arguments ($x$), execute the generative function, and return an
         importance weight estimate of the conditional density evaluated at the
         non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
@@ -1147,7 +1122,7 @@ class GenerativeFunction(Pytree):
                 discard = EmptyChoice()
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
-                discard = mask(False, possible_discards)
+                discard = Mask(False, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
@@ -1159,7 +1134,7 @@ class GenerativeFunction(Pytree):
             else:
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
-                discard = mask(True, possible_discards)
+                discard = Mask(True, possible_discards)
             primal = tree_diff_primal(retdiff)
             retdiff = tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
@@ -1171,13 +1146,13 @@ class GenerativeFunction(Pytree):
         chm: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
-        """> Given a complete choice map indicating constraints ($u$) for all
+        """Given a complete choice map indicating constraints ($u$) for all
         choices, and arguments ($x$), execute the generative function, and
         return the return value of the invocation, and the score of the choice
         map ($s$).
 
         Arguments:
-            chm: A complete choice map indicating constraints ($u$) for all choices.
+            choice: A complete choice map indicating constraints ($u$) for all choices.
             args: Arguments to the generative function ($x$).
 
         Returns:
@@ -1199,6 +1174,16 @@ class GenerativeFunction(Pytree):
     ) -> Trace:
         raise NotImplementedError
 
+
+@dataclass
+class JAXGenerativeFunction(GenerativeFunction, Pytree):
+    """A `GenerativeFunction` subclass for JAX compatible generative
+    functions.
+
+    Mixing in this class denotes that a generative function implementation can be used within a calling context where JAX transformations are being applied, or JAX tracing is being applied (e.g. `jax.jit`). As a callee in other generative functions, this type exposes an `__abstract_call__` method which can be use to customize the behavior under abstract tracing (a default is provided, and users are not expected to interact with this functionality).
+
+    Compatibility with JAX tracing allows generative functions that mixin this class to expose several default methods which support convenient access to gradient computation using `jax.grad`."""
+
     # This is used to support tracing.
     # Below, a default implementation: GenerativeFunctions
     # may customize this to improve compilation time.
@@ -1210,12 +1195,6 @@ class GenerativeFunction(Pytree):
         retval = tr.get_retval()
         return retval
 
-
-@dataclass
-class JAXGenerativeFunction(GenerativeFunction, Pytree):
-    """A `GenerativeFunction` subclass for JAX compatible generative
-    functions."""
-
     @typecheck
     def unzip(
         self,
@@ -1224,6 +1203,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], FloatArray],
         Callable[[Choice, Tuple], Any],
     ]:
+        """
+        The `unzip` method expects a fixed (under gradients) `Choice` argument, and returns two `Callable` instances: the first exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> score` where `score` is the log density returned by the `assess` method, and the second exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the returned value from the `assess` method.
+
+        Arguments:
+            fixed: A fixed choice map.
+        """
+
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = tree_zipper(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
@@ -1259,16 +1245,15 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
 @dataclass
 class HierarchicalChoiceMap(ChoiceMap):
-    trie: Trie
+    trie: Trie = field(default_factory=Trie)
 
     def flatten(self):
         return (self.trie,), ()
 
     @classmethod
-    @dispatch
-    def new(cls, constraints: Dict):
+    def from_dict(cls, constraints: Dict):
         assert isinstance(constraints, Dict)
-        trie = Trie.new()
+        trie = Trie()
         for k, v in constraints.items():
             v = (
                 ChoiceValue(v)
@@ -1276,21 +1261,6 @@ class HierarchicalChoiceMap(ChoiceMap):
                 else v
             )
             trie[k] = v
-        return HierarchicalChoiceMap(trie)
-
-    @classmethod
-    @dispatch
-    def new(cls, trie: Trie):
-        check = trie.is_empty()
-        if static_check_is_concrete(check) and check:
-            return EmptyChoice()
-        else:
-            return HierarchicalChoiceMap(trie)
-
-    @classmethod
-    @dispatch
-    def new(cls):
-        trie = Trie.new()
         return HierarchicalChoiceMap(trie)
 
     def is_empty(self):
@@ -1306,7 +1276,7 @@ class HierarchicalChoiceMap(ChoiceMap):
             under = v.filter(sub)
             return k, under
 
-        trie = Trie.new()
+        trie = Trie()
         iter = self.get_submaps_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoice):
@@ -1370,7 +1340,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
 
     def get_selection(self):
-        trie = Trie.new()
+        trie = Trie()
         for k, v in self.get_submaps_shallow():
             trie[k] = v.get_selection()
         return HierarchicalSelection(trie)
@@ -1444,17 +1414,10 @@ class DisjointUnionChoiceMap(ChoiceMap):
     To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
     """
 
-    submaps: List[ChoiceMap]
+    submaps: List[ChoiceMap] = field(default_factory=list)
 
     def flatten(self):
         return (self.submaps,), ()
-
-    @classmethod
-    def new(cls, submaps: List[ChoiceMap]):
-        if not submaps:
-            return EmptyChoice()
-        else:
-            return DisjointUnionChoiceMap(submaps)
 
     def has_submap(self, addr):
         checks = jnp.array(map(lambda v: v.has_submap(addr), self.submaps))
@@ -1477,12 +1440,10 @@ class DisjointUnionChoiceMap(ChoiceMap):
 
         if len(new_submaps) == 0:
             return EmptyChoice()
-
         elif len(new_submaps) == 1:
             return new_submaps[0]
-
         else:
-            return DisjointUnionChoiceMap.new(new_submaps)
+            return DisjointUnionChoiceMap(new_submaps)
 
     ###################
     # Pretty printing #
@@ -1496,63 +1457,31 @@ class DisjointUnionChoiceMap(ChoiceMap):
         return tree
 
 
-########################
-# Language constructor #
-########################
-
-
-@dataclass
-class LanguageConstructor(Pytree):
-    """A `LanguageConstructor` is a type which can be used to construct
-    generative function instances."""
-
-    constructor: Callable
-
-    def flatten(self):
-        return (), (self.constructor,)
-
-    def __call__(self, *args, **kwargs):
-        return self.constructor(*args, **kwargs)
-
-
 ##############
 # Shorthands #
 ##############
 
 # Choices and choice maps
-empty_choice = EmptyChoice.new
-choice_value = ChoiceValue.new
-hierarchical_choice_map = HierarchicalChoiceMap.new
-disjoint_union_choice_map = DisjointUnionChoiceMap.new
-
-# Selections
-none_select = NoneSelection.new
-all_select = AllSelection.new
-hierarchical_select = HierarchicalSelection.new
+choice_value = ChoiceValue
 
 
-# Functional types
-mask = Mask.new
-
-
-@dispatch
-def choice_map():
-    return hierarchical_choice_map()
-
-
-@dispatch
-def choice_map(v: Any):
-    return choice_value(v)
-
-
-@dispatch
-def choice_map(submaps: Dict):
-    return hierarchical_choice_map(submaps)
-
-
-@dispatch
-def choice_map(submaps: List[ChoiceMap]):
-    return disjoint_union_choice_map(submaps)
+def choice_map(
+    *vs,
+) -> Union[ChoiceValue, HierarchicalChoiceMap, DisjointUnionChoiceMap]:
+    if len(vs) == 0:
+        return HierarchicalChoiceMap()
+    elif len(vs) == 1:
+        v = vs[0]
+        if isinstance(v, dict):
+            return HierarchicalChoiceMap.from_dict(v)
+        else:
+            return ChoiceValue(v)
+    else:
+        if not all(map(lambda m: isinstance(m, ChoiceMap), vs)):
+            raise TypeError(
+                "To create a union ChoiceMap, all arguments must be ChoiceMaps"
+            )
+        return DisjointUnionChoiceMap(*vs)
 
 
 # TODO: experimental for dynamic addresses.
@@ -1560,17 +1489,4 @@ def choice_map(submaps: List[ChoiceMap]):
 # def choice_map(addrs: List[Any], submaps: List[ChoiceMap]):
 #    return dynamic_choice_map(addrs, submaps)
 
-
-@dispatch
-def select():
-    return hierarchical_select()
-
-
-@dispatch
-def select(subselects: Dict):
-    return hierarchical_select(subselects)
-
-
-@dispatch
-def select(*addrs: Any):
-    return hierarchical_select(*addrs)
+select = HierarchicalSelection.from_addresses

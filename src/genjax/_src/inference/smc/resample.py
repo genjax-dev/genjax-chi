@@ -20,11 +20,8 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import dispatch
-from genjax._src.inference.smc.state import SMCAlgorithm
-from genjax._src.inference.smc.state import SMCState
-
+from genjax._src.core.typing import PRNGKey, dispatch
+from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 
 ######################
 # Resampling methods #
@@ -56,10 +53,6 @@ class SMCResample(SMCAlgorithm):
     def flatten(self):
         return (self.resampling_method,), ()
 
-    @classmethod
-    def new(cls, resampling_method):
-        return SMCResample(resampling_method)
-
     @dispatch
     def apply(
         self,
@@ -87,8 +80,3 @@ class SMCResample(SMCAlgorithm):
         state: SMCState,
     ) -> SMCState:
         return self.apply(key, state, self.resampling_method)
-
-
-@dispatch
-def smc_resample(resampling_method: ResamplingMethod):
-    return SMCResample.new(resampling_method)

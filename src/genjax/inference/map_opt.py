@@ -13,10 +13,7 @@
 # limitations under the License.
 
 from genjax._src.inference.map_update import MapUpdate
-from genjax._src.inference.map_update import map_update
-
 
 __all__ = [
     "MapUpdate",
-    "map_update",
 ]

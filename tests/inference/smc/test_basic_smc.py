@@ -13,31 +13,28 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-
-import genjax
-from genjax import choice_map
-from genjax import indexed_choice_map
-from genjax import indexed_select
-from genjax import lang
-from genjax import normal
-from genjax.incremental import NoChange
-from genjax.incremental import UnknownChange
-from genjax.incremental import diff
-from genjax.incremental import tree_diff_no_change
-from genjax.incremental import tree_diff_unknown_change
+from genjax import choice_map, indexed_choice_map, normal
+from genjax.incremental import (
+    NoChange,
+    UnknownChange,
+    diff,
+    tree_diff_no_change,
+    tree_diff_unknown_change,
+)
 from genjax.inference import smc
 
 
 class TestSimpleSMC:
     def test_smoke_initialize_and_update(self):
-        @lang(genjax.Unfold, max_length=10)
-        @lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
-            x = normal(z, 1.0) @ "x"
+            _x = normal(z, 1.0) @ "x"
             return z
 
         key = jax.random.PRNGKey(314159)
@@ -56,7 +53,7 @@ class TestSimpleSMC:
             choice_map({"x": jnp.array([1.0])}),
         )
         key, sub_key = jax.random.split(key)
-        smc_state = smc.smc_update().apply(
+        smc_state = smc.SMCForwardUpdate().apply(
             sub_key,
             smc_state,
             (diff(1, UnknownChange), diff(init_state, NoChange)),
@@ -65,11 +62,11 @@ class TestSimpleSMC:
         assert True
 
     def test_smoke_sis_with_scan(self):
-        @lang(genjax.Unfold, max_length=10)
-        @lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
-            x = normal(z, 1.0) @ "x"
+            _x = normal(z, 1.0) @ "x"
             return z
 
         obs = indexed_choice_map(
@@ -91,7 +88,7 @@ class TestSimpleSMC:
                 obs_slice = xs
                 t = t + 1
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_update().apply(
+                smc_state = smc.SMCForwardUpdate().apply(
                     sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
@@ -107,15 +104,15 @@ class TestSimpleSMC:
             return stacked
 
         key = jax.random.PRNGKey(314159)
-        smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
+        _smc_state = jax.jit(extend_smc_no_resampling)(key, obs, 0.0)
         assert True
 
     def test_smoke_smc_with_scan(self):
-        @lang(genjax.Unfold, max_length=10)
-        @lang(genjax.Static)
+        @genjax.Unfold(max_length=10)
+        @genjax.Static
         def chain(z_prev):
             z = normal(z_prev, 1.0) @ "z"
-            x = normal(z, 1.0) @ "x"
+            _x = normal(z, 1.0) @ "x"
             return z
 
         obs = indexed_choice_map(
@@ -124,7 +121,6 @@ class TestSimpleSMC:
         )
 
         def extending_smc(key, obs, init_state):
-            index_sel = indexed_select(0)
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
             smc_state = smc.smc_initialize(chain, 100).apply(
@@ -137,14 +133,14 @@ class TestSimpleSMC:
                 obs_slice = xs
                 t = t + 1
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_update().apply(
+                smc_state = smc.SMCForwardUpdate().apply(
                     sub_key,
                     smc_state,
                     (diff(t, UnknownChange), diff(init_state, NoChange)),
                     obs_slice,
                 )
                 key, sub_key = jax.random.split(key)
-                smc_state = smc.smc_resample(smc.multinomial_resampling).apply(
+                smc_state = smc.SMCResample(smc.multinomial_resampling).apply(
                     sub_key, smc_state
                 )
                 return (key, smc_state, t), (smc_state,)
@@ -157,33 +153,33 @@ class TestSimpleSMC:
             return stacked
 
         key = jax.random.PRNGKey(314159)
-        smc_state = jax.jit(extending_smc)(key, obs, 0.0)
+        _smc_state = jax.jit(extending_smc)(key, obs, 0.0)
         assert True
 
     def test_smoke_smc_with_nested_switch(self):
-        @genjax.lang(genjax.Static)
+        @genjax.Static
         def outlier():
             return genjax.normal(0.0, 1.0) @ "reflection_point"
 
         branching = genjax.Switch(outlier, outlier)
 
-        @genjax.lang(genjax.Map, in_axes=(0,))
-        @genjax.lang(genjax.Static)
+        @genjax.Map(in_axes=(0,))
+        @genjax.Static
         def inner_chain(v):
             outlier = genjax.bernoulli(0.3) @ "outlier"
             idx = outlier.astype(int)
             c = branching(idx) @ "reflection_or_outlier"
             return c
 
-        @genjax.lang(genjax.Unfold, max_length=17)
-        @genjax.lang(genjax.Static)
+        @genjax.Unfold(max_length=17)
+        @genjax.Static
         def chain(z):
             c = inner_chain(z) @ "chain"
             return c
 
         key = jax.random.PRNGKey(314159)
         init_latent = jnp.ones(361)
-        tr = chain.simulate(key, (16, init_latent))
+        _tr = chain.simulate(key, (16, init_latent))
 
         def make_choice_map(step):
             obs = jnp.ones(361)
@@ -212,6 +208,6 @@ class TestSimpleSMC:
             tree_diff_unknown_change(1),
             tree_diff_no_change(jnp.ones(361)),
         )
-        smc_state = jax.jit(genjax.smc.smc_update().apply)(
+        smc_state = jax.jit(smc.SMCForwardUpdate().apply)(
             key, smc_state, argdiffs, make_choice_map(1)
         )

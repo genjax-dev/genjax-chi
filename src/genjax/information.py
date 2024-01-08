@@ -23,18 +23,11 @@ inference algorithm (see SDOS, for example).
 """
 
 from genjax._src.information.aide import AuxiliaryInferenceDivergenceEstimator
-from genjax._src.information.aide import aide
 from genjax._src.information.eevi import EntropyEstimatorsViaInference
-from genjax._src.information.eevi import eevi
 from genjax._src.information.sdos import SymmetricDivergenceOverDatasets
-from genjax._src.information.sdos import sdos
-
 
 __all__ = [
     "AuxiliaryInferenceDivergenceEstimator",
-    "aide",
     "SymmetricDivergenceOverDatasets",
-    "sdos",
     "EntropyEstimatorsViaInference",
-    "eevi",
 ]

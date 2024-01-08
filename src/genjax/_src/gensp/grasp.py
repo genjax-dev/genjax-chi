@@ -19,45 +19,45 @@ import adevjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from adevjax import ADEVPrimitive
-from adevjax import baseline
-from adevjax import flip_enum
-from adevjax import flip_mvd
-from adevjax import geometric_reinforce
-from adevjax import mv_normal_diag_reparam
-from adevjax import normal_reinforce
-from adevjax import normal_reparam
-from adevjax import sample_with_key
+from adevjax import (
+    ADEVPrimitive,
+    flip_enum,
+    flip_mvd,
+    geometric_reinforce,
+    mv_normal_diag_reparam,
+    normal_reinforce,
+    normal_reparam,
+    sample_with_key,
+)
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.datatypes.generative import (
+    AllSelection,
+    ChoiceMap,
+    ChoiceValue,
+    EmptyChoice,
+    GenerativeFunction,
+    Selection,
+)
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import (
+    Any,
+    Callable,
+    FloatArray,
+    Int,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     geometric,
-)
-from genjax._src.generative_functions.distributions.tensorflow_probability import normal
-from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    normal,
     uniform,
 )
-from genjax._src.gensp.core import SPDistribution
-from genjax._src.gensp.core import Target
-from genjax._src.gensp.core import target
-
+from genjax._src.gensp.core import SPDistribution, Target, target
 
 tfd = tfp.distributions
 
@@ -75,10 +75,6 @@ class ADEVDistribution(ExactDensity):
     def flatten(self):
         return (self.adev_primitive,), (self.differentiable_logpdf,)
 
-    @classmethod
-    def new(cls, adev_prim, diff_logpdf):
-        return ADEVDistribution(diff_logpdf, adev_prim)
-
     def sample(self, key, *args):
         return sample_with_key(self.adev_primitive, key, *args)
 
@@ -90,45 +86,45 @@ class ADEVDistribution(ExactDensity):
             return lp
 
 
-flip_enum = ADEVDistribution.new(
+flip_enum = ADEVDistribution(
     adevjax.flip_enum,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-flip_mvd = ADEVDistribution.new(
+flip_mvd = ADEVDistribution(
     adevjax.flip_mvd,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
 
-flip_reinforce = ADEVDistribution.new(
+flip_reinforce = ADEVDistribution(
     adevjax.flip_reinforce,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-categorical_enum = ADEVDistribution.new(
+categorical_enum = ADEVDistribution(
     adevjax.categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
 )
 
-normal_reinforce = ADEVDistribution.new(
+normal_reinforce = ADEVDistribution(
     adevjax.normal_reinforce,
     lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
-normal_reparam = ADEVDistribution.new(
+normal_reparam = ADEVDistribution(
     adevjax.normal_reparam,
     lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
-mv_normal_diag_reparam = ADEVDistribution.new(
+mv_normal_diag_reparam = ADEVDistribution(
     adevjax.mv_normal_diag_reparam,
     lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
         loc=loc, scale_diag=scale_diag
     ).log_prob(v),
 )
 
-mv_normal_reparam = ADEVDistribution.new(
+mv_normal_reparam = ADEVDistribution(
     adevjax.mv_normal_reparam,
     lambda v, loc, covariance_matrix: tfd.MultivariateNormalFullCovariance(
         loc=loc,
@@ -136,12 +132,12 @@ mv_normal_reparam = ADEVDistribution.new(
     ).log_prob(v),
 )
 
-geometric_reinforce = ADEVDistribution.new(
+geometric_reinforce = ADEVDistribution(
     adevjax.geometric_reinforce,
     lambda v, *args: geometric.logpdf(v, *args),
 )
 
-uniform = ADEVDistribution.new(
+uniform = ADEVDistribution(
     adevjax.uniform,
     lambda v: uniform.logpdf(v, 0.0, 1.0),
 )
@@ -154,10 +150,6 @@ class Baselined(ExactDensity):
     def flatten(self):
         return (self.adev_dist,), ()
 
-    @classmethod
-    def new(cls, adev_dist: ADEVDistribution):
-        return Baselined(adev_dist)
-
     def sample(self, key, b, *args):
         baselined = adevjax.baseline(self.adev_dist.adev_primitive)
         return sample_with_key(baselined, key, b, *args)
@@ -166,12 +158,7 @@ class Baselined(ExactDensity):
         return self.adev_dist.logpdf(v, *args)
 
 
-@typecheck
-def baseline(adev_dist: ADEVDistribution):
-    return Baselined.new(adev_dist)
-
-
-baselined_flip = baseline(flip_reinforce)
+baselined_flip = Baselined(flip_reinforce)
 
 
 #######################################

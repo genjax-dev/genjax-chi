@@ -17,11 +17,7 @@
 # For the internals, see _src.
 
 # Closed modules.
-from genjax import gensp
-from genjax import incremental
-from genjax import inference
-from genjax import typing
-from genjax.core import serialization
+from importlib import metadata
 
 from .console import *
 from .core import *
@@ -30,35 +26,5 @@ from .extras import *
 from .generative_functions import *
 from .inference import *
 from .information import *
-from .language_decorator import *
-
-from importlib import metadata
 
 __version__ = metadata.version("genjax")
-
-####################################################
-#
-#   The exports defined above are the public API.
-#
-#                        /\_/\____,
-#              ,___/\_/\ \  ~     /
-#              \     ~  \ )   XXX
-#                XXX     /    /\_/\___,
-#                   \o-o/-o-o/   ~    /
-#                    ) /     \    XXX
-#                   _|    / \ \_/
-#                ,-/   _  \_/   \
-#               / (   /____,__|  )
-#              (  |_ (    )  \) _|
-#             _/ _)   \   \__/   (_
-#            (,-(,(,(,/      \,),),)
-#
-#
-#       "Abandon all hope, ye who enter _src."
-#
-####################################################
-
-try:
-    del genjax._src
-except NameError:
-    pass

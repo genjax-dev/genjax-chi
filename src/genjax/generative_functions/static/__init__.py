@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.static.static_gen_fn import Static
-from genjax._src.generative_functions.static.static_gen_fn import partial
-from genjax._src.generative_functions.static.static_transforms import cache
-from genjax._src.generative_functions.static.static_transforms import save
-from genjax._src.generative_functions.static.static_transforms import trace
-
+from genjax._src.generative_functions.static.static_gen_fn import Static, partial
+from genjax._src.generative_functions.static.static_transforms import (
+    cache,
+    save,
+    trace,
+    trace_p,
+)
 
 __all__ = [
+    "trace_p",
     "trace",
     "cache",
     "save",

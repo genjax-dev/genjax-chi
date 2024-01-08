@@ -11,44 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows
-branching control flow for combinations of generative functions which can
-return different shaped choice maps.
-
-It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.switch`_.
-
-Generative functions which are passed in as branches to `SwitchCombinator`
-must accept the same argument types, and return the same type of return value.
-
-The internal choice maps for the branch generative functions
-can have different shape/dtype choices. The resulting `SwitchTrace` will efficiently share `(shape, dtype)` storage across branches.
-
-.. _jax.lax.switch: https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html
-"""
 
 from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.combinators.staging_utils import (
-    get_discard_data_shape,
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    JAXGenerativeFunction,
+    Mask,
+    Trace,
+)
+from genjax._src.core.interpreters.incremental import (
+    static_check_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
 )
 from genjax._src.generative_functions.combinators.staging_utils import (
+    get_discard_data_shape,
     get_trace_data_shape,
 )
 from genjax._src.generative_functions.combinators.switch.sumtree import (
@@ -56,12 +44,9 @@ from genjax._src.generative_functions.combinators.switch.sumtree import (
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
-)
-from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchTrace,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
-
 
 #####
 # SwitchCombinator
@@ -80,25 +65,27 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
         console = genjax.console()
 
-        @genjax.lang
+        @genjax.Static
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
-        @genjax.lang
+        @genjax.Static
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
-        # Creating a `SwitchCombinator` via the preferred `new` class method.
+        #######################################################################
+        # Creating a `SwitchCombinator` via the preferred `new` class method. #
+        #######################################################################
+
         switch = genjax.SwitchCombinator.new(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
-        jitted = jax.jit(genjax.simulate(switch))
+        jitted = jax.jit(switch.simulate)
         _ = jitted(key, (0, ))
         tr = jitted(key, (1, ))
 
@@ -106,24 +93,10 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    branches: List[JAXGenerativeFunction]
+    branches: Tuple[JAXGenerativeFunction, ...]
 
     def flatten(self):
         return (self.branches,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, *args: JAXGenerativeFunction) -> "SwitchCombinator":
-        """The preferred constructor for `SwitchCombinator` generative function
-        instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
-
-        Arguments:
-            *args: JAX generative functions which will act as branch callees for the invocation of branching control flow.
-
-        Returns:
-            instance: A `SwitchCombinator` instance.
-        """
-        return SwitchCombinator([*args])
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self, branch, *args):
@@ -273,7 +246,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             args = tree_diff_primal(argdiffs)
             (tr, w) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
-            discard = mask(True, stripped)
+            discard = Mask(True, stripped)
             retval = tr.get_retval()
             retval_diff = tree_diff_unknown_change(retval)
 
@@ -341,16 +314,10 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return jax.lax.switch(switch, branch_functions, chm, *args)
 
 
-#########################
-# Language constructors #
-#########################
+#############
+# Decorator #
+#############
 
 
-@typecheck
-def switch_combinator(*gen_fn: JAXGenerativeFunction):
-    return SwitchCombinator.new(*gen_fn)
-
-
-Switch = LanguageConstructor(
-    switch_combinator,
-)
+def Switch(*args: JAXGenerativeFunction) -> SwitchCombinator:
+    return SwitchCombinator(args)

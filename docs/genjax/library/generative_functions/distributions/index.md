@@ -9,7 +9,7 @@
 ::: genjax.generative_functions.distributions.Distribution
     options:
       show_root_heading: true
-      members: 
+      members:
         - random_weighted
         - estimate_logpdf
 
@@ -31,5 +31,3 @@ To support [TensorFlow Probability distributions (`tfp.distributions`)](https://
 ::: genjax.generative_functions.distributions.TFPDistribution
     options:
       members: false
-
-### Custom distributions implemented in `genjax`

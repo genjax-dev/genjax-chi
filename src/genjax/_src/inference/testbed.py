@@ -21,24 +21,16 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
+from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMMConfiguration,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    discrete_hmm_config,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
 from genjax._src.generative_functions.static.static_gen_fn import Static
-from genjax._src.language_decorator import lang
 
 
 @dataclass
@@ -82,7 +74,7 @@ def build_inference_test_generator(
     transition_variance: FloatArray,
     observation_variance: FloatArray,
 ):
-    config = discrete_hmm_config(
+    config = DiscreteHMMConfiguration(
         state_space_size,
         transition_distance_truncation,
         observation_distance_truncation,
@@ -90,11 +82,11 @@ def build_inference_test_generator(
         observation_variance,
     )
 
-    @lang(Unfold, max_length=max_length)
-    @lang(Static)
+    @Unfold(max_length=max_length)
+    @Static
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
-        transition = config.transition_tensor
-        observation = config.observation_tensor
+        transition = config.transition_tensor()
+        observation = config.observation_tensor()
         z = categorical(transition[state, :]) @ "z"
         _ = categorical(observation[z, :]) @ "x"
         return z

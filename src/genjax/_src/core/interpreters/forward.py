@@ -16,7 +16,7 @@ import abc
 import copy
 import functools
 import itertools as it
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -24,23 +24,13 @@ from jax import tree_util
 from jax import util as jax_util
 from jax._src import core as jax_core
 from jax.extend import linear_util as lu
-from jax.interpreters import ad
-from jax.interpreters import batching
-from jax.interpreters import mlir
+from jax.interpreters import ad, batching, mlir
 from jax.interpreters import partial_eval as pe
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
+from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Bool
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Union
-from genjax._src.core.typing import Value
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value, typecheck
 
 #########################
 # Custom JAX primitives #
@@ -157,14 +147,10 @@ VarOrLiteral = Union[jc.Var, jc.Literal]
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value]
+    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
 
     def flatten(self):
         return (self.env,), ()
-
-    @classmethod
-    def new(cls):
-        return Environment(hashable_dict())
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
@@ -227,7 +213,7 @@ class ForwardInterpreter(Pytree):
         consts: List[Value],
         args: List[Value],
     ):
-        env = Environment.new()
+        env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)
         jax_util.safe_map(env.write, _jaxpr.invars, args)
         for eqn in _jaxpr.eqns:

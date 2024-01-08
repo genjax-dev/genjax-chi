@@ -16,28 +16,36 @@
 import abc
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import AllSelection
-from genjax._src.core.datatypes.generative import ChoiceValue
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.interpreters.incremental import static_check_no_change
-from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
-from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.interpreters.incremental import tree_diff_unknown_change
-from genjax._src.core.serialization.pickle import PickleDataFormat
-from genjax._src.core.serialization.pickle import PickleSerializationBackend
-from genjax._src.core.serialization.pickle import SupportsPickleSerialization
-from genjax._src.core.typing import Any, ArrayLike
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
+from genjax._src.core.datatypes.generative import (
+    AllSelection,
+    ChoiceValue,
+    EmptyChoice,
+    GenerativeFunction,
+    Selection,
+    Trace,
+)
+from genjax._src.core.interpreters.incremental import (
+    static_check_no_change,
+    static_check_tree_leaves_diff,
+    tree_diff_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
+from genjax._src.core.serialization.pickle import (
+    PickleDataFormat,
+    PickleSerializationBackend,
+    SupportsPickleSerialization,
+)
+from genjax._src.core.typing import (
+    Any,
+    ArrayLike,
+    FloatArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
-
 
 #####
 # DistributionTrace

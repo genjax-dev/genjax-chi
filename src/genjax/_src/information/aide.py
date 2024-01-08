@@ -22,9 +22,7 @@ from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Int, PRNGKey, Tuple
 
 
 @dataclass
@@ -36,16 +34,6 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 
     def flatten(self):
         return (self.p, self.q), (self.num_meta_p, self.num_meta_q)
-
-    @classmethod
-    def new(
-        cls,
-        p: GenerativeFunction,
-        q: GenerativeFunction,
-        num_meta_p: Int,
-        num_meta_q: Int,
-    ):
-        return AuxiliaryInferenceDivergenceEstimator(num_meta_p, num_meta_q, p, q)
 
     def _estimate_log_ratio(
         self,
@@ -110,5 +98,3 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 ##############
 # Shorthands #
 ##############
-
-aide = AuxiliaryInferenceDivergenceEstimator.new

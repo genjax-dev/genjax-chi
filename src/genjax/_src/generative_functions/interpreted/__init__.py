@@ -22,38 +22,42 @@ The intent of this language is pedagogical - one can use it to rapidly construct
 """
 
 import abc
+import functools
 import itertools
 from dataclasses import dataclass, field
 
 import jax
 import jaxtyping
 from beartype import beartype
-from plum import dispatch
 
 from genjax._src.core.datatypes.generative import (
+    Choice,
     ChoiceMap,
     EmptyChoice,
+    GenerativeFunction,
+    HierarchicalChoiceMap,
     HierarchicalSelection,
+    Trace,
 )
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalChoiceMap
-from genjax._src.core.datatypes.generative import LanguageConstructor
-from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import (
     UnknownChange,
+    tree_diff,
+    tree_diff_primal,
     tree_diff_unknown_change,
 )
-from genjax._src.core.interpreters.incremental import tree_diff
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.typing import Any, FloatArray, ArrayLike
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import (
+    Any,
+    ArrayLike,
+    Callable,
+    FloatArray,
+    List,
+    PRNGKey,
+    Tuple,
+)
 from genjax._src.generative_functions.supports_callees import (
-    push_trace_overload_stack,
     SupportsCalleeSugar,
+    push_trace_overload_stack,
 )
 from genjax.core.exceptions import AddressReuse
 
@@ -142,7 +146,7 @@ class AddressVisitor:
 class SimulateHandler(Handler):
     key: PRNGKey
     score: ArrayLike = 0.0
-    choice_state: Trie = field(default_factory=Trie.new)
+    choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -165,7 +169,7 @@ class ImportanceHandler(Handler):
     constraints: ChoiceMap
     score: ArrayLike = 0.0
     weight: ArrayLike = 0.0
-    choice_state: Trie = field(default_factory=Trie.new)
+    choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -190,8 +194,8 @@ class UpdateHandler(Handler):
     previous_trace: Trace
     constraints: ChoiceMap
     weight: ArrayLike = 0.0
-    discard: Trie = field(default_factory=Trie.new)
-    choice_state: Trie = field(default_factory=Trie.new)
+    discard: Trie = field(default_factory=Trie)
+    choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -333,17 +337,18 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 weight,
             )
 
-    @dispatch
     def update(
         self,
         key: PRNGKey,
         prev_trace: Trace,
-        choice_map: ChoiceMap,
+        choice_map: Choice,
         argdiffs: Tuple,
     ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
+        if isinstance(choice_map, EmptyChoice):
+            choice_map = HierarchicalChoiceMap()
         with UpdateHandler(key, prev_trace, choice_map) as handler:
             args = tree_diff_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
@@ -358,12 +363,6 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
                 retdiff,
                 HierarchicalChoiceMap(discard),
             )
-
-    @dispatch
-    def update(
-        self, key: PRNGKey, prev_trace: Trace, choice: EmptyChoice, argdiffs: Tuple
-    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
-        return self.update(key, prev_trace, HierarchicalChoiceMap.new({}), argdiffs)
 
     def assess(
         self,
@@ -382,15 +381,12 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         return self.source(*args)
 
 
-########################
-# Language constructor #
-########################
+#############
+# Decorator #
+#############
 
 
-def interpreted_gen_fn(source: Callable):
-    return InterpretedGenerativeFunction(source)
-
-
-Interpreted = LanguageConstructor(
-    interpreted_gen_fn,
-)
+def Interpreted(f) -> InterpretedGenerativeFunction:
+    gf = InterpretedGenerativeFunction(f)
+    functools.update_wrapper(gf, f)
+    return gf

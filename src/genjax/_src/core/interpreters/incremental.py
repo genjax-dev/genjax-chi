@@ -37,21 +37,20 @@ import jax.core as jc
 import jax.tree_util as jtu
 from jax import util as jax_util
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
-from genjax._src.core.interpreters.forward import Environment
-from genjax._src.core.interpreters.forward import StatefulHandler
+from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
+from genjax._src.core.interpreters.forward import Environment, StatefulHandler
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import Value
-from genjax._src.core.typing import static_check_is_concrete
-from genjax._src.core.typing import typecheck
-
+from genjax._src.core.typing import (
+    Any,
+    Callable,
+    IntArray,
+    List,
+    Tuple,
+    Value,
+    static_check_is_concrete,
+    typecheck,
+)
 
 #######################################
 # Change type lattice and propagation #
@@ -148,6 +147,7 @@ class Diff(Pytree):
     def flatten(self):
         return (self.primal, self.tangent), ()
 
+    # TODO(colin): ask McCoy: the check is safe to run from JAX, or no?
     @classmethod
     def new(cls, primal, tangent):
         assert not isinstance(primal, Diff)
@@ -270,7 +270,7 @@ class IncrementalInterpreter(Pytree):
         primals: List[Value],
         tangents: List[ChangeTangent],
     ):
-        dual_env = Environment.new()
+        dual_env = Environment()
         jax_util.safe_map(dual_env.write, _jaxpr.constvars, tree_diff_no_change(consts))
         jax_util.safe_map(dual_env.write, _jaxpr.invars, tree_diff(primals, tangents))
         for _eqn in _jaxpr.eqns:

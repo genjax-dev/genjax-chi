@@ -20,21 +20,17 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import Choice
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import EmptyChoice
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import HierarchicalSelection
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.generative import mask
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import Sequence
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    ChoiceMap,
+    EmptyChoice,
+    GenerativeFunction,
+    HierarchicalSelection,
+    Mask,
+    Selection,
+    Trace,
+)
+from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
 
 ###############################
 # Switch combinator datatypes #
@@ -60,10 +56,6 @@ class SwitchChoiceMap(ChoiceMap):
 
     def flatten(self):
         return (self.index, self.submaps), ()
-
-    @classmethod
-    def new(cls, index, submaps):
-        return SwitchChoiceMap(index, submaps)
 
     def is_empty(self):
         # Concrete evaluation -- when possible.
@@ -123,7 +115,7 @@ class SwitchChoiceMap(ChoiceMap):
             axis=-1, dtype=bool
         )
 
-        return mask(
+        return Mask(
             flags[indexer],
             jtu.tree_map(
                 chooser,
@@ -139,7 +131,7 @@ class SwitchChoiceMap(ChoiceMap):
         new_submaps, new_discard = list(
             zip(*map(lambda v: v.merge(other), self.submaps))
         )
-        return SwitchChoiceMap.new(self.index, list(new_submaps)), SwitchChoiceMap.new(
+        return SwitchChoiceMap(self.index, list(new_submaps)), SwitchChoiceMap(
             self.index, list(new_discard)
         )
 

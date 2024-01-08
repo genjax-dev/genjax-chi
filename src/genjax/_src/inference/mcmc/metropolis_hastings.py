@@ -18,12 +18,9 @@ import jax
 import jax.numpy as jnp
 import jax.random as random
 
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import GenerativeFunction, Trace
 from genjax._src.core.interpreters.incremental import tree_diff_no_change
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import PRNGKey, Tuple, typecheck
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
@@ -33,10 +30,6 @@ class MetropolisHastings(MCMCKernel):
 
     def flatten(self):
         return (self.proposal,)
-
-    @classmethod
-    def new(cls, proposal):
-        return MetropolisHastings(proposal)
 
     @typecheck
     def apply(self, key: PRNGKey, trace: Trace, proposal_args: Tuple):
@@ -65,10 +58,3 @@ class MetropolisHastings(MCMCKernel):
 
     def reversal(self):
         return self
-
-
-##############
-# Shorthands #
-##############
-
-mh = MetropolisHastings.new

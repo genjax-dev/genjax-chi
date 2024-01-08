@@ -13,23 +13,21 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-
 
 _global = jnp.arange(3, dtype=float)
 
 
-@genjax.lang(genjax.Static)
+@genjax.Static
 def localization_kernel(x):
     y = genjax.normal(jnp.sum(_global), 1.0) @ "x"
     return x + y
 
 
 def wrap(fn):
-    @genjax.lang(genjax.Static)
+    @genjax.Static
     def inner(carry, *static_args):
         idx, state = carry
         newstate = fn.inline(state, *static_args)
@@ -41,9 +39,6 @@ def wrap(fn):
 class TestIssue404:
     def test_issue_404(self):
         key = jax.random.PRNGKey(314159)
-        localization_chain = genjax.unfold_combinator(
-            wrap(localization_kernel),
-            max_length=3,
-        )
-        trace = localization_chain.simulate(key, (2, (0, 0.0)))
+        localization_chain = genjax.Unfold(max_length=3)(wrap(localization_kernel))
+        _ = localization_chain.simulate(key, (2, (0, 0.0)))
         assert True

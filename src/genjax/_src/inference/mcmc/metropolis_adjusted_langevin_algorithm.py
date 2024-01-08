@@ -18,8 +18,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import Selection, Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import FloatArray
 from genjax._src.generative_functions.distributions.tensorflow_probability import normal
@@ -33,10 +32,6 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
 
     def flatten(self):
         return (self.selection, self.tau), ()
-
-    @classmethod
-    def new(cls, selection, tau):
-        return MetropolisAdjustedLangevinAlgorithm(selection, tau)
 
     def _grad_step_no_none(self, v1, v2):
         if v2 is None:
@@ -115,10 +110,3 @@ class MetropolisAdjustedLangevinAlgorithm(MCMCKernel):
 
     def reversal(self):
         return self
-
-
-##############
-# Shorthands #
-##############
-
-mala = MetropolisAdjustedLangevinAlgorithm.new
