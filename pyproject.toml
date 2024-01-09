@@ -70,11 +70,13 @@ tinygp = "^0.2.3"
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-mkdocs = "^1.4.2"
-mkdocs-git-authors-plugin = "^0.7.0"
+mkdocs = "^1.5.3"
+mkdocs-git-authors-plugin = "^0.7.2"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.6.0", extras=["ansi"]}
+mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
+mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdocstrings.git", tag="0.24.0" }
 
 [tool.poetry.extras]
 tinygp = ["tinygp"]

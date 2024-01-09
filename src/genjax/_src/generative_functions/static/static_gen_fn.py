@@ -118,6 +118,12 @@ class StaticGenerativeFunction(
         )
         return stage(syntax_sugar_handled)(*args)
 
+    def _overload(self, *args):
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        return syntax_sugar_handled(*args)
+
     @typecheck
     def simulate(
         self,

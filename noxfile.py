@@ -154,18 +154,10 @@ def docs_build(session: Session) -> None:
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
-    session.install("mkdocs")
-    session.install(
-        "mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders"
-    )
-    session.install(
-        "mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.2.1.3.0"
-    )
-
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("mkdocs", "build")
+    session.run("poetry", "run", "mkdocs", "build")
     session.run("quarto", "render", "notebooks", external=True)
 
 
@@ -174,13 +166,6 @@ def docs_serve(session: Session) -> None:
     """Build the documentation."""
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
-    )
-    session.install("mkdocs")
-    session.install(
-        "mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders"
-    )
-    session.install(
-        "mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.2.1.3.0"
     )
     session.run("mkdocs", "serve")
 
