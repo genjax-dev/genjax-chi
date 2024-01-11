@@ -171,7 +171,9 @@ def docs_build(session: Session) -> None:
     if build_dir.exists():
         shutil.rmtree(build_dir)
     session.run("poetry", "run", "mkdocs", "build")
-    session.run("quarto", "render", "notebooks", external=True)
+    session.run(
+        "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
+    )
 
 
 @session(name="docs-serve", python=python_version)
