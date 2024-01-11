@@ -81,9 +81,10 @@ class Selection(Pytree):
             tr = model.simulate(key, ())
             chm = tr.strip()
             selection = genjax.select("x")
-            complement = selection.complement()
-            filtered = chm.filter(complement)
-            print(console.render(filtered))
+            # ISSUE [#851](https://github.com/probcomp/genjax/issues/851): complement() is not implemented yet
+            # complement = selection.complement()
+            # filtered = chm.filter(complement)
+            # print(console.render(filtered))
             ```
         """
         return ComplementSelection(self)
@@ -726,9 +727,9 @@ class Mask(Pytree):
             import genjax
             console = genjax.console()
 
-            masked = genjax.mask(False, jnp.ones(5))
+            masked = genjax.Mask(False, jnp.ones(5))
             v1 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
-            masked = genjax.mask(True, jnp.ones(5))
+            masked = genjax.Mask(True, jnp.ones(5))
             v2 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
             print(console.render((v1, v2)))
             ```
@@ -765,7 +766,7 @@ class Mask(Pytree):
             import genjax
             console = genjax.console()
 
-            masked = genjax.mask(True, jnp.ones(5))
+            masked = genjax.Mask(True, jnp.ones(5))
             print(console.render(masked.unmask()))
             ```
 
@@ -773,11 +774,12 @@ class Mask(Pytree):
 
             ```python exec="yes" source="tabbed-left"
             import jax
+            import jax.experimental.checkify as checkify
             import jax.numpy as jnp
             import genjax
 
             with genjax.console(enforce_checkify=True) as console:
-                masked = genjax.mask(False, jnp.ones(5))
+                masked = genjax.Mask(False, jnp.ones(5))
                 err, _ = checkify.checkify(masked.unmask)()
                 print(console.render(err))
             ```
@@ -1024,7 +1026,7 @@ class GenerativeFunction(Pytree):
             import genjax
             console = genjax.console()
 
-            @Static
+            @genjax.Static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1150,7 +1152,7 @@ class GenerativeFunction(Pytree):
         map ($s$).
 
         Arguments:
-            choice: A complete choice map indicating constraints ($u$) for all choices.
+            chm: A complete choice map indicating constraints ($u$) for all choices.
             args: Arguments to the generative function ($x$).
 
         Returns:

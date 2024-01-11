@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.runtime_debugger import pull, push, record_call, record_value, tag
 from genjax._src.core.typing import Any, dispatch
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 ####################
 # Debug combinator #
@@ -25,7 +25,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsStatic
 
 
 @dataclass
-class DebugCombinator(JAXGenerativeFunction, SupportsStaticSugar):
+class DebugCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     gen_fn: JAXGenerativeFunction
 
     def flatten(self):

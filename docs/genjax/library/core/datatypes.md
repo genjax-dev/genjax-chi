@@ -30,7 +30,7 @@ GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` inte
 
 The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types. The interface is designed to allow the implementations of Bayesian inference algorithms to abstract over the implementation of common subroutines (like computing an importance weight, or an accept-reject ratio).
 
-Below, we document the abstract base class `GenerativeFunction`, and illustrate example usage of the method interface (`simulate`, `importance`, `update`, and `assess`). Full descriptions of concrete generative function languages are described in their own documentation module (c.f. [Generative function language](../generative_functions)).
+Below, we document the abstract base class `GenerativeFunction`, and illustrate example usage of the method interface (`simulate`, `importance`, `update`, and `assess`). Full descriptions of concrete generative function languages are described in their own documentation module (c.f. [Generative function language](../generative_functions/index.md)).
 
 !!! info "Logspace for numerical stability"
 
@@ -52,7 +52,7 @@ Below, we document the abstract base class `GenerativeFunction`, and illustrate 
 
 The interface definitions of generative functions may interact with JAX tracing machinery. GenJAX does not strictly impose this requirement on generative function implementations, but does provide a generative function class called `JAXGenerativeFunction` which denotes compatibility assumptions with JAX tracing.
 
-Other generative function languages which utilize callee generative functions can enforce JAX compatibility by typechecking on `JAXGenerativeFunction`. See, for instance, the [generative function combinators](../generative_functions/combinators) which expect JAX compatible generative functions as callees.
+Other generative function languages which utilize callee generative functions can enforce JAX compatibility by typechecking on `JAXGenerativeFunction`. See, for instance, the [generative function combinators](../generative_functions/combinators/index.md) which expect JAX compatible generative functions as callees.
 
 ::: genjax.core.JAXGenerativeFunction
     options:
