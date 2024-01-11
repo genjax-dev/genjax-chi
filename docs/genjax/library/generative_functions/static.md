@@ -15,6 +15,9 @@ from genjax import beta
 from genjax import bernoulli
 from genjax import Static
 
+
+console = genjax.console()
+
 @Static
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
