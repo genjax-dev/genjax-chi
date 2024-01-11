@@ -37,26 +37,25 @@ website:
         contents:
           - href: concepts/introduction/intro_to_genjax.ipynb
             text: Introduction
-          - href: concepts/combinators/intro_to_combinators.ipynb
-            text: (WIP) Generative function combinators
-          #- href: concepts/incremental_computation/incremental.ipynb
-          #  text: (WIP) Incremental computing
-          #          - href: concepts/gradient_interfaces/gradient_interfaces.ipynb
-          #            text: Differentiable programming
-      - section: 'Inference programming'
+
+          - href: concepts/incremental_computation/incremental.ipynb
+            text: (WIP) Incremental computing
+
+      - section: 'Sequential Monte Carlo (SMC)'
         contents:
-          - href: intermediate/gaussian_processes/gaussian_processes.ipynb
-            text: (WIP) Gaussian processes
-          - href: advanced/gen_sp/gen_sp.ipynb
-            text: '`GenSP` (density estimates)'
-      #      - text: '---'
-      #      - section: 'Internals'
-      #        contents:
-      #          - href: internals/impl_builtin_language/impl_builtin_language.ipynb
-      #            text: Probabilistic semantics via interpreters
+          - href: advanced/smc_language/smc_language.ipynb
+            text: 'The sequential Monte Carlo mini-language'
+
+          - href: intermediate/smc/smc_with_translators.ipynb
+            text: 'SMC with Translators'
+
+      - section: 'Internals'
+        contents:
+          - href: internals/developers/jax_intro.ipynb
+            text: "Developers' intro to JAX"
 
   page-footer:
-    center: © Copyright 2022 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
+    center: © Copyright 2022-2024 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
 
 toc: true
 toc-location: right

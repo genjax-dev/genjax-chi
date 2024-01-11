@@ -180,7 +180,7 @@ def docs_serve(session: Session) -> None:
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
-    session.run("mkdocs", "serve")
+    session.run("poetry", "run", "mkdocs", "serve")
 
 
 @session(name="notebooks-serve", python=python_version)
