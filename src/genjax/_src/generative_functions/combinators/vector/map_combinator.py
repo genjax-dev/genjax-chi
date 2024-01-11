@@ -157,7 +157,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return x + noise1 + noise2
 
         #####################################################
-        # The other way: use the `new` constructor directly #
+        # The other way: use the `Map` constructor directly #
         #####################################################
 
         @genjax.Static
@@ -166,7 +166,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
-        mapped = genjax.MapCombinator.new(add_normal_noise, in_axes=(0,))
+        mapped = genjax.Map(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)

@@ -152,16 +152,27 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.console()
 
         # A kernel generative function.
-        @genjax.Static        def random_walk(prev):
+        @genjax.Static
+        def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
 
-        # Creating a `SwitchCombinator` via the preferred `new` class method.
-        unfold = genjax.UnfoldCombinator.new(random_walk, 1000)
+        # You can apply the Unfold combinator direclty like this:
+
+        unfolded_random_walk = genjax.Unfold(max_length=1000)(random_walk)
+
+        # But the recommended way to do this is to use `Unfold` as a decorator
+        # when declaring the function:
+
+        @genjax.Unfold(max_length=1000)
+        @genjax.Static
+        def random_walk(prev):
+            x = genjax.normal(prev, 1.0) @ "x"
+            return x
 
         init = 0.5
         key = jax.random.PRNGKey(314159)
-        tr = jax.jit(genjax.simulate(unfold))(key, (999, init))
+        tr = jax.jit(genjax.simulate(ramdom_walk)(key, (999, init))
 
         print(console.render(tr))
         ```

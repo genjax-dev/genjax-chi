@@ -20,7 +20,7 @@ import jax.tree_util as jtu
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.pytree.utilities import tree_stack, tree_unstack
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import ArrayLike, Tuple
 
 
 class Pytree:
@@ -141,7 +141,7 @@ class Pytree:
     # This exposes slicing the struct-of-array representation,
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
-    def slice(self, index_or_index_array):
+    def slice(self, index_or_index_array: ArrayLike) -> "Pytree":
         """Utility available to any class which mixes `Pytree` base. This
         method supports indexing/slicing on indices when leaves are arrays.
 

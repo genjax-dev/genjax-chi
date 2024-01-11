@@ -283,7 +283,7 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
-        import genjax.core.runtime_debugger as debug
+        # import genjax.core.runtime_debugger as debug
         console = genjax.console()
 
         def foo(x):
@@ -292,8 +292,9 @@ def pull(
             z = v / 2
             return z
 
-        v, (recording, tags) = debug.pull(foo)(3.0)
-        print(console.render(recording))
+        # The runtime debugger is not currently supported
+        # v, (recording, tags) = debug.pull(foo)(3.0)
+        # print(console.render(recording))
         ```
 
         Here's an example where we mix `tag` and `record`.
@@ -301,7 +302,7 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
-        import genjax.core.runtime_debugger as debug
+        # import genjax.core.runtime_debugger as debug
         console = genjax.console()
 
         def foo(x):
@@ -310,10 +311,11 @@ def pull(
             z = v / 2
             return z
 
-        v, (recording, tags) = debug.pull(foo)(3.0)
-        print(console.render(recording))
-        print(console.render(tags))
-        print(console.render(tags["v"]))
+        # The runtime debugger is not currently supported
+        # v, (recording, tags) = debug.pull(foo)(3.0)
+        # print(console.render(recording))
+        # print(console.render(tags))
+        # print(console.render(tags["v"]))
         ```
 
         Here's an example using generative functions. Now, `debug.record` will transform `GenerativeFunction` instances into `debug.DebugCombinator`, wrapping `debug.record_call` around their generative function interface invocations.
@@ -326,7 +328,7 @@ def pull(
         console = genjax.console()
         key = jax.random.PRNGKey(314159)
 
-        @genjax.lang
+        @genjax.Static
         def foo(x):
             v = jnp.ones(10) * x
             x = debug.record(genjax.normal)(jnp.sum(v), 2.0) @ "x"
