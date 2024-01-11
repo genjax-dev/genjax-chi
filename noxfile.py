@@ -51,8 +51,6 @@ def tests(session):
         "notebooks",
         "--ignore",
         "benchmarks",
-        "--ignore",
-        "notebooks",
         "-n",
         "auto",
     )
@@ -109,6 +107,21 @@ def xdoctests(session) -> None:
 
     session.install("xdoctest[colors]")
     session.run("python", "-m", "xdoctest", *args)
+
+
+@session(python=python_version)
+def nbmake(session) -> None:
+    """Execute jupyter notebooks as tests"""
+    session.run_always("poetry", "install", "--with", "dev", external=True)
+    session.run(
+        "poetry",
+        "run",
+        "pytest",
+        "-n",
+        "auto",
+        "--nbmake",
+        "notebooks",
+    )
 
 
 @session(python=python_version)

@@ -1,4 +1,4 @@
-name: Codebase tests
+name: Notebook validation
 
 on:
   pull_request:
@@ -29,5 +29,5 @@ jobs:
       - name: Install nox-poetry
         run: pip install nox-poetry
 
-      - name: Run Tests
-        run: nox -s tests
+      - name: Validate Notebooks
+        run: nox -s nbmake
