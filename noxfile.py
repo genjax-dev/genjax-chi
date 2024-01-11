@@ -161,6 +161,18 @@ def build(session):
     session.run("poetry", "build")
 
 
+@session(name="mkdocs", python=python_version)
+def mkdocs(session: Session) -> None:
+    """run the mkdocs-only portion of the docs build."""
+    session.run_always(
+        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    )
+    build_dir = Path("site")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    session.run("poetry", "run", "mkdocs", "build", "--strict")
+
+
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
@@ -170,7 +182,7 @@ def docs_build(session: Session) -> None:
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build")
+    session.run("poetry", "run", "mkdocs", "build", "--strict")
     session.run(
         "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
     )
