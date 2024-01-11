@@ -1,4 +1,4 @@
-name: Test Docs
+name: Test mkdocs build
 
 on:
   pull_request:
@@ -26,9 +26,6 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.INSIDER_SSH_KEY }}
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
@@ -43,4 +40,4 @@ jobs:
         run: pip install nox-poetry
 
       - name: Run Docs Build
-        run: nox -r -s docs-build
+        run: nox -r -s mkdocs
