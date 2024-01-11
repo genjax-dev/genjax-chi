@@ -51,20 +51,21 @@ equinox = "^0.11.2"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.1.3"
-pytest = "^7.2.0"
+blackjax = "^0.9.6"
 coverage = "^7.0.0"
-mypy = "^0.991"
-pytest-benchmark = "^4.0.0"
-pytest-xdist = {version = "^3.2.0", extras = ["psutil"] }
-xdoctest = "^1.1.0"
-safety = "^2.3.5"
 darglint = "^1.8.1"
 jupyterlab = "^3.5.1"
 matplotlib = "^3.6.2"
+mypy = "^0.991"
+nbmake = "^1.4.6"
+pytest = "^7.2.0"
+pytest-benchmark = "^4.0.0"
+pytest-xdist = {version = "^3.2.0", extras = ["psutil"] }
+ruff = "^0.1.3"
+safety = "^2.3.5"
 seaborn = "^0.12.1"
-blackjax = "^0.9.6"
 tinygp = "^0.2.3"
+xdoctest = "^1.1.0"
 
 [tool.poetry.group.docs]
 optional = true
@@ -116,9 +117,7 @@ exclude = [
     "build",
     "dist",
     "node_modules",
-    "venv",
-    # TODO: Remove this exclusion once we fix the bitrot in this particular notebook.
-    "notebooks/internals/impl_builtin_language/impl_builtin_language.ipynb"
+    "venv"
 ]
 extend-include = ["*.ipynb"]
 line-length = 88
