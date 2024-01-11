@@ -117,8 +117,10 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
+    # TODO: Remove this exclusion once we fix the bitrot in this particular notebook.
+    "notebooks/internals/impl_builtin_language/impl_builtin_language.ipynb"
 ]
-
+extend-include = ["*.ipynb"]
 line-length = 88
 indent-width = 4
 
