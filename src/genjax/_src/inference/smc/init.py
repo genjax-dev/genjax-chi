@@ -14,13 +14,13 @@
 
 
 from dataclasses import dataclass
-from typing import Optional
 
 import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction
 from genjax._src.core.typing import (
     Int,
+    Optional,
     PRNGKey,
     Tuple,
     dispatch,

@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Union
 
 import jax.numpy as jnp
-from jaxtyping import ArrayLike
 
 from genjax._src.core.datatypes.generative import (
     AllSelection,
@@ -31,7 +29,7 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
-from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import ArrayLike, IntArray, Union
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
     IndexedSelection,
