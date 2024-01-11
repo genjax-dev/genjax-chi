@@ -25,7 +25,7 @@ GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` inte
 ## Core generative datatypes
 
 !!! tip "Generative functions, traces, choice types, and selections"
-    
+
     The data types discussed below are critical to the design of Gen, and are the main data types that users can expect to interact with.
 
 The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types. The interface is designed to allow the implementations of Bayesian inference algorithms to abstract over the implementation of common subroutines (like computing an importance weight, or an accept-reject ratio).

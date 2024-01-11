@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee. 
+The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
 """
