@@ -2,7 +2,7 @@
 hide:
   - toc
 ---
-# Distribution reference 
+# Distribution reference
 
 Below, we list all the public exported distribution generative functions and (when applicable) their shorthand (instanced) names.
 
