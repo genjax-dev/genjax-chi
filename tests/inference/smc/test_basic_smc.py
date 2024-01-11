@@ -45,7 +45,7 @@ class TestSimpleSMC:
             choice_map({"x": jnp.array([1.0])}),
         )
         key, sub_key = jax.random.split(key)
-        smc_state = smc.smc_initialize(chain, 100).apply(
+        smc_state = smc.smc_initialize(chain, n_particles=100).apply(
             sub_key, obs, (init_len, init_state)
         )
         obs = indexed_choice_map(
@@ -78,7 +78,7 @@ class TestSimpleSMC:
         def extend_smc_no_resampling(key, obs, init_state):
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
-            smc_state = smc.smc_initialize(chain, 100).apply(
+            smc_state = smc.smc_initialize(chain, n_particles=100).apply(
                 sub_key, obs_slice, (0, init_state)
             )
             obs = jtu.tree_map(lambda v: v[1:], obs)
@@ -123,7 +123,7 @@ class TestSimpleSMC:
         def extending_smc(key, obs, init_state):
             obs_slice = obs.slice(0)
             key, sub_key = jax.random.split(key)
-            smc_state = smc.smc_initialize(chain, 100).apply(
+            smc_state = smc.smc_initialize(chain, n_particles=100).apply(
                 sub_key, obs_slice, (0, init_state)
             )
             obs = jtu.tree_map(lambda v: v[1:], obs)
@@ -200,7 +200,7 @@ class TestSimpleSMC:
                 ),
             )
 
-        smc_state = jax.jit(genjax.smc.smc_initialize(chain, 5).apply)(
+        smc_state = jax.jit(genjax.smc.smc_initialize(chain, n_particles=5).apply)(
             key, make_choice_map(0), (0, jnp.ones(361))
         )
 

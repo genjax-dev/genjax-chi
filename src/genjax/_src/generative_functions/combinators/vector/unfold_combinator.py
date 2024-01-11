@@ -91,7 +91,7 @@ class UnfoldTrace(Trace):
             if jnp.array(self.dynamic_length, copy=False).shape
             else jnp.arange(self.unfold.max_length) <= self.dynamic_length
         )
-        return VectorChoiceMap.new(Mask(mask_flags, self.inner.strip()))
+        return VectorChoiceMap(Mask(mask_flags, self.inner.strip()))
 
     def get_gen_fn(self):
         return self.unfold

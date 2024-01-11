@@ -20,14 +20,16 @@ import rich.tree as rich_tree
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
     ChoiceMap,
+    ChoiceValue,
     EmptyChoice,
+    HierarchicalChoiceMap,
     HierarchicalSelection,
     Mask,
     Selection,
-    choice_map,
 )
+from genjax._src.core.datatypes.hashable_dict import hashable_dict
+from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
@@ -36,9 +38,7 @@ from genjax._src.core.typing import (
     Dict,
     Int,
     IntArray,
-    List,
     Tuple,
-    Union,
     dispatch,
     static_check_is_concrete,
 )
@@ -64,6 +64,9 @@ class IndexedSelection(Selection):
             self.indices,
             self.inner,
         ), ()
+
+    def __post_init__(self):
+        static_check_tree_leaves_have_matching_leading_dim((self.inner, self.indices))
 
     @dispatch
     def has_addr(self, addr: IntArray):
@@ -98,49 +101,21 @@ class IndexedChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.indices, self.inner), ()
 
-    # TODO(colin): Ask McCoy: Maybe a way to unify all these interfaces would
-    # be to take a dict argument with integer keys, as in:
-    #
-    # IndexedChoiceMap.from_dict({
-    #   1: x,
-    #   2: y
-    # })
-    # The indices and values would then look "zipped together" in the source code
-    # pyright-wise, we could enforce the int type constraint on the dict keys
-
     @classmethod
-    @dispatch
-    def new(cls, idx: Int, inner: ChoiceMap) -> ChoiceMap:
-        idx = jnp.array(idx)
-        return IndexedChoiceMap.new(idx, inner)
+    def from_dict(self, d: Dict[int, Any]) -> ChoiceMap:
+        """Produce an IndexedChoiceMap from a dictionary with integer keys.
 
-    @classmethod
-    @dispatch
-    def new(cls, indices: IntArray, inner: ChoiceMap) -> ChoiceMap:
-        # Promote raw integers (or scalars) to non-null leading dim.
-        indices = jnp.array(indices, copy=False)
+        IndexedChoiceMap.from_dict({
+          1: 1.0
+          2: 3.0
+        })
 
-        # Verify that dimensions are consistent before creating an
-        # `IndexedChoiceMap`.
-        _ = static_check_tree_leaves_have_matching_leading_dim((inner, indices))
-
-        # if you try to wrap around an EmptyChoice, do nothing.
-        if isinstance(inner, EmptyChoice):
-            return inner
-
-        return IndexedChoiceMap(indices, inner)
-
-    @classmethod
-    @dispatch
-    def new(cls, indices: List, inner: ChoiceMap) -> ChoiceMap:
-        indices = jnp.array(indices)
-        return IndexedChoiceMap.new(indices, inner)
-
-    @classmethod
-    @dispatch
-    def new(cls, indices: Any, inner: Dict) -> ChoiceMap:
-        inner = choice_map(inner)
-        return IndexedChoiceMap.new(indices, inner)
+        is equivalent to indexed_choice_map([1, 2], choice_map({"x": [1.0, 3.0]}))
+        """
+        sorted_keys = sorted(d.keys())
+        hd = hashable_dict()
+        hd["x"] = ChoiceValue(jnp.array([d[k] for k in sorted_keys]))
+        return IndexedChoiceMap(jnp.array(sorted_keys), HierarchicalChoiceMap(Trie(hd)))
 
     def is_empty(self):
         return self.inner.is_empty()
@@ -175,11 +150,10 @@ class IndexedChoiceMap(ChoiceMap):
     def get_submap(self, addr: Tuple):
         if len(addr) == 1:
             return self.get_submap(addr[0])
-        idx, *rest = addr
+        idx = addr[0]
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        submap = submap.get_submap(tuple(rest))
+        submap = submap.get_submap(addr[1:])
         if isinstance(submap, EmptyChoice):
             return submap
         else:
@@ -242,35 +216,8 @@ class VectorChoiceMap(ChoiceMap):
     def flatten(self):
         return (self.inner,), ()
 
-    # TODO(colin): Ask McCoy: I'm uncomfortable having the constructor for one
-    # class return an object of another type, so maybe we want another
-    # helper function here. Can we enforce that the type of inner is an array?
-    @classmethod
-    @dispatch
-    def new(
-        cls,
-        inner: EmptyChoice,
-    ) -> EmptyChoice:
-        return inner
-
-    @classmethod
-    @dispatch
-    def new(
-        cls,
-        inner: Dict,
-    ) -> ChoiceMap:
-        chm = choice_map(inner)
-        return VectorChoiceMap.new(chm)
-
-    @classmethod
-    @dispatch
-    def new(
-        cls,
-        inner: Any,
-    ) -> ChoiceMap:
-        # Static assertion: all leaves must have same first dim size.
-        static_check_tree_leaves_have_matching_leading_dim(inner)
-        return VectorChoiceMap(inner)
+    def __post_int__(self):
+        static_check_tree_leaves_have_matching_leading_dim(self.inner)
 
     def is_empty(self):
         return self.inner.is_empty()
@@ -293,7 +240,7 @@ class VectorChoiceMap(ChoiceMap):
         self,
         selection: Selection,
     ) -> ChoiceMap:
-        return VectorChoiceMap.new(self.inner.filter(selection))
+        return VectorChoiceMap(self.inner.filter(selection))
 
     def get_selection(self):
         subselection = self.inner.get_selection()
@@ -385,42 +332,3 @@ class VectorChoiceMap(ChoiceMap):
         tree = rich_tree.Tree("[bold](VectorChoiceMap)")
         tree.add(self.inner.__rich_tree__())
         return tree
-
-
-################################
-# Extend select and choice_map #
-################################
-
-
-# @dispatch
-# def choice_map(indices: List[Int], submaps: List[ChoiceMap]):
-#     # submaps must have same Pytree structure to use
-#     # optimized representation.
-#     assert static_check_tree_structure_equivalence(submaps)
-#     index_arr = jnp.array(indices)
-#     return indexed_choice_map(index_arr, submaps)
-
-
-# @dispatch
-# def choice_map(index: Int, submap: ChoiceMap):
-#     expanded = jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), submap)
-#     return indexed_choice_map([index], expanded)
-
-
-##############
-# Shorthands #
-##############
-
-
-def indexed_select(idx: Union[Int, IntArray], *choices: Selection):
-    idx = jnp.atleast_1d(idx)
-    if len(choices) == 0:
-        return IndexedSelection(idx, AllSelection())
-    elif len(choices) == 1 and isinstance(choices[0], Selection):
-        return IndexedSelection(idx, choices[0])
-    else:
-        return IndexedSelection(idx, HierarchicalSelection.from_addresses(choices))
-
-
-indexed_choice_map = IndexedChoiceMap.new
-vector_choice_map = VectorChoiceMap.new

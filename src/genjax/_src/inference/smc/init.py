@@ -20,6 +20,7 @@ import jax
 from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction
 from genjax._src.core.typing import (
     Int,
+    Optional,
     PRNGKey,
     Tuple,
     dispatch,
@@ -58,15 +59,8 @@ class SMCInitializeFromProposal(SMCAlgorithm):
     def flatten(self):
         return (self.model, self.proposal), (self.n_particles,)
 
-    @classmethod
-    def new(
-        cls,
-        model: GenerativeFunction,
-        proposal: GenerativeFunction,
-        n_particles: Int,
-    ):
-        assert static_check_is_concrete(n_particles)
-        return SMCInitializeFromPrior(n_particles, model, proposal)
+    def __post_init__(self):
+        assert static_check_is_concrete(self.n_particles)
 
     def apply(
         self,
@@ -94,23 +88,14 @@ class SMCInitializeFromProposal(SMCAlgorithm):
         return SMCState(self.n_particles, particles, lws, 0.0, True)
 
 
-# TODO(colin, mccoy): All the other functions have n_particles first, because static;
-# but it feels like proposal is a bit like the optional argument but it's sandwiched
-# between two required ones. Can we consider making n_particles the first argument?
-
-
 @dispatch
 def smc_initialize(
     model: GenerativeFunction,
-    n_particles: Int,
+    proposal: Optional[GenerativeFunction] = None,
+    *,
+    n_particles: int,
 ) -> SMCAlgorithm:
-    return SMCInitializeFromPrior(n_particles, model)
-
-
-@dispatch
-def smc_initialize(
-    model: GenerativeFunction,
-    proposal: GenerativeFunction,
-    n_particles: Int,
-) -> SMCAlgorithm:
-    return SMCInitializeFromProposal.new(model, proposal, n_particles)
+    if proposal is not None:
+        return SMCInitializeFromProposal(n_particles, model, proposal)
+    else:
+        return SMCInitializeFromPrior(n_particles, model)
