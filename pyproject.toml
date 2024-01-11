@@ -118,7 +118,7 @@ exclude = [
     "node_modules",
     "venv",
 ]
-
+extend-include = ["*.ipynb"]
 line-length = 88
 indent-width = 4
 
