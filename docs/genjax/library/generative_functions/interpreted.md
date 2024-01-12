@@ -15,8 +15,8 @@ features of JAX, and (therefore) cannot use automatic differentiation (AD) eithe
 can be used somewhat more flexibly.
 
 In particular, you can use ordinary Python control flow in your generative functions.
-In `@Static` GenJAX, you would use combinators to handle forks in the road rather than
-if statements. Further, `@Static` requires an up front commitment to the shape of vectors
+In `@static` GenJAX, you would use combinators to handle forks in the road rather than
+if statements. Further, `@static` requires an up front commitment to the shape of vectors
 and tensors so that efficient use of acceleration hardware may be made.
 
 In the interpreted language, there is no such restriction; the length of a vector
@@ -27,10 +27,10 @@ Up front, here's a representative program, (with syntactic sugar, using the cons
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
-from genjax import beta, bernoulli, Interpreted
+from genjax import beta, bernoulli, interpreted
 console = genjax.console()
 
-@Interpreted
+@interpreted
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
@@ -41,7 +41,7 @@ console.print(beta_bernoulli_process)
 
 ## Usage
 
-The `Interpreted` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions.
+The `interpreted` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions.
 
 Below, we illustrate a simple example:
 
@@ -49,15 +49,15 @@ Below, we illustrate a simple example:
 from genjax import beta
 from genjax import bernoulli
 from genjax import uniform
-from genjax import Interpreted
+from genjax import interpreted
 
-@Interpreted
+@interpreted
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
     return v
 
-@Interpreted
+@interpreted
 def joint():
     u = uniform() @ "u"
     v = beta_bernoulli_process(u) @ "bbp"
@@ -72,7 +72,7 @@ The static language exposes custom primitives, which are handled by JAX interpre
 
 The `trace` primitive provides access to the ability to invoke another generative function as a callee.
 
-::: genjax.generative_functions.interpreted.trace
+::: genjax.generative_functions.interpreted
 
 Returning to our example above:
 
@@ -81,9 +81,9 @@ Returning to our example above:
 import genjax
 from genjax import beta
 from genjax import bernoulli
-from genjax import Interpreted
+from genjax import interpreted
 
-@Interpreted
+@interpreted
 def beta_bernoulli_process(u):
     # Invoking `trace` can be sweetened, or unsweetened.
     p = genjax.trace("p", beta)(0.0, u) # not sweet
@@ -102,7 +102,7 @@ tr = beta_bernoulli_process.simulate(key, (2.0, ))
 
 console.render(tr)
 ```
-g
+
 Notice how the rendered result `Trace` has addresses in its choice trie for `"p"` and `"v"` - corresponding to the invocation of the beta and Bernoulli distribution generative functions.
 
 The `trace` primitive is a critical element of structuring hierarchical generative computation in the interpreted language.

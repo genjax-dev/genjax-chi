@@ -307,7 +307,7 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 @beartype
 class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     """An `InterpretedGenerativeFunction` is a generative function which relies only
-    upon the CPU for its execution. This is in contrast to Static,
+    upon the CPU for its execution. This is in contrast to `static`,
     which is designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
     for the inference computations.
 
@@ -327,17 +327,17 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     [jaxlib](https://jax.readthedocs.io/en/latest/installation.html) which
     can expose the acceleration features of your hardware environment to JAX.
 
-    In the meantime, you can work in the Interpreted Gen dialect and postpone
+    In the meantime, you can work in the interpreted Gen dialect and postpone
     the effort of integrating with JAX, working with the Gen paradigm in an
     non-accelerated form.
 
-    To create an [`InterpretedGenerativeFunction`][], use the [`Interpreted`][]
+    To create an [`InterpretedGenerativeFunction`][], use the [`interpreted`][]
     decorator like this:
 
         ```python
         import genjax
 
-        @genjax.Interpreted
+        @genjax.interpreted
         def model():
             y = genjax.normal(0.0, 1.0) @ "y"
             return y
@@ -432,7 +432,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def Interpreted(f) -> InterpretedGenerativeFunction:
+def interpreted(f) -> InterpretedGenerativeFunction:
     gf = InterpretedGenerativeFunction(f)
     functools.update_wrapper(gf, f)
     return gf

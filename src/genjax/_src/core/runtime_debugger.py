@@ -328,7 +328,7 @@ def pull(
         console = genjax.console()
         key = jax.random.PRNGKey(314159)
 
-        @genjax.Static
+        @genjax.static
         def foo(x):
             v = jnp.ones(10) * x
             x = debug.record(genjax.normal)(jnp.sum(v), 2.0) @ "x"

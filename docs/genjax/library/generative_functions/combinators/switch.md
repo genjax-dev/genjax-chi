@@ -1,6 +1,6 @@
 # Switch combinator
 
-::: genjax._src.generative_functions.combinators.switch
+::: genjax._src.generative_functions.combinators.switch.switch_combinator.switch_combinator
     options:
       show_root_heading: true
 
@@ -11,5 +11,3 @@ The `SwitchCombinator` is the première combinator for expressing branching cont
 ::: genjax._src.generative_functions.combinators.switch.switch_combinator.SwitchCombinator
     options:
       show_root_heading: true
-      members:
-        - new

@@ -12,24 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.combinators.masking_combinator import Masking
+from genjax._src.generative_functions.combinators.masking_combinator import (
+    masking_combinator,
+)
 from genjax._src.generative_functions.combinators.switch.switch_combinator import (
-    Switch,
     SwitchCombinator,
+    switch_combinator,
 )
 from genjax._src.generative_functions.combinators.vector.map_combinator import (
-    Map,
     MapCombinator,
+    map_combinator,
 )
-from genjax._src.generative_functions.combinators.vector.repeat_combinator import Repeat
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
+from genjax._src.generative_functions.combinators.vector.repeat_combinator import (
+    repeat_combinator,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    unfold_combinator,
+)
 
 __all__ = [
-    "Masking",
-    "Map",
+    "masking_combinator",
+    "map_combinator",
     "MapCombinator",
-    "Repeat",
-    "Unfold",
-    "Switch",
+    "repeat_combinator",
+    "unfold_combinator",
+    "switch_combinator",
     "SwitchCombinator",
 ]

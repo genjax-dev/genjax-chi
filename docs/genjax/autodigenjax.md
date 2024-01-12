@@ -16,7 +16,7 @@ tfd = tfp.distributions
 This is a "build a miniature GenJAX" tutorial: we construct a small probabilistic programming system (featuring a subset of Gen's generative function interfaces) (1). Along the way, we explore exactly why Gen is designed the way that it is.
 { .annotate }
 
-1. The implementation of the JAX interpreter language here _is a small scale version of the implementation for GenJAX's `Static` language_. Therefore, it is useful to work through this tutorial to understand the implementation of that language.
+1. The implementation of the JAX interpreter language here _is a small scale version of the implementation for GenJAX's `static` language_. Therefore, it is useful to work through this tutorial to understand the implementation of that language.
 
 ## Distributions
 

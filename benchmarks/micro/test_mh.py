@@ -15,16 +15,16 @@
 
 import genjax
 import jax
-from genjax import MetropolisHastings, Static, normal, trace, uniform
+from genjax import MetropolisHastings, normal, static, trace, uniform
 
 
-@Static
+@static
 def normalModel():
     x = trace("x", normal)(0.0, 1.0)
     return x
 
 
-@Static
+@static
 def proposal(nowAt, d):
     current = nowAt["x"]
     x = trace("x", uniform)(current - d, current + d)

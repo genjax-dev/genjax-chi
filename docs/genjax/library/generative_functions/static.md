@@ -13,18 +13,18 @@ Up front, here's a representative program, (with syntactic sugar, using the cons
 import genjax
 from genjax import beta
 from genjax import bernoulli
-from genjax import Static
+from genjax import static
 
 
 console = genjax.console()
 
-@Static
+@static
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v" # sweet
     return v
 
-print(console.render(beta_bernoulli_process))
+console.render(beta_bernoulli_process)
 ```
 
 ::: genjax._src.generative_functions.static.static_gen_fn.StaticGenerativeFunction
@@ -33,7 +33,7 @@ print(console.render(beta_bernoulli_process))
 
 ## Usage
 
-The `Static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions.
+The `static` language is a common foundation for constructing models. It exposes a DSL based on JAX primitives and transformations which allows the programmer to construct generative functions out of Python functions.
 
 Below, we illustrate a simple example:
 
@@ -41,15 +41,15 @@ Below, we illustrate a simple example:
 from genjax import beta
 from genjax import bernoulli
 from genjax import uniform
-from genjax import Static
+from genjax import static
 
-@Static
+@static
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
     return v
 
-@Static
+@static
 def joint():
     u = uniform() @ "u"
     v = beta_bernoulli_process(u) @ "bbp"
@@ -64,7 +64,7 @@ The static language exposes custom primitives, which are handled by JAX interpre
 
 The `trace` primitive provides access to the ability to invoke another generative function as a callee.
 
-::: genjax.generative_functions.static.trace
+::: genjax.generative_functions.static
 
 Returning to our example above:
 
@@ -73,9 +73,9 @@ Returning to our example above:
 import genjax
 from genjax import beta
 from genjax import bernoulli
-from genjax import Static
+from genjax import static
 
-@Static
+@static
 def beta_bernoulli_process(u):
     # Invoking `trace` can be sweetened, or unsweetened.
     p = genjax.trace("p", beta)(0.0, u) # not sweet
@@ -92,7 +92,7 @@ console = genjax.console()
 key = jax.random.PRNGKey(314159)
 tr = beta_bernoulli_process.simulate(key, (2.0, ))
 
-print(console.render(tr))
+console.render(tr)
 ```
 
 Notice how the rendered result `Trace` has addresses in its choice trie for `"p"` and `"v"` - corresponding to the invocation of the beta and Bernoulli distribution generative functions.

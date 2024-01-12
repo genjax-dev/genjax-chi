@@ -21,15 +21,15 @@ from jax import numpy as jnp
 
 class TestSwitch:
     def test_switch_simulate_in_gen_fn(self):
-        @genjax.Static
+        @genjax.static
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.Static
+        @genjax.static
         def model():
             b = genjax.bernoulli(0.5) @ "b"
-            s = genjax.Switch(f, f)(jnp.int32(b)) @ "s"
+            s = genjax.switch_combinator(f, f)(jnp.int32(b)) @ "s"
             return s
 
         key = jax.random.PRNGKey(314159)
@@ -38,16 +38,16 @@ class TestSwitch:
         assert True
 
     def test_switch_simulate(self):
-        @genjax.Static
+        @genjax.static
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        @genjax.Static
+        @genjax.static
         def simple_bernoulli():
             _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
-        switch = genjax.Switch(simple_normal, simple_bernoulli)
+        switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -72,15 +72,15 @@ class TestSwitch:
         assert tr.get_args() == (1,)
 
     def test_switch_simulate_in_gen_fn(self):
-        @genjax.Static
+        @genjax.static
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.Static
+        @genjax.static
         def model():
             b = genjax.bernoulli(0.5) @ "b"
-            s = genjax.Switch(f, f)(jnp.int32(b)) @ "s"
+            s = genjax.switch_combinator(f, f)(jnp.int32(b)) @ "s"
             return s
 
         key = jax.random.PRNGKey(314159)
@@ -88,16 +88,16 @@ class TestSwitch:
         assert True
 
     def test_switch_choice_map_behavior(self):
-        @genjax.Static
+        @genjax.static
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        @genjax.Static
+        @genjax.static
         def simple_bernoulli():
             _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
-        switch = genjax.Switch(simple_normal, simple_bernoulli)
+        switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -107,16 +107,16 @@ class TestSwitch:
         assert isinstance(tr["y3"], Mask)
 
     def test_switch_importance(self):
-        @genjax.Static
+        @genjax.static
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        @genjax.Static
+        @genjax.static
         def simple_bernoulli():
             _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
 
-        switch = genjax.Switch(simple_normal, simple_bernoulli)
+        switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
 
         key = jax.random.PRNGKey(314159)
         chm = genjax.EmptyChoice()
@@ -167,12 +167,12 @@ class TestSwitch:
         assert w == score
 
     def test_switch_update_single_branch_no_change(self):
-        @genjax.Static
+        @genjax.static
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
             _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
 
-        switch = genjax.Switch(simple_normal)
+        switch = genjax.switch_combinator(simple_normal)
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(switch.simulate)(sub_key, (0,))
@@ -188,15 +188,15 @@ class TestSwitch:
         assert v2 == tr["y2"]
 
     def test_switch_update_with_masking(self):
-        @genjax.Static
+        @genjax.static
         def branch_1(v):
             return genjax.normal(v, 1.0) @ "v"
 
-        @genjax.Static
+        @genjax.static
         def branch_2(v):
             return genjax.normal(v, 3.0) @ "v"
 
-        switch = genjax.Switch(branch_1, branch_2)
+        switch = genjax.switch_combinator(branch_1, branch_2)
         key = jax.random.PRNGKey(314159)
         tr = jax.jit(switch.simulate)(key, (1, 0.0))
         (tr, w, rd, d) = jax.jit(switch.update)(
@@ -221,18 +221,18 @@ class TestSwitch:
         outlier_stddev = 10.0
         sample_value = 2.0
 
-        @genjax.Static
+        @genjax.static
         def regular():
             x = genjax.normal(0.0, regular_stddev) @ "x"
             return x
 
-        @genjax.Static
+        @genjax.static
         def outlier():
             x = genjax.normal(0.0, outlier_stddev) @ "x"
             return x
 
         key = jax.random.PRNGKey(314159)
-        switch = genjax.Switch(regular, outlier)
+        switch = genjax.switch_combinator(regular, outlier)
         key, importance_key = jax.random.split(key)
 
         (tr, wt) = switch.importance(
@@ -256,15 +256,15 @@ class TestSwitch:
         )
 
     def test_switch_vectorized_access(self):
-        @genjax.Static
+        @genjax.static
         def f1():
             return genjax.normal(0.0, 1.0) @ "y"
 
-        @genjax.Static
+        @genjax.static
         def f2():
             return genjax.normal(0.0, 2.0) @ "y"
 
-        s = genjax.Switch(f1, f2)
+        s = genjax.switch_combinator(f1, f2)
 
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
@@ -275,19 +275,19 @@ class TestSwitch:
         assert (y.mask == jnp.array([True, True, True])).all()
 
     def test_switch_with_empty_gen_fn(self):
-        @genjax.Static
+        @genjax.static
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.Static
+        @genjax.static
         def empty():
             return 0.0
 
-        @genjax.Static
+        @genjax.static
         def model():
             b = genjax.bernoulli(0.5) @ "b"
-            s = genjax.Switch(f, empty)(jnp.int32(b)) @ "s"
+            s = genjax.switch_combinator(f, empty)(jnp.int32(b)) @ "s"
             return s
 
         key = jax.random.PRNGKey(314159)
