@@ -47,6 +47,8 @@ Hashable = btyping.Hashable
 FrozenSet = btyping.FrozenSet
 Optional = btyping.Optional
 Type = btyping.Type
+Protocol = btyping.Protocol
+
 
 # Types of Python literals.
 Int = int
