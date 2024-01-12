@@ -15,8 +15,8 @@ features of JAX, and (therefore) cannot use automatic differentiation (AD) eithe
 can be used somewhat more flexibly.
 
 In particular, you can use ordinary Python control flow in your generative functions.
-In Static GenJAX, you would use combinators to handle forks in the road rather than
-if statements. Further, Static requires an up front commitment to the shape of vectors
+In `@Static` GenJAX, you would use combinators to handle forks in the road rather than
+if statements. Further, `@Static` requires an up front commitment to the shape of vectors
 and tensors so that efficient use of acceleration hardware may be made.
 
 In the interpreted language, there is no such restriction; the length of a vector
@@ -100,9 +100,9 @@ console = genjax.console()
 key = jax.random.PRNGKey(314159)
 tr = beta_bernoulli_process.simulate(key, (2.0, ))
 
-print(console.render(tr))
+console.render(tr)
 ```
-
+g
 Notice how the rendered result `Trace` has addresses in its choice trie for `"p"` and `"v"` - corresponding to the invocation of the beta and Bernoulli distribution generative functions.
 
 The `trace` primitive is a critical element of structuring hierarchical generative computation in the interpreted language.

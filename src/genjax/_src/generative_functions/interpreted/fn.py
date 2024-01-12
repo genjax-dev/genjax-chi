@@ -307,8 +307,7 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 @beartype
 class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     """An `InterpretedGenerativeFunction` is a generative function which relies only
-    upon the CPU for its execution. This is in contrast to a
-    [genjax._src.generative_functions.static.Static][],
+    upon the CPU for its execution. This is in contrast to Static,
     which is designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
     for the inference computations.
 
