@@ -569,7 +569,7 @@ class TestInterpretedLanguageSugar:
         tr = simple_normal.simulate(key, ())
 
         key = jax.random.PRNGKey(314159)
-        v = simple_normal(key, ())
+        v = simple_normal.apply(key, ())
         assert tr.get_retval() == v
 
 

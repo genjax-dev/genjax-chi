@@ -64,7 +64,5 @@ class SupportsCalleeSugar:
         return SugaredGenerativeFunctionCall(self, kwargs, args)
 
     @dispatch
-    def __call__(self, key: PRNGKey, args: Tuple) -> Any:
-        tr = self.simulate(key, args)
-        retval = tr.get_retval()
-        return retval
+    def apply(self, key: PRNGKey, args: Tuple) -> Any:
+        return self.simulate(key, args).get_retval()
