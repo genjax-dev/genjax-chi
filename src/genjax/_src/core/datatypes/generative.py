@@ -1081,6 +1081,29 @@ class GenerativeFunction(Pytree):
         constraints: Mask,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
+        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
+        and arguments ($x$), execute the generative function, and return an
+        importance weight estimate of the conditional density evaluated at the
+        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
+        consistent with the constraints ($u$), with unconstrained choices
+        ($u'$) proposed from an internal proposal.
+
+        Arguments:
+            key: A `PRNGKey`.
+            constraints: A choice map indicating constraints ($u$).
+            args: Arguments to the generative function ($x$).
+
+        Returns:
+            tr: A trace capturing the data and inference data associated with the generative function invocation.
+            w: An importance weight.
+
+        The importance weight `w` is given by:
+
+        $$
+        w = \\log \\frac{p(u' ⧺ u, r; x)}{q(u'; u, x)q(r; x, t)}
+        $$
+        """
+
         def _inactive():
             w = 0.0
             tr = self.simulate(key, args)
