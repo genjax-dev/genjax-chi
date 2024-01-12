@@ -149,24 +149,24 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # One way to create a `MapCombinator`: using the decorator. #
         #############################################################
 
-        @genjax.Map(in_axes = (0, ))
-        @genjax.Static
+        @genjax.map_combinator(in_axes = (0, ))
+        @genjax.static
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
-        #####################################################
-        # The other way: use the `Map` constructor directly #
-        #####################################################
+        ################################################
+        # The other way: use `map_combinator` directly #
+        ################################################
 
-        @genjax.Static
+        @genjax.static
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
-        mapped = genjax.Map(in_axes=(0,))(add_normal_noise)
+        mapped = genjax.map_combinator(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
@@ -443,7 +443,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def Map(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
+def map_combinator(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
     def decorator(f) -> MapCombinator:
         gf = MapCombinator(in_axes, f)
         functools.update_wrapper(gf, f)

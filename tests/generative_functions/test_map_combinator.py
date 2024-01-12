@@ -19,8 +19,8 @@ import jax.numpy as jnp
 
 class TestMapCombinator:
     def test_map_simple_normal(self):
-        @genjax.Map(in_axes=(0,))
-        @genjax.Static
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -32,8 +32,8 @@ class TestMapCombinator:
         assert map_score == jnp.sum(tr.inner.get_score())
 
     def test_map_vector_choice_map_importance(self):
-        @genjax.Map(in_axes=(0,))
-        @genjax.Static
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -50,8 +50,8 @@ class TestMapCombinator:
         ) + genjax.normal.logpdf(3.0, 2.0, 1.0)
 
     def test_map_indexed_choice_map_importance(self):
-        @genjax.Map(in_axes=(0,))
-        @genjax.Static
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -74,14 +74,14 @@ class TestMapCombinator:
             assert tr[i, "z"] == zv[i]
 
     def test_map_nested_indexed_choice_map_importance(self):
-        @genjax.Map(in_axes=(0,))
-        @genjax.Static
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static
         def model(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
 
-        @genjax.Map(in_axes=(0,))
-        @genjax.Static
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static
         def higher_model(x):
             return model(x) @ "outer"
 
@@ -94,8 +94,8 @@ class TestMapCombinator:
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)
 
     def test_map_vmap_pytree(self):
-        @genjax.Map(in_axes=(None, (0, None)))
-        @genjax.Static
+        @genjax.map_combinator(in_axes=(None, (0, None)))
+        @genjax.static
         def foo(y, args):
             loc, scale = args
             x = genjax.normal(loc, scale) @ "x"
@@ -105,8 +105,8 @@ class TestMapCombinator:
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), 1.0)))
 
     def test_combinator(self):
-        @genjax.Map(in_axes=())
-        @genjax.Static
+        @genjax.map_combinator(in_axes=())
+        @genjax.static
         def model():
             """model docstring"""
             return genjax.normal(0.0, 1.0) @ "y"

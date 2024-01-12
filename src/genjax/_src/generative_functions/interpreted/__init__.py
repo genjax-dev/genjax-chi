@@ -11,18 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `genjax.Interpreted` language is a generative function language which
+"""The `genjax.interpreted` language is a generative function language which
 exposes a less restrictive set of program constructs, based on normal Python programs.
 
 The intent of this language is pedagogical - one can use it to rapidly construct
 models and prototype inference, but it is not intended to be used for performance
 critical applications, for several reasons:
 
-* Instances of `genjax.Interpreted` generative functions *cannot* be invoked as callees within JAX generative function code, which prevents compositional usage (from above, within `JAXGenerativeFunction` instances).
+* Instances of `genjax.interpreted` generative functions *cannot* be invoked as callees within JAX generative function code, which prevents compositional usage (from above, within `JAXGenerativeFunction` instances).
 
 * It does not feature gradient interfaces - supporting an ad hoc Python AD implementation is out of scope for the intended applications of GenJAX.
 """
 
-from .fn import Interpreted, InterpretedGenerativeFunction, trace
+from .fn import InterpretedGenerativeFunction, interpreted, trace
 
-__all__ = ["Interpreted", "InterpretedGenerativeFunction", "trace"]
+__all__ = ["interpreted", "InterpretedGenerativeFunction", "trace"]

@@ -71,7 +71,7 @@ class Selection(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -363,7 +363,7 @@ class ChoiceMap(Choice):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -479,7 +479,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -511,7 +511,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -568,7 +568,7 @@ class Trace(Pytree):
             from genjax import bernoulli
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -965,14 +965,14 @@ class GenerativeFunction(Pytree):
             print(console.render(tr))
             ```
 
-            Here's a slightly more complicated example using the `Static` generative function language. You can find more examples on the `Static` language page.
+            Here's a slightly more complicated example using the `static` generative function language. You can find more examples on the `static` language page.
 
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1019,14 +1019,14 @@ class GenerativeFunction(Pytree):
             print(console.render(chm))
             ```
 
-            Here's a slightly more complicated example using the `Static` generative function language. You can find more examples on the `Static` language page.
+            Here's a slightly more complicated example using the `static` generative function language. You can find more examples on the `static` language page.
 
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
             console = genjax.console()
 
-            @genjax.Static
+            @genjax.static
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
@@ -1419,7 +1419,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
 
     To make this more concrete, a `VectorChoiceMap` represents choices with addresses of the form `(integer_index, ...)` - but its internal data representation is a struct-of-arrays. A `HierarchicalChoiceMap` can also represent address assignments with form `(integer_index, ...)` - but supporting choice map interfaces like `merge` across choice map types with specialized internal representations is complicated.
 
-    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `Static` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
+    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `static` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
 
     To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
     """
