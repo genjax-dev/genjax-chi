@@ -10,13 +10,13 @@
       show_root_heading: true
 
 GenJAX's `interpreted` generative function language is a non-accelerated variant of GenJAX
-suited for rapid prototyping and instructional uses. It cannot access the accleration
-features of JAX, and (therefore) cannot use automatic differentiation (AD) either, it
-does can be used somewhat more flexibly.
+suited for rapid prototyping and instructional uses. It cannot access the acceleration
+features of JAX, and (therefore) cannot use automatic differentiation (AD) either, but it
+can be used somewhat more flexibly.
 
 In particular, you can use ordinary Python control flow in your generative functions.
-In `static` GenJAX, you would use combinators to handle forks in the road rather than
-if statements. Further, `static` requires an up front commitment to the shape of vectors
+In `@Static` GenJAX, you would use combinators to handle forks in the road rather than
+if statements. Further, `@Static` requires an up front commitment to the shape of vectors
 and tensors so that efficient use of acceleration hardware may be made.
 
 In the interpreted language, there is no such restriction; the length of a vector
@@ -33,10 +33,10 @@ console = genjax.console()
 @Interpreted
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
-    v = bernoulli(p) @ "v" # sweet
+    v = bernoulli(p) @ "v"
     return v
 
-print(console.render(beta_bernoulli_process))
+console.print(beta_bernoulli_process)
 ```
 
 ## Usage
