@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any, Dict, PRNGKey, Tuple, dispatch
+from genjax._src.core.typing import Any, Dict, PRNGKey, Tuple
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
@@ -59,10 +59,8 @@ def push_trace_overload_stack(handler, fn):
 # This mixin overloads the call functionality for this generative function
 # and allows usage of shorthand notation in the static DSL.
 class SupportsCalleeSugar:
-    @dispatch
     def __call__(self, *args: Any, **kwargs) -> SugaredGenerativeFunctionCall:
         return SugaredGenerativeFunctionCall(self, kwargs, args)
 
-    @dispatch
     def apply(self, key: PRNGKey, args: Tuple) -> Any:
         return self.simulate(key, args).get_retval()
