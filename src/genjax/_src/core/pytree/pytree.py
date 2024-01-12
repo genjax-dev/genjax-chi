@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ import abc
 import jax.tree_util as jtu
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.pytree.utilities import tree_stack
-from genjax._src.core.pytree.utilities import tree_unstack
-from genjax._src.core.typing import Tuple
+from genjax._src.core.pytree.utilities import tree_stack, tree_unstack
+from genjax._src.core.typing import ArrayLike, Tuple
 
 
 class Pytree:
-    """> Abstract base class which registers a class with JAX's `Pytree`
+    """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
     system.
 
     Users who mixin this ABC for class definitions are required to
@@ -56,12 +55,10 @@ class Pytree:
         For more information, consider [JAX's documentation on Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
 
         Returns:
-
             dynamic: Dynamic data which supports JAX tracer values.
             static: Static data which is JAX trace time constant.
 
         Examples:
-
             Let's assume that you are implementing a new dataclass. Here's how you would define the dataclass using the `Pytree` mixin.
 
             ```python
@@ -86,7 +83,7 @@ class Pytree:
             import jax.tree_util as jtu
             from genjax.core import Pytree
             from dataclasses import dataclass
-            console = genjax.pretty()
+            console = genjax.console()
 
             @dataclass
             class MyFoo(Pytree):
@@ -114,7 +111,6 @@ class Pytree:
         `unflatten` allows usage of `jtu.tree_unflatten` to create instances of a declared class that mixes `Pytree` from a `PyTreeDef` for that class and leaf data.
 
         Examples:
-
             Our example from `flatten` above also applies here - where we use `jtu.tree_unflatten` to create a new instance of `MyFoo` from a `PyTreeDef` and leaf data.
 
             ```python exec="yes" source="tabbed-left"
@@ -122,7 +118,7 @@ class Pytree:
             import jax.tree_util as jtu
             from genjax.core import Pytree
             from dataclasses import dataclass
-            console = genjax.pretty()
+            console = genjax.console()
 
             @dataclass
             class MyFoo(Pytree):
@@ -142,25 +138,19 @@ class Pytree:
         """
         return cls(*data, *xs)
 
-    @classmethod
-    def new(cls, *args, **kwargs):
-        return cls(*args, **kwargs)
-
     # This exposes slicing the struct-of-array representation,
     # taking leaves and indexing/randing into them on the first index,
     # returning a value with the same `Pytree` structure.
-    def slice(self, index_or_index_array):
-        """> Utility available to any class which mixes `Pytree` base. This
+    def slice(self, index_or_index_array: ArrayLike) -> "Pytree":
+        """Utility available to any class which mixes `Pytree` base. This
         method supports indexing/slicing on indices when leaves are arrays.
 
         `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
 
         Arguments:
-
             index_or_index_array: An `Int` index or an array of indices which will be used to index into the leaf arrays of the `Pytree` instance.
 
         Returns:
-
             new_instance: A `Pytree` instance of the same type, whose leaf values are the results of indexing into the leaf arrays with `index_or_index_array`.
         """
         return jtu.tree_map(lambda v: v[index_or_index_array], self)
@@ -176,12 +166,9 @@ class Pytree:
     ###################
 
     # Can be customized by Pytree mixers.
-    def __rich_tree__(self, tree):
-        sub_tree = gpp.tree_pformat(self)
-        tree.add(sub_tree)
-        return tree
+    def __rich_tree__(self):
+        return gpp.tree_pformat(self)
 
     # Defines default pretty printing.
     def __rich_console__(self, console, options):
-        tree = gpp.tree_pformat(self)
-        yield tree
+        yield self.__rich_tree__()

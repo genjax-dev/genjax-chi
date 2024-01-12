@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 import jax.random as random
 
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.transforms.incremental import tree_diff_no_change
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
+from genjax._src.core.datatypes.generative import GenerativeFunction, Trace
+from genjax._src.core.interpreters.incremental import tree_diff_no_change
+from genjax._src.core.typing import PRNGKey, Tuple, typecheck
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
-@dataclasses.dataclass
+@dataclass
 class MetropolisHastings(MCMCKernel):
     proposal: GenerativeFunction
 
@@ -44,12 +41,12 @@ class MetropolisHastings(MCMCKernel):
         fwd_weight = proposal_tr.get_score()
         diffs = tree_diff_no_change(model_args)
         key, sub_key = jax.random.split(key)
-        (_, weight, new, discard) = model.update(
+        (new, weight, _, discard) = model.update(
             sub_key, trace, proposal_tr.strip(), diffs
         )
         proposal_args_bwd = (new, *proposal_args)
         key, sub_key = jax.random.split(key)
-        (bwd_weight, _) = self.proposal.importance(sub_key, discard, proposal_args_bwd)
+        (_, bwd_weight) = self.proposal.importance(sub_key, discard, proposal_args_bwd)
         alpha = weight - fwd_weight + bwd_weight
         check = jnp.log(random.uniform(sub_key)) < alpha
         # TODO: Use WHERE here (not COND).
@@ -61,10 +58,3 @@ class MetropolisHastings(MCMCKernel):
 
     def reversal(self):
         return self
-
-
-##############
-# Shorthands #
-##############
-
-mh = MetropolisHastings.new

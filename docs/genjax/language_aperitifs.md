@@ -15,12 +15,12 @@ GenJAX consists of a **set of languages** based around transforming pure functio
 GenJAX provides a builtin language which supports a `trace` primitive and the ability to invoke other generative functions as callees:
 
 ```python
-@genjax.gen
+@genjax.static
 def submodel():
   x = trace("x", normal)(0.0, 1.0) # explicit
   return x
 
-@genjax.gen
+@genjax.static
 def model():
   x = submodel() @ "sub" # sugared
   return x
@@ -33,7 +33,7 @@ Addresses (here, `"x"` and `"sub"`) are important - addressed random choices wit
 Because convenient idioms for working with addresses is so important in Gen, the generative functions from the builtin language also support a form of "splatting" addresses into a caller.
 
 ```python
-@genjax.gen
+@genjax.static
 def model():
   x = submodel.inline()
   return x
@@ -43,13 +43,13 @@ Invoking the `submodel` via the `inline` interface here means that the addresses
 
 ## Structured control flow with combinators
 
-The base modeling language is the `BuiltinGenerativeFunction` language shown above. The builtin language is based on pure functions, with the interface semantics implemented using program transformations. But we'd also like to take advantage of structured control flow in our generative computations. 
+The base modeling language is the `BuiltinGenerativeFunction` language shown above. The builtin language is based on pure functions, with the interface semantics implemented using program transformations. But we'd also like to take advantage of structured control flow in our generative computations.
 
 Users gain access to structured control flow via _combinators_, other generative function mini-languages which implement the interfaces in control flow compatible ways.
 
 ```python
 @functools.partial(genjax.Map, in_axes=(0, 0))
-@genjax.gen
+@genjax.static
 def kernel(x, y):
   z = normal(x + y, 1.0) @ "z"
   return z
@@ -65,7 +65,7 @@ This defines a `MapCombinator` generative function - a generative function whose
 
 ```python
 @functools.partial(genjax.Unfold, max_length = 10)
-@genjax.gen
+@genjax.static
 def scanner(prev, static_args):
   sigma, = static_args
   new = normal(prev, sigma) @ "z"
@@ -80,7 +80,7 @@ def scanner(prev, static_args):
 `UnfoldCombinator` allows uncertainty over the length of the chain:
 
 ```python
-@genjax.gen
+@genjax.static
 def top_model(p):
   length = truncated_geometric(10, p) @ "l"
   initial_state = normal(0.0, 1.0) @ "init"
@@ -95,7 +95,7 @@ Of course, combinators are composable.
 
 ```python
 @functools.partial(genjax.Map, in_axes = (0, ))
-@genjax.gen
+@genjax.static
 def top_model(p):
   length = truncated_geometric(10, p) @ "l"
   initial_state = normal(0.0, 1.0) @ "init"

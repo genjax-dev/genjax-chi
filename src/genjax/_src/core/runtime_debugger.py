@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,26 +14,17 @@
 """This module contains a debugger based around inserting/recording state from
 pure functions."""
 
-import dataclasses
 import functools
 import inspect
+from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
-from pygments.token import Comment
-from pygments.token import Keyword
-from pygments.token import Name
-from pygments.token import Number
-from pygments.token import Operator
-from pygments.token import String
+from oryx import harvest
+from pygments.token import Comment, Keyword, Name, Number, Operator, String, Token
 from pygments.token import Text as TextToken
-from pygments.token import Token
 from rich import pretty
-from rich.console import Console
-from rich.console import ConsoleOptions
-from rich.console import ConsoleRenderable
-from rich.console import RenderResult
-from rich.console import group
+from rich.console import Console, ConsoleOptions, ConsoleRenderable, RenderResult, group
 from rich.constrain import Constrain
 from rich.highlighter import RegexHighlighter
 from rich.panel import Panel
@@ -45,9 +36,7 @@ from rich.theme import Theme
 
 import genjax._src.core.typing as typing
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import typecheck
-
 
 RECORDING_NAMESPACE = "debug_record"
 TAGGING_NAMESPACE = "debug_tag"
@@ -85,7 +74,7 @@ def tag(
 ###########
 
 
-@dataclasses.dataclass
+@dataclass
 class Frame:
     filename: typing.String
     lineno: typing.Int
@@ -98,7 +87,7 @@ class PathHighlighter(RegexHighlighter):
     highlights = [r"(?P<dim>.*/)(?P<bold>.+)"]
 
 
-@dataclasses.dataclass
+@dataclass
 class RenderSettings:
     theme: Theme
     width: typing.Int
@@ -122,7 +111,7 @@ class RenderSettings:
         )
 
 
-@dataclasses.dataclass
+@dataclass
 class DebuggerTags(harvest.ReapState):
     tagged: Trie
 
@@ -131,7 +120,7 @@ class DebuggerTags(harvest.ReapState):
 
     @classmethod
     def new(cls):
-        trie = Trie.new()
+        trie = Trie()
         return DebuggerTags(trie)
 
     def sow(self, values, tree, meta, _):
@@ -161,7 +150,7 @@ class DebuggerTags(harvest.ReapState):
             return v
 
 
-@dataclasses.dataclass
+@dataclass
 class DebuggerRecording(harvest.ReapState):
     render_settings: RenderSettings
     frames: typing.List[Frame]
@@ -242,7 +231,6 @@ class DebuggerRecording(harvest.ReapState):
         stack: typing.List[Frame],
         locals: typing.List[typing.Any],
     ) -> RenderResult:
-
         path_highlighter = PathHighlighter()
 
         def render_locals(locals: typing.Any) -> typing.Iterable[ConsoleRenderable]:
@@ -263,7 +251,6 @@ class DebuggerRecording(harvest.ReapState):
             )
 
         for frame, recorded in zip(stack, locals):
-
             text = Text.assemble(
                 path_highlighter(Text(frame.filename, style="pygments.string")),
                 (":", "pygments.text"),
@@ -296,8 +283,8 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
-        import genjax.core.runtime_debugger as debug
-        console = genjax.pretty()
+        # import genjax.core.runtime_debugger as debug
+        console = genjax.console()
 
         def foo(x):
             v = jnp.ones(10) * x
@@ -305,8 +292,9 @@ def pull(
             z = v / 2
             return z
 
-        v, (recording, tags) = debug.pull(foo)(3.0)
-        print(console.render(recording))
+        # The runtime debugger is not currently supported
+        # v, (recording, tags) = debug.pull(foo)(3.0)
+        # print(console.render(recording))
         ```
 
         Here's an example where we mix `tag` and `record`.
@@ -314,8 +302,8 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
-        import genjax.core.runtime_debugger as debug
-        console = genjax.pretty()
+        # import genjax.core.runtime_debugger as debug
+        console = genjax.console()
 
         def foo(x):
             v = jnp.ones(10) * x
@@ -323,10 +311,11 @@ def pull(
             z = v / 2
             return z
 
-        v, (recording, tags) = debug.pull(foo)(3.0)
-        print(console.render(recording))
-        print(console.render(tags))
-        print(console.render(tags["v"]))
+        # The runtime debugger is not currently supported
+        # v, (recording, tags) = debug.pull(foo)(3.0)
+        # print(console.render(recording))
+        # print(console.render(tags))
+        # print(console.render(tags["v"]))
         ```
 
         Here's an example using generative functions. Now, `debug.record` will transform `GenerativeFunction` instances into `debug.DebugCombinator`, wrapping `debug.record_call` around their generative function interface invocations.
@@ -336,13 +325,13 @@ def pull(
         import jax.numpy as jnp
         import genjax
         import genjax.core.runtime_debugger as debug
-        console = genjax.pretty()
+        console = genjax.console()
         key = jax.random.PRNGKey(314159)
 
-        @genjax.gen
+        @genjax.static
         def foo(x):
             v = jnp.ones(10) * x
-            x = debug.record(genjax.tfp_normal)(jnp.sum(v), 2.0) @ "x"
+            x = debug.record(genjax.normal)(jnp.sum(v), 2.0) @ "x"
             return x
 
         v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0, ))

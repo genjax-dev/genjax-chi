@@ -1,4 +1,4 @@
-# Core
+# The core module
 
 ::: genjax._src.core
     options:

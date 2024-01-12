@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,28 +13,24 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
-from genjax import gen
-from genjax import normal
-from genjax import tfp_uniform
-from genjax import trace
+from genjax import normal, trace, uniform
 from genjax.inference.mcmc import MetropolisHastings
 
 
 class TestMetropolisHastings:
     def test_simple_inf(self):
-        @gen
+        @genjax.static
         def normalModel(mu):
             x = trace("x", normal)(mu, 1.0)
             return x
 
-        @gen
+        @genjax.static
         def proposal(nowAt, d):
             current = nowAt["x"]
-            x = trace("x", tfp_uniform)(current - d, current + d)
+            x = trace("x", uniform)(current - d, current + d)
             return x
 
         key = jax.random.PRNGKey(314159)
@@ -51,24 +47,30 @@ class TestMetropolisHastings:
                 assert tr.get_score() == new.get_score()
 
     def test_map_combinator(self):
-        @genjax.gen
+        @genjax.static
         def model():
             loc = genjax.normal(0.0, 1.0) @ "loc"
             xs = (
-                genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ "xs"
+                genjax.map_combinator(in_axes=(None, 0))(genjax.normal)(
+                    loc, jnp.arange(10, dtype=float)
+                )
+                @ "xs"
             )
             return xs
 
-        @genjax.gen
+        @genjax.static
         def proposal(choices):
             loc = choices["loc"]
             xs = (
-                genjax.Map(genjax.normal, in_axes=(None, 0))(loc, jnp.arange(10)) @ "xs"
+                genjax.map_combinator(in_axes=(None, 0))(genjax.normal)(
+                    loc, jnp.arange(10, dtype=float)
+                )
+                @ "xs"
             )
             return xs
 
         key = jax.random.PRNGKey(314159)
-        trace = genjax.simulate(model)(key, ())
+        trace = model.simulate(key, ())
         key, sub_key = jax.random.split(key)
-        genjax.inference.mcmc.mh(proposal).apply(sub_key, trace, ())
+        genjax.inference.mcmc.MetropolisHastings(proposal).apply(sub_key, trace, ())
         assert True
