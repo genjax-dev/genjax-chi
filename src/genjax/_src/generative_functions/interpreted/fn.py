@@ -94,7 +94,7 @@ class Handler(object):
 
 
 # A primitive used in our language to denote invoking another generative function.
-# It's behavior depends on the handler which is at the top of the stack
+# Its behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     """Invoke a generative function, binding its generative semantics with the
