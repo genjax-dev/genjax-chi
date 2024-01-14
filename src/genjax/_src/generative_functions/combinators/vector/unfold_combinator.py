@@ -152,7 +152,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.console()
 
         # A kernel generative function.
-        @genjax.Static
+        @genjax.static
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -165,7 +165,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # when declaring the function:
 
         @genjax.Unfold(max_length=1000)
-        @genjax.Static
+        @genjax.static
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -771,7 +771,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def Unfold(*, max_length):
+def unfold_combinator(*, max_length):
     def decorator(f):
         return functools.update_wrapper(UnfoldCombinator(max_length, f), f)
 

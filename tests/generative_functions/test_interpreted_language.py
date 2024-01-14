@@ -37,7 +37,7 @@ from jaxtyping import ArrayLike
 
 
 with_both_languages = pytest.mark.parametrize(
-    "lang", (genjax.Interpreted, genjax.Static), ids=("Interpreted", "Static")
+    "lang", (genjax.interpreted, genjax.static), ids=("interpreted", "static")
 )
 
 
@@ -168,7 +168,7 @@ class CustomTree(genjax.Pytree):
         return (self.x, self.y), ()
 
 
-@genjax.Interpreted
+@genjax.interpreted
 def simple_normal(custom_tree):
     y1 = trace("y1", genjax.normal)(custom_tree.x, 1.0)
     y2 = trace("y2", genjax.normal)(custom_tree.y, 1.0)
@@ -187,7 +187,7 @@ class _CustomNormal(ExactDensity):
 CustomNormal = _CustomNormal()
 
 
-@genjax.Interpreted
+@genjax.interpreted
 def custom_normal(custom_tree):
     y = CustomNormal(custom_tree) @ "y"
     return CustomTree(y, y)
@@ -569,7 +569,7 @@ class TestInterpretedLanguageSugar:
         tr = simple_normal.simulate(key, ())
 
         key = jax.random.PRNGKey(314159)
-        v = simple_normal(key, ())
+        v = simple_normal.apply(key, ())
         assert tr.get_retval() == v
 
 

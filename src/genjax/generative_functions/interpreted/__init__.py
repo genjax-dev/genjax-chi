@@ -13,13 +13,13 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.interpreted import (
-    Interpreted,
     InterpretedGenerativeFunction,
+    interpreted,
     trace,
 )
 
 __all__ = [
-    "Interpreted",
+    "interpreted",
     "InterpretedGenerativeFunction",
     "trace",
 ]

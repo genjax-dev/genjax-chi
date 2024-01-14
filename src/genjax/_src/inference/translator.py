@@ -191,7 +191,7 @@ class TraceKernelTraceTranslator(TraceTranslator):
     """
     A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
 
-    Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.Static` language.
+    Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.static` language.
 
     The K kernel should return a choice map of new choices to perform the update move with (`x_new`). It may also sample auxiliary randomness ('aux') to construct these new choices. It represents the distribution P(x_new, aux | x).
 

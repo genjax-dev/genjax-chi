@@ -127,7 +127,7 @@ class RepeatCombinator(JAXGenerativeFunction):
 #############
 
 
-def Repeat(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
+def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
     def decorator(f) -> JAXGenerativeFunction:
         return RepeatCombinator(repeats, f)
 

@@ -21,8 +21,8 @@ from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_chang
 
 class TestUnfoldSimpleNormal:
     def test_unfold_simple_normal(self):
-        @genjax.Unfold(max_length=10)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -34,8 +34,8 @@ class TestUnfoldSimpleNormal:
         assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
 
     def test_unfold_index_importance(self):
-        @genjax.Unfold(max_length=10)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static
         def chain(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -57,12 +57,12 @@ class TestUnfoldSimpleNormal:
             sel = genjax.select("z")
             assert tr.get_score() == tr.project(sel)
 
-        @genjax.Static
+        @genjax.static
         def f(x):
             x = genjax.normal(x, 1.0) @ "x"
             return x
 
-        model = genjax.Unfold(max_length=10)(f)
+        model = genjax.unfold_combinator(max_length=10)(f)
 
         def obs_chm(x, t):
             return genjax.indexed_choice_map(
@@ -91,8 +91,8 @@ class TestUnfoldSimpleNormal:
         assert tr[9, "x"] == 9
 
     def test_unfold_two_layer_index_importance(self):
-        @genjax.Unfold(max_length=10)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static
         def two_layer_chain(x):
             z1 = genjax.trace("z1", genjax.normal)(x, 1.0)
             z2 = genjax.trace("z2", genjax.normal)(z1, 1.0)
@@ -120,8 +120,8 @@ class TestUnfoldSimpleNormal:
             assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
 
     def test_unfold_index_update(self):
-        @genjax.Unfold(max_length=10)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static
         def kernel(x):
             z = genjax.trace("z", genjax.normal)(x, 1.0)
             return z
@@ -144,8 +144,8 @@ class TestUnfoldSimpleNormal:
         )
 
     def test_off_by_one_issue_415(self):
-        @genjax.Unfold(max_length=5)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=5)
+        @genjax.static
         def one_step(_dummy_state):
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
@@ -168,7 +168,7 @@ class TestUnfoldSimpleNormal:
         assert importance_tr[4, "x"] == true_x[4]
 
     def test_update_pytree_state(self):
-        @genjax.Static
+        @genjax.static
         def next_step(state):
             (x_prev, z_prev) = state
             x = genjax.normal(_phi * x_prev, _q) @ "x"
@@ -178,7 +178,7 @@ class TestUnfoldSimpleNormal:
 
         key = jax.random.PRNGKey(314159)
         max_T = 20
-        model = genjax.Unfold(max_length=max_T)(next_step)
+        model = genjax.unfold_combinator(max_length=max_T)(next_step)
         model_args = (0.0, 0.0)
 
         def obs_chm(y, t):
@@ -242,8 +242,8 @@ class TestUnfoldSimpleNormal:
     ####################################################
 
     def test_update_check_weight_computations(self):
-        @genjax.Unfold(max_length=10)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
             _ = genjax.normal(z, 1.0) @ "x"
@@ -329,8 +329,8 @@ class TestUnfoldSimpleNormal:
         assert w == pytest.approx(new_score - old_score, 0.0001)
 
     def test_update_check_score_correctness(self):
-        @genjax.Unfold(max_length=5)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=5)
+        @genjax.static
         def chain(z_prev):
             z = genjax.normal(z_prev, 1.0) @ "z"
             _ = genjax.normal(z, 1.0) @ "x"
@@ -438,8 +438,8 @@ class TestUnfoldSimpleNormal:
         assert tr.project(sel) == tr.get_score()
 
     def test_combinator(self):
-        @genjax.Unfold(max_length=10)
-        @genjax.Static
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static
         def model():
             """model docstring"""
             return genjax.normal(0.0, 1.0) @ "y"
@@ -447,8 +447,8 @@ class TestUnfoldSimpleNormal:
         # Prove that mandatory keyword argument is enforced
         with pytest.raises(Exception):
 
-            @genjax.Unfold()  # type: ignore
-            @genjax.Static
+            @genjax.unfold_combinator()  # type: ignore
+            @genjax.static
             def bad_model():
                 return genjax.normal(0.0, 1.0) @ "y"
 

@@ -21,9 +21,9 @@ from genjax.incremental import tree_diff_no_change
 
 class TestDropArguments:
     def test_drop_arguments_as_kernel_in_map(self):
-        @genjax.Map(in_axes=(0,))
+        @genjax.map_combinator(in_axes=(0,))
         @genjax.DropArguments
-        @genjax.Static
+        @genjax.static
         @typing.typecheck
         def model(x: typing.FloatArray):
             y = genjax.normal(x, 1.0) @ "y"

@@ -14,16 +14,15 @@
 
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any, Dict, PRNGKey, Tuple, dispatch
+from genjax._src.core.typing import Any, Callable, Dict, List, PRNGKey, Protocol, Tuple
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in languages which support callees for generative functions via a `trace` intrinsic.
 @dataclass
 class SugaredGenerativeFunctionCall(Pytree):
-    gen_fn: GenerativeFunction
+    gen_fn: Callable
     kwargs: Dict
     args: Tuple
 
@@ -38,10 +37,10 @@ class SugaredGenerativeFunctionCall(Pytree):
 # C.f. above.
 # This stack will not interact with JAX tracers at all
 # so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_HANDLER_STACK = []
+GLOBAL_TRACE_HANDLER_STACK: List[Callable] = []
 
 
-def handle_off_trace_stack(addr, gen_fn, args):
+def handle_off_trace_stack(addr, gen_fn: Callable, args):
     handler = GLOBAL_TRACE_HANDLER_STACK[-1]
     return handler(addr, gen_fn, args)
 
@@ -56,15 +55,21 @@ def push_trace_overload_stack(handler, fn):
     return wrapped
 
 
+class CanSimulate(Protocol):
+    def simulate(self, key: PRNGKey, args: Tuple) -> Any:
+        ...
+
+    def __call__(self, *args, **kwargs) -> Any:
+        ...
+
+
 # This mixin overloads the call functionality for this generative function
 # and allows usage of shorthand notation in the static DSL.
 class SupportsCalleeSugar:
-    @dispatch
-    def __call__(self, *args: Any, **kwargs) -> SugaredGenerativeFunctionCall:
+    def __call__(
+        self: CanSimulate, *args: Any, **kwargs
+    ) -> SugaredGenerativeFunctionCall:
         return SugaredGenerativeFunctionCall(self, kwargs, args)
 
-    @dispatch
-    def __call__(self, key: PRNGKey, args: Tuple) -> Any:
-        tr = self.simulate(key, args)
-        retval = tr.get_retval()
-        return retval
+    def apply(self: CanSimulate, key: PRNGKey, args: Tuple) -> Any:
+        return self.simulate(key, args).get_retval()
