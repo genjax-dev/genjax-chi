@@ -81,6 +81,7 @@ class Handler(object):
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         raise NotImplementedError
 
+
 # A primitive used in our language to denote invoking another generative function.
 # Its behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
