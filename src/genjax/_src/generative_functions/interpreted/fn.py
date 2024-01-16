@@ -60,15 +60,6 @@ from genjax.core.exceptions import AddressReuse
 _INTERPRETED_STACK: List["Handler"] = []
 
 
-# When `handle` is invoked, it dispatches the information in `msg`
-# to the handler at the top of the stack (end of list).
-def handle(gen_fn: GenerativeFunction, args: Tuple, addr: Any):
-    assert _INTERPRETED_STACK
-    handler = _INTERPRETED_STACK[-1]
-    v = handler.handle(gen_fn, args, addr)
-    return v
-
-
 # A `Handler` implements Python's context manager protocol.
 # It must also provide an implementation for `process_message`.
 class Handler(object):
@@ -81,9 +72,11 @@ class Handler(object):
             p = _INTERPRETED_STACK.pop()
             assert p is self
         else:
-            if self in _INTERPRETED_STACK:
+            try:
                 loc = _INTERPRETED_STACK.index(self)
                 del _INTERPRETED_STACK[loc:]
+            except ValueError:
+                pass
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         raise NotImplementedError
@@ -108,7 +101,9 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     assert _INTERPRETED_STACK
 
     def invoke(*args: Tuple):
-        return handle(gen_fn, args, addr)
+        assert _INTERPRETED_STACK
+        handler = _INTERPRETED_STACK[-1]
+        return handler.handle(gen_fn, args, addr)
 
     # Defer the behavior of this call to the handler.
     return invoke
