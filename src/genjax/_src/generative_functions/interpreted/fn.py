@@ -60,7 +60,7 @@ from genjax.core.exceptions import AddressReuse
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
 _INTERPRETED_STACK = []
-
+FIXME_EQ=True
 
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
@@ -79,18 +79,15 @@ class Handler(object):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        loc = _INTERPRETED_STACK.index(self)
         if exc_type is None:
-            assert _INTERPRETED_STACK[-1] is self
+            assert loc == len(_INTERPRETED_STACK) - 1
             _INTERPRETED_STACK.pop()
         else:
-            if self in _INTERPRETED_STACK:
-                loc = _INTERPRETED_STACK.index(self)
-                for _ in range(loc, len(_INTERPRETED_STACK)):
-                    _INTERPRETED_STACK.pop()
+            del _INTERPRETED_STACK[loc:]
 
-    @abc.abstractmethod
-    def process_message(self, msg):
-        pass
+    def process_message(self, _):
+        raise NotImplementedError
 
 
 # A primitive used in our language to denote invoking another generative function.
@@ -127,7 +124,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
-@dataclass(eq=False)
+@dataclass(eq=FIXME_EQ)
 @beartype
 class AddressVisitor:
     visited: List = field(default_factory=list)
@@ -149,7 +146,7 @@ class AddressVisitor:
 #####################################
 
 
-@dataclass(eq=False)
+@dataclass(eq=FIXME_EQ)
 @beartype
 class SimulateHandler(Handler):
     key: PRNGKey
@@ -170,7 +167,7 @@ class SimulateHandler(Handler):
         return retval
 
 
-@dataclass(eq=False)
+@dataclass(eq=FIXME_EQ)
 @beartype
 class ImportanceHandler(Handler):
     key: PRNGKey
@@ -195,7 +192,7 @@ class ImportanceHandler(Handler):
         return retval
 
 
-@dataclass(eq=False)
+@dataclass(eq=FIXME_EQ)
 @beartype
 class UpdateHandler(Handler):
     key: PRNGKey
@@ -234,7 +231,7 @@ class UpdateHandler(Handler):
         return retval
 
 
-@dataclass(eq=False)
+@dataclass(eq=FIXME_EQ)
 @beartype
 class AssessHandler(Handler):
     constraints: ChoiceMap
