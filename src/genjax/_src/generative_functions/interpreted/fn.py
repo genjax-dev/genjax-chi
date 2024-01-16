@@ -60,7 +60,6 @@ from genjax.core.exceptions import AddressReuse
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
 _INTERPRETED_STACK = []
-FIXME_EQ=True
 
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
@@ -124,7 +123,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
-@dataclass(eq=FIXME_EQ)
+@dataclass
 @beartype
 class AddressVisitor:
     visited: List = field(default_factory=list)
@@ -146,7 +145,7 @@ class AddressVisitor:
 #####################################
 
 
-@dataclass(eq=FIXME_EQ)
+@dataclass
 @beartype
 class SimulateHandler(Handler):
     key: PRNGKey
@@ -167,7 +166,7 @@ class SimulateHandler(Handler):
         return retval
 
 
-@dataclass(eq=FIXME_EQ)
+@dataclass
 @beartype
 class ImportanceHandler(Handler):
     key: PRNGKey
@@ -192,7 +191,7 @@ class ImportanceHandler(Handler):
         return retval
 
 
-@dataclass(eq=FIXME_EQ)
+@dataclass
 @beartype
 class UpdateHandler(Handler):
     key: PRNGKey
@@ -231,7 +230,7 @@ class UpdateHandler(Handler):
         return retval
 
 
-@dataclass(eq=FIXME_EQ)
+@dataclass
 @beartype
 class AssessHandler(Handler):
     constraints: ChoiceMap

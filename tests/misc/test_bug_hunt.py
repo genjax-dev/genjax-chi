@@ -6,50 +6,38 @@ from genjax import interpreted as gen
 
 class TestBugHunt:
 
-    @staticmethod
-    def polynomial(coefficients):
-        """Given coefficients of a polynomial a_0, a_1, ..., return a function
-        computing a_0 x^0 + a_1 x^1 + ..."""
-
-        def f(x):
-            powers_of_x = jnp.array([x**i for i in range(len(coefficients))])
-            return jnp.sum(coefficients * powers_of_x)
-
-        return f
-
-
     @gen
     @staticmethod
-    def model_y(y, scale):
+    def simple_model(y, scale):
+        """The simple_model is merely a gaussian distribution with mean `y` and
+        standard deviation `scale`.
+        """
         y = genjax.normal(y, scale) @ "value"
         return y
 
     @gen
     @staticmethod
-    def kernel(xs, f):
-        y = []
-        for i, x in enumerate(xs):
-            is_outlier = genjax.flip(0.1) @ ("outlier", i)
-            scale = 30.0 if is_outlier else 0.3
-            y.append(TestBugHunt.model_y(f(x), scale) @ ("y", i))
+    def compound_model(y, scale):
+        """The compound model flips an unfair coin to decide whether to return
+        an outlier (10% chance) or a regular value from simple_model. Outliers
+        are drawn from a distribution with a much wider standard deviation.
+        """
+        is_outlier = genjax.flip(0.1) @ "outlier"
+        scale = scale * 100 if is_outlier else scale
+        return TestBugHunt.simple_model(y, scale) @ "y"
 
-        return jnp.array(y)
+    def test_simple_model(self):
+        # Fix the random number seed and sample a value from the distribution.
 
-    @gen
-    @staticmethod
-    def model(xs):
-        coefficients = genjax.mv_normal(jnp.zeros(3), 2.0 * jnp.identity(3)) @ "alpha"
-        f = TestBugHunt.polynomial(coefficients)
-        ys = TestBugHunt.kernel(xs, f) @ "ys"
-        return ys
-
-    def test1(self):
         key = jax.random.PRNGKey(0)
+        tr = self.simple_model.simulate(key, (0.0, 1.0))
+        assert jnp.abs(tr.get_retval() - jnp.array(-1.2515389)) < 1e-5
 
-        xs = jnp.arange(0, 10, 0.5)
+    def test_compound_model(self):
+        # Fix the random number seed and sample a value from the distribution.
+        key = jax.random.PRNGKey(0)
+        tr = self.compound_model.simulate(key, (0.0, 1.0))
 
-        key, sub_key = jax.random.split(key)
-        tr = self.model.simulate(sub_key, (xs,))
-
-        print(tr.get_retval())
-        assert True
+        choices = tr.get_choices()
+        assert choices['outlier'] == jnp.array(0)
+        assert jnp.abs(choices['y', 'value'] - jnp.array(-0.16758952)) < 1e-5
