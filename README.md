@@ -40,13 +40,6 @@ poetry install
 You can test your environment with:
 
 ```bash
-nox -r
-```
-
-You should see all tests pass except one. That final test can be run
-in isolation with
-
-```bash
 poetry run pytest tests/misc/test_bug_hunt.py
 ```
 
