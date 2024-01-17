@@ -17,7 +17,6 @@
 # implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html)
 # for instance, although the code in this module is quite readable and localized).
 
-import abc
 import functools
 import itertools
 from dataclasses import dataclass, field
