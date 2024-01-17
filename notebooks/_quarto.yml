@@ -38,6 +38,9 @@ website:
           - href: concepts/introduction/intro_to_genjax.ipynb
             text: Introduction
 
+          - href: concepts/introduction/intro_interpreted.ipynb
+            text: Introduction (interpreted dialect)
+
           - href: concepts/incremental_computation/incremental.ipynb
             text: (WIP) Incremental computing
 

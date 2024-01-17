@@ -17,7 +17,6 @@
 # implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html)
 # for instance, although the code in this module is quite readable and localized).
 
-import abc
 import functools
 import itertools
 from dataclasses import dataclass, field
@@ -46,7 +45,6 @@ from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
-    FloatArray,
     List,
     PRNGKey,
     Tuple,
@@ -59,16 +57,7 @@ from genjax.core.exceptions import AddressReuse
 
 # Our main idiom to express non-standard interpretation is an
 # (effect handler)-inspired dispatch stack.
-_INTERPRETED_STACK = []
-
-
-# When `handle` is invoked, it dispatches the information in `msg`
-# to the handler at the top of the stack (end of list).
-def handle(msg):
-    assert _INTERPRETED_STACK
-    handler = _INTERPRETED_STACK[-1]
-    v = handler.process_message(msg)
-    return v
+_INTERPRETED_STACK: List["Handler"] = []
 
 
 # A `Handler` implements Python's context manager protocol.
@@ -80,21 +69,21 @@ class Handler(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
-            assert _INTERPRETED_STACK[-1] is self
-            _INTERPRETED_STACK.pop()
+            p = _INTERPRETED_STACK.pop()
+            assert p is self
         else:
-            if self in _INTERPRETED_STACK:
+            try:
                 loc = _INTERPRETED_STACK.index(self)
-                for _ in range(loc, len(_INTERPRETED_STACK)):
-                    _INTERPRETED_STACK.pop()
+                del _INTERPRETED_STACK[loc:]
+            except ValueError:
+                pass
 
-    @abc.abstractmethod
-    def process_message(self, msg):
-        pass
+    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
+        raise NotImplementedError
 
 
 # A primitive used in our language to denote invoking another generative function.
-# It's behavior depends on the handler which is at the top of the stack
+# Its behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     """Invoke a generative function, binding its generative semantics with the
@@ -113,14 +102,9 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     assert _INTERPRETED_STACK
 
     def invoke(*args: Tuple):
-        return handle(
-            {
-                "type": "trace",
-                "addr": addr,
-                "gen_fn": gen_fn,
-                "args": args,
-            }
-        )
+        assert _INTERPRETED_STACK
+        handler = _INTERPRETED_STACK[-1]
+        return handler.handle(gen_fn, args, addr)
 
     # Defer the behavior of this call to the handler.
     return invoke
@@ -157,10 +141,7 @@ class SimulateHandler(Handler):
     choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
-    def process_message(self, msg):
-        gen_fn = msg["gen_fn"]
-        args = msg["args"]
-        addr = msg["addr"]
+    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, args)
@@ -180,10 +161,7 @@ class ImportanceHandler(Handler):
     choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
-    def process_message(self, msg):
-        gen_fn = msg["gen_fn"]
-        args = msg["args"]
-        addr = msg["addr"]
+    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
         self.key, sub_key = jax.random.split(self.key)
@@ -206,10 +184,7 @@ class UpdateHandler(Handler):
     choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
-    def process_message(self, msg):
-        gen_fn = msg["gen_fn"]
-        args = msg["args"]
-        addr = msg["addr"]
+    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
         # sub_trace = self.previous_trace.get_choices().get_submap(addr)
@@ -241,10 +216,7 @@ class AssessHandler(Handler):
     score: ArrayLike = 0.0
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
-    def process_message(self, msg):
-        gen_fn = msg["gen_fn"]
-        args = msg["args"]
-        addr = msg["addr"]
+    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
         (score, retval) = gen_fn.assess(sub_map, args)
@@ -414,7 +386,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         self,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[FloatArray | float, Any]:
+    ) -> Tuple[ArrayLike, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
