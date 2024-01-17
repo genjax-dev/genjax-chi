@@ -5,7 +5,6 @@ from genjax import interpreted as gen
 
 
 class TestBugHunt:
-
     @gen
     @staticmethod
     def simple_model(y, scale):
@@ -39,5 +38,5 @@ class TestBugHunt:
         tr = self.compound_model.simulate(key, (0.0, 1.0))
 
         choices = tr.get_choices()
-        assert choices['outlier'] == jnp.array(0)
-        assert jnp.abs(choices['y', 'value'] - jnp.array(-0.16758952)) < 1e-5
+        assert choices["outlier"] == jnp.array(0)
+        assert jnp.abs(choices["y", "value"] - jnp.array(-0.16758952)) < 1e-5

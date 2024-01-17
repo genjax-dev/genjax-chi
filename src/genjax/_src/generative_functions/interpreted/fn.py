@@ -61,6 +61,7 @@ from genjax.core.exceptions import AddressReuse
 # (effect handler)-inspired dispatch stack.
 _INTERPRETED_STACK = []
 
+
 # When `handle` is invoked, it dispatches the information in `msg`
 # to the handler at the top of the stack (end of list).
 def handle(msg):
