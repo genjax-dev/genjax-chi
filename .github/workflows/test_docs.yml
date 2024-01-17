@@ -1,0 +1,43 @@
+name: Test mkdocs build
+
+on:
+  pull_request:
+
+env:
+  POETRY_EXPERIMENTAL_SYSTEM_GIT_CLIENT: true
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # This works via GitHub's "deploy keys". This repo has a secret set up
+      # with the private key, and the mkdocs-material-insiders clone in the
+      # library has the public key set as a deploy key.
+      - name: Configure SSH key for mkdocs-material-insiders
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.INSIDER_SSH_KEY }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.5
+
+      - name: Setup Nox
+        uses: daisylb/setup-nox@v2.1.0
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install nox-poetry
+        run: pip install nox-poetry
+
+      - name: Run Docs Build
+        run: nox -r -s mkdocs

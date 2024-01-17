@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,57 +11,42 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows
-branching control flow for combinations of generative functions which can
-return different shaped choice maps.
-
-It's based on encoding a trace sum type using JAX - to bypass restrictions from `jax.lax.switch`_.
-
-Generative functions which are passed in as branches to `SwitchCombinator`
-must accept the same argument types, and return the same type of return value.
-
-The internal choice maps for the branch generative functions
-can have different shape/dtype choices. The resulting `SwitchTrace` will efficiently share `(shape, dtype)` storage across branches.
-
-.. _jax.lax.switch: https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html
-"""
 
 from dataclasses import dataclass
 
 import jax
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.datatypes.masking import mask
-from genjax._src.core.pytree.sumtree import DataSharedSumTree
-from genjax._src.core.transforms.incremental import static_check_no_change
-from genjax._src.core.transforms.incremental import tree_diff_primal
-from genjax._src.core.transforms.incremental import tree_diff_unknown_change
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import List
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.builtin.builtin_gen_fn import SupportsBuiltinSugar
+from genjax._src.core.datatypes.generative import (
+    Choice,
+    JAXGenerativeFunction,
+    Mask,
+    Trace,
+)
+from genjax._src.core.interpreters.incremental import (
+    static_check_no_change,
+    tree_diff_primal,
+    tree_diff_unknown_change,
+)
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    PRNGKey,
+    Tuple,
+    dispatch,
+    typecheck,
+)
 from genjax._src.generative_functions.combinators.staging_utils import (
     get_discard_data_shape,
-)
-from genjax._src.generative_functions.combinators.staging_utils import (
     get_trace_data_shape,
 )
-from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
-    SumTraceType,
+from genjax._src.generative_functions.combinators.switch.sumtree import (
+    DataSharedSumTree,
 )
 from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchChoiceMap,
-)
-from genjax._src.generative_functions.combinators.switch.switch_datatypes import (
     SwitchTrace,
 )
-
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 #####
 # SwitchCombinator
@@ -69,7 +54,7 @@ from genjax._src.generative_functions.combinators.switch.switch_datatypes import
 
 
 @dataclass
-class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
+class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching
     control flow patterns, including control flow patterns which branch on
@@ -80,25 +65,27 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
-        console = genjax.pretty()
+        console = genjax.console()
 
-        @genjax.gen
+        @genjax.static
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
-        @genjax.gen
+        @genjax.static
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
-        # Creating a `SwitchCombinator` via the preferred `new` class method.
-        switch = genjax.SwitchCombinator.new(branch_1, branch_2)
+        ################################################################################
+        # Creating a `SwitchCombinator` via the preferred `switch_combinator` function #
+        ################################################################################
+
+        switch = genjax.switch_combinator(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
-        jitted = jax.jit(genjax.simulate(switch))
+        jitted = jax.jit(switch.simulate)
         _ = jitted(key, (0, ))
         tr = jitted(key, (1, ))
 
@@ -106,24 +93,10 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         ```
     """
 
-    branches: List[JAXGenerativeFunction]
+    branches: Tuple[JAXGenerativeFunction, ...]
 
     def flatten(self):
         return (self.branches,), ()
-
-    @typecheck
-    @classmethod
-    def new(cls, *args: JAXGenerativeFunction) -> "SwitchCombinator":
-        """The preferred constructor for `SwitchCombinator` generative function
-        instances. The shorthand symbol is `Switch = SwitchCombinator.new`.
-
-        Arguments:
-            *args: JAX generative functions which will act as branch callees for the invocation of branching control flow.
-
-        Returns:
-            instance: A `SwitchCombinator` instance.
-        """
-        return SwitchCombinator([*args])
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self, branch, *args):
@@ -154,12 +127,6 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             covers.append(discard_shape)
         return DataSharedSumTree.new(discard, covers)
 
-    def get_trace_type(self, *args):
-        subtypes = []
-        for gen_fn in self.branches:
-            subtypes.append(gen_fn.get_trace_type(*args[1:]))
-        return SumTraceType(subtypes)
-
     def _simulate(self, branch_gen_fn, key, args):
         tr = branch_gen_fn.simulate(key, args[1:])
         data_shared_sum_tree = self._create_data_shared_sum_tree_trace(key, tr, args)
@@ -186,7 +153,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         return jax.lax.switch(switch, branch_functions, key, *args)
 
     def _importance(self, branch_gen_fn, key, chm, args):
-        (w, tr) = branch_gen_fn.importance(key, chm, args[1:])
+        (tr, w) = branch_gen_fn.importance(key, chm, args[1:])
         data_shared_sum_tree = self._create_data_shared_sum_tree_trace(key, tr, args)
         choices = list(data_shared_sum_tree.materialize_iterator())
         branch_index = args[0]
@@ -194,15 +161,15 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         score = tr.get_score()
         retval = tr.get_retval()
         trace = SwitchTrace(self, choice_map, args, retval, score)
-        return (w, trace)
+        return (trace, w)
 
     @dispatch
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceMap,
+        chm: Choice,
         args: Tuple,
-    ) -> Tuple[FloatArray, SwitchTrace]:
+    ) -> Tuple[SwitchTrace, FloatArray]:
         switch = args[0]
 
         def _inner(br):
@@ -216,7 +183,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: ChoiceMap,
+        constraints: Choice,
         argdiffs: Tuple,
     ):
         def _inner_update(br, key):
@@ -226,7 +193,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
 
             # Run the update for this branch.
             prev_subtrace = prev.get_subtrace(concrete_branch_index)
-            (retval_diff, w, tr, discard) = br.update(
+            (tr, w, retval_diff, discard) = br.update(
                 key, prev_subtrace, constraints, argdiffs[1:]
             )
 
@@ -251,7 +218,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             score = tr.get_score()
             retval = tr.get_retval()
             trace = SwitchTrace(self, choice_map, args, retval, score)
-            return (retval_diff, w, trace, discard)
+            return (trace, w, retval_diff, discard)
 
         def _inner(br):
             return lambda key: _inner_update(br, key)
@@ -269,7 +236,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: ChoiceMap,
+        constraints: Choice,
         argdiffs: Tuple,
     ):
         def _inner_importance(br, key, prev, constraints, argdiffs):
@@ -277,9 +244,9 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             stripped = prev.strip()
             constraints = stripped.unsafe_merge(constraints)
             args = tree_diff_primal(argdiffs)
-            (w, tr) = br.importance(key, constraints, args[1:])
+            (tr, w) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
-            discard = mask(True, stripped)
+            discard = Mask(True, stripped)
             retval = tr.get_retval()
             retval_diff = tree_diff_unknown_change(retval)
 
@@ -294,7 +261,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
             # Get all the metadata for update from the trace.
             score = tr.get_score()
             trace = SwitchTrace(self, choice_map, args, retval, score)
-            return (retval_diff, update_weight, trace, discard)
+            return (trace, update_weight, retval_diff, discard)
 
         def _inner(br):
             return lambda key, prev, constraints, argdiffs: _inner_importance(
@@ -318,9 +285,9 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
         self,
         key: PRNGKey,
         prev: SwitchTrace,
-        constraints: ChoiceMap,
+        constraints: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[Any, FloatArray, SwitchTrace, Any]:
+    ) -> Tuple[SwitchTrace, FloatArray, Any, Any]:
         index_argdiff = argdiffs[0]
 
         if static_check_no_change(index_argdiff):
@@ -331,31 +298,26 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsBuiltinSugar):
     @typecheck
     def assess(
         self,
-        key: PRNGKey,
-        chm: ChoiceMap,
+        chm: Choice,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[FloatArray, Any]:
         switch = args[0]
 
-        def _assess(branch_gen_fn, key, chm, args):
-            return branch_gen_fn.assess(key, chm, args[1:])
+        def _assess(branch_gen_fn, chm, args):
+            return branch_gen_fn.assess(chm, args[1:])
 
         def _inner(br):
-            return lambda key, chm, *args: _assess(br, key, chm, args)
+            return lambda chm, *args: _assess(br, chm, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(switch, branch_functions, key, chm, *args)
+        return jax.lax.switch(switch, branch_functions, chm, *args)
 
 
-##############
-# Shorthands #
-##############
-
-Switch = SwitchCombinator.new
+#############
+# Decorator #
+#############
 
 
-def switch_combinator(
-    *gen_fn: JAXGenerativeFunction,
-):
-    return Switch(*gen_fn)
+def switch_combinator(*args: JAXGenerativeFunction) -> SwitchCombinator:
+    return SwitchCombinator(args)

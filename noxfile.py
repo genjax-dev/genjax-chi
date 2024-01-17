@@ -20,10 +20,8 @@ from textwrap import dedent
 
 import nox
 
-
 try:
-    from nox_poetry import Session
-    from nox_poetry import session
+    from nox_poetry import Session, session
 except ImportError:
     message = f"""\
     Nox failed to import the 'nox-poetry' package.
@@ -36,7 +34,7 @@ except ImportError:
 package = "genjax"
 python_version = "3.11"
 nox.needs_version = ">= 2021.6.6"
-nox.options.sessions = ("tests", "xdoctests", "lint", "build")
+nox.options.sessions = ("tests", "lint", "build")
 
 
 @session(python=python_version)
@@ -49,6 +47,8 @@ def tests(session):
         "--benchmark-disable",
         "--ignore",
         "scratch",
+        "--ignore",
+        "notebooks",
         "--ignore",
         "benchmarks",
         "-n",
@@ -110,6 +110,21 @@ def xdoctests(session) -> None:
 
 
 @session(python=python_version)
+def nbmake(session) -> None:
+    """Execute jupyter notebooks as tests"""
+    session.run_always("poetry", "install", "--with", "dev", external=True)
+    session.run(
+        "poetry",
+        "run",
+        "pytest",
+        "-n",
+        "auto",
+        "--nbmake",
+        "notebooks",
+    )
+
+
+@session(python=python_version)
 def safety(session) -> None:
     """Scan dependencies for insecure packages."""
     requirements = session.poetry.export_requirements()
@@ -130,40 +145,8 @@ def mypy(session) -> None:
 @session(python=python_version)
 def lint(session: Session) -> None:
     session.run_always("poetry", "install", "--with", "dev", external=True)
-    session.install(
-        "isort", "black[jupyter]", "autoflake8", "flake8", "docformatter[tomli]"
-    )
-
-    # Source
-    session.run("isort", "src")
-    session.run("black", "src")
-    session.run("docformatter", "--in-place", "--recursive", "src")
-    session.run(
-        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "src"
-    )
-    session.run("flake8", "src")
-
-    # Tests
-    session.run("isort", "tests")
-    session.run("black", "tests")
-    session.run(
-        "autoflake8", "--in-place", "--recursive", "--exclude", "__init__.py", "tests"
-    )
-    session.run("flake8", "tests")
-
-    # Notebooks
-    session.run("isort", "notebooks")
-    session.run("black", "notebooks")
-    session.run("docformatter", "--in-place", "--recursive", "notebooks")
-    session.run(
-        "autoflake8",
-        "--in-place",
-        "--recursive",
-        "--exclude",
-        "__init__.py",
-        "notebooks",
-    )
-    session.run("flake8", "notebooks")
+    session.run("ruff", "check", "--fix", ".")
+    session.run("ruff", "format", ".")
 
 
 @session(python=python_version)
@@ -178,25 +161,31 @@ def build(session):
     session.run("poetry", "build")
 
 
+@session(name="mkdocs", python=python_version)
+def mkdocs(session: Session) -> None:
+    """run the mkdocs-only portion of the docs build."""
+    session.run_always(
+        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    )
+    build_dir = Path("site")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    session.run("poetry", "run", "mkdocs", "build", "--strict")
+
+
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
-    session.install("mkdocs")
-    session.install(
-        "mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders"
-    )
-    session.install(
-        "mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.2.1.3.0"
-    )
-
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("mkdocs", "build")
-    session.run("quarto", "render", "notebooks", external=True)
+    session.run("poetry", "run", "mkdocs", "build", "--strict")
+    session.run(
+        "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
+    )
 
 
 @session(name="docs-serve", python=python_version)
@@ -205,14 +194,7 @@ def docs_serve(session: Session) -> None:
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
-    session.install("mkdocs")
-    session.install(
-        "mkdocs-material @ git+https://github.com/probcomp/mkdocs-material-insiders"
-    )
-    session.install(
-        "mkdocstrings-python @ git+https://github.com/pawamoy-insiders/mkdocstrings-python.git@1.5.2.1.3.0"
-    )
-    session.run("mkdocs", "serve")
+    session.run("poetry", "run", "mkdocs", "serve")
 
 
 @session(name="notebooks-serve", python=python_version)

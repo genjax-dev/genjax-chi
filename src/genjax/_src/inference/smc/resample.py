@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,12 +19,9 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import dispatch
-from genjax._src.inference.smc.state import SMCAlgorithm
-from genjax._src.inference.smc.state import SMCState
-
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import PRNGKey, dispatch
+from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 
 ######################
 # Resampling methods #
@@ -83,8 +80,3 @@ class SMCResample(SMCAlgorithm):
         state: SMCState,
     ) -> SMCState:
         return self.apply(key, state, self.resampling_method)
-
-
-@dispatch
-def smc_resample(resampling_method: ResamplingMethod):
-    return SMCResample.new(resampling_method)

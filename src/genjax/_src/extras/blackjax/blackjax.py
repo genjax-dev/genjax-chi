@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +13,19 @@
 # limitations under the License.
 """This module supports a set of (WIP) integration interfaces with variants of
 Hamiltonian Monte Carlo exported by the `blackjax` sampling library."""
-# Test Edit - Alex
-import dataclasses
+
+from dataclasses import dataclass
 
 import blackjax
 import jax
 
-from genjax._src.core.datatypes.generative import Selection
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.pytree.utilities import tree_grad_split
-from genjax._src.core.pytree.utilities import tree_zipper
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
+from genjax._src.core.datatypes.generative import Selection, Trace
+from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.typing import Any, Int, PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
 
-@dataclasses.dataclass
+@dataclass
 class HamiltonianMonteCarlo(MCMCKernel):
     selection: Selection
     step_size: Any
@@ -96,7 +92,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         return self
 
 
-@dataclasses.dataclass
+@dataclass
 class NoUTurnSampler(MCMCKernel):
     selection: Selection
     step_size: Any

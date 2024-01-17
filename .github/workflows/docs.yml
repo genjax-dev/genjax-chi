@@ -1,32 +1,53 @@
-name: Push genjax documentation to gh-pages branch
+name: Render and Publish Docs
 
 on:
-  # Runs on pushes targeting the default branch
   push:
-    branches: ['main']
+    branches:
+      - nightly
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+env:
+  POETRY_EXPERIMENTAL_SYSTEM_GIT_CLIENT: true
 
 permissions:
   contents: write
-
-# Allow one concurrent deployment
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
+  pages: write
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Deploy
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # This works via GitHub's "deploy keys". This repo has a secret set up
+      # with the private key, and the mkdocs-material-insiders clone in the
+      # library has the public key set as a deploy key.
+      - name: Configure SSH key for mkdocs-material-insiders
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.INSIDER_SSH_KEY }}
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.5
+
+      - name: Setup Nox
+        uses: daisylb/setup-nox@v2.1.0
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install nox-poetry
+        run: pip install nox-poetry
+
+      - name: Run Docs Build
+        run: nox -r -s docs-build
+
+      - name: Deploy to GH Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

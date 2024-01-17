@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,12 +18,14 @@ from dataclasses import dataclass
 import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import dispatch
-from genjax._src.inference.smc.state import SMCAlgorithm
-from genjax._src.inference.smc.state import SMCState
+from genjax._src.core.typing import PRNGKey, Tuple, typecheck
+from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 from genjax._src.inference.smc.utils import dynamic_check_empty
+from genjax._src.inference.translator import ExtendingTraceTranslator
+
+############################
+# Step forward using prior #
+############################
 
 
 @dataclass
@@ -31,6 +33,7 @@ class SMCForwardUpdate(SMCAlgorithm):
     def flatten(self):
         return (), ()
 
+    @typecheck
     def apply(
         self,
         key: PRNGKey,
@@ -42,7 +45,7 @@ class SMCForwardUpdate(SMCAlgorithm):
         particles = state.get_particles()
         n_particles = state.get_num_particles()
         sub_keys = jax.random.split(key, n_particles)
-        (_, log_weights, particles, discard) = jax.vmap(
+        (particles, log_weights, _, discard) = jax.vmap(
             target_model.update, in_axes=(0, 0, None, None)
         )(sub_keys, particles, obs, new_argdiffs)
         dynamic_check_empty(discard)
@@ -56,6 +59,33 @@ class SMCForwardUpdate(SMCAlgorithm):
         return new_state
 
 
-@dispatch
-def smc_update():
-    return SMCForwardUpdate.new()
+#####################################
+# Step forward using extension step #
+#####################################
+
+
+@dataclass
+class SMCExtendUpdate(SMCAlgorithm):
+    translator: ExtendingTraceTranslator
+
+    def flatten(self):
+        return (self.translator), ()
+
+    @typecheck
+    def apply(
+        self,
+        key: PRNGKey,
+        state: SMCState,
+    ) -> SMCState:
+        particles = state.get_particles()
+        n_particles = state.get_num_particles()
+        sub_keys = jax.random.split(key, n_particles)
+        (particles, log_weights) = jax.vmap(self.translator.apply)(sub_keys, particles)
+        new_state = SMCState(
+            n_particles,
+            particles,
+            state.log_weights + log_weights,
+            0.0,
+            state.valid,  # TODO: extend translators with dynamic checks.
+        )
+        return new_state

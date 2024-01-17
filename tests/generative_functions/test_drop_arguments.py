@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,30 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
 from genjax import typing
+from genjax.incremental import tree_diff_no_change
 
 
 class TestDropArguments:
     def test_drop_arguments_as_kernel_in_map(self):
         @genjax.map_combinator(in_axes=(0,))
-        @genjax.drop_arguments
-        @genjax.gen
+        @genjax.DropArguments
+        @genjax.static
         @typing.typecheck
         def model(x: typing.FloatArray):
             y = genjax.normal(x, 1.0) @ "y"
             return y
 
         key = jax.random.PRNGKey(314159)
-        chm = genjax.index_choice_map([0], {"y": jnp.array([5.0])})
+        chm = genjax.indexed_choice_map([0], {"y": jnp.array([5.0])})
         tr = model.simulate(key, (jnp.ones(5),))
-        _, _, tr, _ = model.update(
-            key, tr, chm, genjax.tree_diff_no_change((jnp.ones(5),))
-        )
-        v = tr.strip()["y"]
-        assert v[0] == 5.0
-        sel = genjax.index_select([0], genjax.select("y"))
+        tr, _, _, _ = model.update(key, tr, chm, tree_diff_no_change((jnp.ones(5),)))
+        v = tr.get_choices()[0, "y"]
+        assert v == 5.0
+        sel = genjax.indexed_select([0], genjax.select("y"))
         assert tr.project(sel) == genjax.normal.logpdf(5.0, 1.0, 1.0)

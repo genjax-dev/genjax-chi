@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 """This module contains an implementation of (Auxiliary inference divergence
 estimator) from Cusumano-Towner et al, 2017."""
 
-import dataclasses
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -22,12 +22,10 @@ from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Int, PRNGKey, Tuple
 
 
-@dataclasses.dataclass
+@dataclass
 class AuxiliaryInferenceDivergenceEstimator(Pytree):
     num_meta_p: Int
     num_meta_q: Int
@@ -36,16 +34,6 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 
     def flatten(self):
         return (self.p, self.q), (self.num_meta_p, self.num_meta_q)
-
-    @classmethod
-    def new(
-        cls,
-        p: GenerativeFunction,
-        q: GenerativeFunction,
-        num_meta_p: Int,
-        num_meta_q: Int,
-    ):
-        return AuxiliaryInferenceDivergenceEstimator(num_meta_p, num_meta_q, p, q)
 
     def _estimate_log_ratio(
         self,
@@ -110,5 +98,3 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 ##############
 # Shorthands #
 ##############
-
-aide = AuxiliaryInferenceDivergenceEstimator.new

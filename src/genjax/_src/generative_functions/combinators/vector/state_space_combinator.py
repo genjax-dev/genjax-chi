@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,19 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from dataclasses import dataclass
+from typing import Callable
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.typing import Any
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import Int
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import Tuple
-from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
+from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction, Trace
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    Tuple,
+    typecheck,
+)
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    unfold_combinator,
+)
 
 
 @dataclass
@@ -84,32 +87,6 @@ class StateSpaceCombinator(GenerativeFunction):
         return (self.initial_model, self.transition_model), (self.max_length,)
 
     @typecheck
-    @classmethod
-    def new(
-        cls,
-        initial_model: GenerativeFunction,
-        transition_model: GenerativeFunction,
-        max_length: Int,
-    ) -> "StateSpaceCombinator":
-        """The preferred constructor for `StateSpaceCombinator` generative
-        function instances. The shorthand symbol is `Unfold =
-        StateSpaceCombinator.new`.
-
-        Arguments:
-            initial_model: A `GenerativeFunction` instance.
-            transition_model: A kernel `GenerativeFunction` instance.
-            max_length: A static maximum possible unroll length.
-
-        Returns:
-            instance: A `StateSpaceCombinator` instance.
-        """
-        return StateSpaceCombinator(
-            max_length,
-            initial_model,
-            transition_model,
-        )
-
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -118,7 +95,7 @@ class StateSpaceCombinator(GenerativeFunction):
         initial_model_args, (dynamic_length, *static_args) = args
         key, initial_trace = self.initial_model.simulate(key, initial_model_args)
         initial_retval = initial_trace.get_retval()
-        chain = Unfold(self.transition_model, max_length=self.max_length)
+        chain = unfold_combinator(self.transition_model, max_length=self.max_length)
         key, transition_trace = chain.simulate(
             key, (dynamic_length, initial_retval, *static_args)
         )
@@ -144,8 +121,21 @@ class StateSpaceCombinator(GenerativeFunction):
         pass
 
 
-##############
-# Shorthands #
-##############
+#############
+# Decorator #
+#############
 
-StateSpace = StateSpaceCombinator.new
+
+def state_space_combinator(
+    *, max_length, initial_model, transition_model
+) -> Callable[[Callable], StateSpaceCombinator]:
+    def decorator(f) -> StateSpaceCombinator:
+        gf = StateSpaceCombinator(
+            max_length=max_length,
+            initial_model=initial_model,
+            transition_model=transition_model,
+        )
+        functools.update_wrapper(gf, f)
+        return gf
+
+    return decorator
