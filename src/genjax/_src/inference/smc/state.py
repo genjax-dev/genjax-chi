@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,9 +20,7 @@ from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import BoolArray
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
+from genjax._src.core.typing import BoolArray, FloatArray, IntArray
 
 
 @dataclass

@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,15 +16,10 @@ from genjax._src.inference.mcmc.kernel import MCMCKernel
 from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import (
     MetropolisAdjustedLangevinAlgorithm,
 )
-from genjax._src.inference.mcmc.metropolis_adjusted_langevin_algorithm import mala
 from genjax._src.inference.mcmc.metropolis_hastings import MetropolisHastings
-from genjax._src.inference.mcmc.metropolis_hastings import mh
-
 
 __all__ = [
     "MCMCKernel",
     "MetropolisAdjustedLangevinAlgorithm",
-    "mala",
     "MetropolisHastings",
-    "mh",
 ]

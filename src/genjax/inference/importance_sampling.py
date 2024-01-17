@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,23 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.importance_sampling import BootstrapImportanceSampling
 from genjax._src.inference.importance_sampling import (
-    BootstrapSamplingImportanceResampling,
+    BootstrapIS,
+    BootstrapSIR,
+    CustomProposalIS,
+    CustomProposalSIR,
+    importance_sampling,
+    sampling_importance_resampling,
 )
-from genjax._src.inference.importance_sampling import CustomProposalImportanceSampling
-from genjax._src.inference.importance_sampling import (
-    CustomProposalSamplingImportanceResampling,
-)
-from genjax._src.inference.importance_sampling import importance_sampling
-from genjax._src.inference.importance_sampling import sampling_importance_resampling
-
 
 __all__ = [
-    "BootstrapImportanceSampling",
-    "CustomProposalImportanceSampling",
-    "BootstrapSamplingImportanceResampling",
-    "CustomProposalSamplingImportanceResampling",
+    "BootstrapIS",
+    "CustomProposalIS",
+    "BootstrapSIR",
+    "CustomProposalSIR",
     "importance_sampling",
     "sampling_importance_resampling",
 ]

@@ -1,0 +1,28 @@
+name: pre-commit hooks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - nightly
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11.5
+
+  # - uses: pre-commit/action@v3.0.0
+
+    - uses: chartboost/ruff-action@v1
+      with:
+        args: format --check
+
+    - uses: chartboost/ruff-action@v1
+      with:
+        args: --output-format github

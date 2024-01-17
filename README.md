@@ -12,24 +12,27 @@
 <div align="center">
 
 [![][jax_badge]](https://github.com/google/jax)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
 
 | **Documentation** |          **Build status**          |
 | :---------------: | :--------------------------------: |
-| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][main_build_action_badge]][actions] [![][nightly_build_action_badge]][actions] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)](https://probcomp.github.io/genjax/notebooks/) | [![][main_build_action_badge]][main_build_status_url] [![][nightly_build_action_badge]][nightly_build_status_url] |
 
 </div>
 
-[main_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square
-[nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci-nightly.yml/badge.svg?style=flat-square
+[main_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=main
+[nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=nightly
 [actions]: https://github.com/probcomp/genjax/actions
+[main_build_status_url]: https://github.com/probcomp/genjax/actions/workflows/ci.yml?query=branch%3Amain
+[nightly_build_status_url]: https://github.com/probcomp/genjax/actions/workflows/ci.yml?query=branch%3Anightly
+
 
 <div align="center">
 <b>(Early stage)</b> 🔪 expect sharp edges 🔪
 </div>
 
-## 🔎 What is it?
+## 🔎 What is GenJAX?
 
 Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/concepts/introduction/intro_to_genjax.html#what-is-a-generative-function).
 
@@ -43,85 +46,76 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
-## Development environment
+## Quickstart
 
-This project uses:
+Install GenJAX via [PyPI](https://pypi.org/project/genjax/):
 
-- [poetry](https://python-poetry.org/) for dependency management
-- [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
-- [mkdocs](https://www.mkdocs.org/) to generate static documentation.
-- [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
-
-### (Option 1): Development environment setup with `poetry`
-
-#### Step 1: Setting up the environment with `poetry`
-
-[First, you should install `poetry` to your system.](https://python-poetry.org/docs/#installing-with-the-official-installer)
-
-Assuming you have `poetry`, here's a simple script to setup a compatible development environment - if you can run this script, you have a working development environment which can be used to execute tests, build and serve the documentation, etc.
-
-```bash
-conda create --name genjax-py311 python=3.11 --channel=conda-forge
-conda activate genjax-py311
-pip install nox
-pip install nox-poetry
-git clone https://github.com/probcomp/genjax
-cd genjax
-poetry install
-poetry run jupyter-lab
+```sh
+pip install genjax
 ```
 
-You can test your environment with:
+Then install [JAX](https://github.com/google/jax) using [this
+guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the
+command for the architecture you're targeting. To run GenJAX without GPU
+support:
 
-```bash
-nox -r
+```sh
+pip install jax[cpu]==0.4.20
 ```
 
-#### Step 2: Choose a `jaxlib`
+On a Linux machine with a GPU, run either of the following commands, depending
+on which CUDA version (11 or 12) you have installed:
 
-GenJAX does not manage the version of `jaxlib` that you use in your execution environment. The exact version of `jaxlib` can change depending upon the target deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.10"` currently) in GenJAX (as specified in `pyproject.toml`).
-
-[For further information, see this discussion.](https://github.com/google/jax/discussions/16380)
-
-[You can likely install CUDA compatible versions by following environment setup above with a `pip` installation of the CUDA-enabled JAX.](https://github.com/google/jax#pip-installation-gpu-cuda-installed-via-pip-easier)
-
-### (Option 2): Self-managed development environment with `requirements.txt`
-
-#### Using `requirements.txt`
-
-> **This is not the recommended way to develop on `genjax`**, but may be required if you want to avoid environment collisions with `genjax` installing specific versions of `jax` and `jaxlib`.
-
-`genjax` includes a `requirements.txt` file which is exported from the `pyproject.toml` dependency requirements -- but with `jax` and `jaxlib` removed.
-
-If you wish to setup a usable environment this way, you must ensure that you have `jax` and `jaxlib` installed in your environment, then:
-
-```bash
-pip install -r requirements.txt
+```sh
+pip install jax[cuda11_pip]==0.4.20
+pip install jax[cuda12_pip]==0.4.20
 ```
 
-This should install a working environment - subject to the conditions that your version of `jax` and `jaxlib` resolve with the versions of packages in the `requirements.txt`
+The following code snippet defines a generative function called `beta_bernoulli` that
 
-### Documentation environment setup
+- takes a shape parameter `beta`
+- uses this to create and draw a value `p` from a [Beta
+  distribution](https://en.wikipedia.org/wiki/Beta_distribution)
+- Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
+  returns that value
 
-If you want you deploy the documentation and Jupyter notebooks to static HTML, you'll need [quarto](https://quarto.org/docs/get-started/).
+JIT-compiles the function with JAX and then runs it with GenJAX:
 
-In addition, you'll need `mkdocs`:
+```python
+import genjax
+import jax
 
-```bash
-pip install mkdocs
+@genjax.static
+def beta_bernoulli(beta):
+    p = genjax.beta(0.0, beta) @ "p"
+    v = genjax.bernoulli(p) @ "v"
+    return v
+
+key = jax.random.PRNGKey(314159)
+trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
+choices = trace.get_choices()
 ```
 
-GenJAX builds documentation using an insiders-only version of [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). GenJAX will attempt to fetch this repository during the documentation build step.
+`choices` is a record of all random choices made during the execution of the
+generative function `beta_bernoulli`. Print it with a `genjax.console()`
+instance:
 
-With these dependencies installed (`mkdocs` into your active Python environment) and on path, you can fully build the documentation:
-
-```bash
-nox -r -s docs-build
+```python
+console = genjax.console()
+console.print(choices)
 ```
 
-This command will use `mkdocs` to build the static site, and then use `quarto` to render the notebooks into the static site directory.
+resulting in:
 
-Pushing the resulting changes to the `main` branch will trigger a CI job to deploy to the GitHub Pages branch `gh-pages`, from which the documentation is hosted.
+```
+(HierarchicalChoiceMap)
+├── :p
+│   └── (ValueChoice)
+│       └──  f32[]
+└── :v
+    └── (ValueChoice)
+        └──  i32[]
+```
 
 ## References
 

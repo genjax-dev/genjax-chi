@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,18 +23,11 @@ inference algorithm (see SDOS, for example).
 """
 
 from genjax._src.information.aide import AuxiliaryInferenceDivergenceEstimator
-from genjax._src.information.aide import aide
 from genjax._src.information.eevi import EntropyEstimatorsViaInference
-from genjax._src.information.eevi import eevi
 from genjax._src.information.sdos import SymmetricDivergenceOverDatasets
-from genjax._src.information.sdos import sdos
-
 
 __all__ = [
     "AuxiliaryInferenceDivergenceEstimator",
-    "aide",
     "SymmetricDivergenceOverDatasets",
-    "sdos",
     "EntropyEstimatorsViaInference",
-    "eevi",
 ]

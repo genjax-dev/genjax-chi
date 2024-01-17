@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,22 +14,22 @@
 """This module contains a `Module` class which supports parameter learning by
 exposing primitives which allow users to sow functions with state."""
 
-import dataclasses
 import functools
+from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
+from oryx import harvest
 
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.transforms import harvest
 from genjax._src.core.typing import Callable
-
 
 NAMESPACE = "state"
 
 collect = functools.partial(harvest.reap, tag=NAMESPACE)
 inject = functools.partial(harvest.plant, tag=NAMESPACE)
+
 
 # "clobber" here means that parameters get shared across sites with
 # the same name and tag.
@@ -48,17 +48,12 @@ def param(*args, name):
 ##############
 
 
-@dataclasses.dataclass
+@dataclass
 class StateTrie(harvest.ReapState):
-    inner: Trie
+    inner: Trie = field(default_factory=Trie)
 
     def flatten(self):
         return (self.inner,), ()
-
-    @classmethod
-    def new(cls):
-        trie = Trie.new()
-        return StateTrie(trie)
 
     def sow(self, values, tree, name, mode):
         if name in self.inner:
@@ -76,7 +71,7 @@ class StateTrie(harvest.ReapState):
         return values
 
 
-@dataclasses.dataclass
+@dataclass
 class Module(Pytree):
     apply: Callable
     params: StateTrie
@@ -98,7 +93,7 @@ class Module(Pytree):
     def init(cls, apply):
         _collect = functools.partial(
             harvest.reap,
-            state=StateTrie.new(),
+            state=StateTrie(),
             tag=NAMESPACE,
         )
 
@@ -109,10 +104,3 @@ class Module(Pytree):
             return Module.new(params, inject(jax_partial))
 
         return wrapped
-
-
-##############
-# Shorthands #
-##############
-
-init = Module.init

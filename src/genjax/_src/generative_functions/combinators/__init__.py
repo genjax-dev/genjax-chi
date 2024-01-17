@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,14 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `combinators` module exposes _generative function combinators_,
+"""The `combinators` module exposes _generative function combinators_:
 generative functions which accept other generative functions as configuration
-arguments, and implement structured patterns of control flow (as well as other
-types of modifications) as their generative function interface implementations.
+arguments, and implement their own generative function interfaces using structured patterns of
+control flow (and other types of useful modifications). If one thinks of a
+control flow primitive as an operation on deterministic types, a combinator can
+be thought of as lifting the operation to support generative function
+semantics.
 
-GenJAX features several standard combinators:
+GenJAX exposes several combinators:
 
-* `UnfoldCombinator` - which exposes a scan-like pattern for generative computation in a state space pattern via implementations utilizing `jax.lax.scan`.
-* `MapCombinator` - which exposes generative vectorization over input arguments, whose implementation utilizes `jax.vmap`.
-* `SwitchCombinator` - which exposes stochastic branching patterns utilizing `jax.lax.switch`.
+* [`MaskedCombinator`](masked.md) - which can mask a generative computation based on a runtime determined `BoolArray` argument.
+* [`MapCombinator`](map.md) - which exposes generative vectorization over input arguments. The implementation essentially wraps [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html) into the interfaces.
+* [`UnfoldCombinator`](unfold.md) - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing the control flow primitive [`jax.lax.scan`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.scan.html).
+* [`SwitchCombinator`](switch.md) - which exposes stochastic branching patterns, by utilizing the control flow primitive [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html).
 """

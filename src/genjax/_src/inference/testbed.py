@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,23 +21,18 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import select
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import FloatArray
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import Unfold
+from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
+from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
+    unfold_combinator,
+)
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
-)
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMMConfiguration,
 )
-from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
-    discrete_hmm_config,
-)
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    tfp_categorical,
+    categorical,
 )
-from genjax._src.language_decorator import gen
+from genjax._src.generative_functions.static.static_gen_fn import static
 
 
 @dataclass
@@ -81,7 +76,7 @@ def build_inference_test_generator(
     transition_variance: FloatArray,
     observation_variance: FloatArray,
 ):
-    config = discrete_hmm_config(
+    config = DiscreteHMMConfiguration(
         state_space_size,
         transition_distance_truncation,
         observation_distance_truncation,
@@ -89,19 +84,18 @@ def build_inference_test_generator(
         observation_variance,
     )
 
-    @gen(Unfold, max_length=max_length)
+    @unfold_combinator(max_length=max_length)
+    @static
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
-        transition = config.transition_tensor
-        observation = config.observation_tensor
-        z = tfp_categorical(transition[state, :]) @ "z"
-        _ = tfp_categorical(observation[z, :]) @ "x"
+        transition = config.transition_tensor()
+        observation = config.observation_tensor()
+        z = categorical(transition[state, :]) @ "z"
+        _ = categorical(observation[z, :]) @ "x"
         return z
 
     def inference_test_generator(key: PRNGKey):
         key, sub_key = jax.random.split(key)
-        initial_state = tfp_categorical.sample(
-            sub_key, jnp.ones(config.linear_grid_dim)
-        )
+        initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
         tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
         z_sel = select("z")
         x_sel = select("x")

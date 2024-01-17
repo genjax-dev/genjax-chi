@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,53 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
-from typing import Tuple
+from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from plum import dispatch
 
-from genjax._src.core.datatypes.generative import ChoiceMap
-from genjax._src.core.datatypes.generative import GenerativeFunction
+from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import IntArray
-from genjax._src.core.typing import PRNGKey
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import IntArray, PRNGKey, Tuple, typecheck
+
+#######################
+# Importance sampling #
+#######################
 
 
-#####
-# Importance sampling
-#####
-
-
-@dataclasses.dataclass
-class BootstrapImportanceSampling(Pytree):
+@dataclass
+class BootstrapIS(Pytree):
     """Bootstrap importance sampling for generative functions."""
 
     num_particles: IntArray
     model: GenerativeFunction
 
     def flatten(self):
-        return (), (self.num_particles, self.model, self.proposal)
+        return (self.model,), (self.num_particles,)
 
     @typecheck
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-    ):
-        return BootstrapImportanceSampling(num_particles, model)
-
     def apply(
         self,
         key: PRNGKey,
         observations: ChoiceMap,
         model_args: Tuple,
     ):
-        sub_keys = jax.random.split(self.num_particles)
+        sub_keys = jax.random.split(key, self.num_particles)
         (lws, trs) = jax.vmap(self.model.importance, in_axes=(0, None, None))(
             sub_keys,
             observations,
@@ -74,8 +61,8 @@ class BootstrapImportanceSampling(Pytree):
         return self.apply(key, choice_map, *args)
 
 
-@dataclasses.dataclass
-class CustomProposalImportanceSampling(Pytree):
+@dataclass
+class CustomProposalIS(Pytree):
     """Custom proposal importance sampling for generative functions."""
 
     num_particles: IntArray
@@ -83,18 +70,9 @@ class CustomProposalImportanceSampling(Pytree):
     proposal: GenerativeFunction
 
     def flatten(self):
-        return (), (self.num_particles, self.model, self.proposal)
+        return (self.model, self.proposal), (self.num_particles,)
 
     @typecheck
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-        proposal: GenerativeFunction,
-    ):
-        return CustomProposalImportanceSampling(num_particles, model, proposal)
-
     def apply(
         self,
         key: PRNGKey,
@@ -134,25 +112,15 @@ class CustomProposalImportanceSampling(Pytree):
         return self.apply(key, choice_map, *args)
 
 
-@dataclasses.dataclass
-class BootstrapSamplingImportanceResampling(Pytree):
+@dataclass
+class BootstrapSIR(Pytree):
     num_particles: IntArray
     model: GenerativeFunction
 
     def flatten(self):
-        return (), (self.num_particles, self.model)
+        return (self.model,), (self.num_particles,)
 
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-    ):
-        return BootstrapSamplingImportanceResampling(
-            num_particles,
-            model,
-        )
-
+    @typecheck
     def apply(
         self,
         key: PRNGKey,
@@ -177,28 +145,16 @@ class BootstrapSamplingImportanceResampling(Pytree):
         return self.apply(key, choice_map, *args)
 
 
-@dataclasses.dataclass
-class CustomProposalSamplingImportanceResampling(Pytree):
+@dataclass
+class CustomProposalSIR(Pytree):
     num_particles: IntArray
     model: GenerativeFunction
     proposal: GenerativeFunction
 
     def flatten(self):
-        return (), (self.num_particles, self.model, self.proposal)
+        return (self.model, self.proposal), (self.num_particles,)
 
-    @classmethod
-    def new(
-        cls,
-        num_particles: IntArray,
-        model: GenerativeFunction,
-        proposal: GenerativeFunction,
-    ):
-        return CustomProposalSamplingImportanceResampling(
-            num_particles,
-            model,
-            proposal,
-        )
-
+    @typecheck
     def apply(
         self,
         key: PRNGKey,
@@ -246,7 +202,7 @@ def importance_sampling(
     model: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return BootstrapImportanceSampling.new(n_particles, model)
+    return BootstrapIS(n_particles, model)
 
 
 @dispatch
@@ -255,7 +211,7 @@ def importance_sampling(
     proposal: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return CustomProposalImportanceSampling.new(n_particles, model, proposal)
+    return CustomProposalIS(n_particles, model, proposal)
 
 
 @dispatch
@@ -263,7 +219,7 @@ def sampling_importance_resampling(
     model: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return BootstrapSamplingImportanceResampling.new(n_particles, model)
+    return BootstrapSIR(n_particles, model)
 
 
 @dispatch
@@ -272,4 +228,4 @@ def sampling_importance_resampling(
     proposal: GenerativeFunction,
     n_particles: IntArray,
 ):
-    return CustomProposalSamplingImportanceResampling.new(n_particles, model, proposal)
+    return CustomProposalSIR(n_particles, model, proposal)

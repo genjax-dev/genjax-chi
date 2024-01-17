@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@ from dataclasses import dataclass
 from jax import api_util
 
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Callable
-from genjax._src.core.typing import Tuple
+from genjax._src.core.typing import Callable, Tuple
 
 
 @dataclass
@@ -29,13 +28,6 @@ class DynamicClosure(Pytree):
     def flatten(self):
         return (self.dyn_args,), (self.fn,)
 
-    @classmethod
-    def new(cls, callable, *dyn_args):
-        if isinstance(callable, DynamicClosure):
-            return DynamicClosure(callable.fn, (*callable.dyn_args, *dyn_args))
-        else:
-            return DynamicClosure(callable, dyn_args)
-
     def __call__(self, *args):
         return self.fn(*self.dyn_args, *args)
 
@@ -45,4 +37,4 @@ class DynamicClosure(Pytree):
 
 
 def dynamic_closure(*args):
-    return lambda fn: DynamicClosure.new(fn, *args)
+    return lambda fn: DynamicClosure(fn, args)

@@ -1,4 +1,4 @@
-# Copyright 2022 Equinox maintainers & MIT Probabilistic Computing Project
+# Copyright 2023 Equinox maintainers & MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,10 @@
 # limitations under the License.
 
 import abc
-import dataclasses
 import functools as ft
 import types
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import NamedTuple
-from typing import Tuple
+from dataclasses import dataclass, fields, is_dataclass
+from typing import Any, Callable, Dict, List, NamedTuple, Tuple
 
 import jax
 import jax._src.pretty_printer as pp
@@ -29,12 +24,11 @@ import jax.numpy as jnp
 import numpy as np
 from rich.tree import Tree
 
-
 Dataclass = Any
 PrettyPrintable = Any
 
 
-@dataclasses.dataclass
+@dataclass
 class CustomPretty:
     @abc.abstractmethod
     def pformat_tree(self, **kwargs):
@@ -79,7 +73,7 @@ def _dict_entry(key: PrettyPrintable, value: PrettyPrintable, **kwargs) -> Tree:
 
 def _pformat_dict(obj: Dict, **kwargs) -> Tree:
     tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
-    for (k, v) in obj.items():
+    for k, v in obj.items():
         sub_tree = _dict_entry(k, v, **kwargs)
         tree.add(sub_tree)
     return tree
@@ -104,7 +98,7 @@ def _pformat_dataclass(obj: Dataclass, **kwargs) -> Tree:
     tree = Tree(f"[b]{obj.__class__.__name__}[/b]")
     entries = [
         _named_entry(f.name, getattr(obj, f.name), **kwargs)
-        for f in dataclasses.fields(obj)
+        for f in fields(obj)
         if f.repr
     ]
     for entry in entries:
@@ -153,7 +147,7 @@ def _pformat(obj: PrettyPrintable, **kwargs) -> Tree:
         return tree
     elif isinstance(obj, CustomPretty):
         return obj.pformat_tree(**kwargs)
-    elif dataclasses.is_dataclass(obj):
+    elif is_dataclass(obj):
         return _pformat_dataclass(obj, **kwargs)
     elif isinstance(obj, list):
         return _pformat_list(obj, **kwargs)

@@ -1,4 +1,4 @@
-# Copyright 2022 MIT Probabilistic Computing Project
+# Copyright 2023 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.extras import LazyLoader
-from genjax._src.extras import blackjax
-from genjax._src.extras import tinygp
-
+from genjax._src.extras import LazyLoader, blackjax, tinygp
 
 __all__ = ["blackjax", "tinygp", "LazyLoader"]
