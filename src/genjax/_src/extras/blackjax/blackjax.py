@@ -55,8 +55,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         stripped = trace.strip()
         fixed = stripped.filter(self.selection.complement())
         initial_chm_position = stripped.filter(self.selection)
-        key, sub_key = jax.random.split(key)
-        scorer, _ = gen_fn.unzip(sub_key, fixed)
+        scorer, _ = gen_fn.unzip(fixed)
 
         # These go into the gradient interfaces.
         grad, nograd = tree_grad_split(
@@ -120,8 +119,7 @@ class NoUTurnSampler(MCMCKernel):
         stripped = trace.strip()
         fixed = stripped.filter(self.selection.complement())
         initial_chm_position = stripped.filter(self.selection)
-        key, sub_key = jax.random.split(key)
-        scorer, _ = gen_fn.unzip(sub_key, fixed)
+        scorer, _ = gen_fn.unzip(fixed)
 
         # These go into the gradient interfaces.
         grad, nograd = tree_grad_split(
