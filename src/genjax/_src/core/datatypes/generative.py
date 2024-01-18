@@ -1197,6 +1197,13 @@ class GenerativeFunction(Pytree):
     ) -> Trace:
         raise NotImplementedError
 
+    def __abstract_call__(self, *args) -> Any:
+        """Used to support JAX tracing, although this default implementation
+        involves no JAX operations (it takes a fixed-key sample from the
+        return value). Generative functions may customize this to improve
+        compilation time."""
+        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
+
 
 @dataclass
 class JAXGenerativeFunction(GenerativeFunction, Pytree):
@@ -1206,17 +1213,6 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     Mixing in this class denotes that a generative function implementation can be used within a calling context where JAX transformations are being applied, or JAX tracing is being applied (e.g. `jax.jit`). As a callee in other generative functions, this type exposes an `__abstract_call__` method which can be use to customize the behavior under abstract tracing (a default is provided, and users are not expected to interact with this functionality).
 
     Compatibility with JAX tracing allows generative functions that mixin this class to expose several default methods which support convenient access to gradient computation using `jax.grad`."""
-
-    # This is used to support tracing.
-    # Below, a default implementation: GenerativeFunctions
-    # may customize this to improve compilation time.
-    def __abstract_call__(self, *args) -> Any:
-        # This should occur only during abstract evaluation,
-        # the fact that the value has type PRNGKey is all that matters.
-        key = jax.random.PRNGKey(0)
-        tr = self.simulate(key, args)
-        retval = tr.get_retval()
-        return retval
 
     @typecheck
     def unzip(
