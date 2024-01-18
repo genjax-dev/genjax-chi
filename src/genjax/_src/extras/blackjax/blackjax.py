@@ -159,5 +159,5 @@ class NoUTurnSampler(MCMCKernel):
 # Shorthands #
 ##############
 
-hmc = HamiltonianMonteCarlo.new
-nuts = NoUTurnSampler.new
+hmc = HamiltonianMonteCarlo
+nuts = NoUTurnSampler

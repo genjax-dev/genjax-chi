@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.distributions.custom import discrete_hmm
+from genjax._src.generative_functions.distributions.custom.lgssm import lgssm
 from genjax._src.generative_functions.distributions.custom.dirac import Dirac, dirac
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
@@ -105,4 +106,5 @@ __all__ = [
     "forward_filtering_backward_sampling",
     "Dirac",
     "dirac",
+    "lgssm",
 ]

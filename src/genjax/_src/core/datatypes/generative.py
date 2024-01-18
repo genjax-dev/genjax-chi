@@ -637,7 +637,7 @@ class Trace(Pytree):
     def get_selection(self):
         return self.strip().get_selection()
 
-    def strip(self):
+    def strip(self) -> ChoiceMap:
         """Remove all `Trace` metadata, and return a choice map.
 
         `ChoiceMap` instances produced by `tr.get_choices()` will preserve `Trace` instances. `strip` recursively calls `get_choices` to remove `Trace` instances.
@@ -1279,7 +1279,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     @dispatch
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> ChoiceMap:
         def _inner(k, v):
             sub = selection.get_subselection(k)
