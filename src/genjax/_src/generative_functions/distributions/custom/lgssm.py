@@ -13,13 +13,14 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 import jax
 import jax.numpy as jnp
 
 @dataclass
-class LGSSM(ExactDensity):
+class LGSSM(JAXGenerativeFunction, ExactDensity):
     def sample_step(self, carry, zt):
         """
         Execute a single sampling step of the LGSSM.
