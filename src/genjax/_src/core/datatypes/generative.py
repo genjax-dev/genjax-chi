@@ -1197,13 +1197,6 @@ class GenerativeFunction(Pytree):
     ) -> Trace:
         raise NotImplementedError
 
-    def __abstract_call__(self, *args) -> Any:
-        """Used to support JAX tracing, although this default implementation
-        involves no JAX operations (it takes a fixed-key sample from the
-        return value). Generative functions may customize this to improve
-        compilation time."""
-        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
-
 
 @dataclass
 class JAXGenerativeFunction(GenerativeFunction, Pytree):
@@ -1255,6 +1248,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         )
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return choice_gradient_tree
+
+    def __abstract_call__(self, *args) -> Any:
+        """Used to support JAX tracing, although this default implementation
+        involves no JAX operations (it takes a fixed-key sample from the
+        return value). Generative functions may customize this to improve
+        compilation time."""
+        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
 
 ########################
