@@ -18,6 +18,7 @@ import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.typing import Callable, Sequence
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
@@ -25,7 +26,7 @@ tfd = tfp.distributions
 
 
 @dataclass
-class TFPDistribution(ExactDensity):
+class TFPDistribution(ExactDensity, JAXGenerativeFunction):
     """
     A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
 
