@@ -82,7 +82,7 @@ The following code snippet defines a generative function called `beta_bernoulli`
 - Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
   returns that value
 
-JIT-compiles a generative function interface method with JAX and then runs it with GenJAX:
+JIT-compiles a generative function interface method with JAX and then runs it:
 
 ```python
 import genjax
