@@ -44,7 +44,7 @@ optax = "^0.1.7"
 beartype = "^0.16.4"
 dill = "^0.3.7"
 pygments = "^2.17.2"
-plum-dispatch = "^2.2.2"
+plum-dispatch = "^2.3.0"
 equinox = "^0.11.2"
 
 [tool.poetry.group.dev]
@@ -76,7 +76,7 @@ mkdocs-git-authors-plugin = "^0.7.2"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.6.0", extras=["ansi"]}
-mkdocs-material = { git = "https://github.com/probcomp/mkdocs-material-insiders.git" }
+mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
 mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdocstrings.git", tag="0.24.0" }
 
 [tool.poetry.extras]
