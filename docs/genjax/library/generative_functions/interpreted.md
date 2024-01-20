@@ -1,4 +1,4 @@
-::: genjax._src.generative_functions.interpreted.fn
+::: genjax._src.generative_functions.interpreted.interpreted_gen_fn
     options:
       show_root_heading: true
 
