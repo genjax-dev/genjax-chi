@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 
@@ -53,7 +52,6 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 #####
 
 
-@dataclass
 class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching
@@ -70,11 +68,11 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import genjax
         console = genjax.console()
 
-        @genjax.static
+        @genjax.static_gen_fn
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
-        @genjax.static
+        @genjax.static_gen_fn
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
@@ -94,9 +92,6 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """
 
     branches: Tuple[JAXGenerativeFunction, ...]
-
-    def flatten(self):
-        return (self.branches,), ()
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self, branch, *args):

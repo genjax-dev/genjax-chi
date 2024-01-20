@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -54,16 +53,9 @@ from genjax._src.core.typing import (
 #####################
 
 
-@dataclass
 class IndexedSelection(Selection):
     indices: IntArray
     inner: Selection
-
-    def flatten(self):
-        return (
-            self.indices,
-            self.inner,
-        ), ()
 
     def __post_init__(self):
         static_check_tree_leaves_have_matching_leading_dim((self.inner, self.indices))
@@ -93,13 +85,9 @@ class IndexedSelection(Selection):
         return tree
 
 
-@dataclass
 class IndexedChoiceMap(ChoiceMap):
     indices: IntArray
     inner: ChoiceMap
-
-    def flatten(self):
-        return (self.indices, self.inner), ()
 
     @classmethod
     def from_dict(self, d: Dict[int, Any]) -> ChoiceMap:
@@ -209,12 +197,8 @@ class IndexedChoiceMap(ChoiceMap):
 #####################
 
 
-@dataclass
 class VectorChoiceMap(ChoiceMap):
     inner: Any
-
-    def flatten(self):
-        return (self.inner,), ()
 
     def __post_int__(self):
         static_check_tree_leaves_have_matching_leading_dim(self.inner)

@@ -21,7 +21,6 @@ The `DropArgumentsGenerativeFunction` exposes GFI methods which eliminate stored
 This is useful to avoid unnecessary allocations in e.g. `MapCombinator` which uses `jax.vmap` as part of its implementation, causing the arguments stored in its callee's trace to be expanded and stored (unnecessarily). `DropArgumentsGenerativeFunction` eliminates the stored arguments in the callee's trace -- and allows us to retain a single copy of the arguments in the `MapCombinator` caller's `MapTrace`.
 """
 
-from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
@@ -32,22 +31,12 @@ from genjax._src.core.datatypes.generative import (
 from genjax._src.core.typing import Any, FloatArray, PRNGKey, Tuple
 
 
-@dataclass
 class DropArgumentsTrace(Trace):
     gen_fn: GenerativeFunction
     retval: Any
     score: FloatArray
     inner_choice_map: ChoiceMap
     aux: Tuple
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.retval,
-            self.score,
-            self.inner_choice_map,
-            self.aux,
-        ), ()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -79,12 +68,8 @@ class DropArgumentsTrace(Trace):
         return restored
 
 
-@dataclass
 class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
     gen_fn: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.gen_fn,), ()
 
     def simulate(
         self,
@@ -168,4 +153,4 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
 # Decorator #
 #############
 
-DropArguments = DropArgumentsGenerativeFunction
+drop_arguments = DropArgumentsGenerativeFunction

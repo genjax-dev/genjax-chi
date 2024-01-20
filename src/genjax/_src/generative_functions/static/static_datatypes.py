@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
@@ -26,14 +25,13 @@ from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleSerialization,
 )
-from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch
+from genjax._src.core.typing import Any, ArrayLike, Tuple, dispatch
 
 #########
 # Trace #
 #########
 
 
-@dataclass
 class StaticTrace(
     Trace,
     SupportsPickleSerialization,
@@ -43,17 +41,7 @@ class StaticTrace(
     retval: Any
     address_choices: Trie
     cache: Trie
-    score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.args,
-            self.retval,
-            self.address_choices,
-            self.cache,
-            self.score,
-        ), ()
+    score: ArrayLike
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -77,7 +65,7 @@ class StaticTrace(
     def project(
         self,
         selection: HierarchicalSelection,
-    ) -> FloatArray:
+    ) -> ArrayLike:
         weight = 0.0
         for k, subtrace in self.address_choices.get_submaps_shallow():
             if selection.has_addr(k):

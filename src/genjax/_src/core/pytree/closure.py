@@ -12,21 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
-
 from jax import api_util
 
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Callable, Tuple
 
 
-@dataclass
 class DynamicClosure(Pytree):
-    fn: Callable
+    fn: Callable = Pytree.static()
     dyn_args: Tuple
-
-    def flatten(self):
-        return (self.dyn_args,), (self.fn,)
 
     def __call__(self, *args):
         return self.fn(*self.dyn_args, *args)

@@ -1,4 +1,4 @@
-::: genjax._src.generative_functions.interpreted.fn
+::: genjax._src.generative_functions.interpreted.interpreted_gen_fn
     options:
       show_root_heading: true
 
@@ -15,8 +15,8 @@ features of JAX, and (therefore) cannot use automatic differentiation (AD) eithe
 can be used somewhat more flexibly.
 
 In particular, you can use ordinary Python control flow in your generative functions.
-In `@static` GenJAX, you would use combinators to handle forks in the road rather than
-if statements. Further, `@static` requires an up front commitment to the shape of vectors
+In `@static_gen_fn` GenJAX, you would use combinators to handle forks in the road rather than
+if statements. Further, `@static_gen_fn` requires an up front commitment to the shape of vectors
 and tensors so that efficient use of acceleration hardware may be made.
 
 In the interpreted language, there is no such restriction; the length of a vector
@@ -27,10 +27,10 @@ Up front, here's a representative program, (with syntactic sugar, using the cons
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
-from genjax import beta, bernoulli, interpreted
+from genjax import beta, bernoulli, interpreted_gen_fn
 console = genjax.console()
 
-@interpreted
+@interpreted_gen_fn
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
@@ -49,15 +49,15 @@ Below, we illustrate a simple example:
 from genjax import beta
 from genjax import bernoulli
 from genjax import uniform
-from genjax import interpreted
+from genjax import interpreted_gen_fn
 
-@interpreted
+@interpreted_gen_fn
 def beta_bernoulli_process(u):
     p = beta(0.0, u) @ "p"
     v = bernoulli(p) @ "v"
     return v
 
-@interpreted
+@interpreted_gen_fn
 def joint():
     u = uniform() @ "u"
     v = beta_bernoulli_process(u) @ "bbp"
@@ -81,9 +81,9 @@ Returning to our example above:
 import genjax
 from genjax import beta
 from genjax import bernoulli
-from genjax import interpreted
+from genjax import interpreted_gen_fn
 
-@interpreted
+@interpreted_gen_fn
 def beta_bernoulli_process(u):
     # Invoking `trace` can be sweetened, or unsweetened.
     p = genjax.trace("p", beta)(0.0, u) # not sweet

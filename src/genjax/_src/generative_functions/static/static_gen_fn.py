@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-from dataclasses import dataclass
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -24,7 +23,7 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.closure import DynamicClosure
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -62,7 +61,6 @@ def handler_trace_with_static(
     return trace(addr, gen_fn)(*args)
 
 
-@dataclass
 class StaticGenerativeFunction(
     JAXGenerativeFunction,
     SupportsCalleeSugar,
@@ -85,7 +83,7 @@ class StaticGenerativeFunction(
     * Source programs are allowed to utilize untraced randomness, with the usual Gen restrictions. In addition, it is highly recommended (meaning, for correctness, you absolutely should) to use [`jax.random`](https://jax.readthedocs.io/en/latest/jax.random.html) and JAX's PRNG capabilities. To utilize untraced randomness, you'll need to pass in an extra key as an argument to your model.
 
         ```python
-        @static
+        @static_gen_fn
         def model(key: PRNGKey):
             v = some_untraced_call(key)
             x = trace("x", genjax.normal)(v, 1.0)
@@ -99,14 +97,7 @@ class StaticGenerativeFunction(
         *We're aware of it, and we're working on it!*
     """
 
-    source: Callable
-
-    def flatten(self):
-        # NOTE: Experimental.
-        if isinstance(self.source, DynamicClosure):
-            return (self.source,), ()
-        else:
-            return (), (self.source,)
+    source: Callable = Pytree.static()
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
@@ -250,20 +241,13 @@ class StaticGenerativeFunction(
             score,
         )
 
+    @property
+    def __wrapped__(self):
+        return self.source
+
     ###################
     # Deserialization #
     ###################
-
-
-##############################
-# Partial binding / currying #
-##############################
-
-
-def partial(gen_fn, *static_args):
-    return StaticGenerativeFunction(
-        lambda *args: gen_fn.inline(*args, *static_args),
-    )
 
 
 #############
@@ -271,7 +255,5 @@ def partial(gen_fn, *static_args):
 #############
 
 
-def static(f) -> StaticGenerativeFunction:
-    gf = StaticGenerativeFunction(f)
-    functools.update_wrapper(gf, f)
-    return gf
+def static_gen_fn(f) -> StaticGenerativeFunction:
+    return module_update_wrapper(StaticGenerativeFunction(f))

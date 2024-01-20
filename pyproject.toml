@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "GenJAX"
+name = "genjax"
 version = "0.0.1"
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
@@ -44,7 +44,7 @@ optax = "^0.1.7"
 beartype = "^0.16.4"
 dill = "^0.3.7"
 pygments = "^2.17.2"
-plum-dispatch = "^2.2.2"
+plum-dispatch = "^2.3.0"
 equinox = "^0.11.2"
 
 [tool.poetry.group.dev]

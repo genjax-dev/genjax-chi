@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 from jax import api_util
 from jax import core as jax_core
@@ -26,12 +25,8 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any
 
 
-@dataclass
 class Concrete(Pytree):
-    v: Any
-
-    def flatten(self):
-        return (), (self.v,)
+    v: Any = Pytree.static()
 
     def __hash__(self):
         return hash(self.v)

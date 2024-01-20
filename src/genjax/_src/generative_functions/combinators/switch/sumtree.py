@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -84,22 +83,14 @@ def build_from_payload(visitation, form, payload):
     return jtu.tree_unflatten(form, payload_copy)
 
 
-@dataclass
 class StaticCollection(Pytree):
-    seq: Sequence
-
-    def flatten(self):
-        return (), (self.seq,)
+    seq: Sequence = Pytree.static()
 
 
-@dataclass
 class DataSharedSumTree(Pytree):
-    visitations: StaticCollection
-    forms: StaticCollection
     payload: HashableDict
-
-    def flatten(self):
-        return (self.payload,), (self.visitations, self.forms)
+    visitations: StaticCollection = Pytree.static()
+    forms: StaticCollection = Pytree.static()
 
     @classmethod
     def new(cls, source: Pytree, covers: Sequence[Pytree]):
@@ -113,7 +104,7 @@ class DataSharedSumTree(Pytree):
         visitations = StaticCollection(visitations)
         forms = StaticCollection(forms)
         payload = set_payload(leaf_schema, source)
-        return DataSharedSumTree(visitations, forms, payload)
+        return DataSharedSumTree(payload, visitations, forms)
 
     def materialize_iterator(self):
         static_visitations = self.visitations.seq

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 from typing import Sequence
 
 import jax.numpy as jnp
@@ -49,13 +48,9 @@ from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, 
 # choose a fallback mode to allow tracer values.
 
 
-@dataclass
 class SwitchChoiceMap(ChoiceMap):
     index: IntArray
     submaps: Sequence[ChoiceMap]
-
-    def flatten(self):
-        return (self.index, self.submaps), ()
 
     def is_empty(self):
         # Concrete evaluation -- when possible.
@@ -153,22 +148,12 @@ class SwitchChoiceMap(ChoiceMap):
 ################
 
 
-@dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
     chm: SwitchChoiceMap
     args: Tuple
     retval: Any
     score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.chm,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
 
     def get_args(self):
         return self.args
