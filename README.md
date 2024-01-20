@@ -72,6 +72,8 @@ pip install jax[cuda11_pip]==0.4.20
 pip install jax[cuda12_pip]==0.4.20
 ```
 
+### Quick example
+
 The following code snippet defines a generative function called `beta_bernoulli` that
 
 - takes a shape parameter `beta`
@@ -80,7 +82,7 @@ The following code snippet defines a generative function called `beta_bernoulli`
 - Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
   returns that value
 
-JIT-compiles the function with JAX and then runs it with GenJAX:
+JIT-compiles a generative function interface method with JAX and then runs it with GenJAX:
 
 ```python
 import genjax
