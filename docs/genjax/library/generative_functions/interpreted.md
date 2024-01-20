@@ -15,8 +15,8 @@ features of JAX, and (therefore) cannot use automatic differentiation (AD) eithe
 can be used somewhat more flexibly.
 
 In particular, you can use ordinary Python control flow in your generative functions.
-In `@static` GenJAX, you would use combinators to handle forks in the road rather than
-if statements. Further, `@static` requires an up front commitment to the shape of vectors
+In `@static_gen_fn` GenJAX, you would use combinators to handle forks in the road rather than
+if statements. Further, `@static_gen_fn` requires an up front commitment to the shape of vectors
 and tensors so that efficient use of acceleration hardware may be made.
 
 In the interpreted language, there is no such restriction; the length of a vector
