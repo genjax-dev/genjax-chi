@@ -86,7 +86,7 @@ JIT-compiles the function with JAX and then runs it with GenJAX:
 import genjax
 import jax
 
-@genjax.static
+@genjax.static_gen_fn
 def beta_bernoulli(beta):
     p = genjax.beta(0.0, beta) @ "p"
     v = genjax.bernoulli(p) @ "v"
