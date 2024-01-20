@@ -759,3 +759,15 @@ class TestCombinator:
 
         assert model1.__doc__ == "model docstring"
         assert model2.__doc__ is None
+
+
+class TestMinimalInterpretedFunction:
+    def test(self):
+        @genjax.interpreted
+        def model():
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return y
+
+        key = jax.random.PRNGKey(0)
+        tr = model.simulate(key, ())
+        assert jnp.abs(tr.get_retval() - jnp.array(-1.2515389)) < 1e-5

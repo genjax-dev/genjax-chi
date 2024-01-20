@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    GenerativeFunction,
     HierarchicalChoiceMap,
     JAXGenerativeFunction,
     Trace,
@@ -55,7 +56,7 @@ from genjax._src.generative_functions.supports_callees import (
 @typecheck
 def handler_trace_with_static(
     addr,
-    gen_fn: JAXGenerativeFunction,
+    gen_fn: GenerativeFunction,
     args: Tuple,
 ):
     return trace(addr, gen_fn)(*args)
