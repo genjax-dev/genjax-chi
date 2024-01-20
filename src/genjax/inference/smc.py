@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from genjax._src.inference.smc.init import smc_initialize
-from genjax._src.inference.smc.rejuvenate import smc_rejuvenate
 from genjax._src.inference.smc.resample import SMCResample, multinomial_resampling
 from genjax._src.inference.smc.state import SMCState
 from genjax._src.inference.smc.update import SMCExtendUpdate, SMCForwardUpdate
@@ -24,6 +23,5 @@ __all__ = [
     "SMCForwardUpdate",
     "SMCExtendUpdate",
     "SMCResample",
-    "smc_rejuvenate",
     "multinomial_resampling",
 ]

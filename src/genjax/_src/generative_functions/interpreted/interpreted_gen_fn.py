@@ -17,13 +17,13 @@
 # implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html)
 # for instance, although the code in this module is quite readable and localized).
 
-import functools
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import jax
 import jaxtyping
 from beartype import beartype
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -41,6 +41,7 @@ from genjax._src.core.interpreters.incremental import (
     tree_diff_primal,
     tree_diff_unknown_change,
 )
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -111,10 +112,8 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
-@dataclass(eq=False)
-@beartype
-class AddressVisitor:
-    visited: List = field(default_factory=list)
+class AddressVisitor(Pytree):
+    visited: List = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         if addr in self.visited:
@@ -133,33 +132,31 @@ class AddressVisitor:
 #####################################
 
 
-@dataclass(eq=False)
-@beartype
+@dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
     score: ArrayLike = 0.0
-    choice_state: Trie = field(default_factory=Trie)
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    choice_state: Trie = Pytree.field(default_factory=Trie)
+    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, args)
         retval = tr.get_retval()
-        self.choice_state[addr] = tr
+        self.choice_state = self.choice_state.trie_insert(addr, tr)
         self.score += tr.get_score()
         return retval
 
 
-@dataclass(eq=False)
-@beartype
+@dataclass
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
     score: ArrayLike = 0.0
     weight: ArrayLike = 0.0
-    choice_state: Trie = field(default_factory=Trie)
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    choice_state: Trie = Pytree.field(default_factory=Trie)
+    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
@@ -167,22 +164,21 @@ class ImportanceHandler(Handler):
         self.key, sub_key = jax.random.split(self.key)
         (tr, w) = gen_fn.importance(sub_key, sub_map, args)
         retval = tr.get_retval()
-        self.choice_state[addr] = tr
+        self.choice_state = self.choice_state.trie_insert(addr, tr)
         self.score += tr.get_score()
         self.weight += w
         return retval
 
 
-@dataclass(eq=False)
-@beartype
+@dataclass
 class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
     weight: ArrayLike = 0.0
-    discard: Trie = field(default_factory=Trie)
-    choice_state: Trie = field(default_factory=Trie)
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    discard: Trie = Pytree.field(default_factory=Trie)
+    choice_state: Trie = Pytree.field(default_factory=Trie)
+    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
@@ -204,17 +200,16 @@ class UpdateHandler(Handler):
         (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
         retval = tr.get_retval()
         self.weight += w
-        self.choice_state[addr] = tr
-        self.discard[addr] = d
+        self.choice_state = self.choice_state.trie_insert(addr, tr)
+        self.discard = self.discard.trie_insert(addr, d)
         return retval
 
 
-@dataclass(eq=False)
-@beartype
+@dataclass
 class AssessHandler(Handler):
     constraints: ChoiceMap
     score: ArrayLike = 0.0
-    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
@@ -229,17 +224,12 @@ class AssessHandler(Handler):
 ########################
 
 
-@dataclass
-@beartype
 class InterpretedTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
     choices: Trie
     score: jaxtyping.ArrayLike
-
-    def flatten(self):
-        return (self.gen_fn, self.args, self.retval, self.choices, self.score), ()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -275,8 +265,6 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
-@dataclass
-@beartype
 class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     """An `InterpretedGenerativeFunction` is a generative function which relies only
     upon the CPU for its execution. This is in contrast to `static`,
@@ -316,10 +304,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    source: Callable
-
-    def flatten(self):
-        return (), (self.source,)
+    source: Callable = Pytree.static()
 
     def simulate(
         self,
@@ -398,13 +383,15 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     def inline(self, *args):
         return self.source(*args)
 
+    @property
+    def __wrapped__(self):
+        return self.source
+
 
 #############
 # Decorator #
 #############
 
 
-def interpreted(f) -> InterpretedGenerativeFunction:
-    gf = InterpretedGenerativeFunction(f)
-    functools.update_wrapper(gf, f)
-    return gf
+def interpreted_gen_fn(f) -> InterpretedGenerativeFunction:
+    return module_update_wrapper(InterpretedGenerativeFunction(f))

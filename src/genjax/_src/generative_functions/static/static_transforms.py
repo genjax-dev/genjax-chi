@@ -14,7 +14,7 @@
 
 import functools
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import jax
 import jax.tree_util as jtu
@@ -74,14 +74,10 @@ cache_p = InitialStylePrimitive("cache")
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in the static language for functions via the `cache` static_primitives.
-@dataclass(eq=False)
 class DeferredFunctionCall(Pytree):
     fn: Callable
+    args: Tuple
     kwargs: Dict
-    args: Tuple = ()
-
-    def flatten(self):
-        return (self.args,), (self.fn, self.kwargs)
 
     def __call__(self, *args):
         return DeferredFunctionCall(self.fn, self.kwargs, args)
@@ -182,12 +178,8 @@ def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
 
 
 # Usage in transforms: checks for duplicate addresses.
-@dataclass(eq=False)
 class AddressVisitor(Pytree):
-    visited: List = field(default_factory=list)
-
-    def flatten(self):
-        return (), (self.visited,)
+    visited: List = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         if addr in self.visited:
@@ -209,7 +201,7 @@ class AddressVisitor(Pytree):
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticLanguageHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-@dataclass(eq=False)
+@dataclass
 class StaticLanguageHandler(StatefulHandler):
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
@@ -234,12 +226,12 @@ class StaticLanguageHandler(StatefulHandler):
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
         addr = tree_map_collapse_const(addr)
-        self.address_choices[addr] = tr
+        self.address_choices = self.address_choices.trie_insert(addr, tr)
 
     @typecheck
     def set_discard_state(self, addr, ch: Choice):
         addr = tree_map_collapse_const(addr)
-        self.discard_choices[addr] = ch
+        self.discard_choices = self.discard_choices.trie_insert(addr, ch)
 
     def dispatch(self, prim, *tracers, **_params):
         if prim == trace_p:
@@ -255,24 +247,14 @@ class StaticLanguageHandler(StatefulHandler):
 ############
 
 
-@dataclass(eq=False)
+@dataclass
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
     score: ArrayLike = 0.0
-    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-    address_choices: Trie = field(default_factory=Trie)
-    cache_state: Trie = field(default_factory=Trie)
-    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-
-    def flatten(self):
-        return (
-            self.key,
-            self.score,
-            self.address_visitor,
-            self.address_choices,
-            self.cache_state,
-            self.cache_visitor,
-        ), ()
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_choices: Trie = Pytree.field(default_factory=Trie)
+    cache_state: Trie = Pytree.field(default_factory=Trie)
+    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (
@@ -325,28 +307,16 @@ def simulate_transform(source_fn):
 ##############
 
 
-@dataclass(eq=False)
+@dataclass
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
     constraints: ChoiceMap
     score: ArrayLike = 0.0
     weight: ArrayLike = 0.0
-    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-    address_choices: Trie = field(default_factory=Trie)
-    cache_state: Trie = field(default_factory=Trie)
-    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-
-    def flatten(self):
-        return (
-            self.key,
-            self.score,
-            self.weight,
-            self.constraints,
-            self.address_visitor,
-            self.address_choices,
-            self.cache_state,
-            self.cache_visitor,
-        ), ()
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_choices: Trie = Pytree.field(default_factory=Trie)
+    cache_state: Trie = Pytree.field(default_factory=Trie)
+    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (
@@ -411,32 +381,18 @@ def importance_transform(source_fn):
 ##########
 
 
-@dataclass(eq=False)
+@dataclass
 class UpdateHandler(StaticLanguageHandler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: ArrayLike = 0.0
     weight: ArrayLike = 0.0
-    address_choices: Trie = field(default_factory=Trie)
-    discard_choices: Trie = field(default_factory=Trie)
-    cache_state: Trie = field(default_factory=Trie)
-    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-
-    def flatten(self):
-        return (
-            self.key,
-            self.previous_trace,
-            self.constraints,
-            self.score,
-            self.weight,
-            self.address_visitor,
-            self.address_choices,
-            self.discard_choices,
-            self.cache_state,
-            self.cache_visitor,
-        ), ()
+    address_choices: Trie = Pytree.field(default_factory=Trie)
+    discard_choices: Trie = Pytree.field(default_factory=Trie)
+    cache_state: Trie = Pytree.field(default_factory=Trie)
+    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (
@@ -536,20 +492,12 @@ def update_transform(source_fn):
 ##########
 
 
-@dataclass(eq=False)
+@dataclass
 class AssessHandler(StaticLanguageHandler):
     constraints: ChoiceMap
     score: ArrayLike = 0.0
-    address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-    cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-
-    def flatten(self):
-        return (
-            self.constraints,
-            self.score,
-            self.address_visitor,
-            self.cache_visitor,
-        ), ()
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (self.score,)

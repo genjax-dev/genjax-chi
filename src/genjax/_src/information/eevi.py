@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -28,19 +27,12 @@ from genjax._src.core.typing import Int, PRNGKey, Tuple
 from genjax._src.gensp.core import Marginal, Target
 
 
-@dataclass
 class EntropyEstimatorsViaInference(Pytree):
-    n_lower_bound: Int
-    n_upper_bound: Int
+    n_lower_bound: Int = Pytree.static()
+    n_upper_bound: Int = Pytree.static()
     model: GenerativeFunction
     proposal: Marginal
     targets: Selection
-
-    def flatten(self):
-        return (self.model, self.proposal, self.targets), (
-            self.n_lower_bound,
-            self.n_upper_bound,
-        )
 
     def _entropy_lower_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)

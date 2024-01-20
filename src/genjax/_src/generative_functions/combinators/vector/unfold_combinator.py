@@ -16,12 +16,10 @@ statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
 input)."""
 
-import functools
-from dataclasses import dataclass
-
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from equinox import module_update_wrapper
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
@@ -42,6 +40,7 @@ from genjax._src.core.interpreters.incremental import (
     tree_diff_primal,
     tree_diff_unknown_change,
 )
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -60,7 +59,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class UnfoldTrace(Trace):
     unfold: GenerativeFunction
     inner: Trace
@@ -68,16 +66,6 @@ class UnfoldTrace(Trace):
     args: Tuple
     retval: Any
     score: FloatArray
-
-    def flatten(self):
-        return (
-            self.unfold,
-            self.inner,
-            self.dynamic_length,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
 
     def get_args(self):
         return self.args
@@ -135,7 +123,6 @@ class UnfoldTrace(Trace):
 #####
 
 
-@dataclass
 class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `UnfoldCombinator` accepts a kernel generative function, as well as a
     static maximum unroll length, and provides a scan-like pattern of
@@ -152,7 +139,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.console()
 
         # A kernel generative function.
-        @genjax.static
+        @genjax.static_gen_fn
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -165,7 +152,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # when declaring the function:
 
         @genjax.Unfold(max_length=1000)
-        @genjax.static
+        @genjax.static_gen_fn
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -178,11 +165,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    max_length: IntArray
     kernel: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.kernel,), (self.max_length,)
+    max_length: IntArray = Pytree.static()
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
@@ -765,6 +749,10 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         score = jnp.sum(score)
         return (score, retval)
 
+    @property
+    def __wrapped__(self):
+        return self.kernel
+
 
 #############
 # Decorator #
@@ -772,7 +760,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
 def unfold_combinator(*, max_length):
-    def decorator(f):
-        return functools.update_wrapper(UnfoldCombinator(max_length, f), f)
+    def _decorator(f):
+        return module_update_wrapper(UnfoldCombinator(f, max_length))
 
-    return decorator
+    return _decorator

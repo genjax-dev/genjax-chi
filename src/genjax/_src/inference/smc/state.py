@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
 
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
@@ -23,18 +22,12 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import BoolArray, FloatArray, IntArray
 
 
-@dataclass
 class SMCState(Pytree):
-    n_particles: IntArray
+    n_particles: IntArray = Pytree.static()
     particles: Trace
     log_weights: FloatArray
     log_ml_est: FloatArray
     valid: BoolArray
-
-    def flatten(self):
-        return (self.particles, self.log_weights, self.log_ml_est, self.valid), (
-            self.n_particles,
-        )
 
     def get_target_gen_fn(self):
         return self.particles.get_gen_fn()
@@ -53,7 +46,6 @@ class SMCState(Pytree):
         return self.log_ml_est + logsumexp(self.log_weights) - jnp.log(n_particles)
 
 
-@dataclass
 class SMCAlgorithm(Pytree):
     @abc.abstractmethod
     def apply(self, *args) -> SMCState:

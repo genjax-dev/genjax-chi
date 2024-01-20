@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import dill as pickle
 
@@ -22,15 +21,10 @@ from genjax._src.core.serialization.backend import SerializationBackend
 from genjax._src.core.typing import Any, dispatch
 
 
-@dataclass
 class PickleDataFormat(Pytree):
-    payload: Any
-
-    def flatten(self):
-        return (), (self.payload,)
+    payload: Any = Pytree.static()
 
 
-@dataclass
 class PickleSerializationBackend(SerializationBackend):
     def dumps(self, obj: Any):
         """Serializes an object using pickle."""
