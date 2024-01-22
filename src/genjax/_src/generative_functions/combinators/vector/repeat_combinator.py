@@ -36,6 +36,7 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 @dataclass
@@ -64,7 +65,7 @@ class RepeatTrace(Trace):
 
 
 @dataclass
-class RepeatCombinator(JAXGenerativeFunction):
+class RepeatCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """The `RepeatCombinator` supports i.i.d sampling from generative functions
     (for vectorized mapping over arguments, see `MapCombinator`)."""
 
