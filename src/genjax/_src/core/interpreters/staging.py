@@ -14,9 +14,8 @@
 
 
 from jax import api_util
-from jax import core as jax_core
+from jax import core as jc
 from jax import tree_util as jtu
-from jax._src import dtypes
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
@@ -48,15 +47,13 @@ def static_unwrap_concrete(c):
 
 
 def get_shaped_aval(x):
-    if hasattr(x, "dtype") and hasattr(x, "shape"):
-        return jax_core.ShapedArray(x.shape, dtypes.canonicalize_dtype(x.dtype))
-    return jax_core.raise_to_shaped(jax_core.get_aval(x))
+    return jc.raise_to_shaped(jc.get_aval(x))
 
 
 @lu.cache
 def cached_stage_dynamic(flat_fun, in_avals):
     jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, in_avals)
-    typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
+    typed_jaxpr = jc.ClosedJaxpr(jaxpr, consts)
     return typed_jaxpr
 
 

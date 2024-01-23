@@ -24,7 +24,7 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Int, PRNGKey, Tuple
-from genjax._src.gensp.core import Marginal, Target
+from genjax._src.inference.core import Marginal, Target
 
 
 class EntropyEstimatorsViaInference(Pytree):

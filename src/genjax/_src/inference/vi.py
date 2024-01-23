@@ -15,22 +15,25 @@
 import abc
 from dataclasses import dataclass
 
-import adevjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from adevjax import (
+from tensorflow_probability.substrates import jax as tfp
+
+from genjax._src.adev.core import (
     ADEVPrimitive,
+    adev,
+    reap_key,
+    sample_with_key,
+)
+from genjax._src.adev.primitives import (
     flip_enum,
     flip_mvd,
     geometric_reinforce,
     mv_normal_diag_reparam,
     normal_reinforce,
     normal_reparam,
-    sample_with_key,
 )
-from tensorflow_probability.substrates import jax as tfp
-
 from genjax._src.core.datatypes.generative import (
     AllSelection,
     ChoiceMap,
@@ -87,45 +90,45 @@ class ADEVDistribution(ExactDensity):
 
 
 flip_enum = ADEVDistribution(
-    adevjax.flip_enum,
+    flip_enum,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
 flip_mvd = ADEVDistribution(
-    adevjax.flip_mvd,
+    flip_mvd,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
 
 flip_reinforce = ADEVDistribution(
-    adevjax.flip_reinforce,
+    flip_reinforce,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
 categorical_enum = ADEVDistribution(
-    adevjax.categorical_enum_parallel,
+    categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
 )
 
 normal_reinforce = ADEVDistribution(
-    adevjax.normal_reinforce,
+    normal_reinforce,
     lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
 normal_reparam = ADEVDistribution(
-    adevjax.normal_reparam,
+    normal_reparam,
     lambda v, μ, σ: normal.logpdf(v, μ, σ),
 )
 
 mv_normal_diag_reparam = ADEVDistribution(
-    adevjax.mv_normal_diag_reparam,
+    mv_normal_diag_reparam,
     lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
         loc=loc, scale_diag=scale_diag
     ).log_prob(v),
 )
 
 mv_normal_reparam = ADEVDistribution(
-    adevjax.mv_normal_reparam,
+    mv_normal_reparam,
     lambda v, loc, covariance_matrix: tfd.MultivariateNormalFullCovariance(
         loc=loc,
         covariance_matrix=covariance_matrix,
@@ -133,32 +136,14 @@ mv_normal_reparam = ADEVDistribution(
 )
 
 geometric_reinforce = ADEVDistribution(
-    adevjax.geometric_reinforce,
+    geometric_reinforce,
     lambda v, *args: geometric.logpdf(v, *args),
 )
 
 uniform = ADEVDistribution(
-    adevjax.uniform,
+    uniform,
     lambda v: uniform.logpdf(v, 0.0, 1.0),
 )
-
-
-@dataclass
-class Baselined(ExactDensity):
-    adev_dist: ADEVDistribution
-
-    def flatten(self):
-        return (self.adev_dist,), ()
-
-    def sample(self, key, b, *args):
-        baselined = adevjax.baseline(self.adev_dist.adev_primitive)
-        return sample_with_key(baselined, key, b, *args)
-
-    def logpdf(self, v, b, *args):
-        return self.adev_dist.logpdf(v, *args)
-
-
-baselined_flip = Baselined(flip_reinforce)
 
 
 #######################################
@@ -166,7 +151,6 @@ baselined_flip = Baselined(flip_reinforce)
 #######################################
 
 
-@dataclass
 class SPAlgorithm(Pytree):
     @abc.abstractmethod
     def estimate_normalizing_constant(
@@ -187,12 +171,8 @@ class SPAlgorithm(Pytree):
         pass
 
 
-@dataclass
 class DefaultSIR(SPAlgorithm):
-    num_particles: Int
-
-    def flatten(self):
-        return (), (self.num_particles,)
+    num_particles: Int = Pytree.static()
 
     @typecheck
     def simulate(
@@ -254,17 +234,10 @@ class DefaultSIR(SPAlgorithm):
         return aw
 
 
-@dataclass
 class CustomSIR(SPAlgorithm):
-    num_particles: Int
     proposal: SPDistribution
     proposal_args: Tuple
-
-    def flatten(self):
-        return (
-            self.proposal,
-            self.proposal_args,
-        ), (self.num_particles,)
+    num_particles: Int = Pytree.static()
 
     @typecheck
     def simulate(
@@ -498,16 +471,16 @@ def elbo(
     q: SPDistribution,
     data: ChoiceMap,
 ):
-    @adevjax.adev
+    @adev
     @typecheck
     def elbo_loss(p_args: Tuple, q_args: Tuple):
         tgt = target(p, p_args, data)
         variational_family = sir(1, q, q_args)
-        key = adevjax.reap_key()
+        key = reap_key()
         w = variational_family.estimate_normalizing_constant(key, tgt)
         return w
 
-    return adevjax.E(elbo_loss)
+    return E(elbo_loss)
 
 
 @dispatch
@@ -517,16 +490,16 @@ def q_wake(
     q: SPDistribution,
     data: ChoiceMap,
 ):
-    @adevjax.adev
+    @adev
     @typecheck
     def q_wake_loss(*q_args):
-        key = adevjax.reap_key()
+        key = reap_key()
         posterior_sample = posterior_approx.simulate(key, tgt)
-        key = adevjax.reap_key()
+        key = reap_key()
         w = q.estimate_logpdf(key, posterior_sample, *q_args)
         return -w
 
-    return adevjax.E(q_wake_loss)
+    return E(q_wake_loss)
 
 
 @dispatch
@@ -551,17 +524,17 @@ def p_wake(
     p: GenerativeFunction,
     data: ChoiceMap,
 ):
-    @adevjax.adev
+    @adev
     @typecheck
     def p_wake_loss(*p_args):
-        key = adevjax.reap_key()
+        key = reap_key()
         posterior_sample = posterior_approx.simulate(key, tgt)
-        key = adevjax.reap_key()
+        key = reap_key()
         merged = data.safe_merge(posterior_sample.get_value())
         w = p.estimate_logpdf(key, ChoiceValue(merged), *p_args)
         return -w
 
-    return adevjax.E(p_wake_loss)
+    return E(p_wake_loss)
 
 
 @dispatch
@@ -601,16 +574,16 @@ def iwae_elbo(
     data: ChoiceMap,
     N: Int,
 ):
-    @adevjax.adev
+    @adev
     @typecheck
     def elbo_loss(p_args: Tuple, q_args: Tuple):
         tgt = target(p, p_args, data)
         variational_family = sir(N, q, q_args)
-        key = adevjax.reap_key()
+        key = reap_key()
         w = variational_family.estimate_normalizing_constant(key, tgt)
         return w
 
-    return adevjax.E(elbo_loss)
+    return E(elbo_loss)
 
 
 @dispatch

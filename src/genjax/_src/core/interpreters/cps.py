@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2022 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""This module contains a transformation infrastructure based on custom
+primitives, interpreters with stateful contexts and custom primitive handling
+lookups."""
 
-import copy
 import functools
-from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -22,72 +23,23 @@ from jax import api_util
 from jax import util as jax_util
 from jax.extend import linear_util as lu
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
-from genjax._src.core.interpreters.forward import initial_style_bind
+from genjax._src.core.interpreters.forward import Environment, initial_style_bind
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import List, Union, Value
+from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import List
 
 ###################
 # CPS interpreter #
 ###################
 
-VarOrLiteral = Union[jc.Var, jc.Literal]
 
-
-@dataclass
-class Environment(Pytree):
-    """Keeps track of variables and their values during propagation."""
-
-    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
-
-    def flatten(self):
-        return (self.env,), ()
-
-    def read(self, var: VarOrLiteral) -> Value:
-        if isinstance(var, jc.Literal):
-            return var.val
-        else:
-            return self.env.get(var.count)
-
-    def write(self, var: VarOrLiteral, cell: Value) -> Value:
-        if isinstance(var, jc.Literal):
-            return cell
-        cur_cell = self.read(var)
-        if isinstance(var, jc.DropVar):
-            return cur_cell
-        self.env[var.count] = cell
-        return self.env[var.count]
-
-    def __getitem__(self, var: VarOrLiteral) -> Value:
-        return self.read(var)
-
-    def __setitem__(self, key, val):
-        raise ValueError(
-            "Environments do not support __setitem__. Please use the "
-            "`write` method instead."
-        )
-
-    def __contains__(self, var: VarOrLiteral):
-        if isinstance(var, jc.Literal):
-            return True
-        return var in self.env
-
-    def copy(self):
-        return copy.copy(self)
-
-
-@dataclass
 class CPSInterpreter(Pytree):
-    def flatten(self):
-        return (), ()
-
     def _eval_jaxpr_cps(
         self,
         jaxpr: jc.Jaxpr,
-        consts: List[Value],
-        args: List[Value],
-        allowlist: List[jc.Primitive],
+        consts: List,
+        args: List,
+        allowlist: List,
     ):
         env = Environment()
         jax_util.safe_map(env.write, jaxpr.constvars, consts)
@@ -147,13 +99,10 @@ class CPSInterpreter(Pytree):
             return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-Cont = CPSInterpreter
-
-
 def cps(f, kont, allowlist):
     # Runs the interpreter.
     def _run_interpreter(*args):
-        interpreter = Cont()
+        interpreter = CPSInterpreter()
         return interpreter.run_interpreter(kont, allowlist, f, *args)
 
     # Propagates tracer values through running the interpreter.

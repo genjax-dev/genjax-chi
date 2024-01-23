@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
+from abc import abstractmethod
 
 import jax
 
 from genjax._src.core.datatypes.generative import (
+    Choice,
     ChoiceMap,
     ChoiceValue,
-    EmptyChoice,
     GenerativeFunction,
     Selection,
 )
@@ -30,27 +30,32 @@ from genjax._src.core.typing import (
     FloatArray,
     PRNGKey,
     Tuple,
-    dispatch,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
-##################
-# SPDistribution #
-##################
-
-# The interface is the same as `genjax.Distribution`, but we create a separate type
-# so that we can use the type in static checking, dispatch, etc.
+#######################
+# Choice distribution #
+#######################
 
 
-class SPDistribution(Distribution):
-    @abc.abstractmethod
-    def random_weighted(key: PRNGKey, *args) -> Tuple[FloatArray, ChoiceValue]:
-        pass
+class ChoiceDistribution(Distribution):
+    @abstractmethod
+    def random_weighted(
+        self,
+        key,
+        *args,
+    ):
+        raise NotImplementedError
 
-    @abc.abstractmethod
-    def estimate_logpdf(key: PRNGKey, v, *args) -> FloatArray:
-        pass
+    @abstractmethod
+    def estimate_logpdf(
+        self,
+        key,
+        latent_choices,
+        *args,
+    ):
+        raise NotImplementedError
 
 
 ####################
@@ -61,7 +66,7 @@ class SPDistribution(Distribution):
 class Target(Pytree):
     p: GenerativeFunction
     args: Tuple
-    constraints: ChoiceMap
+    constraints: Choice
 
     def latent_selection(self):
         return self.constraints.get_selection().complement()
@@ -71,48 +76,33 @@ class Target(Pytree):
         latents = v.strip().filter(latent_selection)
         return latents
 
-    @dispatch
-    def importance(self, key: PRNGKey, chm: ChoiceValue):
-        inner = chm.get_value()
-        assert isinstance(inner, ChoiceMap)
-        merged = self.constraints.safe_merge(inner)
+    def generate(self, key: PRNGKey, choice: Choice):
+        merged = self.constraints.safe_merge(choice)
         (tr, _) = self.p.importance(key, merged, self.args)
-        return (0.0, tr)
-
-    @dispatch
-    def importance(self, key: PRNGKey):
-        (tr, _) = self.p.importance(key, self.constraints, self.args)
-        return (0.0, tr)
+        return (tr.get_score(), tr)
 
 
-@dispatch
-def target(
-    p: GenerativeFunction,
-    args: Tuple,
-):
-    return Target.new(p, args, EmptyChoice())
+########################
+# Inference algorithms #
+########################
 
 
-@dispatch
-def target(
-    p: GenerativeFunction,
-    args: Tuple,
-    constraints: ChoiceMap,
-):
-    return Target.new(p, args, constraints)
+class InferenceAlgorithm(Pytree):
+    """
+    The class `InferenceAlgorithm` represents the type of inference algorithms, programs which implement interfaces for sampling from approximate posterior representations, and estimating the density of the approximate posterior.
 
+    `InferenceAlgorithm` implementors can also implement two optional methods designed to support effective gradient estimators for variational objectives (`estimate_normalizing_constant` and `estimate_recip_normalizing_constant`).
+    """
 
-###############
-# SPAlgorithm #
-###############
-
-
-class SPAlgorithm(Pytree):
-    @abc.abstractmethod
-    def random_weighted(self, key: PRNGKey, target: Target):
+    @abstractmethod
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
@@ -120,7 +110,7 @@ class SPAlgorithm(Pytree):
     ):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def estimate_normalizing_constant(
         self,
         key: PRNGKey,
@@ -128,7 +118,7 @@ class SPAlgorithm(Pytree):
     ):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def estimate_recip_normalizing_constant(
         self,
         key: PRNGKey,
@@ -144,48 +134,38 @@ class SPAlgorithm(Pytree):
 ############
 
 
-class Marginal(SPDistribution):
-    q: Callable[[Any, ...], SPAlgorithm] = Pytree.static()  # type: ignore
+class Marginal(ChoiceDistribution):
     selection: Selection
     p: GenerativeFunction
+    q: Callable[[Any, ...], InferenceAlgorithm] = Pytree.static()  # type: ignore
 
     @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
-        *args,
+        p_args: Tuple,
+        q_args: Tuple,
     ) -> Any:
         key, sub_key = jax.random.split(key)
-        p_args, q_args = args
         tr = self.p.simulate(sub_key, p_args)
         weight = tr.get_score()
         choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
-        tgt = target(self.p, p_args, latent_choices)
+        target = Target(self.p, p_args, latent_choices)
         alg = self.q(*q_args)
-        Z = alg.estimate_recip_normalizing_constant(key, tgt, other_choices, weight)
+        Z = alg.estimate_recip_normalizing_constant(key, target, other_choices, weight)
         return (Z, ChoiceValue(latent_choices))
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ChoiceValue,
-        *args,
+        latent_choices: Choice,
+        p_args: Tuple,
+        q_args: Tuple,
     ) -> FloatArray:
-        inner_choices = latent_choices.get_value()
-        (p_args, q_args) = args
-        tgt = target(self.p, p_args, inner_choices)
+        target = Target(self.p, p_args, latent_choices)
         alg = self.q(*q_args)
-        Z = alg.estimate_normalizing_constant(key, tgt)
+        Z = alg.estimate_normalizing_constant(key, target)
         return Z
-
-
-@dispatch
-def marginal(
-    selection: Selection,
-    p: GenerativeFunction,
-    q: Callable[[Any, ...], SPAlgorithm],  # type: ignore
-):
-    return Marginal.new(q, selection, p)

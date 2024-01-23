@@ -11,17 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from genjax._src.inference.smc.init import smc_initialize
-from genjax._src.inference.smc.resample import SMCResample, multinomial_resampling
-from genjax._src.inference.smc.state import SMCState
-from genjax._src.inference.smc.update import SMCExtendUpdate, SMCForwardUpdate
-
-__all__ = [
-    "SMCState",
-    "smc_initialize",
-    "SMCForwardUpdate",
-    "SMCExtendUpdate",
-    "SMCResample",
-    "multinomial_resampling",
-]

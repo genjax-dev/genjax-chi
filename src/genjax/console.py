@@ -12,6 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.console import console
 
-__all__ = ["console"]
+from genjax._src.adev.core import (
+    ADEVPrimitive,
+    E,
+    HigherOrderADEVPrimitive,
+    adev,
+    reap_key,
+    sample,
+    sample_with_key,
+    sow_key,
+)
+from genjax._src.adev.primitives import (
+    add_cost,
+    average,
+    baseline,
+    categorical_enum_parallel,
+    flip_enum,
+    flip_enum_parallel,
+    flip_mvd,
+    flip_reinforce,
+    geometric_reinforce,
+    maps,
+    mv_normal_diag_reparam,
+    mv_normal_reparam,
+    normal_reinforce,
+    normal_reparam,
+    reinforce,
+    uniform,
+)
+
+__all__ = [
+    # Language.
+    "adev",
+    "sample",
+    "sample_with_key",
+    "reap_key",
+    "sow_key",
+    "E",
+    "ADEVPrimitive",
+    "HigherOrderADEVPrimitive",
+    # Primitives.
+    "flip_enum",
+    "flip_enum_parallel",
+    "flip_mvd",
+    "flip_reinforce",
+    "categorical_enum_parallel",
+    "geometric_reinforce",
+    "normal_reinforce",
+    "normal_reparam",
+    "mv_normal_reparam",
+    "mv_normal_diag_reparam",
+    "uniform",
+    "baseline",
+    "reinforce",
+    "average",
+    "add_cost",
+    # Higher order primitives.
+    "maps",
+]
