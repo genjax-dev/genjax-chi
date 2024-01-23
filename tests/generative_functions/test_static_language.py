@@ -44,7 +44,7 @@ class TestSimulate:
         fn = jax.jit(simple_normal.simulate)
         key, sub_key = jax.random.split(key)
         tr = fn(sub_key, ())
-        chm = tr.get_choices()
+        chm = tr.get_choice()
         (_, score1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
         (_, score2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
         test_score = score1 + score2
@@ -110,7 +110,7 @@ class TestAssess:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_normal.assess)
-        chm = tr.get_choices().strip()
+        chm = tr.get_choice().strip()
         (score, retval) = jitted(chm, ())
         assert score == tr.get_score()
 
@@ -150,7 +150,7 @@ class TestCustomPytree:
         init_tree = CustomTree(3.0, 5.0)
         fn = jax.jit(simple_normal.simulate)
         tr = fn(key, (init_tree,))
-        chm = tr.get_choices()
+        chm = tr.get_choice()
         (_, score1) = genjax.normal.importance(
             key, chm.get_submap("y1"), (init_tree.x, 1.0)
         )
@@ -165,7 +165,7 @@ class TestCustomPytree:
         init_tree = CustomTree(3.0, 5.0)
         fn = jax.jit(custom_normal.simulate)
         tr = fn(key, (init_tree,))
-        chm = tr.get_choices()
+        chm = tr.get_choice()
         (_, score) = genjax.normal.importance(
             key, chm.get_submap("y"), (init_tree.x, init_tree.y)
         )
@@ -178,7 +178,7 @@ class TestCustomPytree:
         chm = genjax.choice_map({"y1": 5.0})
         fn = jax.jit(simple_normal.importance)
         (tr, w) = fn(key, chm, (init_tree,))
-        chm = tr.get_choices()
+        chm = tr.get_choice()
         (_, score1) = genjax.normal.importance(
             key, chm.get_submap("y1"), (init_tree.x, 1.0)
         )
@@ -201,7 +201,7 @@ class TestGradients:
         key = jax.random.PRNGKey(314159)
         tr = jax.jit(simple_normal.simulate)(key, ())
         jitted = jax.jit(simple_normal.assess)
-        chm = tr.get_choices()
+        chm = tr.get_choice()
         (score, _) = jitted(chm, ())
         assert score == tr.get_score()
 
@@ -219,7 +219,7 @@ class TestImportance:
         chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
         key, sub_key = jax.random.split(key)
         (tr, _) = fn(sub_key, chm, ())
-        out = tr.get_choices()
+        out = tr.get_choice()
         y1 = chm[("y1",)]
         y2 = chm[("y2",)]
         (_, score_1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
@@ -297,11 +297,11 @@ class TestUpdate:
         jitted = jax.jit(simple_normal.update)
 
         new = genjax.choice_map({("y1",): 2.0})
-        original_chm = tr.get_choices()
+        original_chm = tr.get_choice()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
-        updated_chm = updated.get_choices()
+        updated_chm = updated.get_choice()
         _y1 = updated_chm[("y1",)]
         _y2 = updated_chm[("y2",)]
         (_, score1) = genjax.normal.importance(
@@ -319,7 +319,7 @@ class TestUpdate:
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
-        updated_chm = updated.get_choices()
+        updated_chm = updated.get_choice()
         _y1 = updated_chm[("y1",)]
         _y2 = updated_chm[("y2",)]
         (_, score1) = genjax.normal.importance(
@@ -346,11 +346,11 @@ class TestUpdate:
         jitted = jax.jit(simple_linked_normal.update)
 
         new = genjax.choice_map({("y1",): 2.0})
-        original_chm = tr.get_choices()
+        original_chm = tr.get_choice()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
-        updated_chm = updated.get_choices().strip()
+        updated_chm = updated.get_choice().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2"]
         y3 = updated_chm["y3"]
@@ -381,11 +381,11 @@ class TestUpdate:
         jitted = jax.jit(simple_hierarchical_normal.update)
 
         new = genjax.choice_map({("y1",): 2.0})
-        original_chm = tr.get_choices()
+        original_chm = tr.get_choice()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
-        updated_chm = updated.get_choices().strip()
+        updated_chm = updated.get_choice().strip()
         y1 = updated_chm["y1"]
         y2 = updated_chm["y2", "y1"]
         y3 = updated_chm["y3", "y1"]

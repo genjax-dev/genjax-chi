@@ -108,7 +108,7 @@ class SMCAlgorithm(InferenceAlgorithm):
             + total_weight
             - jnp.log(particle_collection.get_num_particles())
         )
-        choice = target.project(particle.get_choices())
+        choice = target.project(particle.get_choice())
         return log_density_estimate, choice
 
 

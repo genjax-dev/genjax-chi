@@ -72,7 +72,7 @@ class DistributionTrace(
     def get_score(self):
         return self.score
 
-    def get_choices(self):
+    def get_choice(self):
         return ChoiceValue(self.value)
 
     def project(self, selection: Selection) -> ArrayLike:
@@ -201,7 +201,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         bwd = prev.get_score()
         w = fwd - bwd
         new_tr = DistributionTrace(self, args, v, fwd)
-        discard = prev.get_choices()
+        discard = prev.get_choice()
         retval_diff = tree_diff_unknown_change(v)
         return (new_tr, w, retval_diff, discard)
 

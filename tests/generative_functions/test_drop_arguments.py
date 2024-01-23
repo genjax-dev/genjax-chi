@@ -33,7 +33,7 @@ class TestDropArguments:
         chm = genjax.indexed_choice_map(jnp.array([0]), {"y": jnp.array([5.0])})
         tr = model.simulate(key, (jnp.ones(5),))
         tr, _, _, _ = model.update(key, tr, chm, tree_diff_no_change((jnp.ones(5),)))
-        v = tr.get_choices()[0, "y"]
+        v = tr.get_choice()[0, "y"]
         assert v == 5.0
         sel = genjax.indexed_select(jnp.array([0]), genjax.select("y"))
         assert tr.project(sel) == genjax.normal.logpdf(5.0, 1.0, 1.0)

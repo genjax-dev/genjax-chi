@@ -37,7 +37,7 @@ class EntropyEstimatorsViaInference(Pytree):
     def _entropy_lower_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)
         obs_targets = self.targets.complement()
-        observations = obs_targets.filter(tr.get_choices().strip())
+        observations = obs_targets.filter(tr.get_choice().strip())
         target = Target(self.model, model_args, observations)
         key, *sub_keys = jax.random.split(key, self.n_lower_bound + 1)
         sub_keys = jnp.array(sub_keys)
@@ -61,7 +61,7 @@ class EntropyEstimatorsViaInference(Pytree):
     def _entropy_upper_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)
         log_p = tr.get_score()
-        chm = tr.get_choices().strip()
+        chm = tr.get_choice().strip()
         latents = self.targets.filter(chm)
         observations = self.targets.complement().filter(chm)
         target = Target(self.model, model_args, observations)

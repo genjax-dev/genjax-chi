@@ -55,7 +55,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
 
         # (x, z) ~ p, log p(z, x) / q(z | x)
         key, tr = self.p.simulate(key, p_args)
-        chm = tr.get_choices().strip()
+        chm = tr.get_choice().strip()
         latent_chm = self.inf_selection.filter(chm)
         obs_chm = obs_target.filter(chm)
         (latent_chm, obs_chm) = (
@@ -97,7 +97,7 @@ class SymmetricDivergenceOverDatasets(Pytree):
         fwd_weight_p = logsumexp(fwd_weights) - jnp.log(self.num_meta_p)
 
         # Compute estimate of log q(z' | x)
-        inf_chm = inftr.get_choices()
+        inf_chm = inftr.get_choice()
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
             sub_key, key_indices_q, inf_chm, (target,)

@@ -96,16 +96,16 @@ def beta_bernoulli(beta):
 
 key = jax.random.PRNGKey(314159)
 trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
-choices = trace.get_choices()
+choice = trace.get_choice()
 ```
 
-`choices` is a record of all random choices made during the execution of the
+`choice` is a map-like record of all random choices made during the execution of the
 generative function `beta_bernoulli`. Print it with a `genjax.console()`
 instance:
 
 ```python
 console = genjax.console()
-console.print(choices)
+console.print(choice)
 ```
 
 resulting in:

@@ -97,7 +97,7 @@ class ExtendingTraceTranslator(TraceTranslator):
     new_observations: Choice
 
     def value_and_jacobian_correction(self, forward, trace):
-        trace_choices = trace.get_choices()
+        trace_choices = trace.get_choice()
         grad_tree, no_grad_tree = tree_grad_split(trace_choices)
 
         def _inner(differentiable):
@@ -127,7 +127,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         return transformed, J_log_abs_det
 
     def apply(self, key: PRNGKey, prev_model_trace: Trace):
-        prev_model_choices = prev_model_trace.get_choices()
+        prev_model_choices = prev_model_trace.get_choice()
         forward_proposal_trace = self.q_forward.simulate(
             key, (self.new_observations, prev_model_choices, *self.q_forward_args)
         )
@@ -220,7 +220,7 @@ class TraceKernelTraceTranslator(TraceTranslator):
         prev_model_trace: Trace,
     ) -> Tuple[Trace, FloatArray]:
         key, sub_key = jax.random.split(key)
-        prev_model_choices = prev_model_trace.get_choices()
+        prev_model_choices = prev_model_trace.get_choice()
         aux_choices, K_score, new_choices = self.K.propose(
             sub_key, (prev_model_choices, self.K_args)
         )
@@ -232,7 +232,7 @@ class TraceKernelTraceTranslator(TraceTranslator):
             key, new_choices, self.model_argdiffs
         )
         assert discard.is_empty()
-        new_model_choices = new_model_trace.get_choices()
+        new_model_choices = new_model_trace.get_choice()
         L_score = self.L.assess(
             aux_choices,
             (new_model_choices, self.L_args),

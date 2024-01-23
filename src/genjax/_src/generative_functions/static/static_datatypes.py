@@ -46,7 +46,7 @@ class StaticTrace(
     def get_gen_fn(self):
         return self.gen_fn
 
-    def get_choices(self):
+    def get_choice(self):
         return HierarchicalChoiceMap(self.address_choices).strip()
 
     def get_retval(self):

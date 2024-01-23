@@ -254,7 +254,7 @@ class Choice(Pytree):
     def get_selection(self) -> Selection:
         pass
 
-    def get_choices(self):
+    def get_choice(self):
         return self
 
     def strip(self):
@@ -432,7 +432,7 @@ class Trace(Pytree):
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
             retval = tr.get_retval()
-            chm = tr.get_choices()
+            chm = tr.get_choice()
             v = chm.get_value()
             print(console.render((retval, v)))
             ```
@@ -469,7 +469,7 @@ class Trace(Pytree):
         pass
 
     @abstractmethod
-    def get_choices(self) -> ChoiceMap:
+    def get_choice(self) -> ChoiceMap:
         """Return a `ChoiceMap` representation of the set of traced random
         choices sampled during the execution of the generative function to
         produce the `Trace`.
@@ -489,7 +489,7 @@ class Trace(Pytree):
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
-            chm = tr.get_choices()
+            chm = tr.get_choice()
             print(console.render(chm))
             ```
         """
@@ -597,11 +597,11 @@ class Trace(Pytree):
         return self.strip().merge(other.strip())
 
     def has_submap(self, addr) -> BoolArray:
-        choices = self.get_choices()
+        choices = self.get_choice()
         return choices.has_submap(addr)
 
     def get_submap(self, addr) -> ChoiceMap:
-        choices = self.get_choices()
+        choices = self.get_choice()
         return choices.get_submap(addr)
 
     def get_selection(self):
@@ -610,7 +610,7 @@ class Trace(Pytree):
     def strip(self):
         """Remove all `Trace` metadata, and return a choice map.
 
-        `ChoiceMap` instances produced by `tr.get_choices()` will preserve `Trace` instances. `strip` recursively calls `get_choices` to remove `Trace` instances.
+        `ChoiceMap` instances produced by `tr.get_choice()` will preserve `Trace` instances. `strip` recursively calls `get_choice` to remove `Trace` instances.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -627,7 +627,7 @@ class Trace(Pytree):
         return strip(self)
 
     def __getitem__(self, x):
-        return self.get_choices()[x]
+        return self.get_choice()[x]
 
 
 # Remove all trace metadata, and just return choices.
@@ -641,7 +641,7 @@ def strip(v):
         else:
             return v
 
-    return jtu.tree_map(_inner, v.get_choices(), is_leaf=_check)
+    return jtu.tree_map(_inner, v.get_choice(), is_leaf=_check)
 
 
 ###########
@@ -790,12 +790,12 @@ class Mask(Pytree):
         return jnp.logical_and(self.mask, check)
 
     def filter(self, selection: Selection):
-        choices = self.value.get_choices()
+        choices = self.value.get_choice()
         assert isinstance(choices, Choice)
         return Mask(self.mask, choices.filter(selection))
 
-    def get_choices(self):
-        choices = self.value.get_choices()
+    def get_choice(self):
+        choices = self.value.get_choice()
         return Mask(self.mask, choices)
 
     ###########################
@@ -1003,7 +1003,7 @@ class GenerativeFunction(Pytree):
             ```
         """
         tr = self.simulate(key, args)
-        chm = tr.get_choices()
+        chm = tr.get_choice()
         score = tr.get_score()
         retval = tr.get_retval()
         return (chm, score, retval)

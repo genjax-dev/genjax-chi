@@ -40,8 +40,8 @@ class MaskingTrace(Trace):
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_choices(self):
-        return Mask(self.check, self.inner.get_choices())
+    def get_choice(self):
+        return Mask(self.check, self.inner.get_choice())
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())

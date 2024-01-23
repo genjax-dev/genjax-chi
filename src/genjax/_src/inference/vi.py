@@ -420,7 +420,7 @@ class CustomMarginal(SPDistribution):
         p_args, q_args = args
         tr = self.p.simulate(sub_key, p_args)
         weight = tr.get_score()
-        choices = tr.get_choices()
+        choices = tr.get_choice()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         tgt = target(self.p, p_args, latent_choices)

@@ -157,7 +157,7 @@ class TestUnfoldSimpleNormal:
         key = jax.random.PRNGKey(17)
         key, sub_key = jax.random.split(key)
         true_tr = one_step.simulate(sub_key, (4, (0.0)))
-        true_x = jax.vmap(lambda idx: true_tr.get_choices()[idx, "x"])(
+        true_x = jax.vmap(lambda idx: true_tr.get_choice()[idx, "x"])(
             jnp.arange(5)
         ).unsafe_unmask()
         chm = genjax.vector_choice_map(

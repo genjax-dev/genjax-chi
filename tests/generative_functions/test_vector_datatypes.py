@@ -102,7 +102,7 @@ class TestVectorTrace:
         key, sub_key = jax.random.split(key)
         vec_tr = jax.jit(model.simulate)(sub_key, (map_over,))
         sel = genjax.indexed_select(jnp.array([1]), genjax.select("z"))
-        score = genjax.normal.logpdf(vec_tr.get_choices()[1, "z"], map_over[1], 1.0)
+        score = genjax.normal.logpdf(vec_tr.get_choice()[1, "z"], map_over[1], 1.0)
         assert score == vec_tr.project(sel)
 
         # Example generated using Unfold.
