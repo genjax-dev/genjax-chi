@@ -112,11 +112,22 @@ class DistributionTrace(
 
 class Distribution(GenerativeFunction, SupportsCalleeSugar):
     @abc.abstractmethod
-    def random_weighted(self, *args, **kwargs):
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+        **kwargs,
+    ) -> Tuple[ArrayLike, Any]:
         pass
 
     @abc.abstractmethod
-    def estimate_logpdf(self, key, v, *args, **kwargs):
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: Any,
+        *args,
+        **kwargs,
+    ) -> ArrayLike:
         pass
 
     @typecheck

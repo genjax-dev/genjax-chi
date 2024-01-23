@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
+from abc import abstractmethod
 
 import jax
 import jax.numpy as jnp
@@ -43,14 +43,6 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
-
-#############
-# Utilities #
-#############
-
-########################
-# Generative datatypes #
-########################
 
 #############
 # Selection #
@@ -87,11 +79,11 @@ class Selection(Pytree):
         """
         return ComplementSelection(self)
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_subselection(self, addr) -> "Selection":
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @abstractmethod
     def has_addr(self, addr) -> BoolArray:
         raise NotImplementedError
 
@@ -236,9 +228,37 @@ class Choice(Pytree):
     The type `Choice` denotes an event which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def filter(self, selection: Selection) -> "Choice":
         pass
+
+    @abstractmethod
+    def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
+        pass
+
+    def safe_merge(self, other: "Choice") -> "Choice":
+        new, discard = self.merge(other)
+        if not discard.is_empty():
+            raise Exception(f"Discard is non-empty.\n{discard}")
+        return new
+
+    def unsafe_merge(self, other: "Choice") -> "Choice":
+        new, _ = self.merge(other)
+        return new
+
+    @abstractmethod
+    def is_empty(self) -> BoolArray:
+        pass
+
+    @abstractmethod
+    def get_selection(self) -> Selection:
+        pass
+
+    def get_choices(self):
+        return self
+
+    def strip(self):
+        return strip(self)
 
 
 class EmptyChoice(Choice):
@@ -252,6 +272,9 @@ class EmptyChoice(Choice):
     def is_empty(self):
         return True
 
+    def get_selection(self):
+        return NoneSelection()
+
     @dispatch
     def merge(self, other):
         return other, self
@@ -263,11 +286,11 @@ class EmptyChoice(Choice):
 class ChoiceValue(Choice):
     value: Any
 
-    def is_empty(self):
-        return False
-
     def get_value(self):
         return self.value
+
+    def is_empty(self):
+        return False
 
     @dispatch
     def merge(self, other: "ChoiceValue"):
@@ -281,6 +304,9 @@ class ChoiceValue(Choice):
     def filter(self, selection):
         return EmptyChoice()
 
+    def get_selection(self):
+        return AllSelection()
+
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ValueChoice)")
         tree.add(gpp.tree_pformat(self.value))
@@ -288,23 +314,12 @@ class ChoiceValue(Choice):
 
 
 class ChoiceMap(Choice):
-    @abc.abstractmethod
+    @abstractmethod
     def get_submap(self, addr) -> Choice:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def has_submap(self, addr) -> BoolArray:
-        pass
-
-    @abc.abstractmethod
-    def is_empty(self) -> BoolArray:
-        pass
-
-    @abc.abstractmethod
-    def merge(
-        self,
-        other: "ChoiceMap",
-    ) -> Tuple["ChoiceMap", "ChoiceMap"]:
         pass
 
     @dispatch
@@ -357,22 +372,6 @@ class ChoiceMap(Choice):
             f"`get_selection` is not implemented for choice map of type {type(self)}",
         )
 
-    def safe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
-        new, discard = self.merge(other)
-        if not discard.is_empty():
-            raise Exception(f"Discard is non-empty.\n{discard}")
-        return new
-
-    def unsafe_merge(self, other: "ChoiceMap") -> "ChoiceMap":
-        new, _ = self.merge(other)
-        return new
-
-    def get_choices(self):
-        return self
-
-    def strip(self):
-        return strip(self)
-
     ###########
     # Dunders #
     ###########
@@ -417,7 +416,7 @@ class Trace(Pytree):
     value, and the identity of the generative function itself.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_retval(self) -> Any:
         """Returns the return value from the generative function invocation
         which created the `Trace`.
@@ -439,7 +438,7 @@ class Trace(Pytree):
             ```
         """
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_score(self) -> ArrayLike:
         """Return the score of the `Trace`.
 
@@ -465,11 +464,11 @@ class Trace(Pytree):
             ```
         """
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_args(self) -> Tuple:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_choices(self) -> ChoiceMap:
         """Return a `ChoiceMap` representation of the set of traced random
         choices sampled during the execution of the generative function to
@@ -495,7 +494,7 @@ class Trace(Pytree):
             ```
         """
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
         """Returns the generative function whose invocation created the
         `Trace`.

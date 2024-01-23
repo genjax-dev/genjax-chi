@@ -14,14 +14,12 @@
 
 from genjax._src.adev.core import ADEVPrimitive  # noqa: I001
 from genjax._src.adev.core import E
-from genjax._src.adev.core import HigherOrderADEVPrimitive
 from genjax._src.adev.core import adev
 from genjax._src.adev.core import reap_key
 from genjax._src.adev.core import sample
 from genjax._src.adev.core import sample_with_key
 from genjax._src.adev.core import sow_key
 from genjax._src.adev.primitives import add_cost
-from genjax._src.adev.primitives import average
 from genjax._src.adev.primitives import baseline
 from genjax._src.adev.primitives import categorical_enum_parallel
 from genjax._src.adev.primitives import flip_enum
@@ -29,7 +27,6 @@ from genjax._src.adev.primitives import flip_enum_parallel
 from genjax._src.adev.primitives import flip_mvd
 from genjax._src.adev.primitives import flip_reinforce
 from genjax._src.adev.primitives import geometric_reinforce
-from genjax._src.adev.primitives import maps
 from genjax._src.adev.primitives import mv_normal_diag_reparam
 from genjax._src.adev.primitives import mv_normal_reparam
 from genjax._src.adev.primitives import normal_reinforce
@@ -47,7 +44,6 @@ __all__ = [
     "sow_key",
     "E",
     "ADEVPrimitive",
-    "HigherOrderADEVPrimitive",
     # Primitives.
     "flip_enum",
     "flip_enum_parallel",
@@ -62,8 +58,5 @@ __all__ = [
     "uniform",
     "baseline",
     "reinforce",
-    "average",
     "add_cost",
-    # Higher order primitives.
-    "maps",
 ]

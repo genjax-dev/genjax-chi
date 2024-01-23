@@ -48,12 +48,14 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
+from genjax._src.generative_functions.combinators.drop_arguments import (
+    DropArgumentsTrace,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
     IndexedSelection,
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 

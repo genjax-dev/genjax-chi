@@ -95,6 +95,15 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
+[tool.pyright]
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+]
+defineConstant = { DEBUG = true }
+reportMissingImports = true
+reportMissingTypeStubs = false
+
 [tool.ruff]
 exclude = [
     ".bzr",

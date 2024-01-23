@@ -43,18 +43,18 @@ class ChoiceDistribution(Distribution):
     @abstractmethod
     def random_weighted(
         self,
-        key,
+        key: PRNGKey,
         *args,
-    ):
+    ) -> Tuple[FloatArray, Choice]:
         raise NotImplementedError
 
     @abstractmethod
     def estimate_logpdf(
         self,
-        key,
-        latent_choices,
+        key: PRNGKey,
+        latent_choices: Choice,
         *args,
-    ):
+    ) -> FloatArray:
         raise NotImplementedError
 
 
@@ -68,13 +68,10 @@ class Target(Pytree):
     args: Tuple
     constraints: Choice
 
-    def latent_selection(self):
-        return self.constraints.get_selection().complement()
-
-    def get_latents(self, v):
-        latent_selection = self.latent_selection()
-        latents = v.strip().filter(latent_selection)
-        return latents
+    def project(self, choice: Choice):
+        constraint_selection = self.constraints.get_selection()
+        complement = constraint_selection.complement()
+        return choice.filter(complement)
 
     def generate(self, key: PRNGKey, choice: Choice):
         merged = self.constraints.safe_merge(choice)

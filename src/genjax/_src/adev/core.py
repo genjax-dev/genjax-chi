@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
-import functools
+from abc import abstractmethod
+from functools import partial, wraps
 
 import jax
 import jax.numpy as jnp
@@ -30,7 +30,6 @@ from genjax._src.core.interpreters.cps import cps
 from genjax._src.core.interpreters.forward import (
     Environment,
     InitialStylePrimitive,
-    batch_fun,
     initial_style_bind,
 )
 from genjax._src.core.interpreters.staging import stage
@@ -53,11 +52,11 @@ from genjax._src.core.typing import (
 
 
 class ADEVPrimitive(Pytree):
-    @abc.abstractmethod
+    @abstractmethod
     def sample(self, key, *args):
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @abstractmethod
     def jvp_estimate(
         self,
         key: PRNGKey,
@@ -67,31 +66,9 @@ class ADEVPrimitive(Pytree):
     ) -> Tuple:
         pass
 
-    def get_batched_variant(self, batch_dims: Tuple):
-        raise Exception(
-            "Primitive called under a HOP (e.g. genjax._src.core.maps) and is expected to provide a batched variant."
-        )
-
     @typecheck
     def __call__(self, *args):
         return sample(self, *args)
-
-
-class HigherOrderADEVPrimitive(Pytree):
-    @abc.abstractmethod
-    def sample(self, *args):
-        pass
-
-    @abc.abstractmethod
-    def transform(self, key: PRNGKey, *args):
-        pass
-
-    # Used inside ADEV programs (e.g. inside of functions decorated,
-    #                           with @genjax._src.core.adev)
-    @typecheck
-    def __call__(self, *args):
-        key = reap_key()
-        return self.transform(key, *args)
 
 
 ####################
@@ -119,58 +96,6 @@ def sample_with_key(adev_prim: ADEVPrimitive, key, *args):
 def sample(adev_prim: ADEVPrimitive, *args):
     key = reap_key()
     return sample_with_key(adev_prim, key, *args)
-
-
-######
-# Batching
-######
-
-
-def batched_sample_vmap_semantics(obj, batched_args, batch_dims, **params):
-    # Original under vmap.
-    batched, out_dims = batch_fun(lu.wrap_init(obj.impl, params), batch_dims)
-    original_batched_out = jtu.tree_leaves(batched.call_wrapped(*batched_args))
-
-    # New.
-    primitive, key, *args = jtu.tree_unflatten(params["in_tree"], batched_args)
-    batched_primitive = primitive.get_batched_variant(batch_dims)
-
-    def _abstract_adev_prim_call(adev_prim, key, *args):
-        v = adev_prim.sample(key, *args)
-        return v
-
-    new_batched_out = jtu.tree_leaves(
-        initial_style_bind(sample_p)(_abstract_adev_prim_call)(
-            batched_primitive,
-            key,
-            *args,
-        )
-    )
-
-    # The semantics of sampling the new batched primitive requires that
-    # the output shape must matched vmap of sampling the implementation
-    # of the original primitive.
-    #
-    # We check this statically here.
-    assert all(
-        jtu.tree_leaves(
-            jtu.tree_map(
-                lambda v1, v2: v1.shape == v2.shape,
-                new_batched_out,
-                original_batched_out,
-            )
-        )
-    )
-
-    return tuple(new_batched_out), out_dims()
-
-
-# Sampling in "batched mode" (e.g. under vmap) is a bit tricky.
-# We define another primitive, with specialized behavior under vmap
-# (c.f. `batched_sample_vmap_semantics`)
-batched_sample_p = InitialStylePrimitive(
-    "batched_sample", batched_sample_vmap_semantics
-)
 
 
 ######################
@@ -404,7 +329,7 @@ class ADEVProgram(Pytree):
         args: Tuple,
     ):
         def _just_seed(f):
-            @functools.wraps(f)
+            @wraps(f)
             def wrapped(key, args):
                 def _seeded(*args):
                     return sow_key(f)(key, *args)
@@ -426,7 +351,7 @@ class ADEVProgram(Pytree):
         kont: Callable,
     ):
         def _just_cps(f):
-            @functools.wraps(f)
+            @wraps(f)
             def wrapped(key, args):
                 def _seeded(*args):
                     return sow_key(f)(key, *args)
@@ -452,7 +377,7 @@ class ADEVProgram(Pytree):
         kont: Callable,
     ):
         def adev_jvp(f):
-            @functools.wraps(f)
+            @wraps(f)
             def wrapped(key, primals, tangents):
                 def _seeded(*args):
                     return sow_key(f)(key, *args)
@@ -477,7 +402,7 @@ class ADEVProgram(Pytree):
         kont: Callable,
     ):
         def adev_jvp(f):
-            @functools.wraps(f)
+            @wraps(f)
             def wrapped(key, primals, tangents):
                 def _seeded(*args):
                     return sow_key(f)(key, *args)
@@ -555,8 +480,10 @@ class Expectation(Pytree):
         tangents: Tuple[Pytree, ...],
     ):
         # Trivial continuation.
-        identity = lambda v: v
-        return self.prog._jvp_estimate(key, primals, tangents, identity)
+        def _identity(v):
+            return v
+
+        return self.prog._jvp_estimate(key, primals, tangents, _identity)
 
     def estimate(self, key, args):
         tangents = jtu.tree_map(lambda _: 0.0, args)
@@ -585,7 +512,7 @@ class Expectation(Pytree):
         @typecheck
         def _grad(key: PRNGKey, *primals: Any):
             return jax.grad(
-                functools.partial(_invoke_closed_over, key),
+                partial(_invoke_closed_over, key),
                 argnums=argnums,
             )(*primals)
 
@@ -606,7 +533,7 @@ class Expectation(Pytree):
         @typecheck
         def _grad(key: PRNGKey, *primals: Any):
             return jax.value_and_grad(
-                functools.partial(_invoke_closed_over, key),
+                partial(_invoke_closed_over, key),
                 argnums=argnums,
             )(*primals)
 
