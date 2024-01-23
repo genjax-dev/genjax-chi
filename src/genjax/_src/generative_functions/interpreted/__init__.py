@@ -22,7 +22,3 @@ critical applications, for several reasons:
 
 * It does not feature gradient interfaces - supporting an ad hoc Python AD implementation is out of scope for the intended applications of GenJAX.
 """
-
-from .fn import InterpretedGenerativeFunction, interpreted, trace
-
-__all__ = ["interpreted", "InterpretedGenerativeFunction", "trace"]

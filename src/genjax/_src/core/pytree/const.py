@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax.tree_util as jtu
 import rich.tree as rich_tree
@@ -21,12 +20,8 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Any, static_check_is_concrete
 
 
-@dataclass
 class PytreeConst(Pytree):
-    const: Any
-
-    def flatten(self):
-        return (), (self.const,)
+    const: Any = Pytree.static()
 
     def __rich_tree__(self):
         return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")

@@ -11,6 +11,7 @@
 
 <div align="center">
 
+[![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
@@ -71,6 +72,8 @@ pip install jax[cuda11_pip]==0.4.20
 pip install jax[cuda12_pip]==0.4.20
 ```
 
+### Quick example
+
 The following code snippet defines a generative function called `beta_bernoulli` that
 
 - takes a shape parameter `beta`
@@ -79,13 +82,13 @@ The following code snippet defines a generative function called `beta_bernoulli`
 - Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
   returns that value
 
-JIT-compiles the function with JAX and then runs it with GenJAX:
+JIT-compiles a generative function interface method with JAX and then runs it:
 
 ```python
 import genjax
 import jax
 
-@genjax.static
+@genjax.static_gen_fn
 def beta_bernoulli(beta):
     p = genjax.beta(0.0, beta) @ "p"
     v = genjax.bernoulli(p) @ "v"

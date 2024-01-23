@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import plum
@@ -29,18 +28,10 @@ from genjax._src.core.typing import Bool, Dict
 ###################
 
 
-@dataclass
 class GenJAXConsole(Pytree):
-    rich_console: Console
-    traceback_kwargs: Dict
-    enforce_checkify: Bool
-
-    def flatten(self):
-        return (), (
-            self.rich_console,
-            self.traceback_kwargs,
-            self.enforce_checkify,
-        )
+    rich_console: Console = Pytree.static()
+    traceback_kwargs: Dict = Pytree.static()
+    enforce_checkify: Bool = Pytree.static()
 
     def __enter__(self):
         if self.enforce_checkify:

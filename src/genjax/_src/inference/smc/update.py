@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-from dataclasses import dataclass
-
 import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap
@@ -28,11 +26,7 @@ from genjax._src.inference.translator import ExtendingTraceTranslator
 ############################
 
 
-@dataclass
 class SMCForwardUpdate(SMCAlgorithm):
-    def flatten(self):
-        return (), ()
-
     @typecheck
     def apply(
         self,
@@ -64,12 +58,8 @@ class SMCForwardUpdate(SMCAlgorithm):
 #####################################
 
 
-@dataclass
 class SMCExtendUpdate(SMCAlgorithm):
     translator: ExtendingTraceTranslator
-
-    def flatten(self):
-        return (self.translator), ()
 
     @typecheck
     def apply(

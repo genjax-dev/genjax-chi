@@ -31,7 +31,6 @@ By default, `genjax` provides two types of `ChangeTangent`:
 
 import abc
 import functools
-from dataclasses import dataclass
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -61,7 +60,6 @@ from genjax._src.core.typing import (
 ###################
 
 
-@dataclass
 class ChangeTangent(Pytree):
     @abc.abstractmethod
     def should_flatten(self):
@@ -79,11 +77,7 @@ class ChangeTangent(Pytree):
 # (namely, that it is has not changed).
 
 
-@dataclass
 class _UnknownChange(ChangeTangent):
-    def flatten(self):
-        return (), ()
-
     def should_flatten(self):
         return False
 
@@ -91,11 +85,7 @@ class _UnknownChange(ChangeTangent):
 UnknownChange = _UnknownChange()
 
 
-@dataclass
 class _NoChange(ChangeTangent):
-    def flatten(self):
-        return (), ()
-
     def should_flatten(self):
         return False
 
@@ -103,23 +93,15 @@ class _NoChange(ChangeTangent):
 NoChange = _NoChange()
 
 
-@dataclass
 class IntChange(ChangeTangent):
     dv: IntArray
-
-    def flatten(self):
-        return (self.dv,), ()
 
     def should_flatten(self):
         return True
 
 
-@dataclass
 class StaticIntChange(ChangeTangent):
-    dv: IntArray
-
-    def flatten(self):
-        return (), (self.dv,)
+    dv: IntArray = Pytree.static()
 
     def __post_init__(self):
         assert static_check_is_concrete(self.dv)
@@ -137,13 +119,9 @@ def static_check_is_change_tangent(v):
 #############################
 
 
-@dataclass
 class Diff(Pytree):
     primal: Any
     tangent: Any
-
-    def flatten(self):
-        return (self.primal, self.tangent), ()
 
     def __post_init__(self):
         assert not isinstance(self.primal, Diff)
@@ -250,12 +228,8 @@ def default_propagation_rule(prim, *args, **_params):
         return tree_diff_unknown_change(outval)
 
 
-@dataclass
 class IncrementalInterpreter(Pytree):
-    custom_rules: HashableDict[jc.Primitive, Callable]
-
-    def flatten(self):
-        return (), (self.custom_rules,)
+    custom_rules: HashableDict[jc.Primitive, Callable] = Pytree.static()
 
     def _eval_jaxpr_forward(
         self,

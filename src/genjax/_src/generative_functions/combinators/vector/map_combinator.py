@@ -17,13 +17,12 @@ The `MapCombinator` is a generative function combinator which exposes vectorizat
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
 """
 
-import functools
-from dataclasses import dataclass
 from typing import Callable
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
@@ -39,9 +38,10 @@ from genjax._src.core.interpreters.incremental import tree_diff_primal
 from genjax._src.core.pytree.checks import (
     static_check_tree_leaves_have_matching_leading_dim,
 )
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    FloatArray,
+    ArrayLike,
     IntArray,
     PRNGKey,
     Tuple,
@@ -57,22 +57,12 @@ from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
     inner: Trace
     args: Tuple
     retval: Any
-    score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.inner,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
+    score: ArrayLike
 
     def get_args(self):
         return self.args
@@ -112,7 +102,7 @@ class MapTrace(Trace):
     def project(
         self,
         selection: IndexedSelection,
-    ) -> FloatArray:
+    ) -> ArrayLike:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
             selection.inner,
@@ -125,7 +115,7 @@ class MapTrace(Trace):
     def project(
         self,
         selection: HierarchicalSelection,
-    ) -> FloatArray:
+    ) -> ArrayLike:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
             selection,
@@ -133,7 +123,6 @@ class MapTrace(Trace):
         return jnp.sum(inner_project)
 
 
-@dataclass
 class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
@@ -150,7 +139,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         #############################################################
 
         @genjax.map_combinator(in_axes = (0, ))
-        @genjax.static
+        @genjax.static_gen_fn
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
@@ -160,7 +149,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # The other way: use `map_combinator` directly #
         ################################################
 
-        @genjax.static
+        @genjax.static_gen_fn
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
@@ -176,11 +165,8 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    in_axes: Tuple
     kernel: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.kernel,), (self.in_axes,)
+    in_axes: Tuple = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
         return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)
@@ -230,7 +216,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
+    ) -> Tuple[MapTrace, ArrayLike]:
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -255,7 +241,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: IndexedChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
+    ) -> Tuple[MapTrace, ArrayLike]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
@@ -280,7 +266,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
+    ) -> Tuple[MapTrace, ArrayLike]:
         map_tr = self.simulate(key, args)
         w = 0.0
         return (map_tr, w)
@@ -291,7 +277,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: HierarchicalChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
+    ) -> Tuple[MapTrace, ArrayLike]:
         indchm = IndexedChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
@@ -325,7 +311,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: IndexedChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -366,7 +352,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: VectorChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
         args = tree_diff_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -396,7 +382,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: EmptyChoice,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
@@ -419,7 +405,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[Any, ArrayLike]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         chm_dim = static_check_tree_leaves_have_matching_leading_dim(chm)
@@ -437,6 +423,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         )
         return (jnp.sum(score), retval)
 
+    @property
+    def __wrapped__(self):
+        return self.kernel
+
 
 #############
 # Decorator #
@@ -445,8 +435,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def map_combinator(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
     def decorator(f) -> MapCombinator:
-        gf = MapCombinator(in_axes, f)
-        functools.update_wrapper(gf, f)
-        return gf
+        return module_update_wrapper(MapCombinator(f, in_axes))
 
     return decorator

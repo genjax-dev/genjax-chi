@@ -13,18 +13,12 @@
 # limitations under the License.
 
 from genjax.inference import (
-    importance_sampling,
-    map_opt,
-    mcmc,
     smc,
     testbed,
     translator,
 )
 
 __all__ = [
-    "mcmc",
-    "importance_sampling",
-    "map_opt",
     "smc",
     "translator",
     "testbed",

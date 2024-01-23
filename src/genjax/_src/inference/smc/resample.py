@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-from dataclasses import dataclass
-
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -28,13 +26,10 @@ from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 ######################
 
 
-@dataclass
 class ResamplingMethod(Pytree):
-    def flatten(self):
-        return (), ()
+    pass
 
 
-@dataclass
 class MultinomialResampling(ResamplingMethod):
     pass
 
@@ -46,12 +41,8 @@ multinomial_resampling = MultinomialResampling()
 #####################
 
 
-@dataclass
 class SMCResample(SMCAlgorithm):
     resampling_method: ResamplingMethod
-
-    def flatten(self):
-        return (self.resampling_method,), ()
 
     @dispatch
     def apply(

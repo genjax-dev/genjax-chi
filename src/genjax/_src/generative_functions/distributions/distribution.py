@@ -14,7 +14,6 @@
 """This module contains the `Distribution` abstract base class."""
 
 import abc
-from dataclasses import dataclass
 
 from genjax._src.core.datatypes.generative import (
     AllSelection,
@@ -52,7 +51,6 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 #####
 
 
-@dataclass
 class DistributionTrace(
     Trace,
     SupportsPickleSerialization,
@@ -61,9 +59,6 @@ class DistributionTrace(
     args: Tuple
     value: Any
     score: FloatArray
-
-    def flatten(self):
-        return (self.gen_fn, self.args, self.value, self.score), ()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -115,11 +110,7 @@ class DistributionTrace(
 #####
 
 
-@dataclass
 class Distribution(GenerativeFunction, SupportsCalleeSugar):
-    def flatten(self):
-        return (), ()
-
     @abc.abstractmethod
     def random_weighted(self, *args, **kwargs):
         pass
@@ -222,7 +213,6 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
 #####
 
 
-@dataclass
 class ExactDensity(Distribution):
     """> Abstract base class which extends Distribution and assumes that the
     implementor provides an exact logpdf method (compared to one which returns

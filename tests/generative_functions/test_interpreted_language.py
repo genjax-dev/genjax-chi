@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 from typing import Any
 
 import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax import ExactDensity
-from genjax._src.core.interpreters.incremental import (
+from genjax import (
+    ExactDensity,
     tree_diff_no_change,
     tree_diff_unknown_change,
 )
-from genjax._src.generative_functions.interpreted import trace
 from jaxtyping import ArrayLike
 
 #############
@@ -37,7 +35,9 @@ from jaxtyping import ArrayLike
 
 
 with_both_languages = pytest.mark.parametrize(
-    "lang", (genjax.interpreted, genjax.static), ids=("interpreted", "static")
+    "lang",
+    (genjax.interpreted_gen_fn, genjax.static_gen_fn),
+    ids=("interpreted", "static"),
 )
 
 
@@ -135,47 +135,18 @@ class TestAssess:
         assert score == tr.get_score()
 
 
-@with_both_languages
-class TestClosureConvert:
-    def test_closure_convert(self, lang):
-        def emits_cc_gen_fn(v):
-            @lang
-            @genjax.dynamic_closure(v)
-            def model(v):
-                x = genjax.normal(jnp.sum(v), 1.0) @ "x"
-                return x
-
-            return model
-
-        @lang
-        def model():
-            x = jnp.ones(5)
-            gen_fn = emits_cc_gen_fn(x)
-            v = gen_fn() @ "x"
-            return (v, gen_fn)
-
-        key = jax.random.PRNGKey(314159)
-        _ = model.simulate(key, ())
-        assert True
-
-
-@dataclass
 class CustomTree(genjax.Pytree):
     x: Any
     y: Any
 
-    def flatten(self):
-        return (self.x, self.y), ()
 
-
-@genjax.interpreted
+@genjax.interpreted_gen_fn
 def simple_normal(custom_tree):
-    y1 = trace("y1", genjax.normal)(custom_tree.x, 1.0)
-    y2 = trace("y2", genjax.normal)(custom_tree.y, 1.0)
+    y1 = genjax.normal(custom_tree.x, 1.0) @ "y1"
+    y2 = genjax.normal(custom_tree.y, 1.0) @ "y2"
     return CustomTree(y1, y2)
 
 
-@dataclass
 class _CustomNormal(ExactDensity):
     def logpdf(self, v, custom_tree):
         return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
@@ -187,7 +158,7 @@ class _CustomNormal(ExactDensity):
 CustomNormal = _CustomNormal()
 
 
-@genjax.interpreted
+@genjax.interpreted_gen_fn
 def custom_normal(custom_tree):
     y = CustomNormal(custom_tree) @ "y"
     return CustomTree(y, y)
@@ -519,13 +490,9 @@ class TestUpdate:
         assert w == pytest.approx(correct_w, 0.0001)
 
     def test_update_pytree_argument(self, lang):
-        @dataclass
         class SomePytree(genjax.Pytree):
             x: ArrayLike
             y: ArrayLike
-
-            def flatten(self):
-                return (self.x, self.y), ()
 
         @lang
         def simple_linked_normal_with_tree_argument(tree):
@@ -759,3 +726,15 @@ class TestCombinator:
 
         assert model1.__doc__ == "model docstring"
         assert model2.__doc__ is None
+
+
+class TestMinimalInterpretedFunction:
+    def test(self):
+        @genjax.interpreted_gen_fn
+        def model():
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return y
+
+        key = jax.random.PRNGKey(0)
+        tr = model.simulate(key, ())
+        assert jnp.abs(tr.get_retval() - jnp.array(-1.2515389)) < 1e-5

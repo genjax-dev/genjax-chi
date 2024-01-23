@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-from dataclasses import dataclass
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -33,14 +32,10 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class MaskingTrace(Trace):
     mask_combinator: "MaskingCombinator"
     inner: Trace
     check: BoolArray
-
-    def flatten(self):
-        return (self.mask_combinator, self.inner, self.check), ()
 
     def get_gen_fn(self):
         return self.mask_combinator
@@ -58,7 +53,6 @@ class MaskingTrace(Trace):
         return (self.check, *self.inner.get_args())
 
 
-@dataclass
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
     `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
@@ -72,9 +66,6 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """
 
     inner: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.inner,), ()
 
     @typecheck
     def simulate(
@@ -116,6 +107,10 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             Mask(check, d),
         )
 
+    @property
+    def __wrapped__(self):
+        return self.inner
+
 
 #############
 # Decorator #
@@ -123,6 +118,4 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
 def masking_combinator(f) -> MaskingCombinator:
-    gf = MaskingCombinator(f)
-    functools.update_wrapper(gf, f)
-    return gf
+    return module_update_wrapper(MaskingCombinator(f))

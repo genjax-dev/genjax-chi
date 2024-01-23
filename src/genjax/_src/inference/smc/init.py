@@ -13,11 +13,10 @@
 # limitations under the License.
 
 
-from dataclasses import dataclass
-
 import jax
 
 from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Int,
     Optional,
@@ -29,13 +28,9 @@ from genjax._src.core.typing import (
 from genjax._src.inference.smc.state import SMCAlgorithm, SMCState
 
 
-@dataclass
 class SMCInitializeFromPrior(SMCAlgorithm):
-    n_particles: Int
+    n_particles: Int = Pytree.static()
     model: GenerativeFunction
-
-    def flatten(self):
-        return (self.model,), (self.n_particles,)
 
     def apply(
         self,
@@ -50,14 +45,10 @@ class SMCInitializeFromPrior(SMCAlgorithm):
         return SMCState(self.n_particles, particles, lws, 0.0, True)
 
 
-@dataclass
 class SMCInitializeFromProposal(SMCAlgorithm):
-    n_particles: Int
+    n_particles: Int = Pytree.static()
     model: GenerativeFunction
     proposal: GenerativeFunction
-
-    def flatten(self):
-        return (self.model, self.proposal), (self.n_particles,)
 
     def __post_init__(self):
         assert static_check_is_concrete(self.n_particles)

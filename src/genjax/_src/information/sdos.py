@@ -14,7 +14,6 @@
 """This module contains an implementation of (Symmetric divergence over
 datasets) from Domke, 2021."""
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -30,19 +29,12 @@ from genjax._src.core.typing import Int, PRNGKey, Tuple
 from genjax._src.gensp.core import Marginal, Target
 
 
-@dataclass
 class SymmetricDivergenceOverDatasets(Pytree):
-    num_meta_p: Int
-    num_meta_q: Int
+    num_meta_p: Int = Pytree.static()
+    num_meta_q: Int = Pytree.static()
     p: GenerativeFunction
     q: Marginal
     inf_selection: Selection
-
-    def flatten(self):
-        return (self.p, self.q, self.inf_selection), (
-            self.num_meta_p,
-            self.num_meta_q,
-        )
 
     def _estimate_log_ratio(self, key: PRNGKey, p_args: Tuple):
         # Inner functions -- to be mapped over.

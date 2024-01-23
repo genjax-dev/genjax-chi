@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 from typing import Any
 
 import tinygp
@@ -20,12 +19,8 @@ import tinygp
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 
-@dataclass
 class GaussianProcess(ExactDensity):
     kernel: Any
-
-    def flatten(self):
-        return (self.kernel,), ()
 
     def sample(self, key, X, **kwargs):
         gp = tinygp.GaussianProcess(self.kernel, X)

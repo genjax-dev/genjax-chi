@@ -16,7 +16,6 @@ import abc
 import copy
 import functools
 import itertools as it
-from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
@@ -143,14 +142,10 @@ def initial_style_bind(prim, **params):
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
-@dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
-
-    def flatten(self):
-        return (self.env,), ()
+    env: HashableDict[jc.Var, Value] = Pytree.field(default_factory=hashable_dict)
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
@@ -185,8 +180,7 @@ class Environment(Pytree):
         return copy.copy(self)
 
 
-@dataclass
-class StatefulHandler(Pytree):
+class StatefulHandler:
     @abc.abstractmethod
     def handles(self, primitive: jc.Primitive) -> Bool:
         pass
@@ -201,11 +195,7 @@ class StatefulHandler(Pytree):
         pass
 
 
-@dataclass
 class ForwardInterpreter(Pytree):
-    def flatten(self):
-        return (), ()
-
     def _eval_jaxpr_forward(
         self,
         stateful_handler,

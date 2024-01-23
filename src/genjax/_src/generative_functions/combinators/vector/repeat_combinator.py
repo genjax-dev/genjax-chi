@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 from typing import Callable
 
 import jax
@@ -24,6 +23,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
+from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -39,13 +39,9 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class RepeatTrace(Trace):
     inner_trace: Trace
     args: Tuple
-
-    def flatten(self):
-        return (self.inner_trace,), ()
 
     def get_score(self):
         return self.inner_trace.get_score()
@@ -64,16 +60,12 @@ class RepeatTrace(Trace):
         return self.inner_trace.project(selection)
 
 
-@dataclass
-class RepeatCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
+class RepeatCombinator(JAXGenerativeFunction):
     """The `RepeatCombinator` supports i.i.d sampling from generative functions
     (for vectorized mapping over arguments, see `MapCombinator`)."""
 
-    repeats: Int
     inner: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.inner,), (self.repeats,)
+    repeats: Int = Pytree.static()
 
     @typecheck
     def simulate(

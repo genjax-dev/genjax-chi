@@ -35,24 +35,16 @@ website:
     contents:
       - section: 'Getting started'
         contents:
-          - href: concepts/introduction/intro_to_genjax.ipynb
+          - href: introduction/intro_to_genjax.ipynb
             text: Introduction
 
-          - href: concepts/incremental_computation/incremental.ipynb
-            text: (WIP) Incremental computing
+          - href: introduction/intro_interpreted.ipynb
+            text: Introduction (interpreted dialect)
 
       - section: 'Sequential Monte Carlo (SMC)'
         contents:
-          - href: advanced/smc_language/smc_language.ipynb
-            text: 'The sequential Monte Carlo mini-language'
-
           - href: intermediate/smc/smc_with_translators.ipynb
             text: 'SMC with Translators'
-
-      - section: 'Internals'
-        contents:
-          - href: internals/developers/jax_intro.ipynb
-            text: "Developers' intro to JAX"
 
   page-footer:
     center: © Copyright 2022-2024 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)

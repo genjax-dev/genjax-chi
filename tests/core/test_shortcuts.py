@@ -29,16 +29,16 @@ class TestShortcuts:
 
     def test_choice_map_from_dict(self):
         hcm = genjax.HierarchicalChoiceMap()
-        hcm["x"] = 3
-        hcm["y"] = 4
+        hcm = hcm.insert("x", 3)
+        hcm = hcm.insert("y", 4)
         assert genjax.choice_map({"x": 3, "y": 4}) == hcm
 
     def test_hierarchical_choice_map_from_dict(self):
         hcm = genjax.HierarchicalChoiceMap()
-        hcm["x", "xa"] = 3
-        hcm["x", "xb"] = 4
-        hcm["y", "ya"] = 5
-        hcm["y", "yb"] = 6
+        hcm = hcm.insert(("x", "xa"), 3)
+        hcm = hcm.insert(("x", "xb"), 4)
+        hcm = hcm.insert(("y", "ya"), 5)
+        hcm = hcm.insert(("y", "yb"), 6)
         assert (
             genjax.choice_map(
                 {

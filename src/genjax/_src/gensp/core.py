@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
 
 import jax
 
@@ -44,7 +43,6 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 # so that we can use the type in static checking, dispatch, etc.
 
 
-@dataclass
 class SPDistribution(Distribution):
     @abc.abstractmethod
     def random_weighted(key: PRNGKey, *args) -> Tuple[FloatArray, ChoiceValue]:
@@ -60,14 +58,10 @@ class SPDistribution(Distribution):
 ####################
 
 
-@dataclass
 class Target(Pytree):
     p: GenerativeFunction
     args: Tuple
     constraints: ChoiceMap
-
-    def flatten(self):
-        return (self.p, self.args, self.constraints), ()
 
     def latent_selection(self):
         return self.constraints.get_selection().complement()
@@ -113,7 +107,6 @@ def target(
 ###############
 
 
-@dataclass
 class SPAlgorithm(Pytree):
     @abc.abstractmethod
     def random_weighted(self, key: PRNGKey, target: Target):
@@ -151,14 +144,10 @@ class SPAlgorithm(Pytree):
 ############
 
 
-@dataclass
 class Marginal(SPDistribution):
-    q: Callable[[Any, ...], SPAlgorithm]  # type: ignore
+    q: Callable[[Any, ...], SPAlgorithm] = Pytree.static()  # type: ignore
     selection: Selection
     p: GenerativeFunction
-
-    def flatten(self):
-        return (self.selection, self.p), (self.q,)
 
     @typecheck
     def random_weighted(

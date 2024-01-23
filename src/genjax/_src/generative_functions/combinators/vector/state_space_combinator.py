@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 from dataclasses import dataclass
 from typing import Callable
 
@@ -135,7 +134,6 @@ def state_space_combinator(
             initial_model=initial_model,
             transition_model=transition_model,
         )
-        functools.update_wrapper(gf, f)
         return gf
 
     return decorator

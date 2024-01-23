@@ -14,7 +14,6 @@
 """This module contains an implementation of (Auxiliary inference divergence
 estimator) from Cusumano-Towner et al, 2017."""
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -25,15 +24,11 @@ from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import Int, PRNGKey, Tuple
 
 
-@dataclass
 class AuxiliaryInferenceDivergenceEstimator(Pytree):
-    num_meta_p: Int
-    num_meta_q: Int
+    num_meta_p: Int = Pytree.static()
+    num_meta_q: Int = Pytree.static()
     p: GenerativeFunction
     q: GenerativeFunction
-
-    def flatten(self):
-        return (self.p, self.q), (self.num_meta_p, self.num_meta_q)
 
     def _estimate_log_ratio(
         self,

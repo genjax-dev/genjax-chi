@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import copy
-from dataclasses import dataclass, field
 
 import rich
 
@@ -27,12 +26,8 @@ from genjax._src.core.pytree.pytree import Pytree
 ########
 
 
-@dataclass
 class Trie(Pytree, CustomPretty):
-    inner: HashableDict = field(default_factory=hashable_dict)
-
-    def flatten(self):
-        return (self.inner,), ()
+    inner: HashableDict = Pytree.field(default_factory=hashable_dict)
 
     def is_empty(self):
         return not bool(self.inner)
@@ -95,10 +90,6 @@ class Trie(Pytree, CustomPretty):
     ###########
     # Dunders #
     ###########
-
-    def __setitem__(self, k, v):
-        new_trie = self.trie_insert(k, v)
-        self.inner = new_trie.inner
 
     def __getitem__(self, k):
         return self.get_submap(k)

@@ -14,7 +14,6 @@
 """A module containing a test suite for inference based on exact inference in
 hidden Markov models (HMMs)."""
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -32,25 +31,15 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static.static_gen_fn import static
+from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
 
 
-@dataclass
 class DiscreteHMMInferenceProblem(Pytree):
     initial_state: IntArray
     log_posterior: FloatArray
     log_data_marginal: FloatArray
     latent_sequence: IntArray
     observation_sequence: IntArray
-
-    def flatten(self):
-        return (
-            self.initial_state,
-            self.log_posterior,
-            self.log_data_marginal,
-            self.latent_sequence,
-            self.observation_sequence,
-        ), ()
 
     def get_initial_state(self):
         return self.initial_state
@@ -85,7 +74,7 @@ def build_inference_test_generator(
     )
 
     @unfold_combinator(max_length=max_length)
-    @static
+    @static_gen_fn
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor()
         observation = config.observation_tensor()

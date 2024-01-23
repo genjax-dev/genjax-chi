@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -46,7 +45,6 @@ from genjax._src.generative_functions.static.static_gen_fn import (
 #####################
 
 
-@dataclass
 class TraceTranslator(Pytree):
     @abc.abstractmethod
     def apply(
@@ -89,23 +87,14 @@ def safe_slogdet(v):
 #####################################
 
 
-@dataclass
 class ExtendingTraceTranslator(TraceTranslator):
-    choice_map_forward: Callable  # part of bijection
-    choice_map_inverse: Callable  # part of bijection
+    choice_map_forward: Callable = Pytree.static()  # part of bijection.
+    choice_map_inverse: Callable = Pytree.static()  # part of bijection
     check_bijection: Bool
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
     q_forward_args: Tuple
     new_observations: Choice
-
-    def flatten(self):
-        return (
-            self.p_argdiffs,
-            self.q_forward,
-            self.q_forward_args,
-            self.new_observations,
-        ), (self.choice_map_forward, self.choice_map_inverse, self.check_bijection)
 
     def value_and_jacobian_correction(self, forward, trace):
         trace_choices = trace.get_choices()
@@ -186,12 +175,11 @@ def extending_trace_translator(
 # (a power tool).
 
 
-@dataclass
 class TraceKernelTraceTranslator(TraceTranslator):
     """
     A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
 
-    Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.static` language.
+    Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.static_gen_fn` language.
 
     The K kernel should return a choice map of new choices to perform the update move with (`x_new`). It may also sample auxiliary randomness ('aux') to construct these new choices. It represents the distribution P(x_new, aux | x).
 
@@ -205,15 +193,6 @@ class TraceKernelTraceTranslator(TraceTranslator):
     K_args: Tuple
     L: StaticGenerativeFunction
     L_args: Tuple
-
-    def flatten(self):
-        return (
-            self.model_argdiffs,
-            self.K,
-            self.K_args,
-            self.L,
-            self.L_args,
-        ), ()
 
     def value_and_jacobian_correction(
         self,
