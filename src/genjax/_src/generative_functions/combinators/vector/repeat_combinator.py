@@ -60,7 +60,10 @@ class RepeatTrace(Trace):
         return self.inner_trace.project(selection)
 
 
-class RepeatCombinator(JAXGenerativeFunction):
+class RepeatCombinator(
+    SupportsCalleeSugar,
+    JAXGenerativeFunction,
+):
     """The `RepeatCombinator` supports i.i.d sampling from generative functions
     (for vectorized mapping over arguments, see `MapCombinator`)."""
 
