@@ -1,1 +1,4 @@
 # Inference
+In probabilistic programming, inference refers to the construction of posterior distributions, or normalized distributions from unnormalized ones. In GenJAX, the inference stack is based on an implementation of the language described in [Probabilistic Programming with Stochastic Probabilities](https://dl.acm.org/doi/abs/10.1145/3591290). The core concepts include data types which represent posterior problems (`Target`), inference algorithms (`InferenceAlgorithm`), and distribution objects which expose sampling and log density _estimation_. This stack allows GenJAX to support constructs like `Marginal`, denoting marginalization over random variables, and sampling and density estimation interfaces.
+
+Here's a small example of the inference stack, and the idioms that often occur during usage.
