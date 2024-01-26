@@ -11,6 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+Sequential Monte Carlo ([Chopin & Papaspiliopoulos, 2020](https://link.springer.com/book/10.1007/978-3-030-47845-2), [Del Moral, Doucet, & Jasram 2006](https://academic.oup.com/jrsssb/article/68/3/411/7110641) is an approximate inference framework based on approximating a sequence of target distributions using a weighted collection of particles.
+
+In this module, we provide a set of ingredients for implementing SMC algorithms, including pseudomarginal / recursive auxiliary variants, and variants expressible using SMCP3 ([Lew & Matheos, et al, 2023](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)) moves.
+"""
 
 from abc import abstractmethod
 
@@ -19,7 +24,7 @@ from jax import random as jrandom
 from jax import vmap
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes.generative import Choice, Trace
+from genjax._src.core.datatypes.generative import Choice, GenerativeFunction, Trace
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
     BoolArray,
@@ -133,7 +138,10 @@ class Initialize(SMCAlgorithm):
         log_weights, choices = vmap(self.q.random_weighted)(sub_keys)
         target_scores, trs = vmap(self.target.generate)(sub_keys, choices)
         return ParticleCollection(
-            trs, target_scores - log_weights, jnp.array(0.0), jnp.array(True)
+            trs,
+            target_scores - log_weights,
+            jnp.array(0.0),
+            jnp.array(True),
         )
 
     def run_csmc(self, key: PRNGKey, retained: Choice):
@@ -200,3 +208,18 @@ class ChangeTarget(SMCAlgorithm):
 
     def get_final_target(self):
         return self.target
+
+
+########################
+# Composite algorithms #
+########################
+
+
+def sampling_importance_resampling(
+    model: GenerativeFunction,
+    proposal: GenerativeFunction,
+    observations: Choice,
+    model_args: Tuple,
+    proposal_args: Tuple,
+):
+    pass

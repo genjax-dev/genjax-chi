@@ -225,7 +225,7 @@ class Choice(Pytree):
     """
     `Choice` is the abstract base class of the type of random choices.
 
-    The type `Choice` denotes an event which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
+    The type `Choice` denotes a value which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
     """
 
     @abstractmethod
@@ -234,6 +234,14 @@ class Choice(Pytree):
 
     @abstractmethod
     def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
+        pass
+
+    @abstractmethod
+    def is_empty(self) -> BoolArray:
+        pass
+
+    @abstractmethod
+    def get_selection(self) -> Selection:
         pass
 
     def safe_merge(self, other: "Choice") -> "Choice":
@@ -245,14 +253,6 @@ class Choice(Pytree):
     def unsafe_merge(self, other: "Choice") -> "Choice":
         new, _ = self.merge(other)
         return new
-
-    @abstractmethod
-    def is_empty(self) -> BoolArray:
-        pass
-
-    @abstractmethod
-    def get_selection(self) -> Selection:
-        pass
 
     def get_choice(self):
         return self
@@ -389,8 +389,9 @@ class ChoiceMap(Choice):
             return submap.get_value()
         elif isinstance(submap, Mask):
             if isinstance(submap.value, ChoiceValue):
-                return Mask(submap.mask, submap.value.get_value())
-            return submap
+                return submap.get_value()
+            else:
+                return submap
         else:
             return submap
 
@@ -578,9 +579,9 @@ class Trace(Pytree):
     def get_aux(self) -> Tuple:
         raise NotImplementedError
 
-    #################################
-    # Default choice map interfaces #
-    #################################
+    #############################
+    # Default choice interfaces #
+    #############################
 
     def is_empty(self):
         return self.strip().is_empty()
@@ -593,37 +594,13 @@ class Trace(Pytree):
         filtered = stripped.filter(selection)
         return filtered
 
-    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
+    def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         return self.strip().merge(other.strip())
-
-    def has_submap(self, addr) -> BoolArray:
-        choices = self.get_choice()
-        return choices.has_submap(addr)
-
-    def get_submap(self, addr) -> ChoiceMap:
-        choices = self.get_choice()
-        return choices.get_submap(addr)
 
     def get_selection(self):
         return self.strip().get_selection()
 
-    def strip(self):
-        """Remove all `Trace` metadata, and return a choice map.
-
-        `ChoiceMap` instances produced by `tr.get_choice()` will preserve `Trace` instances. `strip` recursively calls `get_choice` to remove `Trace` instances.
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            console = genjax.console()
-
-            key = jax.random.PRNGKey(314159)
-            tr = genjax.normal.simulate(key, (0.0, 1.0))
-            chm = tr.strip()
-            print(console.render(chm))
-            ```
-        """
+    def strip(self) -> Choice:
         return strip(self)
 
     def __getitem__(self, x):
@@ -649,28 +626,110 @@ def strip(v):
 ###########
 
 
-class Mask(Pytree):
-    """The `Mask` datatype provides access to the masking system. The masking
+class Mask(Choice):
+    """The `Mask` choice datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
 
-    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as constraints in choice maps, and participate in inference computations (like scores, and importance weights or density ratios).
+    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Choice` instances, and participate in inference computations (like scores, and importance weights or density ratios).
 
     Masks are also used internally by generative function combinators which include uncertainty over structure.
 
     Users are expected to interact with `Mask` instances by either:
 
-    * Unmasking them using the `Mask.unmask` interface. This interface uses JAX's `checkify` transformation to ensure that masked data exposed to a user is used only when valid. If a user chooses to `Mask.unmask` a `Mask` instance, they are also expected to use [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html) to transform their function to one which could return an error.
+    * Unmasking them using the `Mask.unmask` interface. This interface uses JAX's `checkify` transformation to ensure that masked data exposed to a user is used only when valid. If a user chooses to `Mask.unmask` a `Mask` instance, they are also expected to use [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html) to transform their function to one which could return an error if the `Mask.flag` value is invalid.
 
     * Using `Mask.match` - which allows a user to provide "none" and "some" lambdas. The "none" lambda should accept no arguments, while the "some" lambda should accept an argument whose type is the same as the masked value. These lambdas should return the same type (`Pytree`, array, etc) of value.
     """
 
-    mask: BoolArray
+    flag: BoolArray
     value: Any
 
+    # If the user provides a `Mask` as the value, we merge the flags and unwrap
+    # one layer of the structure.
     def __post_init__(self):
         if isinstance(self.value, Mask):
-            self.mask = jnp.logical_and(self.mask, self.value.mask)
+            self.flag = jnp.logical_and(self.flag, self.value.flag)
             self.value = self.value.value
+
+    #####################
+    # Choice interfaces #
+    #####################
+
+    def is_empty(self):
+        assert isinstance(self.value, ChoiceMap)
+        return jnp.logical_and(self.flag, self.value.is_empty())
+
+    def filter(self, selection: Selection):
+        choices = self.value.get_choice()
+        assert isinstance(choices, Choice)
+        return Mask(self.flag, choices.filter(selection))
+
+    def merge(self, other: Choice) -> Tuple["Mask", "Mask"]:
+        pass
+
+    def get_selection(self) -> Selection:
+        # If a user chooses to `get_selection`, require that they
+        # jax.experimental.checkify.checkify their call in transformed
+        # contexts.
+        def _check():
+            check_flag = jnp.all(self.flag)
+            checkify.check(
+                check_flag,
+                "Attempted to convert a Mask to a Selection when the mask flag is False, meaning the masked value is invalid.\n",
+            )
+
+        optional_check(_check)
+        if isinstance(self.value, Choice):
+            return self.value.get_selection()
+        else:
+            return AllSelection()
+
+    ###########################
+    # Choice value interfaces #
+    ###########################
+
+    def get_value(self):
+        # Using a `ChoiceValue` interface on the `Mask` means
+        # that the value should be a `ChoiceValue`.
+        assert isinstance(self.value, ChoiceValue)
+
+        # If a user chooses to `get_value`, require that they
+        # jax.experimental.checkify.checkify their call in transformed
+        # contexts.
+        def _check():
+            check_flag = jnp.all(self.flag)
+            checkify.check(
+                check_flag,
+                "Attempted to convert a Mask to a value when the mask flag is False, meaning the masked value is invalid.\n",
+            )
+
+        optional_check(_check)
+        return self.value.get_value()
+
+    #########################
+    # Choice map interfaces #
+    #########################
+
+    def get_submap(self, addr) -> Choice:
+        # Using a `ChoiceMap` interface on the `Mask` means
+        # that the value should be a `ChoiceMap`.
+        assert isinstance(self.value, ChoiceMap)
+        inner = self.value.get_submap(addr)
+        if isinstance(inner, EmptyChoice):
+            return inner
+        else:
+            return Mask(self.flag, inner)
+
+    def has_submap(self, addr) -> BoolArray:
+        # Using a `ChoiceMap` interface on the `Mask` means
+        # that the value should be a `ChoiceMap`.
+        assert isinstance(self.value, ChoiceMap)
+        inner_check = self.value.has_submap(addr)
+        return jnp.logical_and(self.flag, inner_check)
+
+    ######################
+    # Masking interfaces #
+    ######################
 
     @typecheck
     def match(self, none: Callable, some: Callable) -> Any:
@@ -700,7 +759,7 @@ class Mask(Pytree):
             print(console.render((v1, v2)))
             ```
         """
-        flag = jnp.array(self.mask)
+        flag = jnp.array(self.flag)
         if flag.shape == ():
             return jax.lax.cond(
                 flag,
@@ -723,7 +782,7 @@ class Mask(Pytree):
         """
         > Unmask the `Mask`, returning the value within.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` is valid at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -755,7 +814,7 @@ class Mask(Pytree):
         # jax.experimental.checkify.checkify their call in transformed
         # contexts.
         def _check():
-            check_flag = jnp.all(self.mask)
+            check_flag = jnp.all(self.flag)
             checkify.check(
                 check_flag,
                 "Attempted to unmask when the mask flag is False: the masked value is invalid.\n",
@@ -768,91 +827,12 @@ class Mask(Pytree):
         # Unsafe version of unmask -- should only be used internally.
         return self.value
 
-    #########################
-    # Choice map interfaces #
-    #########################
-
-    def is_empty(self):
-        assert isinstance(self.value, ChoiceMap)
-        return jnp.logical_and(self.mask, self.value.is_empty())
-
-    def get_submap(self, addrs):
-        assert isinstance(self.value, ChoiceMap)
-        submap = self.value.get_submap(addrs)
-        if isinstance(submap, EmptyChoice):
-            return submap
-        else:
-            return Mask(self.mask, submap)
-
-    def has_submap(self, addr):
-        assert isinstance(self.value, ChoiceMap)
-        check = self.value.has_submap(addr)
-        return jnp.logical_and(self.mask, check)
-
-    def filter(self, selection: Selection):
-        choices = self.value.get_choice()
-        assert isinstance(choices, Choice)
-        return Mask(self.mask, choices.filter(selection))
-
-    def get_choice(self):
-        choices = self.value.get_choice()
-        return Mask(self.mask, choices)
-
-    ###########################
-    # Address leaf interfaces #
-    ###########################
-
-    def get_value(self):
-        assert isinstance(self.value, ChoiceValue)
-        v = self.value.get_value()
-        return Mask(self.mask, v)
-
-    def try_value(self):
-        if isinstance(self.value, ChoiceValue):
-            return self.get_value()
-        else:
-            return self
-
-    ###########
-    # Dunders #
-    ###########
-
-    @dispatch
-    def __eq__(self, other: "Mask"):
-        return jnp.logical_and(
-            jnp.logical_and(self.mask, other.mask),
-            self.value == other.value,
-        )
-
-    @dispatch
-    def __eq__(self, other: Any):
-        return jnp.logical_and(
-            self.mask,
-            self.value == other,
-        )
-
-    @dispatch
-    def __getitem__(self, addr: Any):
-        masked = self.get_submap(addr)
-        if isinstance(masked.value, ChoiceValue):
-            return Mask(masked.mask, masked.value.get_value())
-        else:
-            return masked
-
-    @dispatch
-    def __getitem__(self, addrs: Tuple):
-        masked = self.get_submap(addrs)
-        if isinstance(masked.value, ChoiceValue):
-            return Mask(masked.mask, masked.value.get_value())
-        else:
-            return masked
-
     ###################
     # Pretty printing #
     ###################
 
     def __rich_tree__(self):
-        doc = gpp._pformat_array(self.mask, short_arrays=True)
+        doc = gpp._pformat_array(self.flag, short_arrays=True)
         tree = rich_tree.Tree(f"[bold](Mask, {doc})")
         if isinstance(self.value, Pytree):
             val_tree = self.value.__rich_tree__()
@@ -895,7 +875,7 @@ class GenerativeFunction(Pytree):
     """
 
     def simulate(
-        self,
+        self: "GenerativeFunction",
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
@@ -951,7 +931,7 @@ class GenerativeFunction(Pytree):
         raise NotImplementedError
 
     def propose(
-        self,
+        self: "GenerativeFunction",
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[Choice, ArrayLike, Any]:
@@ -1010,7 +990,7 @@ class GenerativeFunction(Pytree):
 
     @dispatch
     def importance(
-        self,
+        self: "GenerativeFunction",
         key: PRNGKey,
         choice: Choice,
         args: Tuple,
@@ -1041,7 +1021,7 @@ class GenerativeFunction(Pytree):
 
     @dispatch
     def importance(
-        self,
+        self: "GenerativeFunction",
         key: PRNGKey,
         constraints: Mask,
         args: Tuple,
@@ -1082,7 +1062,7 @@ class GenerativeFunction(Pytree):
 
     @dispatch
     def update(
-        self,
+        self: "GenerativeFunction",
         key: PRNGKey,
         prev: Trace,
         new_constraints: Choice,
@@ -1092,7 +1072,7 @@ class GenerativeFunction(Pytree):
 
     @dispatch
     def update(
-        self,
+        self: "GenerativeFunction",
         key: PRNGKey,
         prev: Trace,
         new_constraints: Mask,
@@ -1130,7 +1110,7 @@ class GenerativeFunction(Pytree):
         return new_constraints.match(_none, _some)
 
     def assess(
-        self,
+        self: "GenerativeFunction",
         chm: Choice,
         args: Tuple,
     ) -> Tuple[ArrayLike, Any]:

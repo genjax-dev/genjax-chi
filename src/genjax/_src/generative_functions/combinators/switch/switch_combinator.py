@@ -277,7 +277,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     @dispatch
     def update(
-        self,
+        self: "SwitchCombinator",
         key: PRNGKey,
         prev: SwitchTrace,
         constraints: Choice,

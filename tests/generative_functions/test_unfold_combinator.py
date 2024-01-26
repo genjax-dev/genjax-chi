@@ -157,9 +157,7 @@ class TestUnfoldSimpleNormal:
         key = jax.random.PRNGKey(17)
         key, sub_key = jax.random.split(key)
         true_tr = one_step.simulate(sub_key, (4, (0.0)))
-        true_x = jax.vmap(lambda idx: true_tr.get_choice()[idx, "x"])(
-            jnp.arange(5)
-        ).unsafe_unmask()
+        true_x = jax.vmap(lambda idx: true_tr.get_choice()[idx, "x"])(jnp.arange(5))
         chm = genjax.vector_choice_map(
             genjax.choice_map({("x"): true_x}),
         )
@@ -272,11 +270,11 @@ class TestUnfoldSimpleNormal:
             )
             diffs = (diff(5, NoChange), diff(0.0, NoChange))
             old_score = new_tr.project(x_sel)
-            old_x = new_tr.filter(x_sel)[t, "x"].unsafe_unmask()
-            old_z = new_tr.filter(z_sel)[t, "z"].unsafe_unmask()
+            old_x = new_tr.filter(x_sel)[t, "x"]
+            old_z = new_tr.filter(z_sel)[t, "z"]
             key, sub_key = jax.random.split(key)
             (new_tr, w, _, _) = chain.update(sub_key, new_tr, obs, diffs)
-            new_z = new_tr.filter(z_sel)[t, "z"].unsafe_unmask()
+            new_z = new_tr.filter(z_sel)[t, "z"]
             assert old_z == new_z
             assert new_tr.project(x_sel) == pytest.approx(
                 genjax.normal.logpdf(1.0, new_z, 1.0), 0.0001
@@ -291,7 +289,7 @@ class TestUnfoldSimpleNormal:
         # over subsequent calls.
         for t in range(0, 5):
             x_sel = genjax.indexed_select(jnp.array([t]), genjax.select("x"))
-            assert new_tr.filter(x_sel)[t, "x"].unsafe_unmask() == 1.0
+            assert new_tr.filter(x_sel)[t, "x"] == 1.0
 
         # Now, update `z`.
         obs = genjax.indexed_choice_map(
@@ -312,18 +310,18 @@ class TestUnfoldSimpleNormal:
         # Check that all prior updates are preserved.
         for t in range(0, 5):
             x_sel = genjax.indexed_select(jnp.array([t]), genjax.select("x"))
-            assert new_tr.filter(x_sel)[t, "x"].unsafe_unmask() == 1.0
+            assert new_tr.filter(x_sel)[t, "x"] == 1.0
 
         # Check that update succeeded.
         zsel = genjax.indexed_select(jnp.array([0]), genjax.select("z"))
-        assert new_tr.filter(zsel)[0, "z"].unsafe_unmask() == 1.0
+        assert new_tr.filter(zsel)[0, "z"] == 1.0
         assert new_tr.project(zsel) == pytest.approx(
             genjax.normal.logpdf(1.0, 0.0, 1.0), 0.0001
         )
 
         # Check new score at (0, "x")
         xsel = genjax.indexed_select(jnp.array([0]), genjax.select("x"))
-        assert new_tr.filter(xsel)[0, "x"].unsafe_unmask() == 1.0
+        assert new_tr.filter(xsel)[0, "x"] == 1.0
         assert new_tr.project(xsel) == pytest.approx(
             genjax.normal.logpdf(1.0, 1.0, 1.0), 0.0001
         )  # the mean (z) should be 1.0

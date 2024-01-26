@@ -96,7 +96,7 @@ class InferenceAlgorithm(Pytree):
         self,
         key: PRNGKey,
         target: Target,
-    ):
+    ) -> Tuple[FloatArray, Choice]:
         pass
 
     @abstractmethod
@@ -104,7 +104,7 @@ class InferenceAlgorithm(Pytree):
         self,
         key: PRNGKey,
         target: Target,
-    ):
+    ) -> FloatArray:
         pass
 
     @abstractmethod
@@ -112,7 +112,7 @@ class InferenceAlgorithm(Pytree):
         self,
         key: PRNGKey,
         target: Target,
-    ):
+    ) -> FloatArray:
         pass
 
     @abstractmethod
@@ -122,7 +122,7 @@ class InferenceAlgorithm(Pytree):
         target: Target,
         latent_choices: ChoiceMap,
         w: FloatArray,
-    ):
+    ) -> FloatArray:
         pass
 
 
