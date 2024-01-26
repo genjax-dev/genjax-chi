@@ -202,15 +202,10 @@ def tree_diff_unpack_leaves(v):
 
 
 def static_check_tree_leaves_diff(v):
-    def _inner(v):
-        if static_check_is_diff(v):
-            return True
-        else:
-            return False
-
     return all(
-        jtu.tree_leaves(
-            jtu.tree_map(_inner, v, is_leaf=static_check_is_diff),
+        map(
+            lambda v: isinstance(v, Diff),
+            jtu.tree_leaves(v, is_leaf=static_check_is_diff),
         )
     )
 
@@ -245,7 +240,7 @@ def default_propagation_rule(prim, *args, **_params):
     args = tree_diff_primal(args)
     outval = prim.bind(*args, **_params)
     if check:
-        return outval
+        return tree_diff_no_change(outval)
     else:
         return tree_diff_unknown_change(outval)
 
