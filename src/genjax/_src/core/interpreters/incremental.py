@@ -180,15 +180,10 @@ def tree_diff_unpack_leaves(v):
 
 
 def static_check_tree_leaves_diff(v):
-    def _inner(v):
-        if static_check_is_diff(v):
-            return True
-        else:
-            return False
-
     return all(
-        jtu.tree_leaves(
-            jtu.tree_map(_inner, v, is_leaf=static_check_is_diff),
+        map(
+            lambda v: isinstance(v, Diff),
+            jtu.tree_leaves(v, is_leaf=static_check_is_diff),
         )
     )
 
@@ -223,7 +218,7 @@ def default_propagation_rule(prim, *args, **_params):
     args = tree_diff_primal(args)
     outval = prim.bind(*args, **_params)
     if check:
-        return outval
+        return tree_diff_no_change(outval)
     else:
         return tree_diff_unknown_change(outval)
 
@@ -244,6 +239,11 @@ class IncrementalInterpreter(Pytree):
         jax_util.safe_map(dual_env.write, _jaxpr.invars, tree_diff(primals, tangents))
         for _eqn in _jaxpr.eqns:
             induals = jax_util.safe_map(dual_env.read, _eqn.invars)
+            # TODO: why isn't this handled automatically by the environment,
+            # especially the line above with _jaxpr.constvars?
+            induals = [
+                Diff(v, NoChange) if not isinstance(v, Diff) else v for v in induals
+            ]
             subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
             if _stateful_handler.handles(_eqn.primitive):
