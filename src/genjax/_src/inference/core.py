@@ -18,8 +18,6 @@ import jax
 
 from genjax._src.core.datatypes.generative import (
     Choice,
-    ChoiceMap,
-    ChoiceValue,
     GenerativeFunction,
     Selection,
 )
@@ -91,6 +89,10 @@ class InferenceAlgorithm(Pytree):
     `InferenceAlgorithm` implementors can also implement two optional methods designed to support effective gradient estimators for variational objectives (`estimate_normalizing_constant` and `estimate_recip_normalizing_constant`).
     """
 
+    #########
+    # GenSP #
+    #########
+
     @abstractmethod
     def random_weighted(
         self,
@@ -103,9 +105,14 @@ class InferenceAlgorithm(Pytree):
     def estimate_logpdf(
         self,
         key: PRNGKey,
+        latent_choices: Choice,
         target: Target,
     ) -> FloatArray:
         pass
+
+    ################
+    # VI via GRASP #
+    ################
 
     @abstractmethod
     def estimate_normalizing_constant(
@@ -120,7 +127,7 @@ class InferenceAlgorithm(Pytree):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: ChoiceMap,
+        latent_choices: Choice,
         w: FloatArray,
     ) -> FloatArray:
         pass
@@ -134,7 +141,7 @@ class InferenceAlgorithm(Pytree):
 class Marginal(ChoiceDistribution):
     selection: Selection
     p: GenerativeFunction
-    q: Callable[[Any, ...], InferenceAlgorithm] = Pytree.static()  # type: ignore
+    make_alg: Callable[[Any, ...], InferenceAlgorithm] = Pytree.static()  # type: ignore
 
     @typecheck
     def random_weighted(
@@ -142,7 +149,7 @@ class Marginal(ChoiceDistribution):
         key: PRNGKey,
         p_args: Tuple,
         q_args: Tuple,
-    ) -> Any:
+    ) -> Tuple[FloatArray, Choice]:
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, p_args)
         weight = tr.get_score()
@@ -150,9 +157,9 @@ class Marginal(ChoiceDistribution):
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         target = Target(self.p, p_args, latent_choices)
-        alg = self.q(*q_args)
+        alg = self.make_alg(*q_args)
         Z = alg.estimate_recip_normalizing_constant(key, target, other_choices, weight)
-        return (Z, ChoiceValue(latent_choices))
+        return (Z, latent_choices)
 
     @typecheck
     def estimate_logpdf(
@@ -163,6 +170,38 @@ class Marginal(ChoiceDistribution):
         q_args: Tuple,
     ) -> FloatArray:
         target = Target(self.p, p_args, latent_choices)
-        alg = self.q(*q_args)
+        alg = self.make_alg(*q_args)
         Z = alg.estimate_normalizing_constant(key, target)
+        return Z
+
+
+##############
+# Normalized #
+##############
+
+
+# TODO: we haven't fully thought through the design of this class
+# wrt variational inference via ADEV yet.
+class Normalized(ChoiceDistribution):
+    target: Target
+    make_alg: Callable[[Any, ...], InferenceAlgorithm] = Pytree.static()  # type: ignore
+
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *alg_args,
+    ) -> Tuple[FloatArray, Choice]:
+        alg = self.make_alg(*alg_args)
+        return alg.random_weighted(key, self.target)
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        latent_choices: Choice,
+        *alg_args,
+    ) -> FloatArray:
+        alg = self.make_alg(*alg_args)
+        Z = alg.estimate_logpdf(key, latent_choices, self.target)
         return Z

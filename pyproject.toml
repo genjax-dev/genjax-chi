@@ -44,7 +44,7 @@ optax = "^0.1.8"
 beartype = "^0.16.4"
 dill = "^0.3.7"
 pygments = "^2.17.2"
-plum-dispatch = "^2.3.0"
+plum-dispatch = "^2.3.2"
 equinox = "^0.11.2"
 typing_extensions = ">=4.6.0,<5"
 
@@ -96,6 +96,8 @@ show_missing = true
 fail_under = 45
 
 [tool.pyright]
+venvPath = "."
+venv = ".venv"
 include = ["src"]
 exclude = [
     "**/__pycache__",

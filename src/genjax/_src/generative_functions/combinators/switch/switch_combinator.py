@@ -17,6 +17,7 @@ import jax
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    EmptyChoice,
     JAXGenerativeFunction,
     Mask,
     Trace,
@@ -289,6 +290,48 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return self._update_fallback(key, prev, constraints, argdiffs)
         else:
             return self._update_branch_switch(key, prev, constraints, argdiffs)
+
+    # TODO: move this into the GenerativeFunction base class,
+    # by resolving dispatch design with plum:
+    # https://github.com/beartype/plum/issues/130
+    @dispatch
+    def update(
+        self: "SwitchCombinator",
+        key: PRNGKey,
+        prev: SwitchTrace,
+        new_constraints: Mask,
+        argdiffs: Tuple,
+    ) -> Tuple[SwitchTrace, FloatArray, Any, Mask]:
+        # The semantics of the merge operation entail that the second returned value
+        # is the discarded values after the merge.
+        discard_option = prev.strip()
+        possible_constraints = new_constraints.unsafe_unmask()
+        _, possible_discards = discard_option.merge(possible_constraints)
+
+        def _none():
+            (new_tr, w, retdiff, _) = self.update(key, prev, EmptyChoice(), argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoice()
+            else:
+                # We return the possible_discards, but denote them as invalid via masking.
+                discard = Mask(False, possible_discards)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (new_tr, w, retdiff, discard)
+
+        def _some(chm):
+            (new_tr, w, retdiff, _) = self.update(key, prev, chm, argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoice()
+            else:
+                # The true_discards should match the Pytree type of possible_discards,
+                # but these are valid.
+                discard = Mask(True, possible_discards)
+            primal = tree_diff_primal(retdiff)
+            retdiff = tree_diff_unknown_change(primal)
+            return (new_tr, w, retdiff, discard)
+
+        return new_constraints.match(_none, _some)
 
     @typecheck
     def assess(
