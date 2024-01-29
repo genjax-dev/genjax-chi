@@ -239,6 +239,11 @@ class IncrementalInterpreter(Pytree):
         jax_util.safe_map(dual_env.write, _jaxpr.invars, tree_diff(primals, tangents))
         for _eqn in _jaxpr.eqns:
             induals = jax_util.safe_map(dual_env.read, _eqn.invars)
+            # TODO: why isn't this handled automatically by the environment,
+            # especially the line above with _jaxpr.constvars?
+            induals = [
+                Diff(v, NoChange) if not isinstance(v, Diff) else v for v in induals
+            ]
             subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
             if _stateful_handler.handles(_eqn.primitive):
