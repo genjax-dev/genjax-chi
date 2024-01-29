@@ -5,8 +5,14 @@ on:
     types: [published]
 
 jobs:
-  test:
+  release:
     runs-on: ubuntu-latest
+
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,6 +24,17 @@ jobs:
         with:
           python-version: 3.11.5
 
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Display gcloud info
+        run: gcloud info
+
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
 
@@ -27,17 +44,6 @@ jobs:
           poetry config pypi-token.pypi ${{ secrets.PYPI_API_KEY }}
           poetry self add keyrings.google-artifactregistry-auth
           poetry config repositories.gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/
-
-      - id: auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: "${{ secrets.SERVICE_ACCOUNT_KEY }}"
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-
-      - name: Display gcloud info
-        run: gcloud info
 
       - name: Install deps
         run: poetry install
