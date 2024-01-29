@@ -4,9 +4,6 @@ on:
   release:
     types: [published]
 
-env:
-  ARTIFACT_REGISTRY: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -29,7 +26,7 @@ jobs:
           poetry self add poetry-dynamic-versioning[plugin]
           poetry config pypi-token.pypi ${{ secrets.PYPI_API_KEY }}
           poetry self add keyrings.google-artifactregistry-auth
-          poetry config repositories.gcp {{ env.ARTIFACT_REGISTRY }}
+          poetry config repositories.gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/
 
       - id: auth
         uses: google-github-actions/auth@v1
