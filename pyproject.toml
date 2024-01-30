@@ -47,6 +47,7 @@ pygments = "^2.17.2"
 plum-dispatch = "^2.3.0"
 equinox = "^0.11.2"
 typing_extensions = ">=4.6.0,<5"
+deprecated = "^1.2.14"
 
 [tool.poetry.group.dev]
 optional = true

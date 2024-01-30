@@ -14,11 +14,13 @@
 
 from genjax._src.generative_functions.interpreted.interpreted_gen_fn import (
     InterpretedGenerativeFunction,
+    interpreted,
     interpreted_gen_fn,
     trace,
 )
 
 __all__ = [
+    "interpreted",
     "interpreted_gen_fn",
     "InterpretedGenerativeFunction",
     "trace",

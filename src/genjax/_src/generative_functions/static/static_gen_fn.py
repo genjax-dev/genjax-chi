@@ -21,6 +21,7 @@ from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Trace,
 )
+from deprecated import deprecated
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
@@ -258,6 +259,7 @@ class StaticGenerativeFunction(
 def static_gen_fn(f) -> StaticGenerativeFunction:
     return module_update_wrapper(StaticGenerativeFunction(f))
 
-@deprecated.deprecated(version='0.0.2', reason='now called @static_gen_fn')
+
+@deprecated(version="0.0.2", reason="now called @static_gen_fn")
 def static(f) -> StaticGenerativeFunction:
     return static_gen_fn(f)
