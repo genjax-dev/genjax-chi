@@ -116,7 +116,6 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         *args,
-        **kwargs,
     ) -> Tuple[ArrayLike, Any]:
         pass
 
@@ -126,7 +125,6 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         v: Any,
         *args,
-        **kwargs,
     ) -> ArrayLike:
         pass
 
@@ -239,7 +237,7 @@ class ExactDensity(Distribution):
     """
 
     @abc.abstractmethod
-    def sample(self, key: PRNGKey, *args: Any, **kwargs) -> Any:
+    def sample(self, key: PRNGKey, *args: Any) -> Any:
         """> Sample from the distribution, returning a value from the event
         space.
 
@@ -277,7 +275,7 @@ class ExactDensity(Distribution):
         """
 
     @abc.abstractmethod
-    def logpdf(self, v: Any, *args: Any, **kwargs) -> FloatArray:
+    def logpdf(self, v: Any, *args: Any) -> FloatArray:
         """> Given a value from the support of the distribution, compute the
         log probability of that value under the density (with respect to the
         standard base measure).
@@ -290,13 +288,13 @@ class ExactDensity(Distribution):
             logpdf: The log density evaluated at `v`, with density configured by `args`.
         """
 
-    def random_weighted(self, key, *args, **kwargs):
-        v = self.sample(key, *args, **kwargs)
-        w = self.logpdf(v, *args, **kwargs)
+    def random_weighted(self, key, *args):
+        v = self.sample(key, *args)
+        w = self.logpdf(v, *args)
         return (w, v)
 
-    def estimate_logpdf(self, _, v, *args, **kwargs):
-        w = self.logpdf(v, *args, **kwargs)
+    def estimate_logpdf(self, _, v, *args):
+        w = self.logpdf(v, *args)
         return w
 
     @typecheck

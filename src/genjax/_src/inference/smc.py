@@ -47,7 +47,7 @@ from genjax._src.inference.translator import TraceTranslator
 
 class ParticleCollection(Pytree):
     """
-    A collection of weighted particles. Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or now (`ParticleCollection.is_valid`).
+    A collection of weighted particles. Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`).
     """
 
     particles: Trace
@@ -68,9 +68,9 @@ class ParticleCollection(Pytree):
         return self.is_valid
 
 
-#################
-# SMC algorithm #
-#################
+####################################
+# Abstract type for SMC algorithms #
+####################################
 
 
 class SMCAlgorithm(InferenceAlgorithm):
@@ -94,6 +94,10 @@ class SMCAlgorithm(InferenceAlgorithm):
     def run_csmc(self, key: PRNGKey, retained: Choice):
         raise NotImplementedError
 
+    #########
+    # GenSP #
+    #########
+
     @typecheck
     def random_weighted(
         self,
@@ -115,6 +119,51 @@ class SMCAlgorithm(InferenceAlgorithm):
         )
         choice = target.project(particle.get_choice())
         return log_density_estimate, choice
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        latent_choices: Choice,
+        target: Target,
+    ) -> Tuple[FloatArray, Choice]:
+        algorithm = ChangeTarget(self, target)
+        key, sub_key = jrandom.split(key)
+        particle_collection = algorithm.run_smc(sub_key)
+        log_weights = particle_collection.get_log_weights()
+        total_weight = logsumexp(log_weights)
+        logits = log_weights - total_weight
+        idx = categorical.sample(key, logits)
+        particle = particle_collection.get_particles().slice(idx)
+        log_density_estimate = particle.get_score() - (
+            particle_collection.get_log_marginal_likelihood_estimate()
+            + total_weight
+            - jnp.log(particle_collection.get_num_particles())
+        )
+        choice = target.project(particle.get_choice())
+        return log_density_estimate, choice
+
+    ################
+    # VI via GRASP #
+    ################
+
+    @typecheck
+    def estimate_normalizing_constant(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ) -> FloatArray:
+        pass
+
+    @typecheck
+    def estimate_reciprocal_normalizing_constant(
+        self,
+        key: PRNGKey,
+        target: Target,
+        latent_choices: Choice,
+        w: FloatArray,
+    ) -> FloatArray:
+        pass
 
 
 class Initialize(SMCAlgorithm):

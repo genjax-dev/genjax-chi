@@ -86,7 +86,7 @@ class InferenceAlgorithm(Pytree):
     """
     The class `InferenceAlgorithm` represents the type of inference algorithms, programs which implement interfaces for sampling from approximate posterior representations, and estimating the density of the approximate posterior.
 
-    `InferenceAlgorithm` implementors can also implement two optional methods designed to support effective gradient estimators for variational objectives (`estimate_normalizing_constant` and `estimate_recip_normalizing_constant`).
+    `InferenceAlgorithm` implementors can also implement two optional methods designed to support effective gradient estimators for variational objectives (`estimate_normalizing_constant` and `estimate_reciprocal_normalizing_constant`).
     """
 
     #########
@@ -123,7 +123,7 @@ class InferenceAlgorithm(Pytree):
         pass
 
     @abstractmethod
-    def estimate_recip_normalizing_constant(
+    def estimate_reciprocal_normalizing_constant(
         self,
         key: PRNGKey,
         target: Target,
@@ -158,7 +158,7 @@ class Marginal(ChoiceDistribution):
         other_choices = choices.filter(self.selection.complement())
         target = Target(self.p, p_args, latent_choices)
         alg = self.make_alg(*q_args)
-        Z = alg.estimate_recip_normalizing_constant(key, target, other_choices, weight)
+        Z = alg.estimate_reciprocal_normalizing_constant(key, target, other_choices, weight)
         return (Z, latent_choices)
 
     @typecheck
