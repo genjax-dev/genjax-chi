@@ -257,3 +257,7 @@ class StaticGenerativeFunction(
 
 def static_gen_fn(f) -> StaticGenerativeFunction:
     return module_update_wrapper(StaticGenerativeFunction(f))
+
+@deprecated.deprecated(version='0.0.2', reason='now called @static_gen_fn')
+def static(f) -> StaticGenerativeFunction:
+    return static_gen_fn(f)
