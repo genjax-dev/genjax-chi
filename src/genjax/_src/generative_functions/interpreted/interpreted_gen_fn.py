@@ -22,8 +22,8 @@ from dataclasses import dataclass
 
 import jax
 import jaxtyping
-from deprecated import deprecated
 from beartype import beartype
+from deprecated import deprecated
 from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (

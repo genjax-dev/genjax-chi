@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from deprecated import deprecated
 from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
@@ -21,7 +22,6 @@ from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Trace,
 )
-from deprecated import deprecated
 from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.pytree import Pytree
