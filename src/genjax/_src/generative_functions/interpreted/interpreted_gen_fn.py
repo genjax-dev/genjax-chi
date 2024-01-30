@@ -394,10 +394,10 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-
 def interpreted_gen_fn(f) -> InterpretedGenerativeFunction:
     return module_update_wrapper(InterpretedGenerativeFunction(f))
 
-@deprecated(version='0.0.2', reason="now called @interpreted_gen_fn")
+
+@deprecated(version="0.0.2", reason="now called @interpreted_gen_fn")
 def interpreted(f) -> InterpretedGenerativeFunction:
     return interpreted_gen_fn(f)
