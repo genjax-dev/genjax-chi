@@ -19,7 +19,7 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.adev.core import (
     ADEVPrimitive,
-    sample_with_key,
+    sample_primitive,
 )
 from genjax._src.adev.primitives import (
     categorical_enum_parallel,
@@ -71,7 +71,7 @@ class ADEVDistribution(ExactDensity):
         key: PRNGKey,
         *args: Any,
     ) -> Any:
-        return sample_with_key(self.adev_primitive, key, *args)
+        return sample_primitive(self.adev_primitive, key, *args)
 
     def logpdf(
         self,

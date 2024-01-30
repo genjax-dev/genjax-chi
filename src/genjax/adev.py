@@ -13,12 +13,9 @@
 # limitations under the License.
 
 from genjax._src.adev.core import ADEVPrimitive  # noqa: I001
-from genjax._src.adev.core import E
-from genjax._src.adev.core import adev
+from genjax._src.adev.core import expectation
 from genjax._src.adev.core import reap_key
-from genjax._src.adev.core import sample
-from genjax._src.adev.core import sample_with_key
-from genjax._src.adev.core import sow_key
+from genjax._src.adev.core import sample_primitive
 from genjax._src.adev.primitives import add_cost
 from genjax._src.adev.primitives import baseline
 from genjax._src.adev.primitives import categorical_enum_parallel
@@ -37,12 +34,9 @@ from genjax._src.adev.primitives import uniform
 
 __all__ = [
     # Language.
-    "adev",
-    "sample",
-    "sample_with_key",
+    "sample_primitive",
     "reap_key",
-    "sow_key",
-    "E",
+    "expectation",
     "ADEVPrimitive",
     # Primitives.
     "flip_enum",
