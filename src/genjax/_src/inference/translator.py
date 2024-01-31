@@ -175,8 +175,7 @@ def extending_trace_translator(
 
 
 class TraceKernelTraceTranslator(TraceTranslator):
-    """
-    A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
+    """A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
 
     Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.static_gen_fn` language.
 

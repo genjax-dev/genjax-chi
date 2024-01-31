@@ -163,7 +163,7 @@ def build(session):
 
 @session(name="mkdocs", python=python_version)
 def mkdocs(session: Session) -> None:
-    """run the mkdocs-only portion of the docs build."""
+    """Run the mkdocs-only portion of the docs build."""
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )

@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-This module provides an implementation of [ADEV: Sound Automatic Differentiation of Expected Values](https://dl.acm.org/doi/abs/10.1145/3571198), an AD algorithm which derivates forward mode derivative estimators for programs which denote expectations.
+"""This module provides an implementation of [ADEV: Sound Automatic Differentiation of Expected Values](https://dl.acm.org/doi/abs/10.1145/3571198), an AD algorithm which derivates forward mode derivative estimators for programs which denote expectations.
 
 Our implementation tightly integrates with JAX's AD machinery, and extends the system described in the original paper with a reverse mode implementation, by utilizing JAX's support for automatically deriving a reverse mode from a forward mode (via [You Only Linearize Once: Tangents Transpose to Gradients](https://dl.acm.org/doi/abs/10.1145/3571236)).
 

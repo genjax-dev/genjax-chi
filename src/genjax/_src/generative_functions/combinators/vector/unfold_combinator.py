@@ -14,7 +14,8 @@
 """This module implements a generative function combinator which allows
 statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
-input)."""
+input).
+"""
 
 import jax
 import jax.numpy as jnp
@@ -126,7 +127,6 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `UnfoldCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax

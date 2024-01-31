@@ -713,14 +713,14 @@ class TestCombinator:
     def test_docstring(self, lang):
         @lang
         def model1():
-            """model docstring"""
+            """Model docstring"""
             return genjax.normal(0.0, 1.0) @ "y"
 
         @lang
         def model2():
             return genjax.normal(0.0, 1.0) @ "y"
 
-        assert model1.__doc__ == "model docstring"
+        assert model1.__doc__ == "Model docstring"
         assert model2.__doc__ is None
 
 

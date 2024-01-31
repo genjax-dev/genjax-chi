@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee.
+"""The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
 """
@@ -131,22 +130,26 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import jax
         import jax.numpy as jnp
         import genjax
+
         console = genjax.console()
 
         #############################################################
         # One way to create a `MapCombinator`: using the decorator. #
         #############################################################
 
-        @genjax.map_combinator(in_axes = (0, ))
+
+        @genjax.map_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
+
         ################################################
         # The other way: use `map_combinator` directly #
         ################################################
+
 
         @genjax.static_gen_fn
         def add_normal_noise(x):
@@ -154,11 +157,12 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
+
         mapped = genjax.map_combinator(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
-        tr = jax.jit(mapped.simulate)(key, (arr, ))
+        tr = jax.jit(mapped.simulate)(key, (arr,))
 
         print(console.render(tr))
         ```

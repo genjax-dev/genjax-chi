@@ -108,7 +108,7 @@ class TestMapCombinator:
         @genjax.map_combinator(in_axes=())
         @genjax.static_gen_fn
         def model():
-            """model docstring"""
+            """Model docstring"""
             return genjax.normal(0.0, 1.0) @ "y"
 
-        assert model.__doc__ == "model docstring"
+        assert model.__doc__ == "Model docstring"

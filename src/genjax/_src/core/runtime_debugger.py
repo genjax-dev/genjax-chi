@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module contains a debugger based around inserting/recording state from
-pure functions."""
+pure functions.
+"""
 
 import functools
 import inspect
@@ -283,14 +284,17 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
+
         # import genjax.core.runtime_debugger as debug
         console = genjax.console()
+
 
         def foo(x):
             v = jnp.ones(10) * x
             debug.record(v)
             z = v / 2
             return z
+
 
         # The runtime debugger is not currently supported
         # v, (recording, tags) = debug.pull(foo)(3.0)
@@ -302,14 +306,17 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
+
         # import genjax.core.runtime_debugger as debug
         console = genjax.console()
+
 
         def foo(x):
             v = jnp.ones(10) * x
             debug.record(debug.tag("v", v))
             z = v / 2
             return z
+
 
         # The runtime debugger is not currently supported
         # v, (recording, tags) = debug.pull(foo)(3.0)
@@ -325,8 +332,10 @@ def pull(
         import jax.numpy as jnp
         import genjax
         import genjax.core.runtime_debugger as debug
+
         console = genjax.console()
         key = jax.random.PRNGKey(314159)
+
 
         @genjax.static_gen_fn
         def foo(x):
@@ -334,7 +343,8 @@ def pull(
             x = debug.record(genjax.normal)(jnp.sum(v), 2.0) @ "x"
             return x
 
-        v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0, ))
+
+        v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0,))
         print(console.render(recording))
         ```
     """

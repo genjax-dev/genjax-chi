@@ -248,6 +248,7 @@ class ExactDensity(Distribution):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -260,6 +261,7 @@ class ExactDensity(Distribution):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)

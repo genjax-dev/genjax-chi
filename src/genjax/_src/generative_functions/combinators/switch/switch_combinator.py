@@ -63,15 +63,19 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
+
         console = genjax.console()
+
 
         @genjax.static_gen_fn
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
+
         @genjax.static_gen_fn
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
+
 
         ################################################################################
         # Creating a `SwitchCombinator` via the preferred `switch_combinator` function #
@@ -81,8 +85,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
-        _ = jitted(key, (0, ))
-        tr = jitted(key, (1, ))
+        _ = jitted(key, (0,))
+        tr = jitted(key, (1,))
 
         print(console.render(tr))
         ```

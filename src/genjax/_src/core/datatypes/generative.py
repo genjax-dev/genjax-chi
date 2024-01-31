@@ -54,13 +54,16 @@ class Selection(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
                 return x
+
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
@@ -217,8 +220,7 @@ class HierarchicalSelection(Selection):
 
 
 class Choice(Pytree):
-    """
-    `Choice` is the abstract base class of the type of random choices.
+    """`Choice` is the abstract base class of the type of random choices.
 
     The type `Choice` denotes a value which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
     """
@@ -257,9 +259,7 @@ class Choice(Pytree):
 
 
 class EmptyChoice(Choice):
-    """
-    A `Choice` implementor which denotes an empty event.
-    """
+    """A `Choice` implementor which denotes an empty event."""
 
     def filter(self, selection):
         return self
@@ -343,13 +343,16 @@ class ChoiceMap(Choice):
             import jax
             import genjax
             from genjax import bernoulli
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
                 return x
+
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
@@ -423,6 +426,7 @@ class Trace(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -443,13 +447,16 @@ class Trace(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
                 return x
+
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
@@ -475,13 +482,16 @@ class Trace(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
                 return x
+
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
@@ -499,6 +509,7 @@ class Trace(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -532,13 +543,16 @@ class Trace(Pytree):
             import jax
             import genjax
             from genjax import bernoulli
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
                 return x
+
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
@@ -745,6 +759,7 @@ class Mask(Choice):
             import jax
             import jax.numpy as jnp
             import genjax
+
             console = genjax.console()
 
             masked = genjax.Mask(False, jnp.ones(5))
@@ -774,8 +789,7 @@ class Mask(Choice):
         return some(v)
 
     def unmask(self):
-        """
-        > Unmask the `Mask`, returning the value within.
+        """> Unmask the `Mask`, returning the value within.
 
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 
@@ -784,6 +798,7 @@ class Mask(Choice):
             import jax
             import jax.numpy as jnp
             import genjax
+
             console = genjax.console()
 
             masked = genjax.Mask(True, jnp.ones(5))
@@ -874,8 +889,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """
-        Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c \\sim p(\\cdot; x)$, as well as any
+        """Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c \\sim p(\\cdot; x)$, as well as any
         untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
         (x, c, r)$.
 
@@ -898,6 +912,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -910,13 +925,16 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
                 return y
+
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
@@ -952,6 +970,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -964,13 +983,16 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
+
 
             @genjax.static_gen_fn
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 y = genjax.normal(x, 1.0) @ "y"
                 return y
+
 
             key = jax.random.PRNGKey(314159)
             (chm, w, r) = model.propose(key, ())
@@ -1144,7 +1166,8 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
     Mixing in this class denotes that a generative function implementation can be used within a calling context where JAX transformations are being applied, or JAX tracing is being applied (e.g. `jax.jit`). As a callee in other generative functions, this type exposes an `__abstract_call__` method which can be use to customize the behavior under abstract tracing (a default is provided, and users are not expected to interact with this functionality).
 
-    Compatibility with JAX tracing allows generative functions that mixin this class to expose several default methods which support convenient access to gradient computation using `jax.grad`."""
+    Compatibility with JAX tracing allows generative functions that mixin this class to expose several default methods which support convenient access to gradient computation using `jax.grad`.
+    """
 
     @typecheck
     def unzip(
@@ -1154,8 +1177,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], ArrayLike],
         Callable[[Choice, Tuple], Any],
     ]:
-        """
-        The `unzip` method expects a fixed (under gradients) `Choice` argument, and returns two `Callable` instances: the first exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> score` where `score` is the log density returned by the `assess` method, and the second exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the returned value from the `assess` method.
+        """The `unzip` method expects a fixed (under gradients) `Choice` argument, and returns two `Callable` instances: the first exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> score` where `score` is the log density returned by the `assess` method, and the second exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the returned value from the `assess` method.
 
         Arguments:
             fixed: A fixed choice map.
@@ -1192,7 +1214,8 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         """Used to support JAX tracing, although this default implementation
         involves no JAX operations (it takes a fixed-key sample from the
         return value). Generative functions may customize this to improve
-        compilation time."""
+        compilation time.
+        """
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
 

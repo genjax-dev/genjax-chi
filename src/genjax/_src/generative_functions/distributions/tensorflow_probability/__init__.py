@@ -26,8 +26,7 @@ tfd = tfp.distributions
 
 
 class TFPDistribution(ExactDensity, JAXGenerativeFunction):
-    """
-    A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
+    """A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
 
     Implements the `ExactDensity` subclass of `genjax.Distribution` automatically using the interfaces defined for `tfp.distributions` objects.
     """

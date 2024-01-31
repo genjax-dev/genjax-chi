@@ -29,7 +29,6 @@ class LazyLoader(types.ModuleType):
     required dependencies for `genjax` proper.
 
     Examples:
-
         To utilize the system, the `LazyLoader` expects that you provide a local name for the module, globals, and the source module. Here's example usage for an extension module utilizing `tinygp` - we give the lazy loaded module the name `tinygp`, and tell the loader that the module path is `genjax._src.extras.tinygp`:
 
         ```python
@@ -47,6 +46,7 @@ class LazyLoader(types.ModuleType):
         import jax
         import genjax
         import tinygp.kernels as kernels
+
         console = genjax.console()
 
         # Extension module

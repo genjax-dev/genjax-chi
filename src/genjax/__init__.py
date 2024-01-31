@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-GenJAX is a probabilistic programming system constructed by combining the concepts of Gen with the program transformation and hardware accelerator compilation capabilities of JAX.
+"""GenJAX is a probabilistic programming system constructed by combining the concepts of Gen with the program transformation and hardware accelerator compilation capabilities of JAX.
 """
 
 # This __init__ file exports GenJAX's public API.

@@ -113,7 +113,8 @@ def initial_style_bind(prim, **params):
 
     def bind(f):
         """Wraps a function to be bound to a primitive, keeping track of Pytree
-        information."""
+        information.
+        """
 
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""

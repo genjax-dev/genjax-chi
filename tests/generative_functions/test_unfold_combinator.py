@@ -450,7 +450,7 @@ class TestUnfoldSimpleNormal:
         @genjax.unfold_combinator(max_length=10)
         @genjax.static_gen_fn
         def model():
-            """model docstring"""
+            """Model docstring"""
             return genjax.normal(0.0, 1.0) @ "y"
 
         # Prove that mandatory keyword argument is enforced
@@ -461,4 +461,4 @@ class TestUnfoldSimpleNormal:
             def bad_model():
                 return genjax.normal(0.0, 1.0) @ "y"
 
-        assert model.__doc__ == "model docstring"
+        assert model.__doc__ == "Model docstring"

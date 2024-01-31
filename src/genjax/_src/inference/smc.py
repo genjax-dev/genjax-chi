@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Sequential Monte Carlo ([Chopin & Papaspiliopoulos, 2020](https://link.springer.com/book/10.1007/978-3-030-47845-2), [Del Moral, Doucet, & Jasram 2006](https://academic.oup.com/jrsssb/article/68/3/411/7110641) is an approximate inference framework based on approximating a sequence of target distributions using a weighted collection of particles.
+"""Sequential Monte Carlo ([Chopin & Papaspiliopoulos, 2020](https://link.springer.com/book/10.1007/978-3-030-47845-2), [Del Moral, Doucet, & Jasram 2006](https://academic.oup.com/jrsssb/article/68/3/411/7110641) is an approximate inference framework based on approximating a sequence of target distributions using a weighted collection of particles.
 
 In this module, we provide a set of ingredients for implementing SMC algorithms, including pseudomarginal / recursive auxiliary variants, and variants expressible using SMCP3 ([Lew & Matheos, et al, 2023](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)) moves.
 """
@@ -46,9 +45,7 @@ from genjax._src.inference.translator import TraceTranslator
 
 
 class ParticleCollection(Pytree):
-    """
-    A collection of weighted particles. Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`).
-    """
+    """A collection of weighted particles. Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`)."""
 
     particles: Trace
     log_weights: FloatArray
@@ -74,9 +71,7 @@ class ParticleCollection(Pytree):
 
 
 class SMCAlgorithm(InferenceAlgorithm):
-    """
-    Abstract class for SMC algorithms.
-    """
+    """Abstract class for SMC algorithms."""
 
     @abstractmethod
     def get_num_particles(self):
@@ -167,9 +162,7 @@ class SMCAlgorithm(InferenceAlgorithm):
 
 
 class Initialize(SMCAlgorithm):
-    """
-    Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the number of particles `n_particles: Int`, initialize a particle collection using importance sampling.
-    """
+    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the number of particles `n_particles: Int`, initialize a particle collection using importance sampling."""
 
     target: Target
     q: ChoiceDistribution

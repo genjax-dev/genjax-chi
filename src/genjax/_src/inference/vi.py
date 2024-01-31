@@ -62,9 +62,7 @@ tfd = tfp.distributions
 
 @dataclass
 class ADEVDistribution(ExactDensity):
-    """
-    The class `ADEVDistribution` is a wrapper class which exposes the `sample` and `logpdf` interfaces, where `sample` utilizes an ADEV differentiable sampling primitive, and `logpdf` is a differentiable logpdf function.
-    """
+    """The class `ADEVDistribution` is a wrapper class which exposes the `sample` and `logpdf` interfaces, where `sample` utilizes an ADEV differentiable sampling primitive, and `logpdf` is a differentiable logpdf function."""
 
     adev_primitive: ADEVPrimitive
     differentiable_logpdf: Callable = Pytree.static()
@@ -136,9 +134,7 @@ geometric_reinforce = ADEVDistribution(
 
 
 class ExpectedValueLoss(Pytree):
-    """
-    Base class for expected value loss functions. Exposes a `grad_estimate` interface, which takes a PRNGKey and a tuple of arguments (which are allowed to be `Pytree` instances), and returns a tuple of gradient estimates (a tuple, with values which are the same shape as the primal `Pytree` instances).
-    """
+    """Base class for expected value loss functions. Exposes a `grad_estimate` interface, which takes a PRNGKey and a tuple of arguments (which are allowed to be `Pytree` instances), and returns a tuple of gradient estimates (a tuple, with values which are the same shape as the primal `Pytree` instances)."""
 
     @abstractmethod
     def grad_estimate(

@@ -51,7 +51,8 @@ class DebugCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 def record(gen_fn: JAXGenerativeFunction) -> DebugCombinator:
     """A multimethod which dispatches to `record_value`, or wraps a
     `JAXGenerativeFunction` in `DebugCombinator` to allow recording information
-    about generative function interface invocations."""
+    about generative function interface invocations.
+    """
     return DebugCombinator.new(gen_fn)
 
 
@@ -59,7 +60,8 @@ def record(gen_fn: JAXGenerativeFunction) -> DebugCombinator:
 def record(v: Any) -> Any:
     """A multimethod which dispatches to `record_value`, or wraps a
     `JAXGenerativeFunction` in `DebugCombinator` to allow recording information
-    about generative function interface invocations."""
+    about generative function interface invocations.
+    """
     return record_value(v)
 
 

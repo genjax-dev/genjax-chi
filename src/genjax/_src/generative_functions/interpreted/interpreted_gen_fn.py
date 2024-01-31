@@ -292,6 +292,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         ```python
         import genjax
 
+
         @genjax.interpreted
         def model():
             y = genjax.normal(0.0, 1.0) @ "y"

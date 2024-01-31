@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A module containing a test suite for inference based on exact inference in
-hidden Markov models (HMMs)."""
+hidden Markov models (HMMs).
+"""
 
 
 import jax

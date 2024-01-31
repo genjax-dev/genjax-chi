@@ -73,7 +73,8 @@ def stage(f):
 
 def trees(f):
     """Returns a function that determines input and output pytrees from inputs,
-    and also returns the flattened input arguments."""
+    and also returns the flattened input arguments.
+    """
 
     def wrapped(*args, **kwargs):
         return stage(f)(*args, **kwargs)[1]
