@@ -35,12 +35,7 @@ from genjax._src.core.datatypes.generative import (
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import (
-    UnknownChange,
-    tree_diff,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -193,7 +188,7 @@ class UpdateHandler(Handler):
             sub_trace = st(addr)
         else:
             sub_trace = self.previous_trace.get_choice().get_submap(addr)
-        argdiffs = tree_diff_unknown_change(args)
+        argdiffs = Diff.tree_diff_unknown_change(args)
         self.key, sub_key = jax.random.split(self.key)
         # if isinstance(sub_map, EmptyChoice):
         #     sub_map = HierarchicalChoiceMap.new({})
@@ -353,12 +348,12 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         if isinstance(choice_map, EmptyChoice):
             choice_map = HierarchicalChoiceMap()
         with UpdateHandler(key, prev_trace, choice_map) as handler:
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
             choices = handler.choice_state
             weight = handler.weight
             discard = handler.discard
-            retdiff = tree_diff(retval, UnknownChange)
+            retdiff = Diff.tree_diff_unknown_change(retval)
             score = prev_trace.get_score() + weight
             return (
                 InterpretedTrace(self, args, retval, choices, score),

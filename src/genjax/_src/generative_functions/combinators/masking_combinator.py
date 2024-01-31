@@ -20,7 +20,7 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import (
     Any,
     BoolArray,
@@ -98,7 +98,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         argdiffs: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
         (check_diff, inner_argdiffs) = argdiffs
-        check = tree_diff_primal(check_diff)
+        check = Diff.tree_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
             MaskingTrace(check, tr),

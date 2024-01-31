@@ -22,11 +22,7 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import (
-    static_check_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -195,7 +191,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
             # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             data_shared_sum_tree = self._create_data_shared_sum_tree_trace(
                 key, tr, args
             )
@@ -220,7 +216,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return lambda key: _inner_update(br, key)
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primal(argdiffs[0])
+        switch = Diff.tree_primal(argdiffs[0])
 
         return jax.lax.switch(
             switch,
@@ -239,12 +235,12 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             concrete_branch_index = self.branches.index(br)
             stripped = prev.strip()
             constraints = stripped.unsafe_merge(constraints)
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             (tr, w) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
             discard = Mask(True, stripped)
             retval = tr.get_retval()
-            retval_diff = tree_diff_unknown_change(retval)
+            retval_diff = Diff.tree_diff_unknown_change(retval)
 
             # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
@@ -265,7 +261,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             )
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primal(argdiffs[0])
+        switch = Diff.tree_primal(argdiffs[0])
 
         return jax.lax.switch(
             switch,
@@ -286,7 +282,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     ) -> Tuple[SwitchTrace, FloatArray, Any, Any]:
         index_argdiff = argdiffs[0]
 
-        if static_check_no_change(index_argdiff):
+        if Diff.static_check_no_change(index_argdiff):
             return self._update_fallback(key, prev, constraints, argdiffs)
         else:
             return self._update_branch_switch(key, prev, constraints, argdiffs)
@@ -315,8 +311,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = Mask(False, possible_discards)
-            primal = tree_diff_primal(retdiff)
-            retdiff = tree_diff_unknown_change(primal)
+            primal = Diff.tree_primal(retdiff)
+            retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
         def _some(chm):
@@ -327,8 +323,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
                 discard = Mask(True, possible_discards)
-            primal = tree_diff_primal(retdiff)
-            retdiff = tree_diff_unknown_change(primal)
+            primal = Diff.tree_primal(retdiff)
+            retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
         return new_constraints.match(_none, _some)

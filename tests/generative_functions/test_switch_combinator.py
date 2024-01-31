@@ -15,7 +15,7 @@
 import genjax
 import jax
 from genjax import Mask
-from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_change
+from genjax.incremental import Diff, NoChange, UnknownChange
 from jax import numpy as jnp
 
 
@@ -181,7 +181,7 @@ class TestSwitch:
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (tr, _, _, _) = jax.jit(switch.update)(
-            sub_key, tr, genjax.EmptyChoice(), (diff(0, NoChange),)
+            sub_key, tr, genjax.EmptyChoice(), (Diff.tree_diff(0, NoChange),)
         )
         assert score == tr.get_score()
         assert v1 == tr["y1"]
@@ -203,7 +203,7 @@ class TestSwitch:
             key,
             tr,
             Mask(jnp.array(True), genjax.EmptyChoice()),
-            tree_diff_no_change((1, 0.0)),
+            Diff.tree_diff_no_change((1, 0.0)),
         )
         assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0
@@ -211,7 +211,7 @@ class TestSwitch:
             key,
             tr,
             Mask(jnp.array(False), genjax.EmptyChoice()),
-            tree_diff_no_change((1, 0.0)),
+            Diff.tree_diff_no_change((1, 0.0)),
         )
         assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0
@@ -247,7 +247,7 @@ class TestSwitch:
             update_key,
             tr,
             genjax.EmptyChoice(),
-            (diff(1, UnknownChange),),
+            (Diff.tree_diff(1, UnknownChange),),
         )
         assert new_tr.chm.index == 1
         assert new_tr.get_score() != tr.get_score()

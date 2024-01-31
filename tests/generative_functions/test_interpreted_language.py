@@ -18,11 +18,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax import (
-    ExactDensity,
-    tree_diff_no_change,
-    tree_diff_unknown_change,
-)
+from genjax import Diff, ExactDensity
 from jaxtyping import ArrayLike
 
 #############
@@ -507,13 +503,13 @@ class TestUpdate:
         constraints = genjax.choice_map({("y1",): new_y1})
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = simple_linked_normal_with_tree_argument.update(
-            sub_key, tr, constraints, (tree_diff_no_change(init_tree),)
+            sub_key, tr, constraints, (Diff.tree_diff_no_change(init_tree),)
         )
         assert updated["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = simple_linked_normal_with_tree_argument.update(
-            sub_key, tr, constraints, (tree_diff_unknown_change(new_tree),)
+            sub_key, tr, constraints, (Diff.tree_diff_unknown_change(new_tree),)
         )
         assert updated["y1"] == new_y1
 

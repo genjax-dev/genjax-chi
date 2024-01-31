@@ -33,13 +33,7 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import (
-    Diff,
-    static_check_no_change,
-    tree_diff_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -432,7 +426,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         state: Diff,
         *static_args: Diff,
     ):
-        length, state, static_args = tree_diff_primal((length, state, static_args))
+        length, state, static_args = Diff.tree_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
@@ -463,7 +457,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primal(retval_diff),
+            Diff.tree_primal(retval_diff),
             jnp.sum(score),
         )
 
@@ -480,7 +474,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         state: Any,
         *static_args: Any,
     ):
-        length, state, static_args = tree_diff_primal((length, state, static_args))
+        length, state, static_args = Diff.tree_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
@@ -491,7 +485,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 sub_key,
                 prev,
                 chm,
-                tree_diff_no_change((state, *static_args)),
+                Diff.tree_diff_no_change((state, *static_args)),
             )
 
             check = jnp.less(count, length + 1)
@@ -515,7 +509,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primal(retval_diff),
+            Diff.tree_primal(retval_diff),
             jnp.sum(score),
         )
 
@@ -539,7 +533,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
-        state_diff = tree_diff_unknown_change(
+        state_diff = Diff.tree_diff_unknown_change(
             jax.lax.cond(
                 start_lower
                 == 0,  # if the starting index is 0, we need to grab the state argument.
@@ -561,18 +555,18 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
             # Extending to an index greater than the previous length.
             def _importance(key):
-                state_primal = tree_diff_primal(state_diff)
+                state_primal = Diff.tree_primal(state_diff)
                 (new_tr, w) = self.kernel.importance(
                     key, sub_chm, (state_primal, *static_args)
                 )
                 primal_state = new_tr.get_retval()
-                retval_diff = tree_diff_unknown_change(primal_state)
+                retval_diff = Diff.tree_diff_unknown_change(primal_state)
 
                 return (retval_diff, w, new_tr)
 
             # Updating an existing index.
             def _update(key):
-                static_argdiffs = tree_diff_no_change(static_args)
+                static_argdiffs = Diff.tree_diff_no_change(static_args)
                 (new_tr, w, retval_diff, _) = self.kernel.update(
                     key, prev_slice, sub_chm, (state_diff, *static_argdiffs)
                 )
@@ -580,8 +574,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 # TODO: c.f. message above on `UnknownChange`.
                 # Preserve the diff type across the loop
                 # iterations.
-                primal_state = tree_diff_primal(retval_diff)
-                retval_diff = tree_diff_unknown_change(primal_state)
+                primal_state = Diff.tree_primal(retval_diff)
+                retval_diff = Diff.tree_diff_unknown_change(primal_state)
                 return (retval_diff, w, new_tr)
 
             check = prev_length < index
@@ -600,7 +594,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
-        new_upper = tree_diff_primal(length)
+        new_upper = Diff.tree_primal(length)
         new_upper = jnp.where(
             new_upper >= self.max_length,
             self.max_length - 1,
@@ -626,8 +620,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             new_inner_trace.get_retval(),
             prev.get_retval(),
         )
-        retval_diff = tree_diff_unknown_change(retval)
-        args = tree_diff_primal((length, state, *static_args))
+        retval_diff = Diff.tree_diff_unknown_change(retval)
+        args = Diff.tree_primal((length, state, *static_args))
 
         # TODO: is there a faster way to do this with the information I already have?
         new_score = jnp.sum(
@@ -683,12 +677,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         length = argdiffs[0]
         state = argdiffs[1]
         static_args = argdiffs[2:]
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         self._optional_out_of_bounds_check(args[0])  # length
-        check_state_static_no_change = static_check_no_change((state, static_args))
+        check_state_static_no_change = Diff.static_check_no_change((state, static_args))
         if check_state_static_no_change:
-            state = tree_diff_primal(state)
-            static_args = tree_diff_primal(static_args)
+            state = Diff.tree_primal(state)
+            static_args = Diff.tree_primal(static_args)
             return self._update_specialized(
                 key,
                 prev,

@@ -16,7 +16,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax.incremental import NoChange, UnknownChange, diff, tree_diff_no_change
+from genjax.incremental import Diff, NoChange, UnknownChange
 
 
 class TestUnfoldSimpleNormal:
@@ -137,7 +137,7 @@ class TestUnfoldSimpleNormal:
             sub_key,
             tr,
             chm,
-            (diff(6, UnknownChange), diff(0.1, NoChange)),
+            (Diff.tree_diff(6, UnknownChange), Diff.tree_diff(0.1, NoChange)),
         )
         newly_introduced_choice = genjax.indexed_select(
             jnp.array([6]), genjax.select("z")
@@ -220,8 +220,8 @@ class TestUnfoldSimpleNormal:
         for t in range(1, 10):
             y_sel = genjax.indexed_select(jnp.array([t]), genjax.select("y"))
             diffs = (
-                diff(t, UnknownChange),
-                tree_diff_no_change(model_args),
+                Diff.tree_diff(t, UnknownChange),
+                Diff.tree_diff_no_change(model_args),
             )
 
             # Score underneath the selection should be 0.0
@@ -268,7 +268,7 @@ class TestUnfoldSimpleNormal:
                 jnp.array([t]),
                 genjax.choice_map({"x": jnp.array([1.0])}),
             )
-            diffs = (diff(5, NoChange), diff(0.0, NoChange))
+            diffs = (Diff.tree_diff(5, NoChange), Diff.tree_diff(0.0, NoChange))
             old_score = new_tr.project(x_sel)
             old_x = new_tr.filter(x_sel)[t, "x"]
             old_z = new_tr.filter(z_sel)[t, "z"]
@@ -296,7 +296,7 @@ class TestUnfoldSimpleNormal:
             jnp.array([0]),
             genjax.choice_map({"z": jnp.array([1.0])}),
         )
-        diffs = (diff(5, NoChange), diff(0.0, NoChange))
+        diffs = (Diff.tree_diff(5, NoChange), Diff.tree_diff(0.0, NoChange))
 
         # This should be the Markov blanket of the update.
         vzsel = genjax.indexed_select(jnp.array([0, 1]), genjax.select("z"))
@@ -365,7 +365,7 @@ class TestUnfoldSimpleNormal:
                 jnp.array([t]),
                 genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])}),
             )
-            diffs = (diff(4, NoChange), diff(0.0, NoChange))
+            diffs = (Diff.tree_diff(4, NoChange), Diff.tree_diff(0.0, NoChange))
 
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = chain.update(sub_key, tr, chm, diffs)
@@ -384,7 +384,7 @@ class TestUnfoldSimpleNormal:
                 jnp.array([t]),
                 genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])}),
             )
-            diffs = (diff(t, UnknownChange), diff(0.0, NoChange))
+            diffs = (Diff.tree_diff(t, UnknownChange), Diff.tree_diff(0.0, NoChange))
 
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = chain.update(sub_key, tr, chm, diffs)
@@ -410,7 +410,7 @@ class TestUnfoldSimpleNormal:
                 jnp.array([t]),
                 genjax.choice_map({"x": jnp.array([0.0]), "z": jnp.array([0.0])}),
             )
-            diffs = (diff(t, UnknownChange), diff(0.0, NoChange))
+            diffs = (Diff.tree_diff(t, UnknownChange), Diff.tree_diff(0.0, NoChange))
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = chain.update(sub_key, tr, chm, diffs)
 
@@ -436,7 +436,7 @@ class TestUnfoldSimpleNormal:
             chm = genjax.indexed_choice_map(
                 jnp.array([t]), genjax.choice_map({"x": jnp.array([0.0])})
             )
-            diffs = (diff(t, UnknownChange), diff(0.0, NoChange))
+            diffs = (Diff.tree_diff(t, UnknownChange), Diff.tree_diff(0.0, NoChange))
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = chain.update(sub_key, tr, chm, diffs)
 

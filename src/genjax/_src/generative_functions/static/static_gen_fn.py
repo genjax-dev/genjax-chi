@@ -21,7 +21,7 @@ from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -179,7 +179,7 @@ class StaticGenerativeFunction(
         constraints: Choice,
         argdiffs: Tuple,
     ) -> Tuple[Trace, FloatArray, Any, Choice]:
-        assert static_check_tree_leaves_diff(argdiffs)
+        assert Diff.static_check_tree_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )

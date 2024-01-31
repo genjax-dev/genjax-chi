@@ -24,11 +24,7 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import (
-    tree_diff_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -572,7 +568,7 @@ class Trace(Pytree):
     ):
         gen_fn = self.get_gen_fn()
         args = self.get_args()
-        argdiffs = tree_diff_no_change(args)
+        argdiffs = Diff.tree_diff_no_change(args)
         return gen_fn.update(key, self, choices, argdiffs)
 
     def get_aux(self) -> Tuple:
@@ -1090,8 +1086,8 @@ class GenerativeFunction(Pytree):
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = Mask(False, possible_discards)
-            primal = tree_diff_primal(retdiff)
-            retdiff = tree_diff_unknown_change(primal)
+            primal = Diff.tree_primal(retdiff)
+            retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
         def _some(chm):
@@ -1102,8 +1098,8 @@ class GenerativeFunction(Pytree):
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
                 discard = Mask(True, possible_discards)
-            primal = tree_diff_primal(retdiff)
-            retdiff = tree_diff_unknown_change(primal)
+            primal = Diff.tree_primal(retdiff)
+            retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
         return new_constraints.match(_none, _some)

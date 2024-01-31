@@ -37,9 +37,6 @@ from genjax._src.core.interpreters.forward import (
 from genjax._src.core.interpreters.incremental import (
     Diff,
     incremental,
-    static_check_no_change,
-    tree_diff_primal,
-    tree_diff_tangent,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -437,7 +434,7 @@ class UpdateHandler(StaticLanguageHandler):
         if (
             static_check_is_concrete(has_value)
             and has_value
-            and all(map(static_check_no_change, args))
+            and Diff.static_check_no_change(args)
         ):
             cached_value = self.previous_trace.get_cached_value(addr)
             self.cache_state[addr] = cached_value
@@ -453,12 +450,12 @@ def update_transform(source_fn):
     @typecheck
     def wrapper(key, previous_trace, constraints, diffs: Tuple):
         stateful_handler = UpdateHandler(key, previous_trace, constraints)
-        diff_primals = tree_diff_primal(diffs)
-        diff_tangents = tree_diff_tangent(diffs)
+        diff_primals = Diff.tree_primal(diffs)
+        diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
             stateful_handler, diff_primals, diff_tangents
         )
-        retval_primals = tree_diff_primal(retval_diffs)
+        retval_primals = Diff.tree_primal(retval_diffs)
         (
             score,
             weight,

@@ -16,20 +16,10 @@ from genjax._src.core.interpreters.incremental import (
     Diff,
     NoChange,
     UnknownChange,
-    diff,
-    static_check_tree_leaves_diff,
-    tree_diff,
-    tree_diff_no_change,
-    tree_diff_unknown_change,
 )
 
 __all__ = [
-    "diff",
-    "tree_diff",
-    "tree_diff_no_change",
-    "tree_diff_unknown_change",
     "Diff",
     "NoChange",
     "UnknownChange",
-    "static_check_tree_leaves_diff",
 ]

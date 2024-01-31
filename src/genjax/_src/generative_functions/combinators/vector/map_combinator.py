@@ -34,7 +34,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -311,7 +311,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         chm: IndexedChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -352,7 +352,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         chm: VectorChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -385,7 +385,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)

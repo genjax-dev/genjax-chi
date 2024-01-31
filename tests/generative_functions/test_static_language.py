@@ -17,9 +17,8 @@ from typing import Any
 import genjax
 import jax
 import pytest
-from genjax import Pytree
+from genjax import Diff, Pytree
 from genjax.core.exceptions import AddressReuse, StaticAddressJAX
-from genjax.incremental import tree_diff_no_change, tree_diff_unknown_change
 from genjax.typing import FloatArray
 from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
@@ -480,13 +479,13 @@ class TestUpdate:
         constraints = genjax.choice_map({("y1",): new_y1})
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(
-            sub_key, tr, constraints, (tree_diff_no_change(init_tree),)
+            sub_key, tr, constraints, (Diff.tree_diff_no_change(init_tree),)
         )
         assert updated["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(
-            sub_key, tr, constraints, (tree_diff_unknown_change(new_tree),)
+            sub_key, tr, constraints, (Diff.tree_diff_unknown_change(new_tree),)
         )
         assert updated["y1"] == new_y1
 

@@ -23,13 +23,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import (
-    static_check_no_change,
-    static_check_tree_leaves_diff,
-    tree_diff_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.serialization.pickle import (
     PickleDataFormat,
     PickleSerializationBackend,
@@ -168,17 +162,17 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         constraints: EmptyChoice,
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        static_check_tree_leaves_diff(argdiffs)
+        Diff.static_check_tree_diff(argdiffs)
         v = prev.get_retval()
-        retval_diff = tree_diff_no_change(v)
+        retval_diff = Diff.tree_diff_no_change(v)
 
         # If no change to arguments, no need to update.
-        if static_check_no_change(argdiffs):
+        if Diff.static_check_no_change(argdiffs):
             return (prev, 0.0, retval_diff, EmptyChoice())
 
         # Otherwise, we must compute an incremental weight.
         else:
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
@@ -192,15 +186,15 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         constraints: ChoiceValue,
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        static_check_tree_leaves_diff(argdiffs)
-        args = tree_diff_primal(argdiffs)
+        Diff.static_check_tree_diff(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         v = constraints.get_value()
         fwd = self.estimate_logpdf(key, v, *args)
         bwd = prev.get_score()
         w = fwd - bwd
         new_tr = DistributionTrace(self, args, v, fwd)
         discard = prev.get_choice()
-        retval_diff = tree_diff_unknown_change(v)
+        retval_diff = Diff.tree_diff_unknown_change(v)
         return (new_tr, w, retval_diff, discard)
 
     ###################
