@@ -127,8 +127,8 @@ def _trace(gen_fn, addr, *args):
 
 @typecheck
 def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the
-    current caller.
+    """Invoke a generative function, binding its generative semantics with the current
+    caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
@@ -152,8 +152,8 @@ def _cache(fn, addr, *args):
 
 @typecheck
 def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the
-    current caller.
+    """Invoke a generative function, binding its generative semantics with the current
+    caller.
 
     Arguments:
         addr: An address denoting the site of a function invocation.

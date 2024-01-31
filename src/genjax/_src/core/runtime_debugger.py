@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains a debugger based around inserting/recording state from
-pure functions."""
+"""This module contains a debugger based around inserting/recording state from pure
+functions."""
 
 import functools
 import inspect
@@ -51,8 +51,8 @@ def tag(
     name: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
     val: typing.Any,
 ) -> typing.Any:
-    """Tag a value, allowing the debugger to store and return it as state in
-    the `DebuggerTags` produced by `pull`.
+    """Tag a value, allowing the debugger to store and return it as state in the
+    `DebuggerTags` produced by `pull`.
 
     Arguments:
         name: A `String` or `Tuple[String, ...]` providing a reference name (key, into a `Trie`) for the tagged value.
@@ -267,8 +267,8 @@ class DebuggerRecording(harvest.ReapState):
 def pull(
     f: typing.Callable,
 ) -> typing.Callable:
-    """Transform a function into one which returns a debugger recording and
-    debugger tags.
+    """Transform a function into one which returns a debugger recording and debugger
+    tags.
 
     Arguments:
         f: A function contain `record` invocations which will be transformed by the debugger transformation.
@@ -442,8 +442,8 @@ def record_call(f: typing.Callable) -> typing.Callable:
 
 @typecheck
 def record_value(value: typing.Any) -> typing.Any:
-    """> Record a value, allowing the debugger to store it in the debug
-    recording, along with the caller's stack frame information.
+    """> Record a value, allowing the debugger to store it in the debug recording, along
+    with the caller's stack frame information.
 
     The user is not expected to use this function, but to instead use the multimethod `record` below which will dispatch appropriately based on invocation types.
     """

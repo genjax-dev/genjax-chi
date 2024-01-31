@@ -46,8 +46,8 @@ from genjax._src.core.typing import (
 
 class Selection(Pytree):
     def complement(self) -> "Selection":
-        """Return a `Selection` which filters addresses to the complement set
-        of the provided `Selection`.
+        """Return a `Selection` which filters addresses to the complement set of the
+        provided `Selection`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -417,8 +417,8 @@ class Trace(Pytree):
 
     @abstractmethod
     def get_retval(self) -> Any:
-        """Returns the return value from the generative function invocation
-        which created the `Trace`.
+        """Returns the return value from the generative function invocation which
+        created the `Trace`.
 
         Examples:
             Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
@@ -473,9 +473,8 @@ class Trace(Pytree):
 
     @abstractmethod
     def get_choice(self) -> ChoiceMap:
-        """Return a `ChoiceMap` representation of the set of traced random
-        choices sampled during the execution of the generative function to
-        produce the `Trace`.
+        """Return a `ChoiceMap` representation of the set of traced random choices
+        sampled during the execution of the generative function to produce the `Trace`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -502,8 +501,7 @@ class Trace(Pytree):
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
-        """Returns the generative function whose invocation created the
-        `Trace`.
+        """Returns the generative function whose invocation created the `Trace`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -535,8 +533,8 @@ class Trace(Pytree):
 
     @dispatch
     def project(self, selection: "Selection") -> ArrayLike:
-        """Given a `Selection`, return the total contribution to the score of
-        the addresses contained within the `Selection`.
+        """Given a `Selection`, return the total contribution to the score of the
+        addresses contained within the `Selection`.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -636,8 +634,8 @@ def strip(v):
 
 
 class Mask(Choice):
-    """The `Mask` choice datatype provides access to the masking system. The
-    masking system is heavily influenced by the functional `Option` monad.
+    """The `Mask` choice datatype provides access to the masking system. The masking
+    system is heavily influenced by the functional `Option` monad.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Choice` instances, and participate in inference computations (like scores, and importance weights or density ratios).
 
@@ -889,9 +887,9 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice
-        map $c \\sim p(\\cdot; x)$, as well as any untraced randomness $r \\sim
-        p(\\cdot; x, c)$ to produce a trace $t = (x, c, r)$.
+        """Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c
+        \\sim p(\\cdot; x)$, as well as any untraced randomness $r \\sim p(\\cdot; x,
+        c)$ to produce a trace $t = (x, c, r)$.
 
         While the types of traces `t` are formally defined by $(x, c, r)$, they will often store additional information - like the _score_ ($s$):
 
@@ -948,10 +946,9 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple[Choice, ArrayLike, Any]:
-        """Given a `key: PRNGKey` and arguments ($x$), execute the generative
-        function, returning a tuple containing the return value from the
-        generative function call, the score ($s$) of the choice map assignment,
-        and the choice map ($c$).
+        """Given a `key: PRNGKey` and arguments ($x$), execute the generative function,
+        returning a tuple containing the return value from the generative function call,
+        the score ($s$) of the choice map assignment, and the choice map ($c$).
 
         The default implementation just calls `simulate`, and then extracts the data from the `Trace` returned by `simulate`. Custom generative functions can overload the implementation for their own uses (e.g. if they don't have an associated `Trace` datatype, but can be used as a proposal).
 
@@ -1012,12 +1009,12 @@ class GenerativeFunction(Pytree):
         choice: Choice,
         args: Tuple,
     ) -> Tuple[Trace, ArrayLike]:
-        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
-        and arguments ($x$), execute the generative function, and return an
-        importance weight estimate of the conditional density evaluated at the
-        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
-        consistent with the constraints ($u$), with unconstrained choices
-        ($u'$) proposed from an internal proposal.
+        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$), and
+        arguments ($x$), execute the generative function, and return an importance
+        weight estimate of the conditional density evaluated at the non-constrained
+        choices, and a trace whose choice map ($c = u' ⧺ u$) is consistent with the
+        constraints ($u$), with unconstrained choices ($u'$) proposed from an internal
+        proposal.
 
         Arguments:
             key: A `PRNGKey`.
@@ -1043,12 +1040,12 @@ class GenerativeFunction(Pytree):
         constraints: Mask,
         args: Tuple,
     ) -> Tuple[Trace, ArrayLike]:
-        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$),
-        and arguments ($x$), execute the generative function, and return an
-        importance weight estimate of the conditional density evaluated at the
-        non-constrained choices, and a trace whose choice map ($c = u' ⧺ u$) is
-        consistent with the constraints ($u$), with unconstrained choices
-        ($u'$) proposed from an internal proposal.
+        """Given a `key: PRNGKey`, a choice map indicating constraints ($u$), and
+        arguments ($x$), execute the generative function, and return an importance
+        weight estimate of the conditional density evaluated at the non-constrained
+        choices, and a trace whose choice map ($c = u' ⧺ u$) is consistent with the
+        constraints ($u$), with unconstrained choices ($u'$) proposed from an internal
+        proposal.
 
         Arguments:
             key: A `PRNGKey`.
@@ -1131,10 +1128,9 @@ class GenerativeFunction(Pytree):
         chm: Choice,
         args: Tuple,
     ) -> Tuple[ArrayLike, Any]:
-        """Given a complete choice map indicating constraints ($u$) for all
-        choices, and arguments ($x$), execute the generative function, and
-        return the return value of the invocation, and the score of the choice
-        map ($s$).
+        """Given a complete choice map indicating constraints ($u$) for all choices, and
+        arguments ($x$), execute the generative function, and return the return value of
+        the invocation, and the score of the choice map ($s$).
 
         Arguments:
             chm: A complete choice map indicating constraints ($u$) for all choices.
@@ -1176,8 +1172,8 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], ArrayLike],
         Callable[[Choice, Tuple], Any],
     ]:
-        """The `unzip` method expects a fixed (under gradients) `Choice`
-        argument, and returns two `Callable` instances: the first exposes a.
+        """The `unzip` method expects a fixed (under gradients) `Choice` argument, and
+        returns two `Callable` instances: the first exposes a.
 
         pure function from `(differentiable: Tuple, nondifferentiable: Tuple)
         -> score` where `score` is the log density returned by the `assess`
@@ -1217,12 +1213,10 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         return choice_gradient_tree
 
     def __abstract_call__(self, *args) -> Any:
-        """Used to support JAX tracing, although this default implementation
-        involves no JAX operations (it takes a fixed-key sample from the return
-        value).
+        """Used to support JAX tracing, although this default implementation involves no
+        JAX operations (it takes a fixed-key sample from the return value).
 
-        Generative functions may customize this to improve compilation
-        time.
+        Generative functions may customize this to improve compilation time.
         """
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
@@ -1369,8 +1363,8 @@ class HierarchicalChoiceMap(ChoiceMap):
 
 
 class DisjointUnionChoiceMap(ChoiceMap):
-    """> A choice map combinator type which represents a disjoint union over
-    multiple choice maps.
+    """> A choice map combinator type which represents a disjoint union over multiple
+    choice maps.
 
     The internal data representation of a `ChoiceMap` is often specialized to support optimized code generation for inference interfaces, but the address hierarchy which a `ChoiceMap` represents (as an assignment of choices to addresses) must be generic.
 

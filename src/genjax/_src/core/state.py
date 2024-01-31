@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains a `Module` class which supports parameter learning by
-exposing primitives which allow users to sow functions with state."""
+"""This module contains a `Module` class which supports parameter learning by exposing
+primitives which allow users to sow functions with state."""
 
 import functools
 from dataclasses import dataclass, field

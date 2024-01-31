@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a custom type of `GenerativeFunction` designed to
-support data allocation optimizations for special `GenerativeFunction` types
-which support a notion of calling another `GenerativeFunction`. Examples of
-this type include `MapCombinator`.
+"""This module implements a custom type of `GenerativeFunction` designed to support data
+allocation optimizations for special `GenerativeFunction` types which support a notion
+of calling another `GenerativeFunction`. Examples of this type include `MapCombinator`.
 
 The `DropArgumentsGenerativeFunction` exposes GFI methods which eliminate stored arguments in its returned trace. This is only valid if a caller `GenerativeFunction` which invokes a `DropArgumentsGenerativeFunction` provides arguments ("restores" the arguments) when it invokes `DropArgumentsGenerativeFunction` methods.
 

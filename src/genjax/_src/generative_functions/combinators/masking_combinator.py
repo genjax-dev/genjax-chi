@@ -55,10 +55,9 @@ class MaskingTrace(Trace):
 
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
-    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
-    returns a new `GenerativeFunction` which accepts a boolean array as the
-    first argument denoting if the invocation of the generative function should
-    be masked or not.
+    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and returns a new
+    `GenerativeFunction` which accepts a boolean array as the first argument denoting if
+    the invocation of the generative function should be masked or not.
 
     The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
 

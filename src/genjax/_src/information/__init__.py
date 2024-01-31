@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module exposes several information theoretic estimation techniques
-(e.g. Kullback-Leibler divergences, and various entropy bounds), allowing e.g.
-comparison of two distributions, even if the distributions have densities which
-are estimated."""
+"""This module exposes several information theoretic estimation techniques (e.g.
+Kullback-Leibler divergences, and various entropy bounds), allowing e.g. comparison of
+two distributions, even if the distributions have densities which are estimated."""

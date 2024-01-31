@@ -62,10 +62,9 @@ tfd = tfp.distributions
 
 @dataclass
 class ADEVDistribution(ExactDensity):
-    """The class `ADEVDistribution` is a wrapper class which exposes the
-    `sample` and `logpdf` interfaces, where `sample` utilizes an ADEV
-    differentiable sampling primitive, and `logpdf` is a differentiable logpdf
-    function."""
+    """The class `ADEVDistribution` is a wrapper class which exposes the `sample` and
+    `logpdf` interfaces, where `sample` utilizes an ADEV differentiable sampling
+    primitive, and `logpdf` is a differentiable logpdf function."""
 
     adev_primitive: ADEVPrimitive
     differentiable_logpdf: Callable = Pytree.static()

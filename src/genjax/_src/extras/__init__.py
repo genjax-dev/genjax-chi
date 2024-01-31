@@ -11,11 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module provides compatibility extension plugins for packages which
-provide functionality that is useful for modeling and inference.
+"""This module provides compatibility extension plugins for packages which provide
+functionality that is useful for modeling and inference.
 
-Submodules present compatibility layers for usage of these packages with
-GenJAX.
+Submodules present compatibility layers for usage of these packages with GenJAX.
 """
 
 import importlib
@@ -24,9 +23,9 @@ import types
 
 
 class LazyLoader(types.ModuleType):
-    """> A lazy loading system which allows extension modules to optionally
-    depend on 3rd party dependencies which may be too heavyweight to include as
-    required dependencies for `genjax` proper.
+    """> A lazy loading system which allows extension modules to optionally depend on
+    3rd party dependencies which may be too heavyweight to include as required
+    dependencies for `genjax` proper.
 
     Examples:
         To utilize the system, the `LazyLoader` expects that you provide a local name for the module, globals, and the source module. Here's example usage for an extension module utilizing `tinygp` - we give the lazy loaded module the name `tinygp`, and tell the loader that the module path is `genjax._src.extras.tinygp`:

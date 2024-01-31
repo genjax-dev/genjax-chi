@@ -82,8 +82,8 @@ class Handler(object):
 # Its behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the
-    current caller.
+    """Invoke a generative function, binding its generative semantics with the current
+    caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.

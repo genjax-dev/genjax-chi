@@ -217,9 +217,9 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
 
 
 class ExactDensity(Distribution):
-    """> Abstract base class which extends Distribution and assumes that the
-    implementor provides an exact logpdf method (compared to one which returns
-    _an estimate of the logpdf_).
+    """> Abstract base class which extends Distribution and assumes that the implementor
+    provides an exact logpdf method (compared to one which returns _an estimate of the
+    logpdf_).
 
     All of the standard distributions inherit from `ExactDensity`, and
     if you are looking to implement your own distribution, you should
@@ -232,8 +232,7 @@ class ExactDensity(Distribution):
 
     @abc.abstractmethod
     def sample(self, key: PRNGKey, *args: Any) -> Any:
-        """> Sample from the distribution, returning a value from the event
-        space.
+        """> Sample from the distribution, returning a value from the event space.
 
         Arguments:
             key: A `PRNGKey`.
@@ -272,9 +271,9 @@ class ExactDensity(Distribution):
 
     @abc.abstractmethod
     def logpdf(self, v: Any, *args: Any) -> FloatArray:
-        """> Given a value from the support of the distribution, compute the
-        log probability of that value under the density (with respect to the
-        standard base measure).
+        """> Given a value from the support of the distribution, compute the log
+        probability of that value under the density (with respect to the standard base
+        measure).
 
         Arguments:
             v: A value from the support of the distribution.

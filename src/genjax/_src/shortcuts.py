@@ -36,8 +36,8 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 
 
 def trie_from_dict(constraints: dict):
-    """Recurses over `constraints`, a Python dictionary, to produce the Trie
-    with the same structure.
+    """Recurses over `constraints`, a Python dictionary, to produce the Trie with the
+    same structure.
 
     Non-dict values are mapped through [[choice_map]].
     """
@@ -95,8 +95,7 @@ def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
 def indexed_choice_map(
     ks: ArrayLike, inner: ChoiceMappable
 ) -> Union[IndexedChoiceMap, EmptyChoice]:
-    """Construct an indexed choice map from an array of indices and an inner
-    choice map.
+    """Construct an indexed choice map from an array of indices and an inner choice map.
 
     The indices may be a bare integer, or a list or :py:class:`jnp.Array` of integers;
     it will be promoted to a :py:class:`jnp.Array` if needed.

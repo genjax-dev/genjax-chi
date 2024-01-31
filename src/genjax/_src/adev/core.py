@@ -108,14 +108,14 @@ def reap_key():
 
 
 class CPSInterpreter(Pytree):
-    """The `CPSInterpreter` takes a `Jaxpr` to a CPS-transformed `Jaxpr`, where
-    certain primitives (`sample_p`) are provided with with the static
-    continuation (for the rest of the computation).
+    """The `CPSInterpreter` takes a `Jaxpr` to a CPS-transformed `Jaxpr`, where certain
+    primitives (`sample_p`) are provided with with the static continuation (for the rest
+    of the computation).
 
-    The goal of this interpreter is to setup these primitives to have
-    access to the continuations from their invocation sites, so that
-    another transformation (the ADEV AD transformation) can use the
-    continuation there (as part of its construction of an AD estimator).
+    The goal of this interpreter is to setup these primitives to have access to the
+    continuations from their invocation sites, so that another transformation (the ADEV
+    AD transformation) can use the continuation there (as part of its construction of an
+    AD estimator).
     """
 
     @classmethod

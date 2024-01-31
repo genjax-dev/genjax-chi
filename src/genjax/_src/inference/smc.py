@@ -165,9 +165,9 @@ class SMCAlgorithm(InferenceAlgorithm):
 
 
 class Initialize(SMCAlgorithm):
-    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well
-    as the number of particles `n_particles: Int`, initialize a particle
-    collection using importance sampling."""
+    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the
+    number of particles `n_particles: Int`, initialize a particle collection using
+    importance sampling."""
 
     target: Target
     q: ChoiceDistribution

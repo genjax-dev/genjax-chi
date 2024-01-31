@@ -51,9 +51,9 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 
 class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
-    implements `GenerativeFunction` interface semantics that support branching
-    control flow patterns, including control flow patterns which branch on
-    other stochastic choices.
+    implements `GenerativeFunction` interface semantics that support branching control
+    flow patterns, including control flow patterns which branch on other stochastic
+    choices.
 
     !!! info "Existence uncertainty"
 

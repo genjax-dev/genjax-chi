@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `genjax.interpreted` language is a generative function language which
-exposes a less restrictive set of program constructs, based on normal Python
-programs.
+"""The `genjax.interpreted` language is a generative function language which exposes a
+less restrictive set of program constructs, based on normal Python programs.
 
 The intent of this language is pedagogical - one can use it to rapidly construct
 models and prototype inference, but it is not intended to be used for performance

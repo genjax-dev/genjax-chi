@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module supports incremental computation using a form of JVP-inspired
-computation with a type of generalized tangent values (e.g. `ChangeTangent`
-below).
+"""This module supports incremental computation using a form of JVP-inspired computation
+with a type of generalized tangent values (e.g. `ChangeTangent` below).
 
 Incremental computation is currently a concern of Gen's `update` GFI method - and can be utilized _as a runtime performance optimization_ for computing the weight (and changes to `Trace` instances) which `update` computes.
 

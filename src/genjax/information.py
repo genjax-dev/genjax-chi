@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains estimators of information-theoretic quantities
-implemented using the generative function interface.
+"""This module contains estimators of information-theoretic quantities implemented using
+the generative function interface.
 
 It supports inference diagnostic tools (like AIDE and SDOS) as well as
 entropy estimation tools (like EEVI).
