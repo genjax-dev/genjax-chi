@@ -65,8 +65,7 @@ class RepeatCombinator(
     JAXGenerativeFunction,
 ):
     """The `RepeatCombinator` supports i.i.d sampling from generative functions
-    (for vectorized mapping over arguments, see `MapCombinator`).
-    """
+    (for vectorized mapping over arguments, see `MapCombinator`)."""
 
     inner: JAXGenerativeFunction
     repeats: Int = Pytree.static()

@@ -65,7 +65,9 @@ class StaticGenerativeFunction(
     JAXGenerativeFunction,
     SupportsCalleeSugar,
 ):
-    """A `StaticGenerativeFunction` is a generative function which relies on program transformations applied to JAX traceable Python programs to implement the generative function interface.
+    """A `StaticGenerativeFunction` is a generative function which relies on
+    program transformations applied to JAX traceable Python programs to
+    implement the generative function interface.
 
     By virtue of the implementation, any source program which is provided to this generative function *must* be JAX traceable, meaning [all the footguns for programs that JAX exposes](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html) apply to the source program.
 

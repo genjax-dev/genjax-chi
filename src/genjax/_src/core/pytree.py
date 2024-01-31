@@ -36,9 +36,8 @@ from genjax._src.core.typing import (
 
 
 class Pytree(eqx.Module):
-    """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
-    system.
-    """
+    """`Pytree` is an abstract base class which registers a class with JAX's
+    `Pytree` system."""
 
     @classmethod
     def static(cls, **kwargs):
@@ -172,11 +171,11 @@ class Pytree(eqx.Module):
     def tree_stack(cls, trees):
         """Takes a list of trees and stacks every corresponding leaf.
 
-        For example, given two trees ((a, b), c) and ((a', b'), c'), returns
-        ((stack(a, a'), stack(b, b')), stack(c, c')).
+        For example, given two trees ((a, b), c) and ((a', b'), c'),
+        returns ((stack(a, a'), stack(b, b')), stack(c, c')).
 
-        Useful for turning a list of objects into something you can feed to
-        a vmapped function.
+        Useful for turning a list of objects into something you can feed
+        to a vmapped function.
         """
         leaves_list = []
         treedef_list = []
@@ -193,7 +192,8 @@ class Pytree(eqx.Module):
 
     @classmethod
     def tree_unstack(cls, tree):
-        """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
+        """Takes a tree and turns it into a list of trees. Inverse of
+        tree_stack.
 
         For example, given a tree ((a, b), c), where a, b, and c all have
         first dimension k, will make k trees [((a[0], b[0]), c[0]), ...,

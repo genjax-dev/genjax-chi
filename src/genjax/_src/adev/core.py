@@ -108,11 +108,14 @@ def reap_key():
 
 
 class CPSInterpreter(Pytree):
-    """The `CPSInterpreter` takes a `Jaxpr` to a CPS-transformed `Jaxpr`, where certain primitives (`sample_p`) are provided with
-    with the static continuation (for the rest of the computation).
+    """The `CPSInterpreter` takes a `Jaxpr` to a CPS-transformed `Jaxpr`, where
+    certain primitives (`sample_p`) are provided with with the static
+    continuation (for the rest of the computation).
 
-    The goal of this interpreter is to setup these primitives to have access to the continuations from their invocation sites, so that another transformation
-    (the ADEV AD transformation) can use the continuation there (as part of its construction of an AD estimator).
+    The goal of this interpreter is to setup these primitives to have
+    access to the continuations from their invocation sites, so that
+    another transformation (the ADEV AD transformation) can use the
+    continuation there (as part of its construction of an AD estimator).
     """
 
     @classmethod
@@ -263,7 +266,10 @@ class Dual(Pytree):
 
 
 class ADInterpreter(Pytree):
-    """The `ADInterpreter` takes a `Jaxpr` which has been CPS-transformed, and propagates dual numbers through it to compute forward mode AD. When this interpreter hits
+    """The `ADInterpreter` takes a `Jaxpr` which has been CPS-transformed, and
+    propagates dual numbers through it to compute forward mode AD.
+
+    When this interpreter hits
     the `sample_p` primitive, it creates a continuation closure which is passed to the gradient strategy which the primitive is using.
     """
 
@@ -295,7 +301,10 @@ class ADInterpreter(Pytree):
 
     @classmethod
     def sow_keys(cls, fn):
-        """Sow keys at `reap_key_p` primitive invocations. When a key is sowed, it is split and evolved forward."""
+        """Sow keys at `reap_key_p` primitive invocations.
+
+        When a key is sowed, it is split and evolved forward.
+        """
 
         @wraps(fn)
         def wrapped(key, *args):

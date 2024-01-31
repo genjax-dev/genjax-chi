@@ -14,8 +14,7 @@
 """This module implements a generative function combinator which allows
 statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
-input).
-"""
+input)."""
 
 import jax
 import jax.numpy as jnp

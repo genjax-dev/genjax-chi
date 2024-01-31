@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module contains a debugger based around inserting/recording state from
-pure functions.
-"""
+pure functions."""
 
 import functools
 import inspect

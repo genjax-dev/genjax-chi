@@ -636,8 +636,8 @@ def strip(v):
 
 
 class Mask(Choice):
-    """The `Mask` choice datatype provides access to the masking system. The masking
-    system is heavily influenced by the functional `Option` monad.
+    """The `Mask` choice datatype provides access to the masking system. The
+    masking system is heavily influenced by the functional `Option` monad.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Choice` instances, and participate in inference computations (like scores, and importance weights or density ratios).
 
@@ -889,9 +889,9 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        """Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice map $c \\sim p(\\cdot; x)$, as well as any
-        untraced randomness $r \\sim p(\\cdot; x, c)$ to produce a trace $t =
-        (x, c, r)$.
+        """Given a `key: PRNGKey` and arguments `x: Tuple`, samples a choice
+        map $c \\sim p(\\cdot; x)$, as well as any untraced randomness $r \\sim
+        p(\\cdot; x, c)$ to produce a trace $t = (x, c, r)$.
 
         While the types of traces `t` are formally defined by $(x, c, r)$, they will often store additional information - like the _score_ ($s$):
 
@@ -1161,8 +1161,7 @@ class GenerativeFunction(Pytree):
 
 
 class JAXGenerativeFunction(GenerativeFunction, Pytree):
-    """A `GenerativeFunction` subclass for JAX compatible generative
-    functions.
+    """A `GenerativeFunction` subclass for JAX compatible generative functions.
 
     Mixing in this class denotes that a generative function implementation can be used within a calling context where JAX transformations are being applied, or JAX tracing is being applied (e.g. `jax.jit`). As a callee in other generative functions, this type exposes an `__abstract_call__` method which can be use to customize the behavior under abstract tracing (a default is provided, and users are not expected to interact with this functionality).
 
@@ -1177,7 +1176,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], ArrayLike],
         Callable[[Choice, Tuple], Any],
     ]:
-        """The `unzip` method expects a fixed (under gradients) `Choice` argument, and returns two `Callable` instances: the first exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> score` where `score` is the log density returned by the `assess` method, and the second exposes a pure function from `(differentiable: Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the returned value from the `assess` method.
+        """The `unzip` method expects a fixed (under gradients) `Choice`
+        argument, and returns two `Callable` instances: the first exposes a
+        pure function from `(differentiable: Tuple, nondifferentiable: Tuple)
+        -> score` where `score` is the log density returned by the `assess`
+        method, and the second exposes a pure function from `(differentiable:
+        Tuple, nondifferentiable: Tuple) -> retval` where `retval` is the
+        returned value from the `assess` method.
 
         Arguments:
             fixed: A fixed choice map.
@@ -1212,9 +1217,11 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
     def __abstract_call__(self, *args) -> Any:
         """Used to support JAX tracing, although this default implementation
-        involves no JAX operations (it takes a fixed-key sample from the
-        return value). Generative functions may customize this to improve
-        compilation time.
+        involves no JAX operations (it takes a fixed-key sample from the return
+        value).
+
+        Generative functions may customize this to improve compilation
+        time.
         """
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 

@@ -45,7 +45,10 @@ from genjax._src.inference.translator import TraceTranslator
 
 
 class ParticleCollection(Pytree):
-    """A collection of weighted particles. Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`)."""
+    """A collection of weighted particles.
+
+    Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`).
+    """
 
     particles: Trace
     log_weights: FloatArray
@@ -162,7 +165,9 @@ class SMCAlgorithm(InferenceAlgorithm):
 
 
 class Initialize(SMCAlgorithm):
-    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the number of particles `n_particles: Int`, initialize a particle collection using importance sampling."""
+    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well
+    as the number of particles `n_particles: Int`, initialize a particle
+    collection using importance sampling."""
 
     target: Target
     q: ChoiceDistribution
