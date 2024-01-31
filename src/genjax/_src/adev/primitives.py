@@ -378,8 +378,8 @@ class Baseline(ADEVPrimitive):
             (kpure, new_kdual),
         )
 
-        def _inner(l, b):
-            return l + b
+        def _inner(left, right):
+            return left + right
 
         return jax.jvp(
             _inner,

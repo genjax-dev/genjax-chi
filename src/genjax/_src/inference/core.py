@@ -23,38 +23,12 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Any,
-    Callable,
     FloatArray,
     PRNGKey,
     Tuple,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
-
-#######################
-# Choice distribution #
-#######################
-
-
-class ChoiceDistribution(Distribution):
-    @abstractmethod
-    def random_weighted(
-        self,
-        key: PRNGKey,
-        *args,
-    ) -> Tuple[FloatArray, Choice]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        latent_choices: Choice,
-        *args,
-    ) -> FloatArray:
-        raise NotImplementedError
-
 
 ####################
 # Posterior target #
@@ -133,6 +107,28 @@ class InferenceAlgorithm(Pytree):
         pass
 
 
+#######################
+# Choice distribution #
+#######################
+
+
+class ChoiceDistribution(Distribution):
+    @abstractmethod
+    def random_weighted(
+        self,
+        key: PRNGKey,
+    ) -> Tuple[FloatArray, Choice]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        latent_choices: Choice,
+    ) -> FloatArray:
+        raise NotImplementedError
+
+
 ############
 # Marginal #
 ############
@@ -141,24 +137,24 @@ class InferenceAlgorithm(Pytree):
 class Marginal(ChoiceDistribution):
     selection: Selection
     p: GenerativeFunction
-    make_alg: Callable[[Any, ...], InferenceAlgorithm] = Pytree.static()  # type: ignore
+    p_args: Tuple
+    alg: InferenceAlgorithm
 
     @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
-        p_args: Tuple,
-        q_args: Tuple,
     ) -> Tuple[FloatArray, Choice]:
         key, sub_key = jax.random.split(key)
-        tr = self.p.simulate(sub_key, p_args)
+        tr = self.p.simulate(sub_key, self.p_args)
         weight = tr.get_score()
         choices = tr.get_choice()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
-        target = Target(self.p, p_args, latent_choices)
-        alg = self.make_alg(*q_args)
-        Z = alg.estimate_reciprocal_normalizing_constant(key, target, other_choices, weight)
+        target = Target(self.p, self.p_args, latent_choices)
+        Z = self.alg.estimate_reciprocal_normalizing_constant(
+            key, target, other_choices, weight
+        )
         return (Z, latent_choices)
 
     @typecheck
@@ -166,12 +162,9 @@ class Marginal(ChoiceDistribution):
         self,
         key: PRNGKey,
         latent_choices: Choice,
-        p_args: Tuple,
-        q_args: Tuple,
     ) -> FloatArray:
-        target = Target(self.p, p_args, latent_choices)
-        alg = self.make_alg(*q_args)
-        Z = alg.estimate_normalizing_constant(key, target)
+        target = Target(self.p, self.p_args, latent_choices)
+        Z = self.alg.estimate_normalizing_constant(key, target)
         return Z
 
 
@@ -184,24 +177,20 @@ class Marginal(ChoiceDistribution):
 # wrt variational inference via ADEV yet.
 class Normalized(ChoiceDistribution):
     target: Target
-    make_alg: Callable[[Any, ...], InferenceAlgorithm] = Pytree.static()  # type: ignore
+    alg: InferenceAlgorithm
 
     @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
-        *alg_args,
     ) -> Tuple[FloatArray, Choice]:
-        alg = self.make_alg(*alg_args)
-        return alg.random_weighted(key, self.target)
+        return self.alg.random_weighted(key, self.target)
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
         latent_choices: Choice,
-        *alg_args,
     ) -> FloatArray:
-        alg = self.make_alg(*alg_args)
-        Z = alg.estimate_logpdf(key, latent_choices, self.target)
+        Z = self.alg.estimate_logpdf(key, latent_choices, self.target)
         return Z
