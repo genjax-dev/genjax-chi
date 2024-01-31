@@ -57,11 +57,11 @@ class Target(Pytree):
 
 
 class InferenceAlgorithm(Pytree):
-    """The class `InferenceAlgorithm` represents the type of inference algorithms,
-    programs which implement interfaces for sampling from approximate posterior
-    representations, and estimating the density of the approximate posterior.
+    """The abstract class `InferenceAlgorithm` represents the type of inference
+    algorithms, programs which implement interfaces for sampling from approximate
+    posterior representations, and estimating the density of the approximate posterior.
 
-    `InferenceAlgorithm` implementors can also implement two optional methods designed to support effective gradient estimators for variational objectives (`estimate_normalizing_constant` and `estimate_reciprocal_normalizing_constant`).
+    Subclasses of type `InferenceAlgorithm` can also implement two optional methods designed to support effective gradient estimators for variational objectives (`estimate_normalizing_constant` and `estimate_reciprocal_normalizing_constant`).
     """
 
     #########
