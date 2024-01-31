@@ -327,15 +327,16 @@ class ADInterpreter(Pytree):
                 flat_primals, flat_tangents = ADInterpreter.flat_unzip(
                     Dual.tree_leaves(Dual.tree_pure(duals[num_consts:]))
                 )
-                args = flat_primals
-                _, (adev_prim, key, *primals) = jtu.tree_unflatten(in_tree, args)
+                _, (adev_prim, key, *primals) = jtu.tree_unflatten(
+                    in_tree, flat_primals
+                )
                 _, (_, _, *tangents) = jtu.tree_unflatten(in_tree, flat_tangents)
                 kont_closure = PytreeContinuationClosure(dual_env, kont)
                 primal_out, tangent_out = adev_prim.jvp_estimate(
                     key,
                     primals,
                     tangents,
-                    kont_closure,
+                    (kont_closure.pure, kont_closure.dual),
                 )
                 return Dual(primal_out, tangent_out)
 
