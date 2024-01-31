@@ -49,12 +49,26 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 ## Quickstart
 
-Install GenJAX via [PyPI](https://pypi.org/project/genjax/):
+GenJAX is currently private. To configure your machine to access the package:
 
-```sh
-pip install genjax
+- Ask @sritchie to add you to the `probcomp-caliban` project on Google Cloud.
+- [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
+- Follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
+- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing) and configure the tool with the `probcomp-caliban` project ID.
+
+To install GenJAX using `pip`:
+
+```bash
+pip install keyring keyrings.google-artifactregistry-auth
+pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
 ```
 
+If you're using Poetry:
+
+```bash
+poetry source add --priority=explicit gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
+poetry add genjax --source gcp
+```
 Then install [JAX](https://github.com/google/jax) using [this
 guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the
 command for the architecture you're targeting. To run GenJAX without GPU
