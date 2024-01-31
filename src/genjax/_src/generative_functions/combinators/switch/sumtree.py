@@ -18,7 +18,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Sequence
 
 

@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int, PRNGKey, Tuple
 
 

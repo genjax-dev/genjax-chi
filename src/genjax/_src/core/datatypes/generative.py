@@ -29,8 +29,7 @@ from genjax._src.core.interpreters.incremental import (
     tree_diff_primal,
     tree_diff_unknown_change,
 )
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -377,7 +376,7 @@ class ChoiceMap(Choice):
     ###########
 
     def __eq__(self, other):
-        return self.flatten() == other.flatten()
+        return self.tree_flatten() == other.tree_flatten()
 
     def __add__(self, other):
         return self.safe_merge(other)
@@ -1167,13 +1166,13 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         """
 
         def score(differentiable: Tuple, nondifferentiable: Tuple) -> ArrayLike:
-            provided, args = tree_zipper(differentiable, nondifferentiable)
+            provided, args = Pytree.tree_grad_zip(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
             (score, _) = self.assess(merged, args)
             return score
 
         def retval(differentiable: Tuple, nondifferentiable: Tuple) -> Any:
-            provided, args = tree_zipper(differentiable, nondifferentiable)
+            provided, args = Pytree.tree_grad_zip(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
             (_, retval) = self.assess(merged, args)
             return retval
@@ -1187,7 +1186,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         fixed = trace.strip().filter(selection.complement())
         chm = trace.strip().filter(selection)
         scorer, _ = self.unzip(key, fixed)
-        grad, nograd = tree_grad_split(
+        grad, nograd = Pytree.tree_grad_split(
             (chm, trace.get_args()),
         )
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)

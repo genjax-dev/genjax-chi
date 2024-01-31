@@ -35,10 +35,7 @@ from genjax._src.core.datatypes.generative import (
     Trace,
 )
 from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.pytree.checks import (
-    static_check_tree_leaves_have_matching_leading_dim,
-)
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -410,7 +407,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     ) -> Tuple[Any, ArrayLike]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        chm_dim = static_check_tree_leaves_have_matching_leading_dim(chm)
+        chm_dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(chm)
 
         # The argument leaves and choice map leaves must have matching
         # broadcast dimension.

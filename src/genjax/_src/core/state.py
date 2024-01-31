@@ -22,7 +22,7 @@ import jax.tree_util as jtu
 from oryx import harvest
 
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Callable
 
 NAMESPACE = "state"

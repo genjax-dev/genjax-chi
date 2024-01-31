@@ -42,10 +42,10 @@ rich = "^13.7.0"
 jaxtyping = "^0.2.25"
 optax = "^0.1.8"
 beartype = "^0.16.4"
-dill = "^0.3.7"
+dill = "^0.3.8"
 pygments = "^2.17.2"
 plum-dispatch = "^2.3.2"
-equinox = "^0.11.2"
+equinox = "^0.11.3"
 typing_extensions = ">=4.6.0,<5"
 
 [tool.poetry.group.dev]

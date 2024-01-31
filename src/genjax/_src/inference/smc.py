@@ -25,7 +25,7 @@ from jax import vmap
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import Choice, GenerativeFunction, Trace
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     BoolArray,
     FloatArray,

@@ -20,7 +20,7 @@ import blackjax
 import jax
 
 from genjax._src.core.datatypes.generative import Selection, Trace
-from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Int, PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
@@ -59,7 +59,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
-        grad, nograd = tree_grad_split(
+        grad, nograd = Pytree.tree_grad_split(
             (initial_chm_position, trace.get_args()),
         )
 
@@ -85,7 +85,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         # Shouldn't it just pass a single key along?
         sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
-        final_positions, _ = tree_zipper(states.position, nograd)
+        final_positions, _ = Pytree.tree_grad_zip(states.position, nograd)
         return final_positions
 
     def reversal(self):
@@ -124,7 +124,7 @@ class NoUTurnSampler(MCMCKernel):
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
-        grad, nograd = tree_grad_split(
+        grad, nograd = Pytree.tree_grad_split(
             (initial_chm_position, trace.get_args()),
         )
 
@@ -148,7 +148,7 @@ class NoUTurnSampler(MCMCKernel):
         # Shouldn't it just pass a single key along?
         sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
-        final_positions, _ = tree_zipper(states.position, nograd)
+        final_positions, _ = Pytree.tree_grad_zip(states.position, nograd)
         return final_positions
 
     def reversal(self):

@@ -41,7 +41,7 @@ from genjax._src.core.interpreters.incremental import (
     tree_diff_primal,
     tree_diff_unknown_change,
 )
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,

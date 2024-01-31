@@ -32,9 +32,6 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.closure import DynamicClosure, dynamic_closure
-from genjax._src.core.pytree.const import PytreeConst, const
-from genjax._src.core.pytree.pytree import Pytree
 
 __all__ = [
     # Hashable dictionary type.
@@ -60,10 +57,4 @@ __all__ = [
     "JAXGenerativeFunction",
     # Masking.
     "Mask",
-    # Pytree meta.
-    "Pytree",
-    "PytreeConst",
-    "const",
-    "DynamicClosure",
-    "dynamic_closure",
 ]

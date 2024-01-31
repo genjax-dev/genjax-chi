@@ -22,7 +22,7 @@ from tensorflow_probability.substrates import jax as tfp
 from genjax._src.adev.core import (
     ADEVPrimitive,
 )
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Callable,
     PRNGKey,

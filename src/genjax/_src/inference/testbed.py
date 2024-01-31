@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import select
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
     unfold_combinator,

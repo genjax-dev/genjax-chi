@@ -18,7 +18,7 @@ import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Callable, Sequence
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 

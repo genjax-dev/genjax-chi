@@ -26,9 +26,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
 )
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.checks import (
-    static_check_tree_leaves_have_matching_leading_dim,
-)
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import ArrayLike, IntArray, Union, typecheck
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
@@ -107,7 +105,7 @@ def indexed_choice_map(
         return inner
 
     indices = jnp.array(ks, copy=False)
-    static_check_tree_leaves_have_matching_leading_dim((inner, indices))
+    Pytree.static_check_tree_leaves_have_matching_leading_dim((inner, indices))
     return IndexedChoiceMap(jnp.array(ks), choice_map(inner))
 
 

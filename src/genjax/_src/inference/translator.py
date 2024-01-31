@@ -26,8 +26,7 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     Trace,
 )
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Bool,
     Callable,
@@ -69,7 +68,7 @@ class TraceTranslator(Pytree):
 
 
 def stack_differentiable(v):
-    grad_tree, _ = tree_grad_split(v)
+    grad_tree, _ = Pytree.tree_grad_split(v)
     leaves = jtu.tree_leaves(grad_tree)
     stacked = jnp.stack(leaves) if len(leaves) > 1 else leaves[0]
     return stacked
@@ -98,10 +97,10 @@ class ExtendingTraceTranslator(TraceTranslator):
 
     def value_and_jacobian_correction(self, forward, trace):
         trace_choices = trace.get_choice()
-        grad_tree, no_grad_tree = tree_grad_split(trace_choices)
+        grad_tree, no_grad_tree = Pytree.tree_grad_split(trace_choices)
 
         def _inner(differentiable):
-            choices = tree_zipper(differentiable, no_grad_tree)
+            choices = Pytree.tree_grad_zip(differentiable, no_grad_tree)
             out_choices = forward(choices)
             return out_choices, out_choices
 
@@ -199,10 +198,10 @@ class TraceKernelTraceTranslator(TraceTranslator):
         prev_model_choices,
         K_aux_choices,
     ):
-        grad_tree, no_grad_tree = tree_grad_split(prev_model_choices)
+        grad_tree, no_grad_tree = Pytree.tree_grad_split(prev_model_choices)
 
         def _inner(differentiable):
-            prev_model_choices = tree_zipper(differentiable, no_grad_tree)
+            prev_model_choices = Pytree.tree_grad_zip(differentiable, no_grad_tree)
             (_, new_choices) = self.K.assess(
                 K_aux_choices, (prev_model_choices, *self.K_args)
             )

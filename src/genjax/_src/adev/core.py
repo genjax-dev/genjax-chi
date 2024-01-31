@@ -29,7 +29,7 @@ from genjax._src.core.interpreters.forward import (
     initial_style_bind,
 )
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,

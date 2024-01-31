@@ -41,8 +41,7 @@ from genjax._src.core.interpreters.incremental import (
     tree_diff_primal,
     tree_diff_tangent,
 )
-from genjax._src.core.pytree.const import tree_map_collapse_const, tree_map_const
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -121,7 +120,7 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 
 def _trace(gen_fn, addr, *args):
     static_check_address_type(addr)
-    addr = tree_map_const(addr)
+    addr = Pytree.tree_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         gen_fn,
         addr,
@@ -216,21 +215,21 @@ class StaticLanguageHandler(StatefulHandler):
         if isinstance(self.constraints, EmptyChoice):
             return self.constraints
         else:
-            addr = tree_map_collapse_const(addr)
+            addr = Pytree.tree_unwrap_const(addr)
             return self.constraints.get_submap(addr)
 
     def get_subtrace(self, addr):
-        addr = tree_map_collapse_const(addr)
+        addr = Pytree.tree_unwrap_const(addr)
         return self.previous_trace.get_subtrace(addr)
 
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
-        addr = tree_map_collapse_const(addr)
+        addr = Pytree.tree_unwrap_const(addr)
         self.address_choices = self.address_choices.trie_insert(addr, tr)
 
     @typecheck
     def set_discard_state(self, addr, ch: Choice):
-        addr = tree_map_collapse_const(addr)
+        addr = Pytree.tree_unwrap_const(addr)
         self.discard_choices = self.discard_choices.trie_insert(addr, ch)
 
     def dispatch(self, prim, *tracers, **_params):

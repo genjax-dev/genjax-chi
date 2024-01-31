@@ -23,7 +23,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,

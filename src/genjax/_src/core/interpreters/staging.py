@@ -20,7 +20,7 @@ from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 
 

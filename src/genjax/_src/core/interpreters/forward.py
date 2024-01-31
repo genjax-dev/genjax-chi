@@ -28,7 +28,7 @@ from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Bool, Callable, List, Union, Value, typecheck
 
 #########################

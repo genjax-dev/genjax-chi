@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Callable, Dict, List, PRNGKey, Protocol, Tuple
 
 
