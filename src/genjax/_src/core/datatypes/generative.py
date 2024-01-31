@@ -1177,7 +1177,8 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Callable[[Choice, Tuple], Any],
     ]:
         """The `unzip` method expects a fixed (under gradients) `Choice`
-        argument, and returns two `Callable` instances: the first exposes a
+        argument, and returns two `Callable` instances: the first exposes a.
+
         pure function from `(differentiable: Tuple, nondifferentiable: Tuple)
         -> score` where `score` is the log density returned by the `assess`
         method, and the second exposes a pure function from `(differentiable:
