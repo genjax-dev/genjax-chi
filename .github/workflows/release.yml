@@ -1,27 +1,63 @@
-name: Release to PyPI
+name: Release to Artifact Registry
 
 on:
   release:
     types: [published]
 
 jobs:
-  test:
+  release:
     runs-on: ubuntu-latest
+
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          # This is here so that the versioning plugin will be able to see tags
+          # and version using them.
+          fetch-depth: 0
+
+      - name: Test Secrets
+        env:
+          TEST_SECRET: ${{ secrets.ARTIFACT_REGISTRY_KEY }}
+        run: |
+          echo ${#TEST_SECRET}
 
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
 
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Display gcloud info
+        run: gcloud info
+
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
 
-      - name: Configure deploy key
-        run: poetry config pypi-token.pypi ${{ secrets.PYPI_API_KEY }}
+      - name: Configure deploy keys
+        run: |
+          poetry self add poetry-dynamic-versioning[plugin]
+          poetry config pypi-token.pypi ${{ secrets.PYPI_API_KEY }}
+          poetry self add keyrings.google-artifactregistry-auth
+          poetry config repositories.gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/
 
       - name: Install deps
         run: poetry install
 
-      - name: Deploy to PyPI
-        run: poetry publish --build
+      # NOTE: re-enable this once we deploy publicly and remove the artifact
+      # registry options.
+      # - name: Deploy to PyPI
+      #   run: poetry publish --build
+
+      - name: Deploy to Artifact Registry
+        run: poetry publish --build --repository gcp
