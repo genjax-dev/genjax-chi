@@ -106,6 +106,10 @@ defineConstant = { DEBUG = true }
 reportMissingImports = true
 reportMissingTypeStubs = false
 
+[tool.docformatter]
+black = true
+recursive = true
+
 [tool.ruff]
 exclude = [
     ".bzr",
