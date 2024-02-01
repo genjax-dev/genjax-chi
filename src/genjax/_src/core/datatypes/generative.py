@@ -130,12 +130,6 @@ class NoneSelection(Selection):
     def complement(self):
         return AllSelection()
 
-    def has_addr(self, addr):
-        return False
-
-    def get_subselection(self, addr):
-        return self
-
     ###################
     # Pretty printing #
     ###################
@@ -149,12 +143,6 @@ class AllSelection(Selection):
     def complement(self):
         return NoneSelection()
 
-    def has_addr(self, addr):
-        return True
-
-    def get_subselection(self, addr):
-        return self
-
     ###################
     # Pretty printing #
     ###################
@@ -163,9 +151,9 @@ class AllSelection(Selection):
         return rich_tree.Tree("[bold](AllSelection)")
 
 
-##################################
-# Concrete structured selections #
-##################################
+###########################
+# Concrete map selections #
+###########################
 
 
 class HierarchicalSelection(MapSelection):
