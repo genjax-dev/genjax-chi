@@ -17,9 +17,7 @@ import jax.numpy as jnp
 from genjax._src.core.datatypes.generative import (
     AllSelection,
     Choice,
-    ChoiceMap,
     ChoiceValue,
-    DisjointUnionChoiceMap,
     EmptyChoice,
     HierarchicalChoiceMap,
     HierarchicalSelection,
@@ -27,7 +25,7 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import ArrayLike, IntArray, Union, typecheck
+from genjax._src.core.typing import Any, ArrayLike, Dict, Int, IntArray, typecheck
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
     IndexedSelection,
@@ -45,23 +43,34 @@ def trie_from_dict(constraints: dict):
     for k, v in constraints.items():
         if isinstance(v, dict):
             trie = trie.trie_insert(k, trie_from_dict(v))
+        elif isinstance(v, Choice):
+            trie = trie.trie_insert(k, v)
         else:
-            trie = trie.trie_insert(k, choice_map(v))
+            trie = trie.trie_insert(k, choice(v))
     return trie
 
 
-ChoiceMappable = Union[Choice, dict]
+ChoiceMappable = Choice | Dict
 
 
-def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
-    """Shortcut constructor for GenJAX ChoiceMap objects.
+def choice(*vs: Any):
+    if len(vs) == 0:
+        return EmptyChoice()
+    elif len(vs) == 1:
+        return ChoiceValue(vs[0])
+    else:
+        raise NotImplementedError("choice expects either 0 or 1 arguments.")
 
-    When called with no arguments, returns an empty (mutable) choice map which
-    you can populate using the subscript operator as in
+
+def choice_map(*vs: ChoiceMappable) -> Choice:
+    """Shortcut constructor for choice map objects.
+
+    When called with no arguments, returns an empty `HierarchicalChoiceMap` which
+    you can populate using the functional `HierarchicalChoiceMap.insert` interface as in
 
         ```python
-        chm = genjax.choice_map()
-        chm["x"] = 3.0
+        chm = genjax.choice()
+        chm = chm.insert("x", 3.0)
         ```
 
     When called with a dictionary argument, the equivalent :py:class:`HierarchicalChoiceMap`
@@ -69,9 +78,6 @@ def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
     the dict are integers, an :py:class:`IndexedChoiceMap` is produced.)
 
     When called with a single argument of any other type, constructs a :py:class:`ChoiceValue`.
-
-    Finally, if called with a sequence of other :py:class:`ChoiceMap` objects, produces a
-    :py:class:`DisjointUnionChoiceMap`.
     """
     if len(vs) == 0:
         return HierarchicalChoiceMap()
@@ -85,22 +91,23 @@ def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
             else:
                 return HierarchicalChoiceMap(trie_from_dict(v))
         else:
-            return ChoiceValue(v)
+            raise NotImplementedError(
+                "Argument is expected to be either a dict or a Choice."
+            )
     else:
-        if all(map(lambda m: isinstance(m, ChoiceMap), vs)):
-            return DisjointUnionChoiceMap(vs)
-        raise TypeError("To create a union ChoiceMap, all arguments must be ChoiceMaps")
+        raise NotImplementedError("choice_map expects either 0 or 1 arguments.")
 
 
 def indexed_choice_map(
-    ks: ArrayLike, inner: ChoiceMappable
-) -> Union[IndexedChoiceMap, EmptyChoice]:
+    ks: ArrayLike,
+    inner: ChoiceMappable,
+) -> EmptyChoice | IndexedChoiceMap:
     """Construct an indexed choice map from an array of indices and an inner choice map.
 
     The indices may be a bare integer, or a list or :py:class:`jnp.Array` of integers;
     it will be promoted to a :py:class:`jnp.Array` if needed.
 
-    The inner choice map can of any form accepted by the shortcut py:func:`choice_map`.
+    The inner choice map can of any form accepted by the shortcut py:func:`choice`.
     """
     if isinstance(inner, EmptyChoice):
         return inner
@@ -114,8 +121,8 @@ def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
     """Construct a vector choice map from the given one.
 
     If `c` is the :py:class:`EmptyChoice`, it is returned unmodified; otherwise
-    `c` may be of any type accepted by the :py:func:`choice_map` shortcut;
-    the result is `VectorChoiceMap(choice_map(c))`.
+    `c` may be of any type accepted by the :py:func:`choice` shortcut;
+    the result is `VectorChoiceMap(choice(c))`.
     """
     if isinstance(c, EmptyChoice):
         return c
@@ -123,7 +130,17 @@ def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
 
 
 @typecheck
-def indexed_select(idx: Union[int, IntArray], *choices: Selection):
+def select(
+    *addresses: Any,
+) -> Selection:
+    return HierarchicalSelection.from_addresses(*addresses)
+
+
+@typecheck
+def indexed_select(
+    idx: Int | IntArray,
+    *choices: Selection,
+) -> IndexedSelection:
     idx = jnp.atleast_1d(idx)
     if len(choices) == 0:
         return IndexedSelection(idx, AllSelection())

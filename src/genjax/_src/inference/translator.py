@@ -87,8 +87,8 @@ def safe_slogdet(v):
 
 
 class ExtendingTraceTranslator(TraceTranslator):
-    choice_map_forward: Callable = Pytree.static()  # part of bijection.
-    choice_map_inverse: Callable = Pytree.static()  # part of bijection
+    choice_forward: Callable = Pytree.static()  # part of bijection.
+    choice_inverse: Callable = Pytree.static()  # part of bijection
     check_bijection: Bool
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
@@ -109,7 +109,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         if self.check_bijection:
 
             def optional_check_bijection_is_bijection():
-                backwards = self.choice_map_inverse(transformed)
+                backwards = self.choice_inverse(transformed)
                 flattened = jtu.tree_leaves(
                     jtu.tree_map(
                         lambda v1, v2: jnp.all(v1 == v2),
@@ -131,7 +131,7 @@ class ExtendingTraceTranslator(TraceTranslator):
             key, (self.new_observations, prev_model_choices, *self.q_forward_args)
         )
         transformed, J_log_abs_det = self.value_and_jacobian_correction(
-            self.choice_map_forward, forward_proposal_trace
+            self.choice_forward, forward_proposal_trace
         )
         forward_proposal_score = forward_proposal_trace.get_score()
         constraints = transformed.merge(self.new_observations)
@@ -150,13 +150,13 @@ def extending_trace_translator(
     q_forward: GenerativeFunction,
     q_forward_args: Tuple,
     new_obs: ChoiceMap,
-    choice_map_forward: Callable = lambda v: v,
-    choice_map_backward: Callable = lambda v: v,
+    choice_forward: Callable = lambda v: v,
+    choice_backward: Callable = lambda v: v,
     check_bijection=False,
 ):
     return ExtendingTraceTranslator(
-        choice_map_forward,
-        choice_map_backward,
+        choice_forward,
+        choice_backward,
         check_bijection,
         p_argdiffs,
         q_forward,

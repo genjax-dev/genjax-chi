@@ -83,8 +83,8 @@ class TestSimulate:
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        (_, score1) = genjax.normal.importance(key, genjax.choice_value(y1), (0.0, 1.0))
-        (_, score2) = genjax.normal.importance(key, genjax.choice_value(y2), (0.0, 1.0))
+        (_, score1) = genjax.normal.importance(key, genjax.choice(y1), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, genjax.choice(y2), (0.0, 1.0))
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
@@ -108,8 +108,8 @@ class TestSimulate:
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        (_, score1) = genjax.normal.importance(key, genjax.choice_value(y1), (0.0, 1.0))
-        (_, score2) = genjax.normal.importance(key, genjax.choice_value(y2), (0.0, 1.0))
+        (_, score1) = genjax.normal.importance(key, genjax.choice(y1), (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, genjax.choice(y2), (0.0, 1.0))
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 

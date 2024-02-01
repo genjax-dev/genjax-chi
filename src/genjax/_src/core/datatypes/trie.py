@@ -29,7 +29,7 @@ from genjax._src.core.pytree import Pytree
 class Trie(Pytree, CustomPretty):
     inner: HashableDict = Pytree.field(default_factory=hashable_dict)
 
-    def is_empty(self):
+    def is_static_empty(self):
         return not bool(self.inner)
 
     def get_selection(self):

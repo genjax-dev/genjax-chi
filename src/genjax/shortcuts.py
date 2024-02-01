@@ -13,10 +13,19 @@
 # limitations under the License.
 
 from genjax._src.shortcuts import (
+    choice,
     choice_map,
     indexed_choice_map,
     indexed_select,
+    select,
     vector_choice_map,
 )
 
-__all__ = ["choice_map", "indexed_choice_map", "vector_choice_map", "indexed_select"]
+__all__ = [
+    "choice",
+    "choice_map",
+    "indexed_choice_map",
+    "indexed_select",
+    "select",
+    "vector_choice_map",
+]

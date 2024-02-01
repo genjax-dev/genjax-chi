@@ -27,8 +27,6 @@ from genjax._src.core.datatypes.generative import (
     NoneSelection,
     Selection,
     Trace,
-    choice_value,
-    select,
 )
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.datatypes.trie import Trie
@@ -44,7 +42,6 @@ __all__ = [
     "ChoiceMap",
     "EmptyChoice",
     "ChoiceValue",
-    "choice_value",
     "HierarchicalChoiceMap",
     "DisjointUnionChoiceMap",
     "Trace",
@@ -52,7 +49,6 @@ __all__ = [
     "AllSelection",
     "NoneSelection",
     "HierarchicalSelection",
-    "select",
     "GenerativeFunction",
     "JAXGenerativeFunction",
     # Masking.

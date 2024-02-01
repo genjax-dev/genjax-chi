@@ -18,6 +18,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich.tree as rich_tree
+from equinox import tree_at
 from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
@@ -234,19 +235,38 @@ class Choice(Pytree):
         pass
 
     @abstractmethod
-    def is_empty(self) -> BoolArray:
-        pass
-
-    @abstractmethod
     def get_selection(self) -> Selection:
         pass
 
+    @abstractmethod
+    def is_empty(self) -> BoolArray:
+        pass
+
+    @typecheck
+    def partition(self, selection: Selection):
+        return self.filter(selection), self.filter(selection.complement())
+
+    @typecheck
+    def surgery(self, selection: Selection, replacement: "Choice"):
+        return tree_at(lambda v: v.filter(selection), replacement)
+
     def safe_merge(self, other: "Choice") -> "Choice":
         new, discard = self.merge(other)
-        if not discard.is_empty():
-            raise Exception(f"Discard is non-empty.\n{discard}")
+
+        # If the discarded choice is not empty, raise an error.
+        # However, it's possible that we don't know that the discarded
+        # choice is empty until runtime, so we use checkify.
+        def _check():
+            check_flag = jnp.logical_not(discard.is_empty())
+            checkify.check(
+                check_flag,
+                "The discarded choice is not empty.",
+            )
+
+        optional_check(_check)
         return new
 
+    # This just ignores the discard check.
     def unsafe_merge(self, other: "Choice") -> "Choice":
         new, _ = self.merge(other)
         return new
@@ -265,7 +285,7 @@ class EmptyChoice(Choice):
         return self
 
     def is_empty(self):
-        return True
+        return jnp.array(True)
 
     def get_selection(self):
         return NoneSelection()
@@ -285,7 +305,7 @@ class ChoiceValue(Choice):
         return self.value
 
     def is_empty(self):
-        return False
+        return jnp.array(False)
 
     @dispatch
     def merge(self, other: "ChoiceValue"):
@@ -309,6 +329,18 @@ class ChoiceValue(Choice):
 
 
 class ChoiceMap(Choice):
+    """
+    The type `ChoiceMap` denotes a map-like value which can be sampled from a generative function.
+
+    Generative functions which utilize map-like representations often support a notion of _addressing_,
+    allowing the invocation of generative function callees, whose choices become addressed random choices
+    in the caller's choice map.
+    """
+
+    #######################
+    # Map-like interfaces #
+    #######################
+
     @abstractmethod
     def get_submap(self, addr) -> Choice:
         pass
@@ -316,6 +348,10 @@ class ChoiceMap(Choice):
     @abstractmethod
     def has_submap(self, addr) -> BoolArray:
         pass
+
+    ##############################################
+    # Dispatch overloads for `Choice` interfaces #
+    ##############################################
 
     @dispatch
     def filter(
@@ -328,15 +364,15 @@ class ChoiceMap(Choice):
     def filter(
         self,
         selection: NoneSelection,
-    ) -> "ChoiceMap":
+    ) -> EmptyChoice:
         return EmptyChoice()
 
     @dispatch
     def filter(
         self,
         selection: Selection,
-    ) -> "ChoiceMap":
-        """Filter the addresses in a choice map, returning a new choice map.
+    ) -> Choice:
+        """Filter the addresses in a choice map, returning a new choice.
 
         Examples:
             ```python exec="yes" source="tabbed-left"
@@ -377,25 +413,26 @@ class ChoiceMap(Choice):
     def __eq__(self, other):
         return self.tree_flatten() == other.tree_flatten()
 
-    def __add__(self, other):
+    def __or__(self, other):
+        return DisjointUnionChoiceMap([self, other])
+
+    def __and__(self, other):
         return self.safe_merge(other)
 
-    @dispatch
-    def __getitem__(self, addrs: Tuple):
-        submap = self.get_submap(addrs)
-        if isinstance(submap, ChoiceValue):
-            return submap.get_value()
-        elif isinstance(submap, Mask):
-            if isinstance(submap.value, ChoiceValue):
+    def __getitem__(self, addr: Any):
+        if isinstance(addr, tuple):
+            submap = self.get_submap(addr)
+            if isinstance(submap, ChoiceValue):
                 return submap.get_value()
+            elif isinstance(submap, Mask):
+                if isinstance(submap.value, ChoiceValue):
+                    return submap.get_value()
+                else:
+                    return submap
             else:
                 return submap
         else:
-            return submap
-
-    @dispatch
-    def __getitem__(self, addr: Any):
-        return self.__getitem__((addr,))
+            return self.__getitem__((addr,))
 
 
 #########
@@ -1100,23 +1137,16 @@ class GenerativeFunction(Pytree):
 
         def _none():
             (new_tr, w, retdiff, _) = self.update(key, prev, EmptyChoice(), argdiffs)
-            if possible_discards.is_empty():
-                discard = EmptyChoice()
-            else:
-                # We return the possible_discards, but denote them as invalid via masking.
-                discard = Mask(False, possible_discards)
+            discard = Mask(False, possible_discards)
             primal = Diff.tree_primal(retdiff)
             retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
         def _some(chm):
             (new_tr, w, retdiff, _) = self.update(key, prev, chm, argdiffs)
-            if possible_discards.is_empty():
-                discard = EmptyChoice()
-            else:
-                # The true_discards should match the Pytree type of possible_discards,
-                # but these are valid.
-                discard = Mask(True, possible_discards)
+            # The true_discards should match the Pytree type of possible_discards,
+            # but these are valid.
+            discard = Mask(True, possible_discards)
             primal = Diff.tree_primal(retdiff)
             retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
@@ -1229,30 +1259,34 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 class HierarchicalChoiceMap(ChoiceMap):
     trie: Trie = Pytree.field(default_factory=Trie)
 
-    def is_empty(self):
-        return self.trie.is_empty()
+    def is_empty(self) -> BoolArray:
+        iter = self.get_submaps_shallow()
+        check = jnp.array(True)
+        for _, v in iter:
+            check = jnp.logical_and(check, v.is_empty())
+        return check
 
     @dispatch
     def filter(
         self,
         selection: HierarchicalSelection,
     ) -> Choice:
+        trie = Trie()
+
         def _inner(k, v):
             sub = selection.get_subselection(k)
             under = v.filter(sub)
             return k, under
 
-        trie = Trie()
         iter = self.get_submaps_shallow()
         for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoice):
                 trie = trie.trie_insert(k, v)
 
-        new = HierarchicalChoiceMap(trie)
-        if new.is_empty():
+        if trie.is_static_empty():
             return EmptyChoice()
-        else:
-            return new
+
+        return HierarchicalChoiceMap(trie)
 
     def has_submap(self, addr):
         return self.trie.has_submap(addr)
@@ -1413,13 +1447,3 @@ class DisjointUnionChoiceMap(ChoiceMap):
             sub_tree = submap.__rich_tree__()
             tree.add(sub_tree)
         return tree
-
-
-##############
-# Shorthands #
-##############
-
-# Choices and choice maps
-choice_value = ChoiceValue
-
-select = HierarchicalSelection.from_addresses
