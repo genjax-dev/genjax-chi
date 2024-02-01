@@ -31,7 +31,6 @@ from genjax._src.core.serialization.pickle import (
 )
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     FloatArray,
     PRNGKey,
     Tuple,
@@ -69,7 +68,7 @@ class DistributionTrace(
     def get_choice(self):
         return ChoiceValue(self.value)
 
-    def project(self, selection: Selection) -> ArrayLike:
+    def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, AllSelection):
             return self.get_score()
         else:
@@ -110,7 +109,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[ArrayLike, Any]:
+    ) -> Tuple[FloatArray, Any]:
         pass
 
     @abc.abstractmethod
@@ -119,7 +118,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         v: Any,
         *args,
-    ) -> ArrayLike:
+    ) -> FloatArray:
         pass
 
     @typecheck

@@ -21,7 +21,6 @@ import itertools
 from dataclasses import dataclass
 
 import jax
-import jaxtyping
 from beartype import beartype
 from equinox import module_update_wrapper
 
@@ -39,8 +38,8 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
+    FloatArray,
     List,
     PRNGKey,
     Tuple,
@@ -130,7 +129,7 @@ class AddressVisitor(Pytree):
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -148,8 +147,8 @@ class SimulateHandler(Handler):
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: FloatArray = 0.0
+    weight: FloatArray = 0.0
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -170,7 +169,7 @@ class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    weight: ArrayLike = 0.0
+    weight: FloatArray = 0.0
     discard: Trie = Pytree.field(default_factory=Trie)
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -203,7 +202,7 @@ class UpdateHandler(Handler):
 @dataclass
 class AssessHandler(Handler):
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
@@ -224,7 +223,7 @@ class InterpretedTrace(Trace):
     args: Tuple
     retval: Any
     choices: Trie
-    score: jaxtyping.ArrayLike
+    score: FloatArray
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -244,7 +243,7 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: HierarchicalSelection) -> ArrayLike:
+    def project(self, selection: HierarchicalSelection) -> FloatArray:
         weight = 0.0
         for k, subtrace in self.choices.get_submaps_shallow():
             if selection.has_addr(k):
@@ -322,7 +321,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[InterpretedTrace, jaxtyping.ArrayLike]:
+    ) -> Tuple[InterpretedTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
@@ -342,7 +341,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         prev_trace: Trace,
         choice_map: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
+    ) -> Tuple[InterpretedTrace, FloatArray, Any, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
@@ -367,7 +366,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         self,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[ArrayLike, Any]:
+    ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )

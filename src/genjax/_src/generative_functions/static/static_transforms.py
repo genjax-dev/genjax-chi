@@ -18,7 +18,6 @@ from dataclasses import dataclass
 
 import jax
 import jax.tree_util as jtu
-from jaxtyping import ArrayLike
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -43,6 +42,7 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Dict,
+    FloatArray,
     List,
     PRNGKey,
     Tuple,
@@ -246,7 +246,7 @@ class StaticLanguageHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -307,8 +307,8 @@ def simulate_transform(source_fn):
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: FloatArray = 0.0
+    weight: FloatArray = 0.0
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -383,8 +383,8 @@ class UpdateHandler(StaticLanguageHandler):
     previous_trace: Trace
     constraints: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: FloatArray = 0.0
+    weight: FloatArray = 0.0
     address_choices: Trie = Pytree.field(default_factory=Trie)
     discard_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -491,7 +491,7 @@ def update_transform(source_fn):
 @dataclass
 class AssessHandler(StaticLanguageHandler):
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 

@@ -101,7 +101,6 @@ flip_mvd = ADEVDistribution(
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-
 categorical_enum = ADEVDistribution(
     categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),

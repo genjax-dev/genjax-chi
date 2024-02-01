@@ -38,7 +38,7 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
+    FloatArray,
     IntArray,
     PRNGKey,
     Tuple,
@@ -61,7 +61,7 @@ class MapTrace(Trace):
     inner: Trace
     args: Tuple
     retval: Any
-    score: ArrayLike
+    score: FloatArray
 
     def get_args(self):
         return self.args
@@ -101,7 +101,7 @@ class MapTrace(Trace):
     def project(
         self,
         selection: IndexedSelection,
-    ) -> ArrayLike:
+    ) -> FloatArray:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
             selection.inner,
@@ -114,7 +114,7 @@ class MapTrace(Trace):
     def project(
         self,
         selection: HierarchicalSelection,
-    ) -> ArrayLike:
+    ) -> FloatArray:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
             selection,
@@ -220,7 +220,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike]:
+    ) -> Tuple[MapTrace, FloatArray]:
         def _importance(key, chm, args):
             return self.kernel.importance(key, chm, args)
 
@@ -245,7 +245,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: IndexedChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike]:
+    ) -> Tuple[MapTrace, FloatArray]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
@@ -270,7 +270,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: EmptyChoice,
         args: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike]:
+    ) -> Tuple[MapTrace, FloatArray]:
         map_tr = self.simulate(key, args)
         w = 0.0
         return (map_tr, w)
@@ -281,7 +281,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         chm: HierarchicalChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike]:
+    ) -> Tuple[MapTrace, FloatArray]:
         indchm = IndexedChoiceMap.convert(chm)
         return self.importance(key, indchm, args)
 
@@ -315,7 +315,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: IndexedChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -356,7 +356,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: VectorChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -386,7 +386,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         prev: MapTrace,
         chm: EmptyChoice,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, ArrayLike, Any, ChoiceMap]:
+    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
@@ -409,7 +409,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, ArrayLike]:
+    ) -> Tuple[Any, FloatArray]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         chm_dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(chm)

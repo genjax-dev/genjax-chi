@@ -29,9 +29,9 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     BoolArray,
     Callable,
+    FloatArray,
     IntArray,
     List,
     PRNGKey,
@@ -476,7 +476,7 @@ class Trace(Pytree):
         """
 
     @abstractmethod
-    def get_score(self) -> ArrayLike:
+    def get_score(self) -> FloatArray:
         """Return the score of the `Trace`.
 
         Examples:
@@ -558,18 +558,18 @@ class Trace(Pytree):
     def project(
         self,
         selection: NoneSelection,
-    ) -> ArrayLike:
+    ) -> FloatArray:
         return 0.0
 
     @dispatch
     def project(
         self,
         selection: AllSelection,
-    ) -> ArrayLike:
+    ) -> FloatArray:
         return self.get_score()
 
     @dispatch
-    def project(self, selection: "Selection") -> ArrayLike:
+    def project(self, selection: "Selection") -> FloatArray:
         """Given a `Selection`, return the total contribution to the score of the
         addresses contained within the `Selection`.
 
@@ -982,7 +982,7 @@ class GenerativeFunction(Pytree):
         self: "GenerativeFunction",
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[Choice, ArrayLike, Any]:
+    ) -> Tuple[Choice, FloatArray, Any]:
         """Given a `key: PRNGKey` and arguments ($x$), execute the generative function,
         returning a tuple containing the return value from the generative function call,
         the score ($s$) of the choice map assignment, and the choice map ($c$).
@@ -1045,7 +1045,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         choice: Choice,
         args: Tuple,
-    ) -> Tuple[Trace, ArrayLike]:
+    ) -> Tuple[Trace, FloatArray]:
         """Given a `key: PRNGKey`, a choice map indicating constraints ($u$), and
         arguments ($x$), execute the generative function, and return an importance
         weight estimate of the conditional density evaluated at the non-constrained
@@ -1076,7 +1076,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         constraints: Mask,
         args: Tuple,
-    ) -> Tuple[Trace, ArrayLike]:
+    ) -> Tuple[Trace, FloatArray]:
         """Given a `key: PRNGKey`, a choice map indicating constraints ($u$), and
         arguments ($x$), execute the generative function, and return an importance
         weight estimate of the conditional density evaluated at the non-constrained
@@ -1118,7 +1118,7 @@ class GenerativeFunction(Pytree):
         prev: Trace,
         new_constraints: Choice,
         diffs: Tuple,
-    ) -> Tuple[Trace, ArrayLike, Any, Choice]:
+    ) -> Tuple[Trace, FloatArray, Any, Choice]:
         raise NotImplementedError
 
     @dispatch
@@ -1128,7 +1128,7 @@ class GenerativeFunction(Pytree):
         prev: Trace,
         new_constraints: Mask,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, ArrayLike, Any, Mask]:
+    ) -> Tuple[Trace, FloatArray, Any, Mask]:
         # The semantics of the merge operation entail that the second returned value
         # is the discarded values after the merge.
         discard_option = prev.strip()
@@ -1157,7 +1157,7 @@ class GenerativeFunction(Pytree):
         self: "GenerativeFunction",
         chm: Choice,
         args: Tuple,
-    ) -> Tuple[ArrayLike, Any]:
+    ) -> Tuple[FloatArray, Any]:
         """Given a complete choice map indicating constraints ($u$) for all choices, and
         arguments ($x$), execute the generative function, and return the return value of
         the invocation, and the score of the choice map ($s$).
@@ -1199,7 +1199,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         self,
         fixed: Choice,
     ) -> Tuple[
-        Callable[[Choice, Tuple], ArrayLike],
+        Callable[[Choice, Tuple], FloatArray],
         Callable[[Choice, Tuple], Any],
     ]:
         """The `unzip` method expects a fixed (under gradients) `Choice` argument, and
@@ -1215,7 +1215,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
             fixed: A fixed choice map.
         """
 
-        def score(differentiable: Tuple, nondifferentiable: Tuple) -> ArrayLike:
+        def score(differentiable: Tuple, nondifferentiable: Tuple) -> FloatArray:
             provided, args = Pytree.tree_grad_zip(differentiable, nondifferentiable)
             merged = fixed.safe_merge(provided)
             (score, _) = self.assess(merged, args)
