@@ -17,7 +17,7 @@ import jax.numpy as jnp  # noqa: I001
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
+    MapSelection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -65,7 +65,7 @@ class StaticTrace(
     @dispatch
     def project(
         self,
-        selection: HierarchicalSelection,
+        selection: MapSelection,
     ) -> FloatArray:
         weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():

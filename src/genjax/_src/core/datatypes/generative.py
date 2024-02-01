@@ -78,6 +78,8 @@ class Selection(Pytree):
         """
         return ComplementSelection(self)
 
+
+class MapSelection(Selection):
     @abstractmethod
     def get_subselection(self, addr) -> "Selection":
         raise NotImplementedError
@@ -102,9 +104,11 @@ class ComplementSelection(Selection):
         return self.selection
 
     def has_addr(self, addr):
+        assert isinstance(self.selection, MapSelection)
         return jnp.logical_not(self.selection.has_addr(addr))
 
     def get_subselection(self, addr):
+        assert isinstance(self.selection, MapSelection)
         return self.selection.get_subselection(addr).complement()
 
     ###################
@@ -164,7 +168,7 @@ class AllSelection(Selection):
 ##################################
 
 
-class HierarchicalSelection(Selection):
+class HierarchicalSelection(MapSelection):
     trie: Trie
 
     @classmethod
@@ -1269,7 +1273,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     @dispatch
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: MapSelection,
     ) -> Choice:
         trie = Trie()
 
