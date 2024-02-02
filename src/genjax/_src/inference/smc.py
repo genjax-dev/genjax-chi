@@ -396,6 +396,10 @@ class ChangeTarget(SMCAlgorithm):
             jnp.array(True),
         )
 
+    # NOTE: This method is specialized to support the variational inference interface
+    # `estimate_reciprocal_normalizing_constant` - by avoiding an extra target
+    # reweighting step (which will add extra variance to any derived gradient estimators)
+    # It is only available for `ChangeTarget`.
     @typecheck
     def run_csmc_for_normalizing_constant(
         self,
