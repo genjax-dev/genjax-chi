@@ -173,18 +173,11 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
+        num_particles = self.get_num_particles()
         particle_collection = algorithm.run_smc(sub_key)
         log_weights = particle_collection.get_log_weights()
         total_weight = logsumexp(log_weights)
-        logits = log_weights - total_weight
-        idx = categorical.sample(key, logits)
-        particle = particle_collection.get_particles().slice(idx)
-        log_density_estimate = particle.get_score() - (
-            particle_collection.get_log_marginal_likelihood_estimate()
-            + total_weight
-            - jnp.log(self.get_num_particles())
-        )
-        return log_density_estimate
+        return total_weight - jnp.log(num_particles)
 
     @typecheck
     def estimate_reciprocal_normalizing_constant(
@@ -195,19 +188,10 @@ class SMCAlgorithm(InferenceAlgorithm):
         w: FloatArray,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
-        key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_csmc(sub_key, latent_choices)
-        log_weights = particle_collection.get_log_weights()
-        total_weight = logsumexp(log_weights)
-        logits = log_weights - total_weight
-        idx = categorical.sample(key, logits)
-        particle = particle_collection.get_particles().slice(idx)
-        log_density_estimate = particle.get_score() - (
-            particle_collection.get_log_marginal_likelihood_estimate()
-            + total_weight
-            - jnp.log(self.get_num_particles())
-        )
-        return log_density_estimate
+        # Special, for ChangeTarget -- to avoid a redundant reweighting step,
+        # when we have `w` which (with `latent_choices`) is already properly weighted
+        # for the `target`.
+        return algorithm.run_csmc_for_normalizing_constant(key, latent_choices, w)
 
 
 @typecheck
@@ -358,7 +342,10 @@ class ChangeTarget(SMCAlgorithm):
     def get_final_target(self):
         return self.target
 
-    def run_smc(self, key: PRNGKey):
+    def run_smc(
+        self,
+        key: PRNGKey,
+    ) -> ParticleCollection:
         collection = self.prev.run_smc(key)
 
         # Convert the existing set of particles and weights
@@ -381,7 +368,11 @@ class ChangeTarget(SMCAlgorithm):
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Choice):
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Choice,
+    ) -> ParticleCollection:
         collection = self.prev.run_csmc(key, retained)
 
         # Convert the existing set of particles and weights
@@ -403,3 +394,32 @@ class ChangeTarget(SMCAlgorithm):
             new_weights,
             jnp.array(True),
         )
+
+    @typecheck
+    def run_csmc_for_normalizing_constant(
+        self,
+        key: PRNGKey,
+        latent_choices: Choice,
+        w: FloatArray,
+    ) -> FloatArray:
+        key, sub_key = jrandom.split(key)
+        particle_collection = self.prev.run_csmc(sub_key, latent_choices)
+
+        # Convert the existing set of particles and weights
+        # to a new set which is properly weighted for the new target.
+        def _reweight(key, particle, weight):
+            latents = self.prev.get_final_target().project(particle)
+            new_score, _ = self.target.generate(key, latents)
+            this_weight = new_score - particle.get_score() + weight
+            return this_weight
+
+        num_particles = self.get_num_particles()
+        sub_keys = jrandom.split(key, num_particles - 1)
+        new_rejected_weights = vmap(_reweight)(
+            sub_keys,
+            jtu.tree_map(lambda v: v[:-1], particle_collection.get_particles()),
+            jtu.tree_map(lambda v: v[:-1], particle_collection.get_log_weights()),
+        )
+        all_weights = stack_to_first_dim(new_rejected_weights, w)
+        total_weight = logsumexp(all_weights)
+        return total_weight - jnp.log(num_particles)
