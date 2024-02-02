@@ -13,13 +13,17 @@
 # limitations under the License.
 
 from genjax.inference import (
+    exact_testbed,
     smc,
-    testbed,
     translator,
 )
+from genjax.inference.core import InferenceAlgorithm, Marginal, Target
 
 __all__ = [
+    "Marginal",
+    "Target",
+    "InferenceAlgorithm",
     "smc",
     "translator",
-    "testbed",
+    "exact_testbed",
 ]

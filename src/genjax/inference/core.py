@@ -12,8 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.smc import ImportanceSampling
+from genjax._src.inference.core import (
+    ChoiceDistribution,
+    InferenceAlgorithm,
+    Marginal,
+    Target,
+)
 
 __all__ = [
-    "ImportanceSampling",
+    "ChoiceDistribution",
+    "InferenceAlgorithm",
+    "Marginal",
+    "Target",
 ]

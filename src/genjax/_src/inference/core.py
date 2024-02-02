@@ -137,6 +137,7 @@ class ChoiceDistribution(Distribution):
 ############
 
 
+@typecheck
 class Marginal(ChoiceDistribution):
     selection: Selection
     p: GenerativeFunction
@@ -158,6 +159,7 @@ class Marginal(ChoiceDistribution):
         Z = self.alg.estimate_reciprocal_normalizing_constant(
             key, target, other_choices, weight
         )
+
         return (Z, latent_choices)
 
     @typecheck
