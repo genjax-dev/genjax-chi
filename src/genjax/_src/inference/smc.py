@@ -196,9 +196,10 @@ class SMCAlgorithm(InferenceAlgorithm):
 
 @typecheck
 class ImportanceSampling(SMCAlgorithm):
-    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the
+    """Given a `target: Target` as well as the
     number of particles `n_particles: Int`, initialize a particle collection using
-    importance sampling."""
+    importance sampling with default proposals provided by the generative function
+    underlying the `target`."""
 
     target: Target
     n_particles: Int = Pytree.static()
