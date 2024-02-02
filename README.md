@@ -45,6 +45,7 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 <br>
 </div>
 
+> [!TIP]
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 ## Quickstart
