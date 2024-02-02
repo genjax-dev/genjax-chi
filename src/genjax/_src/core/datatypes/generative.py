@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ from genjax._src.core.typing import (
 
 
 class Selection(Pytree):
+    @abstractmethod
     def complement(self) -> "Selection":
         """Return a `Selection` which filters addresses to the complement set of the
         provided `Selection`.
@@ -70,16 +71,18 @@ class Selection(Pytree):
             tr = model.simulate(key, ())
             chm = tr.strip()
             selection = genjax.select("x")
-            # ISSUE [#851](https://github.com/probcomp/genjax/issues/851): complement() is not implemented yet
-            # complement = selection.complement()
-            # filtered = chm.filter(complement)
-            # print(console.render(filtered))
+            complement = selection.complement()
+            filtered = chm.filter(complement)
+            print(console.render(filtered))
             ```
         """
-        return ComplementSelection(self)
+        pass
 
 
 class MapSelection(Selection):
+    def complement(self) -> "MapSelection":
+        return ComplementMapSelection(self)
+
     @abstractmethod
     def get_subselection(self, addr) -> "Selection":
         raise NotImplementedError
@@ -97,7 +100,7 @@ class MapSelection(Selection):
         return subselection
 
 
-class ComplementSelection(Selection):
+class ComplementMapSelection(MapSelection):
     selection: Selection
 
     def complement(self):

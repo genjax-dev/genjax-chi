@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,15 @@ codebase.
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
+from typing import Annotated  # noqa: F401
+
 import beartype.typing as btyping
 import jax
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf, beartype
+from beartype.vale import Is
 from plum import dispatch, parametric
 
 Any = btyping.Any
@@ -127,4 +130,6 @@ __all__ = [
     "typecheck",
     "dispatch",
     "parametric",
+    "Is",
+    "Annotated",
 ]

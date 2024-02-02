@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
+    MapSelection,
     Mask,
     Selection,
 )
@@ -51,7 +51,7 @@ from genjax._src.core.typing import (
 #####################
 
 
-class IndexedSelection(Selection):
+class IndexedSelection(MapSelection):
     indices: IntArray
     inner: Selection
 
@@ -90,11 +90,11 @@ class IndexedChoiceMap(ChoiceMap):
     inner: ChoiceMap
 
     @classmethod
-    def from_dict(self, d: Dict[int, Any]) -> ChoiceMap:
+    def from_dict(cls, d: Dict[int, Any]) -> ChoiceMap:
         """Produce an IndexedChoiceMap from a dictionary with integer keys.
 
         IndexedChoiceMap.from_dict({
-          1: 1.0
+          1: 1.0,
           2: 3.0
         })
 
@@ -111,7 +111,7 @@ class IndexedChoiceMap(ChoiceMap):
     @dispatch
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: MapSelection,
     ) -> ChoiceMap:
         return IndexedChoiceMap(self.indices, self.inner.filter(selection))
 
