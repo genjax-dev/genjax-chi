@@ -23,7 +23,7 @@ from jax import random as jrandom
 from jax import vmap
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes.generative import Choice, GenerativeFunction, Trace
+from genjax._src.core.datatypes.generative import Choice, Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     BoolArray,
@@ -52,19 +52,18 @@ class ParticleCollection(Pytree):
 
     particles: Trace
     log_weights: FloatArray
-    log_marginal_likelihood_estimate: FloatArray
     is_valid: BoolArray
 
-    def get_particles(self):
+    def get_particles(self) -> Trace:
         return self.particles
 
-    def get_log_weights(self):
+    def get_log_weights(self) -> FloatArray:
         return self.log_weights
 
-    def get_log_marginal_likelihood_estimate(self):
-        return self.log_marginal_likelihood_estimate
+    def get_log_marginal_likelihood_estimate(self) -> FloatArray:
+        return logsumexp(self.log_weights) - jnp.log(len(self.log_weights))
 
-    def check_valid(self):
+    def check_valid(self) -> BoolArray:
         return self.is_valid
 
 
@@ -104,6 +103,7 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> Tuple[FloatArray, Choice]:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
+        num_particles = self.get_num_particles()
         particle_collection = algorithm.run_smc(sub_key)
         log_weights = particle_collection.get_log_weights()
         total_weight = logsumexp(log_weights)
@@ -113,7 +113,7 @@ class SMCAlgorithm(InferenceAlgorithm):
         log_density_estimate = particle.get_score() - (
             particle_collection.get_log_marginal_likelihood_estimate()
             + total_weight
-            - jnp.log(particle_collection.get_num_particles())
+            - jnp.log(num_particles)
         )
         choice = target.project(particle.get_choice())
         return log_density_estimate, choice
@@ -124,7 +124,33 @@ class SMCAlgorithm(InferenceAlgorithm):
         key: PRNGKey,
         latent_choices: Choice,
         target: Target,
-    ) -> Tuple[FloatArray, Choice]:
+    ) -> FloatArray:
+        algorithm = ChangeTarget(self, target)
+        key, sub_key = jrandom.split(key)
+        num_particles = self.get_num_particles()
+        particle_collection = algorithm.run_csmc(sub_key, latent_choices)
+        log_weights = particle_collection.get_log_weights()
+        total_weight = logsumexp(log_weights)
+        logits = log_weights - total_weight
+        idx = categorical.sample(key, logits)
+        particle = particle_collection.get_particles().slice(idx)
+        log_density_estimate = particle.get_score() - (
+            particle_collection.get_log_marginal_likelihood_estimate()
+            + total_weight
+            - jnp.log(num_particles)
+        )
+        return log_density_estimate
+
+    ################
+    # VI via GRASP #
+    ################
+
+    @typecheck
+    def estimate_normalizing_constant(
+        self,
+        key: PRNGKey,
+        target: Target,
+    ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_smc(sub_key)
@@ -138,20 +164,7 @@ class SMCAlgorithm(InferenceAlgorithm):
             + total_weight
             - jnp.log(particle_collection.get_num_particles())
         )
-        choice = target.project(particle.get_choice())
-        return log_density_estimate, choice
-
-    ################
-    # VI via GRASP #
-    ################
-
-    @typecheck
-    def estimate_normalizing_constant(
-        self,
-        key: PRNGKey,
-        target: Target,
-    ) -> FloatArray:
-        pass
+        return log_density_estimate
 
     @typecheck
     def estimate_reciprocal_normalizing_constant(
@@ -161,10 +174,23 @@ class SMCAlgorithm(InferenceAlgorithm):
         latent_choices: Choice,
         w: FloatArray,
     ) -> FloatArray:
-        pass
+        algorithm = ChangeTarget(self, target)
+        key, sub_key = jrandom.split(key)
+        particle_collection = algorithm.run_csmc(sub_key, latent_choices)
+        log_weights = particle_collection.get_log_weights()
+        total_weight = logsumexp(log_weights)
+        logits = log_weights - total_weight
+        idx = categorical.sample(key, logits)
+        particle = particle_collection.get_particles().slice(idx)
+        log_density_estimate = particle.get_score() - (
+            particle_collection.get_log_marginal_likelihood_estimate()
+            + total_weight
+            - jnp.log(particle_collection.get_num_particles())
+        )
+        return log_density_estimate
 
 
-class Initialize(SMCAlgorithm):
+class ImportanceSampling(SMCAlgorithm):
     """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the
     number of particles `n_particles: Int`, initialize a particle collection using
     importance sampling."""
@@ -187,7 +213,6 @@ class Initialize(SMCAlgorithm):
         return ParticleCollection(
             trs,
             target_scores - log_weights,
-            jnp.array(0.0),
             jnp.array(True),
         )
 
@@ -256,17 +281,48 @@ class ChangeTarget(SMCAlgorithm):
     def get_final_target(self):
         return self.target
 
+    def run_smc(self, key: PRNGKey):
+        collection = self.prev.run_smc(key)
 
-########################
-# Composite algorithms #
-########################
+        # Convert the existing set of particles and weights
+        # to a new set which is properly weighted for the new target.
+        def _reweight(key, particle, weight):
+            latents = self.prev.get_final_target().project(particle)
+            new_score, new_trace = self.target.generate(key, latents)
+            this_weight = new_score - particle.get_score() + weight
+            return (new_trace, this_weight)
 
+        sub_keys = jrandom.split(key, self.get_num_particles())
+        new_particles, new_weights = vmap(_reweight)(
+            sub_keys,
+            collection.get_particles(),
+            collection.get_log_weights(),
+        )
+        return ParticleCollection(
+            new_particles,
+            new_weights,
+            jnp.array(True),
+        )
 
-def sampling_importance_resampling(
-    model: GenerativeFunction,
-    proposal: GenerativeFunction,
-    observations: Choice,
-    model_args: Tuple,
-    proposal_args: Tuple,
-):
-    pass
+    def run_csmc(self, key: PRNGKey, retained: Choice):
+        collection = self.prev.run_csmc(key, retained)
+
+        # Convert the existing set of particles and weights
+        # to a new set which is properly weighted for the new target.
+        def _reweight(key, particle, weight):
+            latents = self.prev.get_final_target().project(particle)
+            new_score, new_trace = self.target.generate(key, latents)
+            this_weight = new_score - particle.get_score() + weight
+            return (new_trace, this_weight)
+
+        sub_keys = jrandom.split(key, self.get_num_particles())
+        new_particles, new_weights = vmap(_reweight)(
+            sub_keys,
+            collection.get_particles(),
+            collection.get_log_weights(),
+        )
+        return ParticleCollection(
+            new_particles,
+            new_weights,
+            jnp.array(True),
+        )

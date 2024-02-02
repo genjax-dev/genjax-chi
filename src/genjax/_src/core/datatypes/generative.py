@@ -1114,7 +1114,12 @@ class GenerativeFunction(Pytree):
         new_constraints: Choice,
         diffs: Tuple,
     ) -> Tuple[Trace, FloatArray, Any, Choice]:
-        raise NotImplementedError
+        primals = Diff.tree_primal(diffs)
+        prev_choice = prev.get_choice()
+        merged, discarded = prev_choice.merge(new_constraints)
+        (tr, _) = self.importance(key, merged, primals)
+        retval = tr.get_retval()
+        return (tr, tr.get_score() - prev.get_score(), retval, discarded)
 
     @dispatch
     def update(
