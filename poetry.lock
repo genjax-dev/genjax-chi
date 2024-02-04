@@ -2068,13 +2068,13 @@ tests = ["pytest", "pytest-cov", "pytest-pep8"]
 
 [[package]]
 name = "optax"
-version = "0.1.8"
+version = "0.1.9"
 description = "A gradient processing and optimisation library in JAX."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "optax-0.1.8-py3-none-any.whl", hash = "sha256:9a76a895511a1d9b50078c55e9fffd7f095e5e947d4c804eead7f3dc51c5c270"},
-    {file = "optax-0.1.8.tar.gz", hash = "sha256:86820fba48c564bd6772be4f168895cdad8d8b75e45fc414e63ccfc223628c34"},
+    {file = "optax-0.1.9-py3-none-any.whl", hash = "sha256:3cbcfac6e70dff9484cd7560dc92e43a50df1eac0d4af2a1f7c2e1fd116bf972"},
+    {file = "optax-0.1.9.tar.gz", hash = "sha256:731f43e8b404f50a5ef025b1261894d7d0300f7ad9cb688ea08f67b40822e94f"},
 ]
 
 [package.dependencies]
