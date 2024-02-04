@@ -17,13 +17,17 @@ from abc import abstractmethod
 import jax
 
 from genjax._src.core.datatypes.generative import (
+    AllSelection,
     Choice,
     GenerativeFunction,
+    JAXGenerativeFunction,
     Selection,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Callable,
     FloatArray,
+    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -50,13 +54,16 @@ class Target(Pytree):
         (tr, _) = self.p.importance(key, merged, self.args)
         return (tr.get_score(), tr)
 
+    def __getitem__(self, v):
+        return self.constraints[v]
+
 
 ########################
 # Inference algorithms #
 ########################
 
 
-class InferenceAlgorithm(Pytree):
+class InferenceAlgorithm(Distribution, JAXGenerativeFunction):
     """The abstract class `InferenceAlgorithm` represents the type of inference
     algorithms, programs which implement interfaces for sampling from approximate
     posterior representations, and estimating the density of the approximate posterior.
@@ -139,10 +146,12 @@ class ChoiceDistribution(Distribution):
 
 @typecheck
 class Marginal(ChoiceDistribution):
-    selection: Selection
     p: GenerativeFunction
     p_args: Tuple
-    alg: InferenceAlgorithm
+    selection: Selection = Pytree.field(default=AllSelection())
+    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = Pytree.static(
+        default=None
+    )
 
     @typecheck
     def random_weighted(
@@ -156,40 +165,15 @@ class Marginal(ChoiceDistribution):
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         target = Target(self.p, self.p_args, latent_choices)
-        Z = self.alg.estimate_reciprocal_normalizing_constant(
-            key, target, other_choices, weight
-        )
+        if self.algorithm_builder is None:
+            return weight, latent_choices
+        else:
+            alg = self.algorithm_builder(target)
+            Z = alg.estimate_reciprocal_normalizing_constant(
+                key, target, other_choices, weight
+            )
 
-        return (Z, latent_choices)
-
-    @typecheck
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        latent_choices: Choice,
-    ) -> FloatArray:
-        target = Target(self.p, self.p_args, latent_choices)
-        Z = self.alg.estimate_normalizing_constant(key, target)
-        return Z
-
-
-##############
-# Normalized #
-##############
-
-
-# TODO: we haven't fully thought through the design of this class
-# wrt variational inference via ADEV yet.
-class Normalized(ChoiceDistribution):
-    target: Target
-    alg: InferenceAlgorithm
-
-    @typecheck
-    def random_weighted(
-        self,
-        key: PRNGKey,
-    ) -> Tuple[FloatArray, Choice]:
-        return self.alg.random_weighted(key, self.target)
+            return (Z, latent_choices)
 
     @typecheck
     def estimate_logpdf(
@@ -197,5 +181,11 @@ class Normalized(ChoiceDistribution):
         key: PRNGKey,
         latent_choices: Choice,
     ) -> FloatArray:
-        Z = self.alg.estimate_logpdf(key, latent_choices, self.target)
-        return Z
+        if self.algorithm_builder is None:
+            _, weight = self.p.importance(key, latent_choices, self.p_args)
+            return weight
+        else:
+            target = Target(self.p, self.p_args, latent_choices)
+            alg = self.algorithm_builder(target)
+            Z = alg.estimate_normalizing_constant(key, target)
+            return Z

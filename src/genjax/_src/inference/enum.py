@@ -12,14 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.smc import (
-    ChangeTarget,
-    ImportanceSampling,
-    ProposalImportanceSampling,
-)
+from genjax._src.inference.core import Target
+from genjax._src.inference.smc import SMCAlgorithm
 
-__all__ = [
-    "ChangeTarget",
-    "ImportanceSampling",
-    "ProposalImportanceSampling",
-]
+
+class Enumerate(SMCAlgorithm):
+    target: Target

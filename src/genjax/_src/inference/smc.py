@@ -272,6 +272,7 @@ class ProposalImportanceSampling(SMCAlgorithm):
         stacked_scores = jtu.tree_map(
             stack_to_first_dim, log_scores, retained_choice_score
         )
+        sub_keys = jrandom.split(key, self.get_num_particles())
         target_scores, target_traces = vmap(self.target.generate)(
             sub_keys, stacked_choices
         )
