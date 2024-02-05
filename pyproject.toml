@@ -54,7 +54,6 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 blackjax = "^0.9.6"
 coverage = "^7.0.0"
-darglint = "^1.8.1"
 matplotlib = "^3.6.2"
 mypy = "^0.991"
 nbmake = "^1.4.6"
