@@ -50,7 +50,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     normal,
 )
 from genjax._src.inference.core import ChoiceDistribution, InferenceAlgorithm, Target
-from genjax._src.inference.smc import Initialize
+from genjax._src.inference.smc import ProposalImportanceSampling
 
 tfd = tfp.distributions
 
@@ -163,7 +163,7 @@ class IWELBO(ExpectedValueLoss):
         @expectation
         def _loss(proposal_args):
             proposal = self.make_proposal(proposal_args)
-            guide = Initialize(self.target, proposal, self.N)
+            guide = ProposalImportanceSampling(self.target, proposal, self.N)
             key = reap_key()
             w = guide.estimate_normalizing_constant(key, self.target)
             return w

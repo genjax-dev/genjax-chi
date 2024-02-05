@@ -1178,6 +1178,9 @@ class GenerativeFunction(Pytree):
         """
         raise NotImplementedError
 
+    def sample_retval(self, key: PRNGKey, args: Tuple) -> Any:
+        return self.simulate(key, args).get_retval()
+
     def restore_with_aux(
         self,
         interface_data: Tuple,

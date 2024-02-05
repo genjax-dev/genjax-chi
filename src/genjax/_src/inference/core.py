@@ -15,6 +15,7 @@
 from abc import abstractmethod
 
 import jax
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     AllSelection,
@@ -25,6 +26,7 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     Callable,
     FloatArray,
     Optional,
@@ -33,6 +35,7 @@ from genjax._src.core.typing import (
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
+from genjax._src.shortcuts import choice_map, select
 
 ####################
 # Posterior target #
@@ -146,6 +149,15 @@ class ChoiceDistribution(Distribution):
 
 @typecheck
 class Marginal(ChoiceDistribution):
+    """The `Marginal` class represents the marginal distribution of a generative function over
+    a selection of addresses. The `Marginal` class implements
+    the stochastic probability interface by utilizing an optional `InferenceAlgorithm`, which can be specified
+    by providing an `algorithm_builder: Target -> InferenceAlgorithm` function.
+
+    When provided with a `Selection`, `Marginal` acts as a distribution
+    which returns a `Choice` object, representing a structured sample of choices.
+    """
+
     p: GenerativeFunction
     p_args: Tuple
     selection: Selection = Pytree.field(default=AllSelection())
@@ -189,3 +201,156 @@ class Marginal(ChoiceDistribution):
             alg = self.algorithm_builder(target)
             Z = alg.estimate_normalizing_constant(key, target)
             return Z
+
+
+@typecheck
+class ValueMarginal(Distribution):
+    """The `ValueMarginal` class represents the marginal distribution of a generative function over
+    a single address. The `ValueMarginal` class implements
+    the stochastic probability interface by utilizing an optional `InferenceAlgorithm`, which can be specified
+    by providing an `algorithm_builder: Target -> InferenceAlgorithm` function.
+
+    While similar to `Marginal`, `ValueMarginal` operates in "value" mode, meaning that
+    the `random_weighted` method returns the value at the address. This allows `ValueMarginal` in this mode
+    to be used inside of generative functions which support callees (for example, `StaticGenerativeFunction`).
+    """
+
+    p: GenerativeFunction
+    p_args: Tuple
+    addr: Any
+    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = Pytree.static(
+        default=None
+    )
+
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+    ) -> Tuple[FloatArray, Any]:
+        key, sub_key = jax.random.split(key)
+        tr = self.p.simulate(sub_key, self.p_args)
+        weight = tr.get_score()
+        choices = tr.get_choice()
+        value = choices[self.addr]
+        selection = select(self.addr)
+        other_choices = choices.filter(selection.complement())
+        latent_choices = choice_map({self.addr: value})
+        target = Target(self.p, self.p_args, latent_choices)
+        if self.algorithm_builder is None:
+            return weight, value
+        else:
+            alg = self.algorithm_builder(target)
+            Z = alg.estimate_reciprocal_normalizing_constant(
+                key, target, other_choices, weight
+            )
+
+            return (Z, value)
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: Any,
+    ) -> FloatArray:
+        latent_choices = choice_map({self.addr: v})
+        if self.algorithm_builder is None:
+            _, weight = self.p.importance(key, latent_choices, self.p_args)
+            return weight
+        else:
+            target = Target(self.p, self.p_args, latent_choices)
+            alg = self.algorithm_builder(target)
+            Z = alg.estimate_normalizing_constant(key, target)
+            return Z
+
+
+################################
+# Inference construct language #
+################################
+
+
+class PartialM(Distribution):
+    callable: Callable[[Any], Marginal] = Pytree.static()
+
+    def apply(self, *args):
+        return self.callable(*args)
+
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ) -> Tuple[FloatArray, Choice]:
+        dist = self.callable(*args)
+        return dist.random_weighted(key)
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: Any,
+        *args,
+    ) -> FloatArray:
+        dist = self.callable(*args)
+        return dist.estimate_logpdf(key, v)
+
+    @property
+    def __wrapped__(self):
+        return self.callable
+
+
+@typecheck
+def partial_m(
+    selection: Selection = AllSelection(),
+    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = None,
+) -> Callable[[Callable], PartialM]:
+    def decorator(gen_fn: GenerativeFunction) -> PartialM:
+        def _partial_m(*args):
+            return Marginal(gen_fn, args, selection, algorithm_builder)
+
+        return module_update_wrapper(PartialM(_partial_m))
+
+    return decorator
+
+
+class PartialV(Distribution):
+    callable: Callable[[Any], ValueMarginal] = Pytree.static()
+
+    def curry(self, *args):
+        return self.callable(*args)
+
+    @typecheck
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ) -> Tuple[FloatArray, Any]:
+        dist = self.callable(*args)
+        return dist.random_weighted(key)
+
+    @typecheck
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: Any,
+        *args,
+    ) -> FloatArray:
+        dist = self.callable(*args)
+        return dist.estimate_logpdf(key, v)
+
+    @property
+    def __wrapped__(self):
+        return self.callable
+
+
+@typecheck
+def partial_v(
+    addr,
+    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = None,
+) -> Callable[[Callable], PartialM]:
+    def decorator(f) -> Marginal:
+        def _partial_v(*args):
+            return ValueMarginal(f, args, addr, algorithm_builder)
+
+        return module_update_wrapper(PartialV(_partial_v))
+
+    return decorator

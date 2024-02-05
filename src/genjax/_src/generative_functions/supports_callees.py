@@ -65,6 +65,3 @@ class SupportsCalleeSugar:
         self: CanSimulate, *args: Any, **kwargs
     ) -> SugaredGenerativeFunctionCall:
         return SugaredGenerativeFunctionCall(self, args, kwargs)
-
-    def apply(self: CanSimulate, key: PRNGKey, args: Tuple) -> Any:
-        return self.simulate(key, args).get_retval()
