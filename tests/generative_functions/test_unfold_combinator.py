@@ -161,7 +161,7 @@ class TestUnfoldSimpleNormal:
             jnp.arange(5)
         ).unsafe_unmask()
         chm = genjax.vector_choice_map(
-            genjax.choice_map({("x"): true_x}),
+            genjax.choice_map({"x": true_x}),
         )
         key, importance_key = jax.random.split(key)
         (importance_tr, _) = one_step.importance(importance_key, chm, (4, (0.0)))

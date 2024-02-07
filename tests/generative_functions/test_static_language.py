@@ -216,17 +216,17 @@ class TestImportance:
 
         key = jax.random.PRNGKey(314159)
         fn = simple_normal.importance
-        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
+        chm = genjax.choice_map({"y1": 0.5, "y2": 0.5})
         key, sub_key = jax.random.split(key)
         (tr, _) = fn(sub_key, chm, ())
         out = tr.get_choices()
-        y1 = chm[("y1",)]
-        y2 = chm[("y2",)]
+        y1 = chm["y1"]
+        y2 = chm["y2"]
         (_, score_1) = genjax.normal.importance(key, chm.get_submap("y1"), (0.0, 1.0))
         (_, score_2) = genjax.normal.importance(key, chm.get_submap("y2"), (0.0, 1.0))
         test_score = score_1 + score_2
-        assert y1 == out[("y1",)]
-        assert y2 == out[("y2",)]
+        assert y1 == out["y1"]
+        assert y2 == out["y2"]
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
     def test_importance_weight_correctness(self):
@@ -238,7 +238,7 @@ class TestImportance:
 
         # Full constraints.
         key = jax.random.PRNGKey(314159)
-        chm = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
+        chm = genjax.choice_map({"y1": 0.5, "y2": 0.5})
         (tr, w) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
@@ -251,7 +251,7 @@ class TestImportance:
         assert w == pytest.approx(test_score, 0.0001)
 
         # Partial constraints.
-        chm = genjax.choice_map({("y2",): 0.5})
+        chm = genjax.choice_map({"y2": 0.5})
         (tr, w) = simple_normal.importance(key, chm, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
@@ -296,7 +296,7 @@ class TestUpdate:
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_normal.update)
 
-        new = genjax.choice_map({("y1",): 2.0})
+        new = genjax.choice_map({"y1": 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -315,13 +315,13 @@ class TestUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-        new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
+        new = genjax.choice_map({"y1": 2.0, "y2": 3.0})
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_chm = updated.get_choices()
-        _y1 = updated_chm[("y1",)]
-        _y2 = updated_chm[("y2",)]
+        _y1 = updated_chm["y1"]
+        _y2 = updated_chm["y2"]
         (_, score1) = genjax.normal.importance(
             key, updated_chm.get_submap("y1"), (0.0, 1.0)
         )
@@ -345,7 +345,7 @@ class TestUpdate:
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_linked_normal.update)
 
-        new = genjax.choice_map({("y1",): 2.0})
+        new = genjax.choice_map({"y1": 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -358,7 +358,7 @@ class TestUpdate:
         score2 = genjax.normal.logpdf(y2, y1, 1.0)
         score3 = genjax.normal.logpdf(y3, y1 + y2, 1.0)
         test_score = score1 + score2 + score3
-        assert original_chm[("y1",)] == discard[("y1",)]
+        assert original_chm["y1"] == discard["y1"]
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -380,7 +380,7 @@ class TestUpdate:
         tr = jax.jit(simple_hierarchical_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_hierarchical_normal.update)
 
-        new = genjax.choice_map({("y1",): 2.0})
+        new = genjax.choice_map({"y1": 2.0})
         original_chm = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -417,7 +417,7 @@ class TestUpdate:
         old_y2 = tr["y2"]
         old_y3 = tr["y3"]
         new_y1 = 2.0
-        new = genjax.choice_map({("y1",): new_y1})
+        new = genjax.choice_map({"y1": new_y1})
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
 
@@ -450,7 +450,7 @@ class TestUpdate:
 
         # Test composition of update calls.
         new_y3 = 2.0
-        new = genjax.choice_map({("y3",): new_y3})
+        new = genjax.choice_map({"y3": new_y3})
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, updated, new, ())
         assert updated["y3"] == 2.0
@@ -477,7 +477,7 @@ class TestUpdate:
         )
         jitted = jax.jit(simple_linked_normal_with_tree_argument.update)
         new_y1 = 2.0
-        constraints = genjax.choice_map({("y1",): new_y1})
+        constraints = genjax.choice_map({"y1": new_y1})
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(
             sub_key, tr, constraints, (tree_diff_no_change(init_tree),)
