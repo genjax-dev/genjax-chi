@@ -77,7 +77,8 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         tr = self.inner.simulate(key, inner_args)
         return MaskingTrace(self, tr, check)
 
-    @typecheck
+    # TODO: add back in typechecks once `Mask` is made a subtype of `Choice`
+    # @typecheck
     def importance(
         self,
         key: PRNGKey,
@@ -85,11 +86,11 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         args: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray]:
         (check, inner_args) = args
-        w, tr = self.inner.importance(key, choice, inner_args)
+        tr, w = self.inner.importance(key, choice, inner_args)
         w = check * w
-        return MaskingTrace(check, tr), w
+        return MaskingTrace(self, tr, check), w
 
-    @typecheck
+    # @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -101,7 +102,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         check = tree_diff_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
-            MaskingTrace(check, tr),
+            MaskingTrace(self, tr, check),
             w * check,
             Mask(check, rd),
             Mask(check, d),
