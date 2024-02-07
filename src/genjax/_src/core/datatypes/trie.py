@@ -96,8 +96,8 @@ class Trie(Pytree, CustomPretty):
     def __contains__(self, k):
         return self.has_submap(k)
 
-    def __hash__(self):
-        return hash(self.inner)
+    # def __hash__(self):
+    #     return hash(self.inner)
 
     ###################
     # Pretty printing #

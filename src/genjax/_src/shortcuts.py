@@ -42,13 +42,14 @@ def trie_from_dict(constraints: dict):
     Trie with the same structure. Non-dict values are mapped through
     [[choice_map]].
     """
-    trie = Trie()
-    for k, v in constraints.items():
+
+    def value(v):
         if isinstance(v, dict):
-            trie = trie.trie_insert(k, trie_from_dict(v))
+            return trie_from_dict(v)
         else:
-            trie = trie.trie_insert(k, choice_map(v))
-    return trie
+            return choice_map(v)
+
+    return Trie({k: value(v) for k, v in constraints.items()})
 
 
 ChoiceMappable = Union[Choice, dict]

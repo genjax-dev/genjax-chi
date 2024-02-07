@@ -18,7 +18,7 @@ import genjax
 
 class TestChoiceMaps:
     def test_hierarchical_choice_map(self):
-        chm = genjax.choice_map({("x", "y"): 5.0})
+        chm = genjax.choice_map({"x": {"y": 5.0}})
         new = chm.get_submap("x")
         assert isinstance(new, genjax.ChoiceMap)
         assert isinstance(new, genjax.HierarchicalChoiceMap)
