@@ -22,7 +22,6 @@ from jax import api_util
 from jax import util as jax_util
 from jax.extend import linear_util as lu
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.forward import initial_style_bind
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
@@ -39,7 +38,7 @@ VarOrLiteral = Union[jc.Var, jc.Literal]
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
+    env: dict[jc.Var, Value] = field(default_factory=dict)
 
     def flatten(self):
         return (self.env,), ()

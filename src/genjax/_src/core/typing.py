@@ -43,7 +43,6 @@ Dict = btyping.Dict
 List = btyping.List
 Iterable = btyping.Iterable
 Generator = btyping.Generator
-Hashable = btyping.Hashable
 FrozenSet = btyping.FrozenSet
 Optional = btyping.Optional
 Type = btyping.Type
