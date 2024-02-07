@@ -14,6 +14,7 @@
 
 from genjax._src.gensp.grasp import ADEVDistribution
 from genjax._src.gensp.grasp import baseline
+from genjax._src.gensp.grasp import beta_implicit
 from genjax._src.gensp.grasp import categorical_enum
 from genjax._src.gensp.grasp import elbo
 from genjax._src.gensp.grasp import flip_enum
@@ -42,6 +43,7 @@ __all__ = [
     "mv_normal_diag_reparam",
     "geometric_reinforce",
     "uniform",
+    "beta_implicit",
     "categorical_enum",
     "flip_reinforce",
     "baseline",

@@ -76,6 +76,11 @@ tfp_bernoulli = TFPDistribution.new(lambda logits: tfd.Bernoulli(logits=logits))
 A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
 
+tfp_beta = TFPDistribution.new(tfd.Beta)
+"""
+A `TFPDistribution` generative function which wraps the [`tfd.Beta`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Beta) distribution from TensorFlow Probability distributions.
+"""
+
 tfp_chi = TFPDistribution.new(tfd.Chi)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Chi`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi) distribution from TensorFlow Probability distributions.

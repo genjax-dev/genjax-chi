@@ -20,13 +20,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from adevjax import ADEVPrimitive
-from adevjax import baseline
-from adevjax import flip_enum
-from adevjax import flip_mvd
-from adevjax import geometric_reinforce
-from adevjax import mv_normal_diag_reparam
-from adevjax import normal_reinforce
-from adevjax import normal_reparam
 from adevjax import sample_with_key
 from tensorflow_probability.substrates import jax as tfp
 
@@ -47,6 +40,9 @@ from genjax._src.core.typing import Tuple
 from genjax._src.core.typing import dispatch
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    tfp_beta,
+)
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     tfp_geometric,
 )
@@ -146,6 +142,10 @@ geometric_reinforce = ADEVDistribution.new(
 uniform = ADEVDistribution.new(
     adevjax.uniform,
     lambda v: tfp_uniform.logpdf(v, 0.0, 1.0),
+)
+
+beta_implicit = ADEVDistribution.new(
+    adevjax.beta_implicit, lambda v, alpha, beta: tfp_beta.logpdf(v, alpha, beta)
 )
 
 
