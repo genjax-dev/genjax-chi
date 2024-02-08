@@ -21,6 +21,7 @@ import itertools
 from dataclasses import dataclass
 
 import jax
+import jax.numpy as jnp
 from beartype import beartype
 from equinox import module_update_wrapper
 
@@ -128,7 +129,7 @@ class AddressVisitor(Pytree):
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -146,8 +147,8 @@ class SimulateHandler(Handler):
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: FloatArray = 0.0
-    weight: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -168,7 +169,7 @@ class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    weight: FloatArray = 0.0
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     discard: Trie = Pytree.field(default_factory=Trie)
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -201,7 +202,7 @@ class UpdateHandler(Handler):
 @dataclass
 class AssessHandler(Handler):
     constraints: ChoiceMap
-    score: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
@@ -243,7 +244,7 @@ class InterpretedTrace(Trace):
         return self.args
 
     def project(self, selection: HierarchicalSelection) -> FloatArray:
-        weight = 0.0
+        weight = jnp.zeros(())
         for k, subtrace in self.choices.get_submaps_shallow():
             if selection.has_addr(k):
                 weight += subtrace.project(selection.get_subselection(k))
