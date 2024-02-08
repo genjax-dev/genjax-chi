@@ -19,6 +19,7 @@ import rich
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.typing import Address, Iterable
 
 ########
 # Trie #
@@ -86,6 +87,24 @@ class Trie(Pytree, CustomPretty):
     def get_submaps_shallow(self):
         return self.inner.items()
 
+    def address_sequence(self) -> Iterable[Address]:
+        for k, v in self.inner.items():
+            if subseq := getattr(v, "address_sequence", None):
+                for y in subseq():
+                    yield (k,) + y
+            else:
+                yield (k,)
+        # def go(prefix: Address, t: Trie):
+        #     for k in t.inner.keys():
+        #         pk = prefix + (k,)
+        #         if subseq := getattr(t.inner[k], "address_sequence", False):
+        #             for sk in subseq():
+        #                 yield pk + sk
+        #         else:
+        #             yield pk
+
+        # return go((), self)
+
     ###########
     # Dunders #
     ###########
@@ -95,9 +114,6 @@ class Trie(Pytree, CustomPretty):
 
     def __contains__(self, k):
         return self.has_submap(k)
-
-    # def __hash__(self):
-    #     return hash(self.inner)
 
     ###################
     # Pretty printing #

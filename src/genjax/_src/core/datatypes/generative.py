@@ -31,14 +31,20 @@ from genjax._src.core.interpreters.incremental import (
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
 from genjax._src.core.typing import (
+    Address,
+    AddressComponent,
     Any,
     ArrayLike,
+    Binding,
     BoolArray,
     Callable,
     IntArray,
+    Iterable,
     List,
     PRNGKey,
+    Selection,
     Tuple,
+    Union,
     dispatch,
     typecheck,
 )
@@ -56,131 +62,37 @@ from genjax._src.core.typing import (
 #############
 
 
-class Selection(Pytree):
-    def complement(self) -> "Selection":
-        """Return a `Selection` which filters addresses to the complement set
-        of the provided `Selection`.
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-            console = genjax.console()
-
-            @genjax.static_gen_fn
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            chm = tr.strip()
-            selection = genjax.select("x")
-            # ISSUE [#851](https://github.com/probcomp/genjax/issues/851): complement() is not implemented yet
-            # complement = selection.complement()
-            # filtered = chm.filter(complement)
-            # print(console.render(filtered))
-            ```
-        """
-        return ComplementSelection(self)
-
-    @abc.abstractmethod
-    def get_subselection(self, addr) -> "Selection":
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def has_addr(self, addr) -> BoolArray:
-        raise NotImplementedError
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __getitem__(self, addr):
-        subselection = self.get_subselection(addr)
-        return subselection
+def NoneSelection() -> Selection:
+    return lambda a: False
 
 
-class ComplementSelection(Selection):
-    selection: Selection
-
-    def complement(self):
-        return self.selection
-
-    def has_addr(self, addr):
-        return jnp.logical_not(self.selection.has_addr(addr))
-
-    def get_subselection(self, addr):
-        return self.selection.get_subselection(addr).complement()
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](Complement)")
-        tree.add(self.selection.__rich_tree__())
-        return tree
+def AllSelection() -> Selection:
+    return lambda a: True
 
 
-#######################
-# Concrete selections #
-#######################
-
-
-class NoneSelection(Selection):
-    def complement(self):
-        return AllSelection()
-
-    def has_addr(self, addr):
-        return False
-
-    def get_subselection(self, addr):
-        return self
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](NoneSelection)")
-        return tree
-
-
-class AllSelection(Selection):
-    def complement(self):
-        return NoneSelection()
-
-    def has_addr(self, addr):
-        return True
-
-    def get_subselection(self, addr):
-        return self
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        return rich_tree.Tree("[bold](AllSelection)")
-
-
-##################################
-# Concrete structured selections #
-##################################
-
-
-class HierarchicalSelection(Selection):
+class HierarchicalSelection(Pytree):
     trie: Trie
 
     @classmethod
-    def from_addresses(cls, *addresses: Any):
-        trie = Trie()
-        for addr in addresses:
-            trie = trie.trie_insert(addr, AllSelection())
-        return HierarchicalSelection(trie)
+    def from_addresses(cls, *addresses: Union[AddressComponent, Address]) -> Selection:
+        prefixes: List[Address] = []
+        # genjax.select("a") is supposed to match the address ("a",)
+        # so we allow a bare address to lift to a tuple here.
+        for a in addresses:
+            if isinstance(a, tuple):
+                prefixes.append(a)
+            else:
+                prefixes.append((a,))
+
+        def selector(address):
+            la = len(address)
+            for prefix in prefixes:
+                m = min(len(prefix), la)
+                if address[:m] == prefix[:m]:
+                    return True
+            return False
+
+        return selector
 
     def has_addr(self, addr):
         return self.trie.has_submap(addr)
@@ -251,6 +163,9 @@ class EmptyChoice(Choice):
     def is_empty(self):
         return True
 
+    def to_sequence(self) -> Iterable[Binding]:
+        return []
+
     @dispatch
     def merge(self, other):
         return other, self
@@ -268,17 +183,18 @@ class ChoiceValue(Choice):
     def get_value(self):
         return self.value
 
+    def to_sequence(self) -> Iterable[Binding]:
+        return [((), self.value)]
+
     @dispatch
     def merge(self, other: "ChoiceValue"):
         return self, other
 
-    @dispatch
-    def filter(self, selection: AllSelection):
-        return self
-
-    @dispatch
-    def filter(self, selection):
-        return EmptyChoice()
+    def filter(self, selection: Selection):
+        if selection(()):
+            return self
+        else:
+            return EmptyChoice()
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ValueChoice)")
@@ -306,21 +222,6 @@ class ChoiceMap(Choice):
     ) -> Tuple["ChoiceMap", "ChoiceMap"]:
         pass
 
-    @dispatch
-    def filter(
-        self,
-        selection: AllSelection,
-    ) -> "ChoiceMap":
-        return self
-
-    @dispatch
-    def filter(
-        self,
-        selection: NoneSelection,
-    ) -> "ChoiceMap":
-        return EmptyChoice()
-
-    @dispatch
     def filter(
         self,
         selection: Selection,
@@ -512,21 +413,6 @@ class Trace(Pytree):
             ```
         """
 
-    @dispatch
-    def project(
-        self,
-        selection: NoneSelection,
-    ) -> ArrayLike:
-        return 0.0
-
-    @dispatch
-    def project(
-        self,
-        selection: AllSelection,
-    ) -> ArrayLike:
-        return self.get_score()
-
-    @dispatch
     def project(self, selection: "Selection") -> ArrayLike:
         """Given a `Selection`, return the total contribution to the score of
         the addresses contained within the `Selection`.
@@ -1232,27 +1118,37 @@ class HierarchicalChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.trie.is_empty()
 
-    @dispatch
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> Choice:
-        def _inner(k, v):
-            sub = selection.get_subselection(k)
-            under = v.filter(sub)
-            return k, under
-
+        # TODO(colin): fix this to include the values
         trie = Trie()
-        iter = self.get_submaps_shallow()
-        for k, v in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoice):
-                trie = trie.trie_insert(k, v)
+        for a in self.trie.address_sequence():
+            if selection(a):
+                trie = trie.trie_insert(a, self.trie[a])
 
-        new = HierarchicalChoiceMap(trie)
-        if new.is_empty():
+        if trie.is_empty():
             return EmptyChoice()
         else:
-            return new
+            return HierarchicalChoiceMap(trie)
+
+        # def _inner(k, v):
+        #     sub = selection.get_subselection(k)
+        #     under = v.filter(sub)
+        #     return k, under
+
+        # trie = Trie()
+        # iter = self.get_submaps_shallow()
+        # for k, v in map(lambda args: _inner(*args), iter):
+        #     if not isinstance(v, EmptyChoice):
+        #         trie = trie.trie_insert(k, v)
+
+        # new = HierarchicalChoiceMap(trie)
+        # if new.is_empty():
+        #     return EmptyChoice()
+        # else:
+        #     return new
 
     def has_submap(self, addr):
         return self.trie.has_submap(addr)
@@ -1347,6 +1243,9 @@ class HierarchicalChoiceMap(ChoiceMap):
             else v
         )
         return HierarchicalChoiceMap(self.trie.trie_insert(k, v))
+
+    def address_sequence(self) -> Iterable[Address]:
+        return self.trie.address_sequence()
 
     ###################
     # Pretty printing #

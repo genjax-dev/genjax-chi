@@ -18,13 +18,12 @@ import jax
 
 class TestSelections:
     def test_hierarchical_selection(self):
-        new = genjax.select("x", ("z", "y"))
-        assert new.has_addr("z")
-        assert new.has_addr("x")
-        v = new["x"]
-        assert isinstance(v, genjax.AllSelection)
-        v = new["z", "y"]
-        assert isinstance(v, genjax.AllSelection)
+        s = genjax.select("x", ("z", "y"))
+        assert s(("x",))
+        assert s(("z",))
+        assert s(("z", "y"))
+        assert not s(("y",))
+        assert not s(("z", "x"))
 
     def test_hierarchical_selection_filter(self):
         @genjax.static_gen_fn

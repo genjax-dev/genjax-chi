@@ -31,7 +31,6 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -48,6 +47,7 @@ from genjax._src.core.typing import (
     Callable,
     List,
     PRNGKey,
+    Selection,
     Tuple,
 )
 from genjax._src.generative_functions.supports_callees import (
@@ -249,12 +249,19 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: HierarchicalSelection) -> ArrayLike:
-        weight = 0.0
-        for k, subtrace in self.choices.get_submaps_shallow():
-            if selection.has_addr(k):
-                weight += subtrace.project(selection.get_subselection(k))
-        return weight
+    def project(self, selection: Selection) -> ArrayLike:
+        # As nice as this looks, we have eliminated the recursion
+        # by calling address_sequence, which requires us to then index
+        # back down through self.choices to get the matching score.
+        # TODO(colin): If more efficiency is desirable here we could
+        # have a "filtered visitor" pattern on self.choices
+        # TODO(colin): or maybe instead of returning the address sequence
+        # we should iterate over the (address, value) sequence
+        return sum(
+            self.choices[address].get_score()
+            for address in self.choices.address_sequence()
+            if selection(address)
+        )
 
 
 # Callee syntactic sugar handler.

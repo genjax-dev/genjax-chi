@@ -153,4 +153,6 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
 # Decorator #
 #############
 
-drop_arguments = DropArgumentsGenerativeFunction
+
+def drop_arguments(f) -> GenerativeFunction:
+    return DropArgumentsGenerativeFunction(f)
