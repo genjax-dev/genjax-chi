@@ -55,7 +55,11 @@ Float = float
 Bool = bool
 String = str
 
-Address = Union[String, Int, Tuple["Address"]]
+AddressComponent = Union[String, Int]
+Address = Tuple[AddressComponent, ...]
+Selection = Callable[[Address], Bool]
+Binding = Tuple[Address, Any]
+
 Value = Any
 
 ############
@@ -97,6 +101,8 @@ def static_check_supports_grad(v):
 
 
 __all__ = [
+    "Address",
+    "AddressComponent",
     "PrettyPrintable",
     "Dataclass",
     "PRNGKey",
@@ -108,9 +114,11 @@ __all__ = [
     "Array",
     "ArrayLike",
     "Any",
+    "Binding",
     "Union",
     "Callable",
     "Sequence",
+    "Selection",
     "Dict",
     "List",
     "Int",

@@ -16,7 +16,6 @@
 import abc
 
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
     ChoiceValue,
     EmptyChoice,
     GenerativeFunction,
@@ -76,7 +75,7 @@ class DistributionTrace(
         return ChoiceValue(self.value)
 
     def project(self, selection: Selection) -> ArrayLike:
-        if isinstance(selection, AllSelection):
+        if selection(()):
             return self.get_score()
         else:
             return 0.0

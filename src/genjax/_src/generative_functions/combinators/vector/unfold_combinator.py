@@ -16,6 +16,8 @@ statically unrolled control flow for generative functions which can act as
 kernels (a kernel generative function can accept their previous output as
 input)."""
 
+from typing import Iterable
+
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -27,7 +29,6 @@ from genjax._src.core.datatypes.generative import (
     Choice,
     ChoiceMap,
     EmptyChoice,
-    GenerativeFunction,
     HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
@@ -42,6 +43,7 @@ from genjax._src.core.interpreters.incremental import (
 )
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
+    Address,
     Any,
     FloatArray,
     IntArray,
@@ -60,7 +62,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 
 
 class UnfoldTrace(Trace):
-    unfold: GenerativeFunction
+    unfold: "UnfoldCombinator"
     inner: Trace
     dynamic_length: IntArray
     args: Tuple
@@ -89,6 +91,11 @@ class UnfoldTrace(Trace):
 
     def get_score(self):
         return self.score
+
+    def address_sequence(self) -> Iterable[Address]:
+        for i in range(self.dynamic_length):
+            for j in self.inner.address_sequence():
+                yield (i,) + j
 
     @dispatch
     def project(
@@ -151,7 +158,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # But the recommended way to do this is to use `Unfold` as a decorator
         # when declaring the function:
 
-        @genjax.Unfold(max_length=1000)
+        @genjax.unfold_combinator(max_length=1000)
         @genjax.static_gen_fn
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"

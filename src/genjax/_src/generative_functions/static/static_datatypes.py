@@ -16,7 +16,6 @@
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -25,7 +24,7 @@ from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleSerialization,
 )
-from genjax._src.core.typing import Any, ArrayLike, Tuple, dispatch
+from genjax._src.core.typing import Any, ArrayLike, Selection, Tuple, dispatch
 
 #########
 # Trace #
@@ -64,13 +63,13 @@ class StaticTrace(
     @dispatch
     def project(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> ArrayLike:
-        weight = 0.0
-        for k, subtrace in self.address_choices.get_submaps_shallow():
-            if selection.has_addr(k):
-                weight += subtrace.project(selection.get_subselection(k))
-        return weight
+        return sum(
+            self.address_choices[address].get_score()
+            for address in self.address_choices.address_sequence()
+            if selection(address)
+        )
 
     def has_cached_value(self, addr):
         return self.cache.has_submap(addr)
