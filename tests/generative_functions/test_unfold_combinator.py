@@ -31,7 +31,14 @@ class TestUnfoldSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         unfold_score = tr.get_score()
-        assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
+        assert list(tr.to_sequence()) == [
+            (0, "z"),
+            (1, "z"),
+            (2, "z"),
+            (3, "z"),
+            (4, "z"),
+        ]
+        assert jnp.sum(tr.project(lambda a: a[-1] == "z")) == unfold_score
 
     def test_unfold_index_importance(self):
         @genjax.unfold_combinator(max_length=10)

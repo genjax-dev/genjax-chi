@@ -87,9 +87,9 @@ class Trie(Pytree, CustomPretty):
     def get_submaps_shallow(self):
         return self.inner.items()
 
-    def address_sequence(self) -> Iterable[Address]:
+    def to_sequence(self) -> Iterable[Address]:
         for k, v in self.inner.items():
-            if subseq := getattr(v, "address_sequence", None):
+            if subseq := getattr(v, "to_sequence", None):
                 for y in subseq():
                     yield (k,) + y
             else:
@@ -97,7 +97,7 @@ class Trie(Pytree, CustomPretty):
         # def go(prefix: Address, t: Trie):
         #     for k in t.inner.keys():
         #         pk = prefix + (k,)
-        #         if subseq := getattr(t.inner[k], "address_sequence", False):
+        #         if subseq := getattr(t.inner[k], "to_sequence", False):
         #             for sk in subseq():
         #                 yield pk + sk
         #         else:

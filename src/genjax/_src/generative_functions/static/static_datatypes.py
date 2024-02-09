@@ -24,7 +24,15 @@ from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleSerialization,
 )
-from genjax._src.core.typing import Any, ArrayLike, Selection, Tuple, dispatch
+from genjax._src.core.typing import (
+    Address,
+    Any,
+    ArrayLike,
+    Iterable,
+    Selection,
+    Tuple,
+    dispatch,
+)
 
 #########
 # Trace #
@@ -60,6 +68,9 @@ class StaticTrace(
     def get_subtrace(self, addr):
         return self.address_choices[addr]
 
+    def to_sequence(self) -> Iterable[Address]:
+        return self.address_choices.to_sequence()
+
     @dispatch
     def project(
         self,
@@ -67,7 +78,7 @@ class StaticTrace(
     ) -> ArrayLike:
         return sum(
             self.address_choices[address].get_score()
-            for address in self.address_choices.address_sequence()
+            for address in self.address_choices.to_sequence()
             if selection(address)
         )
 

@@ -29,7 +29,6 @@ from genjax._src.core.datatypes.generative import (
     Choice,
     ChoiceMap,
     EmptyChoice,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
     Trace,
@@ -48,6 +47,7 @@ from genjax._src.core.typing import (
     FloatArray,
     IntArray,
     PRNGKey,
+    Selection,
     Tuple,
     dispatch,
     typecheck,
@@ -55,7 +55,6 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-    IndexedSelection,
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
@@ -92,30 +91,28 @@ class UnfoldTrace(Trace):
     def get_score(self):
         return self.score
 
-    def address_sequence(self) -> Iterable[Address]:
+    def to_sequence(self) -> Iterable[Address]:
+        # TODO(colin): we need to make to_sequence generic over traces.
+        # This also means we might want to make it be the key-value sequence
+        # so we won't need a bunch of auxiliary methods to get the "unstripped"
+        # form of the __getitem__ operator
         for i in range(self.dynamic_length):
-            for j in self.inner.address_sequence():
+            for j in self.inner.to_sequence():
                 yield (i,) + j
 
-    @dispatch
-    def project(
-        self,
-        selection: IndexedSelection,
-    ) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
-        return jnp.sum(
-            jnp.where(
-                selection.indices < self.dynamic_length + 1,
-                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
-                0.0,
-            )
-        )
+    def project(self, selection: Selection) -> FloatArray:
+        # When we have an UnfoldTrace, it wraps another trace, whose values
+        # are arrays.
+        # TODO(colin): Does this need to be done in the JAX style? It's not
+        # a method of the GFI, but rather a property of a trace, so maybe not.
+        # that work with self.inner.project...
+        # return sum(
+        #     self.inner.get_score()
+        #     self.choices[address].get_score()
+        #     for address in self.choices.to_sequence()
+        #     if selection(address)
+        # )
 
-    @dispatch
-    def project(
-        self,
-        selection: HierarchicalSelection,
-    ) -> FloatArray:
         return jnp.sum(
             jnp.where(
                 jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
@@ -123,6 +120,33 @@ class UnfoldTrace(Trace):
                 0.0,
             )
         )
+
+    # @dispatch
+    # def project(
+    #     self,
+    #     selection: IndexedSelection,
+    # ) -> FloatArray:
+    #     inner_project = self.inner.project(selection.inner)
+    #     return jnp.sum(
+    #         jnp.where(
+    #             selection.indices < self.dynamic_length + 1,
+    #             jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
+    #             0.0,
+    #         )
+    #     )
+
+    # @dispatch
+    # def project(
+    #     self,
+    #     selection: HierarchicalSelection,
+    # ) -> FloatArray:
+    #     return jnp.sum(
+    #         jnp.where(
+    #             jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
+    #             self.inner.project(selection),
+    #             0.0,
+    #         )
+    #     )
 
 
 #####

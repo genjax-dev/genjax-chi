@@ -42,9 +42,11 @@ from genjax._src.core.interpreters.incremental import (
 )
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
+    Address,
     Any,
     ArrayLike,
     Callable,
+    Iterable,
     List,
     PRNGKey,
     Selection,
@@ -249,9 +251,12 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
+    def to_sequence(self) -> Iterable[Address]:
+        return self.choices.to_sequence()
+
     def project(self, selection: Selection) -> ArrayLike:
         # As nice as this looks, we have eliminated the recursion
-        # by calling address_sequence, which requires us to then index
+        # by calling to_sequence, which requires us to then index
         # back down through self.choices to get the matching score.
         # TODO(colin): If more efficiency is desirable here we could
         # have a "filtered visitor" pattern on self.choices
@@ -259,7 +264,7 @@ class InterpretedTrace(Trace):
         # we should iterate over the (address, value) sequence
         return sum(
             self.choices[address].get_score()
-            for address in self.choices.address_sequence()
+            for address in self.choices.to_sequence()
             if selection(address)
         )
 
