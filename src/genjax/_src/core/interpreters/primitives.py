@@ -29,8 +29,6 @@ from genjax._src.core.interpreters import staging
 from genjax._src.core.typing import Callable
 
 
-safe_map = jax_core.safe_map
-
 custom_batch_rules = {}
 hop_transformation_rules = {}
 initial_transformation_rules = {}
@@ -115,8 +113,8 @@ def _batch_fun(in_dims, *in_vals, **params):
     with jax_core.new_main(
         batching.BatchTrace, axis_name=jax_core.no_axis_name
     ) as main:
-        out_vals = (
-            yield (
+        out_vals = yield (
+            (
                 main,
                 in_dims,
             )

@@ -22,6 +22,7 @@ import jax.numpy as jnp
 from jax import api_util
 from jax import core as jax_core
 from jax import tree_util as jtu
+from jax.util import safe_map
 from jax._src import dtypes
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
@@ -30,10 +31,6 @@ from genjax._src.core.typing import Any
 from genjax._src.core.typing import Dict
 from genjax._src.core.typing import Generator
 from genjax._src.core.typing import List
-
-
-safe_map = jax_core.safe_map
-safe_zip = jax_core.safe_zip
 
 
 def get_shaped_aval(x):
