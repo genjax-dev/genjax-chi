@@ -31,6 +31,8 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 from genjax._src.gensp.choice_map_distribution import ChoiceMapDistribution
 from genjax._src.gensp.target import Target
 
+# ValueChoiceMap
+
 
 @dataclass
 class Marginal(Distribution):

@@ -354,7 +354,7 @@ class CustomSIR(SPAlgorithm):
         for i in range(0, self.num_particles):
             key, sub_key = jax.random.split(key)
             proposal_lws, ps = self.proposal.random_weighted(
-                sub_key, *self.proposal_args
+                sub_key, target, *self.proposal_args
             )
             particles.append(ps)
             weights.append(proposal_lws)
