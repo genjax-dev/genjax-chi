@@ -42,8 +42,8 @@ from genjax._src.core.interpreters.incremental import (
 )
 from genjax._src.core.pytree.pytree import Pytree
 from genjax._src.core.typing import (
-    Address,
     Any,
+    Binding,
     FloatArray,
     IntArray,
     PRNGKey,
@@ -91,14 +91,28 @@ class UnfoldTrace(Trace):
     def get_score(self):
         return self.score
 
-    def to_sequence(self) -> Iterable[Address]:
+    def to_sequence(self) -> Iterable[Binding]:
+        # What this node in the tree means is that EVERYTHING BELOW
+        # has had an axis added to it.
+
+        # There is more than one way to go about continuing here.
+
+        # We could generate the sequence (i, v[i])... but what if
+        # v has "more structure?"
+
+        # Or we could think of this as an "array level" of the trace,
+        # and say that at this point in the address, we have a vector
+        # of values (that's the JAX way of looking at it).
+
         # TODO(colin): we need to make to_sequence generic over traces.
         # This also means we might want to make it be the key-value sequence
         # so we won't need a bunch of auxiliary methods to get the "unstripped"
         # form of the __getitem__ operator
-        for i in range(self.dynamic_length):
-            for j in self.inner.to_sequence():
-                yield (i,) + j
+
+        for k, v in self.inner.to_sequence():
+            for i in range(self.dynamic_length):
+                # can we be sure we have a value here?
+                yield ((i,) + k, v.get_value()[i])
 
     def project(self, selection: Selection) -> FloatArray:
         # When we have an UnfoldTrace, it wraps another trace, whose values
