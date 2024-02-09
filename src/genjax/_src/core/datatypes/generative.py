@@ -70,69 +70,25 @@ def AllSelection() -> Selection:
     return lambda a: True
 
 
-class HierarchicalSelection(Pytree):
-    trie: Trie
-
-    @classmethod
-    def from_addresses(cls, *addresses: Union[AddressComponent, Address]) -> Selection:
-        prefixes: List[Address] = []
-        # genjax.select("a") is supposed to match the address ("a",)
-        # so we allow a bare address to lift to a tuple here.
-        for a in addresses:
-            if isinstance(a, tuple):
-                prefixes.append(a)
-            else:
-                prefixes.append((a,))
-
-        def selector(address):
-            la = len(address)
-            for prefix in prefixes:
-                m = min(len(prefix), la)
-                if address[:m] == prefix[:m]:
-                    return True
-            return False
-
-        return selector
-
-    def has_addr(self, addr):
-        return self.trie.has_submap(addr)
-
-    def get_subselection(self, addr):
-        value = self.trie.get_submap(addr)
-        if value is None:
-            return NoneSelection()
+def select(*addresses: Union[AddressComponent, Address]) -> Selection:
+    prefixes: List[Address] = []
+    # genjax.select("a") is supposed to match the address ("a",)
+    # so we allow a bare address to lift to a tuple here.
+    for a in addresses:
+        if isinstance(a, tuple):
+            prefixes.append(a)
         else:
-            subselect = value
-            if isinstance(subselect, Trie):
-                return HierarchicalSelection(subselect)
-            else:
-                return subselect
+            prefixes.append((a,))
 
-    # Extra method which is useful to generate an iterator
-    # over keys and subselections at the first level.
-    def get_subselections_shallow(self):
-        def _inner(v):
-            addr = v[0]
-            submap = v[1].get_selection()
-            if isinstance(submap, Trie):
-                submap = HierarchicalSelection(submap)
-            return (addr, submap)
+    def selector(address):
+        la = len(address)
+        for prefix in prefixes:
+            m = min(len(prefix), la)
+            if address[:m] == prefix[:m]:
+                return True
+        return False
 
-        return map(
-            _inner,
-            self.trie.get_submaps_shallow(),
-        )
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](HierarchicalSelection)")
-        for k, v in self.get_subselections_shallow():
-            subk = tree.add(f"[bold]:{k}")
-            subk.add(v.__rich_tree__())
-        return tree
+    return selector
 
 
 ###########
@@ -1320,5 +1276,3 @@ class DisjointUnionChoiceMap(ChoiceMap):
 
 # Choices and choice maps
 choice_value = ChoiceValue
-
-select = HierarchicalSelection.from_addresses

@@ -135,33 +135,6 @@ class UnfoldTrace(Trace):
             )
         )
 
-    # @dispatch
-    # def project(
-    #     self,
-    #     selection: IndexedSelection,
-    # ) -> FloatArray:
-    #     inner_project = self.inner.project(selection.inner)
-    #     return jnp.sum(
-    #         jnp.where(
-    #             selection.indices < self.dynamic_length + 1,
-    #             jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
-    #             0.0,
-    #         )
-    #     )
-
-    # @dispatch
-    # def project(
-    #     self,
-    #     selection: HierarchicalSelection,
-    # ) -> FloatArray:
-    #     return jnp.sum(
-    #         jnp.where(
-    #             jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
-    #             self.inner.project(selection),
-    #             0.0,
-    #         )
-    #     )
-
 
 #####
 # Unfold combinator

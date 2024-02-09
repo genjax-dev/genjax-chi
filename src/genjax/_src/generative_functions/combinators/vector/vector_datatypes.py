@@ -23,7 +23,6 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Mask,
     Selection,
 )
@@ -110,7 +109,7 @@ class IndexedChoiceMap(ChoiceMap):
     @dispatch
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> ChoiceMap:
         return IndexedChoiceMap(self.indices, self.inner.filter(selection))
 
