@@ -122,6 +122,13 @@ class Target(Pytree):
         return (energy, tr)
 
     @dispatch
+    def importance(self, key: PRNGKey, chm: ChoiceMap):
+        merged = self.constraints.safe_merge(chm)
+        rescaled = rescale_transform(self.p.importance)
+        (_, tr), energy = rescaled(key, merged, self.args)
+        return (energy, tr)
+
+    @dispatch
     def importance(self, key: PRNGKey):
         rescaled = rescale_transform(self.p.importance)
         (_, tr), energy = rescaled(key, self.constraints, self.args)

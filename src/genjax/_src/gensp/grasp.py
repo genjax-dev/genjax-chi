@@ -321,7 +321,7 @@ class CustomSIR(SPAlgorithm):
             key, sub_key = jax.random.split(key)
             proposal_lws, ps = self.proposal.random_weighted(
                 sub_key,
-                target.constraints,
+                target,
                 *self.proposal_args,
             )
             particles.append(ps)
@@ -402,7 +402,7 @@ class DefaultMarginal(SPDistribution):
     p: GenerativeFunction
 
     def flatten(self):
-        return (self.select, self.p), ()
+        return (self.selection, self.p), ()
 
     @typecheck
     def random_weighted(
@@ -433,11 +433,10 @@ class DefaultMarginal(SPDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ValueChoiceMap,
+        latent_choices: ChoiceMap,
         *args,
     ) -> FloatArray:
-        inner_choices = latent_choices.get_leaf_value()
-        tgt = target(self.p, args, inner_choices)
+        tgt = target(self.p, args, latent_choices)
         alg = sir(1)
         Z = alg.estimate_normalizing_constant(key, tgt)
         return Z
@@ -474,12 +473,11 @@ class CustomMarginal(SPDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ValueChoiceMap,
+        latent_choices: ChoiceMap,
         *args,
     ) -> FloatArray:
-        inner_choices = latent_choices.get_leaf_value()
         (p_args, q_args) = args
-        tgt = target(self.p, p_args, inner_choices)
+        tgt = target(self.p, p_args, latent_choices)
         alg = self.q(*q_args)
         Z = alg.estimate_normalizing_constant(key, tgt)
         return Z
