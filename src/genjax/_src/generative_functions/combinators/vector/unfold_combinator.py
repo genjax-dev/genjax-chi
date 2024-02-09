@@ -88,7 +88,7 @@ class UnfoldTrace(Trace):
         self,
         selection: IndexedSelection,
     ) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
+        inner_project = jax.vmap(lambda it: it.project(selection.inner))(self.inner)
         return jnp.sum(
             jnp.where(
                 selection.indices < self.dynamic_length + 1,
@@ -102,10 +102,12 @@ class UnfoldTrace(Trace):
         self,
         selection: HierarchicalSelection,
     ) -> FloatArray:
+        inner_project = jax.vmap(lambda it: it.project(selection))(self.inner)
+        inner_score = jax.vmap(lambda it: it.get_score())(self.inner)
         return jnp.sum(
             jnp.where(
-                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
-                self.inner.project(selection),
+                jnp.arange(0, len(inner_score)) < self.dynamic_length + 1,
+                inner_project,
                 0.0,
             )
         )
@@ -325,7 +327,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         def _inner(carry, slice):
             count, key, state = carry
-            choice = slice
+            if isinstance(slice, Mask):
+                # Should we check that `check_count` implies `chm.mask`?
+                choice = slice.value
+            else:
+                # Should this be an error?
+                choice = slice
             key, sub_key = jax.random.split(key)
 
             def _importance(key, choice, state):
@@ -711,9 +718,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         def _inner(carry, slice):
             count, state = carry
-            choice = slice
-
-            check = count == choice.get_index()
+            if isinstance(slice, Mask):
+                # Should we check that `check` implies `choice.mask`?
+                choice = slice.value
+            else:
+                # Should this be an error?
+                choice = slice
 
             (score, retval) = self.kernel.assess(choice, (state, *static_args))
 
@@ -733,7 +743,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (_, state), (retval, score, _) = jax.lax.scan(
             _inner,
             (0, state),
-            choice,
+            choice.inner,
             length=self.max_length,
         )
 

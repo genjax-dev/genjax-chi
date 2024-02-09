@@ -19,8 +19,9 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    GenerativeFunction,
+    HierarchicalSelection,
     JAXGenerativeFunction,
-    Selection,
     Trace,
 )
 from genjax._src.core.pytree import Pytree
@@ -34,30 +35,39 @@ from genjax._src.core.typing import (
     typecheck,
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
+    IndexedSelection,
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 class RepeatTrace(Trace):
+    repeated_fn: GenerativeFunction
     inner_trace: Trace
     args: Tuple
-
-    def get_score(self):
-        return self.inner_trace.get_score()
 
     def get_args(self):
         return self.args
 
     def get_choices(self):
-        return self.inner_trace.strip()
+        return VectorChoiceMap(self.inner_trace.strip())
+
+    def get_gen_fn(self):
+        return self.repeated_fn
+
+    def get_score(self):
+        return jnp.sum(jax.vmap(lambda it: it.get_score())(self.inner_trace))
 
     def get_retval(self):
         return self.inner_trace.get_retval()
 
-    @typecheck
-    def project(self, selection: Selection):
-        return self.inner_trace.project(selection)
+    @dispatch
+    def project(self, selection: IndexedSelection):
+        raise NotImplementedError()
+
+    @dispatch
+    def project(self, selection: HierarchicalSelection):
+        return jnp.sum(jax.vmap(lambda it: it.project(selection))(self.inner_trace))
 
 
 class RepeatCombinator(
@@ -67,8 +77,8 @@ class RepeatCombinator(
     """The `RepeatCombinator` supports i.i.d sampling from generative functions (for
     vectorized mapping over arguments, see `MapCombinator`)."""
 
-    inner: JAXGenerativeFunction
     repeats: Int = Pytree.static()
+    inner: JAXGenerativeFunction
 
     @typecheck
     def simulate(
@@ -81,7 +91,7 @@ class RepeatCombinator(
             self.inner.simulate,
             in_axes=(0, None),
         )(sub_keys, args)
-        return RepeatTrace(repeated_inner_tr, args)
+        return RepeatTrace(self.inner, repeated_inner_tr, args)
 
     @dispatch
     def importance(
@@ -93,9 +103,9 @@ class RepeatCombinator(
         sub_keys = jax.random.split(key, self.repeats)
         repeated_inner_tr, w = jax.vmap(
             self.inner.importance,
-            in_axes=(0, None),
-        )(sub_keys, choice, args)
-        return RepeatTrace(repeated_inner_tr, args), jnp.sum(w)
+            in_axes=(0, 0, None),
+        )(sub_keys, choice.inner, args)
+        return RepeatTrace(self.inner, repeated_inner_tr, args), jnp.sum(w)
 
     @typecheck
     def update(
