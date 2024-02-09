@@ -53,8 +53,8 @@ class TestSwitch:
         jitted = jax.jit(switch.simulate)
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (0,))
-        v1 = tr.get_choice().get_submap("y1")
-        v2 = tr.get_choice().get_submap("y2")
+        v1 = tr.get_choices().get_submap("y1")
+        v2 = tr.get_choices().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, v1_score) = genjax.normal.importance(sub_key, v1, (0.0, 1.0))
@@ -64,7 +64,7 @@ class TestSwitch:
         assert tr.get_args() == (0,)
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (1,))
-        flip = tr.get_choice().get_submap("y3")
+        flip = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, flip_score) = genjax.bernoulli.importance(sub_key, flip, (0.3,))
@@ -102,9 +102,9 @@ class TestSwitch:
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
         tr = jitted(key, (0,))
-        assert isinstance(tr.get_choice().get_submap("y1"), Mask)
-        assert isinstance(tr.get_choice().get_submap("y2"), Mask)
-        assert isinstance(tr.get_choice().get_submap("y3"), Mask)
+        assert isinstance(tr.get_choices().get_submap("y1"), Mask)
+        assert isinstance(tr.get_choices().get_submap("y2"), Mask)
+        assert isinstance(tr.get_choices().get_submap("y3"), Mask)
 
     def test_switch_importance(self):
         @genjax.static_gen_fn
@@ -123,8 +123,8 @@ class TestSwitch:
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (0,))
-        v1 = tr.get_choice().get_submap("y1")
-        v2 = tr.get_choice().get_submap("y2")
+        v1 = tr.get_choices().get_submap("y1")
+        v2 = tr.get_choices().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, v1_score) = genjax.normal.importance(
@@ -142,7 +142,7 @@ class TestSwitch:
         assert w == 0.0
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (1,))
-        flip = tr.get_choice().get_submap("y3")
+        flip = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, flip_score) = genjax.bernoulli.importance(
@@ -155,7 +155,7 @@ class TestSwitch:
         chm = genjax.choice_map({"y3": 1})
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (1,))
-        flip = tr.get_choice().get_submap("y3")
+        flip = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, flip_score) = genjax.bernoulli.importance(

@@ -173,7 +173,7 @@ class Marginal(ChoiceDistribution):
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, self.p_args)
         weight = tr.get_score()
-        choices = tr.get_choice()
+        choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         target = Target(self.p, self.p_args, latent_choices)
@@ -230,7 +230,7 @@ class ValueMarginal(Distribution):
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, self.p_args)
         weight = tr.get_score()
-        choices = tr.get_choice()
+        choices = tr.get_choices()
         value = choices[self.addr]
         selection = select(self.addr)
         other_choices = choices.filter(selection.complement())

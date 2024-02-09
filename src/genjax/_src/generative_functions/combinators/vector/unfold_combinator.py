@@ -63,7 +63,7 @@ class UnfoldTrace(Trace):
     def get_args(self):
         return self.args
 
-    def get_choice(self):
+    def get_choices(self):
         mask_flags = (
             (
                 jnp.expand_dims(jnp.arange(self.unfold.max_length), -1)

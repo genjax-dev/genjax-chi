@@ -66,7 +66,7 @@ class MapTrace(Trace):
     def get_args(self):
         return self.args
 
-    def get_choice(self):
+    def get_choices(self):
         return VectorChoiceMap(self.inner.strip())
 
     def get_gen_fn(self):

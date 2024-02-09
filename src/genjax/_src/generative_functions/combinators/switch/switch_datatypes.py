@@ -158,7 +158,7 @@ class SwitchTrace(Trace):
     def get_args(self):
         return self.args
 
-    def get_choice(self):
+    def get_choices(self):
         return self.chm.strip()
 
     def get_gen_fn(self):

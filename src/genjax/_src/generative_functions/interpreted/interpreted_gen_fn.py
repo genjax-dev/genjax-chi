@@ -177,16 +177,16 @@ class UpdateHandler(Handler):
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
-        # sub_trace = self.previous_trace.get_choice().get_submap(addr)
-        # TODO(colin): think about this with McCoy. Having get_choice() implicitly
+        # sub_trace = self.previous_trace.get_choices().get_submap(addr)
+        # TODO(colin): think about this with McCoy. Having get_choices() implicitly
         # call strip() makes a _lot_ of interpreted code the same as the static code,
         # and it seems good not to ask people to add or remove strip() as they move
-        # from one to another, and also means the type of thing you get from get_choice()
+        # from one to another, and also means the type of thing you get from get_choices()
         # is more stable. Maybe we can move get_subtrace higher in the stack?
         if st := getattr(self.previous_trace, "get_subtrace", None):
             sub_trace = st(addr)
         else:
-            sub_trace = self.previous_trace.get_choice().get_submap(addr)
+            sub_trace = self.previous_trace.get_choices().get_submap(addr)
         argdiffs = Diff.tree_diff_unknown_change(args)
         self.key, sub_key = jax.random.split(self.key)
         # if isinstance(sub_map, EmptyChoice):
@@ -228,7 +228,7 @@ class InterpretedTrace(Trace):
     def get_gen_fn(self):
         return self.gen_fn
 
-    def get_choice(self):
+    def get_choices(self):
         return HierarchicalChoiceMap(self.choices).strip()
 
     def get_subtrace(self, addr):

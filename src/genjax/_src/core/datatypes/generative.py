@@ -266,7 +266,7 @@ class Choice(Pytree):
         new, _ = self.merge(other)
         return new
 
-    def get_choice(self):
+    def get_choices(self):
         return self
 
     def strip(self):
@@ -464,7 +464,7 @@ class Trace(Pytree):
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
             retval = tr.get_retval()
-            chm = tr.get_choice()
+            chm = tr.get_choices()
             v = chm.get_value()
             print(console.render((retval, v)))
             ```
@@ -504,7 +504,7 @@ class Trace(Pytree):
         pass
 
     @abstractmethod
-    def get_choice(self) -> ChoiceMap:
+    def get_choices(self) -> ChoiceMap:
         """Return a `ChoiceMap` representation of the set of traced random choices
         sampled during the execution of the generative function to produce the `Trace`.
 
@@ -526,7 +526,7 @@ class Trace(Pytree):
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
-            chm = tr.get_choice()
+            chm = tr.get_choices()
             print(console.render(chm))
             ```
         """
@@ -643,7 +643,7 @@ class Trace(Pytree):
         return strip(self)
 
     def __getitem__(self, x):
-        return self.get_choice()[x]
+        return self.get_choices()[x]
 
 
 # Remove all trace metadata, and just return choices.
@@ -657,7 +657,7 @@ def strip(v):
         else:
             return v
 
-    return jtu.tree_map(_inner, v.get_choice(), is_leaf=_check)
+    return jtu.tree_map(_inner, v.get_choices(), is_leaf=_check)
 
 
 ###########
@@ -699,7 +699,7 @@ class Mask(Choice):
         return jnp.logical_and(self.flag, self.value.is_empty())
 
     def filter(self, selection: Selection):
-        choices = self.value.get_choice()
+        choices = self.value.get_choices()
         assert isinstance(choices, Choice)
         return Mask(self.flag, choices.filter(selection))
 
@@ -1029,7 +1029,7 @@ class GenerativeFunction(Pytree):
             ```
         """
         tr = self.simulate(key, args)
-        chm = tr.get_choice()
+        chm = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
         return (chm, score, retval)
@@ -1115,7 +1115,7 @@ class GenerativeFunction(Pytree):
         diffs: Tuple,
     ) -> Tuple[Trace, FloatArray, Any, Choice]:
         primals = Diff.tree_primal(diffs)
-        prev_choice = prev.get_choice()
+        prev_choice = prev.get_choices()
         merged, discarded = prev_choice.merge(new_constraints)
         (tr, _) = self.importance(key, merged, primals)
         retval = tr.get_retval()

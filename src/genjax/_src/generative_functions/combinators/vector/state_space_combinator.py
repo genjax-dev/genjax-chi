@@ -57,7 +57,7 @@ class StateSpaceTrace(Trace):
     def get_args(self):
         return self.args
 
-    def get_choice(self):
+    def get_choices(self):
         return StateSpaceChoiceMap.new(
             self.initial_trace,
             self.transition_trace,

@@ -49,7 +49,7 @@ class RepeatTrace(Trace):
     def get_args(self):
         return self.args
 
-    def get_choice(self):
+    def get_choices(self):
         return self.inner_trace.strip()
 
     def get_retval(self):

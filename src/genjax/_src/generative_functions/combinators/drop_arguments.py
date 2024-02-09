@@ -49,7 +49,7 @@ class DropArgumentsTrace(Trace):
     def get_score(self):
         return self.score
 
-    def get_choice(self):
+    def get_choices(self):
         return self.inner_choice_map
 
     def get_aux(self):
@@ -60,7 +60,7 @@ class DropArgumentsTrace(Trace):
             original_arguments,
             self.get_retval(),
             self.get_score(),
-            self.get_choice(),
+            self.get_choices(),
         )
         aux = self.get_aux()
         restored = self.gen_fn.restore_with_aux(interface_data, aux)
@@ -78,7 +78,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         tr = self.gen_fn.simulate(key, args)
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
-        inner_chm = tr.get_choice()
+        inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return DropArgumentsTrace(
             self,
@@ -97,7 +97,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         w, tr = self.gen_fn.importance(key, choice_map, args)
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
-        inner_chm = tr.get_choice()
+        inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return (
             DropArgumentsTrace(
@@ -122,7 +122,7 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         )
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
-        inner_chm = tr.get_choice()
+        inner_chm = tr.get_choices()
         aux = tr.get_aux()
         return (
             DropArgumentsTrace(

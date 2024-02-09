@@ -53,7 +53,7 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, p_args)
-        chm = tr.get_choice().strip()
+        chm = tr.get_choices().strip()
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
             sub_key, key_indices_p, chm, p_args
