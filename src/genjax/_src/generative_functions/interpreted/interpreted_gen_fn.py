@@ -260,11 +260,13 @@ class InterpretedTrace(Trace):
         # back down through self.choices to get the matching score.
         # TODO(colin): If more efficiency is desirable here we could
         # have a "filtered visitor" pattern on self.choices
-        # TODO(colin): or maybe instead of returning the address sequence
-        # we should iterate over the (address, value) sequence
+        # TODO(colin): George points out that the "traditonal"
+        # selection mechanism avoided searching parts of the tree that
+        # were ruled out at higher levels. But are there traces so
+        # large that an unbounded search would take appreciable time?
         return sum(
-            self.choices[address].get_score()
-            for address in self.choices.to_sequence()
+            value.get_score()
+            for address, value in self.choices.to_sequence()
             if selection(address)
         )
 

@@ -19,7 +19,7 @@ import rich
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Address, Iterable
+from genjax._src.core.typing import Binding, Iterable
 
 ########
 # Trie #
@@ -87,13 +87,13 @@ class Trie(Pytree, CustomPretty):
     def get_submaps_shallow(self):
         return self.inner.items()
 
-    def to_sequence(self) -> Iterable[Address]:
+    def to_sequence(self) -> Iterable[Binding]:
         for k, v in self.inner.items():
             if subseq := getattr(v, "to_sequence", None):
-                for y in subseq():
-                    yield (k,) + y
+                for sk, sv in subseq():
+                    yield ((k,) + sk, sv)
             else:
-                yield (k,)
+                yield ((k,), v)
         # def go(prefix: Address, t: Trie):
         #     for k in t.inner.keys():
         #         pk = prefix + (k,)

@@ -77,8 +77,8 @@ class StaticTrace(
         selection: Selection,
     ) -> ArrayLike:
         return sum(
-            self.address_choices[address].get_score()
-            for address in self.address_choices.to_sequence()
+            value.get_score()
+            for address, value in self.address_choices.to_sequence()
             if selection(address)
         )
 
