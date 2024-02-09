@@ -22,8 +22,8 @@ from genjax._src.core.datatypes.generative import (
     DisjointUnionChoiceMap,
     EmptyChoice,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Selection,
+    select,
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree.checks import (
@@ -129,7 +129,7 @@ def indexed_select(idx: Union[int, IntArray], *choices: Selection):
     idx = jnp.atleast_1d(idx)
     if len(choices) == 0:
         return IndexedSelection(idx, AllSelection())
-    elif len(choices) == 1 and isinstance(choices[0], Selection):
+    elif len(choices) == 1 and callable(choices[0]):
         return IndexedSelection(idx, choices[0])
     else:
-        return IndexedSelection(idx, HierarchicalSelection.from_addresses(choices))
+        return IndexedSelection(idx, select(choices))

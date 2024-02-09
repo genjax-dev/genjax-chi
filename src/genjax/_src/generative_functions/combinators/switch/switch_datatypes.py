@@ -24,7 +24,6 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
-    HierarchicalSelection,
     Mask,
     Selection,
     Trace,
@@ -62,7 +61,7 @@ class SwitchChoiceMap(ChoiceMap):
 
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> ChoiceMap:
         filtered_submaps = map(lambda chm: chm.filter(selection), self.submaps)
         return SwitchChoiceMap(self.index, filtered_submaps)
