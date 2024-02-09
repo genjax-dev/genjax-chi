@@ -183,9 +183,6 @@ class ChoiceValue(Choice):
     def get_value(self):
         return self.value
 
-    def to_sequence(self) -> Iterable[Binding]:
-        return [((), self.value)]
-
     @dispatch
     def merge(self, other: "ChoiceValue"):
         return self, other
@@ -1124,7 +1121,7 @@ class HierarchicalChoiceMap(ChoiceMap):
     ) -> Choice:
         # TODO(colin): fix this to include the values
         trie = Trie()
-        for a in self.trie.address_sequence():
+        for a in self.trie.to_sequence():
             if selection(a):
                 trie = trie.trie_insert(a, self.trie[a])
 
@@ -1244,8 +1241,8 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
         return HierarchicalChoiceMap(self.trie.trie_insert(k, v))
 
-    def address_sequence(self) -> Iterable[Address]:
-        return self.trie.address_sequence()
+    def to_sequence(self) -> Iterable[Address]:
+        return self.trie.to_sequence()
 
     ###################
     # Pretty printing #

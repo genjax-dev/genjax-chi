@@ -35,7 +35,7 @@ class TestTrie:
         }
         t = trie_from_dict(d)
 
-        assert list(t.address_sequence()) == [
+        assert list(t.to_sequence()) == [
             ("a", "a1"),
             ("a", "a2", "a21"),
             ("a", "a2", "a22"),
@@ -55,12 +55,10 @@ class TestTrie:
 
     def test_empty(self):
         t = Trie()
-        assert list(t.address_sequence()) == []
+        assert list(t.to_sequence()) == []
 
     def test_flat(self):
-        assert list(
-            trie_from_dict({"a": 1, "b": 2, "c": 3, "d": 4}).address_sequence()
-        ) == [
+        assert list(trie_from_dict({"a": 1, "b": 2, "c": 3, "d": 4}).to_sequence()) == [
             ("a",),
             ("b",),
             ("c",),
@@ -68,6 +66,6 @@ class TestTrie:
         ]
 
     def test_nested(self):
-        assert list(
-            trie_from_dict({"a": {"b": {"c": {"d": 1}}}}).address_sequence()
-        ) == [("a", "b", "c", "d")]
+        assert list(trie_from_dict({"a": {"b": {"c": {"d": 1}}}}).to_sequence()) == [
+            ("a", "b", "c", "d")
+        ]
