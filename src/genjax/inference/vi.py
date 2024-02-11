@@ -12,25 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.gensp.grasp import (
+from genjax._src.inference.vi import (
+    ELBO,
+    IWELBO,
     ADEVDistribution,
-    baseline,
+    QWake,
     categorical_enum,
-    elbo,
     flip_enum,
     flip_mvd,
-    flip_reinforce,
     geometric_reinforce,
-    iwae_elbo,
-    marginal,
     mv_normal_diag_reparam,
-    mv_normal_reparam,
     normal_reinforce,
     normal_reparam,
-    p_wake,
-    q_wake,
-    sir,
-    uniform,
 )
 
 __all__ = [
@@ -39,17 +32,10 @@ __all__ = [
     "flip_mvd",
     "normal_reinforce",
     "normal_reparam",
-    "mv_normal_reparam",
     "mv_normal_diag_reparam",
     "geometric_reinforce",
-    "uniform",
     "categorical_enum",
-    "flip_reinforce",
-    "baseline",
-    "sir",
-    "marginal",
-    "elbo",
-    "iwae_elbo",
-    "q_wake",
-    "p_wake",
+    "ELBO",
+    "IWELBO",
+    "QWake",
 ]

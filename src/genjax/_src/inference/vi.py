@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from dataclasses import dataclass
 
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
@@ -33,6 +32,7 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
+from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -50,7 +50,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     normal,
 )
 from genjax._src.inference.core import ChoiceDistribution, InferenceAlgorithm, Target
-from genjax._src.inference.smc import ProposalImportanceSampling
+from genjax._src.inference.smc import Importance, ImportanceK
 
 tfd = tfp.distributions
 
@@ -60,8 +60,7 @@ tfd = tfp.distributions
 ##########################################
 
 
-@dataclass
-class ADEVDistribution(ExactDensity):
+class ADEVDistribution(JAXGenerativeFunction, ExactDensity):
     """The class `ADEVDistribution` is a wrapper class which exposes the `sample` and
     `logpdf` interfaces, where `sample` utilizes an ADEV differentiable sampling
     primitive, and `logpdf` is a differentiable logpdf function."""
@@ -149,6 +148,27 @@ class ExpectedValueLoss(Pytree):
         pass
 
 
+class ELBO(ExpectedValueLoss):
+    target: Target
+    make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
+
+    def grad_estimate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Tuple:
+        # In the source language of ADEV.
+        @expectation
+        def _loss(proposal_args):
+            proposal = self.make_proposal(proposal_args)
+            guide = Importance(self.target, proposal)
+            key = reap_key()
+            w = guide.estimate_normalizing_constant(key, self.target)
+            return w
+
+        return _loss.grad_estimate(key, args)
+
+
 class IWELBO(ExpectedValueLoss):
     target: Target
     make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
@@ -163,7 +183,7 @@ class IWELBO(ExpectedValueLoss):
         @expectation
         def _loss(proposal_args):
             proposal = self.make_proposal(proposal_args)
-            guide = ProposalImportanceSampling(self.target, proposal, self.N)
+            guide = ImportanceK(self.target, proposal, self.N)
             key = reap_key()
             w = guide.estimate_normalizing_constant(key, self.target)
             return w

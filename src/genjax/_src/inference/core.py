@@ -160,6 +160,7 @@ class Marginal(ChoiceDistribution):
 
     p: GenerativeFunction
     p_args: Tuple
+    alg_args: Tuple = Pytree.field(default=())
     selection: Selection = Pytree.field(default=AllSelection())
     algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = Pytree.static(
         default=None
@@ -180,7 +181,7 @@ class Marginal(ChoiceDistribution):
         if self.algorithm_builder is None:
             return weight, latent_choices
         else:
-            alg = self.algorithm_builder(target)
+            alg = self.algorithm_builder(target, *self.alg_args)
             Z = alg.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
@@ -198,9 +199,13 @@ class Marginal(ChoiceDistribution):
             return weight
         else:
             target = Target(self.p, self.p_args, latent_choices)
-            alg = self.algorithm_builder(target)
+            alg = self.algorithm_builder(target, *self.alg_args)
             Z = alg.estimate_normalizing_constant(key, target)
             return Z
+
+    @property
+    def __wrapped__(self):
+        return self.p
 
 
 @typecheck
@@ -218,6 +223,7 @@ class ValueMarginal(Distribution):
     p: GenerativeFunction
     p_args: Tuple
     addr: Any
+    alg_args: Tuple = Pytree.field(default=())
     algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = Pytree.static(
         default=None
     )
@@ -239,7 +245,7 @@ class ValueMarginal(Distribution):
         if self.algorithm_builder is None:
             return weight, value
         else:
-            alg = self.algorithm_builder(target)
+            alg = self.algorithm_builder(target, *self.alg_args)
             Z = alg.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
@@ -258,9 +264,13 @@ class ValueMarginal(Distribution):
             return weight
         else:
             target = Target(self.p, self.p_args, latent_choices)
-            alg = self.algorithm_builder(target)
+            alg = self.algorithm_builder(target, *self.alg_args)
             Z = alg.estimate_normalizing_constant(key, target)
             return Z
+
+    @property
+    def __wrapped__(self):
+        return self.p
 
 
 ################################
@@ -268,89 +278,53 @@ class ValueMarginal(Distribution):
 ################################
 
 
-class PartialM(Distribution):
-    callable: Callable[[Any], Marginal] = Pytree.static()
-
-    def apply(self, *args):
-        return self.callable(*args)
-
-    @typecheck
-    def random_weighted(
-        self,
-        key: PRNGKey,
-        *args,
-    ) -> Tuple[FloatArray, Choice]:
-        dist = self.callable(*args)
-        return dist.random_weighted(key)
-
-    @typecheck
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        v: Any,
-        *args,
-    ) -> FloatArray:
-        dist = self.callable(*args)
-        return dist.estimate_logpdf(key, v)
-
-    @property
-    def __wrapped__(self):
-        return self.callable
-
-
 @typecheck
 def partial_m(
     selection: Selection = AllSelection(),
     algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = None,
-) -> Callable[[Callable], PartialM]:
-    def decorator(gen_fn: GenerativeFunction) -> PartialM:
-        def _partial_m(*args):
-            return Marginal(gen_fn, args, selection, algorithm_builder)
+):
+    def decorator(gen_fn: GenerativeFunction):
+        @typecheck
+        def _partial_m(
+            p_args: Tuple,
+            alg_args: Tuple = (),
+        ) -> Marginal:
+            return module_update_wrapper(
+                Marginal(
+                    gen_fn,
+                    p_args,
+                    alg_args,
+                    selection,
+                    algorithm_builder,
+                )
+            )
 
-        return module_update_wrapper(PartialM(_partial_m))
+        return _partial_m
 
     return decorator
-
-
-class PartialV(Distribution):
-    callable: Callable[[Any], ValueMarginal] = Pytree.static()
-
-    def curry(self, *args):
-        return self.callable(*args)
-
-    @typecheck
-    def random_weighted(
-        self,
-        key: PRNGKey,
-        *args,
-    ) -> Tuple[FloatArray, Any]:
-        dist = self.callable(*args)
-        return dist.random_weighted(key)
-
-    @typecheck
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        v: Any,
-        *args,
-    ) -> FloatArray:
-        dist = self.callable(*args)
-        return dist.estimate_logpdf(key, v)
-
-    @property
-    def __wrapped__(self):
-        return self.callable
 
 
 @typecheck
 def partial_v(
     addr,
     algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = None,
-) -> Callable[[Callable], PartialM]:
-    def decorator(f) -> Marginal:
-        def _partial_v(*args):
-            return ValueMarginal(f, args, addr, algorithm_builder)
+):
+    def decorator(f):
+        @typecheck
+        def _partial_v(
+            p_args: Tuple,
+            q_args: Tuple = (),
+        ) -> ValueMarginal:
+            return module_update_wrapper(
+                ValueMarginal(
+                    f,
+                    p_args,
+                    addr,
+                    q_args,
+                    algorithm_builder,
+                )
+            )
 
-        return module_update_wrapper(PartialV(_partial_v))
+        return _partial_v
 
     return decorator

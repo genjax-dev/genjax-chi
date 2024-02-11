@@ -18,7 +18,6 @@ In this module, we provide a set of ingredients for implementing SMC algorithms,
 
 from abc import abstractmethod
 
-import jax
 from jax import numpy as jnp
 from jax import random as jrandom
 from jax import tree_util as jtu

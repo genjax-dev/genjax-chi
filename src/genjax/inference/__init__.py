@@ -25,6 +25,7 @@ from genjax.inference import (
     exact_testbed,
     smc,
     translator,
+    vi,
 )
 
 __all__ = [
@@ -35,7 +36,8 @@ __all__ = [
     "ValueMarginal",
     "partial_m",
     "partial_v",
+    "exact_testbed",
     "smc",
     "translator",
-    "exact_testbed",
+    "vi",
 ]
