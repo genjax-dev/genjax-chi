@@ -14,12 +14,12 @@
 
 from genjax._src.inference.smc import (
     ChangeTarget,
-    ImportanceSampling,
-    ProposalImportanceSampling,
+    Importance,
+    ImportanceK,
 )
 
 __all__ = [
     "ChangeTarget",
-    "ImportanceSampling",
-    "ProposalImportanceSampling",
+    "Importance",
+    "ImportanceK",
 ]

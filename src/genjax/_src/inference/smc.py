@@ -18,6 +18,7 @@ In this module, we provide a set of ingredients for implementing SMC algorithms,
 
 from abc import abstractmethod
 
+import jax
 from jax import numpy as jnp
 from jax import random as jrandom
 from jax import tree_util as jtu
@@ -31,6 +32,7 @@ from genjax._src.core.typing import (
     BoolArray,
     FloatArray,
     Int,
+    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -77,6 +79,9 @@ class ParticleCollection(Pytree):
     def get_particles(self) -> Trace:
         return self.particles
 
+    def get_particle(self, idx) -> Trace:
+        return jtu.tree_map(lambda v: v[idx], self.particles)
+
     def get_log_weights(self) -> FloatArray:
         return self.log_weights
 
@@ -104,11 +109,18 @@ class SMCAlgorithm(InferenceAlgorithm):
         raise NotImplementedError
 
     @abstractmethod
-    def run_smc(self, key: PRNGKey):
+    def run_smc(
+        self,
+        key: PRNGKey,
+    ) -> ParticleCollection:
         raise NotImplementedError
 
     @abstractmethod
-    def run_csmc(self, key: PRNGKey, retained: Choice):
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Choice,
+    ) -> ParticleCollection:
         raise NotImplementedError
 
     #########
@@ -129,7 +141,7 @@ class SMCAlgorithm(InferenceAlgorithm):
         total_weight = logsumexp(log_weights)
         logits = log_weights - total_weight
         idx = categorical.sample(key, logits)
-        particle = particle_collection.get_particles().slice(idx)
+        particle = particle_collection.get_particle(idx)
         log_density_estimate = particle.get_score() - (
             particle_collection.get_log_marginal_likelihood_estimate()
             + total_weight
@@ -153,7 +165,7 @@ class SMCAlgorithm(InferenceAlgorithm):
         total_weight = logsumexp(log_weights)
         logits = log_weights - total_weight
         idx = categorical.sample(key, logits)
-        particle = particle_collection.get_particles().slice(idx)
+        particle = particle_collection.get_particle(idx)
         log_density_estimate = particle.get_score() - (
             particle_collection.get_log_marginal_likelihood_estimate()
             + total_weight
@@ -194,60 +206,65 @@ class SMCAlgorithm(InferenceAlgorithm):
         return algorithm.run_csmc_for_normalizing_constant(key, latent_choices, w)
 
 
+#######################
+# Importance sampling #
+#######################
+
+
 @typecheck
-class ImportanceSampling(SMCAlgorithm):
-    """Given a `target: Target` as well as the
-    number of particles `n_particles: Int`, initialize a particle collection using
-    importance sampling with default proposals provided by the generative function
-    underlying the `target`."""
+class Importance(SMCAlgorithm):
+    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, initialize a particle collection using
+    importance sampling."""
 
     target: Target
-    n_particles: Int = Pytree.static()
+    q: Optional[ChoiceDistribution] = Pytree.field(default=Pytree.const(None))
 
     def get_num_particles(self):
-        return self.n_particles
+        return 1
 
     def get_final_target(self):
         return self.target
 
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
-        sub_keys = jrandom.split(sub_key, self.get_num_particles())
-        target_scores, trs = vmap(self.target.generate, in_axes=(0, None))(
-            sub_keys, EmptyChoice()
-        )
+        if self.q:
+            log_weight, choice = self.q.random_weighted(sub_key)
+            target_score, tr = self.target.generate(key, choice)
+        else:
+            log_weight = 0.0
+            target_score, tr = self.target.generate(key, EmptyChoice())
         return ParticleCollection(
-            trs,
-            target_scores,
+            jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), tr),
+            jnp.array([target_score - log_weight]),
             jnp.array(True),
         )
 
     def run_csmc(self, key: PRNGKey, retained: Choice):
         key, sub_key = jrandom.split(key)
-        sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
-        log_scores, target_traces = vmap(self.target.generate)(sub_keys, EmptyChoice())
-        retained_score, retained_trace = self.target.generate(key, retained)
-        target_traces = jtu.tree_map(stack_to_first_dim, target_traces, retained_trace)
-        target_scores = jtu.tree_map(stack_to_first_dim, log_scores, retained_score)
+        if self.q:
+            q_score = self.q.estimate_logpdf(sub_key, retained)
+        else:
+            q_score = 0.0
+        target_score, target_trace = self.target.generate(key, retained)
         return ParticleCollection(
-            target_traces,
-            target_scores,
+            jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), target_trace),
+            jnp.array([target_score - q_score]),
             jnp.array(True),
         )
 
 
 @typecheck
-class ProposalImportanceSampling(SMCAlgorithm):
+class ImportanceK(SMCAlgorithm):
     """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the
-    number of particles `n_particles: Int`, initialize a particle collection using
+    number of particles `k_particles: Int`, initialize a particle collection using
     importance sampling."""
 
     target: Target
-    q: ChoiceDistribution
-    n_particles: Int = Pytree.static()
+    q: Optional[ChoiceDistribution] = Pytree.field(default=Pytree.const(None))
+    k_particles: Int = Pytree.static(default=2)
 
     def get_num_particles(self):
-        return self.n_particles
+        return self.k_particles
 
     def get_final_target(self):
         return self.target
@@ -255,8 +272,14 @@ class ProposalImportanceSampling(SMCAlgorithm):
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles())
-        log_weights, choices = vmap(self.q.random_weighted)(sub_keys)
-        target_scores, trs = vmap(self.target.generate)(sub_keys, choices)
+        if self.q:
+            log_weights, choices = vmap(self.q.random_weighted)(sub_keys)
+            target_scores, trs = vmap(self.target.generate)(sub_keys, choices)
+        else:
+            log_weights = 0.0
+            target_scores, trs = vmap(self.target.generate, in_axes=(0, None))(
+                sub_keys, EmptyChoice()
+            )
         return ParticleCollection(
             trs,
             target_scores - log_weights,
@@ -266,16 +289,29 @@ class ProposalImportanceSampling(SMCAlgorithm):
     def run_csmc(self, key: PRNGKey, retained: Choice):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
-        log_scores, choices = vmap(self.q.random_weighted)(sub_keys)
-        retained_choice_score = self.q.estimate_logpdf(key, retained)
-        stacked_choices = jtu.tree_map(stack_to_first_dim, choices, retained)
-        stacked_scores = jtu.tree_map(
-            stack_to_first_dim, log_scores, retained_choice_score
-        )
-        sub_keys = jrandom.split(key, self.get_num_particles())
-        target_scores, target_traces = vmap(self.target.generate)(
-            sub_keys, stacked_choices
-        )
+        if self.q:
+            log_scores, choices = vmap(self.q.random_weighted)(sub_keys)
+            retained_choice_score = self.q.estimate_logpdf(key, retained)
+            stacked_choices = jtu.tree_map(stack_to_first_dim, choices, retained)
+            stacked_scores = jtu.tree_map(
+                stack_to_first_dim, log_scores, retained_choice_score
+            )
+            sub_keys = jrandom.split(key, self.get_num_particles())
+            target_scores, target_traces = vmap(self.target.generate)(
+                sub_keys, stacked_choices
+            )
+        else:
+            ignored_scores, ignored_traces = vmap(
+                self.target.generate, in_axes=(0, None)
+            )(sub_keys, EmptyChoice())
+            retained_choice_score, retained_trace = self.target.generate(key, retained)
+            target_scores = jtu.tree_map(
+                stack_to_first_dim, ignored_scores, retained_choice_score
+            )
+            stacked_scores = 0.0
+            target_traces = jtu.tree_map(
+                stack_to_first_dim, ignored_traces, retained_trace
+            )
         return ParticleCollection(
             target_traces,
             target_scores - stacked_scores,
@@ -426,6 +462,11 @@ class ChangeTarget(SMCAlgorithm):
             jtu.tree_map(lambda v: v[:-1], particle_collection.get_particles()),
             jtu.tree_map(lambda v: v[:-1], particle_collection.get_log_weights()),
         )
-        all_weights = stack_to_first_dim(new_rejected_weights, w)
+        retained_score = particle_collection.get_particle(-1).get_score()
+        retained_weight = particle_collection.get_log_weights()[-1]
+        all_weights = stack_to_first_dim(
+            new_rejected_weights,
+            w - retained_score + retained_weight,
+        )
         total_weight = logsumexp(all_weights)
-        return total_weight - jnp.log(num_particles)
+        return retained_score - (total_weight - jnp.log(num_particles))
