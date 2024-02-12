@@ -5,14 +5,10 @@
 ---
 # The `interpreted` generative function language
 
-::: genjax._src.generative_functions.interpreted
-    options:
-      show_root_heading: true
-
 GenJAX's `interpreted` generative function language is a non-accelerated variant of GenJAX
-suited for rapid prototyping and instructional uses. It cannot access the acceleration
-features of JAX, and (therefore) cannot use automatic differentiation (AD) either, but it
-can be used somewhat more flexibly.
+suited for rapid prototyping and instructional uses. It cannot access the program transformation
+features of JAX, and (therefore) cannot use automatic differentiation (AD) either, but the modeling language that it exposes
+can be used in a significantly more flexible way.
 
 In particular, you can use ordinary Python control flow in your generative functions.
 In `@static_gen_fn` GenJAX, you would use combinators to handle forks in the road rather than
@@ -21,6 +17,11 @@ and tensors so that efficient use of acceleration hardware may be made.
 
 In the interpreted language, there is no such restriction; the length of a vector
 could itself be a random variable.
+
+::: genjax._src.generative_functions.interpreted
+    options:
+      show_root_heading: true
+
 
 **What does it look like?**
 Up front, here's a representative program, (with syntactic sugar, using the constructor as a decorator, both of which we'll cover in detail below):

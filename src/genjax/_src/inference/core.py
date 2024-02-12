@@ -44,6 +44,10 @@ from genjax._src.shortcuts import choice_map, select
 
 
 class Target(Pytree):
+    """
+    Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `Choice` object, which represents constraints applied to the generative function.
+    """
+
     p: GenerativeFunction
     args: Tuple
     constraints: Choice
@@ -62,12 +66,38 @@ class Target(Pytree):
         return self.constraints[v]
 
 
+#######################
+# Choice distribution #
+#######################
+
+
+class ChoiceDistribution(Distribution):
+    """
+    The abstract class `ChoiceDistribution` represents the type of distributions whose return value type is a `Choice`. This is the abstract base class of `InferenceAlgorithm`, as well as `Marginal`.
+    """
+
+    @abstractmethod
+    def random_weighted(
+        self,
+        key: PRNGKey,
+    ) -> Tuple[FloatArray, Choice]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        latent_choices: Choice,
+    ) -> FloatArray:
+        raise NotImplementedError
+
+
 ########################
 # Inference algorithms #
 ########################
 
 
-class InferenceAlgorithm(Distribution, JAXGenerativeFunction):
+class InferenceAlgorithm(ChoiceDistribution, JAXGenerativeFunction):
     """The abstract class `InferenceAlgorithm` represents the type of inference
     algorithms, programs which implement interfaces for sampling from approximate
     posterior representations, and estimating the density of the approximate posterior.
@@ -87,6 +117,9 @@ class InferenceAlgorithm(Distribution, JAXGenerativeFunction):
         key: PRNGKey,
         target: Target,
     ) -> Tuple[FloatArray, Choice]:
+        """
+        Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(w, choice)` where `w` is a sample from an estimator with $\mathbb{E}[w] = 1 / Z$ and `choice: Choice` is a sample from the approximate posterior which `self: InferenceAlgorithm` represents.
+        """
         pass
 
     @abstractmethod
@@ -96,6 +129,9 @@ class InferenceAlgorithm(Distribution, JAXGenerativeFunction):
         latent_choices: Choice,
         target: Target,
     ) -> FloatArray:
+        """
+        Given a `key: PRNGKey`, `latent_choices: Choice` and a `target: Target`, returns `w` where `w` is a sample from an estimator with $\mathbb{E}[w] = Z$.
+        """
         pass
 
     ################
@@ -119,28 +155,6 @@ class InferenceAlgorithm(Distribution, JAXGenerativeFunction):
         w: FloatArray,
     ) -> FloatArray:
         pass
-
-
-#######################
-# Choice distribution #
-#######################
-
-
-class ChoiceDistribution(Distribution):
-    @abstractmethod
-    def random_weighted(
-        self,
-        key: PRNGKey,
-    ) -> Tuple[FloatArray, Choice]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        latent_choices: Choice,
-    ) -> FloatArray:
-        raise NotImplementedError
 
 
 ############

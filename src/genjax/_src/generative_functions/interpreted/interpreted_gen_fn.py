@@ -260,22 +260,20 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
-    """An `InterpretedGenerativeFunction` is a generative function which relies only
-    upon the CPU for its execution. This is in contrast to `static`,
-    which is designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
+    """An `InterpretedGenerativeFunction` is a generative function which supports a permissive subset of Python for its modeling language. Permissive here is in contrast to the `StaticGenerativeFunction` language, which supports similar modeling abstractions, but requires that users write within the JAX compatible subset of Python -
+    designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
     for the inference computations.
 
-    `InterpretedGenerativeFunction`s are easier to write: You can use natural
+    `InterpretedGenerativeFunction`s are easy to write: you can use natural
     Python flow control in your generative functions, and can work with arrays
     and structures of arbitrary shape, even having the shapes of matrices involved
     in your computations be random variables themselves. While such programs
-    cannot take advantage of JAX, it may be a more comfortable environment for
+    cannot take advantage of JAX, it may be a comfortable environment for
     rapid prototyping or pedagogical work.
 
     Exploiting JAX requires more planning in the design of the generative functions,
     since the sizes of arrays, etc., must be known in advance to take advantage
-    of GPU-style acceleration, and forks in the road in the implementation of
-    such functions must be represented in the linear algebra of the code.
+    of GPU-style acceleration.
 
     Furthermore, you must prepare your execution environment with a version of
     [jaxlib](https://jax.readthedocs.io/en/latest/installation.html) which
@@ -285,18 +283,18 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     the effort of integrating with JAX, working with the Gen paradigm in an
     non-accelerated form.
 
-    To create an [`InterpretedGenerativeFunction`][], use the [`interpreted`][]
+    To create an `InterpretedGenerativeFunction`, you can use the `interpreted_gen_fn`
     decorator like this:
 
-        ```python
-        import genjax
+    ```python
+    import genjax
 
 
-        @genjax.interpreted
-        def model():
-            y = genjax.normal(0.0, 1.0) @ "y"
-            return y
-        ```
+    @genjax.interpreted_gen_fn
+    def model():
+        y = genjax.normal(0.0, 1.0) @ "y"
+        return y
+    ```
     """
 
     source: Callable = Pytree.static()
