@@ -20,6 +20,7 @@ from equinox import module_update_wrapper
 from genjax._src.core.datatypes.generative import (
     AllSelection,
     Choice,
+    EmptyChoice,
     GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
@@ -276,6 +277,22 @@ class ValueMarginal(Distribution):
 ################################
 # Inference construct language #
 ################################
+
+
+@typecheck
+def partial_t(
+    constraints: Choice = EmptyChoice(),
+):
+    def decorator(gen_fn: GenerativeFunction):
+        @typecheck
+        def _partial_m(
+            args: Tuple,
+        ) -> Target:
+            return module_update_wrapper(Target(gen_fn, args, constraints))
+
+        return _partial_m
+
+    return decorator
 
 
 @typecheck

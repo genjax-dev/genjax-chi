@@ -149,7 +149,7 @@ class ExpectedValueLoss(Pytree):
 
 
 class ELBO(ExpectedValueLoss):
-    target: Target
+    make_target: Callable[[Any], Target] = Pytree.static()
     make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
 
     def grad_estimate(
@@ -159,18 +159,20 @@ class ELBO(ExpectedValueLoss):
     ) -> Tuple:
         # In the source language of ADEV.
         @expectation
-        def _loss(proposal_args):
-            proposal = self.make_proposal(proposal_args)
-            guide = Importance(self.target, proposal)
+        def _loss(target_args, proposal_args):
+            target = self.make_target(*target_args)
+            proposal = self.make_proposal(*proposal_args)
+            guide = Importance(target, proposal)
             key = reap_key()
-            w = guide.estimate_normalizing_constant(key, self.target)
-            return w
+            w = guide.estimate_normalizing_constant(key, target)
+            return -w
 
-        return _loss.grad_estimate(key, args)
+        (target_args, proposal_args) = args
+        return _loss.grad_estimate(key, (target_args, proposal_args))
 
 
 class IWELBO(ExpectedValueLoss):
-    target: Target
+    make_target: Callable[[Any], Target]
     make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
     N: Int = Pytree.static()
 
@@ -181,12 +183,13 @@ class IWELBO(ExpectedValueLoss):
     ) -> Tuple:
         # In the source language of ADEV.
         @expectation
-        def _loss(proposal_args):
-            proposal = self.make_proposal(proposal_args)
-            guide = ImportanceK(self.target, proposal, self.N)
+        def _loss(target_args, proposal_args):
+            target = self.make_target(*target_args)
+            proposal = self.make_proposal(*proposal_args)
+            guide = ImportanceK(target, proposal, self.N)
             key = reap_key()
-            w = guide.estimate_normalizing_constant(key, self.target)
-            return w
+            w = guide.estimate_normalizing_constant(key, target)
+            return -w
 
         return _loss.grad_estimate(key, args)
 
