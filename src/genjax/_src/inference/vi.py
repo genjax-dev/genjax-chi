@@ -61,9 +61,28 @@ tfd = tfp.distributions
 
 
 class ADEVDistribution(JAXGenerativeFunction, ExactDensity):
-    """The class `ADEVDistribution` is a wrapper class which exposes the `sample` and
-    `logpdf` interfaces, where `sample` utilizes an ADEV differentiable sampling
-    primitive, and `logpdf` is a differentiable logpdf function."""
+    """The class `ADEVDistribution` is a generative function wrapper class which exposes `sample` and
+    `logpdf` interfaces, where `sample` is expected to utilize an ADEV differentiable sampling
+    primitive, and `logpdf` is a differentiable logpdf function.
+
+    Given a `prim: ADEVPrimitive`, a user can readily construct an `ADEVDistribution`:
+
+    ```python exec="yes" source="tabbed-left"
+    import genjax
+    from genjax.adev import flip_enum
+    from genjax.inference.vi import ADEVDistribution
+
+    console = genjax.console()
+
+    flip_enum = ADEVDistribution(
+        flip_enum, lambda v, p: tfd.Bernoulli(probs=p).log_prob(v)
+    )
+    print(console.render(flip_enum))
+    ```
+
+    These objects can then be utilized in guide programs, and support unbiased gradient estimator automation via ADEV's gradient transformations.
+    ```
+    """
 
     adev_primitive: ADEVPrimitive
     differentiable_logpdf: Callable = Pytree.static()
@@ -107,12 +126,12 @@ categorical_enum = ADEVDistribution(
 
 normal_reinforce = ADEVDistribution(
     normal_reinforce,
-    lambda v, μ, σ: normal.logpdf(v, μ, σ),
+    normal.logpdf,
 )
 
 normal_reparam = ADEVDistribution(
     normal_reparam,
-    lambda v, μ, σ: normal.logpdf(v, μ, σ),
+    normal.logpdf,
 )
 
 mv_normal_diag_reparam = ADEVDistribution(
