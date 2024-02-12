@@ -48,7 +48,7 @@ nav:
       - Inference:
           - library/inference/index.md
           - Sequential Monte Carlo: library/inference/smc.md
-      # - Variational inference: library/inference/vi.md
+          - Variational inference: library/inference/vi.md
     # - Extension plugins:
       # - library/extensions/index.md
       # - Gaussian processes: library/extensions/tinygp.md
