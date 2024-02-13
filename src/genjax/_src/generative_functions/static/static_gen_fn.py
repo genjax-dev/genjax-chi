@@ -142,7 +142,7 @@ class StaticGenerativeFunction(
     def importance(
         self,
         key: PRNGKey,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[StaticTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -159,7 +159,7 @@ class StaticGenerativeFunction(
                 ),
             ),
             cache_state,
-        ) = importance_transform(syntax_sugar_handled)(key, chm, args)
+        ) = importance_transform(syntax_sugar_handled)(key, choice, args)
         return (
             StaticTrace(
                 self,
@@ -215,13 +215,13 @@ class StaticGenerativeFunction(
     @typecheck
     def assess(
         self,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(chm, args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(choice, args)
         return (score, retval)
 
     def inline(self, *args):

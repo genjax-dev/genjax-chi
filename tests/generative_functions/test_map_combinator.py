@@ -40,11 +40,11 @@ class TestMapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.arange(0, 3, dtype=float)
-        chm = genjax.vector_choice_map(
+        choice = genjax.vector_choice_map(
             genjax.choice_map({"z": jnp.array([3.0, 2.0, 3.0])})
         )
 
-        (tr, w) = jax.jit(kernel.importance)(key, chm, (map_over,))
+        (tr, w) = jax.jit(kernel.importance)(key, choice, (map_over,))
         assert w == genjax.normal.logpdf(3.0, 0.0, 1.0) + genjax.normal.logpdf(
             2.0, 1.0, 1.0
         ) + genjax.normal.logpdf(3.0, 2.0, 1.0)
@@ -58,18 +58,18 @@ class TestMapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.arange(0, 3, dtype=float)
-        chm = genjax.indexed_choice_map(
+        choice = genjax.indexed_choice_map(
             [0],
             genjax.choice_map({"z": jnp.array([3.0])}),
         )
         key, sub_key = jax.random.split(key)
-        (_, w) = jax.jit(kernel.importance)(sub_key, chm, (map_over,))
+        (_, w) = jax.jit(kernel.importance)(sub_key, choice, (map_over,))
         assert w == genjax.normal.logpdf(3.0, 0.0, 1.0)
 
         key, sub_key = jax.random.split(key)
         zv = jnp.array([3.0, -1.0, 2.0])
-        chm = genjax.indexed_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
-        (tr, _) = kernel.importance(sub_key, chm, (map_over,))
+        choice = genjax.indexed_choice_map([0, 1, 2], genjax.choice_map({"z": zv}))
+        (tr, _) = kernel.importance(sub_key, choice, (map_over,))
         for i in range(0, 3):
             assert tr[i, "z"] == zv[i]
 
@@ -87,10 +87,10 @@ class TestMapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.ones((3, 3), dtype=float)
-        chm = genjax.indexed_choice_map(
+        choice = genjax.indexed_choice_map(
             [0], {"outer": genjax.indexed_choice_map([1], {"z": jnp.array([[1.0]])})}
         )
-        (_, w) = jax.jit(higher_model.importance)(key, chm, (map_over,))
+        (_, w) = jax.jit(higher_model.importance)(key, choice, (map_over,))
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)
 
     def test_map_vmap_pytree(self):

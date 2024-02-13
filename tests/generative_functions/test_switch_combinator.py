@@ -119,10 +119,10 @@ class TestSwitch:
         switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
 
         key = jax.random.PRNGKey(314159)
-        chm = genjax.EmptyChoice()
+        choice = genjax.EmptyChoice()
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (0,))
+        (tr, w) = jitted(sub_key, choice, (0,))
         v1 = tr.get_choices().get_submap("y1")
         v2 = tr.get_choices().get_submap("y2")
         score = tr.get_score()
@@ -141,7 +141,7 @@ class TestSwitch:
         assert score == v1_score + v2_score
         assert w == 0.0
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (1,))
+        (tr, w) = jitted(sub_key, choice, (1,))
         flip = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -152,9 +152,9 @@ class TestSwitch:
         )
         assert score == flip_score
         assert w == 0.0
-        chm = genjax.choice_map({"y3": 1})
+        choice = genjax.choice_map({"y3": 1})
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (1,))
+        (tr, w) = jitted(sub_key, choice, (1,))
         flip = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -238,7 +238,7 @@ class TestSwitch:
         (tr, wt) = switch.importance(
             importance_key, genjax.choice_map({"x": sample_value}), (0,)
         )
-        assert tr.chm.index == 0
+        assert tr.choice.index == 0
         assert tr.get_score() == genjax.normal.logpdf(sample_value, 0.0, regular_stddev)
         assert wt == tr.get_score()
 
@@ -249,7 +249,7 @@ class TestSwitch:
             genjax.EmptyChoice(),
             (Diff.tree_diff(1, UnknownChange),),
         )
-        assert new_tr.chm.index == 1
+        assert new_tr.choice.index == 1
         assert new_tr.get_score() != tr.get_score()
         assert new_tr.get_score() == genjax.normal.logpdf(
             sample_value, 0.0, outlier_stddev

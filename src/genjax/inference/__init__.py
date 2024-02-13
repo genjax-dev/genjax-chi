@@ -18,9 +18,7 @@ from genjax._src.inference.core import (
     Marginal,
     Target,
     ValueMarginal,
-    partial_m,
-    partial_t,
-    partial_v,
+    marginal,
 )
 from genjax.inference import (
     exact_testbed,
@@ -35,9 +33,7 @@ __all__ = [
     "Marginal",
     "Target",
     "ValueMarginal",
-    "partial_m",
-    "partial_t",
-    "partial_v",
+    "marginal",
     "exact_testbed",
     "smc",
     "translator",

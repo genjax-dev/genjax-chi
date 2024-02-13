@@ -135,7 +135,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoice,
+        choice: EmptyChoice,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
         tr = self.simulate(key, args)
@@ -145,10 +145,10 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceValue,
+        choice: ChoiceValue,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
-        v = chm.get_value()
+        v = choice.get_value()
         w = self.estimate_logpdf(key, v, *args)
         score = w
         return (DistributionTrace(self, args, v, score), w)

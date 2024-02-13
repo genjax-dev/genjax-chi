@@ -227,7 +227,7 @@ class Importance(SMCAlgorithm):
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
         if self.q:
-            log_weight, choice = self.q.random_weighted(sub_key)
+            log_weight, choice = self.q.random_weighted(sub_key, self.target)
             target_score, tr = self.target.generate(key, choice)
         else:
             log_weight = 0.0
@@ -241,7 +241,7 @@ class Importance(SMCAlgorithm):
     def run_csmc(self, key: PRNGKey, retained: Choice):
         key, sub_key = jrandom.split(key)
         if self.q:
-            q_score = self.q.estimate_logpdf(sub_key, retained)
+            q_score = self.q.estimate_logpdf(sub_key, retained, self.target)
         else:
             q_score = 0.0
         target_score, target_trace = self.target.generate(key, retained)
@@ -272,7 +272,9 @@ class ImportanceK(SMCAlgorithm):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles())
         if self.q:
-            log_weights, choices = vmap(self.q.random_weighted)(sub_keys)
+            log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
+                sub_keys, self.target
+            )
             target_scores, trs = vmap(self.target.generate)(sub_keys, choices)
         else:
             log_weights = 0.0
@@ -289,8 +291,10 @@ class ImportanceK(SMCAlgorithm):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
         if self.q:
-            log_scores, choices = vmap(self.q.random_weighted)(sub_keys)
-            retained_choice_score = self.q.estimate_logpdf(key, retained)
+            log_scores, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
+                sub_keys, self.target
+            )
+            retained_choice_score = self.q.estimate_logpdf(key, retained, self.target)
             stacked_choices = jtu.tree_map(stack_to_first_dim, choices, retained)
             stacked_scores = jtu.tree_map(
                 stack_to_first_dim, log_scores, retained_choice_score

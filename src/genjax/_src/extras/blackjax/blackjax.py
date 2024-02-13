@@ -54,13 +54,13 @@ class HamiltonianMonteCarlo(MCMCKernel):
         gen_fn = trace.get_gen_fn()
         stripped = trace.strip()
         fixed = stripped.filter(self.selection.complement())
-        initial_chm_position = stripped.filter(self.selection)
+        initial_choice_position = stripped.filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
         grad, nograd = Pytree.tree_grad_split(
-            (initial_chm_position, trace.get_args()),
+            (initial_choice_position, trace.get_args()),
         )
 
         # The nograd component never changes.
@@ -119,13 +119,13 @@ class NoUTurnSampler(MCMCKernel):
         gen_fn = trace.get_gen_fn()
         stripped = trace.strip()
         fixed = stripped.filter(self.selection.complement())
-        initial_chm_position = stripped.filter(self.selection)
+        initial_choice_position = stripped.filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
         grad, nograd = Pytree.tree_grad_split(
-            (initial_chm_position, trace.get_args()),
+            (initial_choice_position, trace.get_args()),
         )
 
         # The nograd component never changes.

@@ -69,8 +69,8 @@ def choice_map(*vs: ChoiceMappable) -> Choice:
     you can populate using the functional `HierarchicalChoiceMap.insert` interface as in
 
         ```python
-        chm = genjax.choice()
-        chm = chm.insert("x", 3.0)
+        choice = genjax.choice()
+        choice = choice.insert("x", 3.0)
         ```
 
     When called with a dictionary argument, the equivalent :py:class:`HierarchicalChoiceMap`

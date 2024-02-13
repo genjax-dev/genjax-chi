@@ -38,14 +38,14 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
     ):
         # Inner functions -- to be mapped over.
         # Keys are folded in, for working memory.
-        def _inner_p(key, index, chm, args):
+        def _inner_p(key, index, choice, args):
             new_key = jax.random.fold_in(key, index)
-            (w, _) = self.p.importance(new_key, chm, args)
+            (w, _) = self.p.importance(new_key, choice, args)
             return w
 
-        def _inner_q(key, index, chm, args):
+        def _inner_q(key, index, choice, args):
             new_key = jax.random.fold_in(key, index)
-            (w, _) = self.q.importance(new_key, chm, args)
+            (w, _) = self.q.importance(new_key, choice, args)
             return w
 
         key_indices_p = jnp.arange(0, self.num_meta_p + 1)
@@ -53,14 +53,14 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, p_args)
-        chm = tr.get_choices().strip()
+        choice = tr.get_choices().strip()
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_p, chm, p_args
+            sub_key, key_indices_p, choice, p_args
         )
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_q, chm, q_args
+            sub_key, key_indices_q, choice, q_args
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(self.num_meta_p)
         bwd_weight = logsumexp(bwd_weights) - jnp.log(self.num_meta_q)

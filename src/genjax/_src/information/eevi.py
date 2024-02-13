@@ -44,11 +44,11 @@ class EntropyEstimatorsViaInference(Pytree):
         _, tr_q = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys, (target,)
         )
-        (chm,) = tr_q.get_retval()
-        chm_axes = jtu.tree_map(lambda v: 0, chm)
+        (choice,) = tr_q.get_retval()
+        choice_axes = jtu.tree_map(lambda v: 0, choice)
         observations_axes = jtu.tree_map(lambda v: None, observations)
-        choices = observations.safe_merge(chm)
-        choices_axes = observations_axes.safe_merge(chm_axes)
+        choices = observations.safe_merge(choice)
+        choices_axes = observations_axes.safe_merge(choice_axes)
         key, *sub_keys = jax.random.split(key, self.n_lower_bound + 1)
         sub_keys = jnp.array(sub_keys)
         _, (log_p, _) = jax.vmap(
@@ -61,9 +61,9 @@ class EntropyEstimatorsViaInference(Pytree):
     def _entropy_upper_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)
         log_p = tr.get_score()
-        chm = tr.get_choices().strip()
-        latents = self.targets.filter(chm)
-        observations = self.targets.complement().filter(chm)
+        choice = tr.get_choices().strip()
+        latents = self.targets.filter(choice)
+        observations = self.targets.complement().filter(choice)
         target = Target(self.model, model_args, observations)
         key, *sub_keys = jax.random.split(key, self.n_upper_bound + 1)
         sub_keys = jnp.array(sub_keys)

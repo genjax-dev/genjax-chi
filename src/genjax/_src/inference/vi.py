@@ -49,7 +49,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     geometric,
     normal,
 )
-from genjax._src.inference.core import ChoiceDistribution, InferenceAlgorithm, Target
+from genjax._src.inference.core import ChoiceDistribution, Target
 from genjax._src.inference.smc import Importance, ImportanceK
 
 tfd = tfp.distributions
@@ -168,8 +168,8 @@ class ExpectedValueLoss(Pytree):
 
 
 class ELBO(ExpectedValueLoss):
+    guide: ChoiceDistribution
     make_target: Callable[[Any], Target] = Pytree.static()
-    make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
 
     def grad_estimate(
         self,
@@ -178,21 +178,19 @@ class ELBO(ExpectedValueLoss):
     ) -> Tuple:
         # In the source language of ADEV.
         @expectation
-        def _loss(target_args, proposal_args):
+        def _loss(*target_args):
             target = self.make_target(*target_args)
-            proposal = self.make_proposal(*proposal_args)
-            guide = Importance(target, proposal)
+            guide = Importance(target, self.guide)
             key = reap_key()
             w = guide.estimate_normalizing_constant(key, target)
             return -w
 
-        (target_args, proposal_args) = args
-        return _loss.grad_estimate(key, (target_args, proposal_args))
+        return _loss.grad_estimate(key, args)
 
 
 class IWELBO(ExpectedValueLoss):
-    make_target: Callable[[Any], Target]
-    make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
+    proposal: ChoiceDistribution
+    make_target: Callable[[Any], Target] = Pytree.static()
     N: Int = Pytree.static()
 
     def grad_estimate(
@@ -202,35 +200,11 @@ class IWELBO(ExpectedValueLoss):
     ) -> Tuple:
         # In the source language of ADEV.
         @expectation
-        def _loss(target_args, proposal_args):
+        def _loss(*target_args):
             target = self.make_target(*target_args)
-            proposal = self.make_proposal(*proposal_args)
-            guide = ImportanceK(target, proposal, self.N)
+            guide = ImportanceK(target, self.proposal, self.N)
             key = reap_key()
             w = guide.estimate_normalizing_constant(key, target)
-            return -w
-
-        return _loss.grad_estimate(key, args)
-
-
-class QWake(Pytree):
-    target: Target
-    approx: InferenceAlgorithm
-    make_proposal: Callable[[Any], ChoiceDistribution] = Pytree.static()
-
-    def grad_estimate(
-        self,
-        key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
-        # In the source language of ADEV.
-        @expectation
-        def _loss(*q_args):
-            key = reap_key()
-            _, v = self.approx.random_weighted(key, self.target)
-            proposal = self.make_proposal(*q_args)
-            key = reap_key()
-            w = proposal.estimate_logpdf(key, v)
             return -w
 
         return _loss.grad_estimate(key, args)

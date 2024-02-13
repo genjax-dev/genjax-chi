@@ -20,7 +20,6 @@ from equinox import module_update_wrapper
 from genjax._src.core.datatypes.generative import (
     AllSelection,
     Choice,
-    EmptyChoice,
     GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
@@ -28,11 +27,11 @@ from genjax._src.core.datatypes.generative import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Callable,
     FloatArray,
     Optional,
     PRNGKey,
     Tuple,
+    Union,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
@@ -80,6 +79,7 @@ class ChoiceDistribution(Distribution):
     def random_weighted(
         self,
         key: PRNGKey,
+        *args: Any,
     ) -> Tuple[FloatArray, Choice]:
         raise NotImplementedError
 
@@ -88,6 +88,7 @@ class ChoiceDistribution(Distribution):
         self,
         key: PRNGKey,
         latent_choices: Choice,
+        *args: Any,
     ) -> FloatArray:
         raise NotImplementedError
 
@@ -174,30 +175,26 @@ class Marginal(ChoiceDistribution):
     """
 
     p: GenerativeFunction
-    p_args: Tuple
-    alg_args: Tuple = Pytree.field(default=())
     selection: Selection = Pytree.field(default=AllSelection())
-    algorithm_builder: Optional[
-        Callable[[Target, Any], InferenceAlgorithm]
-    ] = Pytree.static(default=None)
+    alg: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
+        *args: Any,
     ) -> Tuple[FloatArray, Choice]:
         key, sub_key = jax.random.split(key)
-        tr = self.p.simulate(sub_key, self.p_args)
+        tr = self.p.simulate(sub_key, args)
         weight = tr.get_score()
         choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
-        target = Target(self.p, self.p_args, latent_choices)
-        if self.algorithm_builder is None:
+        target = Target(self.p, args, latent_choices)
+        if self.alg is None:
             return weight, latent_choices
         else:
-            alg = self.algorithm_builder(target, *self.alg_args)
-            Z = alg.estimate_reciprocal_normalizing_constant(
+            Z = self.alg.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
 
@@ -208,14 +205,14 @@ class Marginal(ChoiceDistribution):
         self,
         key: PRNGKey,
         latent_choices: Choice,
+        *args: Any,
     ) -> FloatArray:
-        if self.algorithm_builder is None:
-            _, weight = self.p.importance(key, latent_choices, self.p_args)
+        if self.alg is None:
+            _, weight = self.p.importance(key, latent_choices, args)
             return weight
         else:
-            target = Target(self.p, self.p_args, latent_choices)
-            alg = self.algorithm_builder(target, *self.alg_args)
-            Z = alg.estimate_normalizing_constant(key, target)
+            target = Target(self.p, args, latent_choices)
+            Z = self.alg.estimate_normalizing_constant(key, target)
             return Z
 
     @property
@@ -236,52 +233,29 @@ class ValueMarginal(Distribution):
     """
 
     p: GenerativeFunction
-    p_args: Tuple
     addr: Any
-    alg_args: Tuple = Pytree.field(default=())
-    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = Pytree.static(
-        default=None
-    )
+    alg: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
+        *args: Any,
     ) -> Tuple[FloatArray, Any]:
-        key, sub_key = jax.random.split(key)
-        tr = self.p.simulate(sub_key, self.p_args)
-        weight = tr.get_score()
-        choices = tr.get_choices()
-        value = choices[self.addr]
-        selection = select(self.addr)
-        other_choices = choices.filter(selection.complement())
-        latent_choices = choice_map({self.addr: value})
-        target = Target(self.p, self.p_args, latent_choices)
-        if self.algorithm_builder is None:
-            return weight, value
-        else:
-            alg = self.algorithm_builder(target, *self.alg_args)
-            Z = alg.estimate_reciprocal_normalizing_constant(
-                key, target, other_choices, weight
-            )
-
-            return (Z, value)
+        marginal = Marginal(self.p, select(self.addr), self.alg)
+        Z, choice = marginal.random_weighted(key, *args)
+        return Z, choice[self.addr]
 
     @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
         v: Any,
+        *args: Any,
     ) -> FloatArray:
-        latent_choices = choice_map({self.addr: v})
-        if self.algorithm_builder is None:
-            _, weight = self.p.importance(key, latent_choices, self.p_args)
-            return weight
-        else:
-            target = Target(self.p, self.p_args, latent_choices)
-            alg = self.algorithm_builder(target, *self.alg_args)
-            Z = alg.estimate_normalizing_constant(key, target)
-            return Z
+        marginal = Marginal(self.p, select(self.addr), self.alg)
+        latent_choice = choice_map({self.addr: v})
+        return marginal.estimate_logpdf(key, latent_choice, *args)
 
     @property
     def __wrapped__(self):
@@ -294,68 +268,23 @@ class ValueMarginal(Distribution):
 
 
 @typecheck
-def partial_t(
-    constraints: Choice = EmptyChoice(),
+def marginal(
+    selection_or_addr: Union[Selection, Any] = AllSelection(),
+    alg: Optional[InferenceAlgorithm] = None,
 ):
-    def decorator(gen_fn: GenerativeFunction):
-        @typecheck
-        def _partial_m(
-            args: Tuple,
-        ) -> Target:
-            return module_update_wrapper(Target(gen_fn, args, constraints))
-
-        return _partial_m
-
-    return decorator
-
-
-@typecheck
-def partial_m(
-    selection: Selection = AllSelection(),
-    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = None,
-):
-    def decorator(gen_fn: GenerativeFunction):
-        @typecheck
-        def _partial_m(
-            p_args: Tuple,
-            alg_args: Tuple = (),
-        ) -> Marginal:
-            return module_update_wrapper(
-                Marginal(
-                    gen_fn,
-                    p_args,
-                    alg_args,
-                    selection,
-                    algorithm_builder,
-                )
+    def decorator(gen_fn: GenerativeFunction) -> Union[Marginal, ValueMarginal]:
+        if isinstance(selection_or_addr, Selection):
+            marginal = Marginal(
+                gen_fn,
+                selection_or_addr,
+                alg,
             )
-
-        return _partial_m
-
-    return decorator
-
-
-@typecheck
-def partial_v(
-    addr,
-    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = None,
-):
-    def decorator(f):
-        @typecheck
-        def _partial_v(
-            p_args: Tuple,
-            q_args: Tuple = (),
-        ) -> ValueMarginal:
-            return module_update_wrapper(
-                ValueMarginal(
-                    f,
-                    p_args,
-                    addr,
-                    q_args,
-                    algorithm_builder,
-                )
+        else:
+            marginal = ValueMarginal(
+                gen_fn,
+                selection_or_addr,
+                alg,
             )
-
-        return _partial_v
+        return module_update_wrapper(marginal)
 
     return decorator

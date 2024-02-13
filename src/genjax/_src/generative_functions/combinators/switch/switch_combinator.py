@@ -148,8 +148,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         branch_functions = list(map(_inner, self.branches))
         return jax.lax.switch(switch, branch_functions, key, *args)
 
-    def _importance(self, branch_gen_fn, key, chm, args):
-        (tr, w) = branch_gen_fn.importance(key, chm, args[1:])
+    def _importance(self, branch_gen_fn, key, choice, args):
+        (tr, w) = branch_gen_fn.importance(key, choice, args[1:])
         data_shared_sum_tree = self._create_data_shared_sum_tree_trace(key, tr, args)
         choices = list(data_shared_sum_tree.materialize_iterator())
         branch_index = args[0]
@@ -163,17 +163,17 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[SwitchTrace, FloatArray]:
         switch = args[0]
 
         def _inner(br):
-            return lambda key, chm, *args: self._importance(br, key, chm, args)
+            return lambda key, choice, *args: self._importance(br, key, choice, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(switch, branch_functions, key, chm, *args)
+        return jax.lax.switch(switch, branch_functions, key, choice, *args)
 
     def _update_fallback(
         self,
@@ -319,8 +319,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
-        def _some(chm):
-            (new_tr, w, retdiff, _) = self.update(key, prev, chm, argdiffs)
+        def _some(choice):
+            (new_tr, w, retdiff, _) = self.update(key, prev, choice, argdiffs)
             if possible_discards.is_empty():
                 discard = EmptyChoice()
             else:
@@ -336,20 +336,20 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     @typecheck
     def assess(
         self,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         switch = args[0]
 
-        def _assess(branch_gen_fn, chm, args):
-            return branch_gen_fn.assess(chm, args[1:])
+        def _assess(branch_gen_fn, choice, args):
+            return branch_gen_fn.assess(choice, args[1:])
 
         def _inner(br):
-            return lambda chm, *args: _assess(br, chm, args)
+            return lambda choice, *args: _assess(br, choice, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(switch, branch_functions, chm, *args)
+        return jax.lax.switch(switch, branch_functions, choice, *args)
 
 
 #############

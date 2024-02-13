@@ -78,13 +78,13 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         tr = self.gen_fn.simulate(key, args)
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
-        inner_chm = tr.get_choices()
+        inner_choice = tr.get_choices()
         aux = tr.get_aux()
         return DropArgumentsTrace(
             self,
             inner_retval,
             inner_score,
-            inner_chm,
+            inner_choice,
             aux,
         )
 
@@ -97,14 +97,14 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         w, tr = self.gen_fn.importance(key, choice_map, args)
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
-        inner_chm = tr.get_choices()
+        inner_choice = tr.get_choices()
         aux = tr.get_aux()
         return (
             DropArgumentsTrace(
                 self,
                 inner_retval,
                 inner_score,
-                inner_chm,
+                inner_choice,
                 aux,
             ),
             w,
@@ -122,14 +122,14 @@ class DropArgumentsGenerativeFunction(JAXGenerativeFunction):
         )
         inner_retval = tr.get_retval()
         inner_score = tr.get_score()
-        inner_chm = tr.get_choices()
+        inner_choice = tr.get_choices()
         aux = tr.get_aux()
         return (
             DropArgumentsTrace(
                 self,
                 inner_retval,
                 inner_score,
-                inner_chm,
+                inner_choice,
                 aux,
             ),
             w,

@@ -39,14 +39,14 @@ class SymmetricDivergenceOverDatasets(Pytree):
     def _estimate_log_ratio(self, key: PRNGKey, p_args: Tuple):
         # Inner functions -- to be mapped over.
         # Keys are folded in, for working memory.
-        def _inner_p(key, index, chm, args):
+        def _inner_p(key, index, choice, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = self.p.assess(new_key, chm, args)
+            _, (w, _) = self.p.assess(new_key, choice, args)
             return w
 
-        def _inner_q(key, index, chm, args):
+        def _inner_q(key, index, choice, args):
             new_key = jax.random.fold_in(key, index)
-            _, (w, _) = self.q.assess(new_key, chm, args)
+            _, (w, _) = self.q.assess(new_key, choice, args)
             return w
 
         obs_target = self.inf_selection.complement()
@@ -55,28 +55,28 @@ class SymmetricDivergenceOverDatasets(Pytree):
 
         # (x, z) ~ p, log p(z, x) / q(z | x)
         key, tr = self.p.simulate(key, p_args)
-        chm = tr.get_choices().strip()
-        latent_chm = self.inf_selection.filter(chm)
-        obs_chm = obs_target.filter(chm)
-        (latent_chm, obs_chm) = (
-            latent_chm.strip(),
-            obs_chm.strip(),
+        choice = tr.get_choices().strip()
+        latent_choice = self.inf_selection.filter(choice)
+        obs_choice = obs_target.filter(choice)
+        (latent_choice, obs_choice) = (
+            latent_choice.strip(),
+            obs_choice.strip(),
         )
 
         # Compute estimate of log p(z, x)
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_p, chm, p_args
+            sub_key, key_indices_p, choice, p_args
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(self.num_meta_p)
 
         # Compute estimate of log q(z | x)
-        constraints = obs_chm
+        constraints = obs_choice
         target = Target(self.p, p_args, constraints)
-        latent_chm = ChoiceValue.new(latent_chm)
+        latent_choice = ChoiceValue.new(latent_choice)
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_q, latent_chm, (target,)
+            sub_key, key_indices_q, latent_choice, (target,)
         )
         bwd_weight = logsumexp(bwd_weights) - jnp.log(self.num_meta_p)
 
@@ -85,11 +85,11 @@ class SymmetricDivergenceOverDatasets(Pytree):
 
         # z' ~ q, log p(z', x) / q(z', x)
         key, inftr = self.q.simulate(key, (target,))
-        (inf_chm,) = inftr.get_retval()
+        (inf_choice,) = inftr.get_retval()
 
         # Compute estimate of log p(z', x)
         key, sub_keys = jax.random.split(key)
-        merged = obs_chm.safe_merge(inf_chm)
+        merged = obs_choice.safe_merge(inf_choice)
         sub_keys = jnp.array(sub_keys)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
             sub_key, key_indices_p, merged, p_args
@@ -97,10 +97,10 @@ class SymmetricDivergenceOverDatasets(Pytree):
         fwd_weight_p = logsumexp(fwd_weights) - jnp.log(self.num_meta_p)
 
         # Compute estimate of log q(z' | x)
-        inf_chm = inftr.get_choices()
+        inf_choice = inftr.get_choices()
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_q, inf_chm, (target,)
+            sub_key, key_indices_q, inf_choice, (target,)
         )
         bwd_weight_p = logsumexp(bwd_weights) - jnp.log(self.num_meta_q)
 

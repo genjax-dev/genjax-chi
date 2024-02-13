@@ -69,10 +69,10 @@ class Selection(Pytree):
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
-            chm = tr.strip()
+            choice = tr.strip()
             selection = genjax.select("x")
             complement = selection.complement()
-            filtered = chm.filter(complement)
+            filtered = choice.filter(complement)
             print(console.render(filtered))
             ```
         """
@@ -387,9 +387,9 @@ class ChoiceMap(Choice):
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
-            chm = tr.strip()
+            choice = tr.strip()
             selection = genjax.select("x")
-            filtered = chm.filter(selection)
+            filtered = choice.filter(selection)
             print(console.render(filtered))
             ```
         """
@@ -464,8 +464,8 @@ class Trace(Pytree):
             key = jax.random.PRNGKey(314159)
             tr = genjax.normal.simulate(key, (0.0, 1.0))
             retval = tr.get_retval()
-            chm = tr.get_choices()
-            v = chm.get_value()
+            choice = tr.get_choices()
+            v = choice.get_value()
             print(console.render((retval, v)))
             ```
         """
@@ -526,8 +526,8 @@ class Trace(Pytree):
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
-            chm = tr.get_choices()
-            print(console.render(chm))
+            choice = tr.get_choices()
+            print(console.render(choice))
             ```
         """
 
@@ -989,7 +989,7 @@ class GenerativeFunction(Pytree):
             args: Arguments to the generative function.
 
         Returns:
-            chm: the choice map assignment ($c$)
+            choice: the choice map assignment ($c$)
             s: the score ($s$) of the choice map assignment
             retval: the return value from the generative function invocation
 
@@ -1003,8 +1003,8 @@ class GenerativeFunction(Pytree):
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
-            (chm, w, r) = genjax.normal.propose(key, (0.0, 1.0))
-            print(console.render(chm))
+            (choice, w, r) = genjax.normal.propose(key, (0.0, 1.0))
+            print(console.render(choice))
             ```
 
             Here's a slightly more complicated example using the `static` generative function language. You can find more examples on the `static` language page.
@@ -1024,15 +1024,15 @@ class GenerativeFunction(Pytree):
 
 
             key = jax.random.PRNGKey(314159)
-            (chm, w, r) = model.propose(key, ())
-            print(console.render(chm))
+            (choice, w, r) = model.propose(key, ())
+            print(console.render(choice))
             ```
         """
         tr = self.simulate(key, args)
-        chm = tr.get_choices()
+        choice = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
-        return (chm, score, retval)
+        return (choice, score, retval)
 
     @dispatch
     def importance(
@@ -1050,7 +1050,7 @@ class GenerativeFunction(Pytree):
 
         Arguments:
             key: A `PRNGKey`.
-            chm: A choice map indicating constraints ($u$).
+            choice: A choice map indicating constraints ($u$).
             args: Arguments to the generative function ($x$).
 
         Returns:
@@ -1100,8 +1100,8 @@ class GenerativeFunction(Pytree):
             tr = self.simulate(key, args)
             return tr, w
 
-        def _active(chm):
-            tr, w = self.importance(key, chm, args)
+        def _active(choice):
+            tr, w = self.importance(key, choice, args)
             return tr, w
 
         return constraints.match(_inactive, _active)
@@ -1142,8 +1142,8 @@ class GenerativeFunction(Pytree):
             retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
-        def _some(chm):
-            (new_tr, w, retdiff, _) = self.update(key, prev, chm, argdiffs)
+        def _some(choice):
+            (new_tr, w, retdiff, _) = self.update(key, prev, choice, argdiffs)
             # The true_discards should match the Pytree type of possible_discards,
             # but these are valid.
             discard = Mask(True, possible_discards)
@@ -1155,7 +1155,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self: "GenerativeFunction",
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """Given a complete choice map indicating constraints ($u$) for all choices, and
@@ -1163,7 +1163,7 @@ class GenerativeFunction(Pytree):
         the invocation, and the score of the choice map ($s$).
 
         Arguments:
-            chm: A complete choice map indicating constraints ($u$) for all choices.
+            choice: A complete choice map indicating constraints ($u$) for all choices.
             args: Arguments to the generative function ($x$).
 
         Returns:
@@ -1237,10 +1237,10 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     @typecheck
     def choice_grad(self, key: PRNGKey, trace: Trace, selection: Selection):
         fixed = trace.strip().filter(selection.complement())
-        chm = trace.strip().filter(selection)
+        choice = trace.strip().filter(selection)
         scorer, _ = self.unzip(key, fixed)
         grad, nograd = Pytree.tree_grad_split(
-            (chm, trace.get_args()),
+            (choice, trace.get_args()),
         )
         choice_gradient_tree, _ = jax.grad(scorer)(grad, nograd)
         return choice_gradient_tree

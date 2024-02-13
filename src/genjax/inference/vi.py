@@ -16,7 +16,6 @@ from genjax._src.inference.vi import (
     ELBO,
     IWELBO,
     ADEVDistribution,
-    QWake,
     categorical_enum,
     flip_enum,
     flip_mvd,
@@ -37,5 +36,4 @@ __all__ = [
     "categorical_enum",
     "ELBO",
     "IWELBO",
-    "QWake",
 ]

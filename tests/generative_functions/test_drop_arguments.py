@@ -29,10 +29,10 @@ class TestDropArguments:
             return y
 
         key = jax.random.PRNGKey(314159)
-        chm = genjax.indexed_choice_map(jnp.array([0]), {"y": jnp.array([5.0])})
+        choice = genjax.indexed_choice_map(jnp.array([0]), {"y": jnp.array([5.0])})
         tr = model.simulate(key, (jnp.ones(5),))
         tr, _, _, _ = model.update(
-            key, tr, chm, Diff.tree_diff_no_change((jnp.ones(5),))
+            key, tr, choice, Diff.tree_diff_no_change((jnp.ones(5),))
         )
         v = tr.get_choices()[0, "y"]
         assert v == 5.0
