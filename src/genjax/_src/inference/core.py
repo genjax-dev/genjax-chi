@@ -177,9 +177,9 @@ class Marginal(ChoiceDistribution):
     p_args: Tuple
     alg_args: Tuple = Pytree.field(default=())
     selection: Selection = Pytree.field(default=AllSelection())
-    algorithm_builder: Optional[Callable[[Target], InferenceAlgorithm]] = Pytree.static(
-        default=None
-    )
+    algorithm_builder: Optional[
+        Callable[[Target, Any], InferenceAlgorithm]
+    ] = Pytree.static(default=None)
 
     @typecheck
     def random_weighted(
