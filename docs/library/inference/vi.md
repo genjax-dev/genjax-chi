@@ -6,7 +6,7 @@
   <figcaption><b>Fig. 1</b>: How variational inference works in GenJAX.</figcaption>
 </figure>
 
-**Variational inference** is an approximate inference technique where the problem of computing the posterior distribution $P'$ is transformed into an optimization problem. The idea is to find a distribution $Q$ that is close to the true posterior $P'$ by minimizing the Kullback-Leibler (KL) divergence between the two distributions.
+**Variational inference** ([Blei et al, 2016](https://arxiv.org/abs/1601.00670)) is an approximate inference technique where the problem of computing the posterior distribution $P'$ is transformed into an optimization problem. The idea is to find a distribution $Q$ that is close to the true posterior $P'$ by minimizing the Kullback-Leibler (KL) divergence between the two distributions.
 
 GenJAX provides automation for this process by exposing unbiased gradient automation based on the stack shown in **Fig. 1**. At a high level, the stack illustrates that `genjax.inference.vi` utilizes implementations of generative interfaces like $\textbf{sim}\{ \cdot \}$ and $\textbf{density}\{ \cdot \}$ in the source language of a differentiable probabilistic language called ADEV. ADEV is a new extension to automatic differentiation which adds supports for _expectations_ - so when we provide implementations inside ADEV's language, we gain the ability to automatically derive unbiased gradient estimators for expected value objectives.
 
