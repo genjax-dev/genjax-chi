@@ -262,6 +262,12 @@ def marginal(
     select_or_addr: Union[Selection, Any] = AllSelection(),
     algorithm: Optional[InferenceAlgorithm] = None,
 ):
+    """
+    If `select_or_addr` is a `Selection`, this constructs a `Marginal` distribution
+    which samples `Choice` objects with addresses given in the selection.
+    If `select_or_addr` is an address, this constructs a `ValueMarginal` distribution
+    which samples values of the type stored at the given address in `gen_fn`.
+    """
     def decorator(gen_fn: GenerativeFunction) -> Union[Marginal, ValueMarginal]:
         if isinstance(select_or_addr, Selection):
             marginal = Marginal(
