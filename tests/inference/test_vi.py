@@ -28,7 +28,7 @@ class TestVI:
         @genjax.static_gen_fn
         def guide(target):
             (v,) = target.args
-            _ = genjax.normal(v, 0.1) @ "mu"
+            _ = genjax.vi.normal_reparam(v, 0.1) @ "mu"
 
         key = jax.random.PRNGKey(314159)
         elbo = genjax.vi.ELBO(
