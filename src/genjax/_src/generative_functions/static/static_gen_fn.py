@@ -27,7 +27,7 @@ from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
+    ArrayLike,
     PRNGKey,
     Tuple,
     dispatch,
@@ -151,7 +151,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         chm: Choice,
         args: Tuple,
-    ) -> Tuple[StaticTrace, FloatArray]:
+    ) -> Tuple[StaticTrace, ArrayLike]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -186,7 +186,7 @@ class StaticGenerativeFunction(
         prev: Trace,
         constraints: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, Choice]:
+    ) -> Tuple[Trace, ArrayLike, Any, Choice]:
         assert static_check_tree_leaves_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -224,7 +224,7 @@ class StaticGenerativeFunction(
         self,
         chm: Choice,
         args: Tuple,
-    ) -> Tuple[FloatArray, Any]:
+    ) -> Tuple[ArrayLike, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
