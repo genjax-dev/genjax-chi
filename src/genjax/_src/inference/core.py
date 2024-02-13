@@ -166,17 +166,12 @@ class InferenceAlgorithm(ChoiceDistribution, JAXGenerativeFunction):
 @typecheck
 class Marginal(ChoiceDistribution):
     """The `Marginal` class represents the marginal distribution of a generative function over
-    a selection of addresses. The `Marginal` class implements
-    the stochastic probability interface by utilizing an optional `InferenceAlgorithm`, which can be specified
-    by providing an `algorithm_builder: Target -> InferenceAlgorithm` function.
-
-    When provided with a `Selection`, `Marginal` acts as a distribution
-    which returns a `Choice` object, representing a structured sample of choices.
+    a selection of addresses. The return value type is a subtype of `Choice`.
     """
 
     p: GenerativeFunction
     selection: Selection = Pytree.field(default=AllSelection())
-    alg: Optional[InferenceAlgorithm] = Pytree.field(default=None)
+    algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
     def random_weighted(
@@ -191,10 +186,10 @@ class Marginal(ChoiceDistribution):
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         target = Target(self.p, args, latent_choices)
-        if self.alg is None:
+        if self.algorithm is None:
             return weight, latent_choices
         else:
-            Z = self.alg.estimate_reciprocal_normalizing_constant(
+            Z = self.algorithm.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
 
@@ -207,12 +202,12 @@ class Marginal(ChoiceDistribution):
         latent_choices: Choice,
         *args: Any,
     ) -> FloatArray:
-        if self.alg is None:
+        if self.algorithm is None:
             _, weight = self.p.importance(key, latent_choices, args)
             return weight
         else:
             target = Target(self.p, args, latent_choices)
-            Z = self.alg.estimate_normalizing_constant(key, target)
+            Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
 
     @property
@@ -223,18 +218,12 @@ class Marginal(ChoiceDistribution):
 @typecheck
 class ValueMarginal(Distribution):
     """The `ValueMarginal` class represents the marginal distribution of a generative function over
-    a single address. The `ValueMarginal` class implements
-    the stochastic probability interface by utilizing an optional `InferenceAlgorithm`, which can be specified
-    by providing an `algorithm_builder: Target -> InferenceAlgorithm` function.
-
-    While similar to `Marginal`, `ValueMarginal` operates in "value" mode, meaning that
-    the `random_weighted` method returns the value at the address. This allows `ValueMarginal` in this mode
-    to be used inside of generative functions which support callees (for example, `StaticGenerativeFunction`).
+    a single address `addr: Any`. The return value type is the type of the value at that address.
     """
 
     p: GenerativeFunction
     addr: Any
-    alg: Optional[InferenceAlgorithm] = Pytree.field(default=None)
+    algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
     def random_weighted(
@@ -242,7 +231,7 @@ class ValueMarginal(Distribution):
         key: PRNGKey,
         *args: Any,
     ) -> Tuple[FloatArray, Any]:
-        marginal = Marginal(self.p, select(self.addr), self.alg)
+        marginal = Marginal(self.p, select(self.addr), self.algorithm)
         Z, choice = marginal.random_weighted(key, *args)
         return Z, choice[self.addr]
 
@@ -253,7 +242,7 @@ class ValueMarginal(Distribution):
         v: Any,
         *args: Any,
     ) -> FloatArray:
-        marginal = Marginal(self.p, select(self.addr), self.alg)
+        marginal = Marginal(self.p, select(self.addr), self.algorithm)
         latent_choice = choice_map({self.addr: v})
         return marginal.estimate_logpdf(key, latent_choice, *args)
 
@@ -269,22 +258,27 @@ class ValueMarginal(Distribution):
 
 @typecheck
 def marginal(
-    selection_or_addr: Union[Selection, Any] = AllSelection(),
-    alg: Optional[InferenceAlgorithm] = None,
+    gen_fn: Optional[GenerativeFunction] = None,
+    *,
+    select_or_addr: Union[Selection, Any] = AllSelection(),
+    algorithm: Optional[InferenceAlgorithm] = None,
 ):
     def decorator(gen_fn: GenerativeFunction) -> Union[Marginal, ValueMarginal]:
-        if isinstance(selection_or_addr, Selection):
+        if isinstance(select_or_addr, Selection):
             marginal = Marginal(
                 gen_fn,
-                selection_or_addr,
-                alg,
+                select_or_addr,
+                algorithm,
             )
         else:
             marginal = ValueMarginal(
                 gen_fn,
-                selection_or_addr,
-                alg,
+                select_or_addr,
+                algorithm,
             )
         return module_update_wrapper(marginal)
 
-    return decorator
+    if gen_fn is not None:
+        return decorator(gen_fn)
+    else:
+        return decorator

@@ -18,33 +18,35 @@ Now, those are the details - here's a code pattern:
 import jax
 import genjax
 from genjax import choice_map, normal, static_gen_fn
-from genjax.inference import  Target, Marginal
+from genjax.inference import  Target, marginal
 from genjax.inference.vi import ELBO, normal_reparam
+from genjax.typing import typecheck
 
 console = genjax.console()
 
 @static_gen_fn
-def model():
+def model(v):
   x = normal(0.0, 1.0) @ "x"
   y = normal(x, 1.0) @ "y"
 
 # The guide uses special (ADEV) differentiable generative function primitives.
+@marginal()
 @static_gen_fn
-def guide(v):
+def guide(target: Target):
+  (v, ) = target.args
   x = normal_reparam(v, 1.0) @ "x"
 
 # Using a library loss.
 elbo = ELBO(
+  guide,
   # The posterior target -- can also have learnable parameters!
-  lambda: Target(model, (), choice_map({"y": 3.0})),
-  # Approximation to the target.
-  lambda v: Marginal(guide, (v,))
+  lambda v: Target(model, (v, ), choice_map({"y": 3.0})),
 )
 
 # Output has the same Pytree shape as input arguments to `ELBO.grad_estimate`,
 # excluding the key.
 key = jax.random.PRNGKey(314159)
-(_, (v_grad,)) = jax.jit(elbo.grad_estimate)(key, ((), (1.0, )))
+(v_grad,) = jax.jit(elbo.grad_estimate)(key, (1.0, ))
 print(console.render(v_grad))
 ```
 
@@ -52,27 +54,33 @@ Let's examine the construction of the `ELBO` instance:
 
 ```python exec="yes" source="tabbed-left" session="ex-vi"
 elbo = ELBO(
-  # The posterior target -- can also have learnable parameters!
-  lambda: Target(model, (), choice_map({"y": 3.0})),
   # Approximation to the target.
-  lambda v: Marginal(guide, (v,))
+  guide,
+  # The posterior target -- can also have learnable parameters!
+  lambda v: Target(model, (v, ), choice_map({"y": 3.0})),
 )
 ```
 The signature of `ELBO` allows the user to specify what "to focus on" in the `ELBO.grad_estimate` interface. For example, let's say we also have a learnable model, which accepts a parameter `p` which we'd like to learn -- we can modify the `Target` lambda:
 
 ```python exec="yes" source="tabbed-left" session="ex-vi"
+@marginal()
 @static_gen_fn
-def model(p):
+def guide(target: Target):
+  (_, v) = target.args
+  x = normal_reparam(v, 1.0) @ "x"
+
+@static_gen_fn
+def model(p, v):
   x = normal(p, 1.0) @ "x"
   y = normal(x, 1.0) @ "y"
 
 elbo = ELBO(
-  # The posterior target -- p is learnable!
-  lambda p: Target(model, (p, ), choice_map({"y": 3.0})),
   # Approximation to the target.
-  lambda v: Marginal(guide, (v,))
+  guide,
+  # The posterior target -- p is learnable!
+  lambda p, v: Target(model, (p, v), choice_map({"y": 3.0})),
 )
-((p_grad,), (v_grad,)) = jax.jit(elbo.grad_estimate)(key, ((1.0, ), (1.0, )))
+(p_grad, v_grad) = jax.jit(elbo.grad_estimate)(key, (1.0, 1.0))
 print(console.render((p_grad, v_grad)))
 ```
 
