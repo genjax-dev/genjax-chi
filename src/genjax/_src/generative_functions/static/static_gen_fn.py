@@ -26,8 +26,8 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree.closure import DynamicClosure
 from genjax._src.core.typing import (
     Any,
-    Callable,
     ArrayLike,
+    Callable,
     PRNGKey,
     Tuple,
     dispatch,
