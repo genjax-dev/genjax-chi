@@ -3546,4 +3546,4 @@ tinygp = []
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "4015f52fe306cda7704edec264f1bdf67c6f358f7e702a01f75c263ea3a08a6c"
+content-hash = "a51355faafa84deb92ac5f31728a5cdcfa2cb14e556a56b95080ed240a4252f5"
