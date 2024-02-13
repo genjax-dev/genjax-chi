@@ -267,6 +267,7 @@ def marginal(
     If `select_or_addr` is an address, this constructs a `ValueMarginal` distribution
     which samples values of the type stored at the given address in `gen_fn`.
     """
+
     def decorator(gen_fn: GenerativeFunction) -> Union[Marginal, ValueMarginal]:
         if isinstance(select_or_addr, Selection):
             marginal = Marginal(
