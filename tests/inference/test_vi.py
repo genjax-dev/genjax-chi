@@ -13,5 +13,5 @@
 # limitations under the License.
 
 
-class TestSMC:
+class TestVI:
     pass
