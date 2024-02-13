@@ -56,10 +56,9 @@ class Target(Pytree):
         complement = constraint_selection.complement()
         return choice.filter(complement)
 
-    def generate(self, key: PRNGKey, choice: Choice):
+    def importance(self, key: PRNGKey, choice: Choice):
         merged = self.constraints.safe_merge(choice)
-        (tr, _) = self.p.importance(key, merged, self.args)
-        return (tr.get_score(), tr)
+        return self.p.importance(key, merged, self.args)
 
     def __getitem__(self, v):
         return self.constraints[v]
