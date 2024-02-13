@@ -8,6 +8,12 @@ In GenJAX, the inference stack is based on an implementation of the language des
 
 The concepts from GenSP allow GenJAX to support new modeling constructs like `Marginal`, which denotes marginalization over random variables. This object exposes sampling and density _estimation_ interfaces which cohere with Gen's existing estimator semantics.
 
+## Code example
+
+Up front, here's an example of the power of (a subset of) the inference automation.
+
+## `genjax.inference.core` module reference
+
 ::: genjax._src.inference.core
     options:
       members:

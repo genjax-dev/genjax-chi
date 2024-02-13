@@ -1,5 +1,7 @@
 # Distributions
 
+Distributions are a fundamental building block for generative functions (which are themselves generative functions).
+
 ::: genjax._src.generative_functions.distributions
     options:
       show_root_heading: true

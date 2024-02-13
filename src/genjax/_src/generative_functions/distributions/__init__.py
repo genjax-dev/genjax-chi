@@ -13,11 +13,9 @@
 # limitations under the License.
 """This module provides:
 
-* Abstract base classes for declaring distributions as `GenerativeFunction` types. These classes include `Distribution` and `ExactDensity`. The latter assumes that the inheritor exposes _exact density evaluation_, while the former makes no such assumption.
+* Abstract base classes for declaring distributions as `GenerativeFunction` types. These classes are `Distribution` and `ExactDensity`. The latter assumes that the inheritor exposes _exact density evaluation_, while the former makes no such assumption.
 
-* Wrapper generative function instances which implement `ExactDensity` utilizing distributions TensorFlow Probability distributions with the JAX backend.
+* A number of distribution generative functions which implement `ExactDensity` by utilizing TensorFlow Probability distributions with the JAX backend.
 
 * Custom distributions, including ones with exact posteriors (like discrete HMMs).
-
-* A language (`gensp`) for defining distributions with estimated densities using inference.
 """

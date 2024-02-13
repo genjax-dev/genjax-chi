@@ -30,7 +30,7 @@ def model(v):
   y = normal(x, 1.0) @ "y"
 
 # The guide uses special (ADEV) differentiable generative function primitives.
-@marginal()
+@marginal
 @static_gen_fn
 def guide(target: Target):
   (v, ) = target.args
@@ -63,7 +63,7 @@ elbo = ELBO(
 The signature of `ELBO` allows the user to specify what "to focus on" in the `ELBO.grad_estimate` interface. For example, let's say we also have a learnable model, which accepts a parameter `p` which we'd like to learn -- we can modify the `Target` lambda:
 
 ```python exec="yes" source="tabbed-left" session="ex-vi"
-@marginal()
+@marginal
 @static_gen_fn
 def guide(target: Target):
   (_, v) = target.args
