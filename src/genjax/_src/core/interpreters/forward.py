@@ -143,7 +143,7 @@ VarOrLiteral = Union[jc.Var, jc.Literal]
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict = Pytree.field(default_factory=hashable_dict)
+    env: HashableDict[jc.Var, Value] = Pytree.field(default_factory=hashable_dict)
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
