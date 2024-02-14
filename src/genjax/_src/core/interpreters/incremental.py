@@ -139,46 +139,46 @@ class Diff(Pytree):
     # Utilities #
     #############
 
-    @classmethod
-    def tree_diff(cls, tree, tangent_tree):
+    @staticmethod
+    def tree_diff(tree, tangent_tree):
         return jtu.tree_map(
             lambda p, t: Diff(p, t),
             tree,
             tangent_tree,
         )
 
-    @classmethod
-    def tree_diff_no_change(cls, tree):
+    @staticmethod
+    def tree_diff_no_change(tree):
         tangent_tree = jtu.tree_map(lambda _: NoChange, tree)
         return Diff.tree_diff(tree, tangent_tree)
 
-    @classmethod
-    def tree_diff_unknown_change(cls, tree):
+    @staticmethod
+    def tree_diff_unknown_change(tree):
         tangent_tree = jtu.tree_map(lambda _: UnknownChange, tree)
         return Diff.tree_diff(tree, tangent_tree)
 
-    @classmethod
-    def tree_primal(cls, v):
+    @staticmethod
+    def tree_primal(v):
         def _inner(v):
             if Diff.static_check_is_diff(v):
                 return v.get_primal()
             else:
                 return v
 
-        return jtu.tree_map(lambda v: _inner(v), v, is_leaf=Diff.static_check_is_diff)
+        return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
-    @classmethod
-    def tree_tangent(cls, v):
+    @staticmethod
+    def tree_tangent(v):
         def _inner(v):
             if Diff.static_check_is_diff(v):
                 return v.get_tangent()
             else:
                 return v
 
-        return jtu.tree_map(lambda v: _inner(v), v, is_leaf=Diff.static_check_is_diff)
+        return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
-    @classmethod
-    def tree_unpack(cls, v):
+    @staticmethod
+    def tree_unpack(v):
         primals = Diff.tree_primal(v)
         tangents = Diff.tree_tangent(v)
         return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
@@ -187,12 +187,12 @@ class Diff(Pytree):
     # Static checks #
     #################
 
-    @classmethod
-    def static_check_is_diff(cls, v):
+    @staticmethod
+    def static_check_is_diff(v):
         return isinstance(v, Diff)
 
-    @classmethod
-    def static_check_tree_diff(cls, v):
+    @staticmethod
+    def static_check_tree_diff(v):
         return all(
             map(
                 lambda v: isinstance(v, Diff),
@@ -200,8 +200,8 @@ class Diff(Pytree):
             )
         )
 
-    @classmethod
-    def static_check_no_change(cls, v):
+    @staticmethod
+    def static_check_no_change(v):
         def _inner(v):
             if static_check_is_change_tangent(v):
                 return isinstance(v, _NoChange)

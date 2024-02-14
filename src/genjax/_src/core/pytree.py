@@ -39,12 +39,12 @@ class Pytree(eqx.Module):
     """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
     system."""
 
-    @classmethod
-    def static(cls, **kwargs):
+    @staticmethod
+    def static(**kwargs):
         return eqx.field(**kwargs, static=True)
 
-    @classmethod
-    def field(cls, **kwargs):
+    @staticmethod
+    def field(**kwargs):
         return eqx.field(**kwargs)
 
     def tree_flatten(self):
@@ -86,8 +86,8 @@ class Pytree(eqx.Module):
     # Utility class constructors #
     ##############################
 
-    @classmethod
-    def const(cls, v):
+    @staticmethod
+    def const(v):
         # The value must be concrete!
         # It cannot be a JAX traced value.
         assert static_check_is_concrete(v)
@@ -98,8 +98,8 @@ class Pytree(eqx.Module):
 
     # Safe: will not wrap a PytreeConst in another PytreeConst, and will not
     # wrap dynamic values.
-    @classmethod
-    def tree_const(cls, v):
+    @staticmethod
+    def tree_const(v):
         def _inner(v):
             if isinstance(v, PytreeConst):
                 return v
@@ -114,8 +114,8 @@ class Pytree(eqx.Module):
             is_leaf=lambda v: isinstance(v, PytreeConst),
         )
 
-    @classmethod
-    def tree_unwrap_const(cls, v):
+    @staticmethod
+    def tree_unwrap_const(v):
         def _inner(v):
             if isinstance(v, PytreeConst):
                 return v.const
@@ -128,16 +128,16 @@ class Pytree(eqx.Module):
             is_leaf=lambda v: isinstance(v, PytreeConst),
         )
 
-    @classmethod
-    def dynamic_closure(cls, fn, *args):
+    @staticmethod
+    def dynamic_closure(fn, *args):
         return DynamicClosure(args, fn)
 
     #################
     # Static checks #
     #################
 
-    @classmethod
-    def static_check_tree_structure_equivalence(cls, trees: List):
+    @staticmethod
+    def static_check_tree_structure_equivalence(trees: List):
         if not trees:
             return True
         else:
@@ -146,8 +146,8 @@ class Pytree(eqx.Module):
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
 
-    @classmethod
-    def static_check_tree_leaves_have_matching_leading_dim(cls, tree):
+    @staticmethod
+    def static_check_tree_leaves_have_matching_leading_dim(tree):
         def _inner(v):
             if static_check_is_array(v):
                 shape = v.shape
@@ -167,8 +167,8 @@ class Pytree(eqx.Module):
     # Utilities #
     #############
 
-    @classmethod
-    def tree_stack(cls, trees):
+    @staticmethod
+    def tree_stack(trees):
         """Takes a list of trees and stacks every corresponding leaf.
 
         For example, given two trees ((a, b), c) and ((a', b'), c'), returns ((stack(a,
@@ -190,8 +190,8 @@ class Pytree(eqx.Module):
         ]
         return treedef_list[0].unflatten(result_leaves)
 
-    @classmethod
-    def tree_unstack(cls, tree):
+    @staticmethod
+    def tree_unstack(tree):
         """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
 
         For example, given a tree ((a, b), c), where a, b, and c all have
@@ -210,8 +210,8 @@ class Pytree(eqx.Module):
         new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
         return new_trees
 
-    @classmethod
-    def tree_grad_split(cls, tree):
+    @staticmethod
+    def tree_grad_split(tree):
         def _grad_filter(v):
             if static_check_supports_grad(v):
                 return v
@@ -229,8 +229,8 @@ class Pytree(eqx.Module):
 
         return grad, nograd
 
-    @classmethod
-    def tree_grad_zip(cls, grad, nograd):
+    @staticmethod
+    def tree_grad_zip(grad, nograd):
         def _zipper(*args):
             for arg in args:
                 if arg is not None:
