@@ -18,7 +18,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich.tree as rich_tree
-from equinox import tree_at
 from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
@@ -236,14 +235,6 @@ class Choice(Pytree):
     @abstractmethod
     def is_empty(self) -> BoolArray:
         pass
-
-    @typecheck
-    def partition(self, selection: Selection):
-        return self.filter(selection), self.filter(selection.complement())
-
-    @typecheck
-    def surgery(self, selection: Selection, replacement: "Choice"):
-        return tree_at(lambda v: v.filter(selection), replacement)
 
     def safe_merge(self, other: "Choice") -> "Choice":
         new, discard = self.merge(other)
