@@ -1,6 +1,6 @@
 # Distributions
 
-Distributions are a fundamental building block for generative functions (which are themselves generative functions).
+Distributions are a type of primitive generative function which act as a fundamental building block for more complex generative functions.
 
 ::: genjax._src.generative_functions.distributions
     options:
