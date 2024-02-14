@@ -93,6 +93,15 @@ class ParticleCollection(Pytree):
     def check_valid(self) -> BoolArray:
         return self.is_valid
 
+    def sample_particle(self, key) -> Trace:
+        """
+        Samples a particle from the collection, with probability proportional to its weight.
+        """
+        log_weights = self.get_log_weights()
+        logits = log_weights - logsumexp(log_weights)
+        idx = categorical.sample(key, logits)
+        return self.get_particle(idx)
+
 
 ####################################
 # Abstract type for SMC algorithms #
@@ -148,12 +157,8 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> Tuple[FloatArray, Choice]:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_smc(sub_key)
-        log_weights = particle_collection.get_log_weights()
-        total_weight = logsumexp(log_weights)
-        logits = log_weights - total_weight
-        idx = categorical.sample(key, logits)
-        particle = particle_collection.get_particle(idx)
+        particle_collection = algorithm.run_smc(key)
+        particle = particle_collection.sample_particle(sub_key)
         log_density_estimate = (
             particle.get_score()
             - particle_collection.get_log_marginal_likelihood_estimate()
@@ -170,12 +175,8 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_csmc(sub_key, latent_choices)
-        log_weights = particle_collection.get_log_weights()
-        total_weight = logsumexp(log_weights)
-        logits = log_weights - total_weight
-        idx = categorical.sample(key, logits)
-        particle = particle_collection.get_particle(idx)
+        particle_collection = algorithm.run_csmc(key, latent_choices)
+        particle = particle_collection.sample_particle(sub_key)
         log_density_estimate = (
             particle.get_score()
             - particle_collection.get_log_marginal_likelihood_estimate()
