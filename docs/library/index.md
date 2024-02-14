@@ -2,7 +2,7 @@
 
 This is the API documentation for modules and symbols which are exposed publicly from `genjax`.
 
-The `genjax` package consists of several modules, many of which rely on functionality from the `genjax.core` module, and build upon the datatypes, transformation interpreters, and generative datatypes which are defined there. [Generative function languages](./generative_functions/) use the core datatypes and infrastructure to implement the generative function interface. [Inference algorithms](./inference/) are then implemented using the interface (and inference algorithms which utilize _learning_ (like variational inference) also use a [new extension to forward mode AD](./adev/)).
+The `genjax` package consists of several modules, many of which rely on functionality from the `genjax.core` module, and build upon the datatypes, transformation interpreters, and generative datatypes which are defined there. [Generative function languages](./generative_functions/) use the core datatypes and infrastructure to implement the generative function interface. [Inference algorithms](./inference/) are then implemented using the interface (and inference algorithms which utilize _learning_ (like variational inference) also use a [new extension to forward mode AD](./adev.md)).
 
 Here are some useful places to start, depending on your questions:
 
