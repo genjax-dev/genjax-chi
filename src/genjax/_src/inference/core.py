@@ -44,7 +44,8 @@ from genjax._src.shortcuts import choice_map, select
 
 class Target(Pytree):
     """
-    Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `Choice` object, which represents constraints applied to the generative function.
+    Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `Choice` object.
+    The target represents the unnormalized distribution on the unconstrained choices in the generative function, fixing the constraints.
     """
 
     p: GenerativeFunction
@@ -102,6 +103,15 @@ class InferenceAlgorithm(ChoiceDistribution, JAXGenerativeFunction):
     algorithms, programs which implement interfaces for sampling from approximate
     posterior representations, and estimating the density of the approximate posterior.
 
+    An InferenceAlgorithm is a genjax `Distribution`.
+    It accepts a `Target` as input, representing the unnormalized
+    distribution $R$, and samples from an approximation to
+    the normalized distribution $R / R(X)$,
+    where $X$ is the space of all choicemaps.
+    The `InferenceAlgorithm` object is semantically equivalent as a genjax `Distribution`
+    to the normalized distribution $R / R(X)$, in the sense
+    defined by the stochastic probability interface.  (See `Distribution`.)
+
     Subclasses of type `InferenceAlgorithm` can also implement two optional methods
     designed to support effective gradient estimators for variational objectives
     (`estimate_normalizing_constant` and `estimate_reciprocal_normalizing_constant`).
@@ -118,7 +128,12 @@ class InferenceAlgorithm(ChoiceDistribution, JAXGenerativeFunction):
         target: Target,
     ) -> Tuple[FloatArray, Choice]:
         """
-        Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(w, choice)` where `w` is a sample from an estimator with $\mathbb{E}[w] = 1 / Z$ and `choice: Choice` is a sample from the approximate posterior which `self: InferenceAlgorithm` represents.
+        Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(log_w, choice)`.
+        `choice : Choice` is a choicemap on the addresses sampled at in `target.gen_fn` not in `target.constraints`;
+        it is sampled by running the inference algorithm represented by `self`.
+        `log_w` is a random weight such that $w = \exp(\texttt{log_w})$ satisfies
+        $\mathbb{E}[1 / w \mid \texttt{choice}] = 1 / P(\texttt{choice} \mid \texttt{target.constraints})`, where `P` is the
+        distribution on choicemaps represented by `target.gen_fn`.
         """
         pass
 
@@ -130,7 +145,9 @@ class InferenceAlgorithm(ChoiceDistribution, JAXGenerativeFunction):
         target: Target,
     ) -> FloatArray:
         """
-        Given a `key: PRNGKey`, `latent_choices: Choice` and a `target: Target`, returns `w` where `w` is a sample from an estimator with $\mathbb{E}[w] = Z$.
+        Given a `key: PRNGKey`, `latent_choices: Choice` and a `target: Target`, returns a random value $\log(w)$
+        such that $\mathbb{E}[w] = P(\texttt{latent_choices} \mid \texttt{target.constraints})$, where $P$
+        is the distribution on choicemaps represented by `target.gen_fn`.
         """
         pass
 
