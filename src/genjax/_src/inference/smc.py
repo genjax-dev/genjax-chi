@@ -87,6 +87,9 @@ class ParticleCollection(Pytree):
     def get_log_marginal_likelihood_estimate(self) -> FloatArray:
         return logsumexp(self.log_weights) - jnp.log(len(self.log_weights))
 
+    def __getitem__(self, idx) -> Tuple:
+        return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
+
     def check_valid(self) -> BoolArray:
         return self.is_valid
 
