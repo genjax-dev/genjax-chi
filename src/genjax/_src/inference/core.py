@@ -197,11 +197,11 @@ class Marginal(ChoiceDistribution):
     ) -> Tuple[FloatArray, Choice]:
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, args)
-        weight = tr.get_score()
         choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(self.selection.complement())
         target = Target(self.p, args, latent_choices)
+        weight = tr.project(self.selection)
         if self.algorithm is None:
             return weight, latent_choices
         else:
