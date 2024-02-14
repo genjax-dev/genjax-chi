@@ -220,8 +220,15 @@ class SMCAlgorithm(InferenceAlgorithm):
 
 @typecheck
 class Importance(SMCAlgorithm):
-    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, initialize a particle collection using
-    importance sampling."""
+    """Accepts as input a `target: Target` and, optionally, a proposal `q: ChoiceDistribution`.
+    `q` should accept a `Target` as input and return a choicemap on a subset
+    of the addresses in `target.gen_fn` not in `target.constraints`.
+
+    This initializes a 1-particle `ParticleCollection` by importance sampling from `target` using `q`.
+
+    Any choices in `target.p` not in `q` will be sampled from the internal proposal distribution of `p`,
+    given `target.constraints` and the choices sampled by `q`.
+    """
 
     target: Target
     q: Optional[ChoiceDistribution] = Pytree.field(default=Pytree.const(None))
