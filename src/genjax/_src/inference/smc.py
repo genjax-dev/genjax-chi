@@ -157,7 +157,7 @@ class SMCAlgorithm(InferenceAlgorithm):
             + total_weight
             - jnp.log(num_particles)
         )
-        choice = target.project(particle.get_choices())
+        choice = target.filter_to_unconstrained(particle.get_choices())
         return log_density_estimate, choice
 
     @typecheck
@@ -405,7 +405,7 @@ class ChangeTarget(SMCAlgorithm):
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight):
-            latents = self.prev.get_final_target().project(particle)
+            latents = self.prev.get_final_target().filter_to_unconstrained(particle)
             new_trace, new_weight = self.target.importance(key, latents)
             this_weight = new_weight - particle.get_score() + weight
             return (new_trace, this_weight)
@@ -432,7 +432,7 @@ class ChangeTarget(SMCAlgorithm):
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight):
-            latents = self.prev.get_final_target().project(particle)
+            latents = self.prev.get_final_target().filter_to_unconstrained(particle)
             new_trace, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight
             return (new_trace, this_weight)
@@ -466,7 +466,7 @@ class ChangeTarget(SMCAlgorithm):
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight):
-            latents = self.prev.get_final_target().project(particle)
+            latents = self.prev.get_final_target().filter_to_unconstrained(particle)
             _, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight
             return this_weight

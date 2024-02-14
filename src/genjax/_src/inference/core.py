@@ -52,7 +52,7 @@ class Target(Pytree):
     args: Tuple
     constraints: Choice
 
-    def project(self, choice: Choice):
+    def filter_to_unconstrained(self, choice: Choice):
         constraint_selection = self.constraints.get_selection()
         complement = constraint_selection.complement()
         return choice.filter(complement)
