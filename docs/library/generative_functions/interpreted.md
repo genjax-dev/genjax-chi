@@ -1,8 +1,3 @@
-::: genjax._src.generative_functions.interpreted.interpreted_gen_fn
-    options:
-      show_root_heading: true
-
----
 # The `interpreted` generative function language
 
 GenJAX's `interpreted` generative function language is a non-accelerated variant of GenJAX
@@ -18,13 +13,7 @@ and tensors so that efficient use of acceleration hardware may be made.
 In the interpreted language, there is no such restriction; the length of a vector
 could itself be a random variable.
 
-::: genjax._src.generative_functions.interpreted
-    options:
-      show_root_heading: true
-
-
-**What does it look like?**
-Up front, here's a representative program, (with syntactic sugar, using the constructor as a decorator, both of which we'll cover in detail below):
+**What does it look like?** Here's a representative program, (with syntactic sugar, using the constructor as a decorator, both of which we'll cover in detail below):
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
@@ -65,18 +54,13 @@ def joint():
     return v
 ```
 
-## Language primitives
+### Language primitives
 
 The static language exposes custom primitives, which are handled by JAX interpreters to support the semantics of the generative function interface.
 
-### `trace`
-
-The `trace` primitive provides access to the ability to invoke another generative function as a callee.
-
-::: genjax.generative_functions.interpreted
+(**`trace`**) The `trace` primitive provides access to the ability to invoke another generative function as a callee.
 
 Returning to our example above:
-
 
 ```python exec="yes" source="tabbed-left" session="ex-trace"
 import genjax
@@ -108,4 +92,9 @@ Notice how the rendered result `Trace` has addresses in its choice trie for `"p"
 
 The `trace` primitive is a critical element of structuring hierarchical generative computation in the interpreted language.
 
-## Usage
+## Module reference
+
+::: genjax._src.generative_functions.interpreted.interpreted_gen_fn
+    options:
+      show_root_heading: true
+
