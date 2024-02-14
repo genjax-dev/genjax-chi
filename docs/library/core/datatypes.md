@@ -73,7 +73,7 @@ Traces support a _trace interface_: a set of accessor methods designed to provid
       members:
         - get_gen_fn
         - get_retval
-        - get_choice
+        - get_choices
         - get_score
         - project
 
