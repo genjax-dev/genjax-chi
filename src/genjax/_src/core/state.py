@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
+from functools import partial, wraps
 
 from oryx.core import plant, reap, sow
 
@@ -22,7 +22,7 @@ NAMESPACE = "state"
 # "clobber" here means that parameters get shared across sites with
 # the same name and tag.
 def param(v, name):
-    f = functools.partial(
+    f = partial(
         sow,
         tag=NAMESPACE,
         mode="clobber",
@@ -32,6 +32,7 @@ def param(v, name):
 
 
 def pull(f):
+    @wraps(f)
     def _wrapped(*args):
         return reap(f, tag=NAMESPACE)(*args)
 
