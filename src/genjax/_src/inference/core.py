@@ -58,6 +58,10 @@ class Target(Pytree):
         return choice.filter(complement)
 
     def importance(self, key: PRNGKey, choice: Choice):
+        """
+        Uses `target.p.importance` to sample an importance particle consistent with both
+        `target.constraints` and `choice`.
+        """
         merged = self.constraints.safe_merge(choice)
         return self.p.importance(key, merged, self.args)
 
