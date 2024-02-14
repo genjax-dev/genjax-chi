@@ -111,10 +111,10 @@ def beta_bernoulli(beta):
 
 key = jax.random.PRNGKey(314159)
 trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
-choice = trace.get_choice()
+choice = trace.get_choices()
 ```
 
-`choice` is a map-like record of all random choices made during the execution of the
+`choice` is a tree-like record of all random choices made during the execution of the
 generative function `beta_bernoulli`. Print it with a `genjax.console()`
 instance:
 
