@@ -194,11 +194,8 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        num_particles = self.get_num_particles()
         particle_collection = algorithm.run_smc(sub_key)
-        log_weights = particle_collection.get_log_weights()
-        total_weight = logsumexp(log_weights)
-        return total_weight - jnp.log(num_particles)
+        return particle_collection.get_log_marginal_likelihood_estimate()
 
     @typecheck
     def estimate_reciprocal_normalizing_constant(
