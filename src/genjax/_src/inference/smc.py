@@ -148,17 +148,15 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> Tuple[FloatArray, Choice]:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        num_particles = self.get_num_particles()
         particle_collection = algorithm.run_smc(sub_key)
         log_weights = particle_collection.get_log_weights()
         total_weight = logsumexp(log_weights)
         logits = log_weights - total_weight
         idx = categorical.sample(key, logits)
         particle = particle_collection.get_particle(idx)
-        log_density_estimate = particle.get_score() - (
-            particle_collection.get_log_marginal_likelihood_estimate()
-            + total_weight
-            - jnp.log(num_particles)
+        log_density_estimate = (
+            particle.get_score()
+            - particle_collection.get_log_marginal_likelihood_estimate()
         )
         choice = target.filter_to_unconstrained(particle.get_choices())
         return log_density_estimate, choice
@@ -172,17 +170,15 @@ class SMCAlgorithm(InferenceAlgorithm):
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        num_particles = self.get_num_particles()
         particle_collection = algorithm.run_csmc(sub_key, latent_choices)
         log_weights = particle_collection.get_log_weights()
         total_weight = logsumexp(log_weights)
         logits = log_weights - total_weight
         idx = categorical.sample(key, logits)
         particle = particle_collection.get_particle(idx)
-        log_density_estimate = particle.get_score() - (
-            particle_collection.get_log_marginal_likelihood_estimate()
-            + total_weight
-            - jnp.log(num_particles)
+        log_density_estimate = (
+            particle.get_score()
+            - particle_collection.get_log_marginal_likelihood_estimate()
         )
         return log_density_estimate
 
