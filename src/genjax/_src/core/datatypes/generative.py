@@ -695,7 +695,7 @@ class Mask(Choice):
     #####################
 
     def is_empty(self):
-        assert isinstance(self.value, ChoiceMap)
+        assert isinstance(self.value, Choice)
         return jnp.logical_and(self.flag, self.value.is_empty())
 
     def filter(self, selection: Selection):
