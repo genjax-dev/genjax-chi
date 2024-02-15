@@ -405,7 +405,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         chm: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, ArrayLike]:
+    ) -> Tuple[ArrayLike, Any]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         chm_dim = static_check_tree_leaves_have_matching_leading_dim(chm)
