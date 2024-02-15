@@ -61,7 +61,7 @@ tfd = tfp.distributions
 
 
 class ADEVDistribution(JAXGenerativeFunction, ExactDensity):
-    """The class `ADEVDistribution` is a generative function wrapper class which exposes `sample` and
+    """The class `ADEVDistribution` is a distribution wrapper class which exposes `sample` and
     `logpdf` interfaces, where `sample` is expected to utilize an ADEV differentiable sampling
     primitive, and `logpdf` is a differentiable logpdf function.
 
