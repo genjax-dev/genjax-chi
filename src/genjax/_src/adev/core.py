@@ -45,6 +45,10 @@ from genjax._src.core.typing import (
 
 
 class ADEVPrimitive(Pytree):
+    """
+    An `ADEVPrimitive` is a primitive sampler equipped with a JVP gradient estimator strategy. These objects support forward sampling, but also come equipped with a strategy that interacts with ADEV's AD transformation to return a JVP estimate.
+    """
+
     @abstractmethod
     def sample(self, key, *args):
         raise NotImplementedError
@@ -95,6 +99,13 @@ reap_key_p = InitialStylePrimitive("reap_key")
 
 
 def reap_key():
+    """
+    The `reap_key` intrinsic inserts a primitive into a JAX computation that can be seeded with a fresh key by an interpreter.
+
+    It should only be used within ADEV programs (as the ADEV transformation stack will
+    handle sowing keys).
+    """
+
     def _reap_key():
         # value doesn't matter, just the type
         return jax.random.PRNGKey(0)
@@ -109,18 +120,17 @@ def reap_key():
 
 class CPSInterpreter(Pytree):
     """The `CPSInterpreter` takes a `Jaxpr` to a CPS-transformed `Jaxpr`, where certain
-    primitives (`sample_p`) are provided with with the static continuation (for the rest
+    primitives (`sample_p`) are provided with the static continuation (for the rest
     of the computation).
 
-    The goal of this interpreter is to setup these primitives to have access to the
+    The goal of this interpreter is to set up these primitives to have access to the
     continuations from their invocation sites, so that another transformation (the ADEV
     AD transformation) can use the continuation there (as part of its construction of an
     AD estimator).
     """
 
-    @classmethod
+    @staticmethod
     def _eval_jaxpr_cps(
-        cls,
         jaxpr: jc.Jaxpr,
         consts: List,
         args: List,
@@ -179,8 +189,8 @@ class CPSInterpreter(Pytree):
 
         return eval_jaxpr_iterate(jaxpr.eqns, env, jaxpr.invars, args)
 
-    @classmethod
-    def cps(cls, f, kont):
+    @staticmethod
+    def cps(f, kont):
         def _wrapped(*args):
             def _inner(*args):
                 return kont(f(*args))
@@ -201,18 +211,18 @@ class CPSInterpreter(Pytree):
 
 class PytreeContinuationClosure(Pytree):
     dual_env: Environment
-    callable: Callable = Pytree.static()
+    kont: Callable = Pytree.static()
 
     @typecheck
     def pure(self, *args: Any):
         just_primal_env = Dual.tree_primal(self.dual_env)
-        return self.callable(just_primal_env, *args)
+        return self.kont(just_primal_env, *args)
 
     @typecheck
     def dual(self, primals: Tuple, tangents: Tuple):
         just_primal_env = Dual.tree_primal(self.dual_env)
         just_tangent_env = Dual.tree_tangent(self.dual_env)
-        return ADInterpreter.forward_mode(self.callable)(
+        return ADInterpreter.forward_mode(self.kont)(
             (just_primal_env, *primals),
             (just_tangent_env, *tangents),
         )
@@ -225,8 +235,8 @@ class Dual(Pytree):
     primal: Any
     tangent: Any
 
-    @classmethod
-    def tree_pure(cls, v):
+    @staticmethod
+    def tree_pure(v):
         def _inner(v):
             if isinstance(v, Dual):
                 return v
@@ -235,12 +245,12 @@ class Dual(Pytree):
 
         return jtu.tree_map(_inner, v, is_leaf=lambda v: isinstance(v, Dual))
 
-    @classmethod
-    def tree_dual(cls, primals, tangents):
+    @staticmethod
+    def tree_dual(primals, tangents):
         return jtu.tree_map(lambda v1, v2: Dual(v1, v2), primals, tangents)
 
-    @classmethod
-    def tree_primal(cls, v):
+    @staticmethod
+    def tree_primal(v):
         def _inner(v):
             if isinstance(v, Dual):
                 return v.primal
@@ -249,8 +259,8 @@ class Dual(Pytree):
 
         return jtu.tree_map(_inner, v, is_leaf=lambda v: isinstance(v, Dual))
 
-    @classmethod
-    def tree_tangent(cls, v):
+    @staticmethod
+    def tree_tangent(v):
         def _inner(v):
             if isinstance(v, Dual):
                 return v.tangent
@@ -259,8 +269,8 @@ class Dual(Pytree):
 
         return jtu.tree_map(_inner, v, is_leaf=lambda v: isinstance(v, Dual))
 
-    @classmethod
-    def tree_leaves(cls, v):
+    @staticmethod
+    def tree_leaves(v):
         v = Dual.tree_pure(v)
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Dual))
 
@@ -273,14 +283,14 @@ class ADInterpreter(Pytree):
     the `sample_p` primitive, it creates a continuation closure which is passed to the gradient strategy which the primitive is using.
     """
 
-    @classmethod
-    def flat_unzip(cls, duals: List):
+    @staticmethod
+    def flat_unzip(duals: List):
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in duals)
         return list(primals), list(tangents)
 
     # TODO: handle `jax.lax.cond`.
-    @classmethod
-    def _eval_jaxpr_reap_key(cls, key, jaxpr, consts, flat_args):
+    @staticmethod
+    def _eval_jaxpr_reap_key(key, jaxpr, consts, flat_args):
         env = Environment()
         jax_util.safe_map(env.write, jaxpr.invars, flat_args)
         jax_util.safe_map(env.write, jaxpr.constvars, consts)
@@ -299,8 +309,8 @@ class ADInterpreter(Pytree):
             jax_util.safe_map(env.write, eqn.outvars, outvals)
         return jax_util.safe_map(env.read, jaxpr.outvars)
 
-    @classmethod
-    def sow_keys(cls, fn):
+    @staticmethod
+    def sow_keys(fn):
         """Sow keys at `reap_key_p` primitive invocations.
 
         When a key is sowed, it is split and evolved forward.
@@ -315,8 +325,8 @@ class ADInterpreter(Pytree):
 
         return wrapped
 
-    @classmethod
-    def _eval_jaxpr_adev_jvp(cls, jaxpr, consts, flat_duals):
+    @staticmethod
+    def _eval_jaxpr_adev_jvp(jaxpr, consts, flat_duals):
         dual_env = Environment()
         jax_util.safe_map(dual_env.write, jaxpr.constvars, Dual.tree_pure(consts))
         jax_util.safe_map(dual_env.write, jaxpr.invars, flat_duals)
@@ -374,8 +384,8 @@ class ADInterpreter(Pytree):
         (out_dual,) = jax_util.safe_map(dual_env.read, jaxpr.outvars)
         return out_dual
 
-    @classmethod
-    def forward_mode(cls, f):
+    @staticmethod
+    def forward_mode(f):
         def _inner(primals: Tuple, tangents: Tuple):
             closed_jaxpr, (flat_args, _, _) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
