@@ -36,14 +36,16 @@ class TestSMC:
         )
 
         # Single sample IS.
-        Z_est = genjax.inference.smc.Importance(inference_problem, None).estimate_Z(key)
+        Z_est = genjax.inference.smc.Importance(
+            inference_problem, None
+        ).log_marginal_likelihood_estimate(key)
         Z_exact = flip_flip_exact_log_marginal_density(inference_problem)
         assert Z_est == pytest.approx(Z_exact, 1e-1)
 
         # K-sample sample IS.
         Z_est = genjax.inference.smc.ImportanceK(
             inference_problem, None, 1000
-        ).estimate_Z(key)
+        ).log_marginal_likelihood_estimate(key)
         Z_exact = flip_flip_exact_log_marginal_density(inference_problem)
         assert Z_est == pytest.approx(Z_exact, 1e-3)
 
@@ -77,6 +79,6 @@ class TestSMC:
         # K-sample IS.
         Z_est = genjax.inference.smc.ImportanceK(
             inference_problem, None, 2000
-        ).estimate_Z(key)
+        ).log_marginal_likelihood_estimate(key)
         Z_exact = flip_flip_exact_log_marginal_density(inference_problem)
         assert Z_est == pytest.approx(Z_exact, 1e-1)

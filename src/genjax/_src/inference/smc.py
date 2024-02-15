@@ -136,7 +136,7 @@ class SMCAlgorithm(InferenceAlgorithm):
 
     # Convenience method for returning an estimate of the normalizing constant
     # of the target.
-    def estimate_Z(self, key, target: Optional[Target] = None):
+    def log_marginal_likelihood_estimate(self, key, target: Optional[Target] = None):
         if target:
             algorithm = ChangeTarget(self, target)
         else:
