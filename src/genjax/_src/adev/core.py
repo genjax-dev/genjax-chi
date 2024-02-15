@@ -434,8 +434,8 @@ class ADEVProgram(Pytree):
         def adev_jvp(f):
             @wraps(f)
             def wrapped(primals, tangents):
-                sowed = partial(ADInterpreter.sow_keys(f), key)
-                cpsified = CPSInterpreter.cps(sowed, kont)
+                sown = partial(ADInterpreter.sow_keys(f), key)
+                cpsified = CPSInterpreter.cps(sown, kont)
                 return ADInterpreter.forward_mode(cpsified)(primals, tangents)
 
             return wrapped
@@ -459,16 +459,16 @@ class ADEVProgram(Pytree):
         key: PRNGKey,
         args: Tuple,
     ):
-        def sowed(f):
+        def sown(f):
             @wraps(f)
-            def _sowed(*args):
-                sowed = partial(ADInterpreter.sow_keys(f), key)
-                return sowed(*args)
+            def _sown(*args):
+                sown = partial(ADInterpreter.sow_keys(f), key)
+                return sown(*args)
 
-            return _sowed
+            return _sown
 
-        value = sowed(self.source)(*args)
-        jaxpr = jax.make_jaxpr(sowed(self.source))(*args)
+        value = sown(self.source)(*args)
+        jaxpr = jax.make_jaxpr(sown(self.source))(*args)
         return value, jaxpr
 
     @typecheck
@@ -481,8 +481,8 @@ class ADEVProgram(Pytree):
         def _just_cps(f):
             @wraps(f)
             def cpsified(*args):
-                sowed = partial(ADInterpreter.sow_keys(f), key)
-                return CPSInterpreter.cps(sowed, kont)(*args)
+                sown = partial(ADInterpreter.sow_keys(f), key)
+                return CPSInterpreter.cps(sown, kont)(*args)
 
             return cpsified
 
@@ -501,8 +501,8 @@ class ADEVProgram(Pytree):
         def adev_jvp(f):
             @wraps(f)
             def wrapped(primals, tangents):
-                sowed = partial(ADInterpreter.sow_keys(f), key)
-                cpsified = CPSInterpreter.cps(sowed, kont)
+                sown = partial(ADInterpreter.sow_keys(f), key)
+                cpsified = CPSInterpreter.cps(sown, kont)
                 return ADInterpreter.forward_mode(cpsified)(primals, tangents)
 
             return wrapped
