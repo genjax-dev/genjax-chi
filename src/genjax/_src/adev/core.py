@@ -311,9 +311,9 @@ class ADInterpreter(Pytree):
 
     @staticmethod
     def sow_keys(fn):
-        """Sow keys at `reap_key_p` primitive invocations.
+        """Return a transformed function which accepts a `key: PRNGKey` as the first argument, and uses an interpreter to sow fresh keys (using the `key`) into any `reap_key_p` primitive invocations.
 
-        When a key is sowed, it is split and evolved forward.
+        When a fresh key is sown, the carried key is split and evolved forward.
         """
 
         @wraps(fn)
