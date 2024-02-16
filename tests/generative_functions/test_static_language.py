@@ -16,6 +16,7 @@ from typing import Any
 
 import genjax
 import jax
+import jax.numpy as jnp
 import pytest
 from genjax import PytreeConst
 from genjax.core.exceptions import AddressReuse, StaticAddressJAX
@@ -681,3 +682,28 @@ class TestInline:
         assert score == genjax.normal.logpdf(
             chm["y1"], 0.0, 1.0
         ) + genjax.normal.logpdf(chm["y2"], 0.0, 1.0)
+
+
+#####################
+# Composition tests
+#####################
+
+class TestComposition:
+    def test_project_map_of_map(self):
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static_gen_fn
+        def f(x):
+            return genjax.normal(x, 0.1) @ 'y'
+
+        key = jax.random.PRNGKey(314159)
+        fn = jax.jit(f.simulate)
+        key, sub_key = jax.random.split(key)
+        tr = fn(sub_key, (jnp.arange(15.0).reshape((3, 5)),))
+        chm = tr.get_choices()
+
+        projected_score = tr.project(
+            genjax.indexed_select(
+                jnp.array([1, 2]),
+                genjax.indexed_select(jnp.array([[1, 2, 4], [0, 2, 3]]))))
+        assert projected_score != 0.0
