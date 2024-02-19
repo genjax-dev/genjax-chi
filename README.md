@@ -12,6 +12,7 @@
 <div align="center">
 
 [![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
+[![][coverage_badge]]
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
@@ -22,6 +23,7 @@
 
 </div>
 
+[coverage_badge]: https://github.com/probcomp/genjax/coverage.svg
 [main_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=main
 [nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=nightly
 [actions]: https://github.com/probcomp/genjax/actions
