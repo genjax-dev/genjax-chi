@@ -74,6 +74,7 @@ def coverage(session):
     )
     session.run("poetry", "run", "coverage", "json")
     session.run("poetry", "run", "coverage", "report")
+    session.run("coverage-badge", "-o", "coverage.svg")
 
 
 @session(python=python_version)
