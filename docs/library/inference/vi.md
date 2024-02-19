@@ -8,11 +8,13 @@
 
 **Variational inference** ([Blei et al, 2016](https://arxiv.org/abs/1601.00670)) is an approximate inference technique where the problem of computing the posterior distribution $P'$ is transformed into an optimization problem. The idea is to find a distribution $Q$ that is close to the true posterior $P'$ by minimizing the Kullback-Leibler (KL) divergence between the two distributions.
 
-GenJAX provides automation for this process by exposing unbiased gradient automation based on the stack shown in **Fig. 1**. At a high level, the stack illustrates that `genjax.inference.vi` utilizes implementations of generative interfaces like $\textbf{sim}\{ \cdot \}$ and $\textbf{density}\{ \cdot \}$ in the source language of a differentiable probabilistic language called ADEV. ADEV is a new extension to automatic differentiation which adds supports for _expectations_ - so when we provide implementations inside ADEV's language, we gain the ability to automatically derive unbiased gradient estimators for expected value objectives.
+GenJAX provides automation for this process by exposing unbiased gradient automation based on the stack shown in **Fig. 1**. At a high level, the stack illustrates that `genjax.inference.vi` utilizes implementations of generative interfaces like $\textbf{sim}\{ \cdot \}$ and $\textbf{density}\{ \cdot \}$ [in the source language of a differentiable probabilistic language called ADEV](../adev.md). 
+
+ADEV is a new extension to automatic differentiation which adds supports for _expectations_ - so when we provide implementations using ADEV's language, we gain the ability to automatically derive unbiased gradient estimators for expected value objectives.
 
 ## Code example
 
-Now, those are the details - here's a code pattern:
+Here's a small example using the library loss `genjax.vi.ELBO`:
 
 ```python exec="yes" source="tabbed-left" session="ex-vi"
 import jax
@@ -39,7 +41,6 @@ def guide(target: Target):
 # Using a library loss.
 elbo = ELBO(
   guide,
-  # The posterior target -- can also have learnable parameters!
   lambda v: Target(model, (v, ), choice_map({"y": 3.0})),
 )
 
@@ -92,6 +93,4 @@ print(console.render((p_grad, v_grad)))
         - ADEVDistribution
         - ExpectedValueLoss
         - ELBO
-        - IWELBO
-        - QWake
       show_root_heading: true
