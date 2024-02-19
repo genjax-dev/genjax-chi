@@ -158,7 +158,7 @@ class CPSInterpreter(Pytree):
                     # c.f. `initial_style_bind` below.
                     #
                     # We have to sneak the environment in, that's why `env` is used as the first argument.
-                    def _binder(env, tree_args):
+                    def _binder(_, tree_args):
                         flat_args = jtu.tree_leaves(tree_args)
                         return eqn.primitive.impl(*flat_args, **params)
 
