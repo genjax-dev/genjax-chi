@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Callable, Dict, List, PRNGKey, Protocol, Tuple
 
 
@@ -65,6 +65,3 @@ class SupportsCalleeSugar:
         self: CanSimulate, *args: Any, **kwargs
     ) -> SugaredGenerativeFunctionCall:
         return SugaredGenerativeFunctionCall(self, args, kwargs)
-
-    def apply(self: CanSimulate, key: PRNGKey, args: Tuple) -> Any:
-        return self.simulate(key, args).get_retval()

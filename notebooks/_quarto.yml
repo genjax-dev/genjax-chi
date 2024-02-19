@@ -41,11 +41,6 @@ website:
           - href: introduction/intro_interpreted.ipynb
             text: Introduction (interpreted dialect)
 
-      - section: 'Sequential Monte Carlo (SMC)'
-        contents:
-          - href: intermediate/smc/smc_with_translators.ipynb
-            text: 'SMC with Translators'
-
   page-footer:
     center: © Copyright 2022-2024 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
 

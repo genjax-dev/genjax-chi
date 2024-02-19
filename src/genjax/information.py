@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains estimators of information-theoretic quantities
-implemented using the generative function interface.
+"""This module contains estimators of information-theoretic quantities implemented using
+the generative function interface.
 
 It supports inference diagnostic tools (like AIDE and SDOS) as well as
 entropy estimation tools (like EEVI).

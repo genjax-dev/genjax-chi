@@ -1,4 +1,4 @@
-# Copyright 2023 The oryx Authors and the MIT Probabilistic Computing Project
+# Copyright 2024 The oryx Authors and the MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import dill as pickle
 
 from genjax._src.core.datatypes.generative import Trace
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.serialization.backend import SerializationBackend
 from genjax._src.core.typing import Any, dispatch
 

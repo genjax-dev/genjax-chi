@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,19 @@
 # limitations under the License.
 
 from genjax._src.shortcuts import (
+    choice,
     choice_map,
     indexed_choice_map,
     indexed_select,
+    select,
     vector_choice_map,
 )
 
-__all__ = ["choice_map", "indexed_choice_map", "vector_choice_map", "indexed_select"]
+__all__ = [
+    "choice",
+    "choice_map",
+    "indexed_choice_map",
+    "indexed_select",
+    "select",
+    "vector_choice_map",
+]
