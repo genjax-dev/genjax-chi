@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from deprecated import deprecated
+
+# Future deprecated APIs.
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.shortcuts import (
     choice,
     choice_map,
@@ -21,6 +25,35 @@ from genjax._src.shortcuts import (
     vector_choice_map,
 )
 
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+)
+def tree_diff_no_change(v):
+    return Diff.tree_diff_no_change(v)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+)
+def tree_diff_unknown_change(v):
+    return Diff.tree_diff_unknown_change(v)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+)
+def tree_diff_primal(v):
+    return Diff.tree_primal(v)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+)
+def tree_diff_tangent(v):
+    return Diff.tree_tangent(v)
+
+
 __all__ = [
     "choice",
     "choice_map",
@@ -28,4 +61,8 @@ __all__ = [
     "indexed_select",
     "select",
     "vector_choice_map",
+    "tree_diff_no_change",
+    "tree_diff_unknown_change",
+    "tree_diff_primal",
+    "tree_diff_tangent",
 ]
