@@ -100,9 +100,10 @@ The following code snippet defines a generative function called `beta_bernoulli`
   returns that value
 
 Then, we create an inference problem (by specifying a posterior target), and utilize sampling
-importance resampling to give a single sample estimate of `p`.
+importance resampling to give produce single sample estimator of `p`.
 
-We can JIT compile the whole thing and run it:
+We can JIT compile that entire process, run it in parallel, etc - which we utilize to produce an estimate for `p` 
+over 50 independent trials of SIR (with K = 50 particles).
 
 ```python
 import jax
