@@ -34,21 +34,21 @@ def tree_diff_no_change(v):
 
 
 @deprecated(
-    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_unknown_change`"
 )
 def tree_diff_unknown_change(v):
     return Diff.tree_diff_unknown_change(v)
 
 
 @deprecated(
-    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_primal`"
 )
 def tree_diff_primal(v):
     return Diff.tree_primal(v)
 
 
 @deprecated(
-    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_tangent`"
 )
 def tree_diff_tangent(v):
     return Diff.tree_tangent(v)
