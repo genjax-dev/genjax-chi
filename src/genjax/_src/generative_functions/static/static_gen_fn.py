@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from deprecated import deprecated
 from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
@@ -259,8 +258,3 @@ class StaticGenerativeFunction(
 
 def static_gen_fn(f) -> StaticGenerativeFunction:
     return module_update_wrapper(StaticGenerativeFunction(f))
-
-
-@deprecated(version="0.0.2", reason="now called @static_gen_fn")
-def static(f) -> StaticGenerativeFunction:
-    return static_gen_fn(f)
