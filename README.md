@@ -133,7 +133,9 @@ def run_inference(obs: bool):
     # JIT, vmap, to your heart's content.
     key = jax.random.PRNGKey(314159)
     sub_keys = jax.random.split(key, 50)
-    _, p_chm = jax.jit(jax.vmap(alg.random_weighted, in_axes=(0, None)))(sub_keys, posterior_target)
+    _, p_chm = jax.jit(jax.vmap(alg.random_weighted, in_axes=(0, None)))(
+        sub_keys, posterior_target
+    )
 
     # An estimate of `p` over 50 independent trials of SIR (with K = 50 particles).
     return jnp.mean(p_chm["p"])
