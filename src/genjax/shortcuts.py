@@ -27,6 +27,13 @@ from genjax._src.shortcuts import (
 
 
 @deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff`"
+)
+def tree_diff(v, t):
+    return Diff.tree_diff(v, t)
+
+
+@deprecated(
     reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
 )
 def tree_diff_no_change(v):
@@ -61,6 +68,7 @@ __all__ = [
     "indexed_select",
     "select",
     "vector_choice_map",
+    "tree_diff",
     "tree_diff_no_change",
     "tree_diff_unknown_change",
     "tree_diff_primal",
