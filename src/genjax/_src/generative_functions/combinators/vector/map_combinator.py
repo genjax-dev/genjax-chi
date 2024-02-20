@@ -38,6 +38,7 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     FloatArray,
     IntArray,
     PRNGKey,
@@ -409,7 +410,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         choice: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[ArrayLike, Any]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         choice_dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(choice)
