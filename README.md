@@ -143,6 +143,10 @@ def run_inference(obs: bool):
 (run_inference(True), run_inference(False))
 ```
 
+```python
+(Array(0.6039314, dtype=float32), Array(0.3679334, dtype=float32))
+```
+
 ## References
 
 Many bits of knowledge have gone into this project -- [you can find many of these bits at the MIT Probabilistic Computing Project page](http://probcomp.csail.mit.edu/) under publications. Here's an abbreviated list of high value references:
