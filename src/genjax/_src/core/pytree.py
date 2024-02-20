@@ -147,6 +147,10 @@ class Pytree(eqx.Module):
             return check
 
     @staticmethod
+    def static_check_none(v):
+        return v == PytreeConst(None)
+
+    @staticmethod
     def static_check_tree_leaves_have_matching_leading_dim(tree):
         def _inner(v):
             if static_check_is_array(v):

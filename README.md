@@ -99,42 +99,46 @@ The following code snippet defines a generative function called `beta_bernoulli`
 - Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
   returns that value
 
-JIT-compiles a generative function interface method with JAX and then runs it:
+Then, we create an inference problem (by specifying a posterior target), and utilize sampling
+importance resampling to give a single sample estimate of `p`.
+
+We can JIT compile the whole thing and run it:
 
 ```python
-import genjax
 import jax
+import jax.numpy as jnp
+import genjax
+from genjax import beta, flip, static_gen_fn, Target, choice_map
+from genjax.inference.smc import ImportanceK
 
-@genjax.static_gen_fn
-def beta_bernoulli(beta):
-    p = genjax.beta(0.0, beta) @ "p"
-    v = genjax.bernoulli(p) @ "v"
+# Create a generative model.
+@static_gen_fn
+def beta_bernoulli(α, β):
+    p = beta(α, β) @ "p"
+    v = flip(p) @ "v"
     return v
 
-key = jax.random.PRNGKey(314159)
-trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
-choice = trace.get_choices()
-```
+def run_inference(obs: bool):
+    # Create an inference query - a posterior target - by specifying
+    # the model, arguments to the model, and constraints.
+    posterior_target = Target(beta_bernoulli, # the model
+                              (2.0, 2.0), # arguments to the model
+                              choice_map({"v": obs}), # constraints
+                            )
 
-`choice` is a tree-like record of all random choices made during the execution of the
-generative function `beta_bernoulli`. Print it with a `genjax.console()`
-instance:
+    # Use a library algorithm, or design your own - more on that in the docs!
+    alg = ImportanceK(posterior_target, k_particles=50)
 
-```python
-console = genjax.console()
-console.print(choice)
-```
+    # Everything is JAX compatible by default.
+    # JIT, vmap, to your heart's content.
+    key = jax.random.PRNGKey(314159)
+    sub_keys = jax.random.split(key, 50)
+    _, p_chm = jax.jit(jax.vmap(alg.random_weighted, in_axes=(0, None)))(sub_keys, posterior_target)
 
-resulting in:
+    # An estimate of `p` over 50 independent trials of SIR (with K = 50 particles).
+    return jnp.mean(p_chm["p"])
 
-```
-(HierarchicalChoiceMap)
-├── :p
-│   └── (ValueChoice)
-│       └──  f32[]
-└── :v
-    └── (ValueChoice)
-        └──  i32[]
+(run_inference(True), run_inference(False))
 ```
 
 ## References

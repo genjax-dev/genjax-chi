@@ -241,7 +241,7 @@ class Importance(SMCAlgorithm):
 
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
-        if self.q:
+        if not Pytree.static_check_none(self.q):
             log_weight, choice = self.q.random_weighted(sub_key, self.target)
             tr, target_score = self.target.importance(key, choice)
         else:
@@ -286,7 +286,7 @@ class ImportanceK(SMCAlgorithm):
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles())
-        if self.q:
+        if not Pytree.static_check_none(self.q):
             log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
                 sub_keys, self.target
             )
