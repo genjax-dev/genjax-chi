@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,21 +16,20 @@ import abc
 import copy
 import functools
 import itertools as it
-from dataclasses import dataclass, field
 
 import jax.core as jc
 import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
-from jax._src import core as jax_core
+from jax._src import core as jc
 from jax.extend import linear_util as lu
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value, typecheck
+from genjax._src.core.pytree import Pytree
+from genjax._src.core.typing import Bool, Callable, List, Union, Value, typecheck
 
 #########################
 # Custom JAX primitives #
@@ -44,9 +43,7 @@ def batch_fun(fun: lu.WrappedFun, in_dims):
 
 @lu.transformation
 def _batch_fun(in_dims, *in_vals, **params):
-    with jax_core.new_main(
-        batching.BatchTrace, axis_name=jax_core.no_axis_name
-    ) as main:
+    with jc.new_main(batching.BatchTrace, axis_name=jc.no_axis_name) as main:
         out_vals = yield (
             (
                 main,
@@ -59,7 +56,7 @@ def _batch_fun(in_dims, *in_vals, **params):
     yield out_vals
 
 
-class FlatPrimitive(jax_core.Primitive):
+class FlatPrimitive(jc.Primitive):
     """Contains default implementations of transformations."""
 
     def __init__(self, name):
@@ -103,7 +100,7 @@ class InitialStylePrimitive(FlatPrimitive):
 
         def fun_impl(*args, **params):
             consts, args = jax_util.split_list(args, [params["num_consts"]])
-            return jax_core.eval_jaxpr(params["_jaxpr"], consts, *args)
+            return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
 
         self.def_impl(fun_impl)
 
@@ -143,14 +140,10 @@ def initial_style_bind(prim, **params):
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
-@dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value] = field(default_factory=hashable_dict)
-
-    def flatten(self):
-        return (self.env,), ()
+    env: HashableDict[jc.Var, Value] = Pytree.field(default_factory=hashable_dict)
 
     def read(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
@@ -185,8 +178,7 @@ class Environment(Pytree):
         return copy.copy(self)
 
 
-@dataclass
-class StatefulHandler(Pytree):
+class StatefulHandler:
     @abc.abstractmethod
     def handles(self, primitive: jc.Primitive) -> Bool:
         pass
@@ -197,21 +189,17 @@ class StatefulHandler(Pytree):
         primitive: jc.Primitive,
         *args,
         **kwargs,
-    ) -> List[Any]:
+    ) -> List:
         pass
 
 
-@dataclass
 class ForwardInterpreter(Pytree):
-    def flatten(self):
-        return (), ()
-
     def _eval_jaxpr_forward(
         self,
         stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List[Value],
-        args: List[Value],
+        consts: List,
+        args: List,
     ):
         env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)

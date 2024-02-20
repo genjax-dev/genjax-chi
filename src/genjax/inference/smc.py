@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.smc.init import smc_initialize
-from genjax._src.inference.smc.rejuvenate import smc_rejuvenate
-from genjax._src.inference.smc.resample import SMCResample, multinomial_resampling
-from genjax._src.inference.smc.state import SMCState
-from genjax._src.inference.smc.update import SMCExtendUpdate, SMCForwardUpdate
+from genjax._src.inference.smc import (
+    ChangeTarget,
+    Importance,
+    ImportanceK,
+)
 
 __all__ = [
-    "SMCState",
-    "smc_initialize",
-    "SMCForwardUpdate",
-    "SMCExtendUpdate",
-    "SMCResample",
-    "smc_rejuvenate",
-    "multinomial_resampling",
+    "ChangeTarget",
+    "Importance",
+    "ImportanceK",
 ]

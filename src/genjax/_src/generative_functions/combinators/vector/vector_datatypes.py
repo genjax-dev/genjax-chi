@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -24,15 +23,13 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
+    MapSelection,
     Mask,
     Selection,
 )
 from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.checks import (
-    static_check_tree_leaves_have_matching_leading_dim,
-)
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Dict,
@@ -54,19 +51,14 @@ from genjax._src.core.typing import (
 #####################
 
 
-@dataclass
-class IndexedSelection(Selection):
+class IndexedSelection(MapSelection):
     indices: IntArray
     inner: Selection
 
-    def flatten(self):
-        return (
-            self.indices,
-            self.inner,
-        ), ()
-
     def __post_init__(self):
-        static_check_tree_leaves_have_matching_leading_dim((self.inner, self.indices))
+        Pytree.static_check_tree_leaves_have_matching_leading_dim(
+            (self.inner, self.indices)
+        )
 
     @dispatch
     def has_addr(self, addr: IntArray):
@@ -93,20 +85,16 @@ class IndexedSelection(Selection):
         return tree
 
 
-@dataclass
 class IndexedChoiceMap(ChoiceMap):
     indices: IntArray
     inner: ChoiceMap
 
-    def flatten(self):
-        return (self.indices, self.inner), ()
-
     @classmethod
-    def from_dict(self, d: Dict[int, Any]) -> ChoiceMap:
+    def from_dict(cls, d: Dict[int, Any]) -> ChoiceMap:
         """Produce an IndexedChoiceMap from a dictionary with integer keys.
 
         IndexedChoiceMap.from_dict({
-          1: 1.0
+          1: 1.0,
           2: 3.0
         })
 
@@ -123,7 +111,7 @@ class IndexedChoiceMap(ChoiceMap):
     @dispatch
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: MapSelection,
     ) -> ChoiceMap:
         return IndexedChoiceMap(self.indices, self.inner.filter(selection))
 
@@ -209,15 +197,11 @@ class IndexedChoiceMap(ChoiceMap):
 #####################
 
 
-@dataclass
 class VectorChoiceMap(ChoiceMap):
     inner: Any
 
-    def flatten(self):
-        return (self.inner,), ()
-
     def __post_int__(self):
-        static_check_tree_leaves_have_matching_leading_dim(self.inner)
+        Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
 
     def is_empty(self):
         return self.inner.is_empty()
@@ -228,7 +212,7 @@ class VectorChoiceMap(ChoiceMap):
         selection: IndexedSelection,
     ) -> ChoiceMap:
         inner = self.inner.filter(selection.inner)
-        dim = static_check_tree_leaves_have_matching_leading_dim(inner)
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
         check = selection.indices <= dim
         idxs = check * selection.indices
         return IndexedChoiceMap(
@@ -245,14 +229,14 @@ class VectorChoiceMap(ChoiceMap):
     def get_selection(self):
         subselection = self.inner.get_selection()
         # Static: get the leading dimension size value.
-        dim = static_check_tree_leaves_have_matching_leading_dim(
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         return IndexedSelection(jnp.arange(dim), subselection)
 
     @dispatch
     def has_submap(self, addr: IntArray):
-        dim = static_check_tree_leaves_have_matching_leading_dim(
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         return addr < dim
@@ -260,7 +244,7 @@ class VectorChoiceMap(ChoiceMap):
     @dispatch
     def has_submap(self, addr: Tuple):
         (idx, *addr) = addr
-        dim = static_check_tree_leaves_have_matching_leading_dim(
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         return jnp.logical_and(idx < dim, self.inner.has_submap(tuple(addr)))
@@ -272,7 +256,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, idx: Int):
-        dim = static_check_tree_leaves_have_matching_leading_dim(
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         check = idx < dim
@@ -282,7 +266,7 @@ class VectorChoiceMap(ChoiceMap):
 
     @dispatch
     def get_submap(self, idx: IntArray):
-        dim = static_check_tree_leaves_have_matching_leading_dim(
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         check = idx < dim

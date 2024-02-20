@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -23,24 +22,17 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     Selection,
 )
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int, PRNGKey, Tuple
-from genjax._src.gensp.core import Marginal, Target
+from genjax._src.inference.core import Marginal, Target
 
 
-@dataclass
 class EntropyEstimatorsViaInference(Pytree):
-    n_lower_bound: Int
-    n_upper_bound: Int
+    n_lower_bound: Int = Pytree.static()
+    n_upper_bound: Int = Pytree.static()
     model: GenerativeFunction
     proposal: Marginal
     targets: Selection
-
-    def flatten(self):
-        return (self.model, self.proposal, self.targets), (
-            self.n_lower_bound,
-            self.n_upper_bound,
-        )
 
     def _entropy_lower_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)
@@ -52,11 +44,11 @@ class EntropyEstimatorsViaInference(Pytree):
         _, tr_q = jax.vmap(self.proposal.simulate, in_axes=(0, None))(
             sub_keys, (target,)
         )
-        (chm,) = tr_q.get_retval()
-        chm_axes = jtu.tree_map(lambda v: 0, chm)
+        (choice,) = tr_q.get_retval()
+        choice_axes = jtu.tree_map(lambda v: 0, choice)
         observations_axes = jtu.tree_map(lambda v: None, observations)
-        choices = observations.safe_merge(chm)
-        choices_axes = observations_axes.safe_merge(chm_axes)
+        choices = observations.safe_merge(choice)
+        choices_axes = observations_axes.safe_merge(choice_axes)
         key, *sub_keys = jax.random.split(key, self.n_lower_bound + 1)
         sub_keys = jnp.array(sub_keys)
         _, (log_p, _) = jax.vmap(
@@ -69,9 +61,9 @@ class EntropyEstimatorsViaInference(Pytree):
     def _entropy_upper_bound(self, key: PRNGKey, model_args: Tuple):
         key, tr = self.model.simulate(key, model_args)
         log_p = tr.get_score()
-        chm = tr.get_choices().strip()
-        latents = self.targets.filter(chm)
-        observations = self.targets.complement().filter(chm)
+        choice = tr.get_choices().strip()
+        latents = self.targets.filter(choice)
+        observations = self.targets.complement().filter(choice)
         target = Target(self.model, model_args, observations)
         key, *sub_keys = jax.random.split(key, self.n_upper_bound + 1)
         sub_keys = jnp.array(sub_keys)

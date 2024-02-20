@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,19 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-The `MapCombinator` is a generative function combinator which exposes vectorization on the input arguments of a provided generative function callee.
+"""The `MapCombinator` is a generative function combinator which exposes vectorization
+on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
 """
 
-import functools
-from dataclasses import dataclass
 from typing import Callable
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
@@ -35,12 +34,11 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import tree_diff_primal
-from genjax._src.core.pytree.checks import (
-    static_check_tree_leaves_have_matching_leading_dim,
-)
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     FloatArray,
     IntArray,
     PRNGKey,
@@ -48,31 +46,23 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
+from genjax._src.generative_functions.combinators.drop_arguments import (
+    DropArgumentsTrace,
+)
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
     IndexedSelection,
     VectorChoiceMap,
 )
-from genjax._src.generative_functions.drop_arguments import DropArgumentsTrace
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class MapTrace(Trace):
     gen_fn: GenerativeFunction
     inner: Trace
     args: Tuple
     retval: Any
     score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.inner,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
 
     def get_args(self):
         return self.args
@@ -133,7 +123,6 @@ class MapTrace(Trace):
         return jnp.sum(inner_project)
 
 
-@dataclass
 class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `MapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
@@ -143,44 +132,46 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         import jax
         import jax.numpy as jnp
         import genjax
+
         console = genjax.console()
 
         #############################################################
         # One way to create a `MapCombinator`: using the decorator. #
         #############################################################
 
-        @genjax.map_combinator(in_axes = (0, ))
-        @genjax.static
+
+        @genjax.map_combinator(in_axes=(0,))
+        @genjax.static_gen_fn
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
+
         ################################################
         # The other way: use `map_combinator` directly #
         ################################################
 
-        @genjax.static
+
+        @genjax.static_gen_fn
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
             return x + noise1 + noise2
 
+
         mapped = genjax.map_combinator(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
-        tr = jax.jit(mapped.simulate)(key, (arr, ))
+        tr = jax.jit(mapped.simulate)(key, (arr,))
 
         print(console.render(tr))
         ```
     """
 
-    in_axes: Tuple
     kernel: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.kernel,), (self.in_axes,)
+    in_axes: Tuple = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
         return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)
@@ -228,17 +219,17 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[MapTrace, FloatArray]:
-        def _importance(key, chm, args):
-            return self.kernel.importance(key, chm, args)
+        def _importance(key, choice, args):
+            return self.kernel.importance(key, choice, args)
 
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        inner = chm.inner
+        inner = choice.inner
         (tr, w) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
             sub_keys, inner, args
         )
@@ -253,7 +244,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: IndexedChoiceMap,
+        choice: IndexedChoiceMap,
         args: Tuple,
     ) -> Tuple[MapTrace, FloatArray]:
         self._static_check_broadcastable(args)
@@ -261,12 +252,12 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         index_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _importance(key, index, chm, args):
-            submap = chm.get_submap(index)
+        def _importance(key, index, choice, args):
+            submap = choice.get_submap(index)
             return self.kernel.importance(key, submap, args)
 
         (tr, w) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
-            sub_keys, index_array, chm, args
+            sub_keys, index_array, choice, args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
@@ -278,7 +269,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoice,
+        choice: EmptyChoice,
         args: Tuple,
     ) -> Tuple[MapTrace, FloatArray]:
         map_tr = self.simulate(key, args)
@@ -289,11 +280,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: HierarchicalChoiceMap,
+        choice: HierarchicalChoiceMap,
         args: Tuple,
     ) -> Tuple[MapTrace, FloatArray]:
-        indchm = IndexedChoiceMap.convert(chm)
-        return self.importance(key, indchm, args)
+        indchoice = IndexedChoiceMap.convert(choice)
+        return self.importance(key, indchoice, args)
 
     @dispatch
     def maybe_restore_arguments_kernel_update(
@@ -323,10 +314,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: IndexedChoiceMap,
+        choice: IndexedChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -339,11 +330,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             key: PRNGKey,
             index: IntArray,
             prev: Trace,
-            chm: ChoiceMap,
+            choice: ChoiceMap,
             original_args: Tuple,
             argdiffs: Tuple,
         ):
-            submap = chm.get_submap(index)
+            submap = choice.get_submap(index)
             return self.maybe_restore_arguments_kernel_update(
                 key, prev, submap, original_args, argdiffs
             )
@@ -351,7 +342,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (tr, w, retval_diff, discard) = jax.vmap(
             _update_inner,
             in_axes=(0, 0, 0, None, self.in_axes, self.in_axes),
-        )(sub_keys, index_array, inner_trace, chm, original_args, argdiffs)
+        )(sub_keys, index_array, inner_trace, choice, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
@@ -364,10 +355,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -379,7 +370,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (tr, w, retval_diff, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
-        )(sub_keys, prev.inner, chm.inner, original_args, argdiffs)
+        )(sub_keys, prev.inner, choice.inner, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
@@ -394,13 +385,13 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        chm: EmptyChoice,
+        choice: EmptyChoice,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         prev_inaxes_tree = jtu.tree_map(
             lambda v: None if v.shape == () else 0, prev.inner
         )
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -408,7 +399,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (tr, w, retval_diff, discard) = jax.vmap(
             self.maybe_restore_arguments_kernel_update,
             in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
-        )(sub_keys, prev.inner, chm, original_args, argdiffs)
+        )(sub_keys, prev.inner, choice, original_args, argdiffs)
         w = jnp.sum(w)
         retval = tr.get_retval()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
@@ -417,25 +408,29 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     @typecheck
     def assess(
         self,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         args: Tuple,
-    ) -> Tuple[Any, FloatArray]:
+    ) -> Tuple[ArrayLike, Any]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
-        chm_dim = static_check_tree_leaves_have_matching_leading_dim(chm)
+        choice_dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(choice)
 
         # The argument leaves and choice map leaves must have matching
         # broadcast dimension.
         #
         # Otherwise, a user may have passed in an invalid (not fully constrained)
         # VectorChoiceMap (or messed up the arguments in some way).
-        assert chm_dim == broadcast_dim_length
+        assert choice_dim == broadcast_dim_length
 
-        inner = chm.inner
+        inner = choice.inner
         (score, retval) = jax.vmap(self.kernel.assess, in_axes=(0, self.in_axes))(
             inner, args
         )
         return (jnp.sum(score), retval)
+
+    @property
+    def __wrapped__(self):
+        return self.kernel
 
 
 #############
@@ -445,8 +440,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def map_combinator(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
     def decorator(f) -> MapCombinator:
-        gf = MapCombinator(in_axes, f)
-        functools.update_wrapper(gf, f)
-        return gf
+        return module_update_wrapper(MapCombinator(f, in_axes))
 
     return decorator

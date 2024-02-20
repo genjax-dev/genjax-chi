@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    EmptyChoice,
     JAXGenerativeFunction,
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import (
-    static_check_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -53,12 +49,11 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 #####
 
 
-@dataclass
 class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
-    implements `GenerativeFunction` interface semantics that support branching
-    control flow patterns, including control flow patterns which branch on
-    other stochastic choices.
+    implements `GenerativeFunction` interface semantics that support branching control
+    flow patterns, including control flow patterns which branch on other stochastic
+    choices.
 
     !!! info "Existence uncertainty"
 
@@ -68,15 +63,19 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
+
         console = genjax.console()
 
-        @genjax.static
+
+        @genjax.static_gen_fn
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
-        @genjax.static
+
+        @genjax.static_gen_fn
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
+
 
         ################################################################################
         # Creating a `SwitchCombinator` via the preferred `switch_combinator` function #
@@ -86,17 +85,14 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
-        _ = jitted(key, (0, ))
-        tr = jitted(key, (1, ))
+        _ = jitted(key, (0,))
+        tr = jitted(key, (1,))
 
         print(console.render(tr))
         ```
     """
 
     branches: Tuple[JAXGenerativeFunction, ...]
-
-    def flatten(self):
-        return (self.branches,), ()
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self, branch, *args):
@@ -152,8 +148,8 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         branch_functions = list(map(_inner, self.branches))
         return jax.lax.switch(switch, branch_functions, key, *args)
 
-    def _importance(self, branch_gen_fn, key, chm, args):
-        (tr, w) = branch_gen_fn.importance(key, chm, args[1:])
+    def _importance(self, branch_gen_fn, key, choice, args):
+        (tr, w) = branch_gen_fn.importance(key, choice, args[1:])
         data_shared_sum_tree = self._create_data_shared_sum_tree_trace(key, tr, args)
         choices = list(data_shared_sum_tree.materialize_iterator())
         branch_index = args[0]
@@ -167,17 +163,17 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[SwitchTrace, FloatArray]:
         switch = args[0]
 
         def _inner(br):
-            return lambda key, chm, *args: self._importance(br, key, chm, args)
+            return lambda key, choice, *args: self._importance(br, key, choice, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(switch, branch_functions, key, chm, *args)
+        return jax.lax.switch(switch, branch_functions, key, choice, *args)
 
     def _update_fallback(
         self,
@@ -199,7 +195,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
             # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             data_shared_sum_tree = self._create_data_shared_sum_tree_trace(
                 key, tr, args
             )
@@ -224,7 +220,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return lambda key: _inner_update(br, key)
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primal(argdiffs[0])
+        switch = Diff.tree_primal(argdiffs[0])
 
         return jax.lax.switch(
             switch,
@@ -243,12 +239,12 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             concrete_branch_index = self.branches.index(br)
             stripped = prev.strip()
             constraints = stripped.unsafe_merge(constraints)
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             (tr, w) = br.importance(key, constraints, args[1:])
             update_weight = w - prev.get_score()
             discard = Mask(True, stripped)
             retval = tr.get_retval()
-            retval_diff = tree_diff_unknown_change(retval)
+            retval_diff = Diff.tree_diff_unknown_change(retval)
 
             # Here, we create a DataSharedSumTree -- and we place the real trace
             # data inside of it.
@@ -269,7 +265,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             )
 
         branch_functions = list(map(_inner, self.branches))
-        switch = tree_diff_primal(argdiffs[0])
+        switch = Diff.tree_primal(argdiffs[0])
 
         return jax.lax.switch(
             switch,
@@ -282,7 +278,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
     @dispatch
     def update(
-        self,
+        self: "SwitchCombinator",
         key: PRNGKey,
         prev: SwitchTrace,
         constraints: Choice,
@@ -290,28 +286,70 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     ) -> Tuple[SwitchTrace, FloatArray, Any, Any]:
         index_argdiff = argdiffs[0]
 
-        if static_check_no_change(index_argdiff):
+        if Diff.static_check_no_change(index_argdiff):
             return self._update_fallback(key, prev, constraints, argdiffs)
         else:
             return self._update_branch_switch(key, prev, constraints, argdiffs)
 
+    # TODO: move this into the GenerativeFunction base class,
+    # by resolving dispatch design with plum:
+    # https://github.com/beartype/plum/issues/130
+    @dispatch
+    def update(
+        self: "SwitchCombinator",
+        key: PRNGKey,
+        prev: SwitchTrace,
+        new_constraints: Mask,
+        argdiffs: Tuple,
+    ) -> Tuple[SwitchTrace, FloatArray, Any, Mask]:
+        # The semantics of the merge operation entail that the second returned value
+        # is the discarded values after the merge.
+        discard_option = prev.strip()
+        possible_constraints = new_constraints.unsafe_unmask()
+        _, possible_discards = discard_option.merge(possible_constraints)
+
+        def _none():
+            (new_tr, w, retdiff, _) = self.update(key, prev, EmptyChoice(), argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoice()
+            else:
+                # We return the possible_discards, but denote them as invalid via masking.
+                discard = Mask(False, possible_discards)
+            primal = Diff.tree_primal(retdiff)
+            retdiff = Diff.tree_diff_unknown_change(primal)
+            return (new_tr, w, retdiff, discard)
+
+        def _some(choice):
+            (new_tr, w, retdiff, _) = self.update(key, prev, choice, argdiffs)
+            if possible_discards.is_empty():
+                discard = EmptyChoice()
+            else:
+                # The true_discards should match the Pytree type of possible_discards,
+                # but these are valid.
+                discard = Mask(True, possible_discards)
+            primal = Diff.tree_primal(retdiff)
+            retdiff = Diff.tree_diff_unknown_change(primal)
+            return (new_tr, w, retdiff, discard)
+
+        return new_constraints.match(_none, _some)
+
     @typecheck
     def assess(
         self,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         switch = args[0]
 
-        def _assess(branch_gen_fn, chm, args):
-            return branch_gen_fn.assess(chm, args[1:])
+        def _assess(branch_gen_fn, choice, args):
+            return branch_gen_fn.assess(choice, args[1:])
 
         def _inner(br):
-            return lambda chm, *args: _assess(br, chm, args)
+            return lambda choice, *args: _assess(br, choice, args)
 
         branch_functions = list(map(_inner, self.branches))
 
-        return jax.lax.switch(switch, branch_functions, chm, *args)
+        return jax.lax.switch(switch, branch_functions, choice, *args)
 
 
 #############

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "genjax"
-version = "0.0.0"
+version = "0.0.1"
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
   "McCoy R. Becker <mccoyb@mit.edu>",
@@ -34,19 +34,21 @@ classifiers = [
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.9"
-jax = "^0.4.20"
-numpy = "^1.26.3"
+python = ">=3.9,<3.13"
+jax = "^0.4.24"
+numpy = "^1.26.4"
 tensorflow-probability = "^0.23.0"
 rich = "^13.7.0"
-jaxtyping = "^0.2.24"
-optax = "^0.1.7"
+jaxtyping = "^0.2.25"
+optax = "^0.1.9"
 beartype = "^0.16.4"
-dill = "^0.3.7"
+dill = "^0.3.8"
 pygments = "^2.17.2"
-plum-dispatch = "^2.2.2"
-equinox = "^0.11.2"
+plum-dispatch = "^2.3.2"
+equinox = "^0.11.3"
 typing_extensions = ">=4.6.0,<5"
+oryx = "^0.2.6"
+deprecated = "^1.2.14"
 
 [tool.poetry.group.dev]
 optional = true
@@ -54,7 +56,6 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 blackjax = "^0.9.6"
 coverage = "^7.0.0"
-darglint = "^1.8.1"
 matplotlib = "^3.6.2"
 mypy = "^0.991"
 nbmake = "^1.4.6"
@@ -95,6 +96,17 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+]
+defineConstant = { DEBUG = true }
+reportMissingImports = true
+reportMissingTypeStubs = false
+
 [tool.ruff]
 exclude = [
     ".bzr",
@@ -123,6 +135,9 @@ extend-include = ["*.ipynb"]
 line-length = 88
 indent-width = 4
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.ruff.lint]
 extend-select = ["I"]
 select = ["E4", "E7", "E9", "F"]
@@ -140,6 +155,7 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+docstring-code-format = true
 
 [tool.mypy]
 strict = true

@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,16 +50,16 @@ class DebugCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 @dispatch
 def record(gen_fn: JAXGenerativeFunction) -> DebugCombinator:
     """A multimethod which dispatches to `record_value`, or wraps a
-    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information
-    about generative function interface invocations."""
+    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information about
+    generative function interface invocations."""
     return DebugCombinator.new(gen_fn)
 
 
 @dispatch
 def record(v: Any) -> Any:
     """A multimethod which dispatches to `record_value`, or wraps a
-    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information
-    about generative function interface invocations."""
+    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information about
+    generative function interface invocations."""
     return record_value(v)
 
 

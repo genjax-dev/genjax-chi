@@ -15,7 +15,7 @@
 import genjax
 import jax
 from genjax import ChoiceValue, EmptyChoice, Mask
-from genjax.incremental import NoChange, UnknownChange, diff
+from genjax.incremental import Diff, NoChange, UnknownChange
 
 
 class TestDistributions:
@@ -70,7 +70,7 @@ class TestDistributions:
             sub_key,
             tr,
             EmptyChoice(),
-            (diff(0.0, NoChange), diff(1.0, NoChange)),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()
         assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
@@ -82,7 +82,7 @@ class TestDistributions:
             sub_key,
             tr,
             ChoiceValue(1.0),
-            (diff(0.0, NoChange), diff(1.0, NoChange)),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 0.0, 1.0)
@@ -96,7 +96,7 @@ class TestDistributions:
             sub_key,
             tr,
             EmptyChoice(),
-            (diff(1.0, UnknownChange), diff(1.0, NoChange)),
+            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()
         assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 1.0, 1.0)
@@ -110,7 +110,7 @@ class TestDistributions:
             sub_key,
             tr,
             ChoiceValue(1.0),
-            (diff(1.0, UnknownChange), diff(2.0, UnknownChange)),
+            (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
         )
         assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 1.0, 2.0)
@@ -124,7 +124,7 @@ class TestDistributions:
             sub_key,
             tr,
             Mask(True, ChoiceValue(1.0)),
-            (diff(0.0, NoChange), diff(1.0, NoChange)),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 0.0, 1.0)
@@ -138,7 +138,7 @@ class TestDistributions:
             sub_key,
             tr,
             Mask(True, ChoiceValue(1.0)),
-            (diff(1.0, UnknownChange), diff(1.0, NoChange)),
+            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.logpdf(1.0, 1.0, 1.0)
@@ -152,7 +152,7 @@ class TestDistributions:
             sub_key,
             tr,
             Mask(False, ChoiceValue(1.0)),
-            (diff(0.0, NoChange), diff(1.0, NoChange)),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()
         assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
@@ -164,7 +164,7 @@ class TestDistributions:
             sub_key,
             tr,
             Mask(False, ChoiceValue(1.0)),
-            (diff(1.0, UnknownChange), diff(1.0, NoChange)),
+            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_value() == tr.get_value()
         assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 1.0, 1.0)
