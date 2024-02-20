@@ -23,6 +23,7 @@ import itertools
 from dataclasses import dataclass, field
 
 import jax
+import jax.numpy as jnp
 import jaxtyping
 from beartype import beartype
 
@@ -153,7 +154,7 @@ class AddressVisitor:
 @beartype
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
@@ -175,8 +176,8 @@ class SimulateHandler(Handler):
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
+    weight: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
@@ -201,7 +202,7 @@ class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    weight: ArrayLike = 0.0
+    weight: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     discard: Trie = field(default_factory=Trie)
     choice_state: Trie = field(default_factory=Trie)
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
@@ -238,7 +239,7 @@ class UpdateHandler(Handler):
 @beartype
 class AssessHandler(Handler):
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def process_message(self, msg):
@@ -288,7 +289,7 @@ class InterpretedTrace(Trace):
         return self.args
 
     def project(self, selection: HierarchicalSelection) -> ArrayLike:
-        weight = 0.0
+        weight = jnp.zeros(())
         for k, subtrace in self.choices.get_submaps_shallow():
             if selection.has_addr(k):
                 weight += subtrace.project(selection.get_subselection(k))

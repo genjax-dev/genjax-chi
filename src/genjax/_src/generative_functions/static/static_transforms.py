@@ -17,6 +17,7 @@ import itertools
 from dataclasses import dataclass, field
 
 import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 from jaxtyping import ArrayLike
 
@@ -258,7 +259,7 @@ class StaticLanguageHandler(StatefulHandler):
 @dataclass(eq=False)
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
     address_choices: Trie = field(default_factory=Trie)
     cache_state: Trie = field(default_factory=Trie)
@@ -329,8 +330,8 @@ def simulate_transform(source_fn):
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
+    weight: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
     address_choices: Trie = field(default_factory=Trie)
     cache_state: Trie = field(default_factory=Trie)
@@ -417,8 +418,8 @@ class UpdateHandler(StaticLanguageHandler):
     previous_trace: Trace
     constraints: ChoiceMap
     address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
+    weight: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     address_choices: Trie = field(default_factory=Trie)
     discard_choices: Trie = field(default_factory=Trie)
     cache_state: Trie = field(default_factory=Trie)
@@ -539,7 +540,7 @@ def update_transform(source_fn):
 @dataclass(eq=False)
 class AssessHandler(StaticLanguageHandler):
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
+    score: ArrayLike = field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = field(default_factory=AddressVisitor)
     cache_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
