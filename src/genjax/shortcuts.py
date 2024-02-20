@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from deprecated import deprecated
+
+# Future deprecated APIs.
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.shortcuts import (
+    choice,
     choice_map,
     indexed_choice_map,
     indexed_select,
+    select,
     vector_choice_map,
 )
 
-__all__ = ["choice_map", "indexed_choice_map", "vector_choice_map", "indexed_select"]
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff`"
+)
+def tree_diff(v, t):
+    return Diff.tree_diff(v, t)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+)
+def tree_diff_no_change(v):
+    return Diff.tree_diff_no_change(v)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_unknown_change`"
+)
+def tree_diff_unknown_change(v):
+    return Diff.tree_diff_unknown_change(v)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_primal`"
+)
+def tree_diff_primal(v):
+    return Diff.tree_primal(v)
+
+
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_tangent`"
+)
+def tree_diff_tangent(v):
+    return Diff.tree_tangent(v)
+
+
+__all__ = [
+    "choice",
+    "choice_map",
+    "indexed_choice_map",
+    "indexed_select",
+    "select",
+    "vector_choice_map",
+    "tree_diff",
+    "tree_diff_no_change",
+    "tree_diff_unknown_change",
+    "tree_diff_primal",
+    "tree_diff_tangent",
+]

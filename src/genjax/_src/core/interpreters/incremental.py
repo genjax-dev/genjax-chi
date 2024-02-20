@@ -1,4 +1,4 @@
-# Copyright 2023 The MIT Probabilistic Computing Project
+# Copyright 2024 The MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module supports incremental computation using a form of JVP-inspired
-computation with a type of generalized tangent values (e.g. `ChangeTangent`
-below).
+"""This module supports incremental computation using a form of JVP-inspired computation
+with a type of generalized tangent values (e.g. `ChangeTangent` below).
 
 Incremental computation is currently a concern of Gen's `update` GFI method - and can be utilized _as a runtime performance optimization_ for computing the weight (and changes to `Trace` instances) which `update` computes.
 
@@ -39,7 +38,7 @@ from jax import util as jax_util
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.forward import Environment, StatefulHandler
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -136,74 +135,84 @@ class Diff(Pytree):
     def unpack(self):
         return self.primal, self.tangent
 
+    #############
+    # Utilities #
+    #############
 
-def static_check_is_diff(v):
-    return isinstance(v, Diff)
-
-
-def static_check_no_change(v):
-    def _inner(v):
-        if static_check_is_change_tangent(v):
-            return isinstance(v, _NoChange)
-        else:
-            return True
-
-    return all(
-        jtu.tree_leaves(jtu.tree_map(_inner, v, is_leaf=static_check_is_change_tangent))
-    )
-
-
-def tree_diff_primal(v):
-    def _inner(v):
-        if static_check_is_diff(v):
-            return v.get_primal()
-        else:
-            return v
-
-    return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
-
-
-def tree_diff_tangent(v):
-    def _inner(v):
-        if static_check_is_diff(v):
-            return v.get_tangent()
-        else:
-            return v
-
-    return jtu.tree_map(lambda v: _inner(v), v, is_leaf=static_check_is_diff)
-
-
-def tree_diff_unpack_leaves(v):
-    primals = tree_diff_primal(v)
-    tangents = tree_diff_tangent(v)
-    return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
-
-
-def static_check_tree_leaves_diff(v):
-    return all(
-        map(
-            lambda v: isinstance(v, Diff),
-            jtu.tree_leaves(v, is_leaf=static_check_is_diff),
+    @staticmethod
+    def tree_diff(tree, tangent_tree):
+        return jtu.tree_map(
+            lambda p, t: Diff(p, t),
+            tree,
+            tangent_tree,
         )
-    )
 
+    @staticmethod
+    def tree_diff_no_change(tree):
+        tangent_tree = jtu.tree_map(lambda _: NoChange, tree)
+        return Diff.tree_diff(tree, tangent_tree)
 
-def tree_diff(tree, tangent_tree):
-    return jtu.tree_map(
-        lambda p, t: diff(p, t),
-        tree,
-        tangent_tree,
-    )
+    @staticmethod
+    def tree_diff_unknown_change(tree):
+        tangent_tree = jtu.tree_map(lambda _: UnknownChange, tree)
+        return Diff.tree_diff(tree, tangent_tree)
 
+    @staticmethod
+    def tree_primal(v):
+        def _inner(v):
+            if Diff.static_check_is_diff(v):
+                return v.get_primal()
+            else:
+                return v
 
-def tree_diff_no_change(tree):
-    tangent_tree = jtu.tree_map(lambda _: NoChange, tree)
-    return tree_diff(tree, tangent_tree)
+        return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
+    @staticmethod
+    def tree_tangent(v):
+        def _inner(v):
+            if Diff.static_check_is_diff(v):
+                return v.get_tangent()
+            else:
+                return v
 
-def tree_diff_unknown_change(tree):
-    tangent_tree = jtu.tree_map(lambda _: UnknownChange, tree)
-    return tree_diff(tree, tangent_tree)
+        return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
+
+    @staticmethod
+    def tree_unpack(v):
+        primals = Diff.tree_primal(v)
+        tangents = Diff.tree_tangent(v)
+        return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
+
+    #################
+    # Static checks #
+    #################
+
+    @staticmethod
+    def static_check_is_diff(v):
+        return isinstance(v, Diff)
+
+    @staticmethod
+    def static_check_tree_diff(v):
+        return all(
+            map(
+                lambda v: isinstance(v, Diff),
+                jtu.tree_leaves(v, is_leaf=Diff.static_check_is_diff),
+            )
+        )
+
+    @staticmethod
+    def static_check_no_change(v):
+        def _inner(v):
+            if static_check_is_change_tangent(v):
+                return isinstance(v, _NoChange)
+            else:
+                return True
+
+        return all(
+            jtu.tree_leaves(
+                jtu.tree_map(_inner, v, is_leaf=static_check_is_change_tangent)
+            )
+        )
 
 
 #################################
@@ -214,13 +223,13 @@ def tree_diff_unknown_change(tree):
 # TODO: currently, only supports our default lattice
 # (`Change` and `NoChange`)
 def default_propagation_rule(prim, *args, **_params):
-    check = static_check_no_change(args)
-    args = tree_diff_primal(args)
+    check = Diff.static_check_no_change(args)
+    args = Diff.tree_primal(args)
     outval = prim.bind(*args, **_params)
     if check:
-        return tree_diff_no_change(outval)
+        return Diff.tree_diff_no_change(outval)
     else:
-        return tree_diff_unknown_change(outval)
+        return Diff.tree_diff_unknown_change(outval)
 
 
 class IncrementalInterpreter(Pytree):
@@ -235,8 +244,12 @@ class IncrementalInterpreter(Pytree):
         tangents: List[ChangeTangent],
     ):
         dual_env = Environment()
-        jax_util.safe_map(dual_env.write, _jaxpr.constvars, tree_diff_no_change(consts))
-        jax_util.safe_map(dual_env.write, _jaxpr.invars, tree_diff(primals, tangents))
+        jax_util.safe_map(
+            dual_env.write, _jaxpr.constvars, Diff.tree_diff_no_change(consts)
+        )
+        jax_util.safe_map(
+            dual_env.write, _jaxpr.invars, Diff.tree_diff(primals, tangents)
+        )
         for _eqn in _jaxpr.eqns:
             induals = jax_util.safe_map(dual_env.read, _eqn.invars)
             # TODO: why isn't this handled automatically by the environment,
@@ -293,10 +306,3 @@ def incremental(f: Callable):
         )
 
     return wrapped
-
-
-##############
-# Shorthands #
-##############
-
-diff = Diff

@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -66,8 +66,9 @@ class StaticGenerativeFunction(
     JAXGenerativeFunction,
     SupportsCalleeSugar,
 ):
-    """
-    A `StaticGenerativeFunction` is a generative function which relies on program transformations applied to JAX traceable Python programs to implement the generative function interface.
+    """A `StaticGenerativeFunction` is a generative function which relies on program
+    transformations applied to JAX traceable Python programs to implement the generative
+    function interface.
 
     By virtue of the implementation, any source program which is provided to this generative function *must* be JAX traceable, meaning [all the footguns for programs that JAX exposes](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html) apply to the source program.
 
@@ -142,7 +143,7 @@ class StaticGenerativeFunction(
     def importance(
         self,
         key: PRNGKey,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[StaticTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -159,7 +160,7 @@ class StaticGenerativeFunction(
                 ),
             ),
             cache_state,
-        ) = importance_transform(syntax_sugar_handled)(key, chm, args)
+        ) = importance_transform(syntax_sugar_handled)(key, choice, args)
         return (
             StaticTrace(
                 self,
@@ -180,7 +181,7 @@ class StaticGenerativeFunction(
         constraints: Choice,
         argdiffs: Tuple,
     ) -> Tuple[Trace, FloatArray, Any, Choice]:
-        assert static_check_tree_leaves_diff(argdiffs)
+        assert Diff.static_check_tree_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -215,13 +216,13 @@ class StaticGenerativeFunction(
     @typecheck
     def assess(
         self,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(chm, args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(choice, args)
         return (score, retval)
 
     def inline(self, *args):

@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import rich
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.pretty_printing import CustomPretty
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 
 ########
 # Trie #
@@ -29,7 +29,7 @@ from genjax._src.core.pytree.pytree import Pytree
 class Trie(Pytree, CustomPretty):
     inner: HashableDict = Pytree.field(default_factory=hashable_dict)
 
-    def is_empty(self):
+    def is_static_empty(self):
         return not bool(self.inner)
 
     def get_selection(self):

@@ -22,39 +22,41 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 nav:
   - Overview:
     - index.md
-  - Tutorial notebooks: genjax/notebooks.md
+  - Tutorial notebooks: notebooks.md
   - Library reference:
-      - genjax/library/index.md
+      - library/index.md
       - Core:
-          - genjax/library/core/index.md
-          - Core datatypes: genjax/library/core/datatypes.md
-          - Dynamism and functional types: genjax/library/core/functional_types.md
-      # - Runtime debugger: genjax/library/core/runtime_debugger.md
+          - library/core/index.md
+          - Core datatypes: library/core/datatypes.md
+          - Dynamism and functional types: library/core/functional_types.md
+      # - Runtime debugger: library/core/runtime_debugger.md
       - Generative function languages:
-          - genjax/library/generative_functions/index.md
+          - library/generative_functions/index.md
           - Distributions:
-              - genjax/library/generative_functions/distributions/index.md
-              - Reference: genjax/library/generative_functions/distributions/exported.md
-        # - Oryx distributions as generative functions: genjax/library/generative_functions/distributions/oryx.md
-          - Static language: genjax/library/generative_functions/static.md
+              - library/generative_functions/distributions/index.md
+              - Reference: library/generative_functions/distributions/exported.md
+        # - Oryx distributions as generative functions: library/generative_functions/distributions/oryx.md
+          - Static language: library/generative_functions/static.md
           - Combinators:
-              - genjax/library/generative_functions/combinators/index.md
-              - Masked combinator: genjax/library/generative_functions/combinators/masked.md
-              - Map combinator: genjax/library/generative_functions/combinators/map.md
-        # - Repeat combinator: genjax/library/generative_functions/combinators/repeat.md
-              - Unfold combinator: genjax/library/generative_functions/combinators/unfold.md
-              - Switch combinator: genjax/library/generative_functions/combinators/switch.md
-          - Interpreted language: genjax/library/generative_functions/interpreted.md
+              - library/generative_functions/combinators/index.md
+              - Masked combinator: library/generative_functions/combinators/masked.md
+              - Map combinator: library/generative_functions/combinators/map.md
+        # - Repeat combinator: library/generative_functions/combinators/repeat.md
+              - Unfold combinator: library/generative_functions/combinators/unfold.md
+              - Switch combinator: library/generative_functions/combinators/switch.md
+          - Interpreted language: library/generative_functions/interpreted.md
       - Inference:
-          - genjax/library/inference/index.md
-          - Sequential Monte Carlo: genjax/library/inference/smc.md
-      # - Variational inference: genjax/library/inference/vi.md
+          - library/inference/index.md
+          - Sequential Monte Carlo: library/inference/smc.md
+          - Variational inference: 
+            - library/inference/vi.md
+            - Automatic differentiation of expected values: library/adev.md
     # - Extension plugins:
-      # - genjax/library/extensions/index.md
-      # - Gaussian processes: genjax/library/extensions/tinygp.md
-      # - HMC/NUTS: genjax/library/extensions/blackjax.md
+      # - library/extensions/index.md
+      # - Gaussian processes: library/extensions/tinygp.md
+      # - HMC/NUTS: library/extensions/blackjax.md
   # - Autodi(GenJAX):
-    # - genjax/autodigenjax.md
+    # - autodigenjax.md
   - For developers:
       - Developing: developing.md
       - Code of conduct: codeofconduct.md

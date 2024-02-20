@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,13 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `combinators` module exposes _generative function combinators_:
-generative functions which accept other generative functions as configuration
-arguments, and implement their own generative function interfaces using structured patterns of
-control flow (and other types of useful modifications). If one thinks of a
-control flow primitive as an operation on deterministic types, a combinator can
-be thought of as lifting the operation to support generative function
-semantics.
+"""The `combinators` module exposes _generative function combinators_: generative
+functions which accept other generative functions as configuration arguments, and
+implement their own generative function interfaces using structured patterns of control
+flow (and other types of useful modifications). If one thinks of a control flow
+primitive as an operation on deterministic types, a combinator can be thought of as
+lifting the operation to support generative function semantics.
 
 GenJAX exposes several combinators:
 

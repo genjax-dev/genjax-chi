@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import itertools
 from dataclasses import dataclass
 
 import jax
-import jaxtyping
 from beartype import beartype
 from deprecated import deprecated
 from equinox import module_update_wrapper
@@ -36,17 +35,12 @@ from genjax._src.core.datatypes.generative import (
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.interpreters.incremental import (
-    UnknownChange,
-    tree_diff,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
+    FloatArray,
     List,
     PRNGKey,
     Tuple,
@@ -88,8 +82,8 @@ class Handler(object):
 # Its behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
 def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the
-    current caller.
+    """Invoke a generative function, binding its generative semantics with the current
+    caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
@@ -136,7 +130,7 @@ class AddressVisitor(Pytree):
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -154,8 +148,8 @@ class SimulateHandler(Handler):
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: FloatArray = 0.0
+    weight: FloatArray = 0.0
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -176,7 +170,7 @@ class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    weight: ArrayLike = 0.0
+    weight: FloatArray = 0.0
     discard: Trie = Pytree.field(default_factory=Trie)
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -194,7 +188,7 @@ class UpdateHandler(Handler):
             sub_trace = st(addr)
         else:
             sub_trace = self.previous_trace.get_choices().get_submap(addr)
-        argdiffs = tree_diff_unknown_change(args)
+        argdiffs = Diff.tree_diff_unknown_change(args)
         self.key, sub_key = jax.random.split(self.key)
         # if isinstance(sub_map, EmptyChoice):
         #     sub_map = HierarchicalChoiceMap.new({})
@@ -209,7 +203,7 @@ class UpdateHandler(Handler):
 @dataclass
 class AssessHandler(Handler):
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
@@ -230,7 +224,7 @@ class InterpretedTrace(Trace):
     args: Tuple
     retval: Any
     choices: Trie
-    score: jaxtyping.ArrayLike
+    score: FloatArray
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -250,7 +244,7 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: HierarchicalSelection) -> ArrayLike:
+    def project(self, selection: HierarchicalSelection) -> FloatArray:
         weight = 0.0
         for k, subtrace in self.choices.get_submaps_shallow():
             if selection.has_addr(k):
@@ -267,22 +261,20 @@ def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
 class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
-    """An `InterpretedGenerativeFunction` is a generative function which relies only
-    upon the CPU for its execution. This is in contrast to `static`,
-    which is designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
+    """An `InterpretedGenerativeFunction` is a generative function which supports a permissive subset of Python for its modeling language. Permissive here is in contrast to the `StaticGenerativeFunction` language, which supports similar modeling abstractions, but requires that users write within the JAX compatible subset of Python -
+    designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
     for the inference computations.
 
-    `InterpretedGenerativeFunction`s are easier to write: You can use natural
+    `InterpretedGenerativeFunction`s are easy to write: you can use natural
     Python flow control in your generative functions, and can work with arrays
     and structures of arbitrary shape, even having the shapes of matrices involved
     in your computations be random variables themselves. While such programs
-    cannot take advantage of JAX, it may be a more comfortable environment for
+    cannot take advantage of JAX, it may be a comfortable environment for
     rapid prototyping or pedagogical work.
 
     Exploiting JAX requires more planning in the design of the generative functions,
     since the sizes of arrays, etc., must be known in advance to take advantage
-    of GPU-style acceleration, and forks in the road in the implementation of
-    such functions must be represented in the linear algebra of the code.
+    of GPU-style acceleration.
 
     Furthermore, you must prepare your execution environment with a version of
     [jaxlib](https://jax.readthedocs.io/en/latest/installation.html) which
@@ -292,17 +284,18 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     the effort of integrating with JAX, working with the Gen paradigm in an
     non-accelerated form.
 
-    To create an [`InterpretedGenerativeFunction`][], use the [`interpreted`][]
+    To create an `InterpretedGenerativeFunction`, you can use the `interpreted_gen_fn`
     decorator like this:
 
-        ```python
-        import genjax
+    ```python
+    import genjax
 
-        @genjax.interpreted
-        def model():
-            y = genjax.normal(0.0, 1.0) @ "y"
-            return y
-        ```
+
+    @genjax.interpreted_gen_fn
+    def model():
+        y = genjax.normal(0.0, 1.0) @ "y"
+        return y
+    ```
     """
 
     source: Callable = Pytree.static()
@@ -327,7 +320,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[InterpretedTrace, jaxtyping.ArrayLike]:
+    ) -> Tuple[InterpretedTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
@@ -347,19 +340,19 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         prev_trace: Trace,
         choice_map: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[InterpretedTrace, ArrayLike, Any, ChoiceMap]:
+    ) -> Tuple[InterpretedTrace, FloatArray, Any, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
         if isinstance(choice_map, EmptyChoice):
             choice_map = HierarchicalChoiceMap()
         with UpdateHandler(key, prev_trace, choice_map) as handler:
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
             choices = handler.choice_state
             weight = handler.weight
             discard = handler.discard
-            retdiff = tree_diff(retval, UnknownChange)
+            retdiff = Diff.tree_diff_unknown_change(retval)
             score = prev_trace.get_score() + weight
             return (
                 InterpretedTrace(self, args, retval, choices, score),
@@ -372,7 +365,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         self,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[ArrayLike, Any]:
+    ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
