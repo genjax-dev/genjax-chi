@@ -38,6 +38,7 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     FloatArray,
     IntArray,
     PRNGKey,
