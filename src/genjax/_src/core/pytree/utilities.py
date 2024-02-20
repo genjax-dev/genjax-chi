@@ -18,6 +18,25 @@ import jax.tree_util as jtu
 
 from genjax._src.core.typing import static_check_supports_grad
 
+def tree_concat(trees):
+    """Takes a list of trees and concatenates every corresponding leaf.
+
+    For example, given two trees ((a, b), c) and ((a', b'), c'), returns
+    ((concat(a, a'), concat(b, b')), concat(c, c')).
+
+    Useful for turning a list of objects into something you can feed to
+    a vmapped function.
+    """
+    leaves_list = []
+    treedef_list = []
+    for tree in trees:
+        leaves, treedef = jtu.tree_flatten(tree)
+        leaves_list.append(leaves)
+        treedef_list.append(treedef)
+
+    grouped_leaves = zip(*leaves_list)
+    result_leaves = [jnp.concatenate(leaf) for leaf in grouped_leaves]
+    return treedef_list[0].unflatten(result_leaves)
 
 def tree_stack(trees):
     """Takes a list of trees and stacks every corresponding leaf.
