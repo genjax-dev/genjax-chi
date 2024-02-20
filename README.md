@@ -12,6 +12,7 @@
 <div align="center">
 
 [![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
+![coverage_badge](https://github.com/probcomp/genjax/blob/nightly/coverage.svg)
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
@@ -22,6 +23,7 @@
 
 </div>
 
+[coverage_badge]: https://github.com/probcomp/genjax/coverage.svg
 [main_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=main
 [nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=nightly
 [actions]: https://github.com/probcomp/genjax/actions
@@ -45,6 +47,7 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 <br>
 </div>
 
+> [!TIP]
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 ## Quickstart
@@ -75,15 +78,15 @@ command for the architecture you're targeting. To run GenJAX without GPU
 support:
 
 ```sh
-pip install jax[cpu]==0.4.20
+pip install jax[cpu]==0.4.24
 ```
 
 On a Linux machine with a GPU, run either of the following commands, depending
 on which CUDA version (11 or 12) you have installed:
 
 ```sh
-pip install jax[cuda11_pip]==0.4.20
-pip install jax[cuda12_pip]==0.4.20
+pip install jax[cuda11_pip]==0.4.24
+pip install jax[cuda12_pip]==0.4.24
 ```
 
 ### Quick example
@@ -110,16 +113,16 @@ def beta_bernoulli(beta):
 
 key = jax.random.PRNGKey(314159)
 trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
-choices = trace.get_choices()
+choice = trace.get_choices()
 ```
 
-`choices` is a record of all random choices made during the execution of the
+`choice` is a tree-like record of all random choices made during the execution of the
 generative function `beta_bernoulli`. Print it with a `genjax.console()`
 instance:
 
 ```python
 console = genjax.console()
-console.print(choices)
+console.print(choice)
 ```
 
 resulting in:

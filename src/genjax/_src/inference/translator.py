@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,8 +26,7 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     Trace,
 )
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Bool,
     Callable,
@@ -69,7 +68,7 @@ class TraceTranslator(Pytree):
 
 
 def stack_differentiable(v):
-    grad_tree, _ = tree_grad_split(v)
+    grad_tree, _ = Pytree.tree_grad_split(v)
     leaves = jtu.tree_leaves(grad_tree)
     stacked = jnp.stack(leaves) if len(leaves) > 1 else leaves[0]
     return stacked
@@ -88,8 +87,8 @@ def safe_slogdet(v):
 
 
 class ExtendingTraceTranslator(TraceTranslator):
-    choice_map_forward: Callable = Pytree.static()  # part of bijection.
-    choice_map_inverse: Callable = Pytree.static()  # part of bijection
+    choice_forward: Callable = Pytree.static()  # part of bijection.
+    choice_inverse: Callable = Pytree.static()  # part of bijection
     check_bijection: Bool
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
@@ -98,10 +97,10 @@ class ExtendingTraceTranslator(TraceTranslator):
 
     def value_and_jacobian_correction(self, forward, trace):
         trace_choices = trace.get_choices()
-        grad_tree, no_grad_tree = tree_grad_split(trace_choices)
+        grad_tree, no_grad_tree = Pytree.tree_grad_split(trace_choices)
 
         def _inner(differentiable):
-            choices = tree_zipper(differentiable, no_grad_tree)
+            choices = Pytree.tree_grad_zip(differentiable, no_grad_tree)
             out_choices = forward(choices)
             return out_choices, out_choices
 
@@ -110,7 +109,7 @@ class ExtendingTraceTranslator(TraceTranslator):
         if self.check_bijection:
 
             def optional_check_bijection_is_bijection():
-                backwards = self.choice_map_inverse(transformed)
+                backwards = self.choice_inverse(transformed)
                 flattened = jtu.tree_leaves(
                     jtu.tree_map(
                         lambda v1, v2: jnp.all(v1 == v2),
@@ -132,7 +131,7 @@ class ExtendingTraceTranslator(TraceTranslator):
             key, (self.new_observations, prev_model_choices, *self.q_forward_args)
         )
         transformed, J_log_abs_det = self.value_and_jacobian_correction(
-            self.choice_map_forward, forward_proposal_trace
+            self.choice_forward, forward_proposal_trace
         )
         forward_proposal_score = forward_proposal_trace.get_score()
         constraints = transformed.merge(self.new_observations)
@@ -151,13 +150,13 @@ def extending_trace_translator(
     q_forward: GenerativeFunction,
     q_forward_args: Tuple,
     new_obs: ChoiceMap,
-    choice_map_forward: Callable = lambda v: v,
-    choice_map_backward: Callable = lambda v: v,
+    choice_forward: Callable = lambda v: v,
+    choice_backward: Callable = lambda v: v,
     check_bijection=False,
 ):
     return ExtendingTraceTranslator(
-        choice_map_forward,
-        choice_map_backward,
+        choice_forward,
+        choice_backward,
         check_bijection,
         p_argdiffs,
         q_forward,
@@ -176,8 +175,7 @@ def extending_trace_translator(
 
 
 class TraceKernelTraceTranslator(TraceTranslator):
-    """
-    A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
+    """A trace translator for expressing SMCP³ moves (c.f. [SMCP³: Sequential Monte Carlo with Probabilistic Program Proposals](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)).
 
     Requires that users specify K (forward) and L (backward) probabilistic program kernels using the `genjax.static_gen_fn` language.
 
@@ -199,10 +197,10 @@ class TraceKernelTraceTranslator(TraceTranslator):
         prev_model_choices,
         K_aux_choices,
     ):
-        grad_tree, no_grad_tree = tree_grad_split(prev_model_choices)
+        grad_tree, no_grad_tree = Pytree.tree_grad_split(prev_model_choices)
 
         def _inner(differentiable):
-            prev_model_choices = tree_zipper(differentiable, no_grad_tree)
+            prev_model_choices = Pytree.tree_grad_zip(differentiable, no_grad_tree)
             (_, new_choices) = self.K.assess(
                 K_aux_choices, (prev_model_choices, *self.K_args)
             )

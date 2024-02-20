@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains a set of types and type aliases which are used
-throughout the codebase.
+"""This module contains a set of types and type aliases which are used throughout the
+codebase.
 
-Type annotations in the codebase are exported out of this module for
-consistency.
+Type annotations in the codebase are exported out of this module for consistency.
 """
+
+from typing import Annotated  # noqa: F401
 
 import beartype.typing as btyping
 import jax
@@ -24,6 +25,7 @@ import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf, beartype
+from beartype.vale import Is
 from plum import dispatch, parametric
 
 Any = btyping.Any
@@ -128,4 +130,6 @@ __all__ = [
     "typecheck",
     "dispatch",
     "parametric",
+    "Is",
+    "Annotated",
 ]

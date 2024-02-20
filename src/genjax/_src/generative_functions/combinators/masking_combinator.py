@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import (
     Any,
     BoolArray,
@@ -55,10 +55,9 @@ class MaskingTrace(Trace):
 
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
-    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
-    returns a new `GenerativeFunction` which accepts a boolean array as the
-    first argument denoting if the invocation of the generative function should
-    be masked or not.
+    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and returns a new
+    `GenerativeFunction` which accepts a boolean array as the first argument denoting if
+    the invocation of the generative function should be masked or not.
 
     The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
 
@@ -98,7 +97,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         argdiffs: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
         (check_diff, inner_argdiffs) = argdiffs
-        check = tree_diff_primal(check_diff)
+        check = Diff.tree_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
             MaskingTrace(check, tr),

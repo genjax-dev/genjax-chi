@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
+from deprecated import deprecated  # noqa: I001
+from genjax._src.generative_functions.static.static_gen_fn import (
+    static_gen_fn,
+    StaticGenerativeFunction,
+)
 from genjax._src.generative_functions.static.static_transforms import (
     cache,
     save,
@@ -20,10 +24,17 @@ from genjax._src.generative_functions.static.static_transforms import (
     trace_p,
 )
 
+
+@deprecated(version="0.2.0", reason="now called @static_gen_fn")
+def static(f) -> StaticGenerativeFunction:
+    return static_gen_fn(f)
+
+
 __all__ = [
     "trace_p",
     "trace",
     "cache",
     "save",
+    "static",
     "static_gen_fn",
 ]

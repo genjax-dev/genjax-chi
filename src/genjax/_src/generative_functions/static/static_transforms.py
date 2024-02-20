@@ -1,4 +1,4 @@
-# Copyright 2023 The MIT Probabilistic Computing Project & the oryx authors.
+# Copyright 2024 The MIT Probabilistic Computing Project & the oryx authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ from dataclasses import dataclass
 
 import jax
 import jax.tree_util as jtu
-from jaxtyping import ArrayLike
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -37,16 +36,13 @@ from genjax._src.core.interpreters.forward import (
 from genjax._src.core.interpreters.incremental import (
     Diff,
     incremental,
-    static_check_no_change,
-    tree_diff_primal,
-    tree_diff_tangent,
 )
-from genjax._src.core.pytree.const import tree_map_collapse_const, tree_map_const
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
     Dict,
+    FloatArray,
     List,
     PRNGKey,
     Tuple,
@@ -121,7 +117,7 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 
 def _trace(gen_fn, addr, *args):
     static_check_address_type(addr)
-    addr = tree_map_const(addr)
+    addr = Pytree.tree_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         gen_fn,
         addr,
@@ -131,8 +127,8 @@ def _trace(gen_fn, addr, *args):
 
 @typecheck
 def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the
-    current caller.
+    """Invoke a generative function, binding its generative semantics with the current
+    caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
@@ -156,8 +152,8 @@ def _cache(fn, addr, *args):
 
 @typecheck
 def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the
-    current caller.
+    """Invoke a generative function, binding its generative semantics with the current
+    caller.
 
     Arguments:
         addr: An address denoting the site of a function invocation.
@@ -216,21 +212,21 @@ class StaticLanguageHandler(StatefulHandler):
         if isinstance(self.constraints, EmptyChoice):
             return self.constraints
         else:
-            addr = tree_map_collapse_const(addr)
+            addr = Pytree.tree_unwrap_const(addr)
             return self.constraints.get_submap(addr)
 
     def get_subtrace(self, addr):
-        addr = tree_map_collapse_const(addr)
+        addr = Pytree.tree_unwrap_const(addr)
         return self.previous_trace.get_subtrace(addr)
 
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
-        addr = tree_map_collapse_const(addr)
+        addr = Pytree.tree_unwrap_const(addr)
         self.address_choices = self.address_choices.trie_insert(addr, tr)
 
     @typecheck
     def set_discard_state(self, addr, ch: Choice):
-        addr = tree_map_collapse_const(addr)
+        addr = Pytree.tree_unwrap_const(addr)
         self.discard_choices = self.discard_choices.trie_insert(addr, ch)
 
     def dispatch(self, prim, *tracers, **_params):
@@ -250,7 +246,7 @@ class StaticLanguageHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -311,8 +307,8 @@ def simulate_transform(source_fn):
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: FloatArray = 0.0
+    weight: FloatArray = 0.0
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -387,8 +383,8 @@ class UpdateHandler(StaticLanguageHandler):
     previous_trace: Trace
     constraints: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: ArrayLike = 0.0
-    weight: ArrayLike = 0.0
+    score: FloatArray = 0.0
+    weight: FloatArray = 0.0
     address_choices: Trie = Pytree.field(default_factory=Trie)
     discard_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -438,7 +434,7 @@ class UpdateHandler(StaticLanguageHandler):
         if (
             static_check_is_concrete(has_value)
             and has_value
-            and all(map(static_check_no_change, args))
+            and Diff.static_check_no_change(args)
         ):
             cached_value = self.previous_trace.get_cached_value(addr)
             self.cache_state[addr] = cached_value
@@ -454,12 +450,12 @@ def update_transform(source_fn):
     @typecheck
     def wrapper(key, previous_trace, constraints, diffs: Tuple):
         stateful_handler = UpdateHandler(key, previous_trace, constraints)
-        diff_primals = tree_diff_primal(diffs)
-        diff_tangents = tree_diff_tangent(diffs)
+        diff_primals = Diff.tree_primal(diffs)
+        diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
             stateful_handler, diff_primals, diff_tangents
         )
-        retval_primals = tree_diff_primal(retval_diffs)
+        retval_primals = Diff.tree_primal(retval_diffs)
         (
             score,
             weight,
@@ -495,7 +491,7 @@ def update_transform(source_fn):
 @dataclass
 class AssessHandler(StaticLanguageHandler):
     constraints: ChoiceMap
-    score: ArrayLike = 0.0
+    score: FloatArray = 0.0
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 

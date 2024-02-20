@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,14 +27,9 @@ from genjax._src.core.datatypes.generative import (
     NoneSelection,
     Selection,
     Trace,
-    choice_value,
-    select,
 )
 from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.closure import DynamicClosure, dynamic_closure
-from genjax._src.core.pytree.const import PytreeConst, const
-from genjax._src.core.pytree.pytree import Pytree
 
 __all__ = [
     # Hashable dictionary type.
@@ -47,7 +42,6 @@ __all__ = [
     "ChoiceMap",
     "EmptyChoice",
     "ChoiceValue",
-    "choice_value",
     "HierarchicalChoiceMap",
     "DisjointUnionChoiceMap",
     "Trace",
@@ -55,15 +49,8 @@ __all__ = [
     "AllSelection",
     "NoneSelection",
     "HierarchicalSelection",
-    "select",
     "GenerativeFunction",
     "JAXGenerativeFunction",
     # Masking.
     "Mask",
-    # Pytree meta.
-    "Pytree",
-    "PytreeConst",
-    "const",
-    "DynamicClosure",
-    "dynamic_closure",
 ]

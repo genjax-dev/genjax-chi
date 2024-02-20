@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains an implementation of (Auxiliary inference divergence
-estimator) from Cusumano-Towner et al, 2017."""
+"""This module contains an implementation of (Auxiliary inference divergence estimator)
+from Cusumano-Towner et al, 2017."""
 
 
 import jax
@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.datatypes.generative import GenerativeFunction
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Int, PRNGKey, Tuple
 
 
@@ -38,14 +38,14 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
     ):
         # Inner functions -- to be mapped over.
         # Keys are folded in, for working memory.
-        def _inner_p(key, index, chm, args):
+        def _inner_p(key, index, choice, args):
             new_key = jax.random.fold_in(key, index)
-            (w, _) = self.p.importance(new_key, chm, args)
+            (w, _) = self.p.importance(new_key, choice, args)
             return w
 
-        def _inner_q(key, index, chm, args):
+        def _inner_q(key, index, choice, args):
             new_key = jax.random.fold_in(key, index)
-            (w, _) = self.q.importance(new_key, chm, args)
+            (w, _) = self.q.importance(new_key, choice, args)
             return w
 
         key_indices_p = jnp.arange(0, self.num_meta_p + 1)
@@ -53,14 +53,14 @@ class AuxiliaryInferenceDivergenceEstimator(Pytree):
 
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, p_args)
-        chm = tr.get_choices().strip()
+        choice = tr.get_choices().strip()
         key, sub_key = jax.random.split(key)
         fwd_weights = jax.vmap(_inner_p, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_p, chm, p_args
+            sub_key, key_indices_p, choice, p_args
         )
         key, sub_key = jax.random.split(key)
         bwd_weights = jax.vmap(_inner_q, in_axes=(None, 0, None, None))(
-            sub_key, key_indices_q, chm, q_args
+            sub_key, key_indices_q, choice, q_args
         )
         fwd_weight = logsumexp(fwd_weights) - jnp.log(self.num_meta_p)
         bwd_weight = logsumexp(bwd_weights) - jnp.log(self.num_meta_q)

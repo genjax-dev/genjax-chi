@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,13 +23,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import (
-    static_check_no_change,
-    static_check_tree_leaves_diff,
-    tree_diff_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.serialization.pickle import (
     PickleDataFormat,
     PickleSerializationBackend,
@@ -37,7 +31,6 @@ from genjax._src.core.serialization.pickle import (
 )
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     FloatArray,
     PRNGKey,
     Tuple,
@@ -75,7 +68,7 @@ class DistributionTrace(
     def get_choices(self):
         return ChoiceValue(self.value)
 
-    def project(self, selection: Selection) -> ArrayLike:
+    def project(self, selection: Selection) -> FloatArray:
         if isinstance(selection, AllSelection):
             return self.get_score()
         else:
@@ -112,11 +105,20 @@ class DistributionTrace(
 
 class Distribution(GenerativeFunction, SupportsCalleeSugar):
     @abc.abstractmethod
-    def random_weighted(self, *args, **kwargs):
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ) -> Tuple[FloatArray, Any]:
         pass
 
     @abc.abstractmethod
-    def estimate_logpdf(self, key, v, *args, **kwargs):
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: Any,
+        *args,
+    ) -> FloatArray:
         pass
 
     @typecheck
@@ -133,7 +135,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: EmptyChoice,
+        choice: EmptyChoice,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
         tr = self.simulate(key, args)
@@ -143,10 +145,10 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceValue,
+        choice: ChoiceValue,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
-        v = chm.get_value()
+        v = choice.get_value()
         w = self.estimate_logpdf(key, v, *args)
         score = w
         return (DistributionTrace(self, args, v, score), w)
@@ -159,17 +161,17 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         constraints: EmptyChoice,
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        static_check_tree_leaves_diff(argdiffs)
+        Diff.static_check_tree_diff(argdiffs)
         v = prev.get_retval()
-        retval_diff = tree_diff_no_change(v)
+        retval_diff = Diff.tree_diff_no_change(v)
 
         # If no change to arguments, no need to update.
-        if static_check_no_change(argdiffs):
+        if Diff.static_check_no_change(argdiffs):
             return (prev, 0.0, retval_diff, EmptyChoice())
 
         # Otherwise, we must compute an incremental weight.
         else:
-            args = tree_diff_primal(argdiffs)
+            args = Diff.tree_primal(argdiffs)
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
             new_tr = DistributionTrace(self, args, v, fwd)
@@ -183,15 +185,15 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         constraints: ChoiceValue,
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        static_check_tree_leaves_diff(argdiffs)
-        args = tree_diff_primal(argdiffs)
+        Diff.static_check_tree_diff(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         v = constraints.get_value()
         fwd = self.estimate_logpdf(key, v, *args)
         bwd = prev.get_score()
         w = fwd - bwd
         new_tr = DistributionTrace(self, args, v, fwd)
         discard = prev.get_choices()
-        retval_diff = tree_diff_unknown_change(v)
+        retval_diff = Diff.tree_diff_unknown_change(v)
         return (new_tr, w, retval_diff, discard)
 
     ###################
@@ -214,9 +216,9 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
 
 
 class ExactDensity(Distribution):
-    """> Abstract base class which extends Distribution and assumes that the
-    implementor provides an exact logpdf method (compared to one which returns
-    _an estimate of the logpdf_).
+    """> Abstract base class which extends Distribution and assumes that the implementor
+    provides an exact logpdf method (compared to one which returns _an estimate of the
+    logpdf_).
 
     All of the standard distributions inherit from `ExactDensity`, and
     if you are looking to implement your own distribution, you should
@@ -228,9 +230,8 @@ class ExactDensity(Distribution):
     """
 
     @abc.abstractmethod
-    def sample(self, key: PRNGKey, *args: Any, **kwargs) -> Any:
-        """> Sample from the distribution, returning a value from the event
-        space.
+    def sample(self, key: PRNGKey, *args: Any) -> Any:
+        """> Sample from the distribution, returning a value from the event space.
 
         Arguments:
             key: A `PRNGKey`.
@@ -245,6 +246,7 @@ class ExactDensity(Distribution):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -257,6 +259,7 @@ class ExactDensity(Distribution):
             ```python exec="yes" source="tabbed-left"
             import jax
             import genjax
+
             console = genjax.console()
 
             key = jax.random.PRNGKey(314159)
@@ -266,10 +269,10 @@ class ExactDensity(Distribution):
         """
 
     @abc.abstractmethod
-    def logpdf(self, v: Any, *args: Any, **kwargs) -> FloatArray:
-        """> Given a value from the support of the distribution, compute the
-        log probability of that value under the density (with respect to the
-        standard base measure).
+    def logpdf(self, v: Any, *args: Any) -> FloatArray:
+        """> Given a value from the support of the distribution, compute the log
+        probability of that value under the density (with respect to the standard base
+        measure).
 
         Arguments:
             v: A value from the support of the distribution.
@@ -279,13 +282,13 @@ class ExactDensity(Distribution):
             logpdf: The log density evaluated at `v`, with density configured by `args`.
         """
 
-    def random_weighted(self, key, *args, **kwargs):
-        v = self.sample(key, *args, **kwargs)
-        w = self.logpdf(v, *args, **kwargs)
+    def random_weighted(self, key, *args):
+        v = self.sample(key, *args)
+        w = self.logpdf(v, *args)
         return (w, v)
 
-    def estimate_logpdf(self, _, v, *args, **kwargs):
-        w = self.logpdf(v, *args, **kwargs)
+    def estimate_logpdf(self, _, v, *args):
+        w = self.logpdf(v, *args)
         return w
 
     @typecheck
