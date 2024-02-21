@@ -309,7 +309,7 @@ class ChoiceValue(Choice):
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ValueChoice)")
-        tree.add(gpp.tree_pformat(self.value))
+        tree.add(gpp.tree_pformat(self.value, short_arrays=False))
         return tree
 
 
@@ -862,13 +862,13 @@ class Mask(Choice):
     ###################
 
     def __rich_tree__(self):
-        doc = gpp._pformat_array(self.flag, short_arrays=True)
+        doc = gpp._pformat_array(self.flag, short_arrays=False)
         tree = rich_tree.Tree(f"[bold](Mask, {doc})")
         if isinstance(self.value, Pytree):
             val_tree = self.value.__rich_tree__()
             tree.add(val_tree)
         else:
-            val_tree = gpp.tree_pformat(self.value, short_arrays=True)
+            val_tree = gpp.tree_pformat(self.value, short_arrays=False)
             tree.add(val_tree)
         return tree
 

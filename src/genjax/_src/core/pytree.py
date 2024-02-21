@@ -75,7 +75,7 @@ class Pytree(eqx.Module):
 
     # Can be customized by Pytree mixers.
     def __rich_tree__(self):
-        return gpp.tree_pformat(self)
+        return gpp.tree_pformat(self, short_arrays=False)
 
     # Defines default pretty printing.
     def __rich_console__(self, console, options):

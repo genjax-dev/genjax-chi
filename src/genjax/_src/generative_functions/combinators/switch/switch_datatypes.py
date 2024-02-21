@@ -135,7 +135,7 @@ class SwitchChoiceMap(ChoiceMap):
     ###################
 
     def __rich_tree__(self):
-        doc = gpp._pformat_array(self.index, short_arrays=True)
+        doc = gpp._pformat_array(self.index, short_arrays=False)
         tree = Tree(f"[bold](Switch,{doc})")
         for submap in self.submaps:
             submap_tree = submap.__rich_tree__()

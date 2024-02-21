@@ -78,7 +78,7 @@ class IndexedSelection(MapSelection):
     ###################
 
     def __rich_tree__(self):
-        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        doc = gpp._pformat_array(self.indices, short_arrays=False)
         tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
         tree.add(self.inner.__rich_tree__())
         return tree
@@ -184,7 +184,7 @@ class IndexedChoiceMap(ChoiceMap):
     ###################
 
     def __rich_tree__(self):
-        doc = gpp._pformat_array(self.indices, short_arrays=True)
+        doc = gpp._pformat_array(self.indices, short_arrays=False)
         tree = rich_tree.Tree(f"[bold](IndexedChoiceMap, {doc})")
         sub_tree = self.inner.__rich_tree__()
         tree.add(sub_tree)
