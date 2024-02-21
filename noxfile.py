@@ -74,6 +74,8 @@ def coverage(session):
     )
     session.run("poetry", "run", "coverage", "json")
     session.run("poetry", "run", "coverage", "report")
+    session.run("rm", "coverage.svg")
+    session.run("coverage-badge", "-o", "coverage.svg")
 
 
 @session(python=python_version)
@@ -163,7 +165,7 @@ def build(session):
 
 @session(name="mkdocs", python=python_version)
 def mkdocs(session: Session) -> None:
-    """run the mkdocs-only portion of the docs build."""
+    """Run the mkdocs-only portion of the docs build."""
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )

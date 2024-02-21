@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.interpreted import (
+from deprecated import deprecated  # noqa: I001
+from genjax._src.generative_functions.interpreted.interpreted_gen_fn import (
     InterpretedGenerativeFunction,
-    interpreted,
+    interpreted_gen_fn,
     trace,
 )
 
+
+@deprecated(version="0.2.0", reason="now called @interpreted_gen_fn")
+def interpreted(f) -> InterpretedGenerativeFunction:
+    return interpreted_gen_fn(f)
+
+
 __all__ = [
     "interpreted",
+    "interpreted_gen_fn",
     "InterpretedGenerativeFunction",
     "trace",
 ]

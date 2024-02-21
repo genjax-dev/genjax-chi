@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-from dataclasses import dataclass
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     Choice,
@@ -21,7 +20,7 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import tree_diff_primal
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.typing import (
     Any,
     BoolArray,
@@ -33,14 +32,10 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class MaskingTrace(Trace):
     mask_combinator: "MaskingCombinator"
     inner: Trace
     check: BoolArray
-
-    def flatten(self):
-        return (self.mask_combinator, self.inner, self.check), ()
 
     def get_gen_fn(self):
         return self.mask_combinator
@@ -58,13 +53,11 @@ class MaskingTrace(Trace):
         return (self.check, *self.inner.get_args())
 
 
-@dataclass
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
-    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
-    returns a new `GenerativeFunction` which accepts a boolean array as the
-    first argument denoting if the invocation of the generative function should
-    be masked or not.
+    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and returns a new
+    `GenerativeFunction` which accepts a boolean array as the first argument denoting if
+    the invocation of the generative function should be masked or not.
 
     The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
 
@@ -72,9 +65,6 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """
 
     inner: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.inner,), ()
 
     @typecheck
     def simulate(
@@ -107,7 +97,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         argdiffs: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
         (check_diff, inner_argdiffs) = argdiffs
-        check = tree_diff_primal(check_diff)
+        check = Diff.tree_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
             MaskingTrace(check, tr),
@@ -116,6 +106,10 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             Mask(check, d),
         )
 
+    @property
+    def __wrapped__(self):
+        return self.inner
+
 
 #############
 # Decorator #
@@ -123,6 +117,4 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
 def masking_combinator(f) -> MaskingCombinator:
-    gf = MaskingCombinator(f)
-    functools.update_wrapper(gf, f)
-    return gf
+    return module_update_wrapper(MaskingCombinator(f))

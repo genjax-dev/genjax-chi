@@ -11,6 +11,8 @@
 
 <div align="center">
 
+[![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
+![coverage_badge](https://github.com/probcomp/genjax/blob/nightly/coverage.svg)
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
@@ -21,6 +23,7 @@
 
 </div>
 
+[coverage_badge]: https://github.com/probcomp/genjax/coverage.svg
 [main_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=main
 [nightly_build_action_badge]: https://github.com/probcomp/genjax/actions/workflows/ci.yml/badge.svg?style=flat-square&branch=nightly
 [actions]: https://github.com/probcomp/genjax/actions
@@ -44,6 +47,7 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 <br>
 </div>
 
+> [!TIP]
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 ## Quickstart
@@ -74,16 +78,18 @@ command for the architecture you're targeting. To run GenJAX without GPU
 support:
 
 ```sh
-pip install jax[cpu]==0.4.20
+pip install jax[cpu]==0.4.24
 ```
 
 On a Linux machine with a GPU, run either of the following commands, depending
 on which CUDA version (11 or 12) you have installed:
 
 ```sh
-pip install jax[cuda11_pip]==0.4.20
-pip install jax[cuda12_pip]==0.4.20
+pip install jax[cuda11_pip]==0.4.24
+pip install jax[cuda12_pip]==0.4.24
 ```
+
+### Quick example
 
 The following code snippet defines a generative function called `beta_bernoulli` that
 
@@ -93,42 +99,53 @@ The following code snippet defines a generative function called `beta_bernoulli`
 - Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
   returns that value
 
-JIT-compiles the function with JAX and then runs it with GenJAX:
+Then, we create an inference problem (by specifying a posterior target), and utilize sampling
+importance resampling to give produce single sample estimator of `p`.
+
+We can JIT compile that entire process, run it in parallel, etc - which we utilize to produce an estimate for `p` 
+over 50 independent trials of SIR (with K = 50 particles).
 
 ```python
-import genjax
 import jax
+import jax.numpy as jnp
+import genjax
+from genjax import beta, flip, static_gen_fn, Target, choice_map
+from genjax.inference.smc import ImportanceK
 
-@genjax.static
-def beta_bernoulli(beta):
-    p = genjax.beta(0.0, beta) @ "p"
-    v = genjax.bernoulli(p) @ "v"
+# Create a generative model.
+@static_gen_fn
+def beta_bernoulli(α, β):
+    p = beta(α, β) @ "p"
+    v = flip(p) @ "v"
     return v
 
-key = jax.random.PRNGKey(314159)
-trace = jax.jit(beta_bernoulli.simulate)(key, (0.5, ))
-choices = trace.get_choices()
-```
+def run_inference(obs: bool):
+    # Create an inference query - a posterior target - by specifying
+    # the model, arguments to the model, and constraints.
+    posterior_target = Target(beta_bernoulli, # the model
+                              (2.0, 2.0), # arguments to the model
+                              choice_map({"v": obs}), # constraints
+                            )
 
-`choices` is a record of all random choices made during the execution of the
-generative function `beta_bernoulli`. Print it with a `genjax.console()`
-instance:
+    # Use a library algorithm, or design your own - more on that in the docs!
+    alg = ImportanceK(posterior_target, k_particles=50)
+
+    # Everything is JAX compatible by default.
+    # JIT, vmap, to your heart's content.
+    key = jax.random.PRNGKey(314159)
+    sub_keys = jax.random.split(key, 50)
+    _, p_chm = jax.jit(jax.vmap(alg.random_weighted, in_axes=(0, None)))(
+        sub_keys, posterior_target
+    )
+
+    # An estimate of `p` over 50 independent trials of SIR (with K = 50 particles).
+    return jnp.mean(p_chm["p"])
+
+(run_inference(True), run_inference(False))
+```
 
 ```python
-console = genjax.console()
-console.print(choices)
-```
-
-resulting in:
-
-```
-(HierarchicalChoiceMap)
-├── :p
-│   └── (ValueChoice)
-│       └──  f32[]
-└── :v
-    └── (ValueChoice)
-        └──  i32[]
+(Array(0.6039314, dtype=float32), Array(0.3679334, dtype=float32))
 ```
 
 ## References

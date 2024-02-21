@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-from dataclasses import dataclass
+from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    GenerativeFunction,
     HierarchicalChoiceMap,
     JAXGenerativeFunction,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import static_check_tree_leaves_diff
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree.closure import DynamicClosure
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -55,19 +55,19 @@ from genjax._src.generative_functions.supports_callees import (
 @typecheck
 def handler_trace_with_static(
     addr,
-    gen_fn: JAXGenerativeFunction,
+    gen_fn: GenerativeFunction,
     args: Tuple,
 ):
     return trace(addr, gen_fn)(*args)
 
 
-@dataclass
 class StaticGenerativeFunction(
     JAXGenerativeFunction,
     SupportsCalleeSugar,
 ):
-    """
-    A `StaticGenerativeFunction` is a generative function which relies on program transformations applied to JAX traceable Python programs to implement the generative function interface.
+    """A `StaticGenerativeFunction` is a generative function which relies on program
+    transformations applied to JAX traceable Python programs to implement the generative
+    function interface.
 
     By virtue of the implementation, any source program which is provided to this generative function *must* be JAX traceable, meaning [all the footguns for programs that JAX exposes](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html) apply to the source program.
 
@@ -84,7 +84,7 @@ class StaticGenerativeFunction(
     * Source programs are allowed to utilize untraced randomness, with the usual Gen restrictions. In addition, it is highly recommended (meaning, for correctness, you absolutely should) to use [`jax.random`](https://jax.readthedocs.io/en/latest/jax.random.html) and JAX's PRNG capabilities. To utilize untraced randomness, you'll need to pass in an extra key as an argument to your model.
 
         ```python
-        @static
+        @static_gen_fn
         def model(key: PRNGKey):
             v = some_untraced_call(key)
             x = trace("x", genjax.normal)(v, 1.0)
@@ -98,14 +98,7 @@ class StaticGenerativeFunction(
         *We're aware of it, and we're working on it!*
     """
 
-    source: Callable
-
-    def flatten(self):
-        # NOTE: Experimental.
-        if isinstance(self.source, DynamicClosure):
-            return (self.source,), ()
-        else:
-            return (), (self.source,)
+    source: Callable = Pytree.static()
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
@@ -149,7 +142,7 @@ class StaticGenerativeFunction(
     def importance(
         self,
         key: PRNGKey,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[StaticTrace, FloatArray]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -166,7 +159,7 @@ class StaticGenerativeFunction(
                 ),
             ),
             cache_state,
-        ) = importance_transform(syntax_sugar_handled)(key, chm, args)
+        ) = importance_transform(syntax_sugar_handled)(key, choice, args)
         return (
             StaticTrace(
                 self,
@@ -187,7 +180,7 @@ class StaticGenerativeFunction(
         constraints: Choice,
         argdiffs: Tuple,
     ) -> Tuple[Trace, FloatArray, Any, Choice]:
-        assert static_check_tree_leaves_diff(argdiffs)
+        assert Diff.static_check_tree_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -222,13 +215,13 @@ class StaticGenerativeFunction(
     @typecheck
     def assess(
         self,
-        chm: Choice,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(chm, args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(choice, args)
         return (score, retval)
 
     def inline(self, *args):
@@ -249,20 +242,13 @@ class StaticGenerativeFunction(
             score,
         )
 
+    @property
+    def __wrapped__(self):
+        return self.source
+
     ###################
     # Deserialization #
     ###################
-
-
-##############################
-# Partial binding / currying #
-##############################
-
-
-def partial(gen_fn, *static_args):
-    return StaticGenerativeFunction(
-        lambda *args: gen_fn.inline(*args, *static_args),
-    )
 
 
 #############
@@ -270,7 +256,5 @@ def partial(gen_fn, *static_args):
 #############
 
 
-def static(f) -> StaticGenerativeFunction:
-    gf = StaticGenerativeFunction(f)
-    functools.update_wrapper(gf, f)
-    return gf
+def static_gen_fn(f) -> StaticGenerativeFunction:
+    return module_update_wrapper(StaticGenerativeFunction(f))

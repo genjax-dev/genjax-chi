@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 from dataclasses import dataclass
 from typing import Callable
 
@@ -135,7 +134,6 @@ def state_space_combinator(
             initial_model=initial_model,
             transition_model=transition_model,
         )
-        functools.update_wrapper(gf, f)
         return gf
 
     return decorator

@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,31 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Callable, Sequence
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 tfd = tfp.distributions
 
 
-@dataclass
-class TFPDistribution(JAXGenerativeFunction, ExactDensity):
-    """
-    A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
+class TFPDistribution(ExactDensity, JAXGenerativeFunction):
+    """A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
 
     Implements the `ExactDensity` subclass of `genjax.Distribution` automatically using the interfaces defined for `tfp.distributions` objects.
     """
 
-    make_distribution: Callable
-
-    def flatten(self):
-        return (), (self.make_distribution,)
+    make_distribution: Callable = Pytree.static()
 
     def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
@@ -226,7 +221,6 @@ A `TFPDistribution` generative function which wraps the [`tfd.Zipf`](https://www
 ######################
 
 
-@dataclass
 class TFPMixture(ExactDensity):
     cat: TFPDistribution
     components: Sequence[TFPDistribution]

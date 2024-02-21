@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,125 +12,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.numpy as jnp
+from deprecated import deprecated
 
-from genjax._src.core.datatypes.generative import (
-    AllSelection,
-    Choice,
-    ChoiceMap,
-    ChoiceValue,
-    DisjointUnionChoiceMap,
-    EmptyChoice,
-    HierarchicalChoiceMap,
-    HierarchicalSelection,
-    Selection,
-)
-from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.checks import (
-    static_check_tree_leaves_have_matching_leading_dim,
-)
-from genjax._src.core.typing import ArrayLike, IntArray, Union
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    IndexedChoiceMap,
-    IndexedSelection,
-    VectorChoiceMap,
+# Future deprecated APIs.
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.shortcuts import (
+    choice,
+    choice_map,
+    indexed_choice_map,
+    indexed_select,
+    select,
+    vector_choice_map,
 )
 
 
-def trie_from_dict(constraints: dict):
-    """Recurses over `constraints`, a Python dictionary, to produce the
-    Trie with the same structure. Non-dict values are mapped through
-    [[choice_map]].
-    """
-    trie = Trie()
-    for k, v in constraints.items():
-        if isinstance(v, dict):
-            trie[k] = trie_from_dict(v)
-        else:
-            trie[k] = choice_map(v)
-    return trie
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff`"
+)
+def tree_diff(v, t):
+    return Diff.tree_diff(v, t)
 
 
-ChoiceMappable = Union[Choice, dict]
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_no_change`"
+)
+def tree_diff_no_change(v):
+    return Diff.tree_diff_no_change(v)
 
 
-def choice_map(*vs: ChoiceMappable) -> ChoiceMap:
-    """Shortcut constructor for GenJAX ChoiceMap objects.
-
-    When called with no arguments, returns an empty (mutable) choice map which
-    you can populate using the subscript operator as in
-
-        ```python
-        chm = genjax.choice_map()
-        chm["x"] = 3.0
-        ```
-
-    When called with a dictionary argument, the equivalent :py:class:`HierarchicalChoiceMap`
-    will be created and returned. (Exception: in the event that all the keys in
-    the dict are integers, an :py:class:`IndexedChoiceMap` is produced.)
-
-    When called with a single argument of any other type, constructs a :py:class:`ChoiceValue`.
-
-    Finally, if called with a sequence of other :py:class:`ChoiceMap` objects, produces a
-    :py:class:`DisjointUnionChoiceMap`.
-    """
-    if len(vs) == 0:
-        return HierarchicalChoiceMap()
-    elif len(vs) == 1:
-        v = vs[0]
-        if isinstance(v, Choice):
-            return v
-        elif isinstance(v, dict):
-            if all(isinstance(k, int) for k in v.keys()):
-                return IndexedChoiceMap.from_dict(v)
-            else:
-                return HierarchicalChoiceMap(trie_from_dict(v))
-        else:
-            return ChoiceValue(v)
-    else:
-        if all(map(lambda m: isinstance(m, ChoiceMap), vs)):
-            return DisjointUnionChoiceMap(vs)
-        raise TypeError("To create a union ChoiceMap, all arguments must be ChoiceMaps")
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_diff_unknown_change`"
+)
+def tree_diff_unknown_change(v):
+    return Diff.tree_diff_unknown_change(v)
 
 
-def indexed_choice_map(
-    ks: ArrayLike, inner: ChoiceMappable
-) -> Union[IndexedChoiceMap, EmptyChoice]:
-    """Construct an indexed choice map from an array of indices and an inner choice map.
-
-    The indices may be a bare integer, or a list or :py:class:`jnp.Array` of integers;
-    it will be promoted to a :py:class:`jnp.Array` if needed.
-
-    The inner choice map can of any form accepted by the shortcut py:func:`choice_map`.
-    """
-    if isinstance(inner, EmptyChoice):
-        return inner
-
-    indices = jnp.array(ks, copy=False)
-    static_check_tree_leaves_have_matching_leading_dim((inner, indices))
-    return IndexedChoiceMap(jnp.array(ks), choice_map(inner))
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_primal`"
+)
+def tree_diff_primal(v):
+    return Diff.tree_primal(v)
 
 
-def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
-    """Construct a vector choice map from the given one.
-
-    If `c` is the :py:class:`EmptyChoice`, it is returned unmodified; otherwise
-    `c` may be of any type accepted by the :py:func:`choice_map` shortcut;
-    the result is `VectorChoiceMap(choice_map(c))`.
-    """
-    if isinstance(c, EmptyChoice):
-        return c
-    return VectorChoiceMap(choice_map(c))
+@deprecated(
+    reason="The tree_diff prefixed functions are now accessible via `Diff` static methods directly e.g. `Diff.tree_tangent`"
+)
+def tree_diff_tangent(v):
+    return Diff.tree_tangent(v)
 
 
-def indexed_select(idx: Union[int, IntArray], *choices: Selection):
-    idx = jnp.atleast_1d(idx)
-    if len(choices) == 0:
-        return IndexedSelection(idx, AllSelection())
-    elif len(choices) == 1 and isinstance(choices[0], Selection):
-        return IndexedSelection(idx, choices[0])
-    else:
-        return IndexedSelection(idx, HierarchicalSelection.from_addresses(choices))
-
-
-__all__ = ["choice_map", "indexed_choice_map", "vector_choice_map", "indexed_select"]
+__all__ = [
+    "choice",
+    "choice_map",
+    "indexed_choice_map",
+    "indexed_select",
+    "select",
+    "vector_choice_map",
+    "tree_diff",
+    "tree_diff_no_change",
+    "tree_diff_unknown_change",
+    "tree_diff_primal",
+    "tree_diff_tangent",
+]

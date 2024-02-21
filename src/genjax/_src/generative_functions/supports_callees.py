@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Callable, Dict, List, PRNGKey, Protocol, Tuple
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in languages which support callees for generative functions via a `trace` intrinsic.
-@dataclass
 class SugaredGenerativeFunctionCall(Pytree):
     gen_fn: Callable
-    kwargs: Dict
     args: Tuple
-
-    def flatten(self):
-        return (self.args,), (self.gen_fn, self.kwargs)
+    kwargs: Dict = Pytree.static()
 
     def __matmul__(self, addr):
         return handle_off_trace_stack(addr, self.gen_fn, self.args)
@@ -69,7 +64,4 @@ class SupportsCalleeSugar:
     def __call__(
         self: CanSimulate, *args: Any, **kwargs
     ) -> SugaredGenerativeFunctionCall:
-        return SugaredGenerativeFunctionCall(self, kwargs, args)
-
-    def apply(self: CanSimulate, key: PRNGKey, args: Tuple) -> Any:
-        return self.simulate(key, args).get_retval()
+        return SugaredGenerativeFunctionCall(self, args, kwargs)
