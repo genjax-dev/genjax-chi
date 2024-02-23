@@ -16,6 +16,7 @@ from typing import Any
 
 import genjax
 import jax
+import jax.numpy as jnp
 import pytest
 from genjax import Diff, Pytree
 from genjax.core.exceptions import AddressReuse, StaticAddressJAX
@@ -32,6 +33,25 @@ from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 
 class TestSimulate:
+    def test_generative_function_with_no_choices(self):
+        @genjax.static_gen_fn
+        def no_choices(x):
+            return x + 1.
+        
+        key = jax.random.PRNGKey(314159)
+        fn = jax.jit(no_choices.simulate)
+        key, sub_key = jax.random.split(key)
+        tr = fn(sub_key, (jnp.zeros(3),))
+        assert tr.get_score() == 0.0
+
+        assert no_choices.assess(tr.get_choices(), (jnp.ones(4),)) == 0.0
+        
+        _, score = no_choices.importance(key, tr.get_choices(), (jnp.zeros(2),))
+        assert score == 0.0
+
+        _, score, _, _ = no_choices.update(key, tr, genjax.choice_map(), ())
+        assert score == 0.0
+
     def test_simple_normal_simulate(self):
         @genjax.static_gen_fn
         def simple_normal():
