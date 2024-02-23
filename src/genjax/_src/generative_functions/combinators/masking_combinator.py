@@ -31,6 +31,7 @@ from genjax._src.core.typing import (
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
+
 class MaskingTrace(Trace):
     mask_combinator: "MaskingCombinator"
     inner: Trace
