@@ -693,8 +693,12 @@ class Mask(Choice):
         assert isinstance(choices, Choice)
         return Mask(self.flag, choices.filter(selection))
 
-    def merge(self, other: Choice) -> Tuple["Mask", "Mask"]:
-        pass
+    @dispatch
+    def merge(self, other: "Mask") -> Tuple["Mask", "Mask"]:
+        new, discard = self.value.merge(other.value)
+        # TODO(jburnim): Add some kind of check that, if any values
+        # were merged from other, then self.flag implies other.flag?
+        return Mask(self.flag, new), Mask(other.flag, discard)
 
     def get_selection(self) -> Selection:
         # If a user chooses to `get_selection`, require that they
