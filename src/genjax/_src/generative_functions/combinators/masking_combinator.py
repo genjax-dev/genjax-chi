@@ -55,9 +55,10 @@ class MaskingTrace(Trace):
 
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
-    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and returns a new
-    `GenerativeFunction` which accepts a boolean array as the first argument denoting if
-    the invocation of the generative function should be masked or not.
+    `MaskingCombinator` takes a `GenerativeFunction` as a parameter, and
+    returns a new `GenerativeFunction` which accepts a boolean array as the
+    first argument denoting if the invocation of the generative function should
+    be masked or not.
 
     The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
 
@@ -84,9 +85,9 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         args: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray]:
         (check, inner_args) = args
-        w, tr = self.inner.importance(key, choice, inner_args)
+        tr, w = self.inner.importance(key, choice, inner_args)
         w = check * w
-        return MaskingTrace(check, tr), w
+        return MaskingTrace(self, tr, check), w
 
     @typecheck
     def update(
@@ -100,7 +101,7 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         check = Diff.tree_primal(check_diff)
         tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
-            MaskingTrace(check, tr),
+            MaskingTrace(self, tr, check),
             w * check,
             Mask(check, rd),
             Mask(check, d),
