@@ -193,9 +193,43 @@ class IndexedChoiceMap(ChoiceMap):
 
 
 #####################
-# Vector choice map #
+# Vector datatypes #
 #####################
 
+class VectorSelection(MapSelection):
+    inner: Selection
+
+    def __post_init__(self):
+        Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
+
+    @dispatch
+    def has_addr(self, addr: IntArray):
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        return addr < dim
+
+    @dispatch
+    def has_addr(self, addr: Tuple):
+        if len(addr) <= 1:
+            return False
+        (idx, *addr) = addr
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
+            self.inner,
+        )
+        return jnp.logical_and(idx in dim, self.inner.has_addr(addr))
+
+    def get_subselection(self, addr):
+        return self.inner.get_subselection(addr)
+
+    ###################
+    # Pretty printing #
+    ###################
+
+    def __rich_tree__(self):
+        tree = rich_tree.Tree(f"[bold](VectorSelection)")
+        tree.add(self.inner.__rich_tree__())
+        return tree
 
 class VectorChoiceMap(ChoiceMap):
     inner: Any
@@ -229,10 +263,11 @@ class VectorChoiceMap(ChoiceMap):
     def get_selection(self):
         subselection = self.inner.get_selection()
         # Static: get the leading dimension size value.
-        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
-            self.inner,
-        )
-        return IndexedSelection(jnp.arange(dim), subselection)
+        return VectorSelection(subselection)
+        # dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
+        #     self.inner,
+        # )
+        # return IndexedSelection(jnp.arange(dim), subselection)
 
     @dispatch
     def has_submap(self, addr: IntArray):
