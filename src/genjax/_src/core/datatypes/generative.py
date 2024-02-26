@@ -187,7 +187,10 @@ class HierarchicalSelection(MapSelection):
     def get_subselections_shallow(self):
         def _inner(v):
             addr = v[0]
-            submap = v[1].get_selection()
+            if isinstance(v[1], Selection):
+                submap = v[1]
+            else:
+                submap = v[1].get_selection()
             if isinstance(submap, Trie):
                 submap = HierarchicalSelection(submap)
             return (addr, submap)

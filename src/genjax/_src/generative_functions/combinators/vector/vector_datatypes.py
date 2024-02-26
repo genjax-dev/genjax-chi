@@ -72,7 +72,7 @@ class IndexedSelection(MapSelection):
         return jnp.logical_and(idx in self.indices, self.inner.has_addr(addr))
 
     def get_subselection(self, addr):
-        return self.index_selection.get_subselection(addr)
+        return self.inner.get_subselection(addr)
 
     ###################
     # Pretty printing #
@@ -291,18 +291,22 @@ class VectorChoiceMap(ChoiceMap):
 
     @dispatch
     def merge(self, other: IndexedChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
-        indices = other.indices
+        # indices = other.indices
 
-        sliced = jtu.tree_map(lambda v: v[indices], self.inner)
-        new, discard = sliced.merge(other.inner)
+        # sliced = jtu.tree_map(lambda v: v[indices], self.inner)
+        # new, discard = sliced.merge(other.inner)
 
-        def _inner(v1, v2):
-            return v1.at[indices].set(v2)
+        # def _inner(v1, v2):
+        #     return v1.at[indices].set(v2)
 
-        assert jtu.tree_structure(self.inner) == jtu.tree_structure(new)
-        new = jtu.tree_map(_inner, self.inner, new)
+        # assert jtu.tree_structure(self.inner) == jtu.tree_structure(new)
+        # new = jtu.tree_map(_inner, self.inner, new)
 
-        return VectorChoiceMap(new), IndexedChoiceMap(indices, discard)
+        # return VectorChoiceMap(new), IndexedChoiceMap(indices, discard)
+        other_as_vchm = VectorChoiceMap(other.inner)
+        
+        new, discard = self.inner.merge(other_as_vchm.inner)
+        return VectorChoiceMap(new), VectorChoiceMap(discard)
 
     @dispatch
     def merge(self, other: EmptyChoice) -> Tuple[ChoiceMap, ChoiceMap]:
