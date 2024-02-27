@@ -28,13 +28,9 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 
 __all__ = [
-    # Hashable dictionary type.
-    "HashableDict",
-    "hashable_dict",
     # Trie type.
     "Trie",
     # Generative datatypes.

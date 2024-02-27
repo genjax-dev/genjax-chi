@@ -17,7 +17,6 @@ import copy
 import rich
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree import Pytree
 
@@ -27,7 +26,7 @@ from genjax._src.core.pytree import Pytree
 
 
 class Trie(Pytree, CustomPretty):
-    inner: HashableDict = Pytree.field(default_factory=hashable_dict)
+    inner: dict = Pytree.field(default_factory=dict)
 
     def is_static_empty(self):
         return not bool(self.inner)
@@ -42,7 +41,7 @@ class Trie(Pytree, CustomPretty):
             first, *rest = addr
             rest = tuple(rest)
             if first not in copied_inner:
-                submap = Trie(hashable_dict())
+                submap = Trie()
             else:
                 submap = copied_inner[first]
             new_submap = submap.trie_insert(rest, value)
