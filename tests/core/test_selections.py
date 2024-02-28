@@ -14,6 +14,7 @@
 
 import genjax
 import jax
+from genjax._src.core.datatypes.generative import EmptyChoice
 
 
 class TestSelections:
@@ -38,3 +39,9 @@ class TestSelections:
         selection = genjax.select("y1")
         choice = tr.filter(selection)
         assert choice["y1"] == tr["y1"]
+        choice = tr.filter["y1"]
+        assert choice["y1"] == tr["y1"]
+        assert choice["y2"] == EmptyChoice()
+        choice = tr.filter[".2"]
+        assert choice["y1"] == EmptyChoice()
+        assert choice["y2"] == tr["y2"]

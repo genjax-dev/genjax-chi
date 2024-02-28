@@ -119,18 +119,21 @@ class TestVectorTrace:
         sel = genjax.indexed_select(jnp.array([0]), genjax.select("z"))
         proj_score = vec_tr.project(sel)
         latent_z_0 = vec_tr.filter(sel)[0, "z"]
+        assert vec_tr.filter[0, "z"][0, "z"] == latent_z_0
         z_score = genjax.normal.logpdf(latent_z_0, 0.0, 1.0)
         assert proj_score == z_score
 
         sel = genjax.indexed_select(jnp.array([1]), genjax.select("z"))
         proj_score = vec_tr.project(sel)
         latent_z_1 = vec_tr.filter(sel)[1, "z"]
+        assert vec_tr.filter[1, "z"][1, "z"] == latent_z_1
         z_score = genjax.normal.logpdf(latent_z_1, latent_z_0, 1.0)
         assert proj_score == pytest.approx(z_score, 0.0001)
 
         sel = genjax.indexed_select(jnp.array([2]), genjax.select("z"))
         proj_score = vec_tr.project(sel)
         latent_z_2 = vec_tr.filter(sel)[2, "z"]
+        assert vec_tr.filter[2, "z"][2, "z"] == latent_z_2
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
         assert proj_score == z_score
 
@@ -146,6 +149,7 @@ class TestVectorTrace:
         sel = genjax.indexed_select(jnp.array([0]), genjax.select("z1"))
         proj_score = vec_tr.project(sel)
         latent_z_1 = vec_tr.filter(sel)[0, "z1"]
+        assert vec_tr.filter[0, "z1"][0, "z1"] == latent_z_1
         z_score = genjax.normal.logpdf(latent_z_1, 0.0, 1.0)
         assert proj_score == z_score
 
@@ -154,6 +158,8 @@ class TestVectorTrace:
         proj_score = vec_tr.project(z2_sel)
         latent_z_1 = vec_tr.filter(z1_sel)[0, "z1"]
         latent_z_2 = vec_tr.filter(z2_sel)[0, "z2"]
+        assert vec_tr.filter[0, "z1"][0, "z1"] == latent_z_1
+        assert vec_tr.filter[0, "z2"][0, "z2"] == latent_z_2
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
         assert proj_score == z_score
         assert vec_tr.project[0, "z2"] == z_score
