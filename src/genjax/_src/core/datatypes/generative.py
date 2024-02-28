@@ -228,14 +228,31 @@ class HierarchicalSelection(MapSelection):
 ###########
 
 
+class ChoiceFiltration:
+    def __init__(self, trace):
+        self.trace = trace
+
+    def __call__(self, selection: Selection):
+        return self.trace.filter_selection(selection)
+
+    def __getitem__(self, new_selection: NewSelection):
+        if not isinstance(new_selection, tuple):
+            new_selection = (new_selection,)
+        return self.trace.filter_new_selection(new_selection)
+
+
 class Choice(Pytree):
     """`Choice` is the abstract base class of the type of random choices.
 
     The type `Choice` denotes a value which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
     """
 
+    @property
+    def filter(self):
+        return ChoiceFiltration(self)
+
     @abstractmethod
-    def filter(self, selection: Selection) -> "Choice":
+    def filter_selection(self, selection: Selection) -> "Choice":
         pass
 
     @abstractmethod
@@ -281,7 +298,7 @@ class Choice(Pytree):
 class EmptyChoice(Choice):
     """A `Choice` implementor which denotes an empty event."""
 
-    def filter(self, selection):
+    def filter_selection(self, selection):
         return self
 
     def is_empty(self):
@@ -312,11 +329,11 @@ class ChoiceValue(Choice):
         return self, other
 
     @dispatch
-    def filter(self, selection: AllSelection):
+    def filter_selection(self, selection: AllSelection):
         return self
 
     @dispatch
-    def filter(self, selection):
+    def filter_selection(self, selection):
         return EmptyChoice()
 
     def get_selection(self):
@@ -354,28 +371,28 @@ class ChoiceMap(Choice):
     ##############################################
 
     @dispatch  # TODO(colin): we're hoping to make this @dispatch obsolete
-    def filter(
+    def filter_selection(
         self,
         selection: NewSelection,
     ) -> "ChoiceMap":
         raise NotImplementedError
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: AllSelection,
     ) -> "ChoiceMap":
         return self
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: NoneSelection,
     ) -> EmptyChoice:
         return EmptyChoice()
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: Selection,
     ) -> Choice:
@@ -447,7 +464,7 @@ class ChoiceMap(Choice):
 #########
 
 
-class TraceProjection(object):
+class TraceProjection:
     def __init__(self, trace):
         self.trace = trace
 
@@ -458,6 +475,19 @@ class TraceProjection(object):
         if not isinstance(new_selection, tuple):
             new_selection = (new_selection,)
         return self.trace.project_new_selection(new_selection)
+
+
+class TraceFiltration:
+    def __init__(self, trace):
+        self.trace = trace
+
+    def __call__(self, selection: Selection):
+        return self.trace.filter_selection(selection)
+
+    def __getitem__(self, new_selection: NewSelection):
+        if not isinstance(new_selection, tuple):
+            new_selection = (new_selection,)
+        return self.trace.filter_new_selection(new_selection)
 
 
 class Trace(Pytree):
@@ -660,13 +690,9 @@ class Trace(Pytree):
     def is_empty(self):
         return self.strip().is_empty()
 
-    def filter(
-        self,
-        selection: Selection,
-    ) -> Any:
-        stripped = self.strip()
-        filtered = stripped.filter(selection)
-        return filtered
+    @property
+    def filter(self):
+        return ChoiceFiltration(self.strip())
 
     def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         return self.strip().merge(other.strip())
@@ -733,7 +759,7 @@ class Mask(Choice):
         assert isinstance(self.value, Choice)
         return jnp.logical_and(self.flag, self.value.is_empty())
 
-    def filter(self, selection: Selection):
+    def filter_selection(self, selection: Selection):
         choices = self.value.get_choices()
         assert isinstance(choices, Choice)
         return Mask(self.flag, choices.filter(selection))
@@ -1305,7 +1331,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         return check
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: MapSelection,
     ) -> Choice:

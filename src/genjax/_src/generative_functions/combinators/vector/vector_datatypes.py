@@ -108,14 +108,14 @@ class IndexedChoiceMap(ChoiceMap):
         return self.inner.is_empty()
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: MapSelection,
     ) -> ChoiceMap:
         return IndexedChoiceMap(self.indices, self.inner.filter(selection))
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: IndexedSelection,
     ) -> ChoiceMap:
@@ -206,7 +206,7 @@ class VectorChoiceMap(ChoiceMap):
         return self.inner.is_empty()
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: IndexedSelection,
     ) -> ChoiceMap:
@@ -219,7 +219,7 @@ class VectorChoiceMap(ChoiceMap):
         )
 
     @dispatch
-    def filter(
+    def filter_selection(
         self,
         selection: Selection,
     ) -> ChoiceMap:

@@ -60,7 +60,7 @@ class SwitchChoiceMap(ChoiceMap):
             flags = jnp.array([sm.is_empty() for sm in self.submaps])
             return flags[self.index]
 
-    def filter(
+    def filter_selection(
         self,
         selection: HierarchicalSelection,
     ) -> ChoiceMap:
