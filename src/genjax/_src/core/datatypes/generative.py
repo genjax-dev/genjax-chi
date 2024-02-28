@@ -235,19 +235,16 @@ class Choice(Pytree):
     """
 
     class Filtration:
-        def __init__(
-            self, choice: "Choice", k: Callable[["Choice"], "Choice"] = lambda x: x
-        ):
+        def __init__(self, choice: "Choice"):
             self.choice = choice
-            self.k = k
 
         def __call__(self, selection: Selection):
-            return self.k(self.choice.filter_selection(selection))
+            return self.choice.filter_selection(selection)
 
         def __getitem__(self, new_selection: NewSelection):
             if not isinstance(new_selection, tuple):
                 new_selection = (new_selection,)
-            return self.k(self.choice.filter_new_selection(new_selection))
+            return self.choice.filter_new_selection(new_selection)
 
     @property
     def filter(self):
