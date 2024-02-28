@@ -60,7 +60,7 @@ _INTERPRETED_STACK: List["Handler"] = []
 
 # A `Handler` implements Python's context manager protocol.
 # It must also provide an implementation for `process_message`.
-class Handler(object):
+class Handler:
     def __enter__(self):
         _INTERPRETED_STACK.append(self)
         return self
