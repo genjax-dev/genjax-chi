@@ -18,7 +18,9 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
     MapSelection,
+    NewSelection,
     Trace,
+    selection_matches,
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.serialization.pickle import (
@@ -62,8 +64,15 @@ class StaticTrace(
     def get_subtrace(self, addr):
         return self.address_choices[addr]
 
+    def project_new_selection(self, selection: NewSelection) -> FloatArray:
+        weight = jnp.array(0.0)
+        for k, subtrace in self.address_choices.get_submaps_shallow():
+            if selection_matches(selection, k):
+                weight += subtrace.project_new_selection(selection[1:])
+        return weight
+
     @dispatch
-    def project(
+    def project_selection(
         self,
         selection: MapSelection,
     ) -> FloatArray:

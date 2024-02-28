@@ -457,16 +457,13 @@ class TestUpdate:
 
         # Test new scores.
         assert updated["y1"] == new_y1
-        sel = genjax.select("y1")
-        assert updated.project(sel) == genjax.normal.logpdf(new_y1, 0.0, 1.0)
+        assert updated.project["y1"] == genjax.normal.logpdf(new_y1, 0.0, 1.0)
         assert updated["y2"] == old_y2
-        sel = genjax.select("y2")
-        assert updated.project(sel) == pytest.approx(
+        assert updated.project["y2"] == pytest.approx(
             genjax.normal.logpdf(old_y2, new_y1, 1.0), 0.0001
         )
         assert updated["y3"] == old_y3
-        sel = genjax.select("y3")
-        assert updated.project(sel) == pytest.approx(
+        assert updated.project["y3"] == pytest.approx(
             genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0), 0.0001
         )
 

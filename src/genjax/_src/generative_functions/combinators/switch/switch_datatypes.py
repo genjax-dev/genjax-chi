@@ -170,7 +170,7 @@ class SwitchTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project(self, selection: Selection) -> FloatArray:
+    def project_selection(self, selection: Selection) -> FloatArray:
         weights = list(map(lambda v: v.project(selection), self.choice.submaps))
         return jnp.choose(self.choice.index, weights, mode="wrap")
 

@@ -38,3 +38,4 @@ class TestDropArguments:
         assert v == 5.0
         sel = genjax.indexed_select(jnp.array([0]), genjax.select("y"))
         assert tr.project(sel) == genjax.normal.logpdf(5.0, 1.0, 1.0)
+        assert tr.project[0, "y"] == genjax.normal.logpdf(5.0, 1.0, 1.0)

@@ -88,6 +88,7 @@ class TestVectorTrace:
         vec_tr = jax.jit(kernel.simulate)(sub_key, (map_over,))
         sel = genjax.select("z")
         assert vec_tr.get_score() == vec_tr.project(sel)
+        assert vec_tr.get_score() == vec_tr.project[:, "z"]
 
     def test_vector_trace_index_selection(self):
         # Example generated using Map.
@@ -104,6 +105,7 @@ class TestVectorTrace:
         sel = genjax.indexed_select(jnp.array([1]), genjax.select("z"))
         score = genjax.normal.logpdf(vec_tr.get_choices()[1, "z"], map_over[1], 1.0)
         assert score == vec_tr.project(sel)
+        assert score == vec_tr.project[1, "z"]
 
         # Example generated using Unfold.
         @genjax.unfold_combinator(max_length=10)
@@ -154,3 +156,4 @@ class TestVectorTrace:
         latent_z_2 = vec_tr.filter(z2_sel)[0, "z2"]
         z_score = genjax.normal.logpdf(latent_z_2, latent_z_1, 1.0)
         assert proj_score == z_score
+        assert vec_tr.project[0, "z2"] == z_score
