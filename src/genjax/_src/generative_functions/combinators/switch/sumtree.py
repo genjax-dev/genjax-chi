@@ -17,7 +17,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Sequence
 
@@ -30,9 +29,9 @@ def get_call_fallback(d, k, fn, fallback):
 
 
 def minimum_covering_leaves(pytrees: Sequence):
-    leaf_schema = hashable_dict()
+    leaf_schema = dict()
     for tree in pytrees:
-        local = hashable_dict()
+        local = dict()
         jtu.tree_map(
             lambda v: get_call_fallback(local, v, lambda v: v + 1, 1),
             tree,
@@ -49,7 +48,7 @@ def shape_dtype_struct(x):
 
 def set_payload(leaf_schema, pytree):
     leaves = jtu.tree_leaves(pytree)
-    payload = hashable_dict()
+    payload = dict()
     for k in leaves:
         aval = shape_dtype_struct(jax.core.get_aval(k))
         if aval in payload:
@@ -72,7 +71,7 @@ def set_payload(leaf_schema, pytree):
 
 
 def build_from_payload(visitation, form, payload):
-    counter = hashable_dict()
+    counter = dict()
 
     def _check_counter_get(k):
         index = counter.get(k, 0)
@@ -88,7 +87,7 @@ class StaticCollection(Pytree):
 
 
 class DataSharedSumTree(Pytree):
-    payload: HashableDict
+    payload: dict
     visitations: StaticCollection = Pytree.static()
     forms: StaticCollection = Pytree.static()
 
