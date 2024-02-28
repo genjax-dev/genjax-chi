@@ -228,32 +228,37 @@ class HierarchicalSelection(MapSelection):
 ###########
 
 
-class ChoiceFiltration:
-    def __init__(self, trace):
-        self.trace = trace
-
-    def __call__(self, selection: Selection):
-        return self.trace.filter_selection(selection)
-
-    def __getitem__(self, new_selection: NewSelection):
-        if not isinstance(new_selection, tuple):
-            new_selection = (new_selection,)
-        return self.trace.filter_new_selection(new_selection)
-
-
 class Choice(Pytree):
     """`Choice` is the abstract base class of the type of random choices.
 
     The type `Choice` denotes a value which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
     """
 
+    class Filtration:
+        def __init__(
+            self, choice: "Choice", k: Callable[["Choice"], "Choice"] = lambda x: x
+        ):
+            self.choice = choice
+            self.k = k
+
+        def __call__(self, selection: Selection):
+            return self.k(self.choice.filter_selection(selection))
+
+        def __getitem__(self, new_selection: NewSelection):
+            if not isinstance(new_selection, tuple):
+                new_selection = (new_selection,)
+            return self.k(self.choice.filter_new_selection(new_selection))
+
     @property
     def filter(self):
-        return ChoiceFiltration(self)
+        return Choice.Filtration(self)
 
     @abstractmethod
     def filter_selection(self, selection: Selection) -> "Choice":
         pass
+
+    def filter_new_selection(self, selection: NewSelection) -> "Choice":
+        raise NotImplementedError
 
     @abstractmethod
     def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
@@ -301,6 +306,9 @@ class EmptyChoice(Choice):
     def filter_selection(self, selection):
         return self
 
+    def filter_new_selection(self, _: NewSelection):
+        return self
+
     def is_empty(self):
         return jnp.array(True)
 
@@ -336,6 +344,13 @@ class ChoiceValue(Choice):
     def filter_selection(self, selection):
         return EmptyChoice()
 
+    def filter_new_selection(self, new_selection: NewSelection):
+        # This means it's impossible to create a new-style selection
+        # that won't select a ChoiceValue, but I think this is consistent
+        # with the idea that `()` (the smallest new selection) would
+        # correspond to affirmatively selecting a leaf element
+        return self
+
     def get_selection(self):
         return AllSelection()
 
@@ -369,13 +384,6 @@ class ChoiceMap(Choice):
     ##############################################
     # Dispatch overloads for `Choice` interfaces #
     ##############################################
-
-    @dispatch  # TODO(colin): we're hoping to make this @dispatch obsolete
-    def filter_selection(
-        self,
-        selection: NewSelection,
-    ) -> "ChoiceMap":
-        raise NotImplementedError
 
     @dispatch
     def filter_selection(
@@ -462,32 +470,6 @@ class ChoiceMap(Choice):
 #########
 # Trace #
 #########
-
-
-class TraceProjection:
-    def __init__(self, trace):
-        self.trace = trace
-
-    def __call__(self, selection: Selection):
-        return self.trace.project_selection(selection)
-
-    def __getitem__(self, new_selection: NewSelection):
-        if not isinstance(new_selection, tuple):
-            new_selection = (new_selection,)
-        return self.trace.project_new_selection(new_selection)
-
-
-class TraceFiltration:
-    def __init__(self, trace):
-        self.trace = trace
-
-    def __call__(self, selection: Selection):
-        return self.trace.filter_selection(selection)
-
-    def __getitem__(self, new_selection: NewSelection):
-        if not isinstance(new_selection, tuple):
-            new_selection = (new_selection,)
-        return self.trace.filter_new_selection(new_selection)
 
 
 class Trace(Pytree):
@@ -604,9 +586,21 @@ class Trace(Pytree):
             ```
         """
 
+    class Projection:
+        def __init__(self, trace):
+            self.trace = trace
+
+        def __call__(self, selection: Selection) -> FloatArray:
+            return self.trace.project_selection(selection)
+
+        def __getitem__(self, new_selection: NewSelection) -> FloatArray:
+            if not isinstance(new_selection, tuple):
+                new_selection = (new_selection,)
+            return self.trace.project_new_selection(new_selection)
+
     @property
     def project(self):
-        return TraceProjection(self)
+        return Trace.Projection(self)
 
     def project_new_selection(
         self,
@@ -692,7 +686,7 @@ class Trace(Pytree):
 
     @property
     def filter(self):
-        return ChoiceFiltration(self.strip())
+        return Choice.Filtration(self.strip())
 
     def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         return self.strip().merge(other.strip())
@@ -763,6 +757,9 @@ class Mask(Choice):
         choices = self.value.get_choices()
         assert isinstance(choices, Choice)
         return Mask(self.flag, choices.filter(selection))
+
+    def filter_new_selection(self, selection: NewSelection):
+        return Mask(self.flag, self.value.get_choices().filter_new_selection(selection))
 
     def merge(self, other: Choice) -> Tuple["Mask", "Mask"]:
         pass
@@ -1346,6 +1343,18 @@ class HierarchicalChoiceMap(ChoiceMap):
         for k, v in map(lambda args: _inner(*args), iter):
             if not isinstance(v, EmptyChoice):
                 trie = trie.trie_insert(k, v)
+
+        if trie.is_static_empty():
+            return EmptyChoice()
+
+        return HierarchicalChoiceMap(trie)
+
+    def filter_new_selection(self, selection: NewSelection) -> Choice:
+        trie = Trie()
+
+        for k, v in self.get_submaps_shallow():
+            if selection_matches(selection, k):
+                trie = trie.trie_insert(k, v.filter_new_selection(selection[1:]))
 
         if trie.is_static_empty():
             return EmptyChoice()
