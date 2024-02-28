@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from abc import abstractmethod
 
 import jax
@@ -34,6 +35,7 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
+    Union,
     dispatch,
     typecheck,
 )
@@ -41,6 +43,19 @@ from genjax._src.core.typing import (
 #############
 # Selection #
 #############
+
+
+NewSelection = tuple[Union[str, int, slice, type(...)], ...]
+
+
+def selection_matches(s: NewSelection, item: Any):
+    # If the selection tuple is exhausted, it matches everything "below"
+    if len(s) == 0:
+        return True
+    if isinstance(s[0], str):
+        if isinstance(item, str):
+            return re.fullmatch(s[0], item)
+    return NotImplementedError
 
 
 class Selection(Pytree):
@@ -338,6 +353,13 @@ class ChoiceMap(Choice):
     # Dispatch overloads for `Choice` interfaces #
     ##############################################
 
+    @dispatch  # TODO(colin): we're hoping to make this @dispatch obsolete
+    def filter(
+        self,
+        selection: NewSelection,
+    ) -> "ChoiceMap":
+        raise NotImplementedError
+
     @dispatch
     def filter(
         self,
@@ -423,6 +445,19 @@ class ChoiceMap(Choice):
 #########
 # Trace #
 #########
+
+
+class TraceProjection(object):
+    def __init__(self, trace):
+        self.trace = trace
+
+    def __call__(self, selection: Selection):
+        return self.trace.project_selection(selection)
+
+    def __getitem__(self, new_selection: NewSelection):
+        if not isinstance(new_selection, tuple):
+            new_selection = (new_selection,)
+        return self.trace.project_new_selection(new_selection)
 
 
 class Trace(Pytree):
@@ -539,22 +574,32 @@ class Trace(Pytree):
             ```
         """
 
+    @property
+    def project(self):
+        return TraceProjection(self)
+
+    def project_new_selection(
+        self,
+        selection: NewSelection,
+    ) -> FloatArray:
+        ...
+
     @dispatch
-    def project(
+    def project_selection(
         self,
         selection: NoneSelection,
     ) -> FloatArray:
         return 0.0
 
     @dispatch
-    def project(
+    def project_selection(
         self,
         selection: AllSelection,
     ) -> FloatArray:
         return self.get_score()
 
     @dispatch
-    def project(self, selection: "Selection") -> FloatArray:
+    def project_selection(self, selection: "Selection") -> FloatArray:
         """Given a `Selection`, return the total contribution to the score of the
         addresses contained within the `Selection`.
 

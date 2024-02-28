@@ -32,6 +32,7 @@ class TestUnfoldSimpleNormal:
         tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         unfold_score = tr.get_score()
         assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
+        assert jnp.sum(tr.project[:, "z"]) == unfold_score
 
     def test_unfold_index_importance(self):
         @genjax.unfold_combinator(max_length=10)
@@ -56,6 +57,7 @@ class TestUnfoldSimpleNormal:
             (tr, _) = chain.importance(sub_key, choice, (t, 0.3))
             sel = genjax.select("z")
             assert tr.get_score() == tr.project(sel)
+            assert tr.get_score() == tr.project[:, "z"]
 
         @genjax.static_gen_fn
         def f(x):
@@ -110,6 +112,7 @@ class TestUnfoldSimpleNormal:
             (tr, _) = two_layer_chain.importance(sub_key, choice, (t, 0.3))
             sel = genjax.select("z1", "z2")
             assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
+            assert tr.get_score() == pytest.approx(tr.project[:, "z[12]"], 1e-4)
 
         # No constraints
         choice = genjax.EmptyChoice()
@@ -118,6 +121,7 @@ class TestUnfoldSimpleNormal:
             (tr, _) = two_layer_chain.importance(sub_key, choice, (t, 0.3))
             sel = genjax.select("z1", "z2")
             assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
+            assert tr.get_score() == pytest.approx(tr.project[:, "z[12]"], 1e-4)
 
     def test_unfold_index_update(self):
         @genjax.unfold_combinator(max_length=10)
@@ -145,6 +149,9 @@ class TestUnfoldSimpleNormal:
         newly_introduced_score = new_tr.project(newly_introduced_choice)
         assert new_tr.get_score() == pytest.approx(
             w + tr.get_score() + newly_introduced_score, 0.001
+        )
+        assert new_tr.get_score() == pytest.approx(
+            w + tr.get_score() + new_tr.project[6, "z"], 0.001
         )
 
     def test_off_by_one_issue_415(self):
@@ -392,9 +399,9 @@ class TestUnfoldSimpleNormal:
         assert tr.get_score() == pytest.approx(full_score, 0.0001)
 
         # Check that the projected score is equal to the returned score.
-        sel = genjax.select("x", "z")
-        assert tr.project(sel) == pytest.approx(tr.get_score(), 0.0001)
-        assert tr.project(sel) == pytest.approx(full_score, 0.0001)
+        tr_p = tr.project[:, "[xz]"]
+        assert tr_p == pytest.approx(tr.get_score(), 0.0001)
+        assert tr_p == pytest.approx(full_score, 0.0001)
 
         # Re-run the above process (importance followed by update).
         # Check that, if we only generate length < max_length,
@@ -416,10 +423,13 @@ class TestUnfoldSimpleNormal:
 
         sel = genjax.select("x", "z")
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:, "[xz]"] == tr.get_score()
         sel = genjax.indexed_select(jnp.array([0, 1, 2]), genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:3, "[xz]"] == tr.get_score()
         sel = genjax.indexed_select(jnp.array([0, 1, 2, 3, 4]), genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:5, "[xz]"] == tr.get_score()
 
         # Re-run the above process (importance followed by update)
         # but without constraints on `z`.
@@ -432,6 +442,7 @@ class TestUnfoldSimpleNormal:
         key, sub_key = jax.random.split(key)
         (tr, _) = chain.importance(sub_key, choice, (0, 0.0))
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:, "[xz]"] == tr.get_score()
         for t in range(1, 3):
             choice = genjax.indexed_choice_map(
                 jnp.array([t]), genjax.choice_map({"x": jnp.array([0.0])})
@@ -441,10 +452,13 @@ class TestUnfoldSimpleNormal:
             (tr, w, _, _) = chain.update(sub_key, tr, choice, diffs)
 
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:, "[xz]"] == tr.get_score()
         sel = genjax.indexed_select(jnp.array([0, 1, 2]), genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:3, "[xz]"] == tr.get_score()
         sel = genjax.indexed_select(jnp.array([0, 1, 2, 3, 4]), genjax.select("x", "z"))
         assert tr.project(sel) == tr.get_score()
+        assert tr.project[:5, "[xz]"] == tr.get_score()
 
     def test_combinator(self):
         @genjax.unfold_combinator(max_length=10)

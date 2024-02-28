@@ -32,7 +32,9 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
     HierarchicalSelection,
+    NewSelection,
     Trace,
+    selection_matches,
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
@@ -243,7 +245,14 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: HierarchicalSelection) -> FloatArray:
+    def project_new_selection(self, selection: NewSelection) -> FloatArray:
+        weight = jnp.zeros(())
+        for k, subtrace in self.choices.get_submaps_shallow():
+            if selection_matches(selection, k):
+                weight += subtrace.project_new_selection(selection[1:])
+        return weight
+
+    def project_selection(self, selection: HierarchicalSelection) -> FloatArray:
         weight = jnp.zeros(())
         for k, subtrace in self.choices.get_submaps_shallow():
             if selection.has_addr(k):

@@ -72,7 +72,7 @@ class StateSpaceTrace(Trace):
     def get_retval(self):
         return self.retval
 
-    def project(self, selection):
+    def project_selection(self, selection):
         pass
 
 

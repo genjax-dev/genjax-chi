@@ -31,7 +31,7 @@ from genjax._src.core.datatypes.generative import (
     HierarchicalChoiceMap,
     HierarchicalSelection,
     JAXGenerativeFunction,
-    Selection,
+    NewSelection,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -80,46 +80,46 @@ class MapTrace(Trace):
         return self.score
 
     @dispatch
-    def maybe_restore_arguments_project(
+    def maybe_restore_arguments(
         self,
         inner: Trace,
-        selection: Selection,
     ):
-        return inner.project(selection)
+        return inner
 
     @dispatch
-    def maybe_restore_arguments_project(
+    def maybe_restore_arguments(
         self,
         inner: DropArgumentsTrace,
-        selection: Selection,
     ):
         original_arguments = self.get_args()
         # Shape of arguments doesn't matter when we project.
         restored = inner.restore(original_arguments)
-        return restored.project(selection)
+        return restored
+
+    def project_new_selection(self, selection: NewSelection) -> FloatArray:
+        inner_project = self.maybe_restore_arguments(self.inner).project_new_selection(
+            selection[1:]
+        )
+        return jnp.sum(inner_project[selection[0]])
 
     @dispatch
-    def project(
+    def project_selection(
         self,
         selection: IndexedSelection,
     ) -> FloatArray:
-        inner_project = self.maybe_restore_arguments_project(
-            self.inner,
-            selection.inner,
+        inner_project = self.maybe_restore_arguments(self.inner).project(
+            selection.inner
         )
         return jnp.sum(
             jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
         )
 
     @dispatch
-    def project(
+    def project_selection(
         self,
         selection: HierarchicalSelection,
     ) -> FloatArray:
-        inner_project = self.maybe_restore_arguments_project(
-            self.inner,
-            selection,
-        )
+        inner_project = self.maybe_restore_arguments(self.inner).project(selection)
         return jnp.sum(inner_project)
 
 

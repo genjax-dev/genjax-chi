@@ -56,7 +56,7 @@ class RepeatTrace(Trace):
         return self.inner_trace.get_retval()
 
     @typecheck
-    def project(self, selection: Selection):
+    def project_selection(self, selection: Selection):
         return self.inner_trace.project(selection)
 
 

@@ -15,11 +15,14 @@
 
 import abc
 
+import jax.numpy as jnp
+
 from genjax._src.core.datatypes.generative import (
     AllSelection,
     ChoiceValue,
     EmptyChoice,
     GenerativeFunction,
+    NewSelection,
     Selection,
     Trace,
 )
@@ -68,11 +71,16 @@ class DistributionTrace(
     def get_choices(self):
         return ChoiceValue(self.value)
 
-    def project(self, selection: Selection) -> FloatArray:
+    def project_selection(self, selection: Selection) -> FloatArray:
         if isinstance(selection, AllSelection):
             return self.get_score()
         else:
             return 0.0
+
+    def project_new_selection(self, selection: NewSelection) -> FloatArray:
+        if selection == ():
+            return self.get_score()
+        return jnp.array(0.0)
 
     def get_value(self):
         return self.value
