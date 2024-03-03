@@ -1031,14 +1031,14 @@ files = [
 importlib-metadata = {version = ">=4.6", markers = "python_version < \"3.10\""}
 ml-dtypes = ">=0.2.0"
 numpy = [
-    {version = ">=1.22", markers = "python_version < \"3.11\""},
-    {version = ">=1.23.2", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.2", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
+    {version = ">=1.22", markers = "python_version < \"3.11\""},
 ]
 opt-einsum = "*"
 scipy = [
-    {version = ">=1.9", markers = "python_version < \"3.12\""},
     {version = ">=1.11.1", markers = "python_version >= \"3.12\""},
+    {version = ">=1.9", markers = "python_version < \"3.12\""},
 ]
 
 [package.extras]
@@ -1085,8 +1085,8 @@ files = [
 ml-dtypes = ">=0.2.0"
 numpy = ">=1.22"
 scipy = [
-    {version = ">=1.9", markers = "python_version < \"3.12\""},
     {version = ">=1.11.1", markers = "python_version >= \"3.12\""},
+    {version = ">=1.9", markers = "python_version < \"3.12\""},
 ]
 
 [package.extras]
@@ -1876,10 +1876,10 @@ files = [
 
 [package.dependencies]
 numpy = [
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.3", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.21.2", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
     {version = ">1.20", markers = "python_version < \"3.10\""},
-    {version = ">=1.23.3", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 
 [package.extras]
@@ -2183,9 +2183,9 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.22.4,<2", markers = "python_version < \"3.11\""},
-    {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""},
     {version = ">=1.26.0,<2", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""},
+    {version = ">=1.22.4,<2", markers = "python_version < \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -2970,13 +2970,13 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rich"
-version = "13.7.0"
+version = "13.7.1"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 optional = false
 python-versions = ">=3.7.0"
 files = [
-    {file = "rich-13.7.0-py3-none-any.whl", hash = "sha256:6da14c108c4866ee9520bbffa71f6fe3962e193b7da68720583850cd4548e235"},
-    {file = "rich-13.7.0.tar.gz", hash = "sha256:5cb5123b5cf9ee70584244246816e9114227e0b98ad9176eede6ad54bf5403fa"},
+    {file = "rich-13.7.1-py3-none-any.whl", hash = "sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222"},
+    {file = "rich-13.7.1.tar.gz", hash = "sha256:9be308cb1fe2f1f57d67ce99e95af38a1e2bc71ad9813b0e247cf7ffbcc3a432"},
 ]
 
 [package.dependencies]
