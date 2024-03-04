@@ -49,6 +49,7 @@ equinox = "^0.11.3"
 typing_extensions = ">=4.6.0,<5"
 oryx = "^0.2.6"
 deprecated = "^1.2.14"
+msgpack = "^1.0.7"
 
 [tool.poetry.group.dev]
 optional = true
