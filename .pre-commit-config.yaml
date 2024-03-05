@@ -34,3 +34,10 @@ repos:
 
       - id: ruff-format
         types_or: [ python, pyi, jupyter ]
+
+
+repos:
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.352
+    hooks:
+    - id: pyright

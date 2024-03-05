@@ -28,3 +28,8 @@ jobs:
       with:
         version: 0.3.0
         args: --output-format github
+
+
+    - uses: jakebailey/pyright-action@v1
+      with:
+        version: 1.1.352
