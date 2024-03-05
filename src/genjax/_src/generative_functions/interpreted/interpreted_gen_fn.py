@@ -91,7 +91,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     Returns:
         callable: A callable which wraps the `trace_p` primitive, accepting arguments
         (`args`) and binding the primitive with them. This raises the primitive to be
-        handled by [`InterpretiveGenerativeFunction`][]
+        handled by [`InterpretedGenerativeFunction`][]
         transformations.
     """
     assert _INTERPRETED_STACK
