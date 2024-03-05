@@ -72,10 +72,8 @@ def coverage(session):
         "--ignore",
         "benchmarks",
     )
-    session.run("poetry", "run", "coverage", "json")
-    session.run("poetry", "run", "coverage", "report")
-    session.run("rm", "coverage.svg")
-    session.run("coverage-badge", "-o", "coverage.svg")
+    session.run("poetry", "run", "coverage", "json", "--omit", "*/test*")
+    session.run("poetry", "run", "coverage", "report", "--omit", "*/test*")
 
 
 @session(python=python_version)

@@ -1,0 +1,37 @@
+name: coverage
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - nightly
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.5
+
+      - name: Setup Nox
+        uses: daisylb/setup-nox@v2.1.0
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install nox-poetry
+        run: pip install nox-poetry
+
+      - name: Generate coverage report
+        run: nox -r -s coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./codecov.json
