@@ -35,10 +35,10 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-jax = "^0.4.24"
+jax = "^0.4.25"
 numpy = "^1.26.4"
 tensorflow-probability = "^0.23.0"
-rich = "^13.7.0"
+rich = "^13.7.1"
 jaxtyping = "^0.2.25"
 optax = "^0.1.9"
 beartype = "^0.16.4"
