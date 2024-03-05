@@ -18,7 +18,7 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
     MapSelection,
-    NewSelection,
+    TraceSlice,
     Trace,
     selection_matches,
 )
@@ -64,11 +64,11 @@ class StaticTrace(
     def get_subtrace(self, addr):
         return self.address_choices[addr]
 
-    def project_new_selection(self, selection: NewSelection) -> FloatArray:
+    def project_slice(self, selection: TraceSlice) -> FloatArray:
         weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():
             if selection_matches(selection, k):
-                weight += subtrace.project_new_selection(selection[1:])
+                weight += subtrace.project_slice(selection[1:])
         return weight
 
     @dispatch

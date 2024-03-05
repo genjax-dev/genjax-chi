@@ -22,9 +22,9 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     GenerativeFunction,
-    NewSelection,
     Selection,
     Trace,
+    TraceSlice,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.serialization.pickle import (
@@ -77,7 +77,7 @@ class DistributionTrace(
         else:
             return 0.0
 
-    def project_new_selection(self, selection: NewSelection) -> FloatArray:
+    def project_slice(self, selection: TraceSlice) -> FloatArray:
         if selection == ():
             return self.get_score()
         return jnp.array(0.0)

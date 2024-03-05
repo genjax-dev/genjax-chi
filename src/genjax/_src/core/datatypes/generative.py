@@ -45,10 +45,10 @@ from genjax._src.core.typing import (
 #############
 
 
-NewSelection = tuple[Union[str, int, slice, type(...)], ...]
+TraceSlice = tuple[Union[str, int, slice, type(...)], ...]
 
 
-def selection_matches(s: NewSelection, item: Any):
+def selection_matches(s: TraceSlice, item: Any):
     # If the selection tuple is exhausted, it matches everything "below"
     if len(s) == 0:
         return True
@@ -241,10 +241,10 @@ class Choice(Pytree):
         def __call__(self, selection: Selection):
             return self.choice.filter_selection(selection)
 
-        def __getitem__(self, new_selection: NewSelection):
+        def __getitem__(self, new_selection: TraceSlice):
             if not isinstance(new_selection, tuple):
                 new_selection = (new_selection,)
-            return self.choice.filter_new_selection(new_selection)
+            return self.choice.filter_slice(new_selection)
 
     @property
     def filter(self):
@@ -254,7 +254,7 @@ class Choice(Pytree):
     def filter_selection(self, selection: Selection) -> "Choice":
         pass
 
-    def filter_new_selection(self, selection: NewSelection) -> "Choice":
+    def filter_slice(self, selection: TraceSlice) -> "Choice":
         raise NotImplementedError
 
     @abstractmethod
@@ -303,7 +303,7 @@ class EmptyChoice(Choice):
     def filter_selection(self, selection):
         return self
 
-    def filter_new_selection(self, _: NewSelection):
+    def filter_slice(self, _: TraceSlice):
         return self
 
     def is_empty(self):
@@ -341,7 +341,7 @@ class ChoiceValue(Choice):
     def filter_selection(self, selection):
         return EmptyChoice()
 
-    def filter_new_selection(self, new_selection: NewSelection):
+    def filter_slice(self, new_selection: TraceSlice):
         # This means it's impossible to create a new-style selection
         # that won't select a ChoiceValue, but I think this is consistent
         # with the idea that `()` (the smallest new selection) would
@@ -590,20 +590,19 @@ class Trace(Pytree):
         def __call__(self, selection: Selection) -> FloatArray:
             return self.trace.project_selection(selection)
 
-        def __getitem__(self, new_selection: NewSelection) -> FloatArray:
+        def __getitem__(self, new_selection: TraceSlice) -> FloatArray:
             if not isinstance(new_selection, tuple):
                 new_selection = (new_selection,)
-            return self.trace.project_new_selection(new_selection)
+            return self.trace.project_slice(new_selection)
 
     @property
     def project(self):
         return Trace.Projection(self)
 
-    def project_new_selection(
+    def project_slice(
         self,
-        selection: NewSelection,
-    ) -> FloatArray:
-        ...
+        selection: TraceSlice,
+    ) -> FloatArray: ...
 
     @dispatch
     def project_selection(
@@ -755,8 +754,8 @@ class Mask(Choice):
         assert isinstance(choices, Choice)
         return Mask(self.flag, choices.filter(selection))
 
-    def filter_new_selection(self, selection: NewSelection):
-        return Mask(self.flag, self.value.get_choices().filter_new_selection(selection))
+    def filter_slice(self, selection: TraceSlice):
+        return Mask(self.flag, self.value.get_choices().filter_slice(selection))
 
     def merge(self, other: Choice) -> Tuple["Mask", "Mask"]:
         pass
@@ -1346,12 +1345,12 @@ class HierarchicalChoiceMap(ChoiceMap):
 
         return HierarchicalChoiceMap(trie)
 
-    def filter_new_selection(self, selection: NewSelection) -> Choice:
+    def filter_slice(self, selection: TraceSlice) -> Choice:
         trie = Trie()
 
         for k, v in self.get_submaps_shallow():
             if selection_matches(selection, k):
-                trie = trie.trie_insert(k, v.filter_new_selection(selection[1:]))
+                trie = trie.trie_insert(k, v.filter_slice(selection[1:]))
 
         if trie.is_static_empty():
             return EmptyChoice()
