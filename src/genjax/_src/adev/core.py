@@ -20,6 +20,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax import core as jc
 from jax import util as jax_util
+from jax.extend import source_info_util as src_util
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters.ad import Zero, instantiate_zeros
 
@@ -227,64 +228,69 @@ class ADInterpreter(Pytree):
             jax_util.safe_map(dual_env.write, invars, flat_duals)
 
             for eqn_idx, eqn in list(enumerate(eqns)):
-                in_vals = jax_util.safe_map(dual_env.read, eqn.invars)
-                subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-                duals = subfuns + in_vals
+                with src_util.user_context(eqn.source_info.traceback):
+                    in_vals = jax_util.safe_map(dual_env.read, eqn.invars)
+                    subfuns, params = eqn.primitive.get_bind_params(eqn.params)
+                    duals = subfuns + in_vals
 
-                if eqn.primitive is sample_p:
-                    dual_env = dual_env.copy()
-                    pure_env = Dual.tree_primal(dual_env)
+                    if eqn.primitive is sample_p:
+                        dual_env = dual_env.copy()
+                        pure_env = Dual.tree_primal(dual_env)
 
-                    # Create pure continuation.
-                    def pure_kont(*args):
-                        return eval_jaxpr_iterate(
-                            eqns[eqn_idx + 1 :], pure_env, eqn.outvars, [*args]
+                        # Create pure continuation.
+                        def pure_kont(*args):
+                            return eval_jaxpr_iterate(
+                                eqns[eqn_idx + 1 :], pure_env, eqn.outvars, [*args]
+                            )
+
+                        # Create dual continuation.
+                        def dual_kont(primals, tangents):
+                            duals = Dual.tree_dual(primals, tangents)
+                            out_dual = eval_jaxpr_iterate(
+                                eqns[eqn_idx + 1 :], dual_env, eqn.outvars, [*duals]
+                            )
+                            if isinstance(out_dual, Dual):
+                                return out_dual.primal, instantiate_zeros(
+                                    out_dual.tangent
+                                )
+                            else:
+                                return out_dual, 0.0
+
+                        in_tree = params["in_tree"]
+                        num_consts = params["num_consts"]
+
+                        flat_primals, flat_tangents = ADInterpreter.flat_unzip(
+                            Dual.tree_leaves(Dual.tree_pure(duals[num_consts:]))
                         )
-
-                    # Create dual continuation.
-                    def dual_kont(primals, tangents):
-                        duals = Dual.tree_dual(primals, tangents)
-                        out_dual = eval_jaxpr_iterate(
-                            eqns[eqn_idx + 1 :], dual_env, eqn.outvars, [*duals]
+                        adev_prim, key, *primals = jtu.tree_unflatten(
+                            in_tree, flat_primals
                         )
-                        if isinstance(out_dual, Dual):
-                            return out_dual.primal, instantiate_zeros(out_dual.tangent)
-                        else:
-                            return out_dual, 0.0
+                        _, _, *tangents = jtu.tree_unflatten(in_tree, flat_tangents)
 
-                    in_tree = params["in_tree"]
-                    num_consts = params["num_consts"]
+                        primal_out, tangent_out = adev_prim.jvp_estimate(
+                            key,
+                            primals,
+                            tangents,
+                            (pure_kont, dual_kont),
+                        )
+                        return Dual(primal_out, tangent_out)
 
-                    flat_primals, flat_tangents = ADInterpreter.flat_unzip(
-                        Dual.tree_leaves(Dual.tree_pure(duals[num_consts:]))
-                    )
-                    adev_prim, key, *primals = jtu.tree_unflatten(in_tree, flat_primals)
-                    _, _, *tangents = jtu.tree_unflatten(in_tree, flat_tangents)
-
-                    primal_out, tangent_out = adev_prim.jvp_estimate(
-                        key,
-                        primals,
-                        tangents,
-                        (pure_kont, dual_kont),
-                    )
-                    return Dual(primal_out, tangent_out)
-
-                # Default JVP rule for other JAX primitives.
-                else:
-                    flat_primals, flat_tangents = ADInterpreter.flat_unzip(
-                        Dual.tree_leaves(Dual.tree_pure(duals))
-                    )
-                    if len(flat_primals) == 0:
-                        primal_outs = eqn.primitive.bind(*flat_primals, **params)
-                        tangent_outs = jtu.tree_map(jnp.zeros_like, primal_outs)
+                    # Default JVP rule for other JAX primitives.
                     else:
-                        jvp = jax_autodiff.primitive_jvps.get(eqn.primitive)
-                        if not jvp:
-                            msg = f"differentiation rule for '{eqn.primitive}' not implemented"
-                            raise NotImplementedError(msg)
-                        primal_outs, tangent_outs = jvp(
-                            flat_primals, flat_tangents, **params
+                        flat_primals, flat_tangents = ADInterpreter.flat_unzip(
+                            Dual.tree_leaves(Dual.tree_pure(duals))
                         )
+                        if len(flat_primals) == 0:
+                            primal_outs = eqn.primitive.bind(*flat_primals, **params)
+                            tangent_outs = jtu.tree_map(jnp.zeros_like, primal_outs)
+                        else:
+                            jvp = jax_autodiff.primitive_jvps.get(eqn.primitive)
+                            if not jvp:
+                                msg = f"differentiation rule for '{eqn.primitive}' not implemented"
+                                raise NotImplementedError(msg)
+                            primal_outs, tangent_outs = jvp(
+                                flat_primals, flat_tangents, **params
+                            )
 
                 if not eqn.primitive.multiple_results:
                     primal_outs = [primal_outs]
