@@ -1,17 +1,56 @@
+# Copyright 2024 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import msgpack
 import jax
 import jax.numpy as jnp
 import numpy as np
+from genjax._src.core.datatypes.generative import Trace, GenerativeFunction
 from genjax._src.core.serialization.backend import SerializationBackend
 from genjax._src.generative_functions.combinators.staging_utils import get_trace_data_shape
 
 class MsgPackSerializeBackend(SerializationBackend):
-  def serialize(self, trace):
-    data, treedef = jax.tree_util.tree_flatten(trace)
+  """A class that supports serialization using the MsgPack protocol."""
+
+  def serialize(self, trace: Trace):
+    """Serialize an object using MsgPack
+
+    The function strips out the Pytree definition from the generative trace via `tree_flatten` and converts the remaining data into a MsgPack representation.
+
+    Args:
+      trace: a Trace object
+    
+    Returns:
+      msgpack-encoded bytes of the trace
+    """
+    data, _ = jax.tree_util.tree_flatten(trace)
     arg_len = len(trace.args)
     return msgpack.packb([arg_len, data], default=_msgpack_ext_pack, strict_types = True)
 
-  def deserialize(self, encoded_trace, gen_fn):
+  def deserialize(self, encoded_trace, gen_fn: GenerativeFunction):
+    """Deserialize an object using MsgPack
+
+    The function decodes the MsgPack object and restructures the trace using its Pytree definition. The tree definition is retrieved by tracing the generative function using the stored arguments.
+
+    Args:
+      encoded_trace: msgpack-encoded bytes of the trace
+
+      gen_fn: the generative function that produced `encoded_trace`
+
+    Returns:
+      `Trace` object
+    """
     key = jax.random.PRNGKey(0)
     arg_len, payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
     args = tuple(payload[:arg_len]) # arg numbers
@@ -20,8 +59,7 @@ class MsgPackSerializeBackend(SerializationBackend):
 
 msgpack_serialize = MsgPackSerializeBackend()
 
-# TODO: CITE FLAX
-# https://flax.readthedocs.io/en/latest/_modules/flax/serialization.html#msgpack_serialize
+# The below helper functions have been adapted from google/flax [https://flax.readthedocs.io/en/latest/_modules/flax/serialization.html#msgpack_serialize].
 
 def _ndarray_to_bytes(arr) -> bytes:
   """Save ndarray to simple msgpack encoding."""
@@ -51,9 +89,7 @@ def _ndarray_from_bytes(data: bytes) -> np.ndarray:
 
 def _msgpack_ext_pack(obj):
     if isinstance(obj, jax.Array):
-        # Set 1 to enum
         return msgpack.ExtType(1, _ndarray_to_bytes(obj))
-    print("Other type ", obj, type(obj))
     return obj
 
 def _msgpack_ext_unpack(code, data):

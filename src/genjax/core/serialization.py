@@ -20,10 +20,17 @@ from genjax._src.core.serialization.pickle import (
     pickle_backend,
 )
 
+from genjax._src.core.serialization.msgpack import (
+    MsgPackSerializeBackend,
+    msgpack_serialize,
+)
+
 __all__ = [
     "SerializationBackend",
     "PickleSerializationBackend",
     "SupportsPickleSerialization",
     "SupportsPickleDeserialization",
     "pickle_backend",
+    "MsgPackSerializeBackend",
+    "msgpack_serialize",
 ]

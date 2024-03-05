@@ -15,15 +15,34 @@
 import abc
 from dataclasses import dataclass
 
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.datatypes.generative import Trace, GenerativeFunction
 
+
+"""This module contains a trace serialization interface that interacts with different backend implementations. Pickle or MsgPack may be used as a backend."""
 
 @dataclass
 class SerializationBackend:
     @abc.abstractmethod
-    def serialize(self, path, tr: Trace):
+    def serialize(self, tr: Trace):
+        """Serialize"""
         pass
 
     @abc.abstractmethod
-    def deserialize(self, path):
+    def deserialize(self, bytes, gen_fn: GenerativeFunction):
+        """Deserialize"""
         pass
+
+    def dumps(self, tr: Trace):
+        return self.serialize(tr)
+
+    def loads(self, bytes, gen_fn: GenerativeFunction):
+        return self.deserialize(bytes, gen_fn)
+    
+    def dump(self, tr: Trace, file: str):
+        with open(file, 'wb') as f:
+            f.write(self.dumps(tr))
+
+    def load(self, file: str, gen_fn: GenerativeFunction):
+        with open(file, 'rb') as f:
+            bytes = f.read()
+        return self.loads(bytes, gen_fn)
