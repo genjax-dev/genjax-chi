@@ -26,9 +26,9 @@ from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalSelection,
     Mask,
-    NewSelection,
     Selection,
     Trace,
+    TraceSlice,
 )
 from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
 
@@ -70,9 +70,9 @@ class SwitchChoiceMap(ChoiceMap):
         )
         return SwitchChoiceMap(self.index, filtered_submaps)
 
-    def filter_new_selection(self, selection: NewSelection) -> ChoiceMap:
+    def filter_slice(self, selection: TraceSlice) -> ChoiceMap:
         filtered_submaps = map(
-            lambda choice: choice.filter_new_selection(selection), self.submaps
+            lambda choice: choice.filter_slice(selection), self.submaps
         )
         return SwitchChoiceMap(self.index, filtered_submaps)
 

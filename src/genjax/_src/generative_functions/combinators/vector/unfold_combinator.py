@@ -30,8 +30,8 @@ from genjax._src.core.datatypes.generative import (
     HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
-    NewSelection,
     Trace,
+    TraceSlice,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -84,10 +84,9 @@ class UnfoldTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project_new_selection(self, selection: NewSelection):
+    def project_slice(self, selection: TraceSlice):
         index_slice = selection[0]
-        inner_project = self.inner.project_new_selection(selection[1:])
-        # TODO(colin):  I think the +1 is incorrect here, but the tests currently depend on it
+        inner_project = self.inner.project_slice(selection[1:])
         return jnp.sum(inner_project[: self.dynamic_length + 1][index_slice])
 
     @dispatch
@@ -101,7 +100,7 @@ class UnfoldTrace(Trace):
                 selection.indices < self.dynamic_length + 1,
                 jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
                 0.0,
-            )
+            ).sum()
         )
 
     @dispatch

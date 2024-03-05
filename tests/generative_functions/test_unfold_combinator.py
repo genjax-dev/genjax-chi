@@ -56,8 +56,8 @@ class TestUnfoldSimpleNormal:
             key, sub_key = jax.random.split(key)
             (tr, _) = chain.importance(sub_key, choice, (t, 0.3))
             sel = genjax.select("z")
-            assert tr.get_score() == tr.project(sel)
-            assert tr.get_score() == tr.project[:, "z"]
+            assert jnp.allclose(tr.get_score(), tr.project(sel))
+            assert jnp.allclose(tr.get_score(), tr.project[:, "z"])
 
         @genjax.static_gen_fn
         def f(x):

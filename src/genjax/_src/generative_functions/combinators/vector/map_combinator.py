@@ -31,8 +31,8 @@ from genjax._src.core.datatypes.generative import (
     HierarchicalChoiceMap,
     HierarchicalSelection,
     JAXGenerativeFunction,
-    NewSelection,
     Trace,
+    TraceSlice,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -96,8 +96,8 @@ class MapTrace(Trace):
         restored = inner.restore(original_arguments)
         return restored
 
-    def project_new_selection(self, selection: NewSelection) -> FloatArray:
-        inner_project = self.maybe_restore_arguments(self.inner).project_new_selection(
+    def project_slice(self, selection: TraceSlice) -> FloatArray:
+        inner_project = self.maybe_restore_arguments(self.inner).project_slice(
             selection[1:]
         )
         return jnp.sum(inner_project[selection[0]])

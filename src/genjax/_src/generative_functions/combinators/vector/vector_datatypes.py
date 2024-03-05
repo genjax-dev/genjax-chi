@@ -25,8 +25,8 @@ from genjax._src.core.datatypes.generative import (
     HierarchicalChoiceMap,
     MapSelection,
     Mask,
-    NewSelection,
     Selection,
+    TraceSlice,
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
@@ -226,8 +226,8 @@ class VectorChoiceMap(ChoiceMap):
     ) -> ChoiceMap:
         return VectorChoiceMap(self.inner.filter(selection))
 
-    def filter_new_selection(self, selection: NewSelection) -> ChoiceMap:
-        inner = self.inner.filter_new_selection(selection[1:])
+    def filter_slice(self, selection: TraceSlice) -> ChoiceMap:
+        inner = self.inner.filter_slice(selection[1:])
         if selection[0] == slice(None, None, None):
             return VectorChoiceMap(inner)
         # dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)

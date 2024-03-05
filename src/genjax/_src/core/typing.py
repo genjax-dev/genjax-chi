@@ -17,7 +17,6 @@ codebase.
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
-
 from typing import Annotated  # noqa: F401
 
 import beartype.typing as btyping
