@@ -14,7 +14,9 @@
 
 import genjax
 import jax
+import jax.numpy as jnp
 from genjax._src.core.serialization.msgpack import msgpack_serialize
+
 
 class TestMsgPackSerialize:
     def test_serialize_round_trip(self):
@@ -22,7 +24,7 @@ class TestMsgPackSerialize:
         def model(p):
             x = genjax.flip(p) @ "x"
             return x
-        
+
         key = jax.random.PRNGKey(0)
         tr = model.simulate(key, (0.5,))
         bytes = msgpack_serialize.serialize(tr)
@@ -30,24 +32,38 @@ class TestMsgPackSerialize:
         restored_tr = msgpack_serialize.deserialize(bytes, model)
         assert restored_tr == tr
 
+        @genjax.static_gen_fn
         def model_copy(p):
             x = genjax.flip(p) @ "x"
             return x
-        
+
         restored_tr = msgpack_serialize.deserialize(bytes, model_copy)
-        # cannot compare generative functions
-        assert jax.tree_util.tree_flatten(tr) == jax.tree_util.tree_flatten(restored_tr) 
-    
+
+        expected, _ = jax.tree_util.tree_flatten(tr)
+        soln, _ = jax.tree_util.tree_flatten(restored_tr)
+        for e, s in zip(expected, soln):
+            assert e == s
+
     def test_serialize_tensors(self):
         @genjax.static_gen_fn
         def model(obs):
-            x = genjax.flip(jax.sum(obs) / len(obs)) @ "x"
+            x = genjax.flip(jnp.sum(obs) / len(obs)) @ "x"
             return x
 
         key = jax.random.PRNGKey(0)
-        tr = model.simulate(key, (jax.Array([1.0,2.0,3.0,]),))
+        tr = model.simulate(
+            key,
+            (
+                jnp.array(
+                    [
+                        1.0,
+                        2.0,
+                        3.0,
+                    ]
+                ),
+            ),
+        )
         bytes = msgpack_serialize.serialize(tr)
 
         restored_tr = msgpack_serialize.deserialize(bytes, model)
-        assert restored_tr.args == tr.args
-        assert restored_tr == tr
+        assert tr == restored_tr

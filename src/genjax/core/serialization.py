@@ -13,16 +13,15 @@
 # limitations under the License.
 
 from genjax._src.core.serialization.backend import SerializationBackend
+from genjax._src.core.serialization.msgpack import (
+    MsgPackSerializeBackend,
+    msgpack_serialize,
+)
 from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleDeserialization,
     SupportsPickleSerialization,
     pickle_backend,
-)
-
-from genjax._src.core.serialization.msgpack import (
-    MsgPackSerializeBackend,
-    msgpack_serialize,
 )
 
 __all__ = [
