@@ -13,7 +13,6 @@
 # limitations under the License.
 """Defines ADEV primitives."""
 
-
 import jax
 import jax.numpy as jnp
 from jax.interpreters.ad import instantiate_zeros, recast_to_float0, zeros_like_jaxval

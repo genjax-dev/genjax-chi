@@ -16,7 +16,6 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-
 import equinox as eqx
 import jax.numpy as jnp
 import jax.tree_util as jtu

@@ -14,7 +14,6 @@
 """This module contains an implementation of (Symmetric divergence over datasets) from
 Domke, 2021."""
 
-
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
