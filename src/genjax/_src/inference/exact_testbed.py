@@ -14,7 +14,6 @@
 """A module containing a test suite for inference based on exact inference in hidden
 Markov models (HMMs)."""
 
-
 import jax
 import jax.numpy as jnp
 
