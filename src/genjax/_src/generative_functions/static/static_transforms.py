@@ -17,6 +17,7 @@ import itertools
 from dataclasses import dataclass
 
 import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import (
@@ -246,7 +247,7 @@ class StaticLanguageHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
-    score: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -307,8 +308,8 @@ def simulate_transform(source_fn):
 class ImportanceHandler(StaticLanguageHandler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: FloatArray = 0.0
-    weight: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -383,8 +384,8 @@ class UpdateHandler(StaticLanguageHandler):
     previous_trace: Trace
     constraints: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: FloatArray = 0.0
-    weight: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_choices: Trie = Pytree.field(default_factory=Trie)
     discard_choices: Trie = Pytree.field(default_factory=Trie)
     cache_state: Trie = Pytree.field(default_factory=Trie)
@@ -491,7 +492,7 @@ def update_transform(source_fn):
 @dataclass
 class AssessHandler(StaticLanguageHandler):
     constraints: ChoiceMap
-    score: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
