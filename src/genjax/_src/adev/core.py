@@ -33,6 +33,7 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     Callable,
     List,
     PRNGKey,
@@ -60,7 +61,7 @@ class ADEVPrimitive(Pytree):
         key: PRNGKey,
         primals: Pytree,
         tangents: Pytree,
-        konts: Tuple,
+        konts: Tuple[Callable, Callable],
     ) -> Tuple:
         pass
 
@@ -217,8 +218,8 @@ class ADInterpreter(Pytree):
     @staticmethod
     def _eval_jaxpr_adev_jvp(
         jaxpr: jc.Jaxpr,
-        consts: List,
-        flat_duals: List,
+        consts: List[ArrayLike],
+        flat_duals: List[Dual],
     ):
         dual_env = Environment()
         jax_util.safe_map(dual_env.write, jaxpr.constvars, Dual.tree_pure(consts))
