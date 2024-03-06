@@ -602,8 +602,7 @@ class Trace(Pytree):
     def project_slice(
         self,
         selection: TraceSlice,
-    ) -> FloatArray:
-        ...
+    ) -> FloatArray: ...
 
     @dispatch
     def project_selection(
