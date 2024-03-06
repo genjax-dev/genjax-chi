@@ -3746,9 +3746,10 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [extras]
 all = []
 blackjax = []
+msgpack = []
 tinygp = []
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "e1330bb3edb1a121c1f6253207d1936d929aa6b11574a271e366eb8713c7bed9"
+content-hash = "1fe47818fc71c7ac8b62cda32008289492e256782a26b167248d83eb8e459ec9"

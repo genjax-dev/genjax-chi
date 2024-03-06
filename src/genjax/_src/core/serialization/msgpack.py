@@ -84,7 +84,7 @@ def _ndarray_to_bytes(arr) -> bytes:
 
 def _dtype_from_name(name: str):
     """Handle JAX bfloat16 dtype correctly."""
-    if name == b"bfloat16":
+    if name == "bfloat16":
         return jax.numpy.bfloat16
     else:
         return np.dtype(name)
@@ -101,13 +101,13 @@ def _ndarray_from_bytes(data: bytes) -> np.ndarray:
 
 
 def _msgpack_ext_pack(obj):
-    if isinstance(obj, jax.Array):
+    if isinstance(obj, (np.ndarray, jax.Array)):
         return msgpack.ExtType(1, _ndarray_to_bytes(obj))
-    return obj
+    raise ValueError("Object type ", type(obj), " not supported.")
 
 
 def _msgpack_ext_unpack(code, data):
     """Messagepack decoders for custom types."""
     if code == 1:
         return _ndarray_from_bytes(data)
-    return data
+    raise ValueError("Failed to deserialize data ", data)
