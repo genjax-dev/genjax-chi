@@ -22,14 +22,18 @@ from genjax._src.core.datatypes.generative import GenerativeFunction, Trace
 
 @dataclass
 class SerializationBackend:
+    """
+    This class supports serialization methods and provides pickle-like functions for convenience.
+
+    Children of this class must override `serialize` which must output a raw byte representation of the trace. Similarly `deserialize` must take in the raw bytes along with the generative function to produce a trace. The *file* argument in `loads` and `dumps` must be a binary file descriptor which supports `read()` and `write()`.
+    """
+
     @abc.abstractmethod
     def serialize(self, tr: Trace):
-        """Serialize"""
         pass
 
     @abc.abstractmethod
     def deserialize(self, bytes, gen_fn: GenerativeFunction):
-        """Deserialize"""
         pass
 
     def dumps(self, tr: Trace):
@@ -38,11 +42,9 @@ class SerializationBackend:
     def loads(self, bytes, gen_fn: GenerativeFunction):
         return self.deserialize(bytes, gen_fn)
 
-    def dump(self, tr: Trace, file: str):
-        with open(file, "wb") as f:
-            f.write(self.dumps(tr))
+    def dump(self, tr: Trace, file):
+        file.write(self.dumps(tr))
 
-    def load(self, file: str, gen_fn: GenerativeFunction):
-        with open(file, "rb") as f:
-            bytes = f.read()
+    def load(self, file, gen_fn: GenerativeFunction):
+        bytes = file.read()
         return self.loads(bytes, gen_fn)

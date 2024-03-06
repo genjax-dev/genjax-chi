@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
+
 import genjax
 import jax
 import jax.numpy as jnp
@@ -32,6 +34,7 @@ class TestMsgPackSerialize:
         restored_tr = msgpack_serialize.deserialize(bytes, model)
         assert restored_tr == tr
 
+        # Test round-trip
         @genjax.static_gen_fn
         def model_copy(p):
             x = genjax.flip(p) @ "x"
@@ -67,3 +70,21 @@ class TestMsgPackSerialize:
 
         restored_tr = msgpack_serialize.deserialize(bytes, model)
         assert tr == restored_tr
+
+    def test_msgpack_auxilliary_methods(self):
+        @genjax.static_gen_fn
+        def model(p):
+            x = genjax.flip(p) @ "x"
+            return x
+
+        key = jax.random.PRNGKey(0)
+        tr = model.simulate(key, (0.5,))
+
+        # Raw bytes
+        assert tr == msgpack_serialize.deserialize(msgpack_serialize.dumps(tr), model)
+
+        # IO
+        f = io.BytesIO()
+        msgpack_serialize.dump(tr, f)
+        f.seek(0)
+        assert tr == msgpack_serialize.load(f, model)
