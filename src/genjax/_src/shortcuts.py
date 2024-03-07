@@ -74,8 +74,7 @@ def choice_map(*vs: ChoiceMappable) -> Choice:
         ```
 
     When called with a dictionary argument, the equivalent :py:class:`HierarchicalChoiceMap`
-    will be created and returned. (Exception: in the event that all the keys in
-    the dict are integers, an :py:class:`IndexedChoiceMap` is produced.)
+    will be created and returned.
 
     When called with a single argument of any other type, constructs a :py:class:`ChoiceValue`.
     """
@@ -86,10 +85,7 @@ def choice_map(*vs: ChoiceMappable) -> Choice:
         if isinstance(v, Choice):
             return v
         elif isinstance(v, dict):
-            if all(isinstance(k, int) for k in v.keys()):
-                return IndexedChoiceMap.from_dict(v)
-            else:
-                return HierarchicalChoiceMap(trie_from_dict(v))
+            return HierarchicalChoiceMap(trie_from_dict(v))
         else:
             raise NotImplementedError(
                 "Argument is expected to be either a dict or a Choice."

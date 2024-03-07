@@ -20,19 +20,15 @@ import rich.tree as rich_tree
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
-    ChoiceValue,
     EmptyChoice,
-    HierarchicalChoiceMap,
     MapSelection,
     Mask,
     Selection,
     TraceSlice,
 )
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Dict,
     Int,
     IntArray,
     Tuple,
@@ -89,22 +85,6 @@ class IndexedChoiceMap(ChoiceMap):
     indices: IntArray
     inner: ChoiceMap
 
-    @classmethod
-    def from_dict(cls, d: Dict[int, Any]) -> ChoiceMap:
-        """Produce an IndexedChoiceMap from a dictionary with integer keys.
-
-        IndexedChoiceMap.from_dict({
-          1: 1.0,
-          2: 3.0
-        })
-
-        is equivalent to indexed_choice_map([1, 2], choice_map({"x": [1.0, 3.0]}))
-        """
-        sorted_keys = sorted(d.keys())
-        td = dict()
-        td["x"] = ChoiceValue(jnp.array([d[k] for k in sorted_keys]))
-        return IndexedChoiceMap(jnp.array(sorted_keys), HierarchicalChoiceMap(Trie(td)))
-
     def is_empty(self):
         return self.inner.is_empty()
 
@@ -125,14 +105,19 @@ class IndexedChoiceMap(ChoiceMap):
         masked = Mask(flags, filtered_inner)
         return IndexedChoiceMap(self.indices, masked)
 
+    def filter_slice(self, slice: TraceSlice) -> ChoiceMap:
+        raise NotImplementedError
+
     @dispatch
     def has_submap(self, addr: IntArray):
         return addr in self.indices
 
     @dispatch
     def has_submap(self, addr: Tuple):
-        (idx, *addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(tuple(addr)))
+        return jnp.logical_and(addr[0] in self.indices, self.inner.has_submap(addr[1:]))
+
+    # where we left off: get slice working here
+    # see if we can disentangle and-or de-@dispatch these things
 
     @dispatch
     def get_submap(self, addr: Tuple):
@@ -158,8 +143,13 @@ class IndexedChoiceMap(ChoiceMap):
     def get_submap(self, idx: IntArray):
         (slice_index,) = jnp.nonzero(jnp.atleast_1d(idx == self.indices), size=1)
         slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
-        inner = jtu.tree_map(lambda v: jnp.array(v, copy=False), self.inner)
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, inner)
+
+        # TODO(colin): Ask McCoy: what does the line below do? Without it, this and the upper implementation
+        # would be the same. I can see that this is the route taken by JAX tracing, but why would inner need
+        # an array wrapping?
+
+        # inner = jtu.tree_map(lambda v: jnp.array(v, copy=False), self.inner)
+        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         return Mask(jnp.isin(idx, self.indices), submap)
 
     @dispatch
@@ -219,6 +209,9 @@ class VectorChoiceMap(ChoiceMap):
             selection.indices, jtu.tree_map(lambda v: v[idxs], inner)
         )
 
+    # where we left off: let's  do this with a slice
+    # BUT expand out to a list of indices for the IndexedChoiceMap.
+    # that's the easiest way to make everyone happy.
     @dispatch
     def filter_selection(
         self,
@@ -228,21 +221,23 @@ class VectorChoiceMap(ChoiceMap):
 
     def filter_slice(self, selection: TraceSlice) -> ChoiceMap:
         inner = self.inner.filter_slice(selection[1:])
-        if selection[0] == slice(None, None, None):
-            return VectorChoiceMap(inner)
-        # dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
-        # check = selection.indices <= dim
-        # idxs = check * selection.indices
-
-        # TODO(colin): we're cheating here, by stashing a slice into the IndexedChoiceMap
-        # instead of iterating through the slice and comparing it to the max allowed index.
-        # The reason we're postponing doing this correctly is that we might either want to
-        # createa SlicedChoiceMap to take that type directly or teach IndexedChoiceMap how to
-        # deal with a slice if it finds one in selection.indices. The main thing we want is
-        # to propagate the slice notation down to the `v[idxs]` in the lambda.
-
-        return IndexedChoiceMap(
-            selection[0], jtu.tree_map(lambda v: v[selection[0]], inner)
+        s0 = selection[0]
+        if s0 == slice(None, None, None):
+            return self
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
+        # We allow bare integers, jnp arrays of integers, and start:stop:stride
+        # slices as individual members of a TraceSlice. We convert each of these
+        # to a jnp array and use that to construct an IndexedChoiceMap.
+        if isinstance(s0, int):
+            s0 = jnp.array([s0])
+        if isinstance(s0, jnp.ndarray):
+            s0 = s0[s0 < dim]
+            return IndexedChoiceMap(s0, jtu.tree_map(lambda v: v[s0], inner))
+        elif isinstance(s0, slice):
+            indices = jnp.array(range(*s0.indices(dim)))
+            return IndexedChoiceMap(indices, jtu.tree_map(lambda v: v[s0], inner))
+        raise IndexError(
+            f"VectorChoiceMaps must be filtered by a slice, not {selection[0]}"
         )
 
     def get_selection(self):

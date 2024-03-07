@@ -252,10 +252,11 @@ class Choice(Pytree):
 
     @abstractmethod
     def filter_selection(self, selection: Selection) -> "Choice":
-        pass
+        ...
 
+    @abstractmethod
     def filter_slice(self, selection: TraceSlice) -> "Choice":
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
@@ -585,7 +586,7 @@ class Trace(Pytree):
 
     class Projection:
         def __init__(self, trace):
-            self.trace = trace
+            self.trace: Trace = trace
 
         def __call__(self, selection: Selection) -> FloatArray:
             return self.trace.project_selection(selection)
@@ -602,7 +603,8 @@ class Trace(Pytree):
     def project_slice(
         self,
         selection: TraceSlice,
-    ) -> FloatArray: ...
+    ) -> FloatArray:
+        ...
 
     @dispatch
     def project_selection(
