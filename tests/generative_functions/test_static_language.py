@@ -34,7 +34,7 @@ from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 class TestSimulate:
     def test_simulate_with_no_choices(self):
-        @genjax.static
+        @genjax.static_gen_fn
         def empty(x):
             return jnp.square(x - 3.0)
 
@@ -113,7 +113,7 @@ class TestSimulate:
 
 class TestAssess:
     def test_assess_with_no_choices(self):
-        @genjax.static
+        @genjax.static_gen_fn
         def empty(x):
             return jnp.square(x - 3.0)
 
