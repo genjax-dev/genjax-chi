@@ -35,7 +35,7 @@ class TestMapCombinator:
         assert retval == tr.get_retval()
 
         _, w = jax.jit(model.importance)(
-            key, genjax.Mask(True, genjax.choice_map(dict(z=-2.0))), tr.get_args()
+            key, genjax.choice_map(dict(z=-2.0)), tr.get_args()
         )
         assert (
             w
@@ -59,7 +59,7 @@ class TestMapCombinator:
         assert not retval.flag
 
         _, w = jax.jit(model.importance)(
-            key, genjax.Mask(False, genjax.choice_map(dict(z=-2.0))), tr.get_args()
+            key, genjax.choice_map(dict(z=-2.0)), tr.get_args()
         )
         assert w == 0.0
 
@@ -92,9 +92,7 @@ class TestMapCombinator:
         assert (retval.flag == mask2).all()
 
         choice = genjax.vector_choice_map(
-            genjax.Mask(
-                mask2, genjax.choice_map(dict(z=jnp.array([0.5, 1.7, 0.0, 0.3, 3.0])))
-            )
+            genjax.choice_map(dict(z=jnp.array([0.5, 1.7, 0.0, 0.3, 3.0])))
         )
         unmasked_choice = genjax.vector_choice_map(dict(z=jnp.array([0.5, 1.7, 0.0])))
         _, w = jax.jit(kernel.importance)(key, choice, (mask2, (jnp.arange(5.0),)))
@@ -115,12 +113,7 @@ class TestMapCombinator:
         arg = jnp.array(1.0)
 
         choice = genjax.vector_choice_map(
-            genjax.Mask(
-                mask,
-                genjax.choice_map(
-                    dict(z=jnp.array([-jnp.inf, 1.7, jnp.inf, 0.3, jnp.nan]))
-                ),
-            )
+            genjax.choice_map(dict(z=jnp.array([-jnp.inf, 1.7, jnp.inf, 0.3, jnp.nan])))
         )
 
         score, retval = jax.jit(f.assess)(choice, (mask, (arg,)))

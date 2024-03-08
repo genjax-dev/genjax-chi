@@ -42,10 +42,7 @@ class MaskingTrace(Trace):
         return self.mask_combinator
 
     def get_choices(self):
-        # TODO: Should this just be self.inner.get_choices()?
-        # In `MaskingCombinator.assess(choice,...)`, `.update(...,choice,...)`,
-        # and `.importance(...,choice,...)`, we currently ignore `choice.flag`.
-        return Mask(self.check, self.inner.get_choices())
+        return self.inner.get_choices()
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())
@@ -87,24 +84,22 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     @typecheck
     def assess(
         self,
-        choice: Mask,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[FloatArray, Mask]:
         (check, inner_args) = args
-        # TODO: Check that `choice.flag` is consistent with `check`?
-        score, retval = self.inner.assess(choice.value, inner_args)
+        score, retval = self.inner.assess(choice, inner_args)
         return check * score, Mask(check, retval)
 
     @typecheck
     def importance(
         self,
         key: PRNGKey,
-        choice: Mask,
+        choice: Choice,
         args: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray]:
         (check, inner_args) = args
-        # TODO: Check that `choice.flag` is consistent with `check`?
-        tr, w = self.inner.importance(key, choice.value, inner_args)
+        tr, w = self.inner.importance(key, choice, inner_args)
         w = check * w
         return MaskingTrace(self, tr, check), w
 
@@ -113,15 +108,12 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev_trace: MaskingTrace,
-        choice: Mask,
+        choice: Choice,
         argdiffs: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
         (check_diff, inner_argdiffs) = argdiffs
         check = Diff.tree_primal(check_diff)
-        # TODO: Check that `choice.flag` is consistent with `check`?
-        tr, w, rd, d = self.inner.update(
-            key, prev_trace.inner, choice.value, inner_argdiffs
-        )
+        tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
         return (
             MaskingTrace(self, tr, check),
             w * check,
