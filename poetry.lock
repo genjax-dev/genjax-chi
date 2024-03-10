@@ -1993,13 +1993,13 @@ test = ["pep440", "pre-commit", "pytest", "testpath"]
 
 [[package]]
 name = "nbmake"
-version = "1.5.2"
+version = "1.5.3"
 description = "Pytest plugin for testing notebooks"
 optional = false
 python-versions = ">=3.8.0,<4.0.0"
 files = [
-    {file = "nbmake-1.5.2-py3-none-any.whl", hash = "sha256:b8669c248177e2bc61139b7ce1bcbeb2ef2435e59e2308927737d6c84c53fc40"},
-    {file = "nbmake-1.5.2.tar.gz", hash = "sha256:fc423b1f0d5e964a3928c77ff7b18fe50067444ee3479fdc1f82fc77504f0a30"},
+    {file = "nbmake-1.5.3-py3-none-any.whl", hash = "sha256:6cfa2b926d335e9c6dce7e8543d01b2398b0a56c03131c5c0bce2b1722116212"},
+    {file = "nbmake-1.5.3.tar.gz", hash = "sha256:0b76b829e8b128eb1895539bacf515a1ee85e5b7b492cdfe76e3a12f804e069e"},
 ]
 
 [package.dependencies]
