@@ -20,7 +20,6 @@ from tensorflow_probability.substrates import jax as tfp
 from genjax._src.adev.core import (
     ADEVPrimitive,
     expectation,
-    reap_key,
     sample_primitive,
 )
 from genjax._src.adev.primitives import (
@@ -92,7 +91,7 @@ class ADEVDistribution(JAXGenerativeFunction, ExactDensity):
         key: PRNGKey,
         *args: Any,
     ) -> Any:
-        return sample_primitive(self.adev_primitive, key, *args)
+        return sample_primitive(self.adev_primitive, *args, key=key)
 
     def logpdf(
         self,
@@ -181,7 +180,6 @@ class ELBO(ExpectedValueLoss):
         def _loss(*target_args):
             target = self.make_target(*target_args)
             guide = Importance(target, self.guide)
-            key = reap_key()
             w = guide.estimate_normalizing_constant(key, target)
             return -w
 
@@ -203,7 +201,6 @@ class IWELBO(ExpectedValueLoss):
         def _loss(*target_args):
             target = self.make_target(*target_args)
             guide = ImportanceK(target, self.proposal, self.N)
-            key = reap_key()
             w = guide.estimate_normalizing_constant(key, target)
             return -w
 

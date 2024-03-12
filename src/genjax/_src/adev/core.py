@@ -67,8 +67,7 @@ class ADEVPrimitive(Pytree):
 
     @typecheck
     def __call__(self, *args):
-        key = reap_key()
-        return sample_primitive(self, key, *args)
+        return sample_primitive(self, *args)
 
 
 ####################
@@ -80,39 +79,19 @@ sample_p = InitialStylePrimitive("sample")
 
 
 @typecheck
-def sample_primitive(adev_prim: ADEVPrimitive, key, *args):
-    def _abstract_adev_prim_call(adev_prim, key, *args):
+def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0)):
+    def _adev_prim_call(adev_prim, *args):
+        # When used for abstract tracing, value of the key doesn't matter.
+        # However, we support overloading the key for other transformations,
+        # which will rely on the default semantics of `initial_style_bind`,
+        # which is to call this function -- then, the value of the key will matter.
         v = adev_prim.sample(key, *args)
         return v
 
-    return initial_style_bind(sample_p)(_abstract_adev_prim_call)(
+    return initial_style_bind(sample_p)(_adev_prim_call)(
         adev_prim,
-        key,
         *args,
     )
-
-
-#########################
-# Reaping key intrinsic #
-#########################
-
-# Must be intercepted by e.g. an interpreter if we want randomness.
-reap_key_p = InitialStylePrimitive("reap_key")
-
-
-def reap_key():
-    """
-    The `reap_key` intrinsic inserts a primitive into a JAX computation that can be seeded with a fresh key by an interpreter.
-
-    It should only be used within ADEV programs (as the ADEV transformation stack will
-    handle sowing keys).
-    """
-
-    def _reap_key():
-        # value doesn't matter, just the type
-        return jax.random.PRNGKey(0)
-
-    return initial_style_bind(reap_key_p)(_reap_key)()
 
 
 ####################
@@ -178,45 +157,9 @@ class ADInterpreter(Pytree):
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in duals)
         return list(primals), list(tangents)
 
-    # TODO: handle `jax.lax.cond`.
-    @staticmethod
-    def _eval_jaxpr_reap_key(key, jaxpr, consts, flat_args):
-        env = Environment()
-        jax_util.safe_map(env.write, jaxpr.invars, flat_args)
-        jax_util.safe_map(env.write, jaxpr.constvars, consts)
-
-        for eqn in jaxpr.eqns:
-            invals = jax_util.safe_map(env.read, eqn.invars)
-            subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-            args = subfuns + invals
-            if eqn.primitive == reap_key_p:
-                key, sub_key = jax.random.split(key)
-                outvals = [sub_key]
-            else:
-                outvals = eqn.primitive.bind(*args, **params)
-            if not eqn.primitive.multiple_results:
-                outvals = [outvals]
-            jax_util.safe_map(env.write, eqn.outvars, outvals)
-        return jax_util.safe_map(env.read, jaxpr.outvars)
-
-    @staticmethod
-    def sow_keys(fn):
-        """Return a transformed function which accepts a `key: PRNGKey` as the first argument, and uses an interpreter to sow fresh keys (using the `key`) into any `reap_key_p` primitive invocations.
-
-        When a fresh key is sown, the carried key is split and evolved forward.
-        """
-
-        @wraps(fn)
-        def wrapped(key, *args):
-            closed_jaxpr, (flat_args, _, out_tree) = stage(fn)(*args)
-            jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-            flat_out = ADInterpreter._eval_jaxpr_reap_key(key, jaxpr, consts, flat_args)
-            return jtu.tree_unflatten(out_tree(), flat_out)
-
-        return wrapped
-
     @staticmethod
     def _eval_jaxpr_adev_jvp(
+        key: PRNGKey,
         jaxpr: jc.Jaxpr,
         consts: List[ArrayLike],
         flat_duals: List[Dual],
@@ -225,7 +168,7 @@ class ADInterpreter(Pytree):
         jax_util.safe_map(dual_env.write, jaxpr.constvars, Dual.tree_pure(consts))
         jax_util.safe_map(dual_env.write, jaxpr.invars, flat_duals)
 
-        def eval_jaxpr_iterate(eqns, dual_env, invars, flat_duals):
+        def eval_jaxpr_iterate(key, eqns, dual_env, invars, flat_duals):
             jax_util.safe_map(dual_env.write, invars, flat_duals)
 
             for eqn_idx, eqn in list(enumerate(eqns)):
@@ -239,16 +182,20 @@ class ADInterpreter(Pytree):
                         pure_env = Dual.tree_primal(dual_env)
 
                         # Create pure continuation.
-                        def pure_kont(*args):
+                        def pure_kont(key, *args):
                             return eval_jaxpr_iterate(
-                                eqns[eqn_idx + 1 :], pure_env, eqn.outvars, [*args]
+                                key, eqns[eqn_idx + 1 :], pure_env, eqn.outvars, [*args]
                             )
 
                         # Create dual continuation.
-                        def dual_kont(primals, tangents):
+                        def dual_kont(key, primals, tangents):
                             duals = Dual.tree_dual(primals, tangents)
                             out_dual = eval_jaxpr_iterate(
-                                eqns[eqn_idx + 1 :], dual_env, eqn.outvars, [*duals]
+                                key,
+                                eqns[eqn_idx + 1 :],
+                                dual_env,
+                                eqn.outvars,
+                                [*duals],
                             )
                             if isinstance(out_dual, Dual):
                                 return out_dual.primal, instantiate_zeros(
@@ -263,10 +210,8 @@ class ADInterpreter(Pytree):
                         flat_primals, flat_tangents = ADInterpreter.flat_unzip(
                             Dual.tree_leaves(Dual.tree_pure(duals[num_consts:]))
                         )
-                        adev_prim, key, *primals = jtu.tree_unflatten(
-                            in_tree, flat_primals
-                        )
-                        _, _, *tangents = jtu.tree_unflatten(in_tree, flat_tangents)
+                        adev_prim, *primals = jtu.tree_unflatten(in_tree, flat_primals)
+                        _, *tangents = jtu.tree_unflatten(in_tree, flat_tangents)
 
                         primal_out, tangent_out = adev_prim.jvp_estimate(
                             key,
@@ -306,20 +251,21 @@ class ADInterpreter(Pytree):
             (out_dual,) = jax_util.safe_map(dual_env.read, jaxpr.outvars)
             return out_dual
 
-        return eval_jaxpr_iterate(jaxpr.eqns, dual_env, jaxpr.invars, flat_duals)
+        return eval_jaxpr_iterate(key, jaxpr.eqns, dual_env, jaxpr.invars, flat_duals)
 
     @staticmethod
     def forward_mode(f, kont=lambda v: v):
         def _konted(*args):
             return kont(f(*args))
 
-        def _inner(primals: Tuple, tangents: Tuple):
+        def _inner(key, primals: Tuple, tangents: Tuple):
             closed_jaxpr, (flat_args, _, _) = stage(_konted)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
             flat_tangents = jtu.tree_leaves(
                 tangents, is_leaf=lambda v: isinstance(v, Zero)
             )
             out_dual = ADInterpreter._eval_jaxpr_adev_jvp(
+                key,
                 jaxpr,
                 consts,
                 Dual.tree_dual(flat_args, flat_tangents),
@@ -334,10 +280,10 @@ class ADInterpreter(Pytree):
             return jnp.array(v, copy=False)
 
         @typecheck
-        def _dual(primals: Tuple, tangents: Tuple):
+        def _dual(key, primals: Tuple, tangents: Tuple):
             primals = jtu.tree_map(maybe_array, primals)
             tangents = jtu.tree_map(maybe_array, tangents)
-            return _inner(primals, tangents)
+            return _inner(key, primals, tangents)
 
         return _dual
 
@@ -361,14 +307,20 @@ class ADEVProgram(Pytree):
         def adev_jvp(f):
             @wraps(f)
             def wrapped(primals, tangents):
-                sown = partial(ADInterpreter.sow_keys(f), key)
-                return ADInterpreter.forward_mode(sown, kont)(primals, tangents)
+                return ADInterpreter.forward_mode(self.source, kont)(
+                    key, primals, tangents
+                )
 
             return wrapped
 
         return adev_jvp(self.source)(primals, tangents)
 
-    def _jvp_estimate_identity_kont(self, key, primals, tangents):
+    def _jvp_estimate_identity_kont(
+        self,
+        key: PRNGKey,
+        primals: Tuple,
+        tangents: Tuple,
+    ):
         # Trivial continuation.
         def _identity(x):
             return x
@@ -378,24 +330,6 @@ class ADEVProgram(Pytree):
     #################
     # For debugging #
     #################
-
-    @typecheck
-    def debug_transform_sow(
-        self,
-        key: PRNGKey,
-        args: Tuple,
-    ):
-        def sown(f):
-            @wraps(f)
-            def _sown(*args):
-                sown = partial(ADInterpreter.sow_keys(f), key)
-                return sown(*args)
-
-            return _sown
-
-        value = sown(self.source)(*args)
-        jaxpr = jax.make_jaxpr(sown(self.source))(*args)
-        return value, jaxpr
 
     @typecheck
     def debug_transform_adev(
@@ -409,7 +343,7 @@ class ADEVProgram(Pytree):
             @wraps(f)
             def wrapped(primals, tangents):
                 sown = partial(ADInterpreter.sow_keys(f), key)
-                return ADInterpreter.forward_mode(sown, kont)(primals, tangents)
+                return ADInterpreter.forward_mode(sown, kont)(key, primals, tangents)
 
             return wrapped
 

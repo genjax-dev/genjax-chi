@@ -14,7 +14,6 @@
 
 from genjax._src.adev.core import ADEVPrimitive  # noqa: I001
 from genjax._src.adev.core import expectation
-from genjax._src.adev.core import reap_key
 from genjax._src.adev.core import sample_primitive
 from genjax._src.adev.primitives import add_cost
 from genjax._src.adev.primitives import baseline
@@ -35,7 +34,6 @@ from genjax._src.adev.primitives import uniform
 __all__ = [
     # Language.
     "sample_primitive",
-    "reap_key",
     "expectation",
     "ADEVPrimitive",
     # Primitives.
