@@ -16,7 +16,6 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-
 from genjax._src.core.typing import FloatArray
 
 
@@ -42,7 +41,7 @@ class TestSlices:
         assert out.project[:, "dx"] == out.get_score()
         choices = out.get_choices()
         f = choices.filter[:2]
-        assert (f.indices == jnp.array([0,1])).all()
+        assert (f.indices == jnp.array([0, 1])).all()
         g = choices.filter[3::2]
         assert (g.indices == jnp.array([3, 5, 7, 9])).all()
         assert (choices.filter[-3:].indices == jnp.array([7, 8, 9])).all()
@@ -50,10 +49,12 @@ class TestSlices:
 
     def test_slice_wrapped_unfold(self):
         out = TestSlices.contains_random_walk.simulate(TestSlices.K, ())
-        steps: FloatArray = out['walk', :, 'dx']
-        assert out.get_retval() == pytest.approx(out['x0'] + steps.cumsum())
+        steps: FloatArray = out["walk", :, "dx"]
+        assert out.get_retval() == pytest.approx(out["x0"] + steps.cumsum())
         choices = out.get_choices()
-        assert choices.filter['x0']['x0'] == jnp.array(9.989177)
-        assert choices.filter['x0']['walk'] == genjax.EmptyChoice()
-        assert choices.filter['walk']['x0'] == genjax.EmptyChoice()
-        assert (choices.filter['walk']['walk', :].has_submap('dx') == jnp.ones((10,))).all()
+        assert choices.filter["x0"]["x0"] == jnp.array(9.989177)
+        assert choices.filter["x0"]["walk"] == genjax.EmptyChoice()
+        assert choices.filter["walk"]["x0"] == genjax.EmptyChoice()
+        assert (
+            choices.filter["walk"]["walk", :].has_submap("dx") == jnp.ones((10,))
+        ).all()

@@ -251,12 +251,10 @@ class Choice(Pytree):
         return Choice.Filtration(self)
 
     @abstractmethod
-    def filter_selection(self, selection: Selection) -> "Choice":
-        ...
+    def filter_selection(self, selection: Selection) -> "Choice": ...
 
     @abstractmethod
-    def filter_slice(self, selection: TraceSlice) -> "Choice":
-        ...
+    def filter_slice(self, selection: TraceSlice) -> "Choice": ...
 
     @abstractmethod
     def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
@@ -591,6 +589,7 @@ class Trace(Pytree):
         in `tr.project(genjax.select("x"))`, or using Trace Slice
         notation using square brackets as in `tr.project["x"]`.
         """
+
         def __init__(self, trace):
             self.trace: Trace = trace
 
@@ -652,8 +651,7 @@ class Trace(Pytree):
     def project_slice(
         self,
         selection: TraceSlice,
-    ) -> FloatArray:
-        ...
+    ) -> FloatArray: ...
 
     @dispatch
     def project_selection(
@@ -966,7 +964,7 @@ class Mask(Choice):
 #######################
 
 
-class  GenerativeFunction(Pytree):
+class GenerativeFunction(Pytree):
     """> Abstract base class for generative functions.
 
     Generative functions are computational objects which expose convenient interfaces for probabilistic modeling and inference. They consist (often, subsets) of a few ingredients:
@@ -1368,7 +1366,6 @@ class HierarchicalChoiceMap(ChoiceMap):
         return HierarchicalChoiceMap(trie)
 
     def filter_slice(self, selection: TraceSlice) -> Choice:
-
         def inner():
             for k, v in self.get_submaps_shallow():
                 if selection_matches(selection, k):
