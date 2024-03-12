@@ -221,9 +221,9 @@ class VectorChoiceMap(ChoiceMap):
 
     def filter_slice(self, selection: TraceSlice) -> ChoiceMap:
         inner = self.inner.filter_slice(selection[1:])
-        s0 = selection[0]
-        if s0 == slice(None, None, None):
+        if selection == () or selection[0] == slice(None, None, None):
             return self
+        s0 = selection[0]
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
         # We allow bare integers, jnp arrays of integers, and start:stop:stride
         # slices as individual members of a TraceSlice. We convert each of these

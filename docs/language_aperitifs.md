@@ -15,12 +15,12 @@ GenJAX consists of a **set of languages** based around transforming pure functio
 GenJAX provides a builtin language which supports a `trace` primitive and the ability to invoke other generative functions as callees:
 
 ```python
-@genjax.static
+@genjax.static_gen_fn
 def submodel():
   x = trace("x", normal)(0.0, 1.0) # explicit
   return x
 
-@genjax.static
+@genjax.static_gen_fn
 def model():
   x = submodel() @ "sub" # sugared
   return x
@@ -33,7 +33,7 @@ Addresses (here, `"x"` and `"sub"`) are important - addressed random choices wit
 Because convenient idioms for working with addresses is so important in Gen, the generative functions from the builtin language also support a form of "splatting" addresses into a caller.
 
 ```python
-@genjax.static
+@genjax.static_gen_fn
 def model():
   x = submodel.inline()
   return x
@@ -48,8 +48,8 @@ The base modeling language is the `BuiltinGenerativeFunction` language shown abo
 Users gain access to structured control flow via _combinators_, other generative function mini-languages which implement the interfaces in control flow compatible ways.
 
 ```python
-@functools.partial(genjax.Map, in_axes=(0, 0))
-@genjax.static
+@genjax.map_combinator(in_axes=(0, 0))
+@genjax.static_gen_fn
 def kernel(x, y):
   z = normal(x + y, 1.0) @ "z"
   return z
@@ -64,8 +64,8 @@ This defines a `MapCombinator` generative function - a generative function whose
 
 
 ```python
-@functools.partial(genjax.Unfold, max_length = 10)
-@genjax.static
+@genjax.unfold_combinator(max_length = 10)
+@genjax.static_gen_fn
 def scanner(prev, static_args):
   sigma, = static_args
   new = normal(prev, sigma) @ "z"
@@ -80,7 +80,7 @@ def scanner(prev, static_args):
 `UnfoldCombinator` allows uncertainty over the length of the chain:
 
 ```python
-@genjax.static
+@genjax.static_gen_fn
 def top_model(p):
   length = truncated_geometric(10, p) @ "l"
   initial_state = normal(0.0, 1.0) @ "init"
@@ -94,7 +94,7 @@ Here, `length` is drawn from a truncated geometric distribution, and determines 
 Of course, combinators are composable.
 
 ```python
-@functools.partial(genjax.Map, in_axes = (0, ))
+@genjax.map_combinator(in_axes = (0,))
 @genjax.static
 def top_model(p):
   length = truncated_geometric(10, p) @ "l"

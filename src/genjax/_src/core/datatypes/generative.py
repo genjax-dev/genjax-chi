@@ -585,6 +585,12 @@ class Trace(Pytree):
         """
 
     class Projection:
+        """A Projection is a helper class for the `project` method
+        of the Generative Function Interface. It is capable of
+        taking a `Selection` object in function call style, as
+        in `tr.project(genjax.select("x"))`, or using Trace Slice
+        notation using square brackets as in `tr.project["x"]`.
+        """
         def __init__(self, trace):
             self.trace: Trace = trace
 
@@ -598,6 +604,49 @@ class Trace(Pytree):
 
     @property
     def project(self):
+        """Return the total contribution to the score of the
+        addresses contained within a selection. In GenJAX, a
+        selection can be made in one of two ways.
+
+        The easiest way is to use slice notation, as in
+        `trace.project['x', 'y']`. Strings as indexes in trace
+        slice notation represent paths in the trace tree. For
+        vector layers of the tree (as produced by combinators
+        such as `map_combinator` and `unfold_combinator`) can
+        be indexed with numpy-style array-slice notation.
+
+        Another way is to create a `Selection` object, with
+        `genjax.select` and related Selection subclasses. Such
+        selections are passed to `project` as function arguments,
+        as in `trace.project(selection)`.
+
+        Examples:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import bernoulli
+
+            console = genjax.console()
+
+
+            @genjax.static_gen_fn
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+
+            key = jax.random.PRNGKey(314159)
+            tr = model.simulate(key, ())
+            # Selection object method
+            selection = genjax.select("x")
+            x_score = tr.project(selection)
+            # Slice method
+            assert x_score == tr.project["x"]
+            x_score_t = genjax.bernoulli.logpdf(tr["x"], 0.3)
+            print(console.render((x_score_t, x_score)))
+            ```
+        """
         return Trace.Projection(self)
 
     def project_slice(
@@ -622,33 +671,6 @@ class Trace(Pytree):
 
     @dispatch
     def project_selection(self, selection: "Selection") -> FloatArray:
-        """Given a `Selection`, return the total contribution to the score of the
-        addresses contained within the `Selection`.
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-
-            console = genjax.console()
-
-
-            @genjax.static_gen_fn
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            selection = genjax.select("x")
-            x_score = tr.project(selection)
-            x_score_t = genjax.bernoulli.logpdf(tr["x"], 0.3)
-            print(console.render((x_score_t, x_score)))
-            ```
-        """
         raise NotImplementedError
 
     @dispatch
@@ -944,7 +966,7 @@ class Mask(Choice):
 #######################
 
 
-class GenerativeFunction(Pytree):
+class  GenerativeFunction(Pytree):
     """> Abstract base class for generative functions.
 
     Generative functions are computational objects which expose convenient interfaces for probabilistic modeling and inference. They consist (often, subsets) of a few ingredients:
@@ -1332,15 +1354,13 @@ class HierarchicalChoiceMap(ChoiceMap):
     ) -> Choice:
         trie = Trie()
 
-        def _inner(k, v):
-            sub = selection.get_subselection(k)
-            under = v.filter(sub)
-            return k, under
+        def inner():
+            for k, v in self.get_submaps_shallow():
+                f = v.filter(selection.get_subselection(k))
+                if not isinstance(f, EmptyChoice):
+                    yield k, f
 
-        iter = self.get_submaps_shallow()
-        for k, v in map(lambda args: _inner(*args), iter):
-            if not isinstance(v, EmptyChoice):
-                trie = trie.trie_insert(k, v)
+        trie = Trie(dict(inner()))
 
         if trie.is_static_empty():
             return EmptyChoice()
@@ -1348,11 +1368,15 @@ class HierarchicalChoiceMap(ChoiceMap):
         return HierarchicalChoiceMap(trie)
 
     def filter_slice(self, selection: TraceSlice) -> Choice:
-        trie = Trie()
 
-        for k, v in self.get_submaps_shallow():
-            if selection_matches(selection, k):
-                trie = trie.trie_insert(k, v.filter_slice(selection[1:]))
+        def inner():
+            for k, v in self.get_submaps_shallow():
+                if selection_matches(selection, k):
+                    f = v.filter_slice(selection[1:])
+                    if not isinstance(f, EmptyChoice):
+                        yield k, f
+
+        trie = Trie(dict(inner()))
 
         if trie.is_static_empty():
             return EmptyChoice()
