@@ -31,12 +31,12 @@ class TestVI:
             _ = genjax.vi.normal_reparam(v, 0.1) @ "mu"
 
         key = jax.random.PRNGKey(314159)
-        elbo = genjax.vi.ELBO(
+        elbo_grad = genjax.vi.ELBO(
             guide,
             lambda v: genjax.Target(model, (v,), genjax.choice_map({"v": 3.0})),
         )
         v = 0.1
-        jitted = jax.jit(elbo.grad_estimate)
+        jitted = jax.jit(elbo_grad)
         for _ in range(200):
             (v_grad,) = jitted(key, (v,))
             v -= 1e-3 * v_grad
