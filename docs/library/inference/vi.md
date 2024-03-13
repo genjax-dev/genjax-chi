@@ -39,15 +39,15 @@ def guide(target: Target):
   x = normal_reparam(v, 1.0) @ "x"
 
 # Using a library loss.
-elbo = ELBO(
+elbo_grad = ELBO(
   guide,
   lambda v: Target(model, (v, ), choice_map({"y": 3.0})),
 )
 
-# Output has the same Pytree shape as input arguments to `ELBO.grad_estimate`,
+# Output has the same Pytree shape as input arguments to `elbo_grad`,
 # excluding the key.
 key = jax.random.PRNGKey(314159)
-(v_grad,) = jax.jit(elbo.grad_estimate)(key, (1.0, ))
+(v_grad,) = jax.jit(elbo_grad)(key, (1.0, ))
 print(console.render(v_grad))
 ```
 
@@ -61,7 +61,7 @@ elbo = ELBO(
   lambda v: Target(model, (v, ), choice_map({"y": 3.0})),
 )
 ```
-The signature of `ELBO` allows the user to specify what "to focus on" in the `ELBO.grad_estimate` interface. For example, let's say we also have a learnable model, which accepts a parameter `p` which we'd like to learn -- we can modify the `Target` lambda:
+The signature of `ELBO` allows the user to specify what "to focus on" in the `elbo_grad` interface. For example, let's say we also have a learnable model, which accepts a parameter `p` which we'd like to learn -- we can modify the `Target` lambda:
 
 ```python exec="yes" source="tabbed-left" session="ex-vi"
 @marginal
@@ -75,13 +75,13 @@ def model(p, v):
   x = normal(p, 1.0) @ "x"
   y = normal(x, 1.0) @ "y"
 
-elbo = ELBO(
+elbo_grad = ELBO(
   # Approximation to the target.
   guide,
   # The posterior target -- p is learnable!
   lambda p, v: Target(model, (p, v), choice_map({"y": 3.0})),
 )
-(p_grad, v_grad) = jax.jit(elbo.grad_estimate)(key, (1.0, 1.0))
+(p_grad, v_grad) = jax.jit(elbo_grad)(key, (1.0, 1.0))
 print(console.render((p_grad, v_grad)))
 ```
 
