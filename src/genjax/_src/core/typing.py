@@ -58,7 +58,11 @@ Float = float
 Bool = bool
 String = str
 
-Address = Union[String, Int, Tuple["Address"]]
+StaticAddressComponent = String
+StaticAddress = Union[StaticAddressComponent, Tuple["StaticAddress"]]
+DynamicAddress = Union[String, Int, Tuple["DynamicAddress"]]
+Address = Union[StaticAddress, DynamicAddress]
+Selection = Callable[[Address], Tuple[Bool, "Selection"]]
 Value = Any
 
 ############
@@ -127,6 +131,10 @@ __all__ = [
     "static_check_is_concrete",
     "static_check_is_array",
     "static_check_supports_grad",
+    "StaticAddressComponent",
+    "StaticAddress",
+    "DynamicAddress",
+    "Selection",
     "typecheck",
     "dispatch",
     "parametric",

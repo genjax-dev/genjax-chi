@@ -26,186 +26,98 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Address,
     Any,
     BoolArray,
     Callable,
     FloatArray,
+    Int,
     IntArray,
     List,
     PRNGKey,
+    Selection,
+    StaticAddress,
+    StaticAddressComponent,
     Tuple,
     dispatch,
     typecheck,
 )
 
-#############
-# Selection #
-#############
+##############
+# Selections #
+##############
 
 
-class Selection(Pytree):
-    @abstractmethod
-    def complement(self) -> "Selection":
-        """Return a `Selection` which filters addresses to the complement set of the
-        provided `Selection`.
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-
-            console = genjax.console()
+def select_all(addr: Address):
+    return True, select_all
 
 
-            @genjax.static_gen_fn
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
+def select_none(addr: Address):
+    return False, select_all
 
 
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            choice = tr.strip()
-            selection = genjax.select("x")
-            complement = selection.complement()
-            filtered = choice.filter(complement)
-            print(console.render(filtered))
-            ```
-        """
-        pass
-
-
-class MapSelection(Selection):
-    def complement(self) -> "MapSelection":
-        return ComplementMapSelection(self)
-
-    @abstractmethod
-    def get_subselection(self, addr) -> "Selection":
-        raise NotImplementedError
-
-    @abstractmethod
-    def has_addr(self, addr) -> BoolArray:
-        raise NotImplementedError
-
-    ###########
-    # Dunders #
-    ###########
-
-    def __getitem__(self, addr):
-        subselection = self.get_subselection(addr)
-        return subselection
-
-
-class ComplementMapSelection(MapSelection):
-    selection: Selection
-
-    def complement(self):
-        return self.selection
-
-    def has_addr(self, addr):
-        assert isinstance(self.selection, MapSelection)
-        return jnp.logical_not(self.selection.has_addr(addr))
-
-    def get_subselection(self, addr):
-        assert isinstance(self.selection, MapSelection)
-        return self.selection.get_subselection(addr).complement()
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](Complement)")
-        tree.add(self.selection.__rich_tree__())
-        return tree
-
-
-#######################
-# Concrete selections #
-#######################
-
-
-class NoneSelection(Selection):
-    def complement(self):
-        return AllSelection()
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](NoneSelection)")
-        return tree
-
-
-class AllSelection(Selection):
-    def complement(self):
-        return NoneSelection()
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        return rich_tree.Tree("[bold](AllSelection)")
-
-
-###########################
-# Concrete map selections #
-###########################
-
-
-class HierarchicalSelection(MapSelection):
-    trie: Trie
-
-    @classmethod
-    def from_addresses(cls, *addresses: Any):
-        trie = Trie()
-        for addr in addresses:
-            trie = trie.trie_insert(addr, AllSelection())
-        return HierarchicalSelection(trie)
-
-    def has_addr(self, addr):
-        return self.trie.has_submap(addr)
-
-    def get_subselection(self, addr):
-        value = self.trie.get_submap(addr)
-        if value is None:
-            return NoneSelection()
-        else:
-            subselect = value
-            if isinstance(subselect, Trie):
-                return HierarchicalSelection(subselect)
+@typecheck
+def select_static(addr: StaticAddress) -> Selection:
+    @Pytree.const
+    @typecheck
+    def _inner(addr_comp: StaticAddressComponent):
+        head = get_address_head(addr)
+        if head == addr_comp:
+            addr_remaining = get_address_tail(addr)
+            if addr_remaining:
+                return True, select_static(addr_remaining)
             else:
-                return subselect
+                return True, select_all
+        else:
+            return False, select_all
 
-    # Extra method which is useful to generate an iterator
-    # over keys and subselections at the first level.
-    def get_subselections_shallow(self):
-        def _inner(v):
-            addr = v[0]
-            submap = v[1].get_selection()
-            if isinstance(submap, Trie):
-                submap = HierarchicalSelection(submap)
-            return (addr, submap)
+    return _inner
 
-        return map(
-            _inner,
-            self.trie.get_submaps_shallow(),
-        )
 
-    ###################
-    # Pretty printing #
-    ###################
+@typecheck
+def select_idx(sidx: Int) -> Selection:
+    @Pytree.const
+    @typecheck
+    def _inner(idx: Int):
+        check = idx == sidx
+        return check, select_all
 
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](HierarchicalSelection)")
-        for k, v in self.get_subselections_shallow():
-            subk = tree.add(f"[bold]:{k}")
-            subk.add(v.__rich_tree__())
-        return tree
+    return _inner
+
+
+@typecheck
+def select_complement(s: Selection) -> Selection:
+    @Pytree.const
+    @typecheck
+    def _inner(addr: Address):
+        check, remaining = s(addr)
+        return jnp.logical_not(check), select_complement(remaining)
+
+    return _inner
+
+
+@typecheck
+def select_and(s1: Selection, s2: Selection) -> Selection:
+    @Pytree.const
+    @typecheck
+    def _inner(addr: Address):
+        check1, remaining1 = s1(addr)
+        check2, remaining2 = s2(addr)
+        return check1 and check2, select_and(remaining1, remaining2)
+
+    return _inner
+
+
+@typecheck
+def select_or(s1: Selection, s2: Selection) -> Selection:
+    @Pytree.const
+    @typecheck
+    def _inner(addr: Address):
+        check1, remaining1 = s1(addr)
+        check2, remaining2 = s2(addr)
+        return check1 or check2, select_or(remaining1, remaining2)
+
+    return _inner
 
 
 ###########
