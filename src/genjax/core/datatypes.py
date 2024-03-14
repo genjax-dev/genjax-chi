@@ -13,18 +13,14 @@
 # limitations under the License.
 
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
     Choice,
     ChoiceMap,
     ChoiceValue,
-    DisjointUnionChoiceMap,
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
-    NoneSelection,
     Selection,
     Trace,
 )
@@ -39,12 +35,8 @@ __all__ = [
     "EmptyChoice",
     "ChoiceValue",
     "HierarchicalChoiceMap",
-    "DisjointUnionChoiceMap",
     "Trace",
     "Selection",
-    "AllSelection",
-    "NoneSelection",
-    "HierarchicalSelection",
     "GenerativeFunction",
     "JAXGenerativeFunction",
     # Masking.

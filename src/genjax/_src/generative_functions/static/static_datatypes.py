@@ -17,7 +17,7 @@ import jax.numpy as jnp  # noqa: I001
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
-    MapSelection,
+    Selection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -65,12 +65,12 @@ class StaticTrace(
     @dispatch
     def project(
         self,
-        selection: MapSelection,
+        selection: Selection,
     ) -> FloatArray:
         weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():
-            if selection.has_addr(k):
-                weight += subtrace.project(selection.get_subselection(k))
+            if selection(k):
+                weight += subtrace.project(selection[k])
         return weight
 
     def has_cached_value(self, addr):

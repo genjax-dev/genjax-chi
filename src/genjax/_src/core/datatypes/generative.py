@@ -56,18 +56,18 @@ class Selection(Pytree):
     has_addr: SelectionFunction = Pytree.static()
 
     def __and__(self, other: "Selection") -> "Selection":
-        return Selection(select_and(self.has_addr, other.has_addr))
+        return Selection(select_and(self, other))
 
     def __or__(self, other: "Selection") -> "Selection":
-        return Selection(select_or(self.has_addr, other.has_addr))
+        return Selection(select_or(self, other))
 
     def __not__(self) -> "Selection":
-        return Selection(select_complement(self.has_addr))
+        return Selection(select_complement(self))
 
     def __call__(self, addr) -> Tuple[Bool, "Selection"]:
         return self.has_addr(addr)
 
-    def __getitem__(self, addr) -> "Selection":
+    def __getitem__(self, *addr) -> "Selection":
         _, remaining = self.has_addr(addr)
         return remaining
 
@@ -99,46 +99,15 @@ def select_none(_: Address):
     return False, select_none
 
 
-def _get_address_head(addr: StaticAddress):
-    if isinstance(addr, tuple):
-        return addr[0]
-    else:
-        return addr
-
-
-def _get_address_tail(addr: StaticAddress):
-    if isinstance(addr, tuple):
-        return addr[1:]
-    else:
-        return None
-
-
 @typecheck
-def select_static(addr: StaticAddress) -> Selection:
+def select_static(addressed: StaticAddressComponent) -> Selection:
     @Selection
     @typecheck
-    def inner(addr_comp: StaticAddressComponent):
-        head = _get_address_head(addr)
-        if head == addr_comp:
-            addr_remaining = _get_address_tail(addr)
-            if addr_remaining:
-                return True, select_static(addr_remaining)
-            else:
-                return True, select_all
+    def inner(addr: StaticAddressComponent):
+        if addressed == addr:
+            return True, select_all
         else:
-            return False, select_all
-
-    return inner
-
-
-@typecheck
-def select_masked(flag: BoolArray, s: Selection) -> Selection:
-    @Selection
-    @typecheck
-    def inner(addr: Address):
-        check, remaining = s(addr)
-        check = jnp.logical_and(flag, check)
-        return check, select_masked(flag, remaining)
+            return False, select_none
 
     return inner
 
@@ -150,6 +119,34 @@ def select_idx(sidx: Int) -> Selection:
     def inner(idx: Int):
         check = idx == sidx
         return check, select_all
+
+    return inner
+
+
+def _get_address_head(addr: Address):
+    if isinstance(addr, tuple):
+        return addr[0]
+    else:
+        return addr
+
+
+def _get_address_tail(addr: Address):
+    if isinstance(addr, tuple):
+        return addr[1:]
+    else:
+        return ()
+
+
+@typecheck
+def select_and_then(s1: Selection, s2: Selection) -> Selection:
+    @Selection
+    @typecheck
+    def inner(addr: Address):
+        head = _get_address_head(addr)
+        check1, _ = s1(head)
+        addr_remaining = _get_address_tail(addr)
+        check2, remaining = s2(addr_remaining)
+        return check1 and check2, remaining
 
     return inner
 
@@ -189,6 +186,18 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
     return inner
 
 
+@typecheck
+def select_masked(flag: BoolArray, s: Selection) -> Selection:
+    @Selection
+    @typecheck
+    def inner(addr: Address):
+        check, remaining = s(addr)
+        check = jnp.logical_and(flag, check)
+        return check, select_masked(flag, remaining)
+
+    return inner
+
+
 ###########
 # Choices #
 ###########
@@ -201,15 +210,7 @@ class Choice(Pytree):
     """
 
     @abstractmethod
-    def filter(self, selection: Selection) -> "Choice":
-        pass
-
-    @abstractmethod
     def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
-        pass
-
-    @abstractmethod
-    def get_selection(self) -> Selection:
         pass
 
     @abstractmethod
@@ -244,56 +245,6 @@ class Choice(Pytree):
         return strip(self)
 
 
-class EmptyChoice(Choice):
-    """A `Choice` implementor which denotes an empty event."""
-
-    def filter(self, selection):
-        return self
-
-    def is_empty(self):
-        return jnp.array(True)
-
-    def get_selection(self):
-        return NoneSelection()
-
-    @dispatch
-    def merge(self, other):
-        return other, self
-
-    def __rich_tree__(self):
-        return rich_tree.Tree("[bold](EmptyChoice)")
-
-
-class ChoiceValue(Choice):
-    value: Any
-
-    def get_value(self):
-        return self.value
-
-    def is_empty(self):
-        return jnp.array(False)
-
-    @dispatch
-    def merge(self, other: "ChoiceValue"):
-        return self, other
-
-    @dispatch
-    def filter(self, selection: AllSelection):
-        return self
-
-    @dispatch
-    def filter(self, selection):
-        return EmptyChoice()
-
-    def get_selection(self):
-        return AllSelection()
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](ValueChoice)")
-        tree.add(gpp.tree_pformat(self.value))
-        return tree
-
-
 class ChoiceMap(Choice):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from a generative function.
@@ -308,7 +259,7 @@ class ChoiceMap(Choice):
     #######################
 
     @abstractmethod
-    def get_submap(self, addr) -> Choice:
+    def get_submap(self, addr) -> "ChoiceMap":
         pass
 
     @abstractmethod
@@ -319,25 +270,11 @@ class ChoiceMap(Choice):
     # Dispatch overloads for `Choice` interfaces #
     ##############################################
 
-    @dispatch
-    def filter(
-        self,
-        selection: AllSelection,
-    ) -> "ChoiceMap":
-        return self
-
-    @dispatch
-    def filter(
-        self,
-        selection: NoneSelection,
-    ) -> EmptyChoice:
-        return EmptyChoice()
-
-    @dispatch
+    @abstractmethod
     def filter(
         self,
         selection: Selection,
-    ) -> Choice:
+    ) -> "ChoiceMap":
         """Filter the addresses in a choice map, returning a new choice.
 
         Examples:
@@ -366,11 +303,10 @@ class ChoiceMap(Choice):
         """
         raise NotImplementedError
 
-    def get_selection(self) -> "Selection":
+    @abstractmethod
+    def get_selection(self) -> Selection:
         """Convert a `ChoiceMap` to a `Selection`."""
-        raise Exception(
-            f"`get_selection` is not implemented for choice map of type {type(self)}",
-        )
+        raise NotImplementedError
 
     ###########
     # Dunders #
@@ -378,9 +314,6 @@ class ChoiceMap(Choice):
 
     def __eq__(self, other):
         return self.tree_flatten() == other.tree_flatten()
-
-    def __or__(self, other):
-        return DisjointUnionChoiceMap([self, other])
 
     def __and__(self, other):
         return self.safe_merge(other)
@@ -399,6 +332,53 @@ class ChoiceMap(Choice):
                 return submap
         else:
             return self.__getitem__((addr,))
+
+
+class EmptyChoice(ChoiceMap):
+    """A `Choice` implementor which denotes an empty event."""
+
+    def filter(self, selection: Selection):
+        return self
+
+    def is_empty(self):
+        return jnp.array(True)
+
+    def get_selection(self) -> Selection:
+        return Selection.none
+
+    def merge(self, other):
+        return other, self
+
+    def __rich_tree__(self):
+        return rich_tree.Tree("[bold](EmptyChoice)")
+
+
+class ChoiceValue(ChoiceMap):
+    value: Any
+
+    def get_value(self):
+        return self.value
+
+    def is_empty(self):
+        return jnp.array(False)
+
+    def merge(self, other: Choice):
+        return other, self
+
+    def filter(self, selection):
+        check, _ = selection(())
+        if check:
+            return self
+        else:
+            return EmptyChoice()
+
+    def get_selection(self) -> Selection:
+        return Selection.all
+
+    def __rich_tree__(self):
+        tree = rich_tree.Tree("[bold](ValueChoice)")
+        tree.add(gpp.tree_pformat(self.value))
+        return tree
 
 
 #########
@@ -520,21 +500,7 @@ class Trace(Pytree):
             ```
         """
 
-    @dispatch
-    def project(
-        self,
-        selection: NoneSelection,
-    ) -> FloatArray:
-        return 0.0
-
-    @dispatch
-    def project(
-        self,
-        selection: AllSelection,
-    ) -> FloatArray:
-        return self.get_score()
-
-    @dispatch
+    @abstractmethod
     def project(self, selection: "Selection") -> FloatArray:
         """Given a `Selection`, return the total contribution to the score of the
         addresses contained within the `Selection`.
@@ -692,7 +658,7 @@ class Mask(Choice):
         if isinstance(self.value, Choice):
             return self.value.get_selection()
         else:
-            return AllSelection()
+            return Selection.all
 
     ###########################
     # Choice value interfaces #
@@ -1240,16 +1206,15 @@ class HierarchicalChoiceMap(ChoiceMap):
             check = jnp.logical_and(check, v.is_empty())
         return check
 
-    @dispatch
     def filter(
         self,
-        selection: MapSelection,
-    ) -> Choice:
+        selection: Selection,
+    ) -> ChoiceMap:
         trie = Trie()
 
         def inner(k, v):
-            sub = selection.get_subselection(k)
-            under = v.filter(sub)
+            remaining = selection[k]
+            under = v.filter(remaining)
             return k, under
 
         iter = self.get_submaps_shallow()
@@ -1367,57 +1332,4 @@ class HierarchicalChoiceMap(ChoiceMap):
             subv = v.__rich_tree__()
             subk.add(subv)
             tree.add(subk)
-        return tree
-
-
-class DisjointUnionChoiceMap(ChoiceMap):
-    """> A choice map combinator type which represents a disjoint union over multiple
-    choice maps.
-
-    The internal data representation of a `ChoiceMap` is often specialized to support optimized code generation for inference interfaces, but the address hierarchy which a `ChoiceMap` represents (as an assignment of choices to addresses) must be generic.
-
-    To make this more concrete, a `VectorChoiceMap` represents choices with addresses of the form `(integer_index, ...)` - but its internal data representation is a struct-of-arrays. A `HierarchicalChoiceMap` can also represent address assignments with form `(integer_index, ...)` - but supporting choice map interfaces like `merge` across choice map types with specialized internal representations is complicated.
-
-    Modeling languages might also make use of specialized representations for (JAX compatible) address uncertainty -- and addresses can contain runtime data e.g. `static` generative functions can support addresses `(dynamic_integer_index, ...)` where the index is not known at tracing time. When generative functions mix `(static_integer_index, ...)` and `(dynamic_integer_index, ...)` - resulting choice maps must be a type of disjoint union, whose methods include branching decisions on runtime data.
-
-    To this end, `DisjointUnionChoiceMap` is a `ChoiceMap` type designed to support disjoint unions of choice maps of different types. It supports implementations of the choice map interfaces which are generic over the type of choice maps in the union, and also works with choice maps that contain runtime resolved address data.
-    """
-
-    submaps: List[ChoiceMap] = Pytree.field(default_factory=list)
-
-    def has_submap(self, addr):
-        checks = jnp.array(map(lambda v: v.has_submap(addr), self.submaps))
-        return jnp.sum(checks) == 1
-
-    def get_submap(self, head, *tail):
-        new_submaps = list(
-            filter(
-                lambda v: not isinstance(v, EmptyChoice),
-                map(lambda v: v.get_submap(head, *tail), self.submaps),
-            )
-        )
-        # Static check: if any of the submaps are `ChoiceValue` instances, we must
-        # check that all of them are. Otherwise, the choice map is invalid.
-        check_address_leaves = list(
-            map(lambda v: isinstance(v, ChoiceValue), new_submaps)
-        )
-        if any(check_address_leaves):
-            assert all(map(lambda v: isinstance(v, ChoiceValue), new_submaps))
-
-        if len(new_submaps) == 0:
-            return EmptyChoice()
-        elif len(new_submaps) == 1:
-            return new_submaps[0]
-        else:
-            return DisjointUnionChoiceMap(new_submaps)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](DisjointUnionChoiceMap)")
-        for submap in self.submaps:
-            sub_tree = submap.__rich_tree__()
-            tree.add(sub_tree)
         return tree

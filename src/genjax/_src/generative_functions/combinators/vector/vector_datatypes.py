@@ -23,7 +23,6 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
-    MapSelection,
     Mask,
     Selection,
 )

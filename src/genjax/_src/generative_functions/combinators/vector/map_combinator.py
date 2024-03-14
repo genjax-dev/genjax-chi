@@ -29,7 +29,6 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Selection,
     Trace,
@@ -114,7 +113,7 @@ class MapTrace(Trace):
     @dispatch
     def project(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> FloatArray:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
