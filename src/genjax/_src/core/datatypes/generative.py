@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from functools import reduce
+from operator import or_
 
 import jax
 import jax.numpy as jnp
@@ -69,6 +71,18 @@ class Selection(Pytree):
         _, remaining = self.has_addr(addr)
         return remaining
 
+    @property
+    def none(self):
+        return Selection(select_none)
+
+    @property
+    def all(self):
+        return Selection(select_all)
+
+    @classmethod
+    def from_addresses(cls, *addrs):
+        return reduce(or_, (select_static(addr) for addr in addrs))
+
 
 #####
 # Various selection functions
@@ -82,17 +96,31 @@ def select_all(_: Address):
 
 @Selection
 def select_none(_: Address):
-    return False, select_all
+    return False, select_none
+
+
+def _get_address_head(addr: StaticAddress):
+    if isinstance(addr, tuple):
+        return addr[0]
+    else:
+        return addr
+
+
+def _get_address_tail(addr: StaticAddress):
+    if isinstance(addr, tuple):
+        return addr[1:]
+    else:
+        return None
 
 
 @typecheck
 def select_static(addr: StaticAddress) -> Selection:
     @Selection
     @typecheck
-    def _inner(addr_comp: StaticAddressComponent):
-        head = get_address_head(addr)
+    def inner(addr_comp: StaticAddressComponent):
+        head = _get_address_head(addr)
         if head == addr_comp:
-            addr_remaining = get_address_tail(addr)
+            addr_remaining = _get_address_tail(addr)
             if addr_remaining:
                 return True, select_static(addr_remaining)
             else:
@@ -100,53 +128,65 @@ def select_static(addr: StaticAddress) -> Selection:
         else:
             return False, select_all
 
-    return _inner
+    return inner
+
+
+@typecheck
+def select_masked(flag: BoolArray, s: Selection) -> Selection:
+    @Selection
+    @typecheck
+    def inner(addr: Address):
+        check, remaining = s(addr)
+        check = jnp.logical_and(flag, check)
+        return check, select_masked(flag, remaining)
+
+    return inner
 
 
 @typecheck
 def select_idx(sidx: Int) -> Selection:
     @Selection
     @typecheck
-    def _inner(idx: Int):
+    def inner(idx: Int):
         check = idx == sidx
         return check, select_all
 
-    return _inner
+    return inner
 
 
 @typecheck
 def select_complement(s: Selection) -> Selection:
     @Selection
     @typecheck
-    def _inner(addr: Address):
+    def inner(addr: Address):
         check, remaining = s(addr)
         return jnp.logical_not(check), select_complement(remaining)
 
-    return _inner
+    return inner
 
 
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
     @typecheck
-    def _inner(addr: Address):
+    def inner(addr: Address):
         check1, remaining1 = s1(addr)
         check2, remaining2 = s2(addr)
         return check1 and check2, select_and(remaining1, remaining2)
 
-    return _inner
+    return inner
 
 
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
     @Selection
     @typecheck
-    def _inner(addr: Address):
+    def inner(addr: Address):
         check1, remaining1 = s1(addr)
         check2, remaining2 = s2(addr)
         return check1 or check2, select_or(remaining1, remaining2)
 
-    return _inner
+    return inner
 
 
 ###########
@@ -582,13 +622,13 @@ def strip(v):
     def _check(v):
         return isinstance(v, Trace)
 
-    def _inner(v):
+    def inner(v):
         if isinstance(v, Trace):
             return v.strip()
         else:
             return v
 
-    return jtu.tree_map(_inner, v.get_choices(), is_leaf=_check)
+    return jtu.tree_map(inner, v.get_choices(), is_leaf=_check)
 
 
 ###########
@@ -1207,13 +1247,13 @@ class HierarchicalChoiceMap(ChoiceMap):
     ) -> Choice:
         trie = Trie()
 
-        def _inner(k, v):
+        def inner(k, v):
             sub = selection.get_subselection(k)
             under = v.filter(sub)
             return k, under
 
         iter = self.get_submaps_shallow()
-        for k, v in map(lambda args: _inner(*args), iter):
+        for k, v in map(lambda args: inner(*args), iter):
             if not isinstance(v, EmptyChoice):
                 trie = trie.trie_insert(k, v)
 
@@ -1261,7 +1301,7 @@ class HierarchicalChoiceMap(ChoiceMap):
                 return top
 
     def get_submaps_shallow(self):
-        def _inner(v):
+        def inner(v):
             addr = v[0]
             submap = v[1]
             if isinstance(submap, Trie):
@@ -1269,7 +1309,7 @@ class HierarchicalChoiceMap(ChoiceMap):
             return (addr, submap)
 
         return map(
-            _inner,
+            inner,
             self.trie.get_submaps_shallow(),
         )
 
