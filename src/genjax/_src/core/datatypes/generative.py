@@ -19,10 +19,10 @@ from operator import or_
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich.tree as rich_tree
+import rich.pretty
+import rich.tree
 from jax.experimental import checkify
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
@@ -1136,15 +1136,10 @@ class Mask(ValueLike, ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.flag, short_arrays=True)
-        tree = rich_tree.Tree(f"[bold](Mask, {doc})")
-        if isinstance(self.value, Pytree):
-            val_tree = self.value.__rich_tree__()
-            tree.add(val_tree)
-        else:
-            val_tree = gpp.tree_pformat(self.value, short_arrays=True)
-            tree.add(val_tree)
+    def __rich__(self):
+        tree = rich.tree.Tree("[bold]Mask")
+        tree.add("flag").add(rich.console.Pretty(self.flag))
+        tree.add("value").add(rich.console.Pretty(self.value))
         return tree
 
 
@@ -1627,15 +1622,6 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
         return HierarchicalChoiceMap(self.trie.trie_insert(k, v))
 
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](HierarchicalChoiceMap)")
-        for k, v in self.get_submaps_shallow():
-            subk = rich_tree.Tree(f"[bold]:{k}")
-            subv = v.__rich_tree__()
-            subk.add(subv)
-            tree.add(subk)
-        return tree
+    def __rich__(self):
+        tree = rich.tree.Tree("[bold]HierarchicalChoiceMap")
+        return self.trie._append_to_rich_tree(tree)

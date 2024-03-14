@@ -19,9 +19,7 @@ The Pytree interface determines how data classes behave across JAX-transformed f
 import equinox as eqx
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich.tree as rich_tree
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -73,13 +71,9 @@ class Pytree(eqx.Module):
     # Pretty printing #
     ###################
 
-    # Can be customized by Pytree mixers.
-    def __rich_tree__(self):
-        return gpp.tree_pformat(self)
-
     # Defines default pretty printing.
-    def __rich_console__(self, console, options):
-        yield self.__rich_tree__()
+    def __rich__(self):
+        return eqx.tree_pformat(self, short_arrays=False)
 
     ##############################
     # Utility class constructors #
@@ -254,12 +248,6 @@ class Pytree(eqx.Module):
 # Wrapper for static values (can include callables).
 class PytreeConst(Pytree):
     const: Any = Pytree.static()
-
-    def __call__(self, *args):
-        return self.const(*args)
-
-    def __rich_tree__(self):
-        return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
 
 
 # Construct for a type of closure which closes over dynamic values.

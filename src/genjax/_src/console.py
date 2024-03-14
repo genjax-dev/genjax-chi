@@ -117,7 +117,7 @@ def console(
 
     finally:
         return GenJAXConsole(
-            Console(soft_wrap=True),
+            Console(soft_wrap=True, **pretty_kwargs),
             traceback_kwargs,
             enforce_checkify,
         )

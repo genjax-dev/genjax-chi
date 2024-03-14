@@ -15,10 +15,10 @@
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich.tree as rich_tree
+import rich.pretty
+import rich.tree
 from jax import vmap
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     ChoiceValue,
@@ -119,11 +119,10 @@ class IndexedChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.indices, short_arrays=True)
-        tree = rich_tree.Tree(f"[bold](IndexedChoiceMap, {doc})")
-        sub_tree = self.inner.__rich_tree__()
-        tree.add(sub_tree)
+    def __rich__(self):
+        tree = rich.tree.Tree("[bold]IndexedChoiceMap")
+        tree.add("indices").add(rich.pretty.Pretty(self.indices))
+        tree.add("inner").add(rich.pretty.Pretty(self.inner))
         return tree
 
 
@@ -209,7 +208,7 @@ class VectorChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](VectorChoiceMap)")
-        tree.add(self.inner.__rich_tree__())
+    def __rich__(self):
+        tree = rich.tree.Tree("[bold]VectorChoiceMap")
+        tree.add(rich.pretty.Pretty(self.inner))
         return tree

@@ -101,6 +101,18 @@ class UnfoldTrace(Trace):
         ws = jax.vmap(idx_check)(idxs, length_checks, self.inner)
         return jnp.sum(ws, axis=0)
 
+    def __rich__(self):
+        import rich.pretty
+        import rich.tree
+
+        tree = rich.tree.Tree(f"UnfoldTrace(dynamic_length={self.dynamic_length})")
+        tree.add("unfold").add(rich.pretty.Pretty(self.unfold))
+        tree.add("args").add(rich.pretty.Pretty(self.args))
+        tree.add("retval").add(rich.pretty.Pretty(self.retval))
+        tree.add("score").add(rich.pretty.Pretty(self.score))
+        tree.add("choices").add(self.inner)
+        return tree
+
 
 #####
 # Unfold combinator

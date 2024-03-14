@@ -15,6 +15,11 @@
 
 import abc
 
+import rich.console
+import rich.pretty
+import rich.text
+import rich.tree
+
 from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
@@ -99,6 +104,14 @@ class DistributionTrace(
             backend.dumps(score),
         ]
         return PickleDataFormat(payload)
+
+    def __rich__(self):
+        t = rich.tree.Tree("DistributionTrace")
+        t.add("gen_fn").add(rich.pretty.Pretty(self.gen_fn))
+        t.add("args").add(rich.pretty.Pretty(self.args))
+        t.add("score").add(rich.pretty.Pretty(self.score))
+        t.add("value").add(rich.pretty.Pretty(self.value))
+        return t
 
 
 #####
