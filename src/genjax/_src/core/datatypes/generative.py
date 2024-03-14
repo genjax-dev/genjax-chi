@@ -28,6 +28,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Address,
     Any,
+    Bool,
     BoolArray,
     Callable,
     FloatArray,
@@ -35,7 +36,6 @@ from genjax._src.core.typing import (
     IntArray,
     List,
     PRNGKey,
-    Selection,
     StaticAddress,
     StaticAddressComponent,
     Tuple,
@@ -47,18 +47,47 @@ from genjax._src.core.typing import (
 # Selections #
 ##############
 
+SelectionFunction = Callable[[Address], Tuple[Bool, "Selection"]]
 
-def select_all(addr: Address):
+
+class Selection(Pytree):
+    has_addr: SelectionFunction = Pytree.static()
+
+    def __and__(self, other: "Selection") -> "Selection":
+        return Selection(select_and(self.has_addr, other.has_addr))
+
+    def __or__(self, other: "Selection") -> "Selection":
+        return Selection(select_or(self.has_addr, other.has_addr))
+
+    def __not__(self) -> "Selection":
+        return Selection(select_complement(self.has_addr))
+
+    def __call__(self, addr) -> Tuple[Bool, "Selection"]:
+        return self.has_addr(addr)
+
+    def __getitem__(self, addr) -> "Selection":
+        _, remaining = self.has_addr(addr)
+        return remaining
+
+
+#####
+# Various selection functions
+#####
+
+
+@Selection
+def select_all(_: Address):
     return True, select_all
 
 
-def select_none(addr: Address):
+@Selection
+def select_none(_: Address):
     return False, select_all
 
 
 @typecheck
 def select_static(addr: StaticAddress) -> Selection:
-    @Pytree.const
+    @Selection
     @typecheck
     def _inner(addr_comp: StaticAddressComponent):
         head = get_address_head(addr)
@@ -76,7 +105,7 @@ def select_static(addr: StaticAddress) -> Selection:
 
 @typecheck
 def select_idx(sidx: Int) -> Selection:
-    @Pytree.const
+    @Selection
     @typecheck
     def _inner(idx: Int):
         check = idx == sidx
@@ -87,7 +116,7 @@ def select_idx(sidx: Int) -> Selection:
 
 @typecheck
 def select_complement(s: Selection) -> Selection:
-    @Pytree.const
+    @Selection
     @typecheck
     def _inner(addr: Address):
         check, remaining = s(addr)
@@ -98,7 +127,7 @@ def select_complement(s: Selection) -> Selection:
 
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
-    @Pytree.const
+    @Selection
     @typecheck
     def _inner(addr: Address):
         check1, remaining1 = s1(addr)
@@ -110,7 +139,7 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
 
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
-    @Pytree.const
+    @Selection
     @typecheck
     def _inner(addr: Address):
         check1, remaining1 = s1(addr)

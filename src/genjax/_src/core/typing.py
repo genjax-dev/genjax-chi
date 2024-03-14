@@ -62,7 +62,6 @@ StaticAddressComponent = String
 StaticAddress = Union[StaticAddressComponent, Tuple["StaticAddress"]]
 DynamicAddress = Union[String, Int, Tuple["DynamicAddress"]]
 Address = Union[StaticAddress, DynamicAddress]
-Selection = Callable[[Address], Tuple[Bool, "Selection"]]
 Value = Any
 
 ############
@@ -134,7 +133,6 @@ __all__ = [
     "StaticAddressComponent",
     "StaticAddress",
     "DynamicAddress",
-    "Selection",
     "typecheck",
     "dispatch",
     "parametric",
