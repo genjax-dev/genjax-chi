@@ -395,7 +395,7 @@ class EmptyChoice(ChoiceMap):
     """A `Choice` implementor which denotes an empty event."""
 
     def get_submap(self, addr: AddressComponent):
-        raise Exception("EmptyChoice doesn't address any choices.")
+        return self
 
     def has_submap(self, addr: AddressComponent):
         return False
@@ -411,6 +411,9 @@ class EmptyChoice(ChoiceMap):
 
     def merge(self, other):
         return other, self
+
+    def do(self, addr: Address):
+        return self
 
     def __rich_tree__(self):
         return rich_tree.Tree("[bold](EmptyChoice)")
