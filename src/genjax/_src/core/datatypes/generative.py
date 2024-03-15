@@ -20,6 +20,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich.tree as rich_tree
+from jax import vmap
 from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
@@ -72,6 +73,10 @@ class SelectionBuilder(Pytree):
                 return Selection.a
             elif isinstance(comp, DynamicAddressComponent):
                 return Selection.idx(comp)
+            # TODO: make this work, for slices where we can make it work.
+            elif isinstance(comp, slice):
+                idxs = jnp.arange(comp)
+                return vmap(Selection.idx)(idxs)
             elif isinstance(comp, StaticAddressComponent):
                 return Selection.s(comp)
             else:
