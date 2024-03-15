@@ -17,7 +17,8 @@ codebase.
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
-from typing import Annotated  # noqa: F401
+from typing import Annotated  # noqa: F401, I001
+from types import EllipsisType
 
 import beartype.typing as btyping
 import jax
@@ -59,16 +60,17 @@ Bool = bool
 String = str
 
 StaticAddressComponent = Union[String, Tuple[()]]
-StaticAddress = Union[
+DynamicAddressComponent = Union[Int, IntArray]
+AddressComponent = Union[
+    Tuple[()],
+    EllipsisType,
     StaticAddressComponent,
-    Tuple[StaticAddressComponent, ...],
+    DynamicAddressComponent,
 ]
-DynamicAddress = Union[
-    String,
-    Int,
-    Tuple[Union[String, Int], ...],
+Address = Union[
+    AddressComponent,
+    Tuple[AddressComponent, ...],
 ]
-Address = Union[StaticAddress, DynamicAddress]
 Value = Any
 
 ############
@@ -138,8 +140,8 @@ __all__ = [
     "static_check_is_array",
     "static_check_supports_grad",
     "StaticAddressComponent",
-    "StaticAddress",
-    "DynamicAddress",
+    "DynamicAddressComponent",
+    "Address",
     "typecheck",
     "dispatch",
     "parametric",

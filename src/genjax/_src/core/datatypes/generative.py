@@ -29,6 +29,7 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Address,
+    AddressComponent,
     Any,
     Bool,
     BoolArray,
@@ -36,10 +37,7 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
-    List,
     PRNGKey,
-    StaticAddress,
-    StaticAddressComponent,
     Tuple,
     dispatch,
     typecheck,
@@ -49,7 +47,7 @@ from genjax._src.core.typing import (
 # Selections #
 ##############
 
-SelectionFunction = Callable[[Address], Tuple[Bool, "Selection"]]
+SelectionFunction = Callable[[AddressComponent], Tuple[Bool, "Selection"]]
 
 
 # NOTE: normal class properties are deprecated in Python 3.11,
@@ -77,28 +75,57 @@ class Selection(Pytree):
     def __gt__(self, other):
         return select_and_then(self, other)
 
-    def __call__(self, addr) -> "Selection":
-        _, remaining = self.has_addr(addr)
+    @classmethod
+    def get_address_head(cls, addr: Address) -> AddressComponent:
+        if isinstance(addr, tuple) and addr:
+            return addr[0]
+        else:
+            return addr
+
+    @classmethod
+    def get_address_tail(cls, addr: Address) -> Address:
+        if isinstance(addr, tuple):
+            return addr[1:]
+        else:
+            return ()
+
+    def both(self, addr: AddressComponent) -> Tuple[BoolArray, "Selection"]:
+        return self.has_addr(addr)
+
+    def do(self, addr: Address):
+        head = Selection.get_address_head(addr)
+        check1, remaining = self.both(head)
+        if check1:
+            tail = Selection.get_address_tail(addr)
+            if tail:
+                return remaining.do(tail)
+            else:
+                return True, select_all
+        else:
+            return check1, select_none
+
+    def __call__(self, addr: Address) -> "Selection":
+        _, remaining = self.do(addr)
         return remaining
 
-    def __getitem__(self, addr) -> BoolArray:
-        check, _ = self.has_addr(addr)
+    def __getitem__(self, addr: Address) -> BoolArray:
+        check, _ = self.do(addr)
         return check
 
     @classproperty
-    def none(cls) -> "Selection":
+    def n(cls) -> "Selection":
         return select_none
 
     @classproperty
-    def all(cls) -> "Selection":
+    def a(cls) -> "Selection":
         return select_all
 
     @classmethod
-    def static(cls, addr) -> "Selection":
+    def s(cls, addr) -> "Selection":
         return select_static(addr)
 
     @classmethod
-    def from_addresses(cls, *addrs) -> "Selection":
+    def f(cls, *addrs) -> "Selection":
         return reduce(or_, (cls.static(addr) for addr in addrs))
 
     @classmethod
@@ -112,20 +139,19 @@ class Selection(Pytree):
 
 
 @Selection
-def select_all(_: Address):
+def select_all(_: AddressComponent):
     return True, select_all
 
 
 @Selection
-def select_none(_: Address):
+def select_none(_: AddressComponent):
     return False, select_none
 
 
 @typecheck
-def select_static(addressed: StaticAddressComponent) -> Selection:
+def select_static(addressed: AddressComponent) -> Selection:
     @Selection
-    @typecheck
-    def inner(addr: StaticAddressComponent):
+    def inner(addr: AddressComponent):
         if addressed == addr:
             return True, select_all
         else:
@@ -138,7 +164,6 @@ def select_static(addressed: StaticAddressComponent) -> Selection:
 def select_idx(sidx: Int) -> Selection:
     @Selection
     @Pytree.partial(sidx)
-    @typecheck
     def inner(sidx: Int, idx: Int):
         check = idx == sidx
         return check, select_all
@@ -146,31 +171,12 @@ def select_idx(sidx: Int) -> Selection:
     return inner
 
 
-def _get_address_head(addr: Address):
-    if isinstance(addr, tuple):
-        return addr[0]
-    else:
-        return addr
-
-
-def _get_address_tail(addr: Address):
-    if isinstance(addr, tuple):
-        return addr[1:]
-    else:
-        return ()
-
-
 @typecheck
 def select_and_then(s1: Selection, s2: Selection) -> Selection:
     @Selection
-    @typecheck
-    def inner(addr: Address):
-        head = _get_address_head(addr)
-        check1 = s1[head]
-        addr_remaining = _get_address_tail(addr)
-        check2 = s2[*addr_remaining]
-        remaining = s2(addr_remaining)
-        return check1 and check2, remaining
+    def inner(addr_comp: AddressComponent):
+        check1, remaining = s1.both(addr_comp)
+        return check1, select_and(remaining, s2)
 
     return inner
 
@@ -178,9 +184,8 @@ def select_and_then(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_complement(s: Selection) -> Selection:
     @Selection
-    @typecheck
-    def inner(addr: Address):
-        check, remaining = s(addr)
+    def inner(addr_comp: AddressComponent):
+        check, remaining = s.both(addr_comp)
         return jnp.logical_not(check), select_complement(remaining)
 
     return inner
@@ -189,10 +194,9 @@ def select_complement(s: Selection) -> Selection:
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
-    @typecheck
-    def inner(addr: Address):
-        check1, remaining1 = s1(addr)
-        check2, remaining2 = s2(addr)
+    def inner(addr_comp: AddressComponent):
+        check1, remaining1 = s1.both(addr_comp)
+        check2, remaining2 = s2.both(addr_comp)
         return check1 and check2, select_and(remaining1, remaining2)
 
     return inner
@@ -201,10 +205,9 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
     @Selection
-    @typecheck
-    def inner(addr: Address):
-        check1, remaining1 = s1(addr)
-        check2, remaining2 = s2(addr)
+    def inner(addr_comp: AddressComponent):
+        check1, remaining1 = s1.both(addr_comp)
+        check2, remaining2 = s2.both(addr_comp)
         return check1 or check2, select_or(remaining1, remaining2)
 
     return inner
@@ -213,9 +216,8 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_masked(flag: BoolArray, s: Selection) -> Selection:
     @Selection
-    @typecheck
-    def inner(addr: Address):
-        check, remaining = s(addr)
+    def inner(addr_comp: AddressComponent):
+        check, remaining = s.both(addr_comp)
         check = jnp.logical_and(flag, check)
         return check, select_masked(flag, remaining)
 
@@ -1249,7 +1251,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         trie = Trie()
 
         def inner(k, v):
-            remaining = selection(k)
+            check, remaining = selection.both(k)
             under = v.filter(remaining)
             return k, under
 

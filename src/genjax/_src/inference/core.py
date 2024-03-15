@@ -189,7 +189,7 @@ class Marginal(ChoiceDistribution):
     """
 
     p: GenerativeFunction
-    selection: Selection = Pytree.field(default=Selection.all)
+    selection: Selection = Pytree.field(default=Selection.a)
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
@@ -279,7 +279,7 @@ class ValueMarginal(Distribution):
 def marginal(
     gen_fn: Optional[GenerativeFunction] = None,
     *,
-    select_or_addr: Union[Selection, Any] = Selection.all,
+    select_or_addr: Union[Selection, Any] = Selection.a,
     algorithm: Optional[InferenceAlgorithm] = None,
 ):
     """If `select_or_addr` is a `Selection`, this constructs a `Marginal` distribution
