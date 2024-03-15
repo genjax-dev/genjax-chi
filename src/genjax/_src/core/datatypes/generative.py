@@ -179,7 +179,7 @@ class Selection(Pytree):
         return reduce(or_, selections)
 
     @classproperty
-    def select(cls) -> SelectionBuilder:
+    def q(cls) -> SelectionBuilder:
         return SelectionBuilder()
 
 
