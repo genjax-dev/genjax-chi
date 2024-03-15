@@ -40,6 +40,7 @@ from genjax._src.core.typing import (
     PRNGKey,
     Tuple,
     dispatch,
+    static_check_is_concrete,
     typecheck,
 )
 
@@ -98,12 +99,19 @@ class Selection(Pytree):
     def do(self, addr: Address):
         head = Selection.get_address_head(addr)
         check1, remaining = self.both(head)
-        if check1:
+        if static_check_is_concrete(check1) and check1:
             tail = Selection.get_address_tail(addr)
             if tail:
                 return remaining.do(tail)
             else:
                 return True, select_all
+        elif not static_check_is_concrete(check1):
+            tail = Selection.get_address_tail(addr)
+            if tail:
+                masked_remaining = select_masked(check1, remaining)
+                return masked_remaining.do(tail)
+            else:
+                return check1, select_all
         else:
             return check1, select_none
 
@@ -114,6 +122,9 @@ class Selection(Pytree):
     def __getitem__(self, addr: Address) -> BoolArray:
         check, _ = self.do(addr)
         return check
+
+    def has(self, addr: Address):
+        return self.__getitem__(addr)
 
     @classproperty
     def n(cls) -> "Selection":
@@ -178,7 +189,7 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
     @typecheck
     def inner(sidx: DynamicAddressComponent, idx: DynamicAddressComponent):
         check = idx == sidx
-        return jnp.array(check, copy=False), select_all
+        return jnp.any(check), select_all
 
     return inner
 
