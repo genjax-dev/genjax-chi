@@ -16,6 +16,7 @@
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import rich.tree as rich_tree
+from jax import vmap
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import (
@@ -76,7 +77,14 @@ class IndexedChoiceMap(ChoiceMap):
         self,
         selection: Selection,
     ) -> ChoiceMap:
-        return IndexedChoiceMap(self.indices, self.inner.filter(selection))
+        def _filter(idx, inner):
+            check, remaining = selection.both(idx)
+            return IndexedChoiceMap(
+                idx,
+                Mask(check, inner.filter(remaining)),
+            )
+
+        return vmap(_filter)(self.indices, self.inner)
 
     @dispatch
     def has_submap(self, addr: IntArray):
@@ -120,7 +128,8 @@ class IndexedChoiceMap(ChoiceMap):
         return EmptyChoice()
 
     def get_selection(self):
-        return self.inner.get_selection()
+        subselection = self.inner.get_selection()
+        return vmap(Selection.idx)(self.indices) > subselection
 
     # TODO: this will fail silently if the indices of the incoming map
     # are different than the original map.
@@ -153,7 +162,7 @@ class IndexedChoiceMap(ChoiceMap):
 class VectorChoiceMap(ChoiceMap):
     inner: Any
 
-    def __post_int__(self):
+    def __post_init__(self):
         Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
 
     def is_empty(self):
@@ -163,15 +172,21 @@ class VectorChoiceMap(ChoiceMap):
         self,
         selection: Selection,
     ) -> ChoiceMap:
-        return VectorChoiceMap(self.inner.filter(selection))
+        def _filter(idx, inner):
+            check, remaining = selection.both(idx)
+            return VectorChoiceMap(
+                Mask(check, inner.filter(remaining)),
+            )
+
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
+        idxs = jnp.arange(dim)
+        return vmap(_filter)(idxs, self.inner)
 
     def get_selection(self):
         subselection = self.inner.get_selection()
-        # Static: get the leading dimension size value.
-        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
-            self.inner,
-        )
-        return IndexedSelection(jnp.arange(dim), subselection)
+        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
+        idxs = jnp.arange(dim)
+        return vmap(Selection.idx)(idxs) > subselection
 
     @dispatch
     def has_submap(self, addr: IntArray):

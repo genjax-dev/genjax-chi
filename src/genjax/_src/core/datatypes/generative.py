@@ -147,7 +147,7 @@ class Selection(Pytree):
         return reduce(or_, (cls.static(addr) for addr in addrs))
 
     @classmethod
-    def reduce_or(cls, *selections) -> "Selection":
+    def reduce_or(cls, selections) -> "Selection":
         return reduce(or_, selections)
 
 
@@ -444,7 +444,7 @@ class ChoiceValue(ChoiceMap):
             return EmptyChoice()
 
     def get_selection(self) -> Selection:
-        return Selection.all
+        return Selection.a
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ChoiceValue)")
@@ -729,7 +729,7 @@ class Mask(Choice):
         if isinstance(self.value, Choice):
             return self.value.get_selection()
         else:
-            return Selection.all
+            return Selection.a
 
     ###########################
     # Choice value interfaces #
@@ -1351,8 +1351,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     def get_selection(self):
         return Selection.reduce_or(
-            (Selection.static(k) > v.get_selection())
-            for k, v in self.get_submaps_shallow()
+            (Selection.s(k) > v.get_selection()) for k, v in self.get_submaps_shallow()
         )
 
     @dispatch
