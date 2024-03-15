@@ -95,6 +95,9 @@ class Selection(Pytree):
     def __or__(self, other: "Selection") -> "Selection":
         return select_or(self, other)
 
+    def __rshift__(self, other):
+        return select_and_then(self, other)
+
     def __not__(self) -> "Selection":
         return select_complement(self)
 
@@ -153,10 +156,6 @@ class Selection(Pytree):
     def a(cls) -> "Selection":
         return select_all
 
-    @classproperty
-    def where(cls) -> SelectionBuilder:
-        return SelectionBuilder()
-
     @classmethod
     @typecheck
     def s(cls, comp: StaticAddressComponent) -> "Selection":
@@ -176,8 +175,12 @@ class Selection(Pytree):
         return select_masked(flag, s)
 
     @classmethod
-    def reduce_or(cls, selections) -> "Selection":
+    def r(cls, selections) -> "Selection":
         return reduce(or_, selections)
+
+    @classproperty
+    def select(cls) -> SelectionBuilder:
+        return SelectionBuilder()
 
 
 #####
@@ -216,9 +219,12 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
     @Selection
     @Pytree.partial(sidx)
     @typecheck
-    def inner(sidx: DynamicAddressComponent, idx: DynamicAddressComponent):
-        check = idx == sidx
-        return jnp.any(check), select_all
+    def inner(sidx: DynamicAddressComponent, idx: AddressComponent):
+        if isinstance(idx, DynamicAddressComponent):
+            check = idx == sidx
+            return jnp.any(check), select_all
+        else:
+            return False, select_none
 
     return inner
 
@@ -1349,8 +1355,8 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
 
     def get_selection(self):
-        return Selection.reduce_or(
-            (Selection.s(k) > v.get_selection()) for k, v in self.get_submaps_shallow()
+        return Selection.r(
+            (Selection.s(k) >> v.get_selection()) for k, v in self.get_submaps_shallow()
         )
 
     @dispatch
