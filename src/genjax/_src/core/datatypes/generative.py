@@ -36,8 +36,8 @@ from genjax._src.core.typing import (
     Callable,
     DynamicAddressComponent,
     FloatArray,
-    IntArray,
     PRNGKey,
+    StaticAddressComponent,
     Tuple,
     dispatch,
     static_check_is_concrete,
@@ -144,7 +144,11 @@ class Selection(Pytree):
 
     @classmethod
     def f(cls, *addrs) -> "Selection":
-        return reduce(or_, (cls.static(addr) for addr in addrs))
+        return reduce(or_, (cls.s(addr) for addr in addrs))
+
+    @classmethod
+    def m(cls, flag: BoolArray, s: "Selection") -> "Selection":
+        return select_masked(flag, s)
 
     @classmethod
     def reduce_or(cls, selections) -> "Selection":
@@ -318,11 +322,11 @@ class ChoiceMap(Choice):
     #######################
 
     @abstractmethod
-    def get_submap(self, addr) -> "ChoiceMap":
+    def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
         pass
 
     @abstractmethod
-    def has_submap(self, addr) -> BoolArray:
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
         pass
 
     ##############################################
@@ -377,29 +381,23 @@ class ChoiceMap(Choice):
     def __and__(self, other):
         return self.safe_merge(other)
 
-    def __getitem__(self, addr: Any):
-        if isinstance(addr, tuple):
-            submap = self.get_submap(addr)
-            if isinstance(submap, ChoiceValue):
-                return submap.get_value()
-            elif isinstance(submap, Mask):
-                if isinstance(submap.value, ChoiceValue):
-                    return submap.get_value()
-                else:
-                    return submap
-            else:
-                return submap
-        else:
-            return self.__getitem__((addr,))
+    def do(self, addr: Address):
+        head = Selection.get_address_head(addr)
+        submap = self.get_submap(head)
+        tail = Selection.get_address_tail(addr)
+        return submap.do(tail)
+
+    def __getitem__(self, addr: Address):
+        return self.do(addr)
 
 
 class EmptyChoice(ChoiceMap):
     """A `Choice` implementor which denotes an empty event."""
 
-    def get_submap(self, addr):
+    def get_submap(self, addr: AddressComponent):
         raise Exception("EmptyChoice doesn't address any choices.")
 
-    def has_submap(self, addr):
+    def has_submap(self, addr: AddressComponent):
         return False
 
     def filter(self, selection: Selection):
@@ -424,10 +422,10 @@ class ChoiceValue(ChoiceMap):
     def get_value(self):
         return self.value
 
-    def get_submap(self, addr):
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         raise Exception("ChoiceValue doesn't address any choices.")
 
-    def has_submap(self, addr):
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
         return False
 
     def is_empty(self):
@@ -445,6 +443,12 @@ class ChoiceValue(ChoiceMap):
 
     def get_selection(self) -> Selection:
         return Selection.a
+
+    def do(self, addr: Address):
+        if addr:
+            self.get_submap(addr)
+        else:
+            return self.value
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ChoiceValue)")
@@ -673,7 +677,7 @@ def strip(v):
 ###########
 
 
-class Mask(Choice):
+class Mask(ChoiceMap):
     """The `Mask` choice datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
 
@@ -708,28 +712,15 @@ class Mask(Choice):
 
     def filter(self, selection: Selection):
         choices = self.value.get_choices()
-        assert isinstance(choices, Choice)
+        assert isinstance(choices, ChoiceMap)
         return Mask(self.flag, choices.filter(selection))
 
-    def merge(self, other: Choice) -> Tuple["Mask", "Mask"]:
+    def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         pass
 
     def get_selection(self) -> Selection:
-        # If a user chooses to `get_selection`, require that they
-        # jax.experimental.checkify.checkify their call in transformed
-        # contexts.
-        def _check():
-            check_flag = jnp.all(self.flag)
-            checkify.check(
-                check_flag,
-                "Attempted to convert a Mask to a Selection when the mask flag is False, meaning the masked value is invalid.\n",
-            )
-
-        optional_check(_check)
-        if isinstance(self.value, Choice):
-            return self.value.get_selection()
-        else:
-            return Selection.a
+        assert isinstance(self.value, ChoiceMap)
+        return Selection.m(self.flag, self.value.get_selection())
 
     ###########################
     # Choice value interfaces #
@@ -757,7 +748,7 @@ class Mask(Choice):
     # Choice map interfaces #
     #########################
 
-    def get_submap(self, addr) -> Choice:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         # Using a `ChoiceMap` interface on the `Mask` means
         # that the value should be a `ChoiceMap`.
         assert isinstance(self.value, ChoiceMap)
@@ -767,7 +758,7 @@ class Mask(Choice):
         else:
             return Mask(self.flag, inner)
 
-    def has_submap(self, addr) -> BoolArray:
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
         # Using a `ChoiceMap` interface on the `Mask` means
         # that the value should be a `ChoiceMap`.
         assert isinstance(self.value, ChoiceMap)
@@ -1298,7 +1289,8 @@ class HierarchicalChoiceMap(ChoiceMap):
 
         return HierarchicalChoiceMap(trie)
 
-    def has_submap(self, addr):
+    @typecheck
+    def has_submap(self, addr: StaticAddressComponent) -> BoolArray:
         return self.trie.has_submap(addr)
 
     def _lift_value(self, value):
@@ -1310,31 +1302,10 @@ class HierarchicalChoiceMap(ChoiceMap):
             else:
                 return value
 
-    @dispatch
-    def get_submap(self, addr: Any):
+    @typecheck
+    def get_submap(self, addr: StaticAddressComponent) -> ChoiceMap:
         value = self.trie.get_submap(addr)
         return self._lift_value(value)
-
-    @dispatch
-    def get_submap(self, addr: IntArray):
-        value = self.trie.get_submap(addr)
-        return self._lift_value(value)
-
-    @dispatch
-    def get_submap(self, addr: Tuple):
-        first, *rest = addr
-        top = self.get_submap(first)
-        if isinstance(top, EmptyChoice):
-            return top
-        else:
-            if rest:
-                if len(rest) == 1:
-                    rest = rest[0]
-                else:
-                    rest = tuple(rest)
-                return top.get_submap(rest)
-            else:
-                return top
 
     def get_submaps_shallow(self):
         def inner(v):

@@ -33,6 +33,7 @@ from genjax._src.core.datatypes.generative import (
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -43,7 +44,6 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
-from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
     VectorChoiceMap,

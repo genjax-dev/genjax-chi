@@ -31,12 +31,12 @@ from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    BoolArray,
     Dict,
-    Int,
+    DynamicAddressComponent,
     IntArray,
     Tuple,
     dispatch,
-    static_check_is_concrete,
 )
 
 ######################################
@@ -86,46 +86,14 @@ class IndexedChoiceMap(ChoiceMap):
 
         return vmap(_filter)(self.indices, self.inner)
 
-    @dispatch
-    def has_submap(self, addr: IntArray):
+    def has_submap(self, addr: DynamicAddressComponent) -> BoolArray:
         return addr in self.indices
 
-    @dispatch
-    def has_submap(self, addr: Tuple):
-        (idx, *addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_submap(tuple(addr)))
-
-    @dispatch
-    def get_submap(self, addr: Tuple):
-        if len(addr) == 1:
-            return self.get_submap(addr[0])
-        idx = addr[0]
-        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
-        submap = submap.get_submap(addr[1:])
-        if isinstance(submap, EmptyChoice):
-            return submap
-        else:
-            return Mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, idx: Int):
+    def get_submap(self, idx: DynamicAddressComponent) -> ChoiceMap:
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
         slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
         submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, self.inner)
         return Mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, idx: IntArray):
-        (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
-        slice_index = self.indices[slice_index[0]] if self.indices.shape else idx
-        inner = jtu.tree_map(lambda v: jnp.array(v, copy=False), self.inner)
-        submap = jtu.tree_map(lambda v: v[slice_index] if v.shape else v, inner)
-        return Mask(jnp.isin(idx, self.indices), submap)
-
-    @dispatch
-    def get_submap(self, _: Any):
-        return EmptyChoice()
 
     def get_selection(self):
         subselection = self.inner.get_selection()
@@ -188,54 +156,19 @@ class VectorChoiceMap(ChoiceMap):
         idxs = jnp.arange(dim)
         return vmap(Selection.idx)(idxs) > subselection
 
-    @dispatch
-    def has_submap(self, addr: IntArray):
+    def has_submap(self, addr: DynamicAddressComponent):
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         return addr < dim
 
-    @dispatch
-    def has_submap(self, addr: Tuple):
-        (idx, *addr) = addr
-        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
-            self.inner,
-        )
-        return jnp.logical_and(idx < dim, self.inner.has_submap(tuple(addr)))
-
-    @dispatch
-    def get_submap(self, slc: slice):
-        sliced = jtu.tree_map(lambda v: v[slc], self.inner)
-        return sliced
-
-    @dispatch
-    def get_submap(self, idx: Int):
+    def get_submap(self, idx: DynamicAddressComponent):
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
         check = idx < dim
         idx = check * idx
         sliced = jtu.tree_map(lambda v: v[idx], self.inner)
-        return sliced
-
-    @dispatch
-    def get_submap(self, idx: IntArray):
-        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
-            self.inner,
-        )
-        check = idx < dim
-        idx = check * idx
-        sliced = jtu.tree_map(lambda v: v[idx], self.inner)
-        if static_check_is_concrete(check) and check:
-            return sliced
-        else:
-            return Mask(idx < dim, sliced)
-
-    @dispatch
-    def get_submap(self, addr: Tuple):
-        (idx, *addr) = addr
-        sliced = self.get_submap(idx)
-        sliced = sliced.get_submap(tuple(addr))
         return sliced
 
     @dispatch

@@ -13,7 +13,8 @@
 # limitations under the License.
 
 
-from jax import api_util
+import jax.numpy as jnp
+from jax import api_util, make_jaxpr
 from jax import core as jc
 from jax import tree_util as jtu
 from jax.extend import linear_util as lu
@@ -79,3 +80,31 @@ def trees(f):
         return stage(f)(*args, **kwargs)[1]
 
     return wrapped
+
+
+def get_trace_data_shape(gen_fn, key, args):
+    def _apply(key, args):
+        tr = gen_fn.simulate(key, args)
+        return tr
+
+    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key, args)
+    return trace_shape
+
+
+def get_discard_data_shape(gen_fn, key, tr, constraints, argdiffs):
+    def _apply(key, tr, constraints, argdiffs):
+        _, _, _, discard = gen_fn.update(key, tr, constraints, argdiffs)
+        return discard
+
+    (_, discard_shape) = make_jaxpr(_apply, return_shape=True)(
+        key, tr, constraints, argdiffs
+    )
+    return discard_shape
+
+
+def make_zero_trace(gen_fn, *args):
+    out_tree = get_trace_data_shape(gen_fn, *args)
+    return jtu.tree_map(
+        lambda v: jnp.zeros(v.shape, v.dtype),
+        out_tree,
+    )

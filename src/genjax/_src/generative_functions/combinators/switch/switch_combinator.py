@@ -23,6 +23,10 @@ from genjax._src.core.datatypes.generative import (
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import (
+    get_discard_data_shape,
+    get_trace_data_shape,
+)
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -30,10 +34,6 @@ from genjax._src.core.typing import (
     Tuple,
     dispatch,
     typecheck,
-)
-from genjax._src.generative_functions.combinators.staging_utils import (
-    get_discard_data_shape,
-    get_trace_data_shape,
 )
 from genjax._src.generative_functions.combinators.switch.sumtree import (
     DataSharedSumTree,
