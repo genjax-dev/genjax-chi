@@ -35,6 +35,7 @@ from genjax._src.core.typing import (
     BoolArray,
     Callable,
     DynamicAddressComponent,
+    EllipsisType,
     FloatArray,
     PRNGKey,
     StaticAddressComponent,
@@ -61,6 +62,30 @@ class classproperty:
         return self.fget(owner)
 
 
+class SelectionBuilder(Pytree):
+    def __getitem__(self, addr_comps):
+        if not isinstance(addr_comps, Tuple):
+            addr_comps = (addr_comps,)
+
+        def _comp_to_sel(comp: AddressComponent):
+            if isinstance(comp, EllipsisType):
+                return Selection.a
+            elif isinstance(comp, DynamicAddressComponent):
+                return Selection.idx(comp)
+            elif isinstance(comp, StaticAddressComponent):
+                return Selection.s(comp)
+            else:
+                raise Exception(
+                    f"Provided address component {comp} is not a valid address component type."
+                )
+
+        sel = _comp_to_sel(addr_comps[0])
+        for comp in addr_comps[1:]:
+            sel = select_and_then(sel, _comp_to_sel(comp))
+
+        return sel
+
+
 class Selection(Pytree):
     has_addr: SelectionFunction
 
@@ -72,12 +97,6 @@ class Selection(Pytree):
 
     def __not__(self) -> "Selection":
         return select_complement(self)
-
-    def __gt__(self, other):
-        return select_and_then(self, other)
-
-    def __lt__(self, other):
-        return select_and_then(other, self)
 
     @classmethod
     def get_address_head(cls, addr: Address) -> AddressComponent:
@@ -134,13 +153,19 @@ class Selection(Pytree):
     def a(cls) -> "Selection":
         return select_all
 
-    @classmethod
-    def s(cls, addr) -> "Selection":
-        return select_static(addr)
+    @classproperty
+    def where(cls) -> SelectionBuilder:
+        return SelectionBuilder()
 
     @classmethod
-    def idx(cls, addr) -> "Selection":
-        return select_idx(addr)
+    @typecheck
+    def s(cls, comp: StaticAddressComponent) -> "Selection":
+        return select_static(comp)
+
+    @classmethod
+    @typecheck
+    def idx(cls, comp: DynamicAddressComponent) -> "Selection":
+        return select_idx(comp)
 
     @classmethod
     def f(cls, *addrs) -> "Selection":

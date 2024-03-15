@@ -59,7 +59,7 @@ Float = float
 Bool = bool
 String = str
 
-StaticAddressComponent = Union[String, Tuple[()]]
+StaticAddressComponent = String
 DynamicAddressComponent = Union[Int, IntArray]
 AddressComponent = Union[
     Tuple[()],
