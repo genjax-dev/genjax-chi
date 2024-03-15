@@ -52,36 +52,58 @@ from genjax._src.core.typing import (
 SelectionFunction = Callable[[Address], Tuple[Bool, "Selection"]]
 
 
+# NOTE: normal class properties are deprecated in Python 3.11,
+# so here's our simple custom version.
+class classproperty:
+    def __init__(self, func):
+        self.fget = func
+
+    def __get__(self, instance, owner):
+        return self.fget(owner)
+
+
 class Selection(Pytree):
     has_addr: SelectionFunction = Pytree.static()
 
     def __and__(self, other: "Selection") -> "Selection":
-        return Selection(select_and(self, other))
+        return select_and(self, other)
 
     def __or__(self, other: "Selection") -> "Selection":
-        return Selection(select_or(self, other))
+        return select_or(self, other)
 
     def __not__(self) -> "Selection":
-        return Selection(select_complement(self))
+        return select_complement(self)
 
-    def __call__(self, addr) -> Tuple[Bool, "Selection"]:
-        return self.has_addr(addr)
+    def __gt__(self, other):
+        return select_and_then(self, other)
 
-    def __getitem__(self, *addr) -> "Selection":
+    def __call__(self, addr) -> "Selection":
         _, remaining = self.has_addr(addr)
         return remaining
 
-    @property
-    def none(self):
-        return Selection(select_none)
+    def __getitem__(self, addr) -> BoolArray:
+        check, _ = self.has_addr(addr)
+        return check
 
-    @property
-    def all(self):
-        return Selection(select_all)
+    @classproperty
+    def none(cls) -> "Selection":
+        return select_none
+
+    @classproperty
+    def all(cls) -> "Selection":
+        return select_all
 
     @classmethod
-    def from_addresses(cls, *addrs):
-        return reduce(or_, (select_static(addr) for addr in addrs))
+    def static(cls, addr) -> "Selection":
+        return select_static(addr)
+
+    @classmethod
+    def from_addresses(cls, *addrs) -> "Selection":
+        return reduce(or_, (cls.static(addr) for addr in addrs))
+
+    @classmethod
+    def reduce_or(cls, *selections) -> "Selection":
+        return reduce(or_, selections)
 
 
 #####
@@ -115,8 +137,9 @@ def select_static(addressed: StaticAddressComponent) -> Selection:
 @typecheck
 def select_idx(sidx: Int) -> Selection:
     @Selection
+    @Pytree.partial(sidx)
     @typecheck
-    def inner(idx: Int):
+    def inner(sidx: Int, idx: Int):
         check = idx == sidx
         return check, select_all
 
@@ -143,9 +166,10 @@ def select_and_then(s1: Selection, s2: Selection) -> Selection:
     @typecheck
     def inner(addr: Address):
         head = _get_address_head(addr)
-        check1, _ = s1(head)
+        check1 = s1[head]
         addr_remaining = _get_address_tail(addr)
-        check2, remaining = s2(addr_remaining)
+        check2 = s2[*addr_remaining]
+        remaining = s2(addr_remaining)
         return check1 and check2, remaining
 
     return inner
@@ -337,6 +361,12 @@ class ChoiceMap(Choice):
 class EmptyChoice(ChoiceMap):
     """A `Choice` implementor which denotes an empty event."""
 
+    def get_submap(self, addr):
+        raise Exception("EmptyChoice doesn't address any choices.")
+
+    def has_submap(self, addr):
+        return False
+
     def filter(self, selection: Selection):
         return self
 
@@ -359,14 +389,20 @@ class ChoiceValue(ChoiceMap):
     def get_value(self):
         return self.value
 
+    def get_submap(self, addr):
+        raise Exception("ChoiceValue doesn't address any choices.")
+
+    def has_submap(self, addr):
+        return False
+
     def is_empty(self):
         return jnp.array(False)
 
     def merge(self, other: Choice):
         return other, self
 
-    def filter(self, selection):
-        check, _ = selection(())
+    def filter(self, selection: Selection):
+        check = selection[...]
         if check:
             return self
         else:
@@ -376,7 +412,7 @@ class ChoiceValue(ChoiceMap):
         return Selection.all
 
     def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](ValueChoice)")
+        tree = rich_tree.Tree("[bold](ChoiceValue)")
         tree.add(gpp.tree_pformat(self.value))
         return tree
 
@@ -1213,7 +1249,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         trie = Trie()
 
         def inner(k, v):
-            remaining = selection[k]
+            remaining = selection(k)
             under = v.filter(remaining)
             return k, under
 
@@ -1279,10 +1315,10 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
 
     def get_selection(self):
-        trie = Trie()
-        for k, v in self.get_submaps_shallow():
-            trie = trie.trie_insert(k, v.get_selection())
-        return HierarchicalSelection(trie)
+        return Selection.reduce_or(
+            (Selection.static(k) > v.get_selection())
+            for k, v in self.get_submaps_shallow()
+        )
 
     @dispatch
     def merge(self, other: "HierarchicalChoiceMap"):

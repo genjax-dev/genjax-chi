@@ -31,7 +31,7 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
+    Selection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -243,11 +243,10 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: HierarchicalSelection) -> FloatArray:
+    def project(self, selection: Selection) -> FloatArray:
         weight = jnp.zeros(())
         for k, subtrace in self.choices.get_submaps_shallow():
-            if selection.has_addr(k):
-                weight += subtrace.project(selection.get_subselection(k))
+            weight += subtrace.project(selection(k))
         return weight
 
 

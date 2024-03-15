@@ -49,40 +49,6 @@ from genjax._src.core.typing import (
 #####################
 
 
-class IndexedSelection(MapSelection):
-    indices: IntArray
-    inner: Selection
-
-    def __post_init__(self):
-        Pytree.static_check_tree_leaves_have_matching_leading_dim(
-            (self.inner, self.indices)
-        )
-
-    @dispatch
-    def has_addr(self, addr: IntArray):
-        return jnp.isin(addr, self.indices)
-
-    @dispatch
-    def has_addr(self, addr: Tuple):
-        if len(addr) <= 1:
-            return False
-        (idx, addr) = addr
-        return jnp.logical_and(idx in self.indices, self.inner.has_addr(addr))
-
-    def get_subselection(self, addr):
-        return self.index_selection.get_subselection(addr)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.indices, short_arrays=True)
-        tree = rich_tree.Tree(f"[bold](IndexedSelection, {doc})")
-        tree.add(self.inner.__rich_tree__())
-        return tree
-
-
 class IndexedChoiceMap(ChoiceMap):
     indices: IntArray
     inner: ChoiceMap
@@ -106,22 +72,11 @@ class IndexedChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
-    @dispatch
     def filter(
         self,
-        selection: MapSelection,
+        selection: Selection,
     ) -> ChoiceMap:
         return IndexedChoiceMap(self.indices, self.inner.filter(selection))
-
-    @dispatch
-    def filter(
-        self,
-        selection: IndexedSelection,
-    ) -> ChoiceMap:
-        flags = jnp.isin(selection.indices, self.indices)
-        filtered_inner = self.inner.filter(selection.inner)
-        masked = Mask(flags, filtered_inner)
-        return IndexedChoiceMap(self.indices, masked)
 
     @dispatch
     def has_submap(self, addr: IntArray):
@@ -204,20 +159,6 @@ class VectorChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
-    @dispatch
-    def filter(
-        self,
-        selection: IndexedSelection,
-    ) -> ChoiceMap:
-        inner = self.inner.filter(selection.inner)
-        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
-        check = selection.indices <= dim
-        idxs = check * selection.indices
-        return IndexedChoiceMap(
-            selection.indices, jtu.tree_map(lambda v: v[idxs], inner)
-        )
-
-    @dispatch
     def filter(
         self,
         selection: Selection,

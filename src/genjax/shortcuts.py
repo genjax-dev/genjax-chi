@@ -20,7 +20,6 @@ from genjax._src.shortcuts import (
     choice,
     choice_map,
     indexed_choice_map,
-    indexed_select,
     select,
     vector_choice_map,
 )
@@ -65,7 +64,6 @@ __all__ = [
     "choice",
     "choice_map",
     "indexed_choice_map",
-    "indexed_select",
     "select",
     "vector_choice_map",
     "tree_diff",

@@ -50,7 +50,6 @@ from genjax._src.generative_functions.combinators.drop_arguments import (
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-    IndexedSelection,
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
@@ -100,7 +99,7 @@ class MapTrace(Trace):
     @dispatch
     def project(
         self,
-        selection: IndexedSelection,
+        selection: Selection,
     ) -> FloatArray:
         inner_project = self.maybe_restore_arguments_project(
             self.inner,
