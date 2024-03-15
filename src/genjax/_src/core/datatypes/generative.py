@@ -34,8 +34,8 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     Callable,
+    DynamicAddressComponent,
     FloatArray,
-    Int,
     IntArray,
     PRNGKey,
     Tuple,
@@ -61,7 +61,7 @@ class classproperty:
 
 
 class Selection(Pytree):
-    has_addr: SelectionFunction = Pytree.static()
+    has_addr: SelectionFunction
 
     def __and__(self, other: "Selection") -> "Selection":
         return select_and(self, other)
@@ -74,6 +74,9 @@ class Selection(Pytree):
 
     def __gt__(self, other):
         return select_and_then(self, other)
+
+    def __lt__(self, other):
+        return select_and_then(other, self)
 
     @classmethod
     def get_address_head(cls, addr: Address) -> AddressComponent:
@@ -125,6 +128,10 @@ class Selection(Pytree):
         return select_static(addr)
 
     @classmethod
+    def idx(cls, addr) -> "Selection":
+        return select_idx(addr)
+
+    @classmethod
     def f(cls, *addrs) -> "Selection":
         return reduce(or_, (cls.static(addr) for addr in addrs))
 
@@ -139,11 +146,13 @@ class Selection(Pytree):
 
 
 @Selection
+@Pytree.const
 def select_all(_: AddressComponent):
     return True, select_all
 
 
 @Selection
+@Pytree.const
 def select_none(_: AddressComponent):
     return False, select_none
 
@@ -151,6 +160,8 @@ def select_none(_: AddressComponent):
 @typecheck
 def select_static(addressed: AddressComponent) -> Selection:
     @Selection
+    @Pytree.const
+    @typecheck
     def inner(addr: AddressComponent):
         if addressed == addr:
             return True, select_all
@@ -161,12 +172,13 @@ def select_static(addressed: AddressComponent) -> Selection:
 
 
 @typecheck
-def select_idx(sidx: Int) -> Selection:
+def select_idx(sidx: DynamicAddressComponent) -> Selection:
     @Selection
     @Pytree.partial(sidx)
-    def inner(sidx: Int, idx: Int):
+    @typecheck
+    def inner(sidx: DynamicAddressComponent, idx: DynamicAddressComponent):
         check = idx == sidx
-        return check, select_all
+        return jnp.array(check, copy=False), select_all
 
     return inner
 
@@ -174,6 +186,8 @@ def select_idx(sidx: Int) -> Selection:
 @typecheck
 def select_and_then(s1: Selection, s2: Selection) -> Selection:
     @Selection
+    @Pytree.const
+    @typecheck
     def inner(addr_comp: AddressComponent):
         check1, remaining = s1.both(addr_comp)
         return check1, select_and(remaining, s2)
@@ -184,6 +198,8 @@ def select_and_then(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_complement(s: Selection) -> Selection:
     @Selection
+    @Pytree.const
+    @typecheck
     def inner(addr_comp: AddressComponent):
         check, remaining = s.both(addr_comp)
         return jnp.logical_not(check), select_complement(remaining)
@@ -194,6 +210,8 @@ def select_complement(s: Selection) -> Selection:
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
+    @Pytree.const
+    @typecheck
     def inner(addr_comp: AddressComponent):
         check1, remaining1 = s1.both(addr_comp)
         check2, remaining2 = s2.both(addr_comp)
@@ -205,6 +223,8 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
     @Selection
+    @Pytree.const
+    @typecheck
     def inner(addr_comp: AddressComponent):
         check1, remaining1 = s1.both(addr_comp)
         check2, remaining2 = s2.both(addr_comp)
@@ -216,6 +236,8 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_masked(flag: BoolArray, s: Selection) -> Selection:
     @Selection
+    @Pytree.const
+    @typecheck
     def inner(addr_comp: AddressComponent):
         check, remaining = s.both(addr_comp)
         check = jnp.logical_and(flag, check)

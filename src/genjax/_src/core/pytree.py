@@ -251,9 +251,12 @@ class Pytree(eqx.Module):
 ##############################
 
 
-# Wrapper for static values.
+# Wrapper for static values (can include callables).
 class PytreeConst(Pytree):
     const: Any = Pytree.static()
+
+    def __call__(self, *args):
+        return self.const(*args)
 
     def __rich_tree__(self):
         return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
