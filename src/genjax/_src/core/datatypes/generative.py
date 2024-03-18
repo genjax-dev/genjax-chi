@@ -94,35 +94,6 @@ class SelectionBuilder(Pytree):
         return sel
 
 
-class InvertedTraversal(Pytree):
-    selection: "Selection"
-
-    def do(self, addr: Address):
-        head = Selection.get_address_head(addr)
-        check1, remaining = self.selection.both(head)
-        tail = Selection.get_address_tail(addr)
-        if tail:
-            check2, remaining2 = InvertedTraversal(remaining).do(tail)
-            return check1 or check2, remaining2
-        else:
-            check2, remaining2 = remaining.both(...)
-            return check1 or check2, remaining2
-
-    def __call__(self, addr: Address) -> "Selection":
-        _, remaining = self.do(addr)
-        return remaining
-
-    def __getitem__(self, addr: Address) -> BoolArray:
-        check, _ = self.do(addr)
-        return check
-
-    def has(self, addr: Address):
-        return self.__getitem__(addr)
-
-    def __invert__(self) -> "Selection":
-        return select_complement(self.selection)
-
-
 class Selection(Pytree):
     has_addr: SelectionFunction
 
@@ -135,8 +106,8 @@ class Selection(Pytree):
     def __rshift__(self, other):
         return select_and_then(self, other)
 
-    def __invert__(self) -> InvertedTraversal:
-        return InvertedTraversal(select_complement(self))
+    def __invert__(self) -> "Selection":
+        return select_complement(self)
 
     @classmethod
     def get_address_head(cls, addr: Address) -> AddressComponent:
@@ -274,7 +245,7 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
 
 @typecheck
 def select_and_then(
-    s1: Optional[Selection],
+    s1: Selection,
     s2: Selection,
 ) -> Selection:
     @Selection
@@ -282,12 +253,12 @@ def select_and_then(
     @typecheck
     def inner(addr_comp: AddressComponent):
         check1, remaining = s1.both(addr_comp)
-        return check1, select_and_then(remaining, s2)
+        if remaining:
+            return check1, select_and(remaining, s2)
+        else:
+            return check1, s2
 
-    if s1:
-        return inner
-    else:
-        return s2
+    return inner
 
 
 @typecheck
@@ -297,7 +268,10 @@ def select_complement(s: Selection) -> Selection:
     @typecheck
     def inner(addr_comp: AddressComponent):
         check, remaining = s.both(addr_comp)
-        return jnp.logical_not(check), select_complement(remaining)
+        if remaining:
+            return jnp.logical_not(check), select_complement(remaining)
+        else:
+            return jnp.logical_not(check), None
 
     return inner
 
