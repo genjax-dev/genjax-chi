@@ -113,7 +113,7 @@ class Selection(Pytree):
         return select_complement(self)
 
     @classmethod
-    def get_address_head(cls, addr: Address) -> AddressComponent:
+    def get_address_head(cls, addr: Address) -> Address:
         if isinstance(addr, tuple) and addr:
             return addr[0]
         else:
@@ -128,10 +128,10 @@ class Selection(Pytree):
 
     def __getitem__(self, addr: Address) -> BoolArray:
         check, _ = self.both(addr)
-        return check
+        return jnp.array(check)
 
-    def both(self, comp: AddressComponent):
-        ch, remaining = self.has_addr(comp)
+    def both(self, addr: Address):
+        ch, remaining = self.has_addr(addr)
         remaining = [
             (addr, cs) if cs else (addr, Selection.a) for (addr, cs) in remaining
         ]
@@ -253,9 +253,9 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(comp: AddressComponent):
-        check1, remaining1 = s1.both(comp)
-        check2, remaining2 = s2.both(comp)
+    def inner(addr: Address):
+        check1, remaining1 = s1.both(addr)
+        check2, remaining2 = s2.both(addr)
         return check1 and check2, remaining1 + remaining2
 
     return inner
@@ -266,8 +266,8 @@ def select_complement(s: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(comp: AddressComponent):
-        ch, remaining = s.both(comp)
+    def inner(addr: Address):
+        ch, remaining = s.both(addr)
         return jnp.logical_not(ch), [
             (addr, select_complement(s)) for addr, s in remaining
         ]
@@ -280,8 +280,8 @@ def select_masked(flag: BoolArray, s: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(comp: AddressComponent):
-        ch, remaining = s.both(comp)
+    def inner(addr: Address):
+        ch, remaining = s.both(addr)
         return jnp.logical_and(flag, ch), [
             (addr, select_masked(flag, s)) for addr, s in remaining
         ]
