@@ -38,6 +38,7 @@ from genjax._src.core.typing import (
     DynamicAddressComponent,
     EllipsisType,
     FloatArray,
+    Optional,
     PRNGKey,
     StaticAddressComponent,
     Tuple,
@@ -50,7 +51,10 @@ from genjax._src.core.typing import (
 # Selections #
 ##############
 
-SelectionFunction = Callable[[AddressComponent], Tuple[Bool, "Selection"]]
+SelectionFunction = Callable[
+    [AddressComponent],
+    Tuple[Bool, Optional["Selection"]],
+]
 
 
 # NOTE: normal class properties are deprecated in Python 3.11,
@@ -84,11 +88,39 @@ class SelectionBuilder(Pytree):
                     f"Provided address component {comp} is not a valid address component type."
                 )
 
-        sel = _comp_to_sel(addr_comps[0])
-        for comp in addr_comps[1:]:
-            sel = select_and_then(sel, _comp_to_sel(comp))
-
+        sel = _comp_to_sel(addr_comps[-1])
+        for comp in reversed(addr_comps[:-1]):
+            sel = _comp_to_sel(comp) >> sel
         return sel
+
+
+class InvertedTraversal(Pytree):
+    selection: "Selection"
+
+    def do(self, addr: Address):
+        head = Selection.get_address_head(addr)
+        check1, remaining = self.selection.both(head)
+        tail = Selection.get_address_tail(addr)
+        if tail:
+            check2, remaining2 = InvertedTraversal(remaining).do(tail)
+            return check1 or check2, remaining2
+        else:
+            check2, remaining2 = remaining.both(...)
+            return check1 or check2, remaining2
+
+    def __call__(self, addr: Address) -> "Selection":
+        _, remaining = self.do(addr)
+        return remaining
+
+    def __getitem__(self, addr: Address) -> BoolArray:
+        check, _ = self.do(addr)
+        return check
+
+    def has(self, addr: Address):
+        return self.__getitem__(addr)
+
+    def __invert__(self) -> "Selection":
+        return select_complement(self.selection)
 
 
 class Selection(Pytree):
@@ -103,8 +135,8 @@ class Selection(Pytree):
     def __rshift__(self, other):
         return select_and_then(self, other)
 
-    def __not__(self) -> "Selection":
-        return select_complement(self)
+    def __invert__(self) -> InvertedTraversal:
+        return InvertedTraversal(select_complement(self))
 
     @classmethod
     def get_address_head(cls, addr: Address) -> AddressComponent:
@@ -126,12 +158,15 @@ class Selection(Pytree):
     def do(self, addr: Address):
         head = Selection.get_address_head(addr)
         check1, remaining = self.both(head)
+        if not remaining:
+            remaining = Selection.n
         if static_check_is_concrete(check1) and check1:
             tail = Selection.get_address_tail(addr)
             if tail:
                 return remaining.do(tail)
             else:
-                return True, select_all
+                ch, r = remaining.both(...)
+                return ch, r
         elif not static_check_is_concrete(check1):
             tail = Selection.get_address_tail(addr)
             if tail:
@@ -196,13 +231,16 @@ class Selection(Pytree):
 @Selection
 @Pytree.const
 def select_all(_: AddressComponent):
-    return True, select_all
+    return True, None
 
 
 @Selection
 @Pytree.const
-def select_none(_: AddressComponent):
-    return False, select_none
+def select_none(comp: AddressComponent):
+    if isinstance(comp, EllipsisType):
+        return True, None
+    else:
+        return False, None
 
 
 @typecheck
@@ -212,9 +250,9 @@ def select_static(addressed: AddressComponent) -> Selection:
     @typecheck
     def inner(addr: AddressComponent):
         if addressed == addr:
-            return True, select_all
+            return True, None
         else:
-            return False, select_none
+            return False, None
 
     return inner
 
@@ -227,23 +265,29 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
     def inner(sidx: DynamicAddressComponent, idx: AddressComponent):
         if isinstance(idx, DynamicAddressComponent):
             check = idx == sidx
-            return jnp.any(check), select_all
+            return jnp.any(check), None
         else:
-            return False, select_none
+            return False, None
 
     return inner
 
 
 @typecheck
-def select_and_then(s1: Selection, s2: Selection) -> Selection:
+def select_and_then(
+    s1: Optional[Selection],
+    s2: Selection,
+) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
     def inner(addr_comp: AddressComponent):
         check1, remaining = s1.both(addr_comp)
-        return check1, select_and(remaining, s2)
+        return check1, select_and_then(remaining, s2)
 
-    return inner
+    if s1:
+        return inner
+    else:
+        return s2
 
 
 @typecheck

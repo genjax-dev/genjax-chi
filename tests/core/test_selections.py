@@ -16,7 +16,11 @@ from genjax import Selection as S
 
 
 class TestSelections:
-    def test_hierarchical_selection(self):
-        new = S.s("x") | (S.s("z") > (S.s("y") > S.a))
-        assert new["z"]
+    def test_selection(self):
+        new = S.s("x") | (S.s("z") >> S.s("y"))
         assert new["x"]
+        assert new["z", "y"]
+        new = S.q["x", "y", "z"]
+        assert new["x", "y", "z"]
+        assert not new["x"]
+        assert not new["x", "y"]
