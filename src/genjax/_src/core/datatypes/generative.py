@@ -52,8 +52,8 @@ from genjax._src.core.typing import (
 ##############
 
 SelectionFunction = Callable[
-    [AddressComponent],
-    Tuple[Bool, Optional["Selection"]],
+    [Address],
+    Tuple[Bool, Address],
 ]
 
 
@@ -88,17 +88,14 @@ class SelectionBuilder(Pytree):
                     f"Provided address component {comp} is not a valid address component type."
                 )
 
-        sel = _comp_to_sel(addr_comps[-1])
-        for comp in reversed(addr_comps[:-1]):
+        sel = Selection.n
+        for comp in reversed(addr_comps):
             sel = _comp_to_sel(comp) >> sel
         return sel
 
 
 class Selection(Pytree):
     has_addr: SelectionFunction
-
-    def __and__(self, other: "Selection") -> "Selection":
-        return select_and(self, other)
 
     def __or__(self, other: "Selection") -> "Selection":
         return select_or(self, other)
@@ -123,37 +120,12 @@ class Selection(Pytree):
         else:
             return ()
 
-    def both(self, addr: AddressComponent) -> Tuple[BoolArray, "Selection"]:
-        return self.has_addr(addr)
-
-    def do(self, addr: Address):
-        head = Selection.get_address_head(addr)
-        check1, remaining = self.both(head)
-        if not remaining:
-            remaining = Selection.n
-        if static_check_is_concrete(check1) and check1:
-            tail = Selection.get_address_tail(addr)
-            if tail:
-                return remaining.do(tail)
-            else:
-                ch, r = remaining.both(...)
-                return ch, r
-        elif not static_check_is_concrete(check1):
-            tail = Selection.get_address_tail(addr)
-            if tail:
-                masked_remaining = select_masked(check1, remaining)
-                return masked_remaining.do(tail)
-            else:
-                return check1, select_all
-        else:
-            return check1, select_none
-
     def __call__(self, addr: Address) -> "Selection":
-        _, remaining = self.do(addr)
+        _, remaining = self.has_addr(addr)
         return remaining
 
     def __getitem__(self, addr: Address) -> BoolArray:
-        check, _ = self.do(addr)
+        check, _ = self.has_addr(addr)
         return check
 
     def has(self, addr: Address):
@@ -201,17 +173,17 @@ class Selection(Pytree):
 
 @Selection
 @Pytree.const
-def select_all(_: AddressComponent):
-    return True, None
+def select_all(addr: Address):
+    return True, Selection.get_address_tail(addr)
 
 
 @Selection
 @Pytree.const
-def select_none(comp: AddressComponent):
-    if isinstance(comp, EllipsisType):
-        return True, None
+def select_none(addr: Address):
+    if addr:
+        return False, Selection.get_address_tail(addr)
     else:
-        return False, None
+        return True, addr
 
 
 @typecheck
@@ -219,11 +191,9 @@ def select_static(addressed: AddressComponent) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr: AddressComponent):
-        if addressed == addr:
-            return True, None
-        else:
-            return False, None
+    def inner(addr: Address):
+        head = Selection.get_address_head(addr)
+        return addressed == head, Selection.get_address_tail(addr)
 
     return inner
 
@@ -233,12 +203,10 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
     @Selection
     @Pytree.partial(sidx)
     @typecheck
-    def inner(sidx: DynamicAddressComponent, idx: AddressComponent):
-        if isinstance(idx, DynamicAddressComponent):
-            check = idx == sidx
-            return jnp.any(check), None
-        else:
-            return False, None
+    def inner(sidx: DynamicAddressComponent, addr: Address):
+        idx = Selection.get_address_head(addr)
+        check = idx == sidx
+        return jnp.any(check), Selection.get_address_tail(addr)
 
     return inner
 
@@ -251,40 +219,10 @@ def select_and_then(
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr_comp: AddressComponent):
-        check1, remaining = s1.both(addr_comp)
-        if remaining:
-            return check1, select_and(remaining, s2)
-        else:
-            return check1, s2
-
-    return inner
-
-
-@typecheck
-def select_complement(s: Selection) -> Selection:
-    @Selection
-    @Pytree.const
-    @typecheck
-    def inner(addr_comp: AddressComponent):
-        check, remaining = s.both(addr_comp)
-        if remaining:
-            return jnp.logical_not(check), select_complement(remaining)
-        else:
-            return jnp.logical_not(check), None
-
-    return inner
-
-
-@typecheck
-def select_and(s1: Selection, s2: Selection) -> Selection:
-    @Selection
-    @Pytree.const
-    @typecheck
-    def inner(addr_comp: AddressComponent):
-        check1, remaining1 = s1.both(addr_comp)
-        check2, remaining2 = s2.both(addr_comp)
-        return check1 and check2, select_and(remaining1, remaining2)
+    def inner(addr: Address):
+        check1, remaining = s1.has_addr(addr)
+        check2, remaining = s2.has_addr(remaining)
+        return check1 and check2, remaining
 
     return inner
 
@@ -294,10 +232,24 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr_comp: AddressComponent):
-        check1, remaining1 = s1.both(addr_comp)
-        check2, remaining2 = s2.both(addr_comp)
-        return check1 or check2, select_or(remaining1, remaining2)
+    def inner(addr: Address):
+        check1, remaining1 = s1.has_addr(addr)
+        if check1:
+            return check1, remaining1
+        else:
+            return s2.has_addr(addr)
+
+    return inner
+
+
+@typecheck
+def select_complement(s: Selection) -> Selection:
+    @Selection
+    @Pytree.const
+    @typecheck
+    def inner(addr: Address):
+        check, remaining = s.has_addr(addr)
+        return jnp.logical_not(check), remaining
 
     return inner
 
@@ -307,10 +259,10 @@ def select_masked(flag: BoolArray, s: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr_comp: AddressComponent):
-        check, remaining = s.both(addr_comp)
+    def inner(addr: Address):
+        check, remaining = s.has_addr(addr)
         check = jnp.logical_and(flag, check)
-        return check, select_masked(flag, remaining)
+        return check, remaining
 
     return inner
 
