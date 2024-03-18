@@ -57,4 +57,4 @@ class TestShortcuts:
         for j in range(1, 4):
             for m in [icm1, icm2]:
                 assert m.has_submap((j, "x"))
-                assert m[(j, "x")] == 10 * j
+                assert m[j, "x"].match(lambda v: v.get_value()) == 10 * j

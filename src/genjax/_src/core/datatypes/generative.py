@@ -13,8 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from functools import reduce
-from operator import or_
 
 import jax
 import jax.numpy as jnp
@@ -159,12 +157,9 @@ class Selection(Pytree):
         return select_idx(comp)
 
     @classmethod
-    def f(cls, *addrs) -> "Selection":
-        return reduce(or_, (cls.s(addr) for addr in addrs))
-
-    @classmethod
-    def r(cls, selections) -> "Selection":
-        return reduce(or_, selections)
+    @typecheck
+    def m(cls, flag: BoolArray, s: "Selection") -> "Selection":
+        return select_masked(flag, s)
 
     @classproperty
     def q(cls) -> SelectionBuilder:
@@ -350,11 +345,11 @@ class ChoiceMap(Choice):
     #######################
 
     @abstractmethod
-    def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
+    def get_submap(self, addr: Address) -> "ChoiceMap":
         pass
 
     @abstractmethod
-    def has_submap(self, addr: AddressComponent) -> BoolArray:
+    def has_submap(self, addr: Address) -> BoolArray:
         pass
 
     ##############################################
@@ -409,24 +404,21 @@ class ChoiceMap(Choice):
     def __and__(self, other):
         return self.safe_merge(other)
 
-    def do(self, addr: Address):
-        head = Selection.get_address_head(addr)
-        submap = self.get_submap(head)
-        tail = Selection.get_address_tail(addr)
-        return submap.do(tail)
-
     def __getitem__(self, addr: Address):
-        return self.do(addr)
+        return self.get_submap(addr)
+
+    def __haskey__(self, addr: Address):
+        return self.has_submap(addr)
 
 
 class EmptyChoice(ChoiceMap):
     """A `Choice` implementor which denotes an empty event."""
 
-    def get_submap(self, addr: AddressComponent):
+    def get_submap(self, addr: Address) -> ChoiceMap:
         return self
 
-    def has_submap(self, addr: AddressComponent):
-        return False
+    def has_submap(self, addr: Address) -> BoolArray:
+        return jnp.array(False)
 
     def filter(self, selection: Selection):
         return self
@@ -453,11 +445,11 @@ class ChoiceValue(ChoiceMap):
     def get_value(self):
         return self.value
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: Address) -> ChoiceMap:
         raise Exception("ChoiceValue doesn't address any choices.")
 
-    def has_submap(self, addr: AddressComponent) -> BoolArray:
-        return False
+    def has_submap(self, addr: Address) -> BoolArray:
+        return jnp.array(False)
 
     def is_empty(self):
         return jnp.array(False)
@@ -474,12 +466,6 @@ class ChoiceValue(ChoiceMap):
 
     def get_selection(self) -> Selection:
         return Selection.a
-
-    def do(self, addr: Address):
-        if addr:
-            self.get_submap(addr)
-        else:
-            return self.value
 
     def __rich_tree__(self):
         tree = rich_tree.Tree("[bold](ChoiceValue)")
@@ -708,6 +694,8 @@ def strip(v):
 ###########
 
 
+# NOTE: we overload usage of `Mask` for both masking choice maps, and for
+# masking raw array/Python values.
 class Mask(ChoiceMap):
     """The `Mask` choice datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
@@ -741,17 +729,8 @@ class Mask(ChoiceMap):
         assert isinstance(self.value, Choice)
         return jnp.logical_and(self.flag, self.value.is_empty())
 
-    def filter(self, selection: Selection):
-        choices = self.value.get_choices()
-        assert isinstance(choices, ChoiceMap)
-        return Mask(self.flag, choices.filter(selection))
-
     def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         pass
-
-    def get_selection(self) -> Selection:
-        assert isinstance(self.value, ChoiceMap)
-        return Selection.m(self.flag, self.value.get_selection())
 
     ###########################
     # Choice value interfaces #
@@ -779,7 +758,12 @@ class Mask(ChoiceMap):
     # Choice map interfaces #
     #########################
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def filter(self, selection: Selection) -> ChoiceMap:
+        choices = self.value.get_choices()
+        assert isinstance(choices, ChoiceMap)
+        return Mask(self.flag, choices.filter(selection))
+
+    def get_submap(self, addr: Address) -> ChoiceMap:
         # Using a `ChoiceMap` interface on the `Mask` means
         # that the value should be a `ChoiceMap`.
         assert isinstance(self.value, ChoiceMap)
@@ -789,64 +773,20 @@ class Mask(ChoiceMap):
         else:
             return Mask(self.flag, inner)
 
-    def has_submap(self, addr: AddressComponent) -> BoolArray:
+    def has_submap(self, addr: Address) -> BoolArray:
         # Using a `ChoiceMap` interface on the `Mask` means
         # that the value should be a `ChoiceMap`.
         assert isinstance(self.value, ChoiceMap)
         inner_check = self.value.has_submap(addr)
         return jnp.logical_and(self.flag, inner_check)
 
+    def get_selection(self) -> Selection:
+        assert isinstance(self.value, ChoiceMap)
+        return Selection.m(self.flag, self.value.get_selection())
+
     ######################
     # Masking interfaces #
     ######################
-
-    @typecheck
-    def match(self, none: Callable, some: Callable) -> Any:
-        """> Pattern match on the `Mask` type - by providing "none"
-        and "some" lambdas.
-
-        The "none" lambda should accept no arguments, while the "some" lambda should accept the same type as the value in the `Mask`. Both lambdas should return the same type (array, or `jax.Pytree`).
-
-        Arguments:
-            none: A lambda to handle the "none" branch. The type of the return value must agree with the "some" branch.
-            some: A lambda to handle the "some" branch. The type of the return value must agree with the "none" branch.
-
-        Returns:
-            value: A value computed by either the "none" or "some" lambda, depending on if the `Mask` is valid (e.g. `Mask.mask` is `True`).
-
-        Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import jax.numpy as jnp
-            import genjax
-
-            console = genjax.console()
-
-            masked = genjax.Mask(False, jnp.ones(5))
-            v1 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
-            masked = genjax.Mask(True, jnp.ones(5))
-            v2 = masked.match(lambda: 10.0, lambda v: jnp.sum(v))
-            print(console.render((v1, v2)))
-            ```
-        """
-        flag = jnp.array(self.flag)
-        if flag.shape == ():
-            return jax.lax.cond(
-                flag,
-                lambda: some(self.value),
-                lambda: none(),
-            )
-        else:
-            return jax.lax.select(
-                flag,
-                some(self.value),
-                none(),
-            )
-
-    @typecheck
-    def just_match(self, some: Callable) -> Any:
-        v = self.unmask()
-        return some(v)
 
     def unmask(self):
         """> Unmask the `Mask`, returning the value within.
@@ -894,8 +834,14 @@ class Mask(ChoiceMap):
         return self.value
 
     def unsafe_unmask(self):
-        # Unsafe version of unmask -- should only be used internally.
+        # Unsafe version of unmask -- should only be used internally,
+        # or carefully.
         return self.value
+
+    @typecheck
+    def match(self, some: Callable) -> Any:
+        v = self.unmask()
+        return some(v)
 
     ###################
     # Pretty printing #
@@ -1321,8 +1267,8 @@ class HierarchicalChoiceMap(ChoiceMap):
         return HierarchicalChoiceMap(trie)
 
     @typecheck
-    def has_submap(self, addr: StaticAddressComponent) -> BoolArray:
-        return self.trie.has_submap(addr)
+    def has_submap(self, addr: Address) -> BoolArray:
+        return jnp.array(self.trie.has_submap(addr), copy=False)
 
     def _lift_value(self, value):
         if value is None:
@@ -1334,7 +1280,7 @@ class HierarchicalChoiceMap(ChoiceMap):
                 return value
 
     @typecheck
-    def get_submap(self, addr: StaticAddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: Address) -> ChoiceMap:
         value = self.trie.get_submap(addr)
         return self._lift_value(value)
 
