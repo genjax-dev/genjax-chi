@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     DynamicAddressComponent,
     EllipsisType,
     FloatArray,
-    List,
     Optional,
     PRNGKey,
     StaticAddressComponent,
@@ -54,10 +53,7 @@ from genjax._src.core.typing import (
 # https://www.cmi.ac.in/~spsuresh/teaching/prgh15/papers/monadic-parsing.pdf
 SelectionFunction = Callable[
     [Address],
-    Tuple[
-        Bool,
-        List[Tuple[Address, Optional["Selection"]]],
-    ],
+    Tuple[Bool, Optional["Selection"]],
 ]
 
 
@@ -130,10 +126,10 @@ class Selection(Pytree):
 
     def both(self, addr: Address):
         ch, remaining = self.has_addr(addr)
-        remaining = [
-            (addr, cs) if cs else (addr, Selection.a) for (addr, cs) in remaining
-        ]
-        return ch, remaining
+        if remaining:
+            return ch, remaining
+        else:
+            return ch, Selection.a
 
     def has(self, addr: Address):
         return self.__getitem__(addr)
@@ -174,13 +170,13 @@ class Selection(Pytree):
 @Selection
 @Pytree.const
 def select_all(addr: Address):
-    return True, [(Selection.get_address_tail(addr), None)]
+    return True, None
 
 
 @Selection
 @Pytree.const
 def select_none(addr: Address):
-    return False, [(Selection.get_address_tail(addr), None)]
+    return False, None
 
 
 @typecheck
@@ -190,7 +186,7 @@ def select_static(addressed: AddressComponent) -> Selection:
     @typecheck
     def inner(addr: Address):
         head = Selection.get_address_head(addr)
-        return addressed == head, [(Selection.get_address_tail(addr), None)]
+        return addressed == head, None
 
     return inner
 
@@ -202,7 +198,7 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
     @typecheck
     def inner(sidx: DynamicAddressComponent, addr: Address):
         head = Selection.get_address_head(addr)
-        return jnp.any(head == sidx), [(Selection.get_address_tail(addr), None)]
+        return jnp.any(head == sidx), None
 
     return inner
 
@@ -213,19 +209,8 @@ def select_do(s1: Selection, s2: Selection) -> Selection:
     @Pytree.const
     @typecheck
     def inner(addr: Address):
-        results = []
-        checks = []
-        check1, remaining1 = s1.both(addr)
-        for rm, rs in remaining1:
-            s = select_and(rs, s2)
-            check2, remaining2 = s.both(rm)
-            results = results + remaining2
-            checks.append(check2)
-        if checks:
-            checks = jnp.array(checks)
-        else:
-            checks = True
-        return jnp.logical_and(check1, jnp.any(checks)), results
+        check1, _ = s1.both(addr)
+        return check1, s2
 
     return inner
 
@@ -238,7 +223,7 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
     def inner(addr: Address):
         check1, remaining1 = s1.both(addr)
         check2, remaining2 = s2.both(addr)
-        return check1 or check2, remaining1 + remaining2
+        return jnp.logical_or(check1, check2), select_or(remaining1, remaining2)
 
     return inner
 
@@ -251,7 +236,7 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
     def inner(addr: Address):
         check1, remaining1 = s1.both(addr)
         check2, remaining2 = s2.both(addr)
-        return check1 and check2, remaining1 + remaining2
+        return jnp.logical_and(check1, check2), select_and(remaining1, remaining2)
 
     return inner
 
@@ -263,9 +248,7 @@ def select_complement(s: Selection) -> Selection:
     @typecheck
     def inner(addr: Address):
         ch, remaining = s.both(addr)
-        return jnp.logical_not(ch), [
-            (addr, select_complement(s)) for addr, s in remaining
-        ]
+        return jnp.logical_not(ch), select_complement(remaining)
 
     return inner
 
@@ -277,9 +260,7 @@ def select_masked(flag: BoolArray, s: Selection) -> Selection:
     @typecheck
     def inner(addr: Address):
         ch, remaining = s.both(addr)
-        return jnp.logical_and(flag, ch), [
-            (addr, select_masked(flag, s)) for addr, s in remaining
-        ]
+        return jnp.logical_and(flag, ch), select_masked(flag, remaining)
 
     return inner
 
