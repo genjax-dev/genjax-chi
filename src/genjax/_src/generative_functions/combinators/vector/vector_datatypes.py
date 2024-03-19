@@ -199,8 +199,8 @@ class IndexedChoiceMap(ChoiceMap):
 class VectorSelection(MapSelection):
     inner: Selection
 
-    def __post_init__(self):
-        Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
+    # def __post_init__(self):
+    #     Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
 
     @dispatch
     def has_addr(self, addr: IntArray):
@@ -234,8 +234,8 @@ class VectorSelection(MapSelection):
 class VectorChoiceMap(ChoiceMap):
     inner: Any
 
-    def __post_int__(self):
-        Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
+    # def __post_init__(self):
+    #     Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)
 
     def is_empty(self):
         return self.inner.is_empty()
