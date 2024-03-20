@@ -46,6 +46,7 @@ from genjax._src.core.typing import (
 
 TraceSliceComponent = Union[str, int, slice, type(...)]
 
+
 class Selection(Pytree):
     @abstractmethod
     def complement(self) -> "Selection":
@@ -191,7 +192,9 @@ class TraceSlice(Selection):
         if isinstance(s0, int):
             return jnp.array([s0])
 
-        raise NotImplementedError(f"address component {s0} cannot be converted to index array")
+        raise NotImplementedError(
+            f"address component {s0} cannot be converted to index array"
+        )
 
     @property
     def inner(self) -> "TraceSlice":
@@ -199,7 +202,6 @@ class TraceSlice(Selection):
 
     def complement(self) -> Selection:
         raise NotImplementedError("cannot invert slice selection")
-
 
 
 ###########################
@@ -276,7 +278,9 @@ class Choice(Pytree):
         def __call__(self, selection: Selection):
             return self.choice.filter_selection(selection)
 
-        def __getitem__(self, t: TraceSliceComponent | Tuple[TraceSliceComponent, ...]) -> "Choice":
+        def __getitem__(
+            self, t: TraceSliceComponent | Tuple[TraceSliceComponent, ...]
+        ) -> "Choice":
             if not isinstance(t, tuple):
                 t = (t,)
             return self.choice.filter_selection(TraceSlice(t))
@@ -624,7 +628,9 @@ class Trace(Pytree):
         def __call__(self, selection: Selection) -> FloatArray:
             return self.trace.project_selection(selection)
 
-        def __getitem__(self, selection: TraceSliceComponent | Tuple[TraceSliceComponent, ...]) -> FloatArray:
+        def __getitem__(
+            self, selection: TraceSliceComponent | Tuple[TraceSliceComponent, ...]
+        ) -> FloatArray:
             if not isinstance(selection, tuple):
                 selection = (selection,)
             return self.trace.project_selection(TraceSlice(selection))
@@ -1365,13 +1371,12 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     def filter_selection(
         self,
-        selection: MapSelection|TraceSlice,
+        selection: MapSelection | TraceSlice,
     ) -> Choice:
         if isinstance(selection, NoneSelection):
             return EmptyChoice()
         if isinstance(selection, AllSelection):
             return self
-
 
         def inner():
             for k, v in self.get_submaps_shallow():

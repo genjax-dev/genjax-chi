@@ -99,7 +99,7 @@ class MapTrace(Trace):
     @dispatch
     def project_selection(
         self,
-        selection: IndexedSelection|TraceSlice,
+        selection: IndexedSelection | TraceSlice,
     ) -> FloatArray:
         inner_project = self.maybe_restore_arguments(self.inner).project_selection(
             selection.inner

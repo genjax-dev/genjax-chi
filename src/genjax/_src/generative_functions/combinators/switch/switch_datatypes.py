@@ -28,7 +28,6 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Selection,
     Trace,
-    TraceSlice,
 )
 from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
 

@@ -66,7 +66,7 @@ class StaticTrace(
     @dispatch
     def project_selection(
         self,
-        selection: MapSelection|TraceSlice,
+        selection: MapSelection | TraceSlice,
     ) -> FloatArray:
         weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():
