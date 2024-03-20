@@ -105,7 +105,6 @@ class IndexedChoiceMap(ChoiceMap):
         masked = Mask(flags, filtered_inner)
         return IndexedChoiceMap(self.indices, masked)
 
-
     @dispatch
     def has_submap(self, addr: IntArray):
         return addr in self.indices

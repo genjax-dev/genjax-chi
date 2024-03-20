@@ -15,8 +15,6 @@
 
 import abc
 
-import jax.numpy as jnp
-
 from genjax._src.core.datatypes.generative import (
     AllSelection,
     ChoiceValue,
@@ -71,7 +69,7 @@ class DistributionTrace(
     def get_choices(self):
         return ChoiceValue(self.value)
 
-    def project_selection(self, selection: Selection|TraceSlice) -> FloatArray:
+    def project_selection(self, selection: Selection | TraceSlice) -> FloatArray:
         if isinstance(selection, AllSelection):
             return self.get_score()
         if isinstance(selection, TraceSlice) and selection.s == ():

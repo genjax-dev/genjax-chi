@@ -33,7 +33,6 @@ from genjax._src.core.datatypes.generative import (
     HierarchicalChoiceMap,
     HierarchicalSelection,
     Trace,
-    TraceSlice,
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
