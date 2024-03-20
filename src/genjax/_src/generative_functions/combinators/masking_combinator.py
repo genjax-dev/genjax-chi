@@ -57,7 +57,7 @@ class MaskingTrace(Trace):
         return (self.check, self.inner.get_args())
 
     def project(self, selection: Selection) -> FloatArray:
-        return self.check * self.inner.project(selection)
+        return self.check * self.inner.project_selection(selection)
 
 
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):

@@ -96,23 +96,15 @@ class MapTrace(Trace):
         restored = inner.restore(original_arguments)
         return restored
 
-    def project_slice(self, selection: TraceSlice) -> FloatArray:
-        inner_project = self.maybe_restore_arguments(self.inner).project_slice(
-            selection[1:]
-        )
-        return jnp.sum(inner_project[selection[0]])
-
     @dispatch
     def project_selection(
         self,
-        selection: IndexedSelection,
+        selection: IndexedSelection|TraceSlice,
     ) -> FloatArray:
-        inner_project = self.maybe_restore_arguments(self.inner).project(
+        inner_project = self.maybe_restore_arguments(self.inner).project_selection(
             selection.inner
         )
-        return jnp.sum(
-            jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
-        )
+        return jnp.sum(inner_project[selection.indices])
 
     @dispatch
     def project_selection(
