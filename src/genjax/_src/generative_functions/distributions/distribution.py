@@ -71,16 +71,13 @@ class DistributionTrace(
     def get_choices(self):
         return ChoiceValue(self.value)
 
-    def project_selection(self, selection: Selection) -> FloatArray:
+    def project_selection(self, selection: Selection|TraceSlice) -> FloatArray:
         if isinstance(selection, AllSelection):
             return self.get_score()
-        else:
-            return 0.0
-
-    def project_slice(self, selection: TraceSlice) -> FloatArray:
-        if selection == ():
+        if isinstance(selection, TraceSlice) and selection.s == ():
+            # TODO(colin): find a less hacky way to write the line above
             return self.get_score()
-        return jnp.array(0.0)
+        return 0.0
 
     def get_value(self):
         return self.value

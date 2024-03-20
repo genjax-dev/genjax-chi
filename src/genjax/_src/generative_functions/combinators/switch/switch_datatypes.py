@@ -70,12 +70,6 @@ class SwitchChoiceMap(ChoiceMap):
         )
         return SwitchChoiceMap(self.index, filtered_submaps)
 
-    def filter_slice(self, selection: TraceSlice) -> ChoiceMap:
-        filtered_submaps = map(
-            lambda choice: choice.filter_slice(selection), self.submaps
-        )
-        return SwitchChoiceMap(self.index, filtered_submaps)
-
     def has_submap(self, addr):
         checks = list(map(lambda v: v.has_submap(addr), self.submaps))
         return jnp.choose(self.index, checks, mode="wrap")

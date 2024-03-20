@@ -93,7 +93,7 @@ class IndexedChoiceMap(ChoiceMap):
         self,
         selection: MapSelection,
     ) -> ChoiceMap:
-        return IndexedChoiceMap(self.indices, self.inner.filter(selection))
+        return IndexedChoiceMap(self.indices, self.inner.filter_selection(selection))
 
     @dispatch
     def filter_selection(
@@ -105,8 +105,6 @@ class IndexedChoiceMap(ChoiceMap):
         masked = Mask(flags, filtered_inner)
         return IndexedChoiceMap(self.indices, masked)
 
-    def filter_slice(self, slice: TraceSlice) -> ChoiceMap:
-        raise NotImplementedError
 
     @dispatch
     def has_submap(self, addr: IntArray):
@@ -217,28 +215,22 @@ class VectorChoiceMap(ChoiceMap):
         self,
         selection: Selection,
     ) -> ChoiceMap:
-        return VectorChoiceMap(self.inner.filter(selection))
-
-    def filter_slice(self, selection: TraceSlice) -> ChoiceMap:
-        inner = self.inner.filter_slice(selection[1:])
-        if selection == () or selection[0] == slice(None, None, None):
+        if not isinstance(selection, TraceSlice):
+            return VectorChoiceMap(self.inner.filter(selection))
+        if selection.s == () or selection.s[0] == slice(None, None, None):
             return self
-        s0 = selection[0]
+        inner = self.inner.filter_selection(selection.inner)
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
         # We allow bare integers, jnp arrays of integers, and start:stop:stride
         # slices as individual members of a TraceSlice. We convert each of these
         # to a jnp array and use that to construct an IndexedChoiceMap.
-        if isinstance(s0, int):
-            s0 = jnp.array([s0])
-        if isinstance(s0, jnp.ndarray):
-            s0 = s0[s0 < dim]
-            return IndexedChoiceMap(s0, jtu.tree_map(lambda v: v[s0], inner))
-        elif isinstance(s0, slice):
-            indices = jnp.array(range(*s0.indices(dim)))
-            return IndexedChoiceMap(indices, jtu.tree_map(lambda v: v[s0], inner))
-        raise IndexError(
-            f"VectorChoiceMaps must be filtered by a slice, not {selection[0]}"
-        )
+        indices = selection.indices
+        if isinstance(indices, slice):
+            # TODO(colin): consider making it so that an IndexedChoiceMap can contain a slice directly,
+            # instead of forcing us to convert to a jnp.array
+            indices = jnp.array(range(*indices.indices(dim)))
+
+        return IndexedChoiceMap(indices, jtu.tree_map(lambda v: v[indices], inner))
 
     def get_selection(self):
         subselection = self.inner.get_selection()

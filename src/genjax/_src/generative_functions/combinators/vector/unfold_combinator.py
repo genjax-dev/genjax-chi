@@ -84,9 +84,10 @@ class UnfoldTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project_slice(self, selection: TraceSlice):
-        index_slice = selection[0]
-        inner_project = self.inner.project_slice(selection[1:])
+    @dispatch
+    def project_selection(self, selection: TraceSlice):
+        index_slice = selection.indices
+        inner_project = self.inner.project_selection(selection.inner)
         return jnp.sum(inner_project[: self.dynamic_length + 1][index_slice])
 
     @dispatch

@@ -44,19 +44,7 @@ from genjax._src.core.typing import (
 # Selection #
 #############
 
-
-TraceSlice = tuple[Union[str, int, slice, type(...)], ...]
-
-
-def selection_matches(s: TraceSlice, item: Any):
-    # If the selection tuple is exhausted, it matches everything "below"
-    if len(s) == 0:
-        return True
-    if isinstance(s[0], str):
-        if isinstance(item, str):
-            return re.fullmatch(s[0], item)
-    return NotImplementedError
-
+TraceSliceComponent = Union[str, int, slice, type(...)]
 
 class Selection(Pytree):
     @abstractmethod
@@ -167,6 +155,53 @@ class AllSelection(Selection):
         return rich_tree.Tree("[bold](AllSelection)")
 
 
+class TraceSlice(Selection):
+    s: Tuple[TraceSliceComponent, ...]
+
+    def __init__(self, s: Tuple[TraceSliceComponent, ...]):
+        self.s = s
+
+    def has_addr(self, item: Any):
+        if len(self.s) == 0:
+            # If the selection tuple is exhausted, it matches everything "below"
+            return True
+        s0 = self.s[0]
+        if isinstance(s0, str):
+            if isinstance(item, str):
+                return re.fullmatch(s0, item)
+        elif isinstance(s0, set):
+            return item in set
+        raise NotImplementedError(f"match slice element {s0!r} with {item!r}")
+
+    def get_subselection(self, k: str) -> "TraceSlice":
+        """This is an admittedly unprincipled method, since in the slice model,
+        we aren't holding a map of subselections. Generally, when this method
+        is used, it follows a use of `has_addr(k)`, and is therefore safe, but
+        TODO we should find a way to eliminate the parameter."""
+        return self.inner
+
+    @property
+    def indices(self) -> IntArray | slice:
+        """Return a JNP array of the integer indices contained within this selection."""
+        if not self.s:
+            return jnp.array([])
+        s0 = self.s[0]
+        if isinstance(s0, jnp.ndarray) or isinstance(s0, slice):
+            return s0
+        if isinstance(s0, int):
+            return jnp.array([s0])
+
+        raise NotImplementedError(f"address component {s0} cannot be converted to index array")
+
+    @property
+    def inner(self) -> "TraceSlice":
+        return TraceSlice(self.s[1:])
+
+    def complement(self) -> Selection:
+        raise NotImplementedError("cannot invert slice selection")
+
+
+
 ###########################
 # Concrete map selections #
 ###########################
@@ -241,10 +276,10 @@ class Choice(Pytree):
         def __call__(self, selection: Selection):
             return self.choice.filter_selection(selection)
 
-        def __getitem__(self, new_selection: TraceSlice):
-            if not isinstance(new_selection, tuple):
-                new_selection = (new_selection,)
-            return self.choice.filter_slice(new_selection)
+        def __getitem__(self, t: TraceSliceComponent | Tuple[TraceSliceComponent, ...]) -> "Choice":
+            if not isinstance(t, tuple):
+                t = (t,)
+            return self.choice.filter_selection(TraceSlice(t))
 
     @property
     def filter(self):
@@ -252,9 +287,6 @@ class Choice(Pytree):
 
     @abstractmethod
     def filter_selection(self, selection: Selection) -> "Choice": ...
-
-    @abstractmethod
-    def filter_slice(self, selection: TraceSlice) -> "Choice": ...
 
     @abstractmethod
     def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
@@ -302,9 +334,6 @@ class EmptyChoice(Choice):
     def filter_selection(self, selection):
         return self
 
-    def filter_slice(self, _: TraceSlice):
-        return self
-
     def is_empty(self):
         return jnp.array(True)
 
@@ -337,15 +366,14 @@ class ChoiceValue(Choice):
         return self
 
     @dispatch
+    def filter_selection(self, selection: TraceSlice):
+        """TODO(colin): I'm not sure it's principled to consider a choice value
+        as being not being selected by a selection."""
+        return self
+
+    @dispatch
     def filter_selection(self, selection):
         return EmptyChoice()
-
-    def filter_slice(self, new_selection: TraceSlice):
-        # This means it's impossible to create a new-style selection
-        # that won't select a ChoiceValue, but I think this is consistent
-        # with the idea that `()` (the smallest new selection) would
-        # correspond to affirmatively selecting a leaf element
-        return self
 
     def get_selection(self):
         return AllSelection()
@@ -596,10 +624,10 @@ class Trace(Pytree):
         def __call__(self, selection: Selection) -> FloatArray:
             return self.trace.project_selection(selection)
 
-        def __getitem__(self, new_selection: TraceSlice) -> FloatArray:
-            if not isinstance(new_selection, tuple):
-                new_selection = (new_selection,)
-            return self.trace.project_slice(new_selection)
+        def __getitem__(self, selection: TraceSliceComponent | Tuple[TraceSliceComponent, ...]) -> FloatArray:
+            if not isinstance(selection, tuple):
+                selection = (selection,)
+            return self.trace.project_selection(TraceSlice(selection))
 
     @property
     def project(self):
@@ -647,11 +675,6 @@ class Trace(Pytree):
             ```
         """
         return Trace.Projection(self)
-
-    def project_slice(
-        self,
-        selection: TraceSlice,
-    ) -> FloatArray: ...
 
     @dispatch
     def project_selection(
@@ -772,12 +795,7 @@ class Mask(Choice):
         return jnp.logical_and(self.flag, self.value.is_empty())
 
     def filter_selection(self, selection: Selection):
-        choices = self.value.get_choices()
-        assert isinstance(choices, Choice)
-        return Mask(self.flag, choices.filter(selection))
-
-    def filter_slice(self, selection: TraceSlice):
-        return Mask(self.flag, self.value.get_choices().filter_slice(selection))
+        return Mask(self.flag, self.value.get_choices().filter_selection(selection))
 
     def merge(self, other: Choice) -> Tuple["Mask", "Mask"]:
         pass
@@ -1345,33 +1363,27 @@ class HierarchicalChoiceMap(ChoiceMap):
             check = jnp.logical_and(check, v.is_empty())
         return check
 
-    @dispatch
     def filter_selection(
         self,
-        selection: MapSelection,
+        selection: MapSelection|TraceSlice,
     ) -> Choice:
-        trie = Trie()
-
-        def inner():
-            for k, v in self.get_submaps_shallow():
-                f = v.filter(selection.get_subselection(k))
-                if not isinstance(f, EmptyChoice):
-                    yield k, f
-
-        trie = Trie(dict(inner()))
-
-        if trie.is_static_empty():
+        if isinstance(selection, NoneSelection):
             return EmptyChoice()
+        if isinstance(selection, AllSelection):
+            return self
 
-        return HierarchicalChoiceMap(trie)
 
-    def filter_slice(self, selection: TraceSlice) -> Choice:
         def inner():
             for k, v in self.get_submaps_shallow():
-                if selection_matches(selection, k):
-                    f = v.filter_slice(selection[1:])
-                    if not isinstance(f, EmptyChoice):
-                        yield k, f
+                # TODO(colin): might make sense to give AllSelection the has_addr property
+                # as well as get_subselection
+                try:
+                    if selection.has_addr(k):
+                        f = v.filter_selection(selection.get_subselection(k))
+                        if not isinstance(f, EmptyChoice):
+                            yield k, f
+                except jax.errors.TracerBoolConversionError as e:
+                    print(e)
 
         trie = Trie(dict(inner()))
 
