@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from functools import reduce
+from operator import or_
 
 import jax
 import jax.numpy as jnp
@@ -36,11 +38,12 @@ from genjax._src.core.typing import (
     DynamicAddressComponent,
     EllipsisType,
     FloatArray,
-    Optional,
     PRNGKey,
     StaticAddressComponent,
     Tuple,
+    Union,
     dispatch,
+    static_check_is_concrete,
     typecheck,
 )
 
@@ -52,8 +55,8 @@ from genjax._src.core.typing import (
 # For instance:
 # https://www.cmi.ac.in/~spsuresh/teaching/prgh15/papers/monadic-parsing.pdf
 SelectionFunction = Callable[
-    [Address],
-    Tuple[Bool, Optional["Selection"]],
+    [AddressComponent],
+    Tuple[BoolArray, "Selection"],
 ]
 
 
@@ -90,7 +93,7 @@ class SelectionBuilder(Pytree):
 
         sel = _comp_to_sel(addr_comps[-1])
         for comp in reversed(addr_comps[:-1]):
-            sel = _comp_to_sel(comp) >> sel
+            sel = select_and_then(_comp_to_sel(comp), sel)
         return sel
 
 
@@ -101,7 +104,7 @@ class Selection(Pytree):
         return select_or(self, other)
 
     def __rshift__(self, other):
-        return select_do(self, other)
+        return select_and_then(self, other)
 
     def __invert__(self) -> "Selection":
         return select_complement(self)
@@ -120,19 +123,30 @@ class Selection(Pytree):
         else:
             return ()
 
-    def __getitem__(self, addr: Address) -> BoolArray:
-        check, _ = self.both(addr)
-        return jnp.array(check)
+    # Take a single step in the selection process, by focusing
+    # the Selection on the head of the address.
+    def step(self, addr: AddressComponent):
+        _, remaining = self.has_addr(addr)
+        return remaining
 
-    def both(self, addr: Address):
-        ch, remaining = self.has_addr(addr)
-        if remaining:
-            return ch, remaining
+    def has(self, addr: Address) -> BoolArray:
+        check, _ = self.has_addr(addr)
+        return check
+
+    def do(self, addr: Address) -> BoolArray:
+        if addr:
+            head = Selection.get_address_head(addr)
+            tail = Selection.get_address_tail(addr)
+            remaining = self.step(head)
+            return remaining.do(tail)
         else:
-            return ch, Selection.a
+            return self.has(())
 
-    def has(self, addr: Address):
-        return self.__getitem__(addr)
+    def __getitem__(self, addr: Address) -> BoolArray:
+        return self.do(addr)
+
+    def __contains__(self, addr: Address) -> BoolArray:
+        return self.has(addr)
 
     @classproperty
     def n(cls) -> "Selection":
@@ -155,11 +169,16 @@ class Selection(Pytree):
     @classmethod
     @typecheck
     def m(cls, flag: BoolArray, s: "Selection") -> "Selection":
-        return select_masked(flag, s)
+        return select_defer(flag, s)
 
     @classproperty
     def q(cls) -> SelectionBuilder:
         return SelectionBuilder()
+
+    @classmethod
+    @typecheck
+    def f(cls, *addrs: Address):
+        return reduce(or_, (cls.q[addr] for addr in addrs))
 
 
 #####
@@ -169,74 +188,22 @@ class Selection(Pytree):
 
 @Selection
 @Pytree.const
-def select_all(addr: Address):
-    return True, None
-
-
-@Selection
-@Pytree.const
-def select_none(addr: Address):
-    return False, None
+def select_all(_: AddressComponent):
+    return True, select_all
 
 
 @typecheck
-def select_static(addressed: AddressComponent) -> Selection:
+def select_defer(
+    flag: Union[Bool, BoolArray],
+    s: Selection,
+) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr: Address):
-        head = Selection.get_address_head(addr)
-        return addressed == head, None
-
-    return inner
-
-
-@typecheck
-def select_idx(sidx: DynamicAddressComponent) -> Selection:
-    @Selection
-    @Pytree.partial(sidx)
-    @typecheck
-    def inner(sidx: DynamicAddressComponent, addr: Address):
-        head = Selection.get_address_head(addr)
-        return jnp.any(head == sidx), None
-
-    return inner
-
-
-@typecheck
-def select_do(s1: Selection, s2: Selection) -> Selection:
-    @Selection
-    @Pytree.const
-    @typecheck
-    def inner(addr: Address):
-        check1, _ = s1.both(addr)
-        return check1, s2
-
-    return inner
-
-
-@typecheck
-def select_or(s1: Selection, s2: Selection) -> Selection:
-    @Selection
-    @Pytree.const
-    @typecheck
-    def inner(addr: Address):
-        check1, remaining1 = s1.both(addr)
-        check2, remaining2 = s2.both(addr)
-        return jnp.logical_or(check1, check2), select_or(remaining1, remaining2)
-
-    return inner
-
-
-@typecheck
-def select_and(s1: Selection, s2: Selection) -> Selection:
-    @Selection
-    @Pytree.const
-    @typecheck
-    def inner(addr: Address):
-        check1, remaining1 = s1.both(addr)
-        check2, remaining2 = s2.both(addr)
-        return jnp.logical_and(check1, check2), select_and(remaining1, remaining2)
+    def inner(head: AddressComponent):
+        ch, remaining = s.has_addr(head)
+        check = jnp.logical_and(flag, ch)
+        return check, select_defer(check, remaining)
 
     return inner
 
@@ -246,21 +213,82 @@ def select_complement(s: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr: Address):
-        ch, remaining = s.both(addr)
-        return jnp.logical_not(ch), select_complement(remaining)
+    def inner(head: AddressComponent):
+        ch, remaining = s.has_addr(head)
+        check = jnp.logical_not(ch)
+        return jnp.logical_not(ch), select_defer(check, select_complement(remaining))
+
+    return inner
+
+
+select_none = select_complement(select_all)
+
+
+@typecheck
+def select_static(addressed: AddressComponent) -> Selection:
+    @Selection
+    @Pytree.const
+    @typecheck
+    def inner(head: AddressComponent):
+        check = addressed == head
+        return check, select_defer(check, select_all)
 
     return inner
 
 
 @typecheck
-def select_masked(flag: BoolArray, s: Selection) -> Selection:
+def select_idx(sidx: DynamicAddressComponent) -> Selection:
+    @Selection
+    @Pytree.partial(sidx)
+    @typecheck
+    def inner(sidx: DynamicAddressComponent, head: AddressComponent):
+        check = jnp.any(head == sidx)
+        return check, select_defer(check, select_all)
+
+    return inner
+
+
+@typecheck
+def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
     @Pytree.const
     @typecheck
-    def inner(addr: Address):
-        ch, remaining = s.both(addr)
-        return jnp.logical_and(flag, ch), select_masked(flag, remaining)
+    def inner(head: AddressComponent):
+        check1, remaining1 = s1.has_addr(head)
+        check2, remaining2 = s2.has_addr(head)
+        check = jnp.logical_and(check1, check2)
+        return jnp.logical_and(check1, check2), select_defer(
+            check, select_and(remaining1, remaining2)
+        )
+
+    return inner
+
+
+@typecheck
+def select_or(s1: Selection, s2: Selection) -> Selection:
+    @Selection
+    @Pytree.const
+    @typecheck
+    def inner(head: AddressComponent):
+        check1, remaining1 = s1.has_addr(head)
+        check2, remaining2 = s2.has_addr(head)
+        return jnp.logical_or(check1, check2), select_or(
+            select_defer(check1, remaining1),
+            select_defer(check2, remaining2),
+        )
+
+    return inner
+
+
+@typecheck
+def select_and_then(s1: Selection, s2: Selection) -> Selection:
+    @Selection
+    @Pytree.const
+    @typecheck
+    def inner(head: AddressComponent):
+        check1, remaining1 = s1.has_addr(head)
+        remaining = select_defer(check1, select_and(remaining1, s2))
+        return check1, remaining
 
     return inner
 
@@ -386,7 +414,16 @@ class ChoiceMap(Choice):
         return self.safe_merge(other)
 
     def __getitem__(self, addr: Address):
-        return self.get_submap(addr)
+        submap = self.get_submap(addr)
+        if isinstance(submap, ChoiceValue):
+            return submap.get_value()
+        elif isinstance(submap, Mask):
+            if isinstance(submap.value, ChoiceValue):
+                return submap.get_value()
+            else:
+                return submap
+        else:
+            return submap
 
     def __haskey__(self, addr: Address):
         return self.has_submap(addr)
@@ -439,11 +476,14 @@ class ChoiceValue(ChoiceMap):
         return other, self
 
     def filter(self, selection: Selection):
-        check = selection[...]
-        if check:
-            return self
+        check = selection[()]
+        if static_check_is_concrete(check):
+            if check:
+                return self
+            else:
+                return EmptyChoice()
         else:
-            return EmptyChoice()
+            return Mask.maybe(check, self)
 
     def get_selection(self) -> Selection:
         return Selection.a
@@ -675,7 +715,7 @@ def strip(v):
 ###########
 
 
-# NOTE: we overload usage of `Mask` for both masking choice maps, and for
+# NOTE: we overload usage of `Mask` for masking choice maps, and for
 # masking raw array/Python values.
 class Mask(ChoiceMap):
     """The `Mask` choice datatype provides access to the masking system. The masking
@@ -701,6 +741,13 @@ class Mask(ChoiceMap):
         if isinstance(self.value, Mask):
             self.flag = jnp.logical_and(self.flag, self.value.flag)
             self.value = self.value.value
+
+    @classmethod
+    def maybe(cls, f: BoolArray, v: ChoiceMap):
+        if isinstance(v, EmptyChoice):
+            return v
+        else:
+            return Mask(f, v)
 
     #####################
     # Choice interfaces #
@@ -823,6 +870,15 @@ class Mask(ChoiceMap):
     def match(self, some: Callable) -> Any:
         v = self.unmask()
         return some(v)
+
+    @typecheck
+    def safe_match(self, none: Callable, some: Callable) -> Any:
+        return jax.lax.cond(
+            self.flag,
+            lambda v: some(v),
+            lambda v: none(),
+            self.value,
+        )
 
     ###################
     # Pretty printing #
@@ -1061,7 +1117,7 @@ class GenerativeFunction(Pytree):
             tr, w = self.importance(key, choice, args)
             return tr, w
 
-        return constraints.match(_inactive, _active)
+        return constraints.safe_match(_inactive, _active)
 
     @dispatch
     def update(
@@ -1108,7 +1164,7 @@ class GenerativeFunction(Pytree):
             retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
-        return new_constraints.match(_none, _some)
+        return new_constraints.safe_match(_none, _some)
 
     def assess(
         self: "GenerativeFunction",
@@ -1233,7 +1289,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         trie = Trie()
 
         def inner(k, v):
-            check, remaining = selection.both(k)
+            remaining = selection.step(k)
             under = v.filter(remaining)
             return k, under
 
@@ -1280,7 +1336,7 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     def get_selection(self):
         return Selection.r(
-            (Selection.s(k) >> v.get_selection()) for k, v in self.get_submaps_shallow()
+            Selection.s(k) >> v.get_selection() for k, v in self.get_submaps_shallow()
         )
 
     @dispatch

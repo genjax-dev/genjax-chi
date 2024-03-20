@@ -62,15 +62,14 @@ class StaticTrace(
     def get_subtrace(self, addr):
         return self.address_choices[addr]
 
-    @dispatch
     def project(
         self,
         selection: Selection,
     ) -> FloatArray:
         weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():
-            if selection(k):
-                weight += subtrace.project(selection[k])
+            remaining = selection.step(k)
+            weight += subtrace.project(remaining)
         return weight
 
     def has_cached_value(self, addr):

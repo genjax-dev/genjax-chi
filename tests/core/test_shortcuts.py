@@ -50,11 +50,9 @@ class TestShortcuts:
         )
 
     def test_indexed_choice_map(self):
-        icm1 = genjax.indexed_choice_map(
+        icm = genjax.indexed_choice_map(
             jnp.array([1, 2, 3]), genjax.choice_map({"x": jnp.array([10, 20, 30])})
         )
-        icm2 = genjax.choice_map({1: 10, 2: 20, 3: 30})
         for j in range(1, 4):
-            for m in [icm1, icm2]:
-                assert m.has_submap((j, "x"))
-                assert m[j, "x"].match(lambda v: v.get_value()) == 10 * j
+            assert icm.has_submap((j, "x"))
+            assert icm[j, "x"].match(lambda v: v.get_value()) == 10 * j

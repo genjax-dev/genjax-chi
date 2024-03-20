@@ -23,7 +23,7 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, ArrayLike, Dict, typecheck
+from genjax._src.core.typing import Address, Any, ArrayLike, Dict, typecheck
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
     VectorChoiceMap,
@@ -128,6 +128,6 @@ def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
 
 @typecheck
 def select(
-    *addresses: Any,
+    *addresses: Address,
 ) -> Selection:
     return Selection.f(addresses)

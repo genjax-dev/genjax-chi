@@ -91,10 +91,9 @@ class UnfoldTrace(Trace):
         )
 
         def idx_check(idx, length_check, inner_slice):
-            check = selection[idx]
-            remaining = selection(idx)
+            remaining = selection.step(idx)
             inner_weight = inner_slice.project(remaining)
-            return length_check * check * inner_weight
+            return length_check * inner_weight
 
         idxs = jnp.arange(0, len(self.inner.get_score()))
         ws = jax.vmap(idx_check)(idxs, length_checks, self.inner)

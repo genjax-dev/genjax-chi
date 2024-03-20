@@ -51,7 +51,7 @@ class TestIndexChoiceMap:
         outer = genjax.indexed_choice_map(
             jnp.array([1]), jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), inner)
         )
-        assert outer[1].match(
+        assert outer[1].safe_match(
             lambda: False, lambda v: jnp.all(v.inner["x"] == jnp.ones(5))
         )
 

@@ -26,6 +26,6 @@ class TestChoiceMaps:
         choice = choice.insert("x", 0.5)
         choice = choice.insert("y", 0.3)
         choice = choice.insert(("z", "x"), 0.2)
-        assert choice["x"].get_value() == 0.5
-        assert choice["y"].get_value() == 0.3
-        assert choice["z", "x"].get_value() == 0.2
+        assert choice["x"] == 0.5
+        assert choice["y"] == 0.3
+        assert choice["z", "x"] == 0.2
