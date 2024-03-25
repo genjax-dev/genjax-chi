@@ -69,6 +69,7 @@ pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-ca
 If you're using Poetry:
 
 ```bash
+poetry self update && poetry self add keyrings.google-artifactregistry-auth
 poetry source add --priority=explicit gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
 poetry add genjax --source gcp
 ```
