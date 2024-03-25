@@ -57,7 +57,7 @@ GenJAX is currently private. To configure your machine to access the package:
 - Ask @sritchie to add you to the `probcomp-caliban` project on Google Cloud.
 - [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
 - Follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing) and configure the tool with the `probcomp-caliban` project ID.
+- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
 
 To install GenJAX using `pip`:
 
