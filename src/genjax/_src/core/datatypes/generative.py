@@ -110,7 +110,7 @@ class ComplementMapSelection(MapSelection):
 
     def has_addr(self, addr):
         assert isinstance(self.selection, MapSelection)
-        return jnp.logical_not(self.selection.has_addr(addr))
+        return not self.selection.has_addr(addr)
 
     def get_subselection(self, addr):
         assert isinstance(self.selection, MapSelection)
