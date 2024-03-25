@@ -31,7 +31,28 @@ class TestUnfoldSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         unfold_score = tr.get_score()
-        assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
+        assert tr.project(genjax.select("z")) == unfold_score
+
+    def test_unfold_of_repeat(self):
+        @genjax.unfold_combinator(max_length=10)
+        @genjax.static_gen_fn
+        def kernel(x):
+            d1 = genjax.normal(0.0, 1.0) @ "d1"
+            d2 = genjax.repeat_combinator(repeats=4)(genjax.normal)(0.0, 1.0) @ "d2"
+            return x + d1 + d2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(kernel.simulate)(sub_key, (7, jnp.zeros(4)))
+        assert (
+            tr.project(genjax.select("d1")) + tr.project(genjax.select("d2"))
+            == tr.get_score()
+        )
+        assert (
+            tr.project(genjax.indexed_select(jnp.array([0, 1, 2, 3, 4])))
+            + tr.project(genjax.indexed_select(jnp.array([5, 6, 7, 8, 9])))
+            == tr.get_score()
+        )
 
     def test_unfold_index_importance(self):
         @genjax.unfold_combinator(max_length=10)
