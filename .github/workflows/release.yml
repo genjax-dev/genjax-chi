@@ -1,6 +1,7 @@
 name: Release to Artifact Registry
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
