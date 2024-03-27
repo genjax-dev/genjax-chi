@@ -57,7 +57,7 @@ GenJAX is currently private. To configure your machine to access the package:
 - Ask @sritchie to add you to the `probcomp-caliban` project on Google Cloud.
 - [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
 - Follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing) and configure the tool with the `probcomp-caliban` project ID.
+- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
 
 To install GenJAX using `pip`:
 
@@ -69,6 +69,7 @@ pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-ca
 If you're using Poetry:
 
 ```bash
+poetry self update && poetry self add keyrings.google-artifactregistry-auth
 poetry source add --priority=explicit gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
 poetry add genjax --source gcp
 ```
@@ -119,6 +120,7 @@ def beta_bernoulli(α, β):
     v = flip(p) @ "v"
     return v
 
+@jax.jit
 def run_inference(obs: bool):
     # Create an inference query - a posterior target - by specifying
     # the model, arguments to the model, and constraints.
@@ -134,7 +136,7 @@ def run_inference(obs: bool):
     # JIT, vmap, to your heart's content.
     key = jax.random.PRNGKey(314159)
     sub_keys = jax.random.split(key, 50)
-    _, p_chm = jax.jit(jax.vmap(alg.random_weighted, in_axes=(0, None)))(
+    _, p_chm = jax.vmap(alg.random_weighted, in_axes=(0, None))(
         sub_keys, posterior_target
     )
 
