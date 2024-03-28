@@ -216,7 +216,7 @@ class DefaultSIR(SPAlgorithm):
         target: Target,
     ):
         key, sub_key = jax.random.split(key)
-        sub_keys = jax.random.split(key, self.num_particles)
+        sub_keys = jax.random.split(sub_key, self.num_particles)
         (_, ps) = jax.vmap(target.importance)(sub_keys)
         lws = ps.get_score()
         probs = jax.nn.softmax(lws)
@@ -329,14 +329,16 @@ class CustomSIR(SPAlgorithm):
 
         weights.append(w)
         particles.append(latent_choices)
-
         proposal_lws = tree_stack(weights)
-        ps = tree_stack(particles)
+
+        new_particles = []
+        for p in particles:
+            key, sub_key = jax.random.split(key)
+            (_, new_p) = target.importance(sub_key, p)
+            new_particles.append(new_p)
         # END Kludge.
 
-        key, sub_key = jax.random.split(key)
-        sub_keys = jax.random.split(sub_key, self.num_particles)
-        (_, particles) = jax.vmap(target.importance)(sub_keys, ps)
+        particles = tree_stack(new_particles)
         lws = particles.get_score() - proposal_lws
         tw = jax.scipy.special.logsumexp(lws)
         aw = tw - jnp.log(self.num_particles)
@@ -360,12 +362,15 @@ class CustomSIR(SPAlgorithm):
             weights.append(proposal_lws)
 
         proposal_lws = tree_stack(weights)
-        ps = tree_stack(particles)
+
+        new_particles = []
+        for p in particles:
+            key, sub_key = jax.random.split(key)
+            (_, new_p) = target.importance(sub_key, p)
+            new_particles.append(new_p)
         # END Kludge.
 
-        key, sub_key = jax.random.split(key)
-        sub_keys = jax.random.split(sub_key, self.num_particles)
-        (_, particles) = jax.vmap(target.importance)(sub_keys, ps)
+        particles = tree_stack(new_particles)
         lws = particles.get_score() - proposal_lws
         tw = jax.scipy.special.logsumexp(lws)
         aw = tw - jnp.log(self.num_particles)

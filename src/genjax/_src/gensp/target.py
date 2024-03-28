@@ -49,47 +49,6 @@ def accum_score(*args):
 
 
 @dataclass
-class RescaleContext(Context):
-    energy: Float
-
-    def flatten(self):
-        return (self.energy,), ()
-
-    @classmethod
-    def new(cls):
-        return RescaleContext(0.0)
-
-    def yield_state(self):
-        return (self.energy,)
-
-    def handle_score(self, _, tracer, **params):
-        self.energy += tracer
-        return [tracer]
-
-    def can_process(self, primitive):
-        return False
-
-    def process_primitive(self, primitive):
-        raise NotImplementedError
-
-    def get_custom_rule(self, primitive):
-        if primitive is score_p:
-            return self.handle_score
-        else:
-            return None
-
-
-def rescale_transform(source_fn, **kwargs):
-    @functools.wraps(source_fn)
-    def wrapper(*args):
-        context = RescaleContext.new()
-        retvals, (energy,) = ctx.transform(source_fn, context)(*args, **kwargs)
-        return retvals, energy
-
-    return wrapper
-
-
-@dataclass
 class Target(Pytree):
     p: GenerativeFunction
     args: Tuple
@@ -117,22 +76,19 @@ class Target(Pytree):
         inner = chm.get_leaf_value()
         assert isinstance(inner, ChoiceMap)
         merged = self.constraints.safe_merge(inner)
-        rescaled = rescale_transform(self.p.importance)
-        (_, tr), energy = rescaled(key, merged, self.args)
-        return (energy, tr)
+        (_, tr) = self.p.importance(key, merged, self.args)
+        return (0.0, tr)
 
     @dispatch
     def importance(self, key: PRNGKey, chm: ChoiceMap):
         merged = self.constraints.safe_merge(chm)
-        rescaled = rescale_transform(self.p.importance)
-        (_, tr), energy = rescaled(key, merged, self.args)
-        return (energy, tr)
+        (_, tr) = self.p.importance(key, merged, self.args)
+        return (0.0, tr)
 
     @dispatch
     def importance(self, key: PRNGKey):
-        rescaled = rescale_transform(self.p.importance)
-        (_, tr), energy = rescaled(key, self.constraints, self.args)
-        return (energy, tr)
+        (_, tr) = self.p.importance(key, self.constraints, self.args)
+        return (0.0, tr)
 
 
 ##############

@@ -27,7 +27,7 @@ beartype = "^0.16.4"
 dill = "^0.3.8"
 pygments = "^2.17.2"
 plum-dispatch = "^2.3.2"
-adevjax = { git = "https://github.com/probcomp/adevjax",  branch="xyw/beta_distribution"}
+adevjax = { path = "./adevjax", develop = true }
 equinox = "^0.11.3"
 flax = "^0.8.1"
 
