@@ -31,9 +31,9 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Trace,
 )
+from genjax._src.core.datatypes.selection import HierarchicalSelection
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
