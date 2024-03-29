@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
     Choice,
     ChoiceMap,
     ChoiceValue,
@@ -21,12 +20,15 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
+    Trace,
+)
+from genjax._src.core.datatypes.selection import (
+    AllSelection,
+    HierarchicalSelection,
     NoneSelection,
     Selection,
-    Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
 

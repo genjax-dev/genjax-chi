@@ -24,11 +24,10 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
-    HierarchicalSelection,
     Mask,
-    Selection,
     Trace,
 )
+from genjax._src.core.datatypes.selection import HierarchicalSelection, Selection
 from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
 
 ###############################

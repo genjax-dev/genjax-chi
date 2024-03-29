@@ -20,9 +20,9 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Selection,
 )
+from genjax._src.core.datatypes.selection import HierarchicalSelection
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, ArrayLike, Dict, Int, IntArray, typecheck
