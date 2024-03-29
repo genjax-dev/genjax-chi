@@ -101,7 +101,7 @@ class IndexedChoiceMap(ChoiceMap):
         selection: IndexedSelection,
     ) -> ChoiceMap:
         flags = jnp.isin(selection.indices, self.indices)
-        filtered_inner = self.inner.filter(selection.inner)
+        filtered_inner = self.inner.filter_selection(selection.inner)
         masked = Mask(flags, filtered_inner)
         return IndexedChoiceMap(self.indices, masked)
 
@@ -111,7 +111,7 @@ class IndexedChoiceMap(ChoiceMap):
 
     @dispatch
     def has_submap(self, addr: Tuple):
-        return jnp.logical_and(addr[0] in self.indices, self.inner.has_submap(addr[1:]))
+        return addr[0] in self.indices and self.inner.has_submap(addr[1:])
 
     # where we left off: get slice working here
     # see if we can disentangle and-or de-@dispatch these things
@@ -193,36 +193,25 @@ class VectorChoiceMap(ChoiceMap):
     def is_empty(self):
         return self.inner.is_empty()
 
-    @dispatch
-    def filter_selection(
-        self,
-        selection: IndexedSelection,
-    ) -> ChoiceMap:
-        inner = self.inner.filter(selection.inner)
-        dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
-        check = selection.indices <= dim
-        idxs = check * selection.indices
-        return IndexedChoiceMap(
-            selection.indices, jtu.tree_map(lambda v: v[idxs], inner)
-        )
-
-    # where we left off: let's  do this with a slice
-    # BUT expand out to a list of indices for the IndexedChoiceMap.
-    # that's the easiest way to make everyone happy.
-    @dispatch
     def filter_selection(
         self,
         selection: Selection,
     ) -> ChoiceMap:
-        if not isinstance(selection, TraceSlice):
+        """TraceSlice and IndexedSelections are designed to operate at the VectorChoiceMap level
+        by specifying a subset of indices of interest. Other selection types do not have this
+        property and so we pass through silently to the next level."""
+
+        if not isinstance(selection, TraceSlice) and not isinstance(
+            selection, IndexedSelection
+        ):
             return VectorChoiceMap(self.inner.filter(selection))
-        if selection.s == () or selection.s[0] == slice(None, None, None):
+        # Shortcut: if this is the TraceSlice-equivalent of AllSelection(), just return self
+        if isinstance(selection, TraceSlice) and (
+            selection.s == () or selection.s[0] == slice(None, None, None)
+        ):
             return self
         inner = self.inner.filter_selection(selection.inner)
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(inner)
-        # We allow bare integers, jnp arrays of integers, and start:stop:stride
-        # slices as individual members of a TraceSlice. We convert each of these
-        # to a jnp array and use that to construct an IndexedChoiceMap.
         indices = selection.indices
         if isinstance(indices, slice):
             # TODO(colin): consider making it so that an IndexedChoiceMap can contain a slice directly,
@@ -252,7 +241,7 @@ class VectorChoiceMap(ChoiceMap):
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(
             self.inner,
         )
-        return jnp.logical_and(idx < dim, self.inner.has_submap(tuple(addr)))
+        return idx < dim and self.inner.has_submap(tuple(addr))
 
     @dispatch
     def get_submap(self, slc: slice):

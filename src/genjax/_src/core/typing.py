@@ -99,6 +99,12 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
+###########
+# Slicing #
+###########
+
+TraceSliceComponent = Union[str, int, slice]
+
 __all__ = [
     "PrettyPrintable",
     "Dataclass",
