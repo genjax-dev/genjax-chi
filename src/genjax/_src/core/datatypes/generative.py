@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 from abc import abstractmethod
 
 import jax
@@ -44,7 +43,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TraceSliceComponent,
     Tuple,
-    Union,
     dispatch,
     typecheck,
 )
