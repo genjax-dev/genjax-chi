@@ -35,7 +35,7 @@ Semantics for the vector combinators (map, repeat, and unfold):
     `k` must be a `JAXGenerativeFunction`, `T` will be a
     pytree.
     The return type of the generative function `c`
-    will be a batched instance of `k`, where the batch
+    will be a batched instance of `T`, where the batch
     dimensions will be determined by the constructor call for
     `c`.  (These are the `in_axes` in the map combinator.)
 
