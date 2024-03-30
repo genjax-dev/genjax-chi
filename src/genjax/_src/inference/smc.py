@@ -24,7 +24,8 @@ from jax import tree_util as jtu
 from jax import vmap
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes.generative import Choice, EmptyChoice, Trace
+from genjax._src.core.datatypes.choice import Choice, EmptyChoice
+from genjax._src.core.datatypes.generative import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     ArrayLike,

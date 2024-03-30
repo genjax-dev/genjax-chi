@@ -14,10 +14,9 @@
 
 from equinox import module_update_wrapper
 
+from genjax._src.core.datatypes.choice import Choice, HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import (
-    Choice,
     GenerativeFunction,
-    HierarchicalChoiceMap,
     JAXGenerativeFunction,
     Trace,
 )

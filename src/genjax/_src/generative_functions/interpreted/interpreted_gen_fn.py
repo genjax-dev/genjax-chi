@@ -25,12 +25,9 @@ import jax.numpy as jnp
 from beartype import beartype
 from equinox import module_update_wrapper
 
+from genjax._src.core.datatypes.choice import Choice, ChoiceMap, EmptyChoice, HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import (
-    Choice,
-    ChoiceMap,
-    EmptyChoice,
     GenerativeFunction,
-    HierarchicalChoiceMap,
     Trace,
 )
 from genjax._src.core.datatypes.selection import HierarchicalSelection

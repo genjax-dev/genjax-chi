@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     Choice,
     ChoiceMap,
     ChoiceValue,
     DisjointUnionChoiceMap,
     EmptyChoice,
-    GenerativeFunction,
     HierarchicalChoiceMap,
-    JAXGenerativeFunction,
     Mask,
+)
+from genjax._src.core.datatypes.generative import (
+    GenerativeFunction,
+    JAXGenerativeFunction,
     Trace,
 )
 from genjax._src.core.datatypes.selection import (

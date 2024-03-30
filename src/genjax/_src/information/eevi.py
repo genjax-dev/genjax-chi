@@ -17,8 +17,8 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.datatypes.choice import ChoiceValue
 from genjax._src.core.datatypes.generative import (
-    ChoiceValue,
     GenerativeFunction,
     Selection,
 )

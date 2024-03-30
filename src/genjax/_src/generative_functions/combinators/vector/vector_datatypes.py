@@ -18,14 +18,16 @@ import jax.tree_util as jtu
 import rich.tree as rich_tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     ChoiceMap,
     EmptyChoice,
-    MapSelection,
     Mask,
+)
+from genjax._src.core.datatypes.generative import (
     Selection,
     TraceSlice,
 )
+from genjax._src.core.datatypes.selection import MapSelection
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

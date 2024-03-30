@@ -24,11 +24,13 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from equinox import module_update_wrapper
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     ChoiceMap,
     EmptyChoice,
-    GenerativeFunction,
     HierarchicalChoiceMap,
+)
+from genjax._src.core.datatypes.generative import (
+    GenerativeFunction,
     JAXGenerativeFunction,
     Trace,
     TraceSlice,
