@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from abc import abstractmethod
 
 import jax
-import jax.numpy as jnp
-import rich.tree as rich_tree
-from jax.experimental import checkify
 
-from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.choice import Choice, ChoiceMap, EmptyChoice, Mask
 from genjax._src.core.datatypes.selection import (
     AllSelection,
@@ -27,19 +24,19 @@ from genjax._src.core.datatypes.selection import (
     Selection,
     TraceSlice,
 )
-from genjax._src.core.datatypes.trie import Trie
+from genjax._src.core.datatypes.slice import SliceCompiler
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    BoolArray,
     Callable,
     FloatArray,
-    IntArray,
     List,
+    Optional,
     PRNGKey,
     TraceSliceComponent,
     Tuple,
+    Union,
     dispatch,
     typecheck,
 )
@@ -293,8 +290,80 @@ class Trace(Pytree):
     def strip(self):
         return self.get_choices().strip()
 
+    def augment(self, s: Tuple[TraceSliceComponent], value: Any) -> "AugmentedTrace":
+        return AugmentedTrace(self, TraceSlice(s), value)
+
+    class Updater:
+        tr: "Trace | AugmentedTrace"
+
+        class Setter:
+            u: "Trace.Updater"
+            ts: TraceSlice
+
+            def __init__(self, u, ts):
+                self.u = u
+                self.ts = ts
+
+            def set(self, value: Any):
+                return AugmentedTrace(self.u.tr, self.ts, value)
+
+        def __init__(self, tr):
+            self.tr = tr
+
+        def __getitem__(self, addr):
+            if not isinstance(addr, tuple):
+                addr = (addr,)
+            return Trace.Updater.Setter(self, TraceSlice(addr))
+
+    @property
+    def at(self):
+        return Trace.Updater(self)
+
     def __getitem__(self, x):
         return self.get_choices()[x]
+
+
+class AugmentedTrace:
+    """An AugmentedTrace holds a reference to a parent trace and a single mapping
+    from a TraceSlice to a value. The `update` method "compiles" the chain of
+    AugmentedTraces leading back to the root trace into the equivalent Choice
+    and runs `update` on the result."""
+
+    inner: Union["AugmentedTrace", "Trace"]
+    s: TraceSlice
+    value: Any
+    compiler = SliceCompiler()
+
+    def __init__(self, inner, s: TraceSlice, value):
+        self.inner = inner
+        self.s = s
+        self.value = value
+        self.choice = self.compiler.slice_to_choice(s, value)
+
+    @property
+    def at(self):
+        return Trace.Updater(self)
+
+    def augment(self, s: Tuple[TraceSliceComponent], value: Any) -> "AugmentedTrace":
+        return AugmentedTrace(self, TraceSlice(s), value)
+
+    def update(self, key: PRNGKey, argdiffs: Optional[Tuple] = None):
+        # Walk back through the augmentation chain, building a list of
+        # mutations to make.
+        mutations: List[Choice] = []
+        t: Union[Trace, AugmentedTrace] = self
+        while isinstance(t, AugmentedTrace):
+            mutations.append(t.choice)
+            t = t.inner
+        assert isinstance(t, Trace)
+        # TODO(colin): merge keeps track of things that are overwritten: maybe we
+        # should warn when that happens?
+        choice = functools.reduce(lambda a, b: a.merge(b)[0], mutations)
+        # TODO(colin): maybe remove @dispatch on Trace.update and do it this way instead
+        if argdiffs is not None:
+            return t.update(key, choice, argdiffs)
+        else:
+            return t.update(key, choice)
 
 
 #######################

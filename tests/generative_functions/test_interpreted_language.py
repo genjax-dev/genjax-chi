@@ -318,6 +318,17 @@ class TestImportance:
 ####################################################
 
 
+@pytest.fixture(params=["lang"])
+def simple_normal_gf(lang):
+    @lang
+    def simple_normal():
+        y1 = genjax.normal(0.0, 1.0) @ "y1"
+        y2 = genjax.normal(0.0, 1.0) @ "y2"
+        return y1 + y2
+
+    return simple_normal
+
+
 @with_both_languages
 class TestUpdate:
     def test_simple_normal_update(self, lang):
@@ -337,8 +348,20 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = simple_normal.update(sub_key, tr, new, ())
         updated_choice = updated.get_choices()
-        _y1 = updated_choice[("y1",)]
-        _y2 = updated_choice[("y2",)]
+        (_, score1) = genjax.normal.importance(
+            key, updated_choice.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_choice.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert original_choice[("y1",)] == discard[("y1",)]
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+        # same test, new syntax
+        (updated, w, _, discard) = tr.at["y1"].set(2.0).update(key)
+        updated_choice = updated.get_choices()
         (_, score1) = genjax.normal.importance(
             key, updated_choice.get_submap("y1"), (0.0, 1.0)
         )
@@ -355,8 +378,6 @@ class TestUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = simple_normal.update(sub_key, tr, new, ())
         updated_choice = updated.get_choices()
-        _y1 = updated_choice[("y1",)]
-        _y2 = updated_choice[("y2",)]
         (_, score1) = genjax.normal.importance(
             key, updated_choice.get_submap("y1"), (0.0, 1.0)
         )
@@ -365,6 +386,37 @@ class TestUpdate:
         )
         test_score = score1 + score2
         assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+        (updated, w, _, discard) = tr.at["y1"].set(2.0).at["y2"].set(3.0).update(key)
+        updated_choice = updated.get_choices()
+        (_, score1) = genjax.normal.importance(
+            key, updated_choice.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_choice.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert updated.get_score() == tr.get_score() + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+    def test_update_via_slice(self, lang, simple_normal_gf):
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = simple_normal_gf.simulate(sub_key, ())
+
+        (updated, w, _, discard) = tr.at["y1"].set(2.0).update(sub_key)
+        original_choice = tr.get_choices()
+        updated_choice = updated.get_choices()
+        (_, score1) = genjax.normal.importance(
+            key, updated_choice.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_choice.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert original_choice["y1"] == discard["y1"]
+        assert updated.get_score() == tr.get_score() + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_linked_normal_update(self, lang):
