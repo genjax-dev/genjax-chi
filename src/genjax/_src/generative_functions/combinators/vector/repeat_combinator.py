@@ -17,8 +17,10 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     Choice,
+)
+from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Selection,
     Trace,

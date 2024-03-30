@@ -14,10 +14,9 @@
 
 from equinox import module_update_wrapper
 
+from genjax._src.core.datatypes.choice import Choice, Mask
 from genjax._src.core.datatypes.generative import (
-    Choice,
     JAXGenerativeFunction,
-    Mask,
     Selection,
     Trace,
 )

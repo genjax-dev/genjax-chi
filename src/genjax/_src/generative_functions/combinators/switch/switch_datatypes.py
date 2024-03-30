@@ -19,12 +19,14 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     Choice,
     ChoiceMap,
     EmptyChoice,
-    GenerativeFunction,
     Mask,
+)
+from genjax._src.core.datatypes.generative import (
+    GenerativeFunction,
     Trace,
 )
 from genjax._src.core.datatypes.selection import HierarchicalSelection, Selection

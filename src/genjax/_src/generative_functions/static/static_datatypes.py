@@ -14,13 +14,12 @@
 
 
 import jax.numpy as jnp  # noqa: I001
+from genjax._src.core.datatypes.choice import HierarchicalChoiceMap
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
-    HierarchicalChoiceMap,
-    MapSelection,
-    TraceSlice,
     Trace,
 )
+from genjax._src.core.datatypes.selection import MapSelection, TraceSlice
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.serialization.pickle import (
     PickleDataFormat,

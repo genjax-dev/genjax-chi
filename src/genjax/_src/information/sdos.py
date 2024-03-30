@@ -18,8 +18,8 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 
+from genjax._src.core.datatypes.choice import ChoiceValue
 from genjax._src.core.datatypes.generative import (
-    ChoiceValue,
     GenerativeFunction,
     Selection,
 )

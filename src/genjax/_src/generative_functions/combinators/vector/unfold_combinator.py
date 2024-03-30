@@ -22,13 +22,15 @@ from equinox import module_update_wrapper
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     Choice,
     ChoiceMap,
     EmptyChoice,
+    Mask,
+)
+from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     JAXGenerativeFunction,
-    Mask,
     Trace,
     TraceSlice,
 )

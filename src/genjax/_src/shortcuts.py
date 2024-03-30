@@ -14,15 +14,17 @@
 
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import (
-    AllSelection,
+from genjax._src.core.datatypes.choice import (
     Choice,
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
+)
+from genjax._src.core.datatypes.selection import (
+    AllSelection,
+    HierarchicalSelection,
     Selection,
 )
-from genjax._src.core.datatypes.selection import HierarchicalSelection
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, ArrayLike, Dict, Int, IntArray, typecheck

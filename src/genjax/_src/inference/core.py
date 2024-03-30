@@ -17,13 +17,12 @@ from abc import abstractmethod
 import jax
 from equinox import module_update_wrapper
 
+from genjax._src.core.datatypes.choice import Choice
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
-    Choice,
     GenerativeFunction,
     JAXGenerativeFunction,
-    Selection,
 )
+from genjax._src.core.datatypes.selection import AllSelection, Selection
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

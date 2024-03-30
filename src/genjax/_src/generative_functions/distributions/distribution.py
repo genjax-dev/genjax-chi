@@ -15,13 +15,17 @@
 
 import abc
 
-from genjax._src.core.datatypes.generative import (
-    AllSelection,
+from genjax._src.core.datatypes.choice import (
     ChoiceValue,
     EmptyChoice,
+)
+from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
-    Selection,
     Trace,
+)
+from genjax._src.core.datatypes.selection import (
+    AllSelection,
+    Selection,
     TraceSlice,
 )
 from genjax._src.core.interpreters.incremental import Diff

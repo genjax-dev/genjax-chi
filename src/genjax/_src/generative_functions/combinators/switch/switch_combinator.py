@@ -15,11 +15,13 @@
 
 import jax
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.datatypes.choice import (
     Choice,
     EmptyChoice,
-    JAXGenerativeFunction,
     Mask,
+)
+from genjax._src.core.datatypes.generative import (
+    JAXGenerativeFunction,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
