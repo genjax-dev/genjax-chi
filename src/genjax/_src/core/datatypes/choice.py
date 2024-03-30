@@ -42,7 +42,6 @@ class Choice(Pytree):
     The type `Choice` denotes a value which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
     """
 
-
     class Filtration:
         def __init__(self, choice: "Choice"):
             self.choice = choice
@@ -104,6 +103,7 @@ class Choice(Pytree):
         """This is a lazy reference to the Trace type, to avoid a circular
         import dependency"""
         from genjax._src.core.datatypes.generative import Trace
+
         return Trace
 
     def _is_trace(self, t):
@@ -118,7 +118,6 @@ class Choice(Pytree):
                 return v
 
         return jtu.tree_map(_inner, self, is_leaf=self._is_trace)
-
 
 
 class EmptyChoice(Choice):
@@ -283,6 +282,7 @@ class ChoiceMap(Choice):
         else:
             return self.__getitem__((addr,))
 
+
 ########################
 # Concrete choice maps #
 ########################
@@ -430,6 +430,7 @@ class HierarchicalChoiceMap(ChoiceMap):
             tree.add(subk)
         return tree
 
+
 class DisjointUnionChoiceMap(ChoiceMap):
     """> A choice map combinator type which represents a disjoint union over multiple
     choice maps.
@@ -481,6 +482,7 @@ class DisjointUnionChoiceMap(ChoiceMap):
             sub_tree = submap.__rich_tree__()
             tree.add(sub_tree)
         return tree
+
 
 ###########
 # Masking #
