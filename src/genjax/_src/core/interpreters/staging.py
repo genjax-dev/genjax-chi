@@ -21,30 +21,42 @@ from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any
+from genjax._src.core.typing import Bool, static_check_is_concrete
+
+###############################
+# Concrete Boolean arithmetic #
+###############################
 
 
-class Concrete(Pytree):
-    v: Any = Pytree.static()
-
-    def __hash__(self):
-        return hash(self.v)
-
-
-def concrete(v):
-    return Concrete(v)
-
-
-def static_check_concrete(v):
-    return isinstance(v, Concrete)
-
-
-def static_unwrap_concrete(c):
-    if isinstance(c, Concrete):
-        return c.v
+def staged_and(x, y):
+    if (
+        static_check_is_concrete(x)
+        and static_check_is_concrete(y)
+        and isinstance(x, Bool)
+        and isinstance(y, Bool)
+    ):
+        return x and y
     else:
-        return c
+        return jnp.logical_and(x, y)
+
+
+def staged_or(x, y):
+    if static_check_is_concrete(x) and static_check_is_concrete(y):
+        return x or y
+    else:
+        return jnp.logical_or(x, y)
+
+
+def staged_not(x):
+    if static_check_is_concrete(x):
+        return not x
+    else:
+        return jnp.logical_not(x)
+
+
+###########
+# Staging #
+###########
 
 
 def get_shaped_aval(x):

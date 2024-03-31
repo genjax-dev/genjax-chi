@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -28,7 +27,15 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     Trace,
 )
-from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    Sequence,
+    Tuple,
+    dispatch,
+)
 
 ###############################
 # Switch combinator datatypes #
@@ -169,8 +176,17 @@ class SwitchTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project(self, selection: Selection) -> FloatArray:
-        weights = list(map(lambda v: v.project(selection), self.choice.submaps))
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
+        weights = list(
+            map(
+                lambda v: v.project(key, selection),
+                self.choice.submaps,
+            )
+        )
         return jnp.choose(self.choice.index, weights, mode="wrap")
 
     def get_subtrace(self, concrete_index):

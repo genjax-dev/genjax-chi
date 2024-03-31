@@ -202,9 +202,10 @@ class Marginal(ChoiceDistribution):
         tr = self.p.simulate(sub_key, args)
         choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
-        other_choices = choices.filter(self.selection.complement())
+        other_choices = choices.filter(~self.selection)
         target = Target(self.p, args, latent_choices)
-        weight = tr.project(self.selection)
+        key, sub_key = jax.random.split(key)
+        weight = tr.project(sub_key, self.selection)
         if self.algorithm is None:
             return weight, latent_choices
         else:

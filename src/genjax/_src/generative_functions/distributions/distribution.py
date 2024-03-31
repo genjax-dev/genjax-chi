@@ -67,7 +67,11 @@ class DistributionTrace(
     def get_choices(self):
         return ChoiceValue(self.value)
 
-    def project(self, selection: Selection) -> FloatArray:
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
         check = selection[...]
         return check * self.get_score()
 

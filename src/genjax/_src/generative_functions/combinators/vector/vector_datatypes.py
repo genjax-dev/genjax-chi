@@ -95,7 +95,7 @@ class IndexedChoiceMap(ChoiceMap):
         tail = Selection.get_address_tail(addr)
         (slice_index,) = jnp.nonzero(idx == self.indices, size=1)
         submap = jtu.tree_map(
-            lambda v: v[slice_index],
+            lambda v: v[jnp.squeeze(slice_index)],
             self.inner.get_submap(tail) if tail else self.inner,
         )
         return Mask.maybe(jnp.isin(idx, self.indices), submap)
@@ -146,9 +146,9 @@ class VectorChoiceMap(ChoiceMap):
         selection: Selection,
     ) -> ChoiceMap:
         def _filter(idx, inner):
-            check, remaining = selection.step(idx)
+            remaining = selection.step(idx)
             return VectorChoiceMap(
-                Mask.maybe(check, inner.filter(remaining)),
+                inner.filter(remaining),
             )
 
         dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(self.inner)

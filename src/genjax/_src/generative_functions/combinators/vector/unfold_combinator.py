@@ -84,6 +84,7 @@ class UnfoldTrace(Trace):
 
     def project(
         self,
+        key: PRNGKey,
         selection: Selection,
     ) -> FloatArray:
         length_checks = (
@@ -92,7 +93,8 @@ class UnfoldTrace(Trace):
 
         def idx_check(idx, length_check, inner_slice):
             remaining = selection.step(idx)
-            inner_weight = inner_slice.project(remaining)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
             return length_check * inner_weight
 
         idxs = jnp.arange(0, len(self.inner.get_score()))

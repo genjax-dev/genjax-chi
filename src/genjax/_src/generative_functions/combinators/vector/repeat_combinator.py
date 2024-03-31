@@ -56,8 +56,20 @@ class RepeatTrace(Trace):
         return self.inner_trace.get_retval()
 
     @typecheck
-    def project(self, selection: Selection):
-        return self.inner_trace.project(selection)
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
+        def idx_check(idx, inner_slice):
+            remaining = selection.step(idx)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
+            return inner_weight
+
+        idxs = jnp.arange(0, len(self.inner.get_score()))
+        ws = jax.vmap(idx_check)(idxs, self.inner)
+        return jnp.sum(ws, axis=0)
 
 
 class RepeatCombinator(

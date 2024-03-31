@@ -331,7 +331,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             retdiff = Diff.tree_diff_unknown_change(primal)
             return (new_tr, w, retdiff, discard)
 
-        return new_constraints.match(_none, _some)
+        return new_constraints.match(_some)
 
     @typecheck
     def assess(

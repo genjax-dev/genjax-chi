@@ -87,13 +87,15 @@ class MapTrace(Trace):
 
     def project(
         self,
+        key: PRNGKey,
         selection: Selection,
     ) -> FloatArray:
         inner = self.try_restore_arguments()
 
         def idx_check(idx, inner_slice):
             remaining = selection.step(idx)
-            inner_weight = inner_slice.project(remaining)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
             return inner_weight
 
         idxs = jnp.arange(0, len(inner.get_score()))

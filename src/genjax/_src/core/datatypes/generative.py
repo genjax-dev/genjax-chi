@@ -27,6 +27,7 @@ import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import staged_and, staged_not, staged_or
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Address,
@@ -109,6 +110,9 @@ class Selection(Pytree):
     def __invert__(self) -> "Selection":
         return select_complement(self)
 
+    def complement(self) -> "Selection":
+        return select_complement(self)
+
     @classmethod
     def get_address_head(cls, addr: Address) -> Address:
         if isinstance(addr, tuple) and addr:
@@ -177,6 +181,11 @@ class Selection(Pytree):
 
     @classmethod
     @typecheck
+    def r(cls, selections):
+        return reduce(or_, selections)
+
+    @classmethod
+    @typecheck
     def f(cls, *addrs: Address):
         return reduce(or_, (cls.q[addr] for addr in addrs))
 
@@ -202,7 +211,7 @@ def select_defer(
     @typecheck
     def inner(head: AddressComponent):
         ch, remaining = s.has_addr(head)
-        check = jnp.logical_and(flag, ch)
+        check = staged_and(flag, ch)
         return check, select_defer(check, remaining)
 
     return inner
@@ -215,8 +224,8 @@ def select_complement(s: Selection) -> Selection:
     @typecheck
     def inner(head: AddressComponent):
         ch, remaining = s.has_addr(head)
-        check = jnp.logical_not(ch)
-        return jnp.logical_not(ch), select_defer(check, select_complement(remaining))
+        check = staged_not(ch)
+        return check, select_defer(check, select_complement(remaining))
 
     return inner
 
@@ -256,10 +265,8 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
     def inner(head: AddressComponent):
         check1, remaining1 = s1.has_addr(head)
         check2, remaining2 = s2.has_addr(head)
-        check = jnp.logical_and(check1, check2)
-        return jnp.logical_and(check1, check2), select_defer(
-            check, select_and(remaining1, remaining2)
-        )
+        check = staged_and(check1, check2)
+        return check, select_defer(check, select_and(remaining1, remaining2))
 
     return inner
 
@@ -272,7 +279,8 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
     def inner(head: AddressComponent):
         check1, remaining1 = s1.has_addr(head)
         check2, remaining2 = s2.has_addr(head)
-        return jnp.logical_or(check1, check2), select_or(
+        check = staged_or(check1, check2)
+        return check, select_or(
             select_defer(check1, remaining1),
             select_defer(check2, remaining2),
         )
@@ -319,7 +327,7 @@ class Choice(Pytree):
         # However, it's possible that we don't know that the discarded
         # choice is empty until runtime, so we use checkify.
         def _check():
-            check_flag = jnp.logical_not(discard.is_empty())
+            check_flag = staged_not(discard.is_empty())
             checkify.check(
                 check_flag,
                 "The discarded choice is not empty.",
@@ -436,7 +444,7 @@ class EmptyChoice(ChoiceMap):
         return self
 
     def has_submap(self, addr: Address) -> BoolArray:
-        return jnp.array(False)
+        return False
 
     def filter(self, selection: Selection):
         return self
@@ -467,7 +475,7 @@ class ChoiceValue(ChoiceMap):
         raise Exception("ChoiceValue doesn't address any choices.")
 
     def has_submap(self, addr: Address) -> BoolArray:
-        return jnp.array(False)
+        return False
 
     def is_empty(self):
         return jnp.array(False)
@@ -614,7 +622,11 @@ class Trace(Pytree):
         """
 
     @abstractmethod
-    def project(self, selection: "Selection") -> FloatArray:
+    def project(
+        self,
+        key: PRNGKey,
+        selection: "Selection",
+    ) -> FloatArray:
         """Given a `Selection`, return the total contribution to the score of the
         addresses contained within the `Selection`.
 
@@ -637,7 +649,7 @@ class Trace(Pytree):
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
             selection = genjax.select("x")
-            x_score = tr.project(selection)
+            x_score = tr.project(key, selection)
             x_score_t = genjax.bernoulli.logpdf(tr["x"], 0.3)
             print(console.render((x_score_t, x_score)))
             ```
@@ -739,7 +751,7 @@ class Mask(ChoiceMap):
     # one layer of the structure.
     def __post_init__(self):
         if isinstance(self.value, Mask):
-            self.flag = jnp.logical_and(self.flag, self.value.flag)
+            self.flag = staged_and(self.flag, self.value.flag)
             self.value = self.value.value
 
     @classmethod
@@ -755,7 +767,7 @@ class Mask(ChoiceMap):
 
     def is_empty(self):
         assert isinstance(self.value, Choice)
-        return jnp.logical_and(self.flag, self.value.is_empty())
+        return staged_and(self.flag, self.value.is_empty())
 
     def merge(self, other: Choice) -> Tuple[Choice, Choice]:
         pass
@@ -806,7 +818,7 @@ class Mask(ChoiceMap):
         # that the value should be a `ChoiceMap`.
         assert isinstance(self.value, ChoiceMap)
         inner_check = self.value.has_submap(addr)
-        return jnp.logical_and(self.flag, inner_check)
+        return staged_and(self.flag, inner_check)
 
     def get_selection(self) -> Selection:
         assert isinstance(self.value, ChoiceMap)
@@ -1249,7 +1261,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
     # but provides convenient access to first-order gradients.
     @typecheck
     def choice_grad(self, key: PRNGKey, trace: Trace, selection: Selection):
-        fixed = trace.strip().filter(selection.complement())
+        fixed = trace.strip().filter(~selection)
         choice = trace.strip().filter(selection)
         scorer, _ = self.unzip(key, fixed)
         grad, nograd = Pytree.tree_grad_split(
@@ -1279,7 +1291,7 @@ class HierarchicalChoiceMap(ChoiceMap):
         iter = self.get_submaps_shallow()
         check = jnp.array(True)
         for _, v in iter:
-            check = jnp.logical_and(check, v.is_empty())
+            check = staged_and(check, v.is_empty())
         return check
 
     def filter(
@@ -1303,9 +1315,8 @@ class HierarchicalChoiceMap(ChoiceMap):
 
         return HierarchicalChoiceMap(trie)
 
-    @typecheck
     def has_submap(self, addr: Address) -> BoolArray:
-        return jnp.array(self.trie.has_submap(addr), copy=False)
+        return self.trie.has_submap(addr)
 
     def _lift_value(self, value):
         if value is None:

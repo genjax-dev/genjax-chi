@@ -55,4 +55,4 @@ class TestShortcuts:
         )
         for j in range(1, 4):
             assert icm.has_submap((j, "x"))
-            assert icm[j, "x"].match(lambda v: v.get_value()) == 10 * j
+            assert icm[j, "x"] == 10 * j

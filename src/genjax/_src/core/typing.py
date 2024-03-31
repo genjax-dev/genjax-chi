@@ -84,7 +84,12 @@ TypeVar = btyping.TypeVar
 # Static typechecking from annotations #
 ########################################
 
-conf = BeartypeConf(is_color=False)
+conf = BeartypeConf(
+    is_color=False,
+    is_debug=False,
+    is_pep484_tower=True,
+    violation_type=TypeError,
+)
 typecheck = beartype(conf=conf)
 
 

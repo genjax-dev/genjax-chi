@@ -83,7 +83,7 @@ def choice_map(*vs: ChoiceMappable) -> Choice:
         if isinstance(v, Choice):
             return v
         elif isinstance(v, dict):
-            if all(isinstance(k, int) for k in v.keys()):
+            if v and all(isinstance(k, int) for k in v.keys()):
                 return IndexedChoiceMap.from_dict(v)
             else:
                 return HierarchicalChoiceMap(trie_from_dict(v))

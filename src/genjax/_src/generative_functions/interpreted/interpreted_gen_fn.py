@@ -243,10 +243,15 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: Selection) -> FloatArray:
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
         weight = jnp.zeros(())
         for k, subtrace in self.choices.get_submaps_shallow():
-            weight += subtrace.project(selection(k))
+            key, sub_key = jax.random.split(key)
+            weight += subtrace.project(sub_key, selection.step(k))
         return weight
 
 
