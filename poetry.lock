@@ -2372,13 +2372,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "plum-dispatch"
-version = "2.3.2"
+version = "2.3.3"
 description = "Multiple dispatch in Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "plum_dispatch-2.3.2-py3-none-any.whl", hash = "sha256:96f519d416accf9a009117682f689114eb23e867bb6f977eed74ef85ef7fef9d"},
-    {file = "plum_dispatch-2.3.2.tar.gz", hash = "sha256:f49f00dfdf7ab0f16c9b85cc27cc5241ffb59aee02218bac671ec7c1ac65e139"},
+    {file = "plum_dispatch-2.3.3-py3-none-any.whl", hash = "sha256:24b44509f74f346e25f02557e70c98e76342414ab7bc1f1b4aaeb7ae66b4d54c"},
+    {file = "plum_dispatch-2.3.3.tar.gz", hash = "sha256:221369b84947d61c7f173ecdf81b78544418e78d4e6d3b8be5c6f2a3a3d5a572"},
 ]
 
 [package.dependencies]
