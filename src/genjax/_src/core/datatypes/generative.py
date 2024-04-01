@@ -39,7 +39,6 @@ from genjax._src.core.typing import (
     DynamicAddressComponent,
     EllipsisType,
     FloatArray,
-    List,
     PRNGKey,
     StaticAddressComponent,
     Tuple,
@@ -107,6 +106,9 @@ class Selection(Pytree):
 
     def __rshift__(self, other):
         return select_and_then(self, other)
+
+    def __and__(self, other):
+        return select_and(self, other)
 
     def __invert__(self) -> "Selection":
         return select_complement(self)
@@ -377,10 +379,6 @@ class ChoiceMap(Choice):
     def has_submap(self, addr: Address) -> BoolArray:
         pass
 
-    ##############################################
-    # Dispatch overloads for `Choice` interfaces #
-    ##############################################
-
     @abstractmethod
     def filter(
         self,
@@ -420,19 +418,27 @@ class ChoiceMap(Choice):
         raise NotImplementedError
 
     ###################
-    # Query interface #
+    # Slice interface #
     ###################
 
-    class QueryBuilder(Pytree):
+    class Slice(Pytree):
         choice_map: "ChoiceMap"
+        selection: Selection
 
         def __getitem__(self, addr) -> "ChoiceMap":
             sel = Selection.q[addr]
-            return self.choice_map.filter(sel)
+            return ChoiceMap.Slice(self.choice_map, sel | self.selection)
+
+        @property
+        def also(self):
+            return self
+
+        def filter(self):
+            return self.choice_map.filter(self.selection)
 
     @property
-    def q(self) -> QueryBuilder:
-        return ChoiceMap.QueryBuilder(self)
+    def at(self) -> Slice:
+        return ChoiceMap.Slice(self, Selection.n)
 
     ###########
     # Dunders #
@@ -755,33 +761,6 @@ class Trace(Pytree):
         """
         raise NotImplementedError
 
-    #############################
-    # Query projector interface #
-    #############################
-
-    class QueryBuilder(Pytree):
-        trace: "Trace"
-
-        def __getitem__(self, addr: Address) -> FloatArray:
-            sel = Selection.q[addr]
-
-            @Pytree.partial(sel)
-            def inner(sel: Selection, key: PRNGKey):
-                return self.trace.project(key, sel)
-
-            return inner
-
-        def __call__(self, sel: Selection) -> FloatArray:
-            @Pytree.partial(sel)
-            def inner(sel: Selection, key: PRNGKey):
-                return self.trace.project(key, sel)
-
-            return inner
-
-    @property
-    def p(self) -> QueryBuilder:
-        return Trace.QueryBuilder(self)
-
     def update(
         self,
         key: PRNGKey,
@@ -791,41 +770,43 @@ class Trace(Pytree):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
 
-    ###############################
-    # "In-place" update interface #
-    ###############################
+    ##############################################
+    # "In-place" update and projection interface #
+    ##############################################
 
-    class UpdateBuilder(Pytree):
+    class Slice(Pytree):
         trace: "Trace"
-        updates: List[ChoiceMap]
-
-        class UpdateSetter(Pytree):
-            addr: Address
-            builder: "Trace.UpdateBuilder"
-
-            def set(self, v):
-                sel = Selection.q[self.addr]
-                choice_map = SelectionChoiceMap(sel, v)
-                return Trace.UpdateBuilder(
-                    self.builder.trace, [choice_map, *self.builder.updates]
-                )
+        selection: Selection
+        constraints: ChoiceMap
 
         @property
-        def at(self) -> "Trace.UpdateBuilder":
+        def also(self) -> "Trace.Slice":
             return self
 
-        def update(self, key: PRNGKey):
-            choice = reduce(safe_merge, self.updates)
-            return self.trace.update(
-                key, choice, Diff.tree_diff_no_change(self.trace.get_args())
-            )
+        def set(self, v):
+            choice_map = SelectionChoiceMap(self.selection, v)
+            return Trace.Slice(self.trace, Selection.a, choice_map)
+
+        def update(self, key: PRNGKey, argdiffs=None):
+            if argdiffs:
+                return self.trace.update(key, self.constraints, argdiffs)
+            else:
+                return self.trace.update(
+                    key,
+                    self.constraints,
+                    Diff.tree_diff_no_change(self.trace.get_args()),
+                )
+
+        def project(self, key: PRNGKey):
+            return self.trace.project(key, self.selection)
 
         def __getitem__(self, addr: Address) -> FloatArray:
-            return Trace.UpdateBuilder.UpdateSetter(addr, self)
+            selection = Selection.q[addr]
+            return Trace.Slice(self.trace, selection | self.selection, self.constraints)
 
     @property
-    def at(self) -> UpdateBuilder:
-        return Trace.UpdateBuilder(self, [])
+    def at(self) -> Slice:
+        return Trace.Slice(self, Selection.n, EmptyChoice())
 
     def get_aux(self) -> Tuple:
         raise NotImplementedError
@@ -920,7 +901,7 @@ class Mask(ValueLike, ChoiceMap):
         return staged_and(self.flag, self.value.is_empty())
 
     def merge(self, other: Choice) -> Tuple[Choice, Choice]:
-        pass
+        raise NotImplementedError
 
     ###########################
     # Choice value interfaces #

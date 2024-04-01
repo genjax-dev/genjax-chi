@@ -19,7 +19,9 @@ from genjax._src.core.datatypes.generative import (
     ChoiceValue,
     EmptyChoice,
     GenerativeFunction,
+    Mask,
     Selection,
+    SelectionChoiceMap,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -189,6 +191,30 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         Diff.static_check_tree_diff(argdiffs)
         args = Diff.tree_primal(argdiffs)
         v = constraints.get_value()
+        fwd = self.estimate_logpdf(key, v, *args)
+        bwd = prev.get_score()
+        w = fwd - bwd
+        new_tr = DistributionTrace(self, args, v, fwd)
+        discard = prev.get_choices()
+        retval_diff = Diff.tree_diff_unknown_change(v)
+        return (new_tr, w, retval_diff, discard)
+
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        prev: DistributionTrace,
+        constraints: SelectionChoiceMap,
+        argdiffs: Tuple,
+    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
+        Diff.static_check_tree_diff(argdiffs)
+        args = Diff.tree_primal(argdiffs)
+        v = constraints.get_value()
+        v = (
+            v.safe_match(lambda: prev.get_choices().get_value(), lambda v: v)
+            if isinstance(v, Mask)
+            else v
+        )
         fwd = self.estimate_logpdf(key, v, *args)
         bwd = prev.get_score()
         w = fwd - bwd
