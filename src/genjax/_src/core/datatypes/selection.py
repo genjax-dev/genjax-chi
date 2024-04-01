@@ -136,7 +136,9 @@ class AllSelection(Selection):
 class TraceSlice(Selection):
     s: Tuple[TraceSliceComponent, ...]
 
-    def __init__(self, s: Tuple[TraceSliceComponent, ...]):
+    def __init__(self, s: Tuple[TraceSliceComponent, ...] | TraceSliceComponent):
+        if not isinstance(s, tuple):
+            s = (s,)
         self.s = s
 
     def has_addr(self, item: Any):
