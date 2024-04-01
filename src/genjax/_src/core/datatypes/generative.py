@@ -177,8 +177,6 @@ class Trace(Pytree):
         def __getitem__(
             self, selection: TraceSliceComponent | Tuple[TraceSliceComponent, ...]
         ) -> FloatArray:
-            if not isinstance(selection, tuple):
-                selection = (selection,)
             return self.trace.project_selection(TraceSlice(selection))
 
     @property

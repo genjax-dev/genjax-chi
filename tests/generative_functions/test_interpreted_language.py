@@ -52,16 +52,10 @@ class TestSimulate:
         _, score = genjax.normal.importance(key, choice.get_submap("y"), (0.0, 1.0))
         assert tr.get_score() == pytest.approx(score, 0.01)
 
-    def test_simple_normal_simulate(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_simple_normal_simulate(self, lang, simple_normal_gf):
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = simple_normal.simulate(sub_key, ())
+        tr = simple_normal_gf.simulate(sub_key, ())
         choice = tr.get_choices()
         (_, score1) = genjax.normal.importance(key, choice.get_submap("y1"), (0.0, 1.0))
         (_, score2) = genjax.normal.importance(key, choice.get_submap("y2"), (0.0, 1.0))
@@ -116,18 +110,12 @@ class TestSimulate:
 
 @with_both_languages
 class TestAssess:
-    def test_simple_normal_assess(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_simple_normal_assess(self, lang, simple_normal_gf):
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = simple_normal.simulate(sub_key, ())
+        tr = simple_normal_gf.simulate(sub_key, ())
         choice = tr.get_choices().strip()
-        (score, retval) = simple_normal.assess(choice, ())
+        (score, retval) = simple_normal_gf.assess(choice, ())
         assert score == tr.get_score()
 
 
@@ -137,7 +125,7 @@ class CustomTree(genjax.Pytree):
 
 
 @genjax.interpreted_gen_fn
-def simple_normal(custom_tree):
+def simple_normal_pytree(custom_tree):
     y1 = genjax.normal(custom_tree.x, 1.0) @ "y1"
     y2 = genjax.normal(custom_tree.y, 1.0) @ "y2"
     return CustomTree(y1, y2)
@@ -164,7 +152,7 @@ class TestCustomPytree:
     def test_simple_normal_simulate(self):
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
-        tr = simple_normal.simulate(key, (init_tree,))
+        tr = simple_normal_pytree.simulate(key, (init_tree,))
         choice = tr.get_choices()
         (_, score1) = genjax.normal.importance(
             key,
@@ -194,7 +182,7 @@ class TestCustomPytree:
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
         choice = genjax.choice_map({"y1": 5.0})
-        (tr, w) = simple_normal.importance(key, choice, (init_tree,))
+        (tr, w) = simple_normal_pytree.importance(key, choice, (init_tree,))
         choice = tr.get_choices()
         (_, score1) = genjax.normal.importance(
             key,
@@ -213,31 +201,19 @@ class TestCustomPytree:
 
 @with_both_languages
 class TestGradients:
-    def test_simple_normal_assess(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_simple_normal_assess(self, lang, simple_normal_gf):
         key = jax.random.PRNGKey(314159)
-        tr = simple_normal.simulate(key, ())
+        tr = simple_normal_gf.simulate(key, ())
         choice = tr.get_choices()
-        (score, _) = simple_normal.assess(choice, ())
+        (score, _) = simple_normal_gf.assess(choice, ())
         assert score == tr.get_score()
 
 
 @with_both_languages
 class TestImportance:
-    def test_importance_simple_normal(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_importance_simple_normal(self, lang, simple_normal_gf):
         key = jax.random.PRNGKey(314159)
-        fn = simple_normal.importance
+        fn = simple_normal_gf.importance
         choice = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
         key, sub_key = jax.random.split(key)
         (tr, _) = fn(sub_key, choice, ())
@@ -255,17 +231,11 @@ class TestImportance:
         assert y2 == out[("y2",)]
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_importance_weight_correctness(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_importance_weight_correctness(self, lang, simple_normal_gf):
         # Full constraints.
         key = jax.random.PRNGKey(314159)
         choice = genjax.choice_map({("y1",): 0.5, ("y2",): 0.5})
-        (tr, w) = simple_normal.importance(key, choice, ())
+        (tr, w) = simple_normal_gf.importance(key, choice, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         assert y1 == 0.5
@@ -282,7 +252,7 @@ class TestImportance:
 
         # Partial constraints.
         choice = genjax.choice_map({("y2",): 0.5})
-        (tr, w) = simple_normal.importance(key, choice, ())
+        (tr, w) = simple_normal_gf.importance(key, choice, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         assert y2 == 0.5
@@ -299,7 +269,7 @@ class TestImportance:
         # genjax.ChoiceMap() is not the same animal as genjax.choice_map({}). The
         # former doesn't work. This needs cleaning up.
         choice = genjax.choice_map({})
-        (tr, w) = simple_normal.importance(key, choice, ())
+        (tr, w) = simple_normal_gf.importance(key, choice, ())
         y1 = tr["y1"]
         y2 = tr["y2"]
         score_1 = genjax.normal.logpdf(y1, 0.0, 1.0)
@@ -331,22 +301,16 @@ def simple_normal_gf(lang):
 
 @with_both_languages
 class TestUpdate:
-    def test_simple_normal_update(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_simple_normal_update(self, lang, simple_normal_gf):
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = simple_normal.simulate(sub_key, ())
+        tr = simple_normal_gf.simulate(sub_key, ())
 
         new = genjax.choice_map({("y1",): 2.0})
         original_choice = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = simple_normal.update(sub_key, tr, new, ())
+        (updated, w, _, discard) = simple_normal_gf.update(sub_key, tr, new, ())
         updated_choice = updated.get_choices()
         (_, score1) = genjax.normal.importance(
             key, updated_choice.get_submap("y1"), (0.0, 1.0)
@@ -376,7 +340,7 @@ class TestUpdate:
         new = genjax.choice_map({("y1",): 2.0, ("y2",): 3.0})
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = simple_normal.update(sub_key, tr, new, ())
+        (updated, w, _, discard) = simple_normal_gf.update(sub_key, tr, new, ())
         updated_choice = updated.get_choices()
         (_, score1) = genjax.normal.importance(
             key, updated_choice.get_submap("y1"), (0.0, 1.0)
@@ -578,18 +542,12 @@ class TestUpdate:
 
 @with_both_languages
 class TestInterpretedLanguageSugar:
-    def test_interpreted_sugar(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
+    def test_interpreted_sugar(self, lang, simple_normal_gf):
+        key = jax.random.PRNGKey(314159)
+        tr = simple_normal_gf.simulate(key, ())
 
         key = jax.random.PRNGKey(314159)
-        tr = simple_normal.simulate(key, ())
-
-        key = jax.random.PRNGKey(314159)
-        v = simple_normal.sample_retval(key, ())
+        v = simple_normal_gf.sample_retval(key, ())
         assert tr.get_retval() == v
 
 
@@ -642,16 +600,10 @@ class TestForwardRef:
 
 @with_both_languages
 class TestInline:
-    def test_inline_simulate(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_inline_simulate(self, lang, simple_normal_gf):
         @lang
         def higher_model():
-            y = simple_normal.inline()
+            y = simple_normal_gf.inline()
             return y
 
         @lang
@@ -670,16 +622,10 @@ class TestInline:
         assert choices.has_submap("y1")
         assert choices.has_submap("y2")
 
-    def test_inline_importance(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_inline_importance(self, lang, simple_normal_gf):
         @lang
         def higher_model():
-            y = simple_normal.inline()
+            y = simple_normal_gf.inline()
             return y
 
         @lang
@@ -697,16 +643,10 @@ class TestInline:
         choices = tr.strip()
         assert w == genjax.normal.logpdf(choices["y1"], 0.0, 1.0)
 
-    def test_inline_update(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_inline_update(self, lang, simple_normal_gf):
         @lang
         def higher_model():
-            y = simple_normal.inline()
+            y = simple_normal_gf.inline()
             return y
 
         @lang
@@ -736,16 +676,10 @@ class TestInline:
             0.0001,
         )
 
-    def test_inline_assess(self, lang):
-        @lang
-        def simple_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(0.0, 1.0) @ "y2"
-            return y1 + y2
-
+    def test_inline_assess(self, lang, simple_normal_gf):
         @lang
         def higher_model():
-            y = simple_normal.inline()
+            y = simple_normal_gf.inline()
             return y
 
         @lang

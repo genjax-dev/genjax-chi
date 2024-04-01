@@ -52,8 +52,6 @@ class Choice(Pytree):
         def __getitem__(
             self, t: TraceSliceComponent | Tuple[TraceSliceComponent, ...]
         ) -> "Choice":
-            if not isinstance(t, tuple):
-                t = (t,)
             return self.choice.filter_selection(TraceSlice(t))
 
     @property
