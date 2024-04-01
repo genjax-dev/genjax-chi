@@ -179,7 +179,7 @@ class Selection(Pytree):
         return select_defer(flag, s)
 
     @classproperty
-    def q(cls) -> SelectionBuilder:
+    def at(cls) -> SelectionBuilder:
         return SelectionBuilder()
 
     @classmethod
@@ -190,7 +190,7 @@ class Selection(Pytree):
     @classmethod
     @typecheck
     def f(cls, *addrs: Address):
-        return reduce(or_, (cls.q[addr] for addr in addrs))
+        return reduce(or_, (cls.at[addr] for addr in addrs))
 
 
 #####
@@ -199,7 +199,7 @@ class Selection(Pytree):
 
 
 @Selection
-@Pytree.const
+@Pytree.partial()
 def select_all(_: AddressComponent):
     return True, select_all
 
@@ -210,9 +210,9 @@ def select_defer(
     s: Selection,
 ) -> Selection:
     @Selection
-    @Pytree.const
+    @Pytree.partial(s)
     @typecheck
-    def inner(head: AddressComponent):
+    def inner(s: Selection, head: AddressComponent):
         ch, remaining = s.has_addr(head)
         check = staged_and(flag, ch)
         return check, select_defer(check, remaining)
@@ -223,9 +223,9 @@ def select_defer(
 @typecheck
 def select_complement(s: Selection) -> Selection:
     @Selection
-    @Pytree.const
+    @Pytree.partial(s)
     @typecheck
-    def inner(head: AddressComponent):
+    def inner(s: Selection, head: AddressComponent):
         ch, remaining = s.has_addr(head)
         check = staged_not(ch)
         return check, select_defer(check, select_complement(remaining))
@@ -239,7 +239,7 @@ select_none = select_complement(select_all)
 @typecheck
 def select_static(addressed: AddressComponent) -> Selection:
     @Selection
-    @Pytree.const
+    @Pytree.partial()
     @typecheck
     def inner(head: AddressComponent):
         check = addressed == head or isinstance(head, EllipsisType)
@@ -266,9 +266,9 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
-    @Pytree.const
+    @Pytree.partial(s1, s2)
     @typecheck
-    def inner(head: AddressComponent):
+    def inner(s1: Selection, s2: Selection, head: AddressComponent):
         check1, remaining1 = s1.has_addr(head)
         check2, remaining2 = s2.has_addr(head)
         check = staged_and(check1, check2)
@@ -280,9 +280,9 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
     @Selection
-    @Pytree.const
+    @Pytree.partial(s1, s2)
     @typecheck
-    def inner(head: AddressComponent):
+    def inner(s1: Selection, s2: Selection, head: AddressComponent):
         check1, remaining1 = s1.has_addr(head)
         check2, remaining2 = s2.has_addr(head)
         check = staged_or(check1, check2)
@@ -297,9 +297,9 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
 @typecheck
 def select_and_then(s1: Selection, s2: Selection) -> Selection:
     @Selection
-    @Pytree.const
+    @Pytree.partial(s1, s2)
     @typecheck
-    def inner(head: AddressComponent):
+    def inner(s1: Selection, s2: Selection, head: AddressComponent):
         check1, remaining1 = s1.has_addr(head)
         remaining = select_defer(check1, select_and(remaining1, s2))
         return check1, remaining
@@ -425,12 +425,12 @@ class ChoiceMap(Choice):
         choice_map: "ChoiceMap"
         selection: Selection
 
-        def __getitem__(self, addr) -> "ChoiceMap":
-            sel = Selection.q[addr]
+        def __getitem__(self, addr) -> "ChoiceMap.Slice":
+            sel = Selection.at[addr]
             return ChoiceMap.Slice(self.choice_map, sel | self.selection)
 
         @property
-        def also(self):
+        def also(self) -> "ChoiceMap.Slice":
             return self
 
         def filter(self):
@@ -801,7 +801,7 @@ class Trace(Pytree):
             return self.trace.project(key, self.selection)
 
         def __getitem__(self, addr: Address) -> FloatArray:
-            selection = Selection.q[addr]
+            selection = Selection.at[addr]
             return Trace.Slice(self.trace, selection | self.selection, self.constraints)
 
     @property

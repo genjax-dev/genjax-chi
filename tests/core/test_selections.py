@@ -20,11 +20,11 @@ class TestSelections:
         new = S.s("x") | (S.s("z") >> S.s("y"))
         assert new["x"]
         assert new["z", "y"]
-        new = S.q["x"]
+        new = S.at["x"]
         assert new["x"]
         assert new["x", "y"]
         assert new["x", "y", "z"]
-        new = S.q["x", "y", "z"]
+        new = S.at["x", "y", "z"]
         assert new["x", "y", "z"]
         assert not new["x"]
         assert not new["x", "y"]

@@ -60,7 +60,7 @@ Bool = bool
 String = str
 
 StaticAddressComponent = String
-DynamicAddressComponent = Union[Int, IntArray]
+DynamicAddressComponent = ArrayLike
 AddressComponent = Union[
     Tuple[()],
     EllipsisType,

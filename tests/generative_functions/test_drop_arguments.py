@@ -36,5 +36,5 @@ class TestDropArguments:
         )
         v = tr.get_choices()[0, "y"]
         assert v == 5.0
-        sel = genjax.Selection.q[0, "y"]
+        sel = genjax.Selection.at[0, "y"]
         assert tr.project(key, sel) == genjax.normal.logpdf(5.0, 1.0, 1.0)
