@@ -39,6 +39,7 @@ from genjax._src.core.typing import (
     DynamicAddressComponent,
     EllipsisType,
     FloatArray,
+    List,
     PRNGKey,
     StaticAddressComponent,
     Tuple,
@@ -239,7 +240,7 @@ def select_static(addressed: AddressComponent) -> Selection:
     @Pytree.const
     @typecheck
     def inner(head: AddressComponent):
-        check = addressed == head
+        check = addressed == head or isinstance(head, EllipsisType)
         return check, select_defer(check, select_all)
 
     return inner
@@ -251,7 +252,10 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
     @Pytree.partial(sidx)
     @typecheck
     def inner(sidx: DynamicAddressComponent, head: AddressComponent):
-        check = jnp.any(head == sidx)
+        check = staged_or(
+            jnp.any(head == sidx),
+            isinstance(head, EllipsisType),
+        )
         return check, select_defer(check, select_all)
 
     return inner
@@ -348,6 +352,10 @@ class Choice(Pytree):
         return strip(self)
 
 
+def safe_merge(self, other: "Choice") -> "Choice":
+    return self.safe_merge(other)
+
+
 class ChoiceMap(Choice):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from a generative function.
@@ -411,6 +419,21 @@ class ChoiceMap(Choice):
         """Convert a `ChoiceMap` to a `Selection`."""
         raise NotImplementedError
 
+    ###################
+    # Query interface #
+    ###################
+
+    class QueryBuilder(Pytree):
+        choice_map: "ChoiceMap"
+
+        def __getitem__(self, addr) -> "ChoiceMap":
+            sel = Selection.q[addr]
+            return self.choice_map.filter(sel)
+
+    @property
+    def q(self) -> QueryBuilder:
+        return ChoiceMap.QueryBuilder(self)
+
     ###########
     # Dunders #
     ###########
@@ -465,7 +488,13 @@ class EmptyChoice(ChoiceMap):
         return rich_tree.Tree("[bold](EmptyChoice)")
 
 
-class ChoiceValue(ChoiceMap):
+class ValueLike(Choice):
+    @abstractmethod
+    def get_value(self) -> Any:
+        raise NotImplementedError
+
+
+class ChoiceValue(ValueLike, ChoiceMap):
     value: Any
 
     def get_value(self):
@@ -500,6 +529,72 @@ class ChoiceValue(ChoiceMap):
         tree = rich_tree.Tree("[bold](ChoiceValue)")
         tree.add(gpp.tree_pformat(self.value))
         return tree
+
+
+class SelectionChoiceMap(ValueLike, ChoiceMap):
+    selection: Selection
+    value: Any
+
+    def is_empty(self) -> BoolArray:
+        return self.selection[...]
+
+    def get_value(self) -> Any:
+        check = self.selection[...]
+        if static_check_is_concrete(check) and check:
+            return self.value
+        else:
+            return Mask.maybe(check, self.value)
+
+    def merge(self, other: ChoiceMap) -> ChoiceMap:
+        return DisjointUnionChoiceMap(self, other)
+
+    def get_selection(self) -> Selection:
+        return self.selection
+
+    def get_submap(self, addr: Address) -> ChoiceMap:
+        remaining = self.selection.step(addr)
+        return SelectionChoiceMap(remaining, self.value)
+
+    def has_submap(self, addr: Address) -> BoolArray:
+        return self.selection.has(addr)
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return SelectionChoiceMap(
+            self.selection & selection,
+            self.value,
+        )
+
+
+class DisjointUnionChoiceMap(ChoiceMap):
+    first: ChoiceMap
+    second: ChoiceMap
+
+    def is_empty(self) -> BoolArray:
+        return jnp.logical_and(
+            self.first.is_empty(),
+            self.second.is_empty(),
+        )
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return DisjointUnionChoiceMap(
+            self.first.filter(selection),
+            self.second.filter(selection),
+        )
+
+    def has_submap(self, addr: Address) -> BoolArray:
+        return jnp.logical_or(
+            self.first.has_submap(addr),
+            self.second.has_submap(addr),
+        )
+
+    def get_submap(self, addr: Address) -> ChoiceMap:
+        return DisjointUnionChoiceMap(
+            self.first.get_submap(addr),
+            self.second.get_submap(addr),
+        )
+
+    def get_selection(self) -> Selection:
+        return self.first.get_selection() & self.second.get_selection()
 
 
 #########
@@ -656,7 +751,33 @@ class Trace(Pytree):
         """
         raise NotImplementedError
 
-    @dispatch
+    #############################
+    # Query projector interface #
+    #############################
+
+    class QueryBuilder(Pytree):
+        trace: "Trace"
+
+        def __getitem__(self, addr: Address) -> FloatArray:
+            sel = Selection.q[addr]
+
+            @Pytree.partial(sel)
+            def inner(sel: Selection, key: PRNGKey):
+                return self.trace.project(key, sel)
+
+            return inner
+
+        def __call__(self, sel: Selection) -> FloatArray:
+            @Pytree.partial(sel)
+            def inner(sel: Selection, key: PRNGKey):
+                return self.trace.project(key, sel)
+
+            return inner
+
+    @property
+    def p(self) -> QueryBuilder:
+        return Trace.QueryBuilder(self)
+
     def update(
         self,
         key: PRNGKey,
@@ -666,16 +787,41 @@ class Trace(Pytree):
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choices, argdiffs)
 
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        choices: Choice,
-    ):
-        gen_fn = self.get_gen_fn()
-        args = self.get_args()
-        argdiffs = Diff.tree_diff_no_change(args)
-        return gen_fn.update(key, self, choices, argdiffs)
+    ###############################
+    # "In-place" update interface #
+    ###############################
+
+    class UpdateBuilder(Pytree):
+        trace: "Trace"
+        updates: List[ChoiceMap]
+
+        class UpdateSetter(Pytree):
+            addr: Address
+            builder: "Trace.UpdateBuilder"
+
+            def set(self, v):
+                sel = Selection.q[self.addr]
+                choice_map = SelectionChoiceMap(sel, v)
+                return Trace.UpdateBuilder(
+                    self.builder.trace, [choice_map, *self.builder.updates]
+                )
+
+        @property
+        def at(self) -> "Trace.UpdateBuilder":
+            return self
+
+        def update(self, key: PRNGKey):
+            choice = reduce(safe_merge, self.updates)
+            return self.trace.update(
+                key, choice, Diff.tree_diff_no_change(self.trace.get_args())
+            )
+
+        def __getitem__(self, addr: Address) -> FloatArray:
+            return Trace.UpdateBuilder.UpdateSetter(addr, self)
+
+    @property
+    def at(self) -> UpdateBuilder:
+        return Trace.UpdateBuilder(self, [])
 
     def get_aux(self) -> Tuple:
         raise NotImplementedError
@@ -729,7 +875,7 @@ def strip(v):
 
 # NOTE: we overload usage of `Mask` for masking choice maps, and for
 # masking raw array/Python values.
-class Mask(ChoiceMap):
+class Mask(ValueLike, ChoiceMap):
     """The `Mask` choice datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
 
@@ -777,10 +923,6 @@ class Mask(ChoiceMap):
     ###########################
 
     def get_value(self):
-        # Using a `ChoiceValue` interface on the `Mask` means
-        # that the value should be a `ChoiceValue`.
-        assert isinstance(self.value, ChoiceValue)
-
         # If a user chooses to `get_value`, require that they
         # jax.experimental.checkify.checkify their call in transformed
         # contexts.

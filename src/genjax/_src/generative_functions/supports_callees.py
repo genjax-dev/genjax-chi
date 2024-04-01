@@ -51,9 +51,11 @@ def push_trace_overload_stack(handler, fn):
 
 
 class CanSimulate(Protocol):
-    def simulate(self, key: PRNGKey, args: Tuple) -> Any: ...
+    def simulate(self, key: PRNGKey, args: Tuple) -> Any:
+        ...
 
-    def __call__(self, *args, **kwargs) -> Any: ...
+    def __call__(self, *args, **kwargs) -> Any:
+        ...
 
 
 # This mixin overloads the call functionality for this generative function

@@ -22,7 +22,9 @@ from genjax._src.core.datatypes.generative import (
     JAXGenerativeFunction,
     Mask,
     Selection,
+    SelectionChoiceMap,
     Trace,
+    ValueLike,
 )
 from genjax._src.core.datatypes.trie import Trie
 
@@ -34,7 +36,9 @@ __all__ = [
     "ChoiceMap",
     "EmptyChoice",
     "ChoiceValue",
+    "ValueLike",
     "HierarchicalChoiceMap",
+    "SelectionChoiceMap",
     "Trace",
     "Selection",
     "GenerativeFunction",
