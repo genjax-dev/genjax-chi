@@ -565,7 +565,7 @@ class SelectionChoiceMap(ValueLike, ChoiceMap):
         )
 
 
-class DisjointUnionChoiceMap(ChoiceMap):
+class DisjointUnionChoiceMap(ValueLike, ChoiceMap):
     first: ChoiceMap
     second: ChoiceMap
 
@@ -574,6 +574,10 @@ class DisjointUnionChoiceMap(ChoiceMap):
             self.first.is_empty(),
             self.second.is_empty(),
         )
+
+    def get_value(self) -> Any:
+        merged_value_like = self.first.safe_merge(self.second)
+        return merged_value_like.get_value()
 
     def filter(self, selection: Selection) -> ChoiceMap:
         return DisjointUnionChoiceMap(
