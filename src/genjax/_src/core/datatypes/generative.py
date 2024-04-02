@@ -25,7 +25,6 @@ from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import staged_and, staged_not, staged_or
 from genjax._src.core.pytree import Pytree
@@ -69,33 +68,6 @@ class classproperty:
 
     def __get__(self, instance, owner):
         return self.fget(owner)
-
-
-class SelectionBuilder(Pytree):
-    def __getitem__(self, addr_comps):
-        if not isinstance(addr_comps, Tuple):
-            addr_comps = (addr_comps,)
-
-        def _comp_to_sel(comp: AddressComponent):
-            if isinstance(comp, EllipsisType):
-                return Selection.a
-            elif isinstance(comp, DynamicAddressComponent):
-                return Selection.idx(comp)
-            # TODO: make this work, for slices where we can make it work.
-            elif isinstance(comp, slice):
-                idxs = jnp.arange(comp)
-                return vmap(Selection.idx)(idxs)
-            elif isinstance(comp, StaticAddressComponent):
-                return Selection.s(comp)
-            else:
-                raise Exception(
-                    f"Provided address component {comp} is not a valid address component type."
-                )
-
-        sel = _comp_to_sel(addr_comps[-1])
-        for comp in reversed(addr_comps[:-1]):
-            sel = select_and_then(_comp_to_sel(comp), sel)
-        return sel
 
 
 class Selection(Pytree):
@@ -178,10 +150,6 @@ class Selection(Pytree):
     def m(cls, flag: BoolArray, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
-    @classproperty
-    def at(cls) -> SelectionBuilder:
-        return SelectionBuilder()
-
     @classmethod
     @typecheck
     def r(cls, selections):
@@ -191,6 +159,40 @@ class Selection(Pytree):
     @typecheck
     def f(cls, *addrs: Address):
         return reduce(or_, (cls.at[addr] for addr in addrs))
+
+    #####################
+    # Builder interface #
+    #####################
+
+    class SelectionBuilder(Pytree):
+        def __getitem__(self, addr_comps):
+            if not isinstance(addr_comps, Tuple):
+                addr_comps = (addr_comps,)
+
+            def _comp_to_sel(comp: AddressComponent):
+                if isinstance(comp, EllipsisType):
+                    return Selection.a
+                elif isinstance(comp, DynamicAddressComponent):
+                    return Selection.idx(comp)
+                # TODO: make this work, for slices where we can make it work.
+                elif isinstance(comp, slice):
+                    idxs = jnp.arange(comp)
+                    return vmap(Selection.idx)(idxs)
+                elif isinstance(comp, StaticAddressComponent):
+                    return Selection.s(comp)
+                else:
+                    raise Exception(
+                        f"Provided address component {comp} is not a valid address component type."
+                    )
+
+            sel = _comp_to_sel(addr_comps[-1])
+            for comp in reversed(addr_comps[:-1]):
+                sel = select_and_then(_comp_to_sel(comp), sel)
+            return sel
+
+    @classproperty
+    def at(cls) -> SelectionBuilder:
+        return Selection.SelectionBuilder()
 
 
 #####
@@ -319,33 +321,12 @@ class Choice(Pytree):
     """
 
     @abstractmethod
-    def merge(self, other: "Choice") -> Tuple["Choice", "Choice"]:
+    def merge(self, other: "Choice") -> "Choice":
         pass
 
     @abstractmethod
     def is_empty(self) -> BoolArray:
         pass
-
-    def safe_merge(self, other: "Choice") -> "Choice":
-        new, discard = self.merge(other)
-
-        # If the discarded choice is not empty, raise an error.
-        # However, it's possible that we don't know that the discarded
-        # choice is empty until runtime, so we use checkify.
-        def _check():
-            check_flag = staged_not(discard.is_empty())
-            checkify.check(
-                check_flag,
-                "The discarded choice is not empty.",
-            )
-
-        optional_check(_check)
-        return new
-
-    # This just ignores the discard check.
-    def unsafe_merge(self, other: "Choice") -> "Choice":
-        new, _ = self.merge(other)
-        return new
 
     def get_choices(self):
         return self
@@ -372,11 +353,11 @@ class ChoiceMap(Choice):
     #######################
 
     @abstractmethod
-    def get_submap(self, addr: Address) -> "ChoiceMap":
+    def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
         pass
 
     @abstractmethod
-    def has_submap(self, addr: Address) -> BoolArray:
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
         pass
 
     @abstractmethod
@@ -425,7 +406,7 @@ class ChoiceMap(Choice):
         choice_map: "ChoiceMap"
         selection: Selection
 
-        def __getitem__(self, addr) -> "ChoiceMap.Slice":
+        def __getitem__(self, addr: Address) -> "ChoiceMap.Slice":
             sel = Selection.at[addr]
             return ChoiceMap.Slice(self.choice_map, sel | self.selection)
 
@@ -444,51 +425,87 @@ class ChoiceMap(Choice):
     # Dunders #
     ###########
 
-    def __eq__(self, other):
-        return self.tree_flatten() == other.tree_flatten()
-
-    def __and__(self, other):
-        return self.safe_merge(other)
+    def __add__(self, other):
+        return self.merge(other)
 
     def __getitem__(self, addr: Address):
-        submap = self.get_submap(addr)
-        if isinstance(submap, ChoiceValue):
-            return submap.get_value()
-        elif isinstance(submap, Mask):
-            if isinstance(submap.value, ChoiceValue):
-                return submap.get_value()
-            else:
-                return submap
-        else:
-            return submap
+        head = Selection.get_address_head(addr)
+        tail = Selection.get_address_tail(addr)
+        submap = self.get_submap(head)
+        return submap[tail]
 
     def __haskey__(self, addr: Address):
-        return self.has_submap(addr)
+        head = Selection.get_address_head(addr)
+        tail = Selection.get_address_tail(addr)
+        check = self.has_submap(head)
+        if static_check_is_concrete(check) and not check:
+            return False
+        else:
+            submap = self.get_submap(head)
+            return submap.has_submap(tail)
+
+    ################
+    # Construction #
+    ################
+
+    @classproperty
+    def n(cls) -> "ChoiceMap":
+        return EmptyChoice()
+
+    @classproperty
+    def v(cls, v) -> "ChoiceMap":
+        return ChoiceValue(v)
+
+    #####################
+    # Builder interface #
+    #####################
+
+    class ChoiceMapBuilder(Pytree):
+        choice_map: "ChoiceMap"
+        selection: Selection
+
+        @property
+        def also(self) -> "ChoiceMap.ChoiceMapBuilder":
+            return self
+
+        def set(self, v):
+            return ChoiceMap.ChoiceMapBuilder(
+                self.choice_map + SelectionChoiceMap(self.selection, v),
+                Selection.n,
+            )
+
+        def __getitem__(self, addr: Address) -> "ChoiceMap.ChoiceMapBuilder":
+            sel = Selection.at[addr]
+            return ChoiceMap.ChoiceMapBuilder(
+                self.choice_map,
+                sel | self.selection,
+            )
+
+    @classproperty
+    def at(cls) -> ChoiceMapBuilder:
+        return ChoiceMap.ChoiceMapBuilder(EmptyChoice(), Selection.n)
 
 
 class EmptyChoice(ChoiceMap):
     """A `Choice` implementor which denotes an empty event."""
 
-    def get_submap(self, addr: Address) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         return self
 
-    def has_submap(self, addr: Address) -> BoolArray:
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
         return False
 
     def filter(self, selection: Selection):
         return self
 
     def is_empty(self):
-        return jnp.array(True)
+        return True
 
     def get_selection(self) -> Selection:
-        return Selection.none
+        return Selection.n
 
     def merge(self, other):
-        return other, self
-
-    def do(self, addr: Address):
-        return self
+        return other
 
     def __rich_tree__(self):
         return rich_tree.Tree("[bold](EmptyChoice)")
@@ -506,17 +523,21 @@ class ChoiceValue(ValueLike, ChoiceMap):
     def get_value(self):
         return self.value
 
-    def get_submap(self, addr: Address) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         raise Exception("ChoiceValue doesn't address any choices.")
 
-    def has_submap(self, addr: Address) -> BoolArray:
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
         return False
 
     def is_empty(self):
-        return jnp.array(False)
+        return False
 
     def merge(self, other: Choice):
-        return other, self
+        check = other.is_empty()
+        if static_check_is_concrete(check) and check:
+            return self
+        else:
+            return DisjointUnionChoiceMap(self, other)
 
     def filter(self, selection: Selection):
         check = selection[()]
@@ -535,6 +556,98 @@ class ChoiceValue(ValueLike, ChoiceMap):
         tree = rich_tree.Tree("[bold](ChoiceValue)")
         tree.add(gpp.tree_pformat(self.value))
         return tree
+
+
+class StaticAddressedChoice(ChoiceMap):
+    value: ChoiceMap
+    address: StaticAddressComponent = Pytree.static()
+
+    def is_empty(self) -> BoolArray:
+        return self.value.is_empty()
+
+    def merge(self, other: ChoiceMap) -> ChoiceMap:
+        return DisjointUnionChoiceMap(self, other)
+
+    def get_selection(self) -> Selection:
+        return Selection.at[self.address] >> self.value.get_selection()
+
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+        check = addr == self.address
+        if static_check_is_concrete(check) and check:
+            return self.value
+        else:
+            return Mask.maybe(check, self.value)
+
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
+        return addr == self.address
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        remaining = selection.step(self.address)
+        return StaticAddressedChoice(self.address, self.value.filter(remaining))
+
+
+class DynamicAddressedChoice(ChoiceMap):
+    address: DynamicAddressComponent
+    value: ChoiceMap
+
+    def is_empty(self) -> BoolArray:
+        return self.value.is_empty()
+
+    def merge(self, other: ChoiceMap) -> ChoiceMap:
+        return DisjointUnionChoiceMap(self, other)
+
+    def get_selection(self) -> Selection:
+        return Selection.at[self.address] >> self.value.get_selection()
+
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+        check = jnp.any(self.address == addr)
+        if static_check_is_concrete(check) and check:
+            return self.value
+        else:
+            return Mask.maybe(check, self.value)
+
+    def has_submap(self, addr: AddressComponent) -> BoolArray:
+        return addr == self.address
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        remaining = selection.step(self.address)
+        return StaticAddressedChoice(self.address, self.value.filter(remaining))
+
+
+class DisjointUnionChoiceMap(ValueLike, ChoiceMap):
+    first: ChoiceMap
+    second: ChoiceMap
+
+    def is_empty(self) -> BoolArray:
+        return staged_and(
+            self.first.is_empty(),
+            self.second.is_empty(),
+        )
+
+    def get_value(self) -> Any:
+        merged_value_like = self.first.merge(self.second)
+        return merged_value_like.get_value()
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return DisjointUnionChoiceMap(
+            self.first.filter(selection),
+            self.second.filter(selection),
+        )
+
+    def has_submap(self, addr: Address) -> BoolArray:
+        return staged_or(
+            self.first.has_submap(addr),
+            self.second.has_submap(addr),
+        )
+
+    def get_submap(self, addr: Address) -> ChoiceMap:
+        return DisjointUnionChoiceMap(
+            self.first.get_submap(addr),
+            self.second.get_submap(addr),
+        )
+
+    def get_selection(self) -> Selection:
+        return self.first.get_selection() | self.second.get_selection()
 
 
 class SelectionChoiceMap(ValueLike, ChoiceMap):
@@ -569,42 +682,6 @@ class SelectionChoiceMap(ValueLike, ChoiceMap):
             self.selection & selection,
             self.value,
         )
-
-
-class DisjointUnionChoiceMap(ValueLike, ChoiceMap):
-    first: ChoiceMap
-    second: ChoiceMap
-
-    def is_empty(self) -> BoolArray:
-        return jnp.logical_and(
-            self.first.is_empty(),
-            self.second.is_empty(),
-        )
-
-    def get_value(self) -> Any:
-        merged_value_like = self.first.safe_merge(self.second)
-        return merged_value_like.get_value()
-
-    def filter(self, selection: Selection) -> ChoiceMap:
-        return DisjointUnionChoiceMap(
-            self.first.filter(selection),
-            self.second.filter(selection),
-        )
-
-    def has_submap(self, addr: Address) -> BoolArray:
-        return jnp.logical_or(
-            self.first.has_submap(addr),
-            self.second.has_submap(addr),
-        )
-
-    def get_submap(self, addr: Address) -> ChoiceMap:
-        return DisjointUnionChoiceMap(
-            self.first.get_submap(addr),
-            self.second.get_submap(addr),
-        )
-
-    def get_selection(self) -> Selection:
-        return self.first.get_selection() & self.second.get_selection()
 
 
 #########
@@ -1351,8 +1428,7 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
     @typecheck
     def unzip(
-        self,
-        fixed: Choice,
+        self, fixed: Choice
     ) -> Tuple[
         Callable[[Choice, Tuple], FloatArray],
         Callable[[Choice, Tuple], Any],
@@ -1404,125 +1480,3 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
         Generative functions may customize this to improve compilation time.
         """
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
-
-
-########################
-# Concrete choice maps #
-########################
-
-
-class HierarchicalChoiceMap(ChoiceMap):
-    trie: Trie = Pytree.field(default_factory=Trie)
-
-    def is_empty(self) -> BoolArray:
-        iter = self.get_submaps_shallow()
-        check = jnp.array(True)
-        for _, v in iter:
-            check = staged_and(check, v.is_empty())
-        return check
-
-    def filter(
-        self,
-        selection: Selection,
-    ) -> ChoiceMap:
-        trie = Trie()
-
-        def inner(k, v):
-            remaining = selection.step(k)
-            under = v.filter(remaining)
-            return k, under
-
-        iter = self.get_submaps_shallow()
-        for k, v in map(lambda args: inner(*args), iter):
-            if not isinstance(v, EmptyChoice):
-                trie = trie.trie_insert(k, v)
-
-        if trie.is_static_empty():
-            return EmptyChoice()
-
-        return HierarchicalChoiceMap(trie)
-
-    def has_submap(self, addr: Address) -> BoolArray:
-        return self.trie.has_submap(addr)
-
-    def _lift_value(self, value):
-        if value is None:
-            return EmptyChoice()
-        else:
-            if isinstance(value, Trie):
-                return HierarchicalChoiceMap(value)
-            else:
-                return value
-
-    @typecheck
-    def get_submap(self, addr: Address) -> ChoiceMap:
-        value = self.trie.get_submap(addr)
-        return self._lift_value(value)
-
-    def get_submaps_shallow(self):
-        def inner(v):
-            addr = v[0]
-            submap = v[1]
-            if isinstance(submap, Trie):
-                submap = HierarchicalChoiceMap(submap)
-            return (addr, submap)
-
-        return map(
-            inner,
-            self.trie.get_submaps_shallow(),
-        )
-
-    def get_selection(self):
-        return Selection.r(
-            Selection.s(k) >> v.get_selection() for k, v in self.get_submaps_shallow()
-        )
-
-    @dispatch
-    def merge(self, other: "HierarchicalChoiceMap"):
-        new = dict()
-        discard = dict()
-        for k, v in self.get_submaps_shallow():
-            if other.has_submap(k):
-                sub = other.get_submap(k)
-                new[k], discard[k] = v.merge(sub)
-            else:
-                new[k] = v
-        for k, v in other.get_submaps_shallow():
-            if not self.has_submap(k):
-                new[k] = v
-        return HierarchicalChoiceMap(Trie(new)), HierarchicalChoiceMap(Trie(discard))
-
-    @dispatch
-    def merge(self, other: EmptyChoice):
-        return self, other
-
-    @dispatch
-    def merge(self, other: ChoiceValue):
-        return other, self
-
-    @dispatch
-    def merge(self, other: ChoiceMap):
-        raise Exception(
-            f"Merging with choice map type {type(other)} not supported.",
-        )
-
-    def insert(self, k, v):
-        v = (
-            ChoiceValue(v)
-            if not isinstance(v, ChoiceMap) and not isinstance(v, Trace)
-            else v
-        )
-        return HierarchicalChoiceMap(self.trie.trie_insert(k, v))
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](HierarchicalChoiceMap)")
-        for k, v in self.get_submaps_shallow():
-            subk = rich_tree.Tree(f"[bold]:{k}")
-            subv = v.__rich_tree__()
-            subk.add(subv)
-            tree.add(subk)
-        return tree
