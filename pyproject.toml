@@ -49,6 +49,8 @@ equinox = "^0.11.3"
 typing_extensions = ">=4.6.0,<5"
 oryx = "^0.2.6"
 deprecated = "^1.2.14"
+ipyflow = "^0.0.200"
+marimo = "^0.3.8"
 
 [tool.poetry.group.dev]
 optional = true
