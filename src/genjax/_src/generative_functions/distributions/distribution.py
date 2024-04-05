@@ -23,6 +23,7 @@ from genjax._src.core.datatypes.generative import (
     Selection,
     SelectionChoiceMap,
     Trace,
+    ValueLike,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.serialization.pickle import (
@@ -36,9 +37,10 @@ from genjax._src.core.typing import (
     PRNGKey,
     Tuple,
     dispatch,
+    static_check_is_concrete,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
+from genjax._src.generative_functions.supports_callees import SupportsCalleeSugar
 
 #####
 # DistributionTrace
@@ -134,27 +136,22 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    @dispatch
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
-        choice: EmptyChoice,
+        choice: ValueLike,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
-        tr = self.simulate(key, args)
-        return (tr, 0.0)
-
-    @dispatch
-    def importance(
-        self,
-        key: PRNGKey,
-        choice: ChoiceValue,
-        args: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray]:
-        v = choice.get_value()
-        w = self.estimate_logpdf(key, v, *args)
-        score = w
-        return (DistributionTrace(self, args, v, score), w)
+        check = choice.has_value()
+        if static_check_is_concrete(check) and check:
+            v = choice.get_value()
+            w = self.estimate_logpdf(key, v, *args)
+            score = w
+            return (DistributionTrace(self, args, v, score), w)
+        elif static_check_is_concrete(check):
+            score, v = self.random_weighted(key, *args)
+            return (DistributionTrace(self, args, v, score), 0.0)
 
     @dispatch
     def update(

@@ -28,6 +28,10 @@ from genjax._src.core.typing import Bool, static_check_is_concrete
 ###############################
 
 
+def staged_check(v):
+    return static_check_is_concrete(v) and v
+
+
 def staged_and(x, y):
     if (
         static_check_is_concrete(x)
