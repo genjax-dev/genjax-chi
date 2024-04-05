@@ -30,9 +30,9 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
-    JAXGenerativeFunction,
     HierarchicalChoiceMap,
     HierarchicalSelection,
+    JAXGenerativeFunction,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -127,6 +127,13 @@ class AddressVisitor(Pytree):
 #####################################
 
 
+def maybe_jit(gen_fn, method):
+    if isinstance(gen_fn, JAXGenerativeFunction):
+        return jax.jit(method)
+    else:
+        return method
+
+
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
@@ -137,10 +144,7 @@ class SimulateHandler(Handler):
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
-        if isinstance(gen_fn, JAXGenerativeFunction):
-            tr = jax.jit(gen_fn.simulate)(sub_key, args)
-        else:
-            tr = gen_fn.simulate(sub_key, args)
+        tr = maybe_jit(gen_fn, gen_fn.simulate)(sub_key, args)
         retval = tr.get_retval()
         self.choice_state = self.choice_state.trie_insert(addr, tr)
         self.score += tr.get_score()
@@ -160,7 +164,7 @@ class ImportanceHandler(Handler):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w) = gen_fn.importance(sub_key, sub_map, args)
+        tr, w = maybe_jit(gen_fn, gen_fn.importance)(sub_key, sub_map, args)
         retval = tr.get_retval()
         self.choice_state = self.choice_state.trie_insert(addr, tr)
         self.score += tr.get_score()
@@ -195,7 +199,9 @@ class UpdateHandler(Handler):
         self.key, sub_key = jax.random.split(self.key)
         # if isinstance(sub_map, EmptyChoice):
         #     sub_map = HierarchicalChoiceMap.new({})
-        (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
+        (tr, w, rd, d) = maybe_jit(gen_fn, gen_fn.update)(
+            sub_key, sub_trace, sub_map, argdiffs
+        )
         retval = tr.get_retval()
         self.weight += w
         self.choice_state = self.choice_state.trie_insert(addr, tr)
@@ -212,7 +218,7 @@ class AssessHandler(Handler):
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         sub_map = self.constraints.get_submap(addr)
-        (score, retval) = gen_fn.assess(sub_map, args)
+        (score, retval) = maybe_jit(gen_fn, gen_fn.assess)(sub_map, args)
         self.score += score
         return retval
 
