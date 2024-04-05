@@ -30,6 +30,7 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
+    JAXGenerativeFunction,
     HierarchicalChoiceMap,
     HierarchicalSelection,
     Trace,
@@ -136,7 +137,10 @@ class SimulateHandler(Handler):
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
-        tr = gen_fn.simulate(sub_key, args)
+        if isinstance(gen_fn, JAXGenerativeFunction):
+            tr = jax.jit(gen_fn.simulate)(sub_key, args)
+        else:
+            tr = gen_fn.simulate(sub_key, args)
         retval = tr.get_retval()
         self.choice_state = self.choice_state.trie_insert(addr, tr)
         self.score += tr.get_score()
