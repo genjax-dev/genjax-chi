@@ -1405,7 +1405,6 @@ files = [
     {file = "lxml-5.1.1-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:2992480a25434d2df31413136ef87effab14d43b07f1f54c5012c4f6c7530144"},
     {file = "lxml-5.1.1-cp37-cp37m-win32.whl", hash = "sha256:1d0270d33fbde6e1c6758ff58e2e284144f5331aa05dfe7f44ceafdf4e9d31aa"},
     {file = "lxml-5.1.1-cp37-cp37m-win_amd64.whl", hash = "sha256:dec3491aa69a91ed07f5e6bc033e2b1a9424447ad5312ee69ac973e94d79083a"},
-    {file = "lxml-5.1.1-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:87b67d8620c2725d666e5d88ddba56bcdb1f52211a2e7d22f951b67c35f7f627"},
     {file = "lxml-5.1.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:5bd2595ebe95214446e00a1ab94571f778b126e17736ea222c07505c4e092289"},
     {file = "lxml-5.1.1-cp38-cp38-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:bfbdadc3cfe552331ecb0bbdcabf148d1697c73aa4321151e0e6c1704eeb76a7"},
     {file = "lxml-5.1.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:52358249292bc155af681a9240ec3d944c1195f0124aa10ec4e3635adc1e10a1"},
@@ -1968,19 +1967,19 @@ test = ["black", "check-manifest", "flake8", "ipykernel", "ipython", "ipywidgets
 
 [[package]]
 name = "nbformat"
-version = "5.10.3"
+version = "5.10.4"
 description = "The Jupyter Notebook format"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "nbformat-5.10.3-py3-none-any.whl", hash = "sha256:d9476ca28676799af85385f409b49d95e199951477a159a576ef2a675151e5e8"},
-    {file = "nbformat-5.10.3.tar.gz", hash = "sha256:60ed5e910ef7c6264b87d644f276b1b49e24011930deef54605188ddeb211685"},
+    {file = "nbformat-5.10.4-py3-none-any.whl", hash = "sha256:3b48d6c8fbca4b299bf3982ea7db1af21580e4fec269ad087b9e81588891200b"},
+    {file = "nbformat-5.10.4.tar.gz", hash = "sha256:322168b14f937a5d11362988ecac2a4952d3d8e3a2cbeb2319584631226d5b3a"},
 ]
 
 [package.dependencies]
-fastjsonschema = "*"
+fastjsonschema = ">=2.15"
 jsonschema = ">=2.6"
-jupyter-core = "*"
+jupyter-core = ">=4.12,<5.0.dev0 || >=5.1.dev0"
 traitlets = ">=5.1"
 
 [package.extras]
