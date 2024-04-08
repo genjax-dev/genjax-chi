@@ -125,6 +125,6 @@ class RepeatCombinator(
 
 def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
     def decorator(f) -> JAXGenerativeFunction:
-        return RepeatCombinator(repeats, f)
+        return RepeatCombinator(f, repeats)
 
     return decorator
