@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from genjax._src.adev.core import ADEVPrimitive  # noqa: I001
+from genjax._src.adev.core import Dual
 from genjax._src.adev.core import expectation
 from genjax._src.adev.core import sample_primitive
 from genjax._src.adev.primitives import add_cost
@@ -36,6 +37,7 @@ __all__ = [
     "sample_primitive",
     "expectation",
     "ADEVPrimitive",
+    "Dual",
     # Primitives.
     "flip_enum",
     "flip_enum_parallel",

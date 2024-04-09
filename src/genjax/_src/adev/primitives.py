@@ -20,9 +20,11 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.adev.core import (
     ADEVPrimitive,
+    Dual,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     Callable,
     PRNGKey,
     Tuple,
@@ -78,42 +80,33 @@ def reinforce(sample_func, logpdf_func):
 ###########################
 
 
-class BernoulliEnum(ADEVPrimitive):
+class FlipEnum(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
-    def jvp_estimate(
-        self,
-        key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
-        konts: Tuple,
-    ):
-        (kpure, kdual) = konts
-        (p_primal,) = primals
-        (p_tangent,) = tangents
-        tl_primal, tl_tangent = kdual(
-            key,
-            (jnp.array(True),),
-            (jnp.zeros_like(jnp.array(True)),),
+    def jvp_estimate(self, key: PRNGKey, tree_duals: Any, konts: Tuple):
+        (_, kdual) = konts
+        (p_primal,) = Dual.tree_primal(tree_duals)
+        (p_tangent,) = Dual.tree_tangent(tree_duals)
+        true_dual = kdual(key, Dual(jnp.array(True), jnp.zeros_like(jnp.array(True))))
+        false_dual = kdual(
+            key, Dual(jnp.array(False), jnp.zeros_like(jnp.array(False)))
         )
-        fl_primal, fl_tangent = kdual(
-            key,
-            (jnp.array(False),),
-            (jnp.zeros_like(jnp.array(False)),),
-        )
+        (true_primal,), (true_tangent,) = Dual.tree_unzip(true_dual)
+        (false_primal,), (false_tangent,) = Dual.tree_unzip(false_dual)
 
         def _inner(p, tl, fl):
             return p * tl + (1 - p) * fl
 
-        return jax.jvp(
+        out_primal, out_tangent = jax.jvp(
             _inner,
-            (p_primal, tl_primal, fl_primal),
-            (p_tangent, tl_tangent, fl_tangent),
+            (p_primal, true_primal, false_primal),
+            (p_tangent, true_tangent, false_tangent),
         )
+        return Dual(out_primal, out_tangent)
 
 
-flip_enum = BernoulliEnum()
+flip_enum = FlipEnum()
 
 
 class BernoulliMVD(ADEVPrimitive):
@@ -142,7 +135,7 @@ class BernoulliMVD(ADEVPrimitive):
 flip_mvd = BernoulliMVD()
 
 
-class BernoulliEnumParallel(ADEVPrimitive):
+class FlipEnumParallel(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
@@ -173,7 +166,7 @@ class BernoulliEnumParallel(ADEVPrimitive):
         )
 
 
-flip_enum_parallel = BernoulliEnumParallel()
+flip_enum_parallel = FlipEnumParallel()
 
 
 class CategoricalEnumParallel(ADEVPrimitive):
