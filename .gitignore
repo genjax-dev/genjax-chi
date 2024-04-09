@@ -36,3 +36,4 @@ notebooks/hidden
 notebooks/dippl/data
 site
 /.luarc.json
+*.pdf
