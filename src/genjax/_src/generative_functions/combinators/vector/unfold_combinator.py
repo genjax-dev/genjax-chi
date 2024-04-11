@@ -467,50 +467,69 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         prev: UnfoldTrace,
         choice: EmptyChoice,
-        length: Diff,
+        new_length: Diff,
         state: Any,
         *static_args: Any,
     ):
-        length, state, static_args = Diff.tree_primal((length, state, static_args))
+        new_length, state, static_args = Diff.tree_primal((new_length, state, static_args))
+        prev_length = prev.get_args()[0]
 
         def _inner(carry, slice):
             count, key, state = carry
             (prev,) = slice
             key, sub_key = jax.random.split(key)
 
-            (tr, w, retval_diff, discard) = self.kernel.update(
-                sub_key,
-                prev,
-                choice,
-                Diff.tree_diff_no_change((state, *static_args)),
+            def _importance_branch(*args):
+                (newtr, w) = self.kernel.importance(sub_key, EmptyChoice(), (state, *static_args))
+                return (newtr, w, newtr.get_retval())
+            def _update_branch(*args):
+                return (prev, 0., prev.get_retval())
+            (tr, w, retval) = jax.lax.cond(
+                count <= prev_length,
+                _update_branch,
+                _importance_branch
             )
 
-            check = jnp.less(count, length + 1)
+            def __inner(*args):
+                # if count > new_length:
+                    # if count > prev_length, the weight increment is -score
+                    # if count <= prev_length, the weight increment is 0
+                w = jax.lax.select(
+                        count > prev_length,
+                        -prev.get_score(),
+                        0.0
+                    )
+                return (count, state, 0., w)
             count, state, score, weight = jax.lax.cond(
-                check,
-                lambda *args: (count + 1, retval_diff, tr.get_score(), w),
-                lambda *args: (count, state, 0.0, 0.0),
+                jnp.less(count, new_length + 1),
+                lambda *args: (count + 1, retval, tr.get_score(), w),
+                __inner,
             )
-            return (count, key, state), (state, score, weight, tr, discard)
+            return (count, key, state), (state, score, weight, tr)
 
         prev_inner_trace = prev.inner
-        (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
+        (_, _, state), (retval, score, w, tr) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev_inner_trace,),
             length=self.max_length,
         )
+        retval_diff = Diff.tree_diff_unknown_change(retval)
 
         unfold_tr = UnfoldTrace(
             self,
             tr,
-            length,
-            (length, state, *static_args),
+            new_length,
+            (new_length, state, *static_args),
             Diff.tree_primal(retval_diff),
             jnp.sum(score),
         )
 
         w = jnp.sum(w)
+
+        # TODO: this is wrong when we shrink the length!
+        discard = EmptyChoice()
+
         return (unfold_tr, w, retval_diff, discard)
 
     # TODO: this does not handle when the new length

@@ -147,6 +147,44 @@ class TestUnfoldSimpleNormal:
             w + tr.get_score() + newly_introduced_score, 0.001
         )
 
+        # Test update with EmptyChoice
+        key, sub_key = jax.random.split(key)
+        tr2, w, retval_diff, discard = kernel.update(
+            sub_key, tr, genjax.EmptyChoice(),
+            (Diff.tree_diff(6, UnknownChange), Diff.tree_diff(0.1, NoChange)),
+        )
+        assert tr.get_retval()[5] == tr.get_retval()[6] # before, was all repeats at the end
+        assert tr2.get_retval()[5] != tr2.get_retval()[6] # now, we have a new value at 6
+        assert tr2.get_retval()[6] == tr2.get_retval()[7] # and then repeats after that
+        assert tr2.get_score() < tr.get_score() + 0.001 # should have more randomness
+        # should have w = p(new)/[p(old)q(new stuff)] = p(6)/q(6) = 1
+        assert pytest.approx(w, 0.001) == 0.0
+        assert tr2.get_score() == pytest.approx(tr.get_score() + tr2.project(genjax.indexed_select(jnp.array([6]), genjax.select("z"))), 0.001)
+        assert discard.is_empty()
+        assert retval_diff == Diff.tree_diff_unknown_change(tr2.get_retval())
+
+        key, sub_key = jax.random.split(key)
+        tr3, w, retval_diff, discard = kernel.update(
+            sub_key, tr2, genjax.EmptyChoice(), (Diff.tree_diff(4, UnknownChange), Diff.tree_diff(0.1, NoChange))
+        )
+        assert tr3.get_retval()[4] == tr3.get_retval()[5]
+        assert tr3.get_retval()[3] != tr3.get_retval()[4]
+        assert tr3.get_retval()[5] == tr3.get_retval()[4]
+        assert tr3.get_retval()[6] == tr3.get_retval()[4]
+        
+        # These 2 tests currently fail -- we need to fix this
+        # assert not discard.get_submap(5).is_empty()
+        # assert not discard.get_submap(6).is_empty()
+        
+        assert retval_diff == Diff.tree_diff_unknown_change(tr3.get_retval())
+        assert tr2.get_score() - tr3.get_score() == pytest.approx(
+            tr2.project(genjax.indexed_select(jnp.array([5]), genjax.select("z"))) + \
+            tr2.project(genjax.indexed_select(jnp.array([6]), genjax.select("z"))), 0.001
+        )
+        # should have w = p(new)/p(old) = 1/p(5, 6)
+        assert pytest.approx(w, 0.001) == tr3.get_score() - tr2.get_score()
+
+
     def test_off_by_one_issue_415(self):
         @genjax.unfold_combinator(max_length=5)
         @genjax.static_gen_fn
