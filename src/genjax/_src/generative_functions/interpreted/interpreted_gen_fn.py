@@ -17,8 +17,7 @@
 # implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html)
 # for instance, although the code in this module is quite readable and localized).
 
-import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import jax
 import jax.numpy as jnp
@@ -36,7 +35,6 @@ from genjax._src.core.datatypes.generative import (
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -58,7 +56,7 @@ _INTERPRETED_STACK: List["Handler"] = []
 
 # A `Handler` implements Python's context manager protocol.
 # It must also provide an implementation for `process_message`.
-class Handler(object):
+class Handler:
     def __enter__(self):
         _INTERPRETED_STACK.append(self)
         return self
@@ -106,19 +104,16 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
-class AddressVisitor(Pytree):
-    visited: List = Pytree.field(default_factory=list)
+class AddressVisitor:
+    visited: set
+
+    def __init__(self):
+        self.visited = set()
 
     def visit(self, addr):
         if addr in self.visited:
             raise AddressReuse(addr)
-        else:
-            self.visited.append(addr)
-
-    def merge(self, other):
-        new = AddressVisitor()
-        for addr in itertools.chain(self.visited, other.visited):
-            new.visit(addr)
+        self.visited.add(addr)
 
 
 #####################################
@@ -129,16 +124,16 @@ class AddressVisitor(Pytree):
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    choice_state: Trie = Pytree.field(default_factory=Trie)
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: FloatArray = field(default_factory=lambda: jnp.zeros(()))
+    choice_state: dict = field(default_factory=dict)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, args)
         retval = tr.get_retval()
-        self.choice_state = self.choice_state.trie_insert(addr, tr)
+        self.choice_state[addr] = tr
         self.score += tr.get_score()
         return retval
 
@@ -147,10 +142,10 @@ class SimulateHandler(Handler):
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    choice_state: Trie = Pytree.field(default_factory=Trie)
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: FloatArray = field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = field(default_factory=lambda: jnp.zeros(()))
+    choice_state: dict = field(default_factory=dict)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
@@ -158,7 +153,7 @@ class ImportanceHandler(Handler):
         self.key, sub_key = jax.random.split(self.key)
         (tr, w) = gen_fn.importance(sub_key, sub_map, args)
         retval = tr.get_retval()
-        self.choice_state = self.choice_state.trie_insert(addr, tr)
+        self.choice_state[addr] = tr
         self.score += tr.get_score()
         self.weight += w
         return retval
@@ -169,10 +164,10 @@ class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    discard: Trie = Pytree.field(default_factory=Trie)
-    choice_state: Trie = Pytree.field(default_factory=Trie)
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    weight: FloatArray = field(default_factory=lambda: jnp.zeros(()))
+    discard: Trie = field(default_factory=Trie)
+    choice_state: dict = field(default_factory=dict)
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
@@ -194,7 +189,7 @@ class UpdateHandler(Handler):
         (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
         retval = tr.get_retval()
         self.weight += w
-        self.choice_state = self.choice_state.trie_insert(addr, tr)
+        self.choice_state[addr] = tr
         self.discard = self.discard.trie_insert(addr, d)
         return retval
 
@@ -202,8 +197,8 @@ class UpdateHandler(Handler):
 @dataclass
 class AssessHandler(Handler):
     constraints: ChoiceMap
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: FloatArray = field(default_factory=lambda: jnp.zeros(()))
+    trace_visitor: AddressVisitor = field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
         self.trace_visitor.visit(addr)
@@ -297,7 +292,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
     ```
     """
 
-    source: Callable = Pytree.static()
+    source: Callable
 
     def simulate(
         self,
@@ -310,9 +305,7 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         # Handle trace with the `SimulateHandler`.
         with SimulateHandler(key) as handler:
             retval = syntax_sugar_handled(*args)
-            score = handler.score
-            choices = handler.choice_state
-            return InterpretedTrace(self, args, retval, choices, score)
+            return InterpretedTrace(self, args, retval, Trie(handler.choice_state), handler.score)
 
     def importance(
         self,
@@ -325,12 +318,9 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         )
         with ImportanceHandler(key, choice_map) as handler:
             retval = syntax_sugar_handled(*args)
-            score = handler.score
-            choices = handler.choice_state
-            weight = handler.weight
             return (
-                InterpretedTrace(self, args, retval, choices, score),
-                weight,
+                InterpretedTrace(self, args, retval, Trie(handler.choice_state), handler.score),
+                handler.weight,
             )
 
     def update(
@@ -348,16 +338,14 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         with UpdateHandler(key, prev_trace, choice_map) as handler:
             args = Diff.tree_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
-            choices = handler.choice_state
-            weight = handler.weight
-            discard = handler.discard
             retdiff = Diff.tree_diff_unknown_change(retval)
-            score = prev_trace.get_score() + weight
+            score = prev_trace.get_score() + handler.weight
             return (
-                InterpretedTrace(self, args, retval, choices, score),
-                weight,
+                InterpretedTrace(self, args, retval, Trie(handler.choice_state), score),
+                handler.weight,
                 retdiff,
-                HierarchicalChoiceMap(discard),
+                # TODO(colin): does this "type cast" accomplish anything useful?
+                HierarchicalChoiceMap(handler.discard),
             )
 
     def assess(

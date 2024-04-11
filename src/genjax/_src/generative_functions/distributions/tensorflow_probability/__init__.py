@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import functools
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
@@ -37,18 +38,72 @@ class TFPDistribution(ExactDensity, JAXGenerativeFunction):
         key = jax.random.PRNGKey(0)
         return self.sample(key, *args)
 
+    @functools.partial(jax.jit, static_argnums=0)
     def sample(self, key, *args):
         dist = self.make_distribution(*args)
         return dist.sample(seed=key)
 
-    def logpdf(self, v, *args, **kwargs):
-        dist = self.make_distribution(*args, **kwargs)
-        lp = dist.log_prob(v)
-        if lp.shape:
-            return jnp.sum(dist.log_prob(v))
-        else:
-            return lp
+    @functools.partial(jax.jit, static_argnums=0)
+    def logpdf(self, v, *args):
+        dist = self.make_distribution(*args)
+        return jnp.sum(dist.log_prob(v))
 
+class PreJittedDistribution:
+    ctor: Callable
+
+    def __init__(self, ctor):
+        self.ctor = ctor
+
+    @functools.partial(jax.jit, static_argnums=0)
+    def sample(self, key, args):
+        dist = self.ctor(*args)
+        return dist.sample(seed=key)
+
+    @functools.partial(jax.jit, static_argnums=0)
+    def logpdf(self, v, args):
+        dist = self.ctor(*args)
+        return jnp.sum(dist.log_prob(v))
+
+class TFPDistribution2(ExactDensity, JAXGenerativeFunction):
+    pjd: PreJittedDistribution = Pytree.static()
+
+    def sample(self, key, *args):
+        return self.pjd.sample(key, args)
+
+    def logpdf(self, v, *args):
+        return self.pjd.logpdf(v, args)
+
+# the trick we have to figure out:
+normal = TFPDistribution2(PreJittedDistribution(tfd.Normal))
+
+
+# what is the goal? we want genjax.normal(loc,scale) to come back with jitted functions
+# for everything in the GFI.
+
+
+# IDEA: we want genjax.normal to be a FUNCTION that returns a SINGLE GF
+# with all the interior "jitting" already done for the interior distribution
+# since we know what it is.
+
+class BullshitTFPDistribution(ExactDensity, JAXGenerativeFunction):
+    ctor: Callable = Pytree.static()
+    jit_sample: Callable = Pytree.static(init=False)
+    jit_logpdf: Callable = Pytree.static(init=False)
+
+    def __post_init__(self):
+        def sample(key, *args):
+            return self.ctor(*args).sample(seed=key)
+        self.jit_sample = jax.jit(sample)
+
+        def logpdf(v, *args, **kwargs):
+            return jnp.sum(self.ctor(*args, **kwargs).log_prob(v))
+        self.jit_logpdf = jax.jit(logpdf)
+
+    def sample(self, key, *args):
+        return self.jit_sample(key, *args)
+
+    def logpdf(self, v, *args, **kwargs):
+        return self.jit_logpdf(v, args, kwargs)
 
 #####################
 # Wrapper instances #
@@ -69,7 +124,9 @@ bernoulli = TFPDistribution(lambda logits: tfd.Bernoulli(logits=logits))
 A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
 
-flip = TFPDistribution(lambda p: tfd.Bernoulli(probs=p))
+#flip = TFPDistribution(lambda p: tfd.Bernoulli(probs=p))
+flip = TFPDistribution2(PreJittedDistribution(lambda p: tfd.Bernoulli(probs=p)))
+
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
 """
@@ -159,14 +216,15 @@ student_t = TFPDistribution(tfd.StudentT)
 A `TFPDistribution` generative function which wraps the [`tfd.StudentT`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/StudentT) distribution from TensorFlow Probability distributions.
 """
 
-normal = TFPDistribution(tfd.Normal)
+# normal = TFPDistribution(tfd.Normal)
 """
 A `TFPDistribution` generative function which wraps the [`tfd.Normal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Normal) distribution from TensorFlow Probability distributions.
 """
 
-mv_normal_diag = TFPDistribution(
-    lambda μ, Σ_diag: tfd.MultivariateNormalDiag(loc=μ, scale_diag=Σ_diag)
-)
+# mv_normal_diag = TFPDistribution(
+#     lambda μ, Σ_diag: tfd.MultivariateNormalDiag(loc=μ, scale_diag=Σ_diag)
+# )
+mv_normal_diag = TFPDistribution2(PreJittedDistribution(lambda μ, Σ_diag: tfd.MultivariateNormalDiag(loc=μ, scale_diag=Σ_diag)))
 """
 A `TFPDistribution` generative function which wraps the [`tfd.MultivariateNormalDiag`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/MultivariateNormalDiag) distribution from TensorFlow Probability distributions.
 """

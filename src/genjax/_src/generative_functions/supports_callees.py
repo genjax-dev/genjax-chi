@@ -13,16 +13,20 @@
 # limitations under the License.
 
 
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, Callable, Dict, List, PRNGKey, Protocol, Tuple
+from genjax._src.core.typing import Any, Callable, List, PRNGKey, Protocol, Tuple
 
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in languages which support callees for generative functions via a `trace` intrinsic.
-class SugaredGenerativeFunctionCall(Pytree):
+class SugaredGenerativeFunctionCall:
     gen_fn: Callable
     args: Tuple
-    kwargs: Dict = Pytree.static()
+
+    def __init__(self, gen_fn, args, kwargs):
+        if len(kwargs) > 0:
+            raise NotImplementedError("A generative function cannot accept keyword arguments")
+        self.gen_fn = gen_fn
+        self.args = args
 
     def __matmul__(self, addr):
         return handle_off_trace_stack(addr, self.gen_fn, self.args)
