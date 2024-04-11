@@ -21,7 +21,7 @@ from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleDeserialization,
     SupportsPickleSerialization,
-    pickle_backend,
+    pickle_serialize,
 )
 
 __all__ = [
@@ -29,7 +29,7 @@ __all__ = [
     "PickleSerializationBackend",
     "SupportsPickleSerialization",
     "SupportsPickleDeserialization",
-    "pickle_backend",
+    "pickle_serialize",
     "MsgPackSerializeBackend",
     "msgpack_serialize",
 ]
