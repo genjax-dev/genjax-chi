@@ -67,6 +67,9 @@ safety = "^2.3.5"
 seaborn = "^0.12.1"
 tinygp = "^0.2.3"
 xdoctest = "^1.1.0"
+jupyterlab = "^4.1.6"
+nox = "^2024.3.2"
+nox-poetry = "^1.0.3"
 
 [tool.poetry.group.docs]
 optional = true
