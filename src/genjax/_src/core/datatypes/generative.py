@@ -275,6 +275,31 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
 
 
 @typecheck
+def select_slice(slc: slice) -> Selection:
+    @Selection
+    @Pytree.partial()
+    @typecheck
+    def inner(head: AddressComponent):
+        # head is IntArray with shape = ().
+        # head has type jnp.array with dtype = int, shape = ().
+        # slc is a statically known slice.
+        # we need to check
+        # slice := slice(lower, upper, step)
+        lower, upper, step = slc[0], slc[1], slc[2]
+        check1 = head >= lower if lower else True
+        check2 = head <= upper if upper else True
+
+        # TODO: possibly doesn't work.
+        check3 = head % step == lower if lower else True
+
+        # No need to change.
+        check = staged_and(staged_and(check1, check2), check3)
+        return check, select_defer(check, select_all)
+
+    return inner
+
+
+@typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
     @Selection
     @Pytree.partial(s1, s2)
