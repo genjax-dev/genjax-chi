@@ -471,44 +471,59 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         state: Any,
         *static_args: Any,
     ):
-        new_length, state, static_args = Diff.tree_primal((new_length, state, static_args))
+        new_length, state, static_args = Diff.tree_primal(
+            (new_length, state, static_args)
+        )
+        og_state = state
         prev_length = prev.get_args()[0]
 
+        # To scan over time
         def _inner(carry, slice):
             count, key, state = carry
             (prev,) = slice
             key, sub_key = jax.random.split(key)
 
-            def _importance_branch(*args):
-                (newtr, w) = self.kernel.importance(sub_key, EmptyChoice(), (state, *static_args))
-                return (newtr, w, newtr.get_retval())
-            def _update_branch(*args):
-                return (prev, 0., prev.get_retval())
-            (tr, w, retval) = jax.lax.cond(
-                count <= prev_length,
-                _update_branch,
-                _importance_branch
-            )
-
-            def __inner(*args):
-                # if count > new_length:
-                    # if count > prev_length, the weight increment is -score
-                    # if count <= prev_length, the weight increment is 0
-                w = jax.lax.select(
-                        count > prev_length,
-                        -prev.get_score(),
-                        0.0
+            ## branch for if count <= new_length
+            def handle_timestep_present_in_new_trace(*args):
+                # new timestep to generate
+                def _importance_branch(*args):
+                    (newtr, w) = self.kernel.importance(
+                        sub_key, EmptyChoice(), (state, *static_args)
                     )
-                return (count, state, 0., w)
-            count, state, score, weight = jax.lax.cond(
+                    return (newtr, w, newtr.get_retval())
+
+                # existing timestep to update (with no change)
+                def _update_branch(*args):
+                    return (prev, 0.0, prev.get_retval())
+
+                (tr, w, retval) = jax.lax.cond(
+                    count <= prev_length, _update_branch, _importance_branch
+                )
+                return (tr, count + 1, retval, tr.get_score(), w)
+
+            ## branch for if count > new_length
+            def handle_timestep_not_present_in_new_trace(*args):
+                # score contribution: 0
+                # weight contribution: 0 if this timestep
+                #     never existed, -prev.get_score() if we're removing it
+                w = jax.lax.select(count <= prev_length, -prev.get_score(), 0.0)
+                tr = make_zero_trace(
+                    self.kernel,
+                    key,
+                    (state, *static_args),
+                )
+                return (tr, count, state, 0.0, w)
+
+            ## Final return
+            tr, count, state, score, weight = jax.lax.cond(
                 jnp.less(count, new_length + 1),
-                lambda *args: (count + 1, retval, tr.get_score(), w),
-                __inner,
+                handle_timestep_present_in_new_trace,
+                handle_timestep_not_present_in_new_trace,
             )
             return (count, key, state), (state, score, weight, tr)
 
         prev_inner_trace = prev.inner
-        (_, _, state), (retval, score, w, tr) = jax.lax.scan(
+        (_, _, state), (retval, score, w, newtr) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev_inner_trace,),
@@ -518,10 +533,10 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         unfold_tr = UnfoldTrace(
             self,
-            tr,
+            newtr,
             new_length,
-            (new_length, state, *static_args),
-            Diff.tree_primal(retval_diff),
+            (new_length, og_state, *static_args),
+            retval,
             jnp.sum(score),
         )
 
