@@ -43,8 +43,10 @@ from genjax._src.core.typing import (
     DynamicAddressComponent,
     EllipsisType,
     FloatArray,
+    Int,
     PRNGKey,
     StaticAddressComponent,
+    String,
     Tuple,
     Union,
     static_check_is_concrete,
@@ -76,6 +78,7 @@ class classproperty:
 
 class Selection(Pytree):
     has_addr: SelectionFunction
+    level_info: String = Pytree.static()
 
     def __or__(self, other: "Selection") -> "Selection":
         return select_or(self, other)
@@ -91,6 +94,10 @@ class Selection(Pytree):
 
     def complement(self) -> "Selection":
         return select_complement(self)
+
+    @classmethod
+    def with_info(cls, info: String):
+        return lambda fn: Selection(fn, info)
 
     @classmethod
     def get_address_head(cls, addr: Address) -> Address:
@@ -130,6 +137,12 @@ class Selection(Pytree):
 
     def __contains__(self, addr: Address) -> BoolArray:
         return self.has(addr)
+
+    def __str__(self):
+        return f"Selection({self.level_info})"
+
+    def __repr__(self):
+        return f"Selection({self.level_info})"
 
     @classproperty
     def n(cls) -> "Selection":
@@ -195,7 +208,7 @@ class Selection(Pytree):
             return sel
 
     @classproperty
-    def b(cls) -> SelectionBuilder:
+    def at(cls) -> SelectionBuilder:
         return Selection.SelectionBuilder()
 
 
@@ -204,7 +217,7 @@ class Selection(Pytree):
 #####
 
 
-@Selection
+@Selection.with_info("All")
 @Pytree.partial()
 def select_all(_: AddressComponent):
     return True, select_all
@@ -215,10 +228,14 @@ def select_defer(
     flag: Union[Bool, BoolArray],
     s: Selection,
 ) -> Selection:
-    @Selection
-    @Pytree.partial(s)
+    @Selection.with_info(f"Defer {s.level_info}")
+    @Pytree.partial(flag, s)
     @typecheck
-    def inner(s: Selection, head: AddressComponent):
+    def inner(
+        flag: Union[Bool, BoolArray],
+        s: Selection,
+        head: AddressComponent,
+    ):
         ch, remaining = s.has_addr(head)
         check = staged_and(flag, ch)
         return check, select_defer(check, remaining)
@@ -228,7 +245,7 @@ def select_defer(
 
 @typecheck
 def select_complement(s: Selection) -> Selection:
-    @Selection
+    @Selection.with_info(f"~{s.level_info}")
     @Pytree.partial(s)
     @typecheck
     def inner(s: Selection, head: AddressComponent):
@@ -244,7 +261,7 @@ select_none = select_complement(select_all)
 
 @typecheck
 def select_static(addressed: AddressComponent) -> Selection:
-    @Selection
+    @Selection.with_info(f"Static {addressed}")
     @Pytree.partial()
     @typecheck
     def inner(head: AddressComponent):
@@ -256,27 +273,45 @@ def select_static(addressed: AddressComponent) -> Selection:
 
 @typecheck
 def select_idx(sidx: DynamicAddressComponent) -> Selection:
-    @Selection
+    @Selection.with_info("Dynamic")
     @Pytree.partial(sidx)
     @typecheck
     def inner(sidx: DynamicAddressComponent, head: AddressComponent):
-        if not head:
+        if isinstance(head, tuple) and not head:
             return False, select_none
-        check = staged_and(
-            head,
-            staged_or(
-                jnp.any(head == sidx),
-                isinstance(head, EllipsisType),
-            ),
+
+        # If the head is either an ellipsis, or a static address component,
+        # short circuit...
+        ellipsis_check = isinstance(head, EllipsisType)
+        if ellipsis_check:
+            return (True, select_defer(True, select_all))
+
+        if not isinstance(head, DynamicAddressComponent):
+            return False, select_defer(False, select_all)
+
+        # Else, we have some array comparison logic which is compatible with batching...
+        def check_fn(v):
+            check = staged_and(
+                v,
+                staged_or(
+                    jnp.any(v == sidx),
+                    ellipsis_check,
+                ),
+            )
+            return check, select_defer(check, select_all)
+
+        return (
+            jax.vmap(check_fn)(head)
+            if (not isinstance(head, Int) and head.shape)
+            else check_fn(head)
         )
-        return check, select_defer(check, select_all)
 
     return inner
 
 
 @typecheck
 def select_slice(slc: slice) -> Selection:
-    @Selection
+    @Selection.with_info(f"Slice {slc}")
     @Pytree.partial()
     @typecheck
     def inner(head: AddressComponent):
@@ -301,7 +336,7 @@ def select_slice(slc: slice) -> Selection:
 
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
-    @Selection
+    @Selection.with_info(f"{s1.level_info} & {s2.level_info}")
     @Pytree.partial(s1, s2)
     @typecheck
     def inner(s1: Selection, s2: Selection, head: AddressComponent):
@@ -315,7 +350,7 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
 
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
-    @Selection
+    @Selection.with_info(f"{s1.level_info} | {s2.level_info}")
     @Pytree.partial(s1, s2)
     @typecheck
     def inner(s1: Selection, s2: Selection, head: AddressComponent):
@@ -332,7 +367,7 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
 
 @typecheck
 def select_and_then(s1: Selection, s2: Selection) -> Selection:
-    @Selection
+    @Selection.with_info(f"({s1.level_info} >> {s2.level_info})")
     @Pytree.partial(s1, s2)
     @typecheck
     def inner(s1: Selection, s2: Selection, head: AddressComponent):
@@ -441,7 +476,7 @@ class ChoiceMap(Choice):
         selection: Selection
 
         def __getitem__(self, addr: Address) -> "ChoiceMap.AddressIndex":
-            sel = Selection.b[addr]
+            sel = Selection.at[addr]
             return ChoiceMap.AddressIndex(self.choice_map, sel | self.selection)
 
         def set(self, v):
@@ -653,8 +688,12 @@ class SelectionChoiceMap(ValueLike, ChoiceMap):
 
     def get_value(self) -> Any:
         check = self.selection[()]
-        if static_check_is_concrete(check) and check:
-            return ChoiceValue(self.value)
+        if static_check_is_concrete(check):
+            return (
+                ChoiceValue(self.value)
+                if isinstance(check, Bool)
+                else Mask.maybe(check, ChoiceValue(self.value))
+            )
         else:
             return Mask.maybe(check, self.value)
 
@@ -665,11 +704,26 @@ class SelectionChoiceMap(ValueLike, ChoiceMap):
         return self.selection
 
     def get_submap(self, addr: Address) -> ChoiceMap:
-        if addr == ():
-            return self.get_value()
+        if isinstance(addr, tuple) and addr == ():
+            check = self.selection[()]
+            return Mask.maybe(check, self.get_value())
         else:
-            remaining = self.selection.step(addr)
-            return SelectionChoiceMap(remaining, self.value)
+            if isinstance(addr, DynamicAddressComponent):
+                arr_addr = jnp.array(addr, copy=False)
+                return (
+                    jax.vmap(
+                        lambda addr: SelectionChoiceMap(
+                            self.selection.step(addr),
+                            self.value[addr],
+                        )
+                    )(arr_addr)
+                    if arr_addr.shape
+                    else SelectionChoiceMap(
+                        self.selection.step(arr_addr), self.value[arr_addr]
+                    )
+                )
+            else:
+                return SelectionChoiceMap(self.selection.step(addr), self.value)
 
     def has_submap(self, addr: Address) -> BoolArray:
         return self.selection.has(addr)
@@ -679,6 +733,12 @@ class SelectionChoiceMap(ValueLike, ChoiceMap):
             self.selection & selection,
             self.value,
         )
+
+    def __str__(self):
+        return f"SelectionChoiceMap(\n  selection: {self.selection.level_info}\n  value: {self.value}\n)"
+
+    def __repr__(self):
+        return f"SelectionChoiceMap(\n  selection: {self.selection.level_info}\n  value: {self.value}\n)"
 
 
 #########
@@ -875,7 +935,7 @@ class Trace(Pytree):
             return self.trace.project(key, self.selection)
 
         def __getitem__(self, addr: Address) -> FloatArray:
-            selection = Selection.b[addr]
+            selection = Selection.at[addr]
             return Trace.AddressIndex(
                 self.trace, selection | self.selection, self.constraints
             )
@@ -968,9 +1028,9 @@ class Mask(ValueLike, ChoiceMap):
         else:
             return (
                 v
-                if static_check_is_concrete(f) and f
+                if static_check_is_concrete(f) and isinstance(f, Bool) and f
                 else EmptyChoice()
-                if static_check_is_concrete(f) and not f
+                if static_check_is_concrete(f) and isinstance(f, Bool)
                 else Mask(f, v)
             )
 

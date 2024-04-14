@@ -45,14 +45,21 @@ def staged_and(x, y):
 
 
 def staged_or(x, y):
-    if static_check_is_concrete(x) and static_check_is_concrete(y):
+    # Static scalar land.
+    if (
+        static_check_is_concrete(x)
+        and static_check_is_concrete(y)
+        and isinstance(x, Bool)
+        and isinstance(y, Bool)
+    ):
         return x or y
+    # Array land.
     else:
         return jnp.logical_or(x, y)
 
 
 def staged_not(x):
-    if static_check_is_concrete(x):
+    if static_check_is_concrete(x) and isinstance(x, Bool):
         return not x
     else:
         return jnp.logical_not(x)
