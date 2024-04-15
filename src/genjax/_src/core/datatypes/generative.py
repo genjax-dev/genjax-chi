@@ -261,7 +261,7 @@ select_none = select_complement(select_all)
 
 @typecheck
 def select_static(addressed: AddressComponent) -> Selection:
-    @Selection.with_info(f"Static {addressed}")
+    @Selection.with_info(f"Static '{addressed}'")
     @Pytree.partial()
     @typecheck
     def inner(head: AddressComponent):
@@ -402,6 +402,9 @@ class Choice(Pytree):
 
     def strip(self):
         return strip(self)
+
+    def __radd__(self, other):
+        return self.merge(other)
 
 
 def safe_merge(self, other: "Choice") -> "Choice":
@@ -719,7 +722,8 @@ class SelectionChoiceMap(ValueLike, ChoiceMap):
                     )(arr_addr)
                     if arr_addr.shape
                     else SelectionChoiceMap(
-                        self.selection.step(arr_addr), self.value[arr_addr]
+                        self.selection.step(arr_addr),
+                        self.value[arr_addr] if self.value.shape else self.value,
                     )
                 )
             else:

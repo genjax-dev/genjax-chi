@@ -25,9 +25,9 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
+    SelectionChoiceMap,
     Trace,
 )
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -50,7 +50,6 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_datatypes import Trie
 from genjax.core.exceptions import AddressReuse, StaticAddressJAX
 
 ##############
@@ -223,7 +222,8 @@ class StaticLanguageHandler(StatefulHandler):
     @typecheck
     def set_choice_state(self, addr, tr: Trace):
         addr = Pytree.tree_unwrap_const(addr)
-        self.address_choices = self.address_choices.trie_insert(addr, tr)
+        submap = ChoiceMap.n.at[addr].set(tr)
+        self.address_choices = self.address_choices | submap
 
     @typecheck
     def set_discard_state(self, addr, ch: Choice):
@@ -249,8 +249,10 @@ class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_choices: Trie = Pytree.field(default_factory=Trie)
-    cache_state: Trie = Pytree.field(default_factory=Trie)
+    address_choices: SelectionChoiceMap = Pytree.field(
+        default_factory=SelectionChoiceMap
+    )
+    cache_state: SelectionChoiceMap = Pytree.field(default_factory=SelectionChoiceMap)
     cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
@@ -311,8 +313,10 @@ class ImportanceHandler(StaticLanguageHandler):
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_choices: Trie = Pytree.field(default_factory=Trie)
-    cache_state: Trie = Pytree.field(default_factory=Trie)
+    address_choices: SelectionChoiceMap = Pytree.field(
+        default_factory=SelectionChoiceMap
+    )
+    cache_state: SelectionChoiceMap = Pytree.field(default_factory=SelectionChoiceMap)
     cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
@@ -386,9 +390,13 @@ class UpdateHandler(StaticLanguageHandler):
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_choices: Trie = Pytree.field(default_factory=Trie)
-    discard_choices: Trie = Pytree.field(default_factory=Trie)
-    cache_state: Trie = Pytree.field(default_factory=Trie)
+    address_choices: SelectionChoiceMap = Pytree.field(
+        default_factory=SelectionChoiceMap
+    )
+    discard_choices: SelectionChoiceMap = Pytree.field(
+        default_factory=SelectionChoiceMap
+    )
+    cache_state: SelectionChoiceMap = Pytree.field(default_factory=SelectionChoiceMap)
     cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
