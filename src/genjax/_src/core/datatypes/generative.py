@@ -379,26 +379,16 @@ def select_and_then(s1: Selection, s2: Selection) -> Selection:
 
 
 ###########
-# Choices #
+# Samples #
 ###########
 
 
-class Choice(Pytree):
-    """`Choice` is the abstract base class of the type of random choices.
-
-    The type `Choice` denotes a value which can be sampled from a generative function. There are many instances of `Choice` - distributions, for instance, utilize `ChoiceValue` - an implementor of `Choice` which wraps a single value. Other generative functions use map-like (or dictionary-like) `ChoiceMap` instances to represent their choices.
-    """
+class Sample(Pytree):
+    """`Sample` is the abstract base class of the type of values which can be sampled from generative functions."""
 
     @abstractmethod
-    def merge(self, other: "Choice") -> "Choice":
+    def merge(self, other: "Sample") -> "Sample":
         pass
-
-    @abstractmethod
-    def is_empty(self) -> BoolArray:
-        pass
-
-    def get_choices(self):
-        return self
 
     def strip(self):
         return strip(self)
@@ -407,11 +397,11 @@ class Choice(Pytree):
         return self.merge(other)
 
 
-def safe_merge(self, other: "Choice") -> "Choice":
+def safe_merge(self, other: "Sample") -> "Sample":
     return self.safe_merge(other)
 
 
-class ChoiceMap(Choice):
+class ChoiceMap(Sample):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from a generative function.
 
@@ -420,19 +410,21 @@ class ChoiceMap(Choice):
     in the caller's choice map.
     """
 
+    choice_map_fn: "ChoiceMapFunction"
+    level_info: String = Pytree.static()
+
     #######################
     # Map-like interfaces #
     #######################
 
-    @abstractmethod
     def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
-        pass
+        _, _, submap = self.choice_map_fn(addr)
+        return submap
 
-    @abstractmethod
     def has_submap(self, addr: AddressComponent) -> BoolArray:
-        pass
+        _, check, _ = self.choice_map_fn(addr)
+        return check
 
-    @abstractmethod
     def filter(
         self,
         selection: Selection,
@@ -463,12 +455,14 @@ class ChoiceMap(Choice):
             print(console.render(filtered))
             ```
         """
-        raise NotImplementedError
+        return choice_map_filtered(selection, self)
 
-    @abstractmethod
+    def merge(self, other):
+        return choice_map_disjoint(self, other)
+
     def get_selection(self) -> Selection:
         """Convert a `ChoiceMap` to a `Selection`."""
-        raise NotImplementedError
+        return select_choice_map(self)
 
     ###################
     # AddressIndex interface #
@@ -483,7 +477,7 @@ class ChoiceMap(Choice):
             return ChoiceMap.AddressIndex(self.choice_map, sel | self.selection)
 
         def set(self, v):
-            return self.choice_map + SelectionChoiceMap(self.selection, v)
+            return self.choice_map + choice_map_selection(self.selection, v)
 
         @property
         def also(self) -> "ChoiceMap.AddressIndex":
@@ -495,7 +489,7 @@ class ChoiceMap(Choice):
     @property
     def at(self) -> AddressIndex:
         if self is ChoiceMap:
-            return ChoiceMap.AddressIndex(EmptyChoice(), Selection.n)
+            return ChoiceMap.AddressIndex(ChoiceMap.n, Selection.n)
         else:
             return ChoiceMap.AddressIndex(self, Selection.n)
 
@@ -514,17 +508,28 @@ class ChoiceMap(Choice):
         if tail:
             return submap[tail]
         else:
-            return submap.get_submap(())
+            return submap()
 
     def __contains__(self, addr: Address):
         addr = Pytree.tree_unwrap_const(addr)
         head = Selection.get_address_head(addr)
         tail = Selection.get_address_tail(addr)
         check = self.has_submap(head)
-        submap = self.get_submap(head)
         if not tail:
+            return check
+        else:
+            submap = self.get_submap(head)
             return submap.has_submap(tail)
-        return staged_and(check, tail in submap)
+
+    def __call__(self):
+        v, _, _ = self.choice_map_fn(())
+        return v
+
+    def __str__(self):
+        return f"ChoiceMap({self.level_info})"
+
+    def __repr__(self):
+        return f"ChoiceMap({self.level_info})"
 
     ################
     # Construction #
@@ -532,217 +537,167 @@ class ChoiceMap(Choice):
 
     @classproperty
     def n(cls) -> "ChoiceMap":
-        return EmptyChoice()
+        return choice_map_empty
 
     @classmethod
     def v(cls, v) -> "ChoiceMap":
-        return ChoiceValue(v)
-
-
-class EmptyChoice(ChoiceMap):
-    """A `Choice` implementor which denotes an empty event."""
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        return self
-
-    def has_submap(self, addr: AddressComponent) -> BoolArray:
-        return False
-
-    def filter(self, selection: Selection):
-        return self
-
-    def is_empty(self):
-        return True
-
-    def get_selection(self) -> Selection:
-        return Selection.n
-
-    def merge(self, other):
-        return other
-
-    def __rich_tree__(self):
-        return rich_tree.Tree("[bold](EmptyChoice)")
-
-
-class ValueLike(Choice):
-    @abstractmethod
-    def has_value(self) -> BoolArray:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_value(self) -> Any:
-        raise NotImplementedError
-
-
-class ChoiceValue(ValueLike, ChoiceMap):
-    value: Any
-
-    def has_value(self):
-        return True
-
-    def get_value(self):
-        return self.value
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        if addr == ():
-            return self
-        else:
-            raise Exception("ChoiceValue doesn't address any choices.")
-
-    def has_submap(self, addr: AddressComponent) -> BoolArray:
-        return addr == ()
-
-    def is_empty(self):
-        return False
-
-    def merge(self, other: Choice):
-        check = other.is_empty()
-        if static_check_is_concrete(check) and check:
-            return self
-        else:
-            raise Exception("Cannot merge a ChoiceValue with a non-empty choice.")
-
-    def filter(self, selection: Selection):
-        check = selection[()]
-        if static_check_is_concrete(check):
-            if check:
-                return self
-            else:
-                return EmptyChoice()
-        else:
-            return Mask.maybe(check, self)
-
-    def get_selection(self) -> Selection:
-        return Selection.a
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](ChoiceValue)")
-        tree.add(gpp.tree_pformat(self.value))
-        return tree
-
-
-class DisjointUnionChoiceMap(ValueLike, ChoiceMap):
-    first: ChoiceMap
-    second: ChoiceMap
+        return choice_map_value(v)
 
     @classmethod
-    def maybe(cls, first, second):
-        if staged_check(first.is_empty()):
-            return second
-        elif staged_check(second.is_empty()):
-            return first
+    def s(cls, sel: Selection, v: Any) -> "ChoiceMap":
+        return choice_map_selection(sel, v)
+
+    @classmethod
+    def m(cls, f: BoolArray, c: "ChoiceMap") -> "ChoiceMap":
+        return choice_map_masked(f, c)
+
+    @classmethod
+    def a(cls, addr: Address, v: Any) -> "ChoiceMap":
+        head = Selection.get_address_head(addr)
+        tail = Selection.get_address_tail(addr)
+        c = v if isinstance(v, ChoiceMap) else ChoiceMap.v(v)
+        if tail:
+            c = ChoiceMap.a(tail, c)
+        if isinstance(head, DynamicAddressComponent):
+            return choice_map_with_dyn_addr(head, c)
         else:
-            return DisjointUnionChoiceMap(first, second)
+            return choice_map_with_static_addr(head, c)
 
-    def is_empty(self) -> BoolArray:
-        return staged_and(
-            self.first.is_empty(),
-            self.second.is_empty(),
-        )
-
-    def merge(self, other):
-        return DisjointUnionChoiceMap.maybe(
-            self.first.merge(other),
-            self.second.merge(other),
-        )
-
-    def has_value(self) -> BoolArray:
-        return staged_or(
-            self.first.has_value(),
-            self.second.has_value(),
-        )
-
-    def get_value(self) -> Any:
-        val1 = self.first.get_value()
-        val2 = self.second.get_value()
-        return val1.merge(val2)
-
-    def filter(self, selection: Selection) -> ChoiceMap:
-        return DisjointUnionChoiceMap.maybe(
-            self.first.filter(selection),
-            self.second.filter(selection),
-        )
-
-    def has_submap(self, addr: Address) -> BoolArray:
-        return staged_or(
-            self.first.has_submap(addr),
-            self.second.has_submap(addr),
-        )
-
-    def get_submap(self, addr: Address) -> ChoiceMap:
-        return DisjointUnionChoiceMap.maybe(
-            self.first.get_submap(addr),
-            self.second.get_submap(addr),
-        )
-
-    def get_selection(self) -> Selection:
-        return self.first.get_selection() | self.second.get_selection()
+    @classmethod
+    def with_info(cls, info: String):
+        return lambda fn: ChoiceMap(fn, info)
 
 
-class SelectionChoiceMap(ValueLike, ChoiceMap):
-    selection: Selection
-    value: Any
+ChoiceMapFunction = Callable[
+    [AddressComponent],
+    Tuple[Any, Bool, ChoiceMap],
+]
 
-    def is_empty(self) -> BoolArray:
-        return staged_not(self.selection[...])
 
-    def has_value(self) -> BoolArray:
-        return self.selection[()]
+@ChoiceMap.with_info("Empty")
+@Pytree.partial()
+def choice_map_empty(head: AddressComponent):
+    return None, False, choice_map_empty
 
-    def get_value(self) -> Any:
-        check = self.selection[()]
-        if static_check_is_concrete(check):
+
+@typecheck
+def choice_map_value(v: Any):
+    @ChoiceMap.with_info("Value")
+    @Pytree.partial(v)
+    def inner(v, head: AddressComponent) -> Any:
+        return v, False, choice_map_empty
+
+    return inner
+
+
+@typecheck
+def choice_map_with_dyn_addr(addr: AddressComponent, c: ChoiceMap):
+    @ChoiceMap.with_info(f"DynAddr() => {c.level_info})")
+    @Pytree.partial(addr, c)
+    def inner(addr, c, head: AddressComponent):
+        check = addr == head
+        return None, addr == head, choice_map_masked(check, c)
+
+    return inner
+
+
+@typecheck
+def choice_map_with_static_addr(addr: AddressComponent, c: ChoiceMap):
+    @ChoiceMap.with_info(f"StaticAddr({addr} => {c.level_info})")
+    @Pytree.partial(c)
+    def inner(c, head: AddressComponent):
+        check = addr == head
+        return None, addr == head, choice_map_masked(check, c)
+
+    return inner
+
+
+@typecheck
+def choice_map_selection(sel: Selection, v: Any):
+    @ChoiceMap.with_info(f"Selected({sel.level_info}) => {v}")
+    @Pytree.partial(sel, v)
+    def inner(sel, v, head: AddressComponent):
+        if head == ():
+            check = head in sel
             return (
-                ChoiceValue(self.value)
-                if isinstance(check, Bool)
-                else Mask.maybe(check, ChoiceValue(self.value))
+                Mask.harsh_maybe(check * jnp.ones_like(v, dtype=bool), v),
+                check,
+                choice_map_selection(sel, v),
             )
         else:
-            return Mask.maybe(check, self.value)
+            remaining = sel.step(head)
+            v_arr = v
+            if isinstance(head, DynamicAddressComponent):
+                v_arr = jnp.array(v, copy=False)
+                v_arr = v_arr[head] if v_arr.shape else v_arr
+            return None, True, choice_map_selection(remaining, v_arr)
 
-    def merge(self, other: ChoiceMap) -> ChoiceMap:
-        return DisjointUnionChoiceMap(self, other)
+    return inner
 
-    def get_selection(self) -> Selection:
-        return self.selection
 
-    def get_submap(self, addr: Address) -> ChoiceMap:
-        if isinstance(addr, tuple) and addr == ():
-            check = self.selection[()]
-            return Mask.maybe(check, self.get_value())
+@typecheck
+def choice_map_disjoint(c1: ChoiceMap, c2: ChoiceMap):
+    @ChoiceMap.with_info(f"Disjoint({c1.level_info} | {c2.level_info})")
+    @Pytree.partial(c1, c2)
+    def inner(c1, c2, head: AddressComponent):
+        # TODO.
+        if head == ():
+            check = staged_or(head in c1, head in c2)
+            return c2(), check, choice_map_empty
         else:
-            if isinstance(addr, DynamicAddressComponent):
-                arr_addr = jnp.array(addr, copy=False)
-                return (
-                    jax.vmap(
-                        lambda addr: SelectionChoiceMap(
-                            self.selection.step(addr),
-                            self.value[addr],
-                        )
-                    )(arr_addr)
-                    if arr_addr.shape
-                    else SelectionChoiceMap(
-                        self.selection.step(arr_addr),
-                        self.value[arr_addr] if self.value.shape else self.value,
-                    )
-                )
-            else:
-                return SelectionChoiceMap(self.selection.step(addr), self.value)
+            remaining_1 = c1.get_submap(head)
+            remaining_2 = c2.get_submap(head)
+            check = staged_or(c1.has_submap(head), c2.has_submap(head))
+            return None, check, choice_map_disjoint(remaining_1, remaining_2)
 
-    def has_submap(self, addr: Address) -> BoolArray:
-        return self.selection.has(addr)
+    return inner
 
-    def filter(self, selection: Selection) -> ChoiceMap:
-        return SelectionChoiceMap(
-            self.selection & selection,
-            self.value,
-        )
 
-    def __str__(self):
-        return f"SelectionChoiceMap(\n  selection: {self.selection.level_info}\n  value: {self.value}\n)"
+def choice_map_masked(flag: BoolArray, c: ChoiceMap):
+    @ChoiceMap.with_info(f"Masked({c.level_info})")
+    @Pytree.partial(flag, c)
+    def inner(flag, c, head: AddressComponent):
+        check = c.has_submap(head)
+        if head == ():
+            return (
+                Mask.harsh_maybe(flag, c()),
+                staged_and(flag, check),
+                choice_map_empty,
+            )
+        else:
+            remaining = c.get_submap(head)
+            return None, staged_and(flag, check), choice_map_masked(flag, remaining)
 
-    def __repr__(self):
-        return f"SelectionChoiceMap(\n  selection: {self.selection.level_info}\n  value: {self.value}\n)"
+    return inner
+
+
+@typecheck
+def choice_map_filtered(selection: Selection, c: ChoiceMap):
+    @ChoiceMap.with_info(f"Filtered({selection.level_info}, {c.level_info})")
+    @Pytree.partial(selection, c)
+    def inner(selection, c, head: AddressComponent):
+        check = head in selection
+        if head == ():
+            return Mask.harsh_maybe(check, c()), check, choice_map_empty
+        else:
+            return (
+                None,
+                check,
+                choice_map_filtered(selection.step(head), c.get_submap(head)),
+            )
+
+    return inner
+
+
+@typecheck
+def select_choice_map(c: ChoiceMap):
+    @Selection.with_info(f"from ChoiceMap({c.level_info})")
+    @Pytree.partial(c)
+    def inner(c, head: AddressComponent):
+        check = head in c
+        return check, Selection.m(check, select_choice_map(c.get_submap(head)))
+
+    return inner
 
 
 #########
@@ -902,7 +857,7 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        choices: Choice,
+        choices: Sample,
         argdiffs: Tuple,
     ):
         gen_fn = self.get_gen_fn()
@@ -946,7 +901,7 @@ class Trace(Pytree):
 
     @property
     def at(self) -> AddressIndex:
-        return Trace.AddressIndex(self, Selection.n, EmptyChoice())
+        return Trace.AddressIndex(self, Selection.n, EmptySample())
 
     def get_aux(self) -> Tuple:
         raise NotImplementedError
@@ -954,9 +909,6 @@ class Trace(Pytree):
     #############################
     # Default choice interfaces #
     #############################
-
-    def is_empty(self):
-        return self.strip().is_empty()
 
     def filter(
         self,
@@ -966,13 +918,13 @@ class Trace(Pytree):
         filtered = stripped.filter(selection)
         return filtered
 
-    def merge(self, other: Choice) -> Tuple[Choice, Choice]:
+    def merge(self, other: Sample) -> Tuple[Sample, Sample]:
         return self.strip().merge(other.strip())
 
     def get_selection(self):
         return self.strip().get_selection()
 
-    def strip(self) -> Choice:
+    def strip(self) -> Sample:
         return strip(self)
 
     def __getitem__(self, x):
@@ -998,13 +950,11 @@ def strip(v):
 ###########
 
 
-# NOTE: we overload usage of `Mask` for masking choice maps, and for
-# masking raw array/Python values.
-class Mask(ValueLike, ChoiceMap):
-    """The `Mask` choice datatype provides access to the masking system. The masking
+class Mask(Pytree):
+    """The `Mask` datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
 
-    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Choice` instances, and participate in inference computations (like scores, and importance weights or density ratios).
+    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in inference computations (like scores, and importance weights or density ratios).
 
     Masks are also used internally by generative function combinators which include uncertainty over structure.
 
@@ -1026,84 +976,24 @@ class Mask(ValueLike, ChoiceMap):
             self.value = self.value.value
 
     @classmethod
-    def maybe(cls, f: BoolArray, v: ChoiceMap):
-        if isinstance(v, EmptyChoice):
-            return v
-        else:
-            return (
-                v
-                if static_check_is_concrete(f) and isinstance(f, Bool) and f
-                else EmptyChoice()
-                if static_check_is_concrete(f) and isinstance(f, Bool)
-                else Mask(f, v)
-            )
+    def maybe(cls, f: BoolArray, v: Any):
+        return (
+            v
+            if static_check_is_concrete(f) and isinstance(f, Bool) and f
+            else Mask(f, v)
+        )
 
-    #####################
-    # Choice interfaces #
-    #####################
-
-    def is_empty(self):
-        check = staged_not(self.flag)
-        if isinstance(self.value, Choice):
-            return staged_and(check, self.value.is_empty())
-        else:
-            return check
-
-    def merge(self, other: Choice) -> Choice:
-        if static_check_is_concrete(self.flag) and self.flag:
-            return self.value.merge(other)
-        elif static_check_is_concrete(self.flag):
-            return other
-        else:
-            return DisjointUnionChoiceMap(self, other)
-
-    ###########################
-    # Choice value interfaces #
-    ###########################
-
-    def has_value(self) -> BoolArray:
-        return staged_and(self.flag, self.value.has_value())
-
-    def get_value(self):
-        # If a user chooses to `get_value`, require that they
-        # jax.experimental.checkify.checkify their call in transformed
-        # contexts.
-        def _check():
-            check_flag = jnp.all(self.flag)
-            checkify.check(
-                check_flag,
-                "Attempted to convert a Mask to a value when the mask flag is False, meaning the masked value is invalid.\n",
-            )
-
-        optional_check(_check)
-        return self.value.get_value()
-
-    #########################
-    # Choice map interfaces #
-    #########################
-
-    def filter(self, selection: Selection) -> ChoiceMap:
-        choices = self.value.get_choices()
-        assert isinstance(choices, ChoiceMap)
-        return Mask(self.flag, choices.filter(selection))
-
-    def get_submap(self, addr: Address) -> ChoiceMap:
-        # Using a `ChoiceMap` interface on the `Mask` means
-        # that the value should be a `ChoiceMap`.
-        assert isinstance(self.value, ChoiceMap)
-        inner = self.value.get_submap(addr)
-        return Mask.maybe(self.flag, inner)
-
-    def has_submap(self, addr: Address) -> BoolArray:
-        # Using a `ChoiceMap` interface on the `Mask` means
-        # that the value should be a `ChoiceMap`.
-        assert isinstance(self.value, ChoiceMap)
-        inner_check = self.value.has_submap(addr)
-        return staged_and(self.flag, inner_check)
-
-    def get_selection(self) -> Selection:
-        assert isinstance(self.value, ChoiceMap)
-        return Selection.m(self.flag, self.value.get_selection())
+    @classmethod
+    def harsh_maybe(cls, f: BoolArray, v: Any):
+        return (
+            v
+            if static_check_is_concrete(f) and isinstance(f, Bool) and f
+            else None
+            if static_check_is_concrete(f) and isinstance(f, Bool)
+            else Mask(f, v)
+            if v
+            else v
+        )
 
     ######################
     # Masking interfaces #
@@ -1283,7 +1173,7 @@ class GenerativeFunction(Pytree):
         self: "GenerativeFunction",
         key: PRNGKey,
         args: Tuple,
-    ) -> Tuple[Choice, FloatArray, Any]:
+    ) -> Tuple[Sample, FloatArray, Any]:
         """Given a `key: PRNGKey` and arguments ($x$), execute the generative function,
         returning a tuple containing the return value from the generative function call,
         the score ($s$) of the choice map assignment, and the choice map ($c$).
@@ -1343,7 +1233,7 @@ class GenerativeFunction(Pytree):
     def importance(
         self: "GenerativeFunction",
         key: PRNGKey,
-        choice: Choice,
+        choice: Sample,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
         """Given a `key: PRNGKey`, a choice map indicating constraints ($u$), and
@@ -1374,9 +1264,9 @@ class GenerativeFunction(Pytree):
         self: "GenerativeFunction",
         key: PRNGKey,
         prev: Trace,
-        new_constraints: Choice,
+        new_constraints: Sample,
         diffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, Choice]:
+    ) -> Tuple[Trace, FloatArray, Any, Sample]:
         primals = Diff.tree_primal(diffs)
         prev_choice = prev.get_choices()
         merged, discarded = prev_choice.merge(new_constraints)
@@ -1386,7 +1276,7 @@ class GenerativeFunction(Pytree):
 
     def assess(
         self: "GenerativeFunction",
-        choice: Choice,
+        choice: Sample,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         """Given a complete choice map indicating constraints ($u$) for all choices, and
@@ -1430,12 +1320,12 @@ class JAXGenerativeFunction(GenerativeFunction, Pytree):
 
     @typecheck
     def unzip(
-        self, fixed: Choice
+        self, fixed: Sample
     ) -> Tuple[
-        Callable[[Choice, Tuple], FloatArray],
-        Callable[[Choice, Tuple], Any],
+        Callable[[Sample, Tuple], FloatArray],
+        Callable[[Sample, Tuple], Any],
     ]:
-        """The `unzip` method expects a fixed (under gradients) `Choice` argument, and
+        """The `unzip` method expects a fixed (under gradients) `Sample` argument, and
         returns two `Callable` instances: the first exposes a.
 
         pure function from `(differentiable: Tuple, nondifferentiable: Tuple)
