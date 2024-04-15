@@ -19,8 +19,8 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
     Choice,
-    JAXGenerativeFunction,
     GenerativeFunction,
+    JAXGenerativeFunction,
     Selection,
     Trace,
 )
