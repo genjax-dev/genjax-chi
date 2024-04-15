@@ -251,7 +251,7 @@ def select_complement(s: Selection) -> Selection:
     def inner(s: Selection, head: AddressComponent):
         ch, remaining = s.has_addr(head)
         check = staged_not(ch)
-        return check, select_defer(check, select_complement(remaining))
+        return check, select_complement(select_defer(ch, remaining))
 
     return inner
 
