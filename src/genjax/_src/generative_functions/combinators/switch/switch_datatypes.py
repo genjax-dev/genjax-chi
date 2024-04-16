@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 from typing import Sequence
 
 import jax.numpy as jnp
@@ -49,13 +48,9 @@ from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, 
 # choose a fallback mode to allow tracer values.
 
 
-@dataclass
 class SwitchChoiceMap(ChoiceMap):
     index: IntArray
     submaps: Sequence[ChoiceMap]
-
-    def flatten(self):
-        return (self.index, self.submaps), ()
 
     def is_empty(self):
         # Concrete evaluation -- when possible.
@@ -69,7 +64,7 @@ class SwitchChoiceMap(ChoiceMap):
         self,
         selection: HierarchicalSelection,
     ) -> ChoiceMap:
-        filtered_submaps = map(lambda chm: chm.filter(selection), self.submaps)
+        filtered_submaps = map(lambda choice: choice.filter(selection), self.submaps)
         return SwitchChoiceMap(self.index, filtered_submaps)
 
     def has_submap(self, addr):
@@ -153,28 +148,18 @@ class SwitchChoiceMap(ChoiceMap):
 ################
 
 
-@dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    chm: SwitchChoiceMap
+    choice: SwitchChoiceMap
     args: Tuple
     retval: Any
     score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.chm,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
 
     def get_args(self):
         return self.args
 
     def get_choices(self):
-        return self.chm.strip()
+        return self.choice.strip()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -186,9 +171,9 @@ class SwitchTrace(Trace):
         return self.score
 
     def project(self, selection: Selection) -> FloatArray:
-        weights = list(map(lambda v: v.project(selection), self.chm.submaps))
-        return jnp.choose(self.chm.index, weights, mode="wrap")
+        weights = list(map(lambda v: v.project(selection), self.choice.submaps))
+        return jnp.choose(self.choice.index, weights, mode="wrap")
 
     def get_subtrace(self, concrete_index):
-        subtrace = self.chm.submaps[concrete_index]
+        subtrace = self.choice.submaps[concrete_index]
         return subtrace

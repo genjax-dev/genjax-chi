@@ -1,4 +1,4 @@
-# Copyright 2023 The MIT Probabilistic Computing Project
+# Copyright 2024 The MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 from jax import api_util
-from jax import core as jax_core
+from jax import core as jc
 from jax import tree_util as jtu
-from jax._src import dtypes
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any
 
 
-@dataclass
 class Concrete(Pytree):
-    v: Any
-
-    def flatten(self):
-        return (), (self.v,)
+    v: Any = Pytree.static()
 
     def __hash__(self):
         return hash(self.v)
@@ -53,15 +47,13 @@ def static_unwrap_concrete(c):
 
 
 def get_shaped_aval(x):
-    if hasattr(x, "dtype") and hasattr(x, "shape"):
-        return jax_core.ShapedArray(x.shape, dtypes.canonicalize_dtype(x.dtype))
-    return jax_core.raise_to_shaped(jax_core.get_aval(x))
+    return jc.raise_to_shaped(jc.get_aval(x))
 
 
 @lu.cache
 def cached_stage_dynamic(flat_fun, in_avals):
     jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, in_avals)
-    typed_jaxpr = jax_core.ClosedJaxpr(jaxpr, consts)
+    typed_jaxpr = jc.ClosedJaxpr(jaxpr, consts)
     return typed_jaxpr
 
 
@@ -80,8 +72,8 @@ def stage(f):
 
 
 def trees(f):
-    """Returns a function that determines input and output pytrees from inputs,
-    and also returns the flattened input arguments."""
+    """Returns a function that determines input and output pytrees from inputs, and also
+    returns the flattened input arguments."""
 
     def wrapped(*args, **kwargs):
         return stage(f)(*args, **kwargs)[1]

@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
+import jax.numpy as jnp  # noqa: I001
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
+    MapSelection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -33,7 +33,6 @@ from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch
 #########
 
 
-@dataclass
 class StaticTrace(
     Trace,
     SupportsPickleSerialization,
@@ -44,16 +43,6 @@ class StaticTrace(
     address_choices: Trie
     cache: Trie
     score: FloatArray
-
-    def flatten(self):
-        return (
-            self.gen_fn,
-            self.args,
-            self.retval,
-            self.address_choices,
-            self.cache,
-            self.score,
-        ), ()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -76,9 +65,9 @@ class StaticTrace(
     @dispatch
     def project(
         self,
-        selection: HierarchicalSelection,
+        selection: MapSelection,
     ) -> FloatArray:
-        weight = 0.0
+        weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():
             if selection.has_addr(k):
                 weight += subtrace.project(selection.get_subselection(k))

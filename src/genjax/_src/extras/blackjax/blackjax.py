@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import blackjax
 import jax
 
 from genjax._src.core.datatypes.generative import Selection, Trace
-from genjax._src.core.pytree.utilities import tree_grad_split, tree_zipper
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Int, PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel
 
@@ -54,13 +54,13 @@ class HamiltonianMonteCarlo(MCMCKernel):
         gen_fn = trace.get_gen_fn()
         stripped = trace.strip()
         fixed = stripped.filter(self.selection.complement())
-        initial_chm_position = stripped.filter(self.selection)
+        initial_choice_position = stripped.filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
-        grad, nograd = tree_grad_split(
-            (initial_chm_position, trace.get_args()),
+        grad, nograd = Pytree.tree_grad_split(
+            (initial_choice_position, trace.get_args()),
         )
 
         # The nograd component never changes.
@@ -85,7 +85,7 @@ class HamiltonianMonteCarlo(MCMCKernel):
         # Shouldn't it just pass a single key along?
         sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
-        final_positions, _ = tree_zipper(states.position, nograd)
+        final_positions, _ = Pytree.tree_grad_zip(states.position, nograd)
         return final_positions
 
     def reversal(self):
@@ -119,13 +119,13 @@ class NoUTurnSampler(MCMCKernel):
         gen_fn = trace.get_gen_fn()
         stripped = trace.strip()
         fixed = stripped.filter(self.selection.complement())
-        initial_chm_position = stripped.filter(self.selection)
+        initial_choice_position = stripped.filter(self.selection)
         key, sub_key = jax.random.split(key)
         scorer, _ = gen_fn.unzip(sub_key, fixed)
 
         # These go into the gradient interfaces.
-        grad, nograd = tree_grad_split(
-            (initial_chm_position, trace.get_args()),
+        grad, nograd = Pytree.tree_grad_split(
+            (initial_choice_position, trace.get_args()),
         )
 
         # The nograd component never changes.
@@ -148,7 +148,7 @@ class NoUTurnSampler(MCMCKernel):
         # Shouldn't it just pass a single key along?
         sub_keys = jax.random.split(key, self.num_steps)
         _, states = jax.lax.scan(step, initial_state, sub_keys)
-        final_positions, _ = tree_zipper(states.position, nograd)
+        final_positions, _ = Pytree.tree_grad_zip(states.position, nograd)
         return final_positions
 
     def reversal(self):

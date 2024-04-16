@@ -22,23 +22,23 @@ class TestShortcuts:
         assert genjax.choice_map() == genjax.HierarchicalChoiceMap()
 
     def test_bare_value_gives_choice_value(self):
-        assert genjax.choice_map(3) == genjax.ChoiceValue(3)
-        v1 = genjax.choice_map(jnp.array([1.0, 2.0]))
+        assert genjax.choice(3) == genjax.ChoiceValue(3)
+        v1 = genjax.choice(jnp.array([1.0, 2.0]))
         v2 = genjax.ChoiceValue(jnp.array([1.0, 2.0]))
         assert isinstance(v1, genjax.ChoiceValue) and (v1.value == v2.value).all()
 
     def test_choice_map_from_dict(self):
         hcm = genjax.HierarchicalChoiceMap()
-        hcm["x"] = 3
-        hcm["y"] = 4
+        hcm = hcm.insert("x", 3)
+        hcm = hcm.insert("y", 4)
         assert genjax.choice_map({"x": 3, "y": 4}) == hcm
 
     def test_hierarchical_choice_map_from_dict(self):
         hcm = genjax.HierarchicalChoiceMap()
-        hcm["x", "xa"] = 3
-        hcm["x", "xb"] = 4
-        hcm["y", "ya"] = 5
-        hcm["y", "yb"] = 6
+        hcm = hcm.insert(("x", "xa"), 3)
+        hcm = hcm.insert(("x", "xb"), 4)
+        hcm = hcm.insert(("y", "ya"), 5)
+        hcm = hcm.insert(("y", "yb"), 6)
         assert (
             genjax.choice_map(
                 {
@@ -57,4 +57,4 @@ class TestShortcuts:
         for j in range(1, 4):
             for m in [icm1, icm2]:
                 assert m.has_submap((j, "x"))
-                assert m[(j, "x")].unmask() == 10 * j
+                assert m[(j, "x")] == 10 * j

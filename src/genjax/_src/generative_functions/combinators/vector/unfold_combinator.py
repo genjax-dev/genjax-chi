@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows
-statically unrolled control flow for generative functions which can act as
-kernels (a kernel generative function can accept their previous output as
-input)."""
-
-import functools
-from dataclasses import dataclass
+"""This module implements a generative function combinator which allows statically
+unrolled control flow for generative functions which can act as kernels (a kernel
+generative function can accept their previous output as input)."""
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from equinox import module_update_wrapper
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
@@ -35,13 +32,8 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Trace,
 )
-from genjax._src.core.interpreters.incremental import (
-    Diff,
-    static_check_no_change,
-    tree_diff_no_change,
-    tree_diff_primal,
-    tree_diff_unknown_change,
-)
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -60,7 +52,6 @@ from genjax._src.generative_functions.combinators.vector.vector_datatypes import
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class UnfoldTrace(Trace):
     unfold: GenerativeFunction
     inner: Trace
@@ -68,16 +59,6 @@ class UnfoldTrace(Trace):
     args: Tuple
     retval: Any
     score: FloatArray
-
-    def flatten(self):
-        return (
-            self.unfold,
-            self.inner,
-            self.dynamic_length,
-            self.args,
-            self.retval,
-            self.score,
-        ), ()
 
     def get_args(self):
         return self.args
@@ -135,24 +116,21 @@ class UnfoldTrace(Trace):
 #####
 
 
-@dataclass
 class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
-    """> `UnfoldCombinator` accepts a kernel generative function, as well as a
-    static maximum unroll length, and provides a scan-like pattern of
-    generative computation.
+    """> `UnfoldCombinator` accepts a kernel generative function, as well as a static
+    maximum unroll length, and provides a scan-like pattern of generative computation.
 
     !!! info "Kernel generative functions"
         A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `UnfoldCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
 
     Examples:
-
         ```python exec="yes" source="tabbed-left"
         import jax
         import genjax
         console = genjax.console()
 
         # A kernel generative function.
-        @genjax.static
+        @genjax.static_gen_fn
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -165,7 +143,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # when declaring the function:
 
         @genjax.Unfold(max_length=1000)
-        @genjax.static
+        @genjax.static_gen_fn
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -178,11 +156,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    max_length: IntArray
     kernel: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.kernel,), (self.max_length,)
+    max_length: IntArray = Pytree.static()
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
@@ -278,7 +253,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: IndexedChoiceMap,
+        choice: IndexedChoiceMap,
         args: Tuple,
     ) -> Tuple[UnfoldTrace, FloatArray]:
         length = args[0]
@@ -290,7 +265,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             count, key, state = carry
 
             def _with_choice(key, count, state):
-                sub_choice_map = chm.get_submap(count)
+                sub_choice_map = choice.get_submap(count)
                 key, sub_key = jax.random.split(key)
                 (tr, w) = self.kernel.importance(
                     sub_key, sub_choice_map, (state, *static_args)
@@ -340,7 +315,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[UnfoldTrace, FloatArray]:
         length = args[0]
@@ -350,13 +325,13 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         def _inner(carry, slice):
             count, key, state = carry
-            chm = slice
+            choice = slice
             key, sub_key = jax.random.split(key)
 
-            def _importance(key, chm, state):
-                return self.kernel.importance(key, chm, (state, *static_args))
+            def _importance(key, choice, state):
+                return self.kernel.importance(key, choice, (state, *static_args))
 
-            def _simulate(key, chm, state):
+            def _simulate(key, choice, state):
                 tr = self.kernel.simulate(key, (state, *static_args))
                 return (tr, 0.0)
 
@@ -366,7 +341,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
                 _importance,
                 _simulate,
                 sub_key,
-                chm.inner,
+                choice.inner,
                 state,
             )
 
@@ -385,7 +360,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (_, _, state), (w, score, tr, retval) = jax.lax.scan(
             _inner,
             (0, key, state),
-            chm,
+            choice,
             length=self.max_length,
         )
 
@@ -418,7 +393,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceMap,
+        choice: ChoiceMap,
         args: Tuple,
     ):
         raise NotImplementedError
@@ -428,14 +403,14 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: ChoiceMap,
+        choice: ChoiceMap,
         length: Diff,
         state: Diff,
         *static_args: Diff,
     ):
-        maybe_idx_chm = IndexedChoiceMap.convert(chm)
+        maybe_idx_choice = IndexedChoiceMap.convert(choice)
         return self._update_fallback(
-            key, prev, maybe_idx_chm, length, state, *static_args
+            key, prev, maybe_idx_choice, length, state, *static_args
         )
 
     @dispatch
@@ -443,20 +418,20 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         length: Diff,
         state: Diff,
         *static_args: Diff,
     ):
-        length, state, static_args = tree_diff_primal((length, state, static_args))
+        length, state, static_args = Diff.tree_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
-            (prev, chm) = slice
+            (prev, choice) = slice
             key, sub_key = jax.random.split(key)
 
             (tr, w, retval_diff, discard) = self.kernel.update(
-                sub_key, prev, chm, (state, *static_args)
+                sub_key, prev, choice, (state, *static_args)
             )
 
             check = jnp.less(count, length + 1)
@@ -470,7 +445,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
             _inner,
             (0, key, state),
-            (prev, chm),
+            (prev, choice),
             length=self.max_length,
         )
 
@@ -479,7 +454,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primal(retval_diff),
+            Diff.tree_primal(retval_diff),
             jnp.sum(score),
         )
 
@@ -491,12 +466,12 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: EmptyChoice,
+        choice: EmptyChoice,
         length: Diff,
         state: Any,
         *static_args: Any,
     ):
-        length, state, static_args = tree_diff_primal((length, state, static_args))
+        length, state, static_args = Diff.tree_primal((length, state, static_args))
 
         def _inner(carry, slice):
             count, key, state = carry
@@ -506,8 +481,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             (tr, w, retval_diff, discard) = self.kernel.update(
                 sub_key,
                 prev,
-                chm,
-                tree_diff_no_change((state, *static_args)),
+                choice,
+                Diff.tree_diff_no_change((state, *static_args)),
             )
 
             check = jnp.less(count, length + 1)
@@ -531,7 +506,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             tr,
             length,
             (length, state, *static_args),
-            tree_diff_primal(retval_diff),
+            Diff.tree_primal(retval_diff),
             jnp.sum(score),
         )
 
@@ -545,17 +520,17 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: IndexedChoiceMap,
+        choice: IndexedChoiceMap,
         length: Diff,
         state: Any,
         *static_args: Any,
     ):
-        start_lower = jnp.min(chm.indices)
+        start_lower = jnp.min(choice.indices)
         prev_length = prev.get_args()[0]
 
         # TODO: `UnknownChange` is used here
         # to preserve the Pytree structure across the loop.
-        state_diff = tree_diff_unknown_change(
+        state_diff = Diff.tree_diff_unknown_change(
             jax.lax.cond(
                 start_lower
                 == 0,  # if the starting index is 0, we need to grab the state argument.
@@ -571,33 +546,33 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         def _inner(index, state):
             (key, w, state_diff, prev) = state
-            sub_chm = chm.get_submap(index)
+            sub_choice = choice.get_submap(index)
             prev_slice = jtu.tree_map(lambda v: v[index], prev)
             key, sub_key = jax.random.split(key)
 
             # Extending to an index greater than the previous length.
             def _importance(key):
-                state_primal = tree_diff_primal(state_diff)
+                state_primal = Diff.tree_primal(state_diff)
                 (new_tr, w) = self.kernel.importance(
-                    key, sub_chm, (state_primal, *static_args)
+                    key, sub_choice, (state_primal, *static_args)
                 )
                 primal_state = new_tr.get_retval()
-                retval_diff = tree_diff_unknown_change(primal_state)
+                retval_diff = Diff.tree_diff_unknown_change(primal_state)
 
                 return (retval_diff, w, new_tr)
 
             # Updating an existing index.
             def _update(key):
-                static_argdiffs = tree_diff_no_change(static_args)
+                static_argdiffs = Diff.tree_diff_no_change(static_args)
                 (new_tr, w, retval_diff, _) = self.kernel.update(
-                    key, prev_slice, sub_chm, (state_diff, *static_argdiffs)
+                    key, prev_slice, sub_choice, (state_diff, *static_argdiffs)
                 )
 
                 # TODO: c.f. message above on `UnknownChange`.
                 # Preserve the diff type across the loop
                 # iterations.
-                primal_state = tree_diff_primal(retval_diff)
-                retval_diff = tree_diff_unknown_change(primal_state)
+                primal_state = Diff.tree_primal(retval_diff)
+                retval_diff = Diff.tree_diff_unknown_change(primal_state)
                 return (retval_diff, w, new_tr)
 
             check = prev_length < index
@@ -616,7 +591,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return (key, w, state_diff, prev)
 
         # TODO: add discard.
-        new_upper = tree_diff_primal(length)
+        new_upper = Diff.tree_primal(length)
         new_upper = jnp.where(
             new_upper >= self.max_length,
             self.max_length - 1,
@@ -642,8 +617,8 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             new_inner_trace.get_retval(),
             prev.get_retval(),
         )
-        retval_diff = tree_diff_unknown_change(retval)
-        args = tree_diff_primal((length, state, *static_args))
+        retval_diff = Diff.tree_diff_unknown_change(retval)
+        args = Diff.tree_primal((length, state, *static_args))
 
         # TODO: is there a faster way to do this with the information I already have?
         new_score = jnp.sum(
@@ -669,7 +644,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         length: Diff,
         state: Any,
         *static_args: Any,
@@ -681,7 +656,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: ChoiceMap,
+        choice: ChoiceMap,
         length: Diff,
         state: Any,
         *static_args: Any,
@@ -693,22 +668,22 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: UnfoldTrace,
-        chm: Choice,
+        choice: Choice,
         argdiffs: Tuple,
     ) -> Tuple[UnfoldTrace, FloatArray, Any, Choice]:
         length = argdiffs[0]
         state = argdiffs[1]
         static_args = argdiffs[2:]
-        args = tree_diff_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
         self._optional_out_of_bounds_check(args[0])  # length
-        check_state_static_no_change = static_check_no_change((state, static_args))
+        check_state_static_no_change = Diff.static_check_no_change((state, static_args))
         if check_state_static_no_change:
-            state = tree_diff_primal(state)
-            static_args = tree_diff_primal(static_args)
+            state = Diff.tree_primal(state)
+            static_args = Diff.tree_primal(static_args)
             return self._update_specialized(
                 key,
                 prev,
-                chm,
+                choice,
                 length,
                 state,
                 *static_args,
@@ -717,7 +692,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return self._update_fallback(
                 key,
                 prev,
-                chm,
+                choice,
                 length,
                 state,
                 *static_args,
@@ -726,7 +701,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     @dispatch
     def assess(
         self,
-        chm: VectorChoiceMap,
+        choice: VectorChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         length = args[0]
@@ -736,11 +711,11 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
         def _inner(carry, slice):
             count, state = carry
-            chm = slice
+            choice = slice
 
-            check = count == chm.get_index()
+            check = count == choice.get_index()
 
-            (score, retval) = self.kernel.assess(chm, (state, *static_args))
+            (score, retval) = self.kernel.assess(choice, (state, *static_args))
 
             check = jnp.less(count, length + 1)
             index = jax.lax.cond(
@@ -758,12 +733,16 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         (_, state), (retval, score, _) = jax.lax.scan(
             _inner,
             (0, state),
-            chm,
+            choice,
             length=self.max_length,
         )
 
         score = jnp.sum(score)
         return (score, retval)
+
+    @property
+    def __wrapped__(self):
+        return self.kernel
 
 
 #############
@@ -772,7 +751,7 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
 def unfold_combinator(*, max_length):
-    def decorator(f):
-        return functools.update_wrapper(UnfoldCombinator(max_length, f), f)
+    def _decorator(f):
+        return module_update_wrapper(UnfoldCombinator(f, max_length))
 
-    return decorator
+    return _decorator

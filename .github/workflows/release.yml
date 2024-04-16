@@ -1,6 +1,7 @@
 name: Release to Artifact Registry
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -19,12 +20,6 @@ jobs:
           # This is here so that the versioning plugin will be able to see tags
           # and version using them.
           fetch-depth: 0
-
-      - name: Test Secrets
-        env:
-          TEST_SECRET: ${{ secrets.ARTIFACT_REGISTRY_KEY }}
-        run: |
-          echo ${#TEST_SECRET}
 
       - uses: actions/setup-python@v4
         with:

@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,96 +11,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains a `Module` class which supports parameter learning by
-exposing primitives which allow users to sow functions with state."""
 
-import functools
-from dataclasses import dataclass, field
+from functools import partial, wraps
 
-import jax.core as jc
-import jax.tree_util as jtu
-from oryx import harvest
-
-from genjax._src.core.datatypes.trie import Trie
-from genjax._src.core.pytree.pytree import Pytree
-from genjax._src.core.typing import Callable
+from oryx.core import plant, reap, sow
 
 NAMESPACE = "state"
-
-collect = functools.partial(harvest.reap, tag=NAMESPACE)
-inject = functools.partial(harvest.plant, tag=NAMESPACE)
 
 
 # "clobber" here means that parameters get shared across sites with
 # the same name and tag.
-def param(*args, name):
-    f = functools.partial(
-        harvest.sow,
+def param(v, name):
+    f = partial(
+        sow,
         tag=NAMESPACE,
         mode="clobber",
         name=name,
     )
-    return f(*args)
+    return f(v)
 
 
-##############
-# State trie #
-##############
+def pull(f):
+    @wraps(f)
+    def _wrapped(*args):
+        return reap(f, tag=NAMESPACE)(*args)
+
+    return _wrapped
 
 
-@dataclass
-class StateTrie(harvest.ReapState):
-    inner: Trie = field(default_factory=Trie)
+def push(f):
+    def _wrapped(params, *args):
+        return plant(f, tag=NAMESPACE)(params, *args)
 
-    def flatten(self):
-        return (self.inner,), ()
-
-    def sow(self, values, tree, name, mode):
-        if name in self.inner:
-            values = jtu.tree_leaves(harvest.tree_unreap(self.inner[name]))
-        else:
-            avals = jtu.tree_unflatten(
-                tree,
-                [jc.raise_to_shaped(jc.get_aval(v)) for v in values],
-            )
-            self.inner[name] = harvest.Reap.new(
-                jtu.tree_unflatten(tree, values),
-                dict(aval=avals),
-            )
-
-        return values
-
-
-@dataclass
-class Module(Pytree):
-    apply: Callable
-    params: StateTrie
-
-    def flatten(self):
-        return (self.params,), (self.apply,)
-
-    @classmethod
-    def new(cls, params, apply):
-        return Module(apply, params)
-
-    def get_params(self):
-        return self.params
-
-    def __call__(self, *args, **kwargs):
-        return self.apply(self.params, *args, **kwargs)
-
-    @classmethod
-    def init(cls, apply):
-        _collect = functools.partial(
-            harvest.reap,
-            state=StateTrie(),
-            tag=NAMESPACE,
-        )
-
-        def wrapped(*args):
-            _, params = _collect(apply)(*args)
-            params = harvest.tree_unreap(params)
-            jax_partial = jtu.Partial(apply)
-            return Module.new(params, inject(jax_partial))
-
-        return wrapped
+    return _wrapped

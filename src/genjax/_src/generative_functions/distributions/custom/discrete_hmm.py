@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
@@ -20,7 +19,7 @@ import numpy as np
 from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
@@ -43,13 +42,12 @@ def scaled_circulant(N, k, epsilon, delta):
     return circulant(source)
 
 
-@dataclass
 class DiscreteHMMConfiguration(Pytree):
-    linear_grid_dim: IntArray
-    adjacency_distance_trans: IntArray
-    adjacency_distance_obs: IntArray
-    sigma_trans: FloatArray
-    sigma_obs: FloatArray
+    linear_grid_dim: IntArray = Pytree.static()
+    adjacency_distance_trans: IntArray = Pytree.static()
+    adjacency_distance_obs: IntArray = Pytree.static()
+    sigma_trans: FloatArray = Pytree.static()
+    sigma_obs: FloatArray = Pytree.static()
 
     def flatten(self):
         return (), (
@@ -240,11 +238,7 @@ def latent_sequence_posterior(
     return prod, (probs, hmm.log_prob(observation_sequence))
 
 
-@dataclass
 class _DiscreteHMMLatentSequencePosterior(Distribution):
-    def flatten(self):
-        return (), ()
-
     def random_weighted(self, key, config, observation_sequence, **kwargs):
         key, sub_key = jax.random.split(key)
         _, (v, _) = forward_filtering_backward_sampling(
