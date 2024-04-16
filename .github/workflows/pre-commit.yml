@@ -24,7 +24,6 @@ jobs:
 
     # - uses: pre-commit/action@v3.0.0
 
-
     - uses: chartboost/ruff-action@v1
       with:
         version: 0.3.0

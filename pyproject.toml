@@ -102,7 +102,7 @@ fail_under = 45
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
-include = ["src"]
+include = ["src", "tests"]
 exclude = [
     "**/__pycache__",
 ]
