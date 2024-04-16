@@ -38,8 +38,15 @@ nox.options.sessions = ("tests", "lint", "build")
 
 
 @session(python=python_version)
+def prepare(session):
+    session.run_always(
+        "poetry", "install", "--with", "dev", "--all-extras", external=True
+    )
+
+
+@session(python=python_version)
 def tests(session):
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run(
         "poetry",
         "run",
@@ -53,12 +60,13 @@ def tests(session):
         "benchmarks",
         "-n",
         "auto",
+        external=True,
     )
 
 
 @session(python=python_version)
 def coverage(session):
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run(
         "poetry",
         "run",
@@ -78,7 +86,7 @@ def coverage(session):
 
 @session(python=python_version)
 def benchmark(session):
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run(
         "coverage",
         "run",
@@ -97,7 +105,7 @@ def benchmark(session):
 @session(python=python_version)
 def xdoctests(session) -> None:
     """Run examples with xdoctest."""
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     if session.posargs:
         args = [package, *session.posargs]
     else:
@@ -112,7 +120,7 @@ def xdoctests(session) -> None:
 @session(python=python_version)
 def nbmake(session) -> None:
     """Execute jupyter notebooks as tests"""
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run(
         "poetry",
         "run",
@@ -133,31 +141,15 @@ def safety(session) -> None:
 
 
 @session(python=python_version)
-def mypy(session) -> None:
-    """Type-check using mypy."""
-    args = session.posargs or ["src", "tests", "docs/conf.py"]
-    session.run_always("poetry", "install", "--with", "dev", external=True)
-    session.run("mypy", *args)
-    if not session.posargs:
-        session.run("mypy", f"--python-executable={sys.executable}", "noxfile.py")
-
-
-@session(python=python_version)
 def lint(session: Session) -> None:
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run("ruff", "check", "--fix", ".")
     session.run("ruff", "format", ".")
 
 
 @session(python=python_version)
 def build(session):
-    session.run_always(
-        "poetry",
-        "install",
-        "--with",
-        "dev",
-        external=True,
-    )
+    prepare(session)
     session.run("poetry", "build")
 
 
@@ -200,12 +192,12 @@ def docs_serve(session: Session) -> None:
 @session(name="notebooks-serve", python=python_version)
 def notebooks_serve(session: Session) -> None:
     """Build the documentation."""
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run("quarto", "preview", "notebooks", external=True)
 
 
 @session(name="jupyter", python=python_version)
 def jupyter(session: Session) -> None:
     """Build the documentation."""
-    session.run_always("poetry", "install", "--with", "dev", external=True)
+    prepare(session)
     session.run("jupyter-lab", external=True)
