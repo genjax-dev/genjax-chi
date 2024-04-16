@@ -26,6 +26,12 @@ repos:
     hooks:
       - id: nbstripout
 
+  - repo: https://github.com/python-poetry/poetry
+    rev: 1.7.1
+    hooks:
+      - id: poetry-check
+      - id: poetry-install
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.3.0
     hooks:
@@ -35,9 +41,8 @@ repos:
       - id: ruff-format
         types_or: [ python, pyi, jupyter ]
 
-
 repos:
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.352
+    rev: v1.1.358
     hooks:
     - id: pyright
