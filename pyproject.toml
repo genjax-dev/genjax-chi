@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "GenJAX"
+name = "genjax"
 version = "0.0.1"
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
@@ -35,17 +35,20 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-jax = "^0.4.20"
-numpy = "^1.26.3"
-tensorflow-probability = "^0.21.0"
-rich = "^13.7.0"
-jaxtyping = "^0.2.24"
-optax = "^0.1.7"
+jax = "^0.4.25"
+numpy = "^1.26.4"
+tensorflow-probability = "^0.23.0"
+rich = "^13.7.1"
+jaxtyping = "^0.2.25"
+optax = "^0.1.9"
 beartype = "^0.16.4"
-dill = "^0.3.7"
+dill = "^0.3.8"
 pygments = "^2.17.2"
-plum-dispatch = "^2.2.2"
-equinox = "^0.11.2"
+plum-dispatch = "^2.3.2"
+equinox = "^0.11.3"
+typing_extensions = ">=4.6.0,<5"
+oryx = "^0.2.6"
+deprecated = "^1.2.14"
 
 [tool.poetry.group.dev]
 optional = true
@@ -53,9 +56,8 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 blackjax = "^0.9.6"
 coverage = "^7.0.0"
-darglint = "^1.8.1"
-jupyterlab = "^3.5.1"
 matplotlib = "^3.6.2"
+msgpack = "^1.0.7"
 mypy = "^0.991"
 nbmake = "^1.4.6"
 pytest = "^7.2.0"
@@ -66,6 +68,9 @@ safety = "^2.3.5"
 seaborn = "^0.12.1"
 tinygp = "^0.2.3"
 xdoctest = "^1.1.0"
+jupyterlab = "^4.1.6"
+nox = "^2024.3.2"
+nox-poetry = "^1.0.3"
 
 [tool.poetry.group.docs]
 optional = true
@@ -82,7 +87,8 @@ mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdoc
 [tool.poetry.extras]
 tinygp = ["tinygp"]
 blackjax = ["blackjax"]
-all = ["blackjax", "tinygp"]
+msgpack = ["msgpack"]
+all = ["blackjax", "tinygp", "msgpack"]
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -94,6 +100,17 @@ omit = [".*", "*/site-packages/*"]
 [tool.coverage.report]
 show_missing = true
 fail_under = 45
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+]
+defineConstant = { DEBUG = true }
+reportMissingImports = true
+reportMissingTypeStubs = false
 
 [tool.ruff]
 exclude = [
@@ -122,6 +139,9 @@ exclude = [
 extend-include = ["*.ipynb"]
 line-length = 88
 indent-width = 4
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint]
 extend-select = ["I"]

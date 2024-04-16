@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains a debugger based around inserting/recording state from
-pure functions."""
+"""This module contains a debugger based around inserting/recording state from pure
+functions."""
 
 import functools
 import inspect
@@ -51,8 +51,8 @@ def tag(
     name: typing.Union[typing.String, typing.Tuple[typing.String, ...]],
     val: typing.Any,
 ) -> typing.Any:
-    """Tag a value, allowing the debugger to store and return it as state in
-    the `DebuggerTags` produced by `pull`.
+    """Tag a value, allowing the debugger to store and return it as state in the
+    `DebuggerTags` produced by `pull`.
 
     Arguments:
         name: A `String` or `Tuple[String, ...]` providing a reference name (key, into a `Trie`) for the tagged value.
@@ -267,8 +267,8 @@ class DebuggerRecording(harvest.ReapState):
 def pull(
     f: typing.Callable,
 ) -> typing.Callable:
-    """Transform a function into one which returns a debugger recording and
-    debugger tags.
+    """Transform a function into one which returns a debugger recording and debugger
+    tags.
 
     Arguments:
         f: A function contain `record` invocations which will be transformed by the debugger transformation.
@@ -283,8 +283,10 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
-        import genjax.core.runtime_debugger as debug
+
+        # import genjax.core.runtime_debugger as debug
         console = genjax.console()
+
 
         def foo(x):
             v = jnp.ones(10) * x
@@ -292,8 +294,10 @@ def pull(
             z = v / 2
             return z
 
-        v, (recording, tags) = debug.pull(foo)(3.0)
-        print(console.render(recording))
+
+        # The runtime debugger is not currently supported
+        # v, (recording, tags) = debug.pull(foo)(3.0)
+        # print(console.render(recording))
         ```
 
         Here's an example where we mix `tag` and `record`.
@@ -301,8 +305,10 @@ def pull(
         ```python exec="yes" source="tabbed-left"
         import jax.numpy as jnp
         import genjax
-        import genjax.core.runtime_debugger as debug
+
+        # import genjax.core.runtime_debugger as debug
         console = genjax.console()
+
 
         def foo(x):
             v = jnp.ones(10) * x
@@ -310,10 +316,12 @@ def pull(
             z = v / 2
             return z
 
-        v, (recording, tags) = debug.pull(foo)(3.0)
-        print(console.render(recording))
-        print(console.render(tags))
-        print(console.render(tags["v"]))
+
+        # The runtime debugger is not currently supported
+        # v, (recording, tags) = debug.pull(foo)(3.0)
+        # print(console.render(recording))
+        # print(console.render(tags))
+        # print(console.render(tags["v"]))
         ```
 
         Here's an example using generative functions. Now, `debug.record` will transform `GenerativeFunction` instances into `debug.DebugCombinator`, wrapping `debug.record_call` around their generative function interface invocations.
@@ -323,16 +331,19 @@ def pull(
         import jax.numpy as jnp
         import genjax
         import genjax.core.runtime_debugger as debug
+
         console = genjax.console()
         key = jax.random.PRNGKey(314159)
 
-        @genjax.lang
+
+        @genjax.static_gen_fn
         def foo(x):
             v = jnp.ones(10) * x
             x = debug.record(genjax.normal)(jnp.sum(v), 2.0) @ "x"
             return x
 
-        v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0, ))
+
+        v, (recording, tags) = debug.pull(foo.simulate)(key, (3.0,))
         print(console.render(recording))
         ```
     """
@@ -431,8 +442,8 @@ def record_call(f: typing.Callable) -> typing.Callable:
 
 @typecheck
 def record_value(value: typing.Any) -> typing.Any:
-    """> Record a value, allowing the debugger to store it in the debug
-    recording, along with the caller's stack frame information.
+    """> Record a value, allowing the debugger to store it in the debug recording, along
+    with the caller's stack frame information.
 
     The user is not expected to use this function, but to instead use the multimethod `record` below which will dispatch appropriately based on invocation types.
     """

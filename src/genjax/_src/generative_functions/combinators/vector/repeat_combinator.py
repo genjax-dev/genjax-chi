@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 from typing import Callable
 
 import jax
@@ -20,10 +19,12 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
     Trace,
 )
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -36,15 +37,13 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     VectorChoiceMap,
 )
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-@dataclass
 class RepeatTrace(Trace):
+    gen_fn: GenerativeFunction
     inner_trace: Trace
     args: Tuple
-
-    def flatten(self):
-        return (self.inner_trace,), ()
 
     def get_score(self):
         return self.inner_trace.get_score()
@@ -58,21 +57,23 @@ class RepeatTrace(Trace):
     def get_retval(self):
         return self.inner_trace.get_retval()
 
+    def get_gen_fn(self):
+        return self.gen_fn
+
     @typecheck
     def project(self, selection: Selection):
         return self.inner_trace.project(selection)
 
 
-@dataclass
-class RepeatCombinator(JAXGenerativeFunction):
-    """The `RepeatCombinator` supports i.i.d sampling from generative functions
-    (for vectorized mapping over arguments, see `MapCombinator`)."""
+class RepeatCombinator(
+    SupportsCalleeSugar,
+    JAXGenerativeFunction,
+):
+    """The `RepeatCombinator` supports i.i.d sampling from generative functions (for
+    vectorized mapping over arguments, see `MapCombinator`)."""
 
-    repeats: Int
     inner: JAXGenerativeFunction
-
-    def flatten(self):
-        return (self.inner,), (self.repeats,)
+    repeats: Int = Pytree.static()
 
     @typecheck
     def simulate(
@@ -85,7 +86,7 @@ class RepeatCombinator(JAXGenerativeFunction):
             self.inner.simulate,
             in_axes=(0, None),
         )(sub_keys, args)
-        return RepeatTrace(repeated_inner_tr, args)
+        return RepeatTrace(self, repeated_inner_tr, args)
 
     @dispatch
     def importance(
@@ -99,7 +100,7 @@ class RepeatCombinator(JAXGenerativeFunction):
             self.inner.importance,
             in_axes=(0, None),
         )(sub_keys, choice, args)
-        return RepeatTrace(repeated_inner_tr, args), jnp.sum(w)
+        return RepeatTrace(self, repeated_inner_tr, args), jnp.sum(w)
 
     @typecheck
     def update(
@@ -127,8 +128,8 @@ class RepeatCombinator(JAXGenerativeFunction):
 #############
 
 
-def Repeat(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
+def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
     def decorator(f) -> JAXGenerativeFunction:
-        return RepeatCombinator(repeats, f)
+        return RepeatCombinator(f, repeats)
 
     return decorator

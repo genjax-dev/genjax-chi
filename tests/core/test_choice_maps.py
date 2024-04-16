@@ -18,14 +18,14 @@ import genjax
 
 class TestChoiceMaps:
     def test_hierarchical_choice_map(self):
-        chm = genjax.choice_map({("x", "y"): 5.0})
-        new = chm.get_submap("x")
+        choice = genjax.choice_map({("x", "y"): 5.0})
+        new = choice.get_submap("x")
         assert isinstance(new, genjax.ChoiceMap)
         assert isinstance(new, genjax.HierarchicalChoiceMap)
-        chm = genjax.choice_map()
-        chm["x"] = 0.5
-        chm["y"] = 0.3
-        chm["z", "x"] = 0.2
-        assert chm["x"] == 0.5
-        assert chm["y"] == 0.3
-        assert chm["z", "x"] == 0.2
+        choice = genjax.choice_map()
+        choice = choice.insert("x", 0.5)
+        choice = choice.insert("y", 0.3)
+        choice = choice.insert(("z", "x"), 0.2)
+        assert choice["x"] == 0.5
+        assert choice["y"] == 0.3
+        assert choice["z", "x"] == 0.2

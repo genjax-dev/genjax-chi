@@ -24,7 +24,7 @@ jobs:
       # with the private key, and the mkdocs-material-insiders clone in the
       # library has the public key set as a deploy key.
       - name: Configure SSH key for mkdocs-material-insiders
-        uses: webfactory/ssh-agent@v0.8.0
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.INSIDER_SSH_KEY }}
 
@@ -48,7 +48,7 @@ jobs:
         run: nox -r -s docs-build
 
       - name: Deploy to GH Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site

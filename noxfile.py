@@ -72,8 +72,8 @@ def coverage(session):
         "--ignore",
         "benchmarks",
     )
-    session.run("poetry", "run", "coverage", "json")
-    session.run("poetry", "run", "coverage", "report")
+    session.run("poetry", "run", "coverage", "json", "--omit", "*/test*")
+    session.run("poetry", "run", "coverage", "report", "--omit", "*/test*")
 
 
 @session(python=python_version)
@@ -161,6 +161,18 @@ def build(session):
     session.run("poetry", "build")
 
 
+@session(name="mkdocs", python=python_version)
+def mkdocs(session: Session) -> None:
+    """Run the mkdocs-only portion of the docs build."""
+    session.run_always(
+        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    )
+    build_dir = Path("site")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    session.run("poetry", "run", "mkdocs", "build", "--strict")
+
+
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
@@ -170,8 +182,10 @@ def docs_build(session: Session) -> None:
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build")
-    session.run("quarto", "render", "notebooks", external=True)
+    session.run("poetry", "run", "mkdocs", "build", "--strict")
+    session.run(
+        "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
+    )
 
 
 @session(name="docs-serve", python=python_version)
@@ -180,7 +194,7 @@ def docs_serve(session: Session) -> None:
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
-    session.run("mkdocs", "serve")
+    session.run("poetry", "run", "mkdocs", "serve")
 
 
 @session(name="notebooks-serve", python=python_version)

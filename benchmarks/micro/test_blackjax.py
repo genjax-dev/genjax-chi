@@ -16,13 +16,13 @@
 import genjax
 import jax
 import jax.numpy as jnp
-from genjax import Static, normal
+from genjax import normal, static
 from genjax._src.extras import blackjax
 
 blackjax = blackjax()
 
 
-@Static
+@static
 def model():
     a = normal(0.0, 1.0) @ "a"
     _ = normal(0.0, 1.0) @ "b"

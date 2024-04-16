@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from genjax._src.core.datatypes.generative import JAXGenerativeFunction
 from genjax._src.core.runtime_debugger import pull, push, record_call, record_value, tag
 from genjax._src.core.typing import Any, dispatch
-from genjax._src.generative_functions.static.static_gen_fn import SupportsStaticSugar
+from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 ####################
 # Debug combinator #
@@ -25,7 +25,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsStatic
 
 
 @dataclass
-class DebugCombinator(JAXGenerativeFunction, SupportsStaticSugar):
+class DebugCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     gen_fn: JAXGenerativeFunction
 
     def flatten(self):
@@ -50,16 +50,16 @@ class DebugCombinator(JAXGenerativeFunction, SupportsStaticSugar):
 @dispatch
 def record(gen_fn: JAXGenerativeFunction) -> DebugCombinator:
     """A multimethod which dispatches to `record_value`, or wraps a
-    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information
-    about generative function interface invocations."""
+    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information about
+    generative function interface invocations."""
     return DebugCombinator.new(gen_fn)
 
 
 @dispatch
 def record(v: Any) -> Any:
     """A multimethod which dispatches to `record_value`, or wraps a
-    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information
-    about generative function interface invocations."""
+    `JAXGenerativeFunction` in `DebugCombinator` to allow recording information about
+    generative function interface invocations."""
     return record_value(v)
 
 

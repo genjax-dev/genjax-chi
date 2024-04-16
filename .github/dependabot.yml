@@ -2,20 +2,30 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: "/"
+    target-branch: "nightly"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
+
   - package-ecosystem: pip
     directory: "/.github/workflows"
+    target-branch: "nightly"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
+
   - package-ecosystem: pip
     directory: "/docs"
+    target-branch: "nightly"
     schedule:
       interval: daily
+
   - package-ecosystem: pip
     directory: "/"
+    target-branch: "nightly"
     schedule:
-      interval: daily
+      interval: "weekly"
+      day: "sunday"
     versioning-strategy: lockfile-only
     allow:
       - dependency-type: "all"

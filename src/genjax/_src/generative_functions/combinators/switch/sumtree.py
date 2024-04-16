@@ -1,4 +1,4 @@
-# Copyright 2023 MIT Probabilistic Computing Project
+# Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
-from genjax._src.core.pytree.pytree import Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Sequence
 
 
@@ -31,9 +29,9 @@ def get_call_fallback(d, k, fn, fallback):
 
 
 def minimum_covering_leaves(pytrees: Sequence):
-    leaf_schema = hashable_dict()
+    leaf_schema = dict()
     for tree in pytrees:
-        local = hashable_dict()
+        local = dict()
         jtu.tree_map(
             lambda v: get_call_fallback(local, v, lambda v: v + 1, 1),
             tree,
@@ -50,7 +48,7 @@ def shape_dtype_struct(x):
 
 def set_payload(leaf_schema, pytree):
     leaves = jtu.tree_leaves(pytree)
-    payload = hashable_dict()
+    payload = dict()
     for k in leaves:
         aval = shape_dtype_struct(jax.core.get_aval(k))
         if aval in payload:
@@ -73,7 +71,7 @@ def set_payload(leaf_schema, pytree):
 
 
 def build_from_payload(visitation, form, payload):
-    counter = hashable_dict()
+    counter = dict()
 
     def _check_counter_get(k):
         index = counter.get(k, 0)
@@ -84,22 +82,14 @@ def build_from_payload(visitation, form, payload):
     return jtu.tree_unflatten(form, payload_copy)
 
 
-@dataclass
 class StaticCollection(Pytree):
-    seq: Sequence
-
-    def flatten(self):
-        return (), (self.seq,)
+    seq: Sequence = Pytree.static()
 
 
-@dataclass
 class DataSharedSumTree(Pytree):
-    visitations: StaticCollection
-    forms: StaticCollection
-    payload: HashableDict
-
-    def flatten(self):
-        return (self.payload,), (self.visitations, self.forms)
+    payload: dict
+    visitations: StaticCollection = Pytree.static()
+    forms: StaticCollection = Pytree.static()
 
     @classmethod
     def new(cls, source: Pytree, covers: Sequence[Pytree]):
@@ -113,7 +103,7 @@ class DataSharedSumTree(Pytree):
         visitations = StaticCollection(visitations)
         forms = StaticCollection(forms)
         payload = set_payload(leaf_schema, source)
-        return DataSharedSumTree(visitations, forms, payload)
+        return DataSharedSumTree(payload, visitations, forms)
 
     def materialize_iterator(self):
         static_visitations = self.visitations.seq
