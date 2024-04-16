@@ -47,6 +47,19 @@ class TestSimulate:
         assert tr.get_score() == 0.0
 
     def test_simple_normal_simulate(self):
+        @genjax.static
+        def empty(x):
+            return jnp.square(x - 3.0)
+
+        key = jax.random.PRNGKey(314159)
+        fn = jax.jit(empty.simulate)
+        key, sub_key = jax.random.split(key)
+        tr = fn(sub_key, (jnp.ones(4),))
+        chm = tr.get_choices()
+        assert chm.is_empty()
+        assert tr.get_score() == 0.0
+
+    def test_simple_normal_simulate(self):
         @genjax.static_gen_fn
         def simple_normal():
             y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
@@ -113,6 +126,19 @@ class TestSimulate:
 
 class TestAssess:
     def test_assess_with_no_choices(self):
+        @genjax.static
+        def empty(x):
+            return jnp.square(x - 3.0)
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(empty.simulate)(sub_key, (jnp.ones(4),))
+        jitted = jax.jit(empty.assess)
+        chm = tr.get_choices().strip()
+        (score, retval) = jitted(chm, (jnp.ones(4),))
+        assert score == tr.get_score()
+
+    def test_simple_normal_assess(self):
         @genjax.static
         def empty(x):
             return jnp.square(x - 3.0)
