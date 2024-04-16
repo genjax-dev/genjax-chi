@@ -157,7 +157,14 @@ def build(session):
 def mkdocs(session: Session) -> None:
     """Run the mkdocs-only portion of the docs build."""
     session.run_always(
-        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+        "poetry",
+        "install",
+        "--with",
+        "docs",
+        "--with",
+        "dev",
+        "--all-extras",
+        external=True,
     )
     build_dir = Path("site")
     if build_dir.exists():
@@ -169,7 +176,14 @@ def mkdocs(session: Session) -> None:
 def docs_build(session: Session) -> None:
     """Build the documentation."""
     session.run_always(
-        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+        "poetry",
+        "install",
+        "--with",
+        "docs",
+        "--with",
+        "dev",
+        "--all-extras",
+        external=True,
     )
     build_dir = Path("site")
     if build_dir.exists():
