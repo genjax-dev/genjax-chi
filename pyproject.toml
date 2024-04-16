@@ -57,6 +57,7 @@ optional = true
 blackjax = "^0.9.6"
 coverage = "^7.0.0"
 matplotlib = "^3.6.2"
+msgpack = "^1.0.7"
 mypy = "^0.991"
 nbmake = "^1.4.6"
 pytest = "^7.2.0"
@@ -86,7 +87,8 @@ mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdoc
 [tool.poetry.extras]
 tinygp = ["tinygp"]
 blackjax = ["blackjax"]
-all = ["blackjax", "tinygp"]
+msgpack = ["msgpack"]
+all = ["blackjax", "tinygp", "msgpack"]
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
