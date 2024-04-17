@@ -169,8 +169,7 @@ class TestUnfoldSimpleNormal:
         # should have w = p(new)/[p(old)q(new stuff)] = p(6)/q(6) = 1
         assert pytest.approx(w, 0.001) == 0.0
         assert tr2.get_score() == pytest.approx(
-            tr.get_score()
-            + tr2.project(genjax.indexed_select(jnp.array([6]), genjax.select("z"))),
+            tr.get_score() + tr2.project(key, genjax.Selection.at[6, "z"]),
             0.001,
         )
         assert discard.is_empty()
@@ -193,8 +192,14 @@ class TestUnfoldSimpleNormal:
 
         assert retval_diff == Diff.tree_diff_unknown_change(tr3.get_retval())
         assert tr2.get_score() - tr3.get_score() == pytest.approx(
-            tr2.project(genjax.indexed_select(jnp.array([5]), genjax.select("z")))
-            + tr2.project(genjax.indexed_select(jnp.array([6]), genjax.select("z"))),
+            tr2.project(
+                key,
+                genjax.Selection.at[5, "z"],
+            )
+            + tr2.project(
+                key,
+                genjax.Selection.at[6, "z"],
+            ),
             0.001,
         )
         # should have w = p(new)/p(old) = 1/p(5, 6)
