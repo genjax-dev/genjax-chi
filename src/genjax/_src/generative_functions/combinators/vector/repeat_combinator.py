@@ -19,6 +19,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
     Trace,
@@ -40,6 +41,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 
 
 class RepeatTrace(Trace):
+    gen_fn: GenerativeFunction
     inner_trace: Trace
     args: Tuple
 
@@ -54,6 +56,9 @@ class RepeatTrace(Trace):
 
     def get_retval(self):
         return self.inner_trace.get_retval()
+
+    def get_gen_fn(self):
+        return self.gen_fn
 
     @typecheck
     def project(
@@ -93,7 +98,7 @@ class RepeatCombinator(
             self.inner.simulate,
             in_axes=(0, None),
         )(sub_keys, args)
-        return RepeatTrace(repeated_inner_tr, args)
+        return RepeatTrace(self, repeated_inner_tr, args)
 
     @dispatch
     def importance(
@@ -107,7 +112,7 @@ class RepeatCombinator(
             self.inner.importance,
             in_axes=(0, None),
         )(sub_keys, choice, args)
-        return RepeatTrace(repeated_inner_tr, args), jnp.sum(w)
+        return RepeatTrace(self, repeated_inner_tr, args), jnp.sum(w)
 
     @typecheck
     def update(
@@ -137,6 +142,6 @@ class RepeatCombinator(
 
 def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
     def decorator(f) -> JAXGenerativeFunction:
-        return RepeatCombinator(repeats, f)
+        return RepeatCombinator(f, repeats)
 
     return decorator
