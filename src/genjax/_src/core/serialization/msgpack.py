@@ -18,10 +18,10 @@ import msgpack
 import numpy as np
 
 from genjax._src.core.datatypes.generative import GenerativeFunction, Trace
-from genjax._src.core.serialization.backend import SerializationBackend
-from genjax._src.generative_functions.combinators.staging_utils import (
+from genjax._src.core.interpreters.staging import (
     get_trace_data_shape,
 )
+from genjax._src.core.serialization.backend import SerializationBackend
 
 
 class MsgPackSerializeBackend(SerializationBackend):
