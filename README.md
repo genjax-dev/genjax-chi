@@ -12,7 +12,7 @@
 <div align="center">
 
 [![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
-![coverage_badge](https://github.com/probcomp/genjax/blob/nightly/coverage.svg)
+[![codecov](https://codecov.io/gh/probcomp/genjax/graph/badge.svg?token=I9TAV92KN7)](https://codecov.io/gh/probcomp/genjax)
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
@@ -57,7 +57,7 @@ GenJAX is currently private. To configure your machine to access the package:
 - Ask @sritchie to add you to the `probcomp-caliban` project on Google Cloud.
 - [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
 - Follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing) and configure the tool with the `probcomp-caliban` project ID.
+- run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
 
 To install GenJAX using `pip`:
 
@@ -69,6 +69,7 @@ pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-ca
 If you're using Poetry:
 
 ```bash
+poetry self update && poetry self add keyrings.google-artifactregistry-auth
 poetry source add --priority=explicit gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
 poetry add genjax --source gcp
 ```
@@ -78,15 +79,15 @@ command for the architecture you're targeting. To run GenJAX without GPU
 support:
 
 ```sh
-pip install jax[cpu]==0.4.24
+pip install jax[cpu]==0.4.25
 ```
 
 On a Linux machine with a GPU, run either of the following commands, depending
 on which CUDA version (11 or 12) you have installed:
 
 ```sh
-pip install jax[cuda11_pip]==0.4.24
-pip install jax[cuda12_pip]==0.4.24
+pip install jax[cuda11_pip]==0.4.25
+pip install jax[cuda12_pip]==0.4.25
 ```
 
 ### Quick example
@@ -102,7 +103,7 @@ The following code snippet defines a generative function called `beta_bernoulli`
 Then, we create an inference problem (by specifying a posterior target), and utilize sampling
 importance resampling to give produce single sample estimator of `p`.
 
-We can JIT compile that entire process, run it in parallel, etc - which we utilize to produce an estimate for `p` 
+We can JIT compile that entire process, run it in parallel, etc - which we utilize to produce an estimate for `p`
 over 50 independent trials of SIR (with K = 50 particles).
 
 ```python
@@ -119,6 +120,7 @@ def beta_bernoulli(α, β):
     v = flip(p) @ "v"
     return v
 
+@jax.jit
 def run_inference(obs: bool):
     # Create an inference query - a posterior target - by specifying
     # the model, arguments to the model, and constraints.
@@ -134,7 +136,7 @@ def run_inference(obs: bool):
     # JIT, vmap, to your heart's content.
     key = jax.random.PRNGKey(314159)
     sub_keys = jax.random.split(key, 50)
-    _, p_chm = jax.jit(jax.vmap(alg.random_weighted, in_axes=(0, None)))(
+    _, p_chm = jax.vmap(alg.random_weighted, in_axes=(0, None))(
         sub_keys, posterior_target
     )
 

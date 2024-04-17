@@ -48,7 +48,7 @@ nav:
       - Inference:
           - library/inference/index.md
           - Sequential Monte Carlo: library/inference/smc.md
-          - Variational inference: 
+          - Variational inference:
             - library/inference/vi.md
             - Automatic differentiation of expected values: library/adev.md
     # - Extension plugins:

@@ -18,6 +18,7 @@ from genjax._src.core.datatypes.generative import (
     Choice,
     JAXGenerativeFunction,
     Mask,
+    Selection,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -41,6 +42,9 @@ class MaskingTrace(Trace):
         return self.mask_combinator
 
     def get_choices(self):
+        # TODO: Should this just be self.inner.get_choices()?
+        # In `MaskingCombinator.assess(choice,...)`, `.update(...,choice,...)`,
+        # and `.importance(...,choice,...)`, we currently ignore `choice.flag`.
         return Mask(self.check, self.inner.get_choices())
 
     def get_retval(self):
@@ -50,7 +54,10 @@ class MaskingTrace(Trace):
         return self.check * self.inner.get_score()
 
     def get_args(self):
-        return (self.check, *self.inner.get_args())
+        return (self.check, self.inner.get_args())
+
+    def project(self, selection: Selection) -> FloatArray:
+        return self.check * self.inner.project(selection)
 
 
 class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
@@ -78,14 +85,26 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         return MaskingTrace(self, tr, check)
 
     @typecheck
+    def assess(
+        self,
+        choice: Mask,
+        args: Tuple,
+    ) -> Tuple[FloatArray, Mask]:
+        (check, inner_args) = args
+        # TODO: Check that `choice.flag` is consistent with `check`?
+        score, retval = self.inner.assess(choice.value, inner_args)
+        return check * score, Mask(check, retval)
+
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
-        choice: Choice,
+        choice: Mask,
         args: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray]:
         (check, inner_args) = args
-        tr, w = self.inner.importance(key, choice, inner_args)
+        # TODO: Check that `choice.flag` is consistent with `check`?
+        tr, w = self.inner.importance(key, choice.value, inner_args)
         w = check * w
         return MaskingTrace(self, tr, check), w
 
@@ -94,12 +113,15 @@ class MaskingCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev_trace: MaskingTrace,
-        choice: Choice,
+        choice: Mask,
         argdiffs: Tuple,
     ) -> Tuple[MaskingTrace, FloatArray, Any, Choice]:
         (check_diff, inner_argdiffs) = argdiffs
         check = Diff.tree_primal(check_diff)
-        tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
+        # TODO: Check that `choice.flag` is consistent with `check`?
+        tr, w, rd, d = self.inner.update(
+            key, prev_trace.inner, choice.value, inner_argdiffs
+        )
         return (
             MaskingTrace(self, tr, check),
             w * check,

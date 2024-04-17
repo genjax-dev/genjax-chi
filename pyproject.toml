@@ -35,10 +35,10 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-jax = "^0.4.24"
+jax = "^0.4.25"
 numpy = "^1.26.4"
 tensorflow-probability = "^0.23.0"
-rich = "^13.7.0"
+rich = "^13.7.1"
 jaxtyping = "^0.2.25"
 optax = "^0.1.9"
 beartype = "^0.16.4"
@@ -57,6 +57,7 @@ optional = true
 blackjax = "^0.9.6"
 coverage = "^7.0.0"
 matplotlib = "^3.6.2"
+msgpack = "^1.0.7"
 mypy = "^0.991"
 nbmake = "^1.4.6"
 pytest = "^7.2.0"
@@ -67,6 +68,9 @@ safety = "^2.3.5"
 seaborn = "^0.12.1"
 tinygp = "^0.2.3"
 xdoctest = "^1.1.0"
+jupyterlab = "^4.1.6"
+nox = "^2024.3.2"
+nox-poetry = "^1.0.3"
 
 [tool.poetry.group.docs]
 optional = true
@@ -83,7 +87,8 @@ mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdoc
 [tool.poetry.extras]
 tinygp = ["tinygp"]
 blackjax = ["blackjax"]
-all = ["blackjax", "tinygp"]
+msgpack = ["msgpack"]
+all = ["blackjax", "tinygp", "msgpack"]
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -155,7 +160,6 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
-docstring-code-format = true
 
 [tool.mypy]
 strict = true

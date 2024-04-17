@@ -38,7 +38,7 @@ class PickleSerializationBackend(SerializationBackend):
         pickle.dump(path, self._to_tuple(obj))
 
 
-pickle_backend = PickleSerializationBackend()
+pickle_serialize = PickleSerializationBackend()
 
 
 #####

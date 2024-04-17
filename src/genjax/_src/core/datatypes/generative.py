@@ -22,7 +22,6 @@ from jax.experimental import checkify
 
 import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -1341,8 +1340,8 @@ class HierarchicalChoiceMap(ChoiceMap):
 
     @dispatch
     def merge(self, other: "HierarchicalChoiceMap"):
-        new = hashable_dict()
-        discard = hashable_dict()
+        new = dict()
+        discard = dict()
         for k, v in self.get_submaps_shallow():
             if other.has_submap(k):
                 sub = other.get_submap(k)

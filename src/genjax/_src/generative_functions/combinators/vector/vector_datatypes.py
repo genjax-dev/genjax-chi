@@ -27,7 +27,6 @@ from genjax._src.core.datatypes.generative import (
     Mask,
     Selection,
 )
-from genjax._src.core.datatypes.hashable_dict import hashable_dict
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -101,9 +100,9 @@ class IndexedChoiceMap(ChoiceMap):
         is equivalent to indexed_choice_map([1, 2], choice_map({"x": [1.0, 3.0]}))
         """
         sorted_keys = sorted(d.keys())
-        hd = hashable_dict()
-        hd["x"] = ChoiceValue(jnp.array([d[k] for k in sorted_keys]))
-        return IndexedChoiceMap(jnp.array(sorted_keys), HierarchicalChoiceMap(Trie(hd)))
+        td = dict()
+        td["x"] = ChoiceValue(jnp.array([d[k] for k in sorted_keys]))
+        return IndexedChoiceMap(jnp.array(sorted_keys), HierarchicalChoiceMap(Trie(td)))
 
     def is_empty(self):
         return self.inner.is_empty()

@@ -14,7 +14,6 @@
 """This module contains an implementation of (Auxiliary inference divergence estimator)
 from Cusumano-Towner et al, 2017."""
 
-
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
