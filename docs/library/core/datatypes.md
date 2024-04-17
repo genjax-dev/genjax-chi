@@ -60,7 +60,7 @@ Other generative function languages which utilize callee generative functions ca
       - unzip
       - choice_grad
 
-## Traces
+## The `Trace` type
 
 Traces are data structures which record (execution and inference) data about the invocation of generative functions.
 
@@ -76,6 +76,14 @@ Traces support a _trace interface_: a set of accessor methods designed to provid
         - get_choices
         - get_score
         - project
+## The `Selection` type
+
+The `Selection` type represents _address sets_ and can be used to filter choice maps, and as input to [`Trace.project`](#genjax.core.Trace.project). `Selection` instances can be constructed via a query DSL, which supports a set of logical operations on address sets.
+
+::: genjax.core.Selection
+    options:
+      members:
+        - at
 
 ## The `Choice` type
 
@@ -98,9 +106,3 @@ Traces support a _trace interface_: a set of accessor methods designed to provid
         - insert
         - replace
 
-## The `Selection` type
-
-::: genjax.core.Selection
-    options:
-      members:
-        - complement

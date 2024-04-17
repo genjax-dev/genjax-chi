@@ -180,6 +180,99 @@ class Selection(Pytree):
 
     @classproperty
     def at(cls) -> SelectionBuilder:
+        """Access the `SelectionBuilder` interface, which supports indexing to specify a selection.
+
+        Examples:
+            Basic usage might involve creating singular selection instances:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"]
+
+            # Check if an address is in a selection.
+            check = s[0, "x", "y"]
+
+            print(console.render(check))
+            ```
+
+            Instances of `Selection` support a full algebra, which allows you to describe unions, intersections, and complements of the address sets represented by `Selection`.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
+
+            # Check if an address is in a selection.
+            check1 = s[0, "x", "y"]
+            check2 = s[1, "y"]
+            check3 = s["z", "y"]
+
+            print(console.render((check1, check2, check3)))
+            ```
+
+           Selections can be complemented, using the negation operator `~`:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
+
+            # Check if an address is in the complement of the selection.
+            check = (~s)[1, "x", "y"]
+
+            print(console.render(check))
+            ```
+
+           The complement of a selection is itself a selection, which can be combined with other selections using the algebra operators:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
+
+            # Check if an address is in the complement of the selection.
+            check = (~s | s)[0, "x"]
+
+            print(console.render(check))
+            ```
+
+           These objects are JAX compatible, meaning you can create selections over multiple indices using `jax.vmap`, and pass these objects over `jax.jit` boundaries:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = jax.vmap(lambda idx: S.at[idx, "x"])(jnp.arange(5))
+
+            # Check if an address is in the complement of the selection.
+            check1 = (~s | s)[0, "x"]
+            check2 = (~s | s)[4, "x"]
+
+            print(console.render((check1, check2)))
+            ```
+        """
         return SelectionBuilder()
 
     @classmethod
@@ -228,7 +321,7 @@ def select_complement(s: Selection) -> Selection:
     def inner(s: Selection, head: AddressComponent):
         ch, remaining = s.has_addr(head)
         check = staged_not(ch)
-        return check, select_defer(check, select_complement(remaining))
+        return check, select_complement(select_defer(ch, remaining))
 
     return inner
 
