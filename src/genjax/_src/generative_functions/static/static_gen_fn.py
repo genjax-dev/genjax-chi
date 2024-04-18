@@ -26,8 +26,8 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     Callable,
-    FloatArray,
     PRNGKey,
     Tuple,
     dispatch,
@@ -144,7 +144,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         choice: Choice,
         args: Tuple,
-    ) -> Tuple[StaticTrace, FloatArray]:
+    ) -> Tuple[StaticTrace, ArrayLike]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -179,7 +179,7 @@ class StaticGenerativeFunction(
         prev: Trace,
         constraints: Choice,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, FloatArray, Any, Choice]:
+    ) -> Tuple[Trace, ArrayLike, Any, Choice]:
         assert Diff.static_check_tree_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -217,7 +217,7 @@ class StaticGenerativeFunction(
         self,
         choice: Choice,
         args: Tuple,
-    ) -> Tuple[FloatArray, Any]:
+    ) -> Tuple[ArrayLike, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
