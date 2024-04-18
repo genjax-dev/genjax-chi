@@ -1,0 +1,27 @@
+name: Pyright type checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - nightly
+
+jobs:
+  pyright:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11.5
+
+    - name: Install and configure Poetry
+      uses: snok/install-poetry@v1
+
+    - run: poetry install
+
+    - uses: jakebailey/pyright-action@v1
+      with:
+        version: 1.1.358
