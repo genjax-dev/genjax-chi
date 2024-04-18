@@ -154,6 +154,103 @@ class Selection(Pytree):
     def m(cls, flag: BoolArray, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
+    @classproperty
+    def at(cls) -> SelectionBuilder:
+        """Access the `SelectionBuilder` interface, which supports indexing to specify a selection.
+
+        Examples:
+            Basic usage might involve creating singular selection instances:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"]
+
+            # Check if an address is in a selection.
+            check = s[0, "x", "y"]
+
+            print(console.render(check))
+            ```
+
+            Instances of `Selection` support a full algebra, which allows you to describe unions, intersections, and complements of the address sets represented by `Selection`.
+
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
+
+            # Check if an address is in a selection.
+            check1 = s[0, "x", "y"]
+            check2 = s[1, "y"]
+            check3 = s["z", "y"]
+
+            print(console.render((check1, check2, check3)))
+            ```
+
+           Selections can be complemented, using the negation operator `~`:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
+
+            # Check if an address is in the complement of the selection.
+            check = (~s)[1, "x", "y"]
+
+            print(console.render(check))
+            ```
+
+           The complement of a selection is itself a selection, which can be combined with other selections using the algebra operators:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
+
+            # Check if an address is in the complement of the selection.
+            check = (~s | s)[0, "x"]
+
+            print(console.render(check))
+            ```
+
+           These objects are JAX compatible, meaning you can create selections over multiple indices using `jax.vmap`, and pass these objects over `jax.jit` boundaries:
+            ```python exec="yes" source="tabbed-left"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+            from genjax import Selection as S
+
+            console = genjax.console()
+
+            # Create a selection.
+            s = jax.vmap(lambda idx: S.at[idx, "x"])(jnp.arange(5))
+
+            # Check if an address is in the complement of the selection.
+            check1 = (~s | s)[0, "x"]
+            check2 = (~s | s)[4, "x"]
+
+            print(console.render((check1, check2)))
+            ```
+        """
+        return SelectionBuilder()
+
     @classmethod
     @typecheck
     def r(cls, selections):
@@ -234,7 +331,7 @@ def select_complement(s: Selection) -> Selection:
     def inner(s: Selection, head: AddressComponent):
         ch, remaining = s.has_addr(head)
         check = staged_not(ch)
-        return check, select_defer(check, select_complement(remaining))
+        return check, select_complement(select_defer(ch, remaining))
 
     return inner
 
@@ -269,6 +366,31 @@ def select_idx(sidx: DynamicAddressComponent) -> Selection:
                 isinstance(head, EllipsisType),
             ),
         )
+        return check, select_defer(check, select_all)
+
+    return inner
+
+
+@typecheck
+def select_slice(slc: slice) -> Selection:
+    @Selection
+    @Pytree.partial()
+    @typecheck
+    def inner(head: AddressComponent):
+        # head is IntArray with shape = ().
+        # head has type jnp.array with dtype = int, shape = ().
+        # slc is a statically known slice.
+        # we need to check
+        # slice := slice(lower, upper, step)
+        lower, upper, step = slc[0], slc[1], slc[2]
+        check1 = head >= lower if lower else True
+        check2 = head <= upper if upper else True
+
+        # TODO: possibly doesn't work.
+        check3 = head % step == lower if lower else True
+
+        # No need to change.
+        check = staged_and(staged_and(check1, check2), check3)
         return check, select_defer(check, select_all)
 
     return inner
