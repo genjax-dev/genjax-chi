@@ -13,27 +13,19 @@
 # limitations under the License.
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
     ChoiceMap,
-    ChoiceValue,
-    EmptyChoice,
     GenerativeFunction,
     JAXGenerativeFunction,
     Mask,
+    Sample,
     Selection,
-    SelectionChoiceMap,
     Trace,
-    ValueLike,
 )
 
 __all__ = [
     # Generative datatypes.
-    "Choice",
+    "Sample",
     "ChoiceMap",
-    "EmptyChoice",
-    "ChoiceValue",
-    "ValueLike",
-    "SelectionChoiceMap",
     "Trace",
     "Selection",
     "GenerativeFunction",
