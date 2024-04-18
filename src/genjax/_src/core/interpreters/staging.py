@@ -17,10 +17,12 @@ import jax.numpy as jnp
 from jax import api_util, make_jaxpr
 from jax import core as jc
 from jax import tree_util as jtu
+from jax.experimental import checkify
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
+from genjax._src.checkify import optional_check
 from genjax._src.core.typing import Bool, static_check_is_concrete
 
 ###############################
@@ -65,9 +67,28 @@ def staged_not(x):
         return jnp.logical_not(x)
 
 
-###########
-# Staging #
-###########
+#########################
+# Staged error handling #
+#########################
+
+
+def staged_err(check, msg, **kwargs):
+    if static_check_is_concrete(check) and isinstance(check, Bool):
+        if check:
+            raise Exception(msg)
+        else:
+            return None
+    else:
+
+        def _check():
+            checkify.check(check, msg, **kwargs)
+
+        optional_check(_check)
+
+
+#######################################
+# Staging utilities for type analysis #
+#######################################
 
 
 def get_shaped_aval(x):

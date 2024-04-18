@@ -28,7 +28,7 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     staged_and,
-    staged_check,
+    staged_err,
     staged_not,
     staged_or,
 )
@@ -44,6 +44,8 @@ from genjax._src.core.typing import (
     EllipsisType,
     FloatArray,
     Int,
+    IntArray,
+    List,
     PRNGKey,
     StaticAddressComponent,
     String,
@@ -167,8 +169,48 @@ class Selection(Pytree):
     def m(cls, flag: BoolArray, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
+    @classmethod
+    @typecheck
+    def r(cls, selections):
+        return reduce(or_, selections)
+
+    @classmethod
+    @typecheck
+    def f(cls, *addrs: Address):
+        return reduce(or_, (cls.at[addr] for addr in addrs))
+
+    #####################
+    # Builder interface #
+    #####################
+
+    class SelectionBuilder(Pytree):
+        def __getitem__(self, addr_comps):
+            if not isinstance(addr_comps, Tuple):
+                addr_comps = (addr_comps,)
+
+            def _comp_to_sel(comp: AddressComponent):
+                if isinstance(comp, EllipsisType):
+                    return Selection.a
+                elif isinstance(comp, DynamicAddressComponent):
+                    return Selection.idx(comp)
+                # TODO: make this work, for slices where we can make it work.
+                elif isinstance(comp, slice):
+                    idxs = jnp.arange(comp)
+                    return vmap(Selection.idx)(idxs)
+                elif isinstance(comp, StaticAddressComponent):
+                    return Selection.s(comp)
+                else:
+                    raise Exception(
+                        f"Provided address component {comp} is not a valid address component type."
+                    )
+
+            sel = _comp_to_sel(addr_comps[-1])
+            for comp in reversed(addr_comps[:-1]):
+                sel = select_and_then(_comp_to_sel(comp), sel)
+            return sel
+
     @classproperty
-    def at(cls) -> SelectionBuilder:
+    def at(cls) -> "Selection.SelectionBuilder":
         """Access the `SelectionBuilder` interface, which supports indexing to specify a selection.
 
         Examples:
@@ -262,50 +304,6 @@ class Selection(Pytree):
             print(console.render((check1, check2)))
             ```
         """
-        return SelectionBuilder()
-
-    @classmethod
-    @typecheck
-    def r(cls, selections):
-        return reduce(or_, selections)
-
-    @classmethod
-    @typecheck
-    def f(cls, *addrs: Address):
-        return reduce(or_, (cls.at[addr] for addr in addrs))
-
-    #####################
-    # Builder interface #
-    #####################
-
-    class SelectionBuilder(Pytree):
-        def __getitem__(self, addr_comps):
-            if not isinstance(addr_comps, Tuple):
-                addr_comps = (addr_comps,)
-
-            def _comp_to_sel(comp: AddressComponent):
-                if isinstance(comp, EllipsisType):
-                    return Selection.a
-                elif isinstance(comp, DynamicAddressComponent):
-                    return Selection.idx(comp)
-                # TODO: make this work, for slices where we can make it work.
-                elif isinstance(comp, slice):
-                    idxs = jnp.arange(comp)
-                    return vmap(Selection.idx)(idxs)
-                elif isinstance(comp, StaticAddressComponent):
-                    return Selection.s(comp)
-                else:
-                    raise Exception(
-                        f"Provided address component {comp} is not a valid address component type."
-                    )
-
-            sel = _comp_to_sel(addr_comps[-1])
-            for comp in reversed(addr_comps[:-1]):
-                sel = select_and_then(_comp_to_sel(comp), sel)
-            return sel
-
-    @classproperty
-    def at(cls) -> SelectionBuilder:
         return Selection.SelectionBuilder()
 
 
@@ -514,12 +512,28 @@ class ChoiceMap(Sample):
     # Map-like interfaces #
     #######################
 
+    def call(self, addr: AddressComponent):
+        return self.choice_map_fn(addr)
+
     def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
         _, _, submap = self.choice_map_fn(addr)
+        submap = (
+            jtu.tree_map(
+                lambda v: v[addr] if jnp.array(v, copy=False).shape else v, submap
+            )
+            if isinstance(addr, DynamicAddressComponent)
+            else submap
+        )
         return submap
 
     def has_submap(self, addr: AddressComponent) -> BoolArray:
         _, check, _ = self.choice_map_fn(addr)
+        check = (
+            check[addr]
+            if jnp.array(check, copy=False).shape
+            and isinstance(addr, DynamicAddressComponent)
+            else check
+        )
         return check
 
     def filter(
@@ -555,40 +569,44 @@ class ChoiceMap(Sample):
         return choice_map_filtered(selection, self)
 
     def merge(self, other):
-        return choice_map_disjoint(self, other)
+        return choice_map_xor(self, other)
 
     def get_selection(self) -> Selection:
         """Convert a `ChoiceMap` to a `Selection`."""
         return select_choice_map(self)
 
-    ###################
+    ##########################
     # AddressIndex interface #
-    ###################
+    ##########################
 
     class AddressIndex(Pytree):
         choice_map: "ChoiceMap"
-        selection: Selection
+        addrs: List[Address]
 
         def __getitem__(self, addr: Address) -> "ChoiceMap.AddressIndex":
-            sel = Selection.at[addr]
-            return ChoiceMap.AddressIndex(self.choice_map, sel | self.selection)
+            return ChoiceMap.AddressIndex(
+                self.choice_map,
+                [*self.addrs, addr],
+            )
 
         def set(self, v):
-            return self.choice_map + choice_map_selection(self.selection, v)
+            new = self.choice_map
+            for addr in self.addrs:
+                new = ChoiceMap.a(addr, v) + new
+            return new
 
         @property
-        def also(self) -> "ChoiceMap.AddressIndex":
+        def at(self) -> "ChoiceMap.AddressIndex":
             return self
 
         def filter(self):
-            return self.choice_map.filter(self.selection)
+            sels = map(lambda addr: Selection.at[addr], self.addrs)
+            or_sel = reduce(or_, sels)
+            return self.choice_map.filter(or_sel)
 
     @property
     def at(self) -> AddressIndex:
-        if self is ChoiceMap:
-            return ChoiceMap.AddressIndex(ChoiceMap.n, Selection.n)
-        else:
-            return ChoiceMap.AddressIndex(self, Selection.n)
+        return ChoiceMap.AddressIndex(self, [])
 
     ###########
     # Dunders #
@@ -668,6 +686,10 @@ class ChoiceMap(Sample):
 ChoiceMapFunction = Callable[
     [AddressComponent],
     Tuple[Any, Bool, ChoiceMap],
+    # The elements of this type are, given an address component:
+    # 1. Value at this node, if there is one
+    # 2. Did this choice map have this address component?
+    # 3. The sub choice map at this node, if there is one
 ]
 
 
@@ -682,25 +704,29 @@ def choice_map_value(v: Any):
     @ChoiceMap.with_info("Value")
     @Pytree.partial(v)
     def inner(v, head: AddressComponent) -> Any:
-        return v, False, choice_map_empty
+        match head:
+            case ():
+                return v, True, choice_map_empty
+            case _:
+                return None, False, choice_map_empty
 
     return inner
 
 
 @typecheck
 def choice_map_with_dyn_addr(addr: AddressComponent, c: ChoiceMap):
-    @ChoiceMap.with_info(f"DynAddr() => {c.level_info})")
+    @ChoiceMap.with_info(f"Dynamic(... => {c.level_info})")
     @Pytree.partial(addr, c)
     def inner(addr, c, head: AddressComponent):
-        check = addr == head
-        return None, addr == head, choice_map_masked(check, c)
+        check = addr == head if isinstance(head, DynamicAddressComponent) else False
+        return None, check, choice_map_masked(check, c)
 
     return inner
 
 
 @typecheck
 def choice_map_with_static_addr(addr: AddressComponent, c: ChoiceMap):
-    @ChoiceMap.with_info(f"StaticAddr({addr} => {c.level_info})")
+    @ChoiceMap.with_info(f"Static({addr} => {c.level_info})")
     @Pytree.partial(c)
     def inner(c, head: AddressComponent):
         check = addr == head
@@ -717,7 +743,7 @@ def choice_map_selection(sel: Selection, v: Any):
         if head == ():
             check = head in sel
             return (
-                Mask.harsh_maybe(check * jnp.ones_like(v, dtype=bool), v),
+                Mask.maybe_none(check * jnp.ones_like(v, dtype=bool), v),
                 check,
                 choice_map_selection(sel, v),
             )
@@ -733,19 +759,32 @@ def choice_map_selection(sel: Selection, v: Any):
 
 
 @typecheck
-def choice_map_disjoint(c1: ChoiceMap, c2: ChoiceMap):
-    @ChoiceMap.with_info(f"Disjoint({c1.level_info} | {c2.level_info})")
+def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
+    @ChoiceMap.with_info(f"({c1.level_info} xor {c2.level_info})")
     @Pytree.partial(c1, c2)
     def inner(c1, c2, head: AddressComponent):
-        # TODO.
-        if head == ():
-            check = staged_or(head in c1, head in c2)
-            return c2(), check, choice_map_empty
-        else:
-            remaining_1 = c1.get_submap(head)
-            remaining_2 = c2.get_submap(head)
-            check = staged_or(c1.has_submap(head), c2.has_submap(head))
-            return None, check, choice_map_disjoint(remaining_1, remaining_2)
+        match head:
+            case ():
+                v1, check1, _ = c1.call(head)
+                v2, check2, _ = c2.call(head)
+                check = staged_or(check1, check2)
+                err_check = staged_and(check1, check2)
+                staged_err(
+                    err_check,
+                    "XOR of two choice maps have a value with the same address.",
+                )
+
+                def pair_bool_to_idx(bool1, bool2):
+                    return (1 * bool1 + 2 * bool2 - 3 * (bool1 & bool2)) - 1
+
+                idx = pair_bool_to_idx(check1, check2)
+                v = Sum.maybe_none_or_mask(idx, v1, v2)
+                return v, check, choice_map_empty
+            case _:
+                remaining_1 = c1.get_submap(head)
+                remaining_2 = c2.get_submap(head)
+                check = staged_or(c1.has_submap(head), c2.has_submap(head))
+                return None, check, choice_map_xor(remaining_1, remaining_2)
 
     return inner
 
@@ -754,16 +793,13 @@ def choice_map_masked(flag: BoolArray, c: ChoiceMap):
     @ChoiceMap.with_info(f"Masked({c.level_info})")
     @Pytree.partial(flag, c)
     def inner(flag, c, head: AddressComponent):
-        check = c.has_submap(head)
-        if head == ():
-            return (
-                Mask.harsh_maybe(flag, c()),
-                staged_and(flag, check),
-                choice_map_empty,
-            )
-        else:
-            remaining = c.get_submap(head)
-            return None, staged_and(flag, check), choice_map_masked(flag, remaining)
+        v, check, submap = c.call(head)
+        and_check = staged_and(flag, check)
+        return (
+            Mask.maybe_none(and_check, v),
+            and_check,
+            choice_map_masked(and_check, submap),
+        )
 
     return inner
 
@@ -774,14 +810,15 @@ def choice_map_filtered(selection: Selection, c: ChoiceMap):
     @Pytree.partial(selection, c)
     def inner(selection, c, head: AddressComponent):
         check = head in selection
-        if head == ():
-            return Mask.harsh_maybe(check, c()), check, choice_map_empty
-        else:
-            return (
-                None,
-                check,
-                choice_map_filtered(selection.step(head), c.get_submap(head)),
-            )
+        match head:
+            case ():
+                return Mask.maybe_none(check, c()), check, choice_map_empty
+            case _:
+                return (
+                    None,
+                    check,
+                    choice_map_filtered(selection.step(head), c.get_submap(head)),
+                )
 
     return inner
 
@@ -1042,9 +1079,9 @@ def strip(v):
     return jtu.tree_map(inner, v.get_choices(), is_leaf=_check)
 
 
-###########
-# Masking #
-###########
+#########################
+# Masking and sum types #
+#########################
 
 
 class Mask(Pytree):
@@ -1081,16 +1118,10 @@ class Mask(Pytree):
         )
 
     @classmethod
-    def harsh_maybe(cls, f: BoolArray, v: Any):
-        return (
-            v
-            if static_check_is_concrete(f) and isinstance(f, Bool) and f
-            else None
-            if static_check_is_concrete(f) and isinstance(f, Bool)
-            else Mask(f, v)
-            if v
-            else v
-        )
+    def maybe_none(cls, f: BoolArray, v: Any):
+        if v is None:
+            return None
+        return Mask.maybe(f, v)
 
     ######################
     # Masking interfaces #
@@ -1174,6 +1205,29 @@ class Mask(Pytree):
             val_tree = gpp.tree_pformat(self.value, short_arrays=True)
             tree.add(val_tree)
         return tree
+
+
+class Sum(Pytree):
+    idx: IntArray
+    values: List[Any]
+
+    @classmethod
+    def maybe(cls, idx: BoolArray, v1: Any, v2: Any):
+        return (
+            [v1, v2][idx]
+            if static_check_is_concrete(idx) and isinstance(idx, Int)
+            else Sum(idx, [v1, v2])
+        )
+
+    @classmethod
+    def maybe_none_or_mask(cls, idx: BoolArray, v1: Any, v2: Any):
+        if v1 is None and v2 is None:
+            return None
+        elif v1 is None:
+            return Mask.maybe_none(idx == 1, v2)
+        elif v2 is None:
+            return Mask.maybe_none(idx == 0, v1)
+        return Sum.maybe(idx, v1, v2)
 
 
 #######################
