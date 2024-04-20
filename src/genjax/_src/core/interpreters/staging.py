@@ -20,10 +20,11 @@ from jax import tree_util as jtu
 from jax.experimental import checkify
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
+from jax.lax import cond
 from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.typing import Bool, static_check_is_concrete
+from genjax._src.core.typing import Bool, Int, static_check_is_concrete
 
 ###############################
 # Concrete Boolean arithmetic #
@@ -65,6 +66,13 @@ def staged_not(x):
         return not x
     else:
         return jnp.logical_not(x)
+
+
+def staged_switch(idx, v1, v2):
+    if static_check_is_concrete(idx) and isinstance(idx, Int):
+        return [v1, v2][idx]
+    else:
+        return cond(idx, lambda: v1, lambda: v2)
 
 
 #########################

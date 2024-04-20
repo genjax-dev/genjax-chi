@@ -18,8 +18,6 @@ from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
 )
 from genjax._src.generative_functions.static.static_transforms import (
-    cache,
-    save,
     trace,
     trace_p,
 )
@@ -33,8 +31,6 @@ def static(f) -> StaticGenerativeFunction:
 __all__ = [
     "trace_p",
     "trace",
-    "cache",
-    "save",
     "static",
     "static_gen_fn",
 ]

@@ -31,6 +31,7 @@ from genjax._src.core.interpreters.staging import (
     staged_err,
     staged_not,
     staged_or,
+    staged_switch,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -516,15 +517,18 @@ class ChoiceMap(Sample):
         return self.choice_map_fn(addr)
 
     def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
-        _, _, submap = self.choice_map_fn(addr)
+        _, check, submap = self.choice_map_fn(addr)
         submap = (
             jtu.tree_map(
-                lambda v: v[addr] if jnp.array(v, copy=False).shape else v, submap
+                lambda v: v[addr] if jnp.array(check, copy=False).shape else v, submap
             )
             if isinstance(addr, DynamicAddressComponent)
             else submap
         )
         return submap
+
+    def get_value(self) -> Any:
+        return self()
 
     def has_submap(self, addr: AddressComponent) -> BoolArray:
         _, check, _ = self.choice_map_fn(addr)
@@ -535,6 +539,9 @@ class ChoiceMap(Sample):
             else check
         )
         return check
+
+    def has_value(self) -> BoolArray:
+        return self.has_submap(())
 
     def filter(
         self,
@@ -571,6 +578,7 @@ class ChoiceMap(Sample):
     def merge(self, other):
         return choice_map_xor(self, other)
 
+    # TODO: McCoy needs to test this out.
     def get_selection(self) -> Selection:
         """Convert a `ChoiceMap` to a `Selection`."""
         return select_choice_map(self)
@@ -612,8 +620,11 @@ class ChoiceMap(Sample):
     # Dunders #
     ###########
 
-    def __add__(self, other):
+    def __xor__(self, other):
         return self.merge(other)
+
+    def __add__(self, other):
+        return choice_map_or(self, other)
 
     def __getitem__(self, addr: Address):
         addr = Pytree.tree_unwrap_const(addr)
@@ -760,7 +771,7 @@ def choice_map_selection(sel: Selection, v: Any):
 
 @typecheck
 def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
-    @ChoiceMap.with_info(f"({c1.level_info} xor {c2.level_info})")
+    @ChoiceMap.with_info(f"({c1.level_info} ⊕ {c2.level_info})")
     @Pytree.partial(c1, c2)
     def inner(c1, c2, head: AddressComponent):
         match head:
@@ -771,7 +782,7 @@ def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
                 err_check = staged_and(check1, check2)
                 staged_err(
                     err_check,
-                    "XOR of two choice maps have a value with the same address.",
+                    "The disjoint union of two choice maps have a value with the same address.",
                 )
 
                 def pair_bool_to_idx(bool1, bool2):
@@ -785,6 +796,33 @@ def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
                 remaining_2 = c2.get_submap(head)
                 check = staged_or(c1.has_submap(head), c2.has_submap(head))
                 return None, check, choice_map_xor(remaining_1, remaining_2)
+
+    return inner
+
+
+@typecheck
+def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
+    @ChoiceMap.with_info(f"({c1.level_info} + {c2.level_info})")
+    @Pytree.partial(c1, c2)
+    def inner(c1, c2, head: AddressComponent):
+        match head:
+            case ():
+                v1, check1, _ = c1.call(head)
+                v2, check2, _ = c2.call(head)
+                check = staged_or(check1, check2)
+
+                def pair_bool_to_idx(first, second):
+                    output = -1 + first + 2 * (~first & second)
+                    return output
+
+                idx = pair_bool_to_idx(check1, check2)
+                v = Sum.maybe_none_or_mask(idx, v1, v2)
+                return v, check, choice_map_empty
+            case _:
+                remaining_1 = c1.get_submap(head)
+                remaining_2 = c2.get_submap(head)
+                check = staged_or(c1.has_submap(head), c2.has_submap(head))
+                return None, check, choice_map_or(remaining_1, remaining_2)
 
     return inner
 
@@ -1003,16 +1041,18 @@ class Trace(Pytree):
 
     class AddressIndex(Pytree):
         trace: "Trace"
-        selection: Selection
+        addrs: List[Address]
         constraints: ChoiceMap
 
         @property
-        def also(self) -> "Trace.AddressIndex":
+        def at(self) -> "Trace.AddressIndex":
             return self
 
         def set(self, v):
-            choice_map = SelectionChoiceMap(self.selection, v)
-            return Trace.AddressIndex(self.trace, Selection.a, choice_map)
+            constraints = self.constraints
+            for addr in self.addrs:
+                constraints = ChoiceMap.a(addr, v) + constraints
+            return Trace.AddressIndex(self.trace, [], constraints)
 
         def update(self, key: PRNGKey, argdiffs=None):
             if argdiffs:
@@ -1025,17 +1065,20 @@ class Trace(Pytree):
                 )
 
         def project(self, key: PRNGKey):
-            return self.trace.project(key, self.selection)
+            sels = map(lambda addr: Selection.at[addr], self.addrs)
+            or_sel = reduce(or_, sels)
+            return self.trace.project(key, or_sel)
 
-        def __getitem__(self, addr: Address) -> FloatArray:
-            selection = Selection.at[addr]
+        def __getitem__(self, addr: Address) -> "Trace.AddressIndex":
             return Trace.AddressIndex(
-                self.trace, selection | self.selection, self.constraints
+                self.trace,
+                [*self.addrs, addr],
+                self.constraints,
             )
 
     @property
     def at(self) -> AddressIndex:
-        return Trace.AddressIndex(self, Selection.n, EmptySample())
+        return Trace.AddressIndex(self, [], ChoiceMap.n)
 
     def get_aux(self) -> Tuple:
         raise NotImplementedError
@@ -1119,7 +1162,7 @@ class Mask(Pytree):
 
     @classmethod
     def maybe_none(cls, f: BoolArray, v: Any):
-        if v is None:
+        if v is None or (static_check_is_concrete(f) and isinstance(f, Bool) and not f):
             return None
         return Mask.maybe(f, v)
 

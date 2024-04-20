@@ -15,15 +15,15 @@
 
 import abc
 
+import jax.numpy as jnp
+from jax.lax import cond
+
 from genjax._src.core.datatypes.generative import (
-    ChoiceValue,
-    EmptyChoice,
+    ChoiceMap,
     GenerativeFunction,
     Mask,
     Selection,
-    SelectionChoiceMap,
     Trace,
-    ValueLike,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.serialization.pickle import (
@@ -69,7 +69,7 @@ class DistributionTrace(
         return self.score
 
     def get_choices(self):
-        return ChoiceValue(self.value)
+        return ChoiceMap.v(self.value)
 
     def project(
         self,
@@ -140,7 +140,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        choice: ValueLike,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray]:
         check = choice.has_value()
@@ -151,74 +151,55 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
             return (DistributionTrace(self, args, v, score), w)
         elif static_check_is_concrete(check):
             score, v = self.random_weighted(key, *args)
-            return (DistributionTrace(self, args, v, score), 0.0)
+            return (DistributionTrace(self, args, v, score), jnp.array(0.0))
+        else:
+            v = choice.get_value()
+            match v:
+                case Mask(flag, value):
 
-    @dispatch
+                    def _simulate(key, v, args):
+                        tr = self.simulate(key, args)
+                        w = 0.0
+                        return (tr, w)
+
+                    def _importance(key, v, args):
+                        w = self.estimate_logpdf(key, v, *args)
+                        tr = DistributionTrace(self, args, v, w)
+                        return (tr, w)
+
+                    return cond(flag, _importance, _simulate, key, value, args)
+
+                case _:
+                    raise Exception("Unhandled type.")
+
     def update(
         self,
         key: PRNGKey,
         prev: DistributionTrace,
-        constraints: EmptyChoice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
         Diff.static_check_tree_diff(argdiffs)
-        v = prev.get_retval()
-        retval_diff = Diff.tree_diff_no_change(v)
-
-        # If no change to arguments, no need to update.
-        if Diff.static_check_no_change(argdiffs):
-            return (prev, 0.0, retval_diff, EmptyChoice())
-
-        # Otherwise, we must compute an incremental weight.
-        else:
-            args = Diff.tree_primal(argdiffs)
+        args = Diff.tree_primal(argdiffs)
+        check = constraints.has_value()
+        if static_check_is_concrete(check) and check:
+            v = constraints.get_value()
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()
+            w = fwd - bwd
             new_tr = DistributionTrace(self, args, v, fwd)
-            return (new_tr, fwd - bwd, retval_diff, EmptyChoice())
-
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: ChoiceValue,
-        argdiffs: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        Diff.static_check_tree_diff(argdiffs)
-        args = Diff.tree_primal(argdiffs)
-        v = constraints.get_value()
-        fwd = self.estimate_logpdf(key, v, *args)
-        bwd = prev.get_score()
-        w = fwd - bwd
-        new_tr = DistributionTrace(self, args, v, fwd)
-        discard = prev.get_choices()
-        retval_diff = Diff.tree_diff_unknown_change(v)
-        return (new_tr, w, retval_diff, discard)
-
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: SelectionChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        Diff.static_check_tree_diff(argdiffs)
-        args = Diff.tree_primal(argdiffs)
-        v = constraints.get_value()
-        v = (
-            v.safe_match(lambda: prev.get_choices().get_value(), lambda v: v)
-            if isinstance(v, Mask)
-            else v
-        )
-        fwd = self.estimate_logpdf(key, v, *args)
-        bwd = prev.get_score()
-        w = fwd - bwd
-        new_tr = DistributionTrace(self, args, v, fwd)
-        discard = prev.get_choices()
-        retval_diff = Diff.tree_diff_unknown_change(v)
-        return (new_tr, w, retval_diff, discard)
+            discard = prev.get_choices()
+            retval_diff = Diff.tree_diff_unknown_change(v)
+            return (new_tr, w, retval_diff, discard)
+        elif static_check_is_concrete(check):
+            value_chm = prev.get_choices()
+            v = value_chm.get_value()
+            fwd = self.estimate_logpdf(key, v, *args)
+            bwd = prev.get_score()
+            w = fwd - bwd
+            new_tr = DistributionTrace(self, args, v, fwd)
+            retval_diff = Diff.tree_diff_no_change(v)
+            return (new_tr, w, retval_diff, ChoiceMap.n)
 
     ###################
     # Deserialization #
@@ -318,7 +299,7 @@ class ExactDensity(Distribution):
     @typecheck
     def assess(
         self,
-        evaluation_point: ChoiceValue,
+        evaluation_point: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         v = evaluation_point.get_value()

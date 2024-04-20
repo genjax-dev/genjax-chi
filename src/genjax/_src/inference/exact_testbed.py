@@ -19,8 +19,8 @@ import jax.numpy as jnp
 
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    unfold_combinator,
+from genjax._src.generative_functions.combinators.vector.scan_combinator import (
+    scan_combinator,
 )
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
@@ -72,7 +72,7 @@ def build_test_against_exact_inference(
         observation_variance,
     )
 
-    @unfold_combinator(max_length=max_length)
+    @scan_combinator(max_length=max_length)
     @static_gen_fn
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor()

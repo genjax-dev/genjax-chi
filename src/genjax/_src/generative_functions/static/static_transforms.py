@@ -21,11 +21,8 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
     ChoiceMap,
-    EmptyChoice,
     GenerativeFunction,
-    SelectionChoiceMap,
     Trace,
 )
 from genjax._src.core.interpreters.forward import (
@@ -42,7 +39,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Dict,
     FloatArray,
     List,
     PRNGKey,
@@ -58,32 +54,6 @@ from genjax.core.exceptions import AddressReuse, StaticAddressJAX
 
 # Generative function trace intrinsic.
 trace_p = InitialStylePrimitive("trace")
-
-# Cache intrinsic.
-cache_p = InitialStylePrimitive("cache")
-
-
-#####
-# Saving deterministic results
-#####
-
-
-# This class is used to allow syntactic sugar (e.g. the `@` operator)
-# in the static language for functions via the `cache` static_primitives.
-class DeferredFunctionCall(Pytree):
-    fn: Callable
-    args: Tuple
-    kwargs: Dict
-
-    def __call__(self, *args):
-        return DeferredFunctionCall(self.fn, self.kwargs, args)
-
-    def __matmul__(self, addr):
-        return cache(addr, self.fn, **self.kwargs)(*self.args)
-
-
-def save(fn, **kwargs):
-    return DeferredFunctionCall(fn, **kwargs)
 
 
 ##################
@@ -141,33 +111,6 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     return lambda *args: _trace(gen_fn, addr, *args)
 
 
-##############################################################
-# Caching (denotes caching of deterministic subcomputations) #
-##############################################################
-
-
-def _cache(fn, addr, *args):
-    return initial_style_bind(cache_p)(fn)(fn, *args, addr)
-
-
-@typecheck
-def cache(addr: Any, fn: Callable, *args: Any) -> Callable:
-    """Invoke a generative function, binding its generative semantics with the current
-    caller.
-
-    Arguments:
-        addr: An address denoting the site of a function invocation.
-        fn: A deterministic function whose return value is cached under the arguments (memoization) inside `StaticGenerativeFunction` traces.
-
-    Returns:
-        callable: A callable which wraps the `cache_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
-    """
-    # fn must be deterministic.
-    assert not isinstance(fn, GenerativeFunction)
-    static_check_address_type(addr)
-    return lambda *args: _cache(fn, addr, *args)
-
-
 ######################################
 #  Generative function interpreters  #
 ######################################
@@ -183,10 +126,8 @@ class AddressVisitor(Pytree):
         else:
             self.visited.append(addr)
 
-    def merge(self, other):
-        new = AddressVisitor()
-        for addr in itertools.chain(self.visited, other.visited):
-            new.visit(addr)
+    def get_visited(self):
+        return self.visited
 
 
 ###########################
@@ -201,40 +142,24 @@ class AddressVisitor(Pytree):
 class StaticLanguageHandler(StatefulHandler):
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
-    # (`trace_p`, for random choices, and `cache_p`, for deterministic caching)
+    # (`trace_p`, for random choices)
     def handles(self, prim):
-        return prim == trace_p or prim == cache_p
+        return prim == trace_p
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
     def get_submap(self, addr):
-        if isinstance(self.constraints, EmptyChoice):
-            return self.constraints
-        else:
-            addr = Pytree.tree_unwrap_const(addr)
-            return self.constraints.get_submap(addr)
+        addr = Pytree.tree_unwrap_const(addr)
+        return self.constraints.get_submap(addr)
 
     def get_subtrace(self, addr):
         addr = Pytree.tree_unwrap_const(addr)
         return self.previous_trace.get_subtrace(addr)
 
-    @typecheck
-    def set_choice_state(self, addr, tr: Trace):
-        addr = Pytree.tree_unwrap_const(addr)
-        submap = ChoiceMap.n.at[addr].set(tr)
-        self.address_choices = self.address_choices | submap
-
-    @typecheck
-    def set_discard_state(self, addr, ch: Choice):
-        addr = Pytree.tree_unwrap_const(addr)
-        self.discard_choices = self.discard_choices.trie_insert(addr, ch)
-
     def dispatch(self, prim, *tracers, **_params):
         if prim == trace_p:
             return self.handle_trace(*tracers, **_params)
-        elif prim == cache_p:
-            return self.handle_cache(*tracers, **_params)
         else:
             raise Exception("Illegal primitive: {}".format(prim))
 
@@ -249,16 +174,12 @@ class SimulateHandler(StaticLanguageHandler):
     key: PRNGKey
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_choices: SelectionChoiceMap = Pytree.field(
-        default_factory=SelectionChoiceMap
-    )
-    cache_state: SelectionChoiceMap = Pytree.field(default_factory=SelectionChoiceMap)
-    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
-            self.address_choices,
-            self.cache_state,
+            self.address_visitor,
+            self.address_traces,
             self.score,
         )
 
@@ -272,13 +193,10 @@ class SimulateHandler(StaticLanguageHandler):
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, call_args)
         score = tr.get_score()
-        self.set_choice_state(addr, tr)
+        self.address_traces.append(tr)
         self.score += score
         v = tr.get_retval()
         return jtu.tree_leaves(v)
-
-    def handle_cache(self, *args, **_params):
-        raise NotImplementedError
 
 
 def simulate_transform(source_fn):
@@ -287,16 +205,17 @@ def simulate_transform(source_fn):
         stateful_handler = SimulateHandler(key)
         retval = forward(source_fn)(stateful_handler, *args)
         (
-            address_choices,
-            cache_state,
+            address_visitor,
+            address_traces,
             score,
         ) = stateful_handler.yield_state()
         return (
             args,
             retval,
-            address_choices,
+            address_visitor,
+            address_traces,
             score,
-        ), cache_state
+        )
 
     return wrapper
 
@@ -313,18 +232,14 @@ class ImportanceHandler(StaticLanguageHandler):
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_choices: SelectionChoiceMap = Pytree.field(
-        default_factory=SelectionChoiceMap
-    )
-    cache_state: SelectionChoiceMap = Pytree.field(default_factory=SelectionChoiceMap)
-    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
             self.score,
             self.weight,
-            self.address_choices,
-            self.cache_state,
+            self.address_visitor,
+            self.address_traces,
         )
 
     def handle_trace(self, *tracers, **_params):
@@ -337,20 +252,11 @@ class ImportanceHandler(StaticLanguageHandler):
         args = tuple(args)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w) = gen_fn.importance(sub_key, sub_map, args)
-        self.set_choice_state(addr, tr)
+        self.address_traces.append(tr)
         self.score += tr.get_score()
         self.weight += w
         v = tr.get_retval()
         return jtu.tree_leaves(v)
-
-    def handle_cache(self, *tracers, **_params):
-        addr = _params.get("addr")
-        in_tree = _params.get("in_tree")
-        self.cache_visitor.visit(addr)
-        fn, args = jtu.tree_unflatten(in_tree, *tracers)
-        retval = fn(*args)
-        self.cache_state[addr] = retval
-        return jtu.tree_leaves(retval)
 
 
 def importance_transform(source_fn):
@@ -361,18 +267,19 @@ def importance_transform(source_fn):
         (
             score,
             weight,
-            address_choices,
-            cache_state,
+            address_visitor,
+            address_traces,
         ) = stateful_handler.yield_state()
         return (
             weight,
             (
                 args,
                 retval,
-                address_choices,
+                address_visitor,
+                address_traces,
                 score,
             ),
-        ), cache_state
+        )
 
     return wrapper
 
@@ -390,22 +297,16 @@ class UpdateHandler(StaticLanguageHandler):
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_choices: SelectionChoiceMap = Pytree.field(
-        default_factory=SelectionChoiceMap
-    )
-    discard_choices: SelectionChoiceMap = Pytree.field(
-        default_factory=SelectionChoiceMap
-    )
-    cache_state: SelectionChoiceMap = Pytree.field(default_factory=SelectionChoiceMap)
-    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
+    discard_choices: List[ChoiceMap] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
             self.score,
             self.weight,
-            self.address_choices,
+            self.address_visitor,
+            self.address_traces,
             self.discard_choices,
-            self.cache_state,
         )
 
     def handle_trace(self, *tracers, **_params):
@@ -425,33 +326,12 @@ class UpdateHandler(StaticLanguageHandler):
         )
         self.score += tr.get_score()
         self.weight += w
-        self.set_choice_state(addr, tr)
-        self.set_discard_state(addr, discard)
+        self.address_traces.append(tr)
+        self.discard_choices.append(discard)
 
         # We have to convert the Diff back to tracers to return
         # from the primitive.
         return jtu.tree_leaves(retval_diff, is_leaf=lambda v: isinstance(v, Diff))
-
-    # TODO: fix -- add Diff/tracer return.
-    def handle_cache(self, *tracers, **_params):
-        addr = _params.get("addr")
-        in_tree = _params.get("in_tree")
-        self.cache_visitor.visit(addr)
-        fn, args = jtu.tree_unflatten(in_tree, tracers)
-        has_value = self.previous_trace.has_cached_value(addr)
-
-        if (
-            static_check_is_concrete(has_value)
-            and has_value
-            and Diff.static_check_no_change(args)
-        ):
-            cached_value = self.previous_trace.get_cached_value(addr)
-            self.cache_state[addr] = cached_value
-            return jtu.tree_leaves(cached_value)
-
-        retval = fn(*args)
-        self.cache_state[addr] = retval
-        return jtu.tree_leaves(retval)
 
 
 def update_transform(source_fn):
@@ -468,9 +348,9 @@ def update_transform(source_fn):
         (
             score,
             weight,
-            address_choices,
+            address_visitor,
+            address_traces,
             discard_choices,
-            cache_state,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -480,13 +360,13 @@ def update_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_choices,
+                    address_visitor,
+                    address_traces,
                     score,
                 ),
                 # Discard.
                 discard_choices,
             ),
-            cache_state,
         )
 
     return wrapper
@@ -502,7 +382,6 @@ class AssessHandler(StaticLanguageHandler):
     constraints: ChoiceMap
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cache_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (self.score,)
@@ -518,12 +397,6 @@ class AssessHandler(StaticLanguageHandler):
         (score, v) = gen_fn.assess(submap, args)
         self.score += score
         return jtu.tree_leaves(v)
-
-    def handle_cache(self, *tracers, **_params):
-        in_tree = _params.get("in_tree")
-        fn, *args = jtu.tree_unflatten(in_tree, tracers)
-        retval = fn(*args)
-        return jtu.tree_leaves(retval)
 
 
 def assess_transform(source_fn):

@@ -13,11 +13,11 @@
 # limitations under the License.
 """This module implements a custom type of `GenerativeFunction` designed to support data
 allocation optimizations for special `GenerativeFunction` types which support a notion
-of calling another `GenerativeFunction`. Examples of this type include `MapCombinator`.
+of calling another `GenerativeFunction`. Examples of this type include `VmapCombinator`.
 
 The `DropArgumentsGenerativeFunction` exposes GFI methods which eliminate stored arguments in its returned trace. This is only valid if a caller `GenerativeFunction` which invokes a `DropArgumentsGenerativeFunction` provides arguments ("restores" the arguments) when it invokes `DropArgumentsGenerativeFunction` methods.
 
-This is useful to avoid unnecessary allocations in e.g. `MapCombinator` which uses `jax.vmap` as part of its implementation, causing the arguments stored in its callee's trace to be expanded and stored (unnecessarily). `DropArgumentsGenerativeFunction` eliminates the stored arguments in the callee's trace -- and allows us to retain a single copy of the arguments in the `MapCombinator` caller's `MapTrace`.
+This is useful to avoid unnecessary allocations in e.g. `VmapCombinator` which uses `jax.vmap` as part of its implementation, causing the arguments stored in its callee's trace to be expanded and stored (unnecessarily). `DropArgumentsGenerativeFunction` eliminates the stored arguments in the callee's trace -- and allows us to retain a single copy of the arguments in the `VmapCombinator` caller's `MapTrace`.
 """
 
 from genjax._src.core.datatypes.generative import (

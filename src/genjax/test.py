@@ -3,7 +3,7 @@ import jax
 import genjax
 
 
-@genjax.unfold_combinator(max_length=100)
+@genjax.scan_combinator(max_length=100)
 @genjax.static_gen_fn
 def random_walk(a):
     x = genjax.normal(a, 1.0) @ "x"

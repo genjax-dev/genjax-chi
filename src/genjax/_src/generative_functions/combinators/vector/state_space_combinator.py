@@ -24,8 +24,8 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    unfold_combinator,
+from genjax._src.generative_functions.combinators.vector.scan_combinator import (
+    scan_combinator,
 )
 
 
@@ -94,7 +94,7 @@ class StateSpaceCombinator(GenerativeFunction):
         initial_model_args, (dynamic_length, *static_args) = args
         key, initial_trace = self.initial_model.simulate(key, initial_model_args)
         initial_retval = initial_trace.get_retval()
-        chain = unfold_combinator(self.transition_model, max_length=self.max_length)
+        chain = scan_combinator(self.transition_model, max_length=self.max_length)
         key, transition_trace = chain.simulate(
             key, (dynamic_length, initial_retval, *static_args)
         )

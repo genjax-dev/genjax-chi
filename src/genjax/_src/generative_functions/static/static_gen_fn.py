@@ -15,9 +15,8 @@
 from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
+    ChoiceMap,
     GenerativeFunction,
-    HierarchicalChoiceMap,
     JAXGenerativeFunction,
     Trace,
 )
@@ -30,7 +29,6 @@ from genjax._src.core.typing import (
     Callable,
     PRNGKey,
     Tuple,
-    dispatch,
     typecheck,
 )
 from genjax._src.generative_functions.static.static_datatypes import StaticTrace
@@ -126,60 +124,56 @@ class StaticGenerativeFunction(
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, address_choices, score), cache_state = simulate_transform(
+        (args, retval, address_visitor, address_traces, score) = simulate_transform(
             syntax_sugar_handled
         )(key, args)
         return StaticTrace(
             self,
             args,
             retval,
-            address_choices,
-            cache_state,
+            address_visitor,
+            address_traces,
             score,
         )
 
-    @dispatch
     def importance(
         self,
         key: PRNGKey,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[StaticTrace, ArrayLike]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
         (
+            w,
             (
-                w,
-                (
-                    args,
-                    retval,
-                    address_choices,
-                    score,
-                ),
+                args,
+                retval,
+                address_visitor,
+                address_traces,
+                score,
             ),
-            cache_state,
         ) = importance_transform(syntax_sugar_handled)(key, choice, args)
         return (
             StaticTrace(
                 self,
                 args,
                 retval,
-                address_choices,
-                cache_state,
+                address_visitor,
+                address_traces,
                 score,
             ),
             w,
         )
 
-    @dispatch
     def update(
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, ArrayLike, Any, Choice]:
+    ) -> Tuple[Trace, ArrayLike, Any, ChoiceMap]:
         assert Diff.static_check_tree_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -191,31 +185,41 @@ class StaticGenerativeFunction(
                 (
                     arg_primals,
                     retval_primals,
-                    address_choices,
+                    address_visitor,
+                    address_traces,
                     score,
                 ),
-                discard,
+                discard_choices,
             ),
-            cache_state,
         ) = update_transform(syntax_sugar_handled)(key, prev, constraints, argdiffs)
+
+        def make_discard(visitor, submaps):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.n
+            for addr, submap in zip(addresses, submaps):
+                chm = chm ^ ChoiceMap.a(addr, submap)
+            return chm
+
+        discard = make_discard(address_visitor, discard_choices)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                address_choices,
-                cache_state,
+                address_visitor,
+                address_traces,
                 score,
             ),
             weight,
             retval_diffs,
-            HierarchicalChoiceMap(discard),
+            discard,
         )
 
     @typecheck
     def assess(
         self,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[ArrayLike, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -229,16 +233,12 @@ class StaticGenerativeFunction(
 
     def restore_with_aux(self, interface_data, aux):
         (original_args, retval, score, _) = interface_data
-        (
-            address_choices,
-            cache,
-        ) = aux
+        (address_choices,) = aux
         return StaticTrace(
             self,
             original_args,
             retval,
             address_choices,
-            cache,
             score,
         )
 

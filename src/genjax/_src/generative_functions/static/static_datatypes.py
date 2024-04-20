@@ -14,19 +14,28 @@
 
 import jax  # noqa: I001
 import jax.numpy as jnp  # noqa: I001
+from genjax._src.core.pytree import Pytree
+from genjax._src.generative_functions.static.static_transforms import AddressVisitor
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
-    HierarchicalChoiceMap,
     Selection,
+    ChoiceMap,
     Trace,
 )
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.serialization.pickle import (
     PickleDataFormat,
     PickleSerializationBackend,
     SupportsPickleSerialization,
 )
-from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch, PRNGKey
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    Tuple,
+    dispatch,
+    PRNGKey,
+    List,
+    Address,
+)
 
 #########
 # Trace #
@@ -40,15 +49,20 @@ class StaticTrace(
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    address_choices: Trie
-    cache: Trie
+    addresses: AddressVisitor
+    subtraces: List[Trace]
     score: FloatArray
 
     def get_gen_fn(self):
         return self.gen_fn
 
     def get_choices(self):
-        return HierarchicalChoiceMap(self.address_choices).strip()
+        addresses = self.addresses.get_visited()
+        addresses = Pytree.tree_unwrap_const(addresses)
+        chm = ChoiceMap.n
+        for addr, subtrace in zip(addresses, self.subtraces):
+            chm = chm ^ ChoiceMap.a(addr, subtrace.get_choices())
+        return chm
 
     def get_retval(self):
         return self.retval
@@ -60,7 +74,10 @@ class StaticTrace(
         return self.args
 
     def get_subtrace(self, addr):
-        return self.address_choices[addr]
+        addresses = self.addresses.get_visited()
+        addresses = Pytree.tree_unwrap_const(addresses)
+        idx = addresses.index(addr)
+        return self.subtraces[idx]
 
     def project(
         self,
@@ -74,17 +91,8 @@ class StaticTrace(
             weight += subtrace.project(sub_key, remaining)
         return weight
 
-    def has_cached_value(self, addr):
-        return self.cache.has_submap(addr)
-
-    def get_cached_value(self, addr):
-        return self.cache.get_submap(addr)
-
     def get_aux(self):
-        return (
-            self.address_choices,
-            self.cache,
-        )
+        return (self.address_choices,)
 
     #################
     # Serialization #

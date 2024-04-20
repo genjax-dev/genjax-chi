@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `MapCombinator` is a generative function combinator which exposes vectorization
+"""The `VmapCombinator` is a generative function combinator which exposes vectorization
 on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
@@ -26,9 +26,7 @@ from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
-    EmptyChoice,
     GenerativeFunction,
-    HierarchicalChoiceMap,
     JAXGenerativeFunction,
     Selection,
     Trace,
@@ -48,10 +46,6 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.combinators.drop_arguments import (
     DropArgumentsTrace,
 )
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    IndexedChoiceMap,
-    VectorChoiceMap,
-)
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
@@ -66,7 +60,9 @@ class MapTrace(Trace):
         return self.args
 
     def get_choices(self):
-        return VectorChoiceMap(self.inner.strip())
+        return jax.vmap(lambda idx, submap: ChoiceMap.a(idx, submap))(
+            jnp.arange(len(self.inner.get_score())), self.inner.get_choices()
+        )
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -103,8 +99,8 @@ class MapTrace(Trace):
         return jnp.sum(ws, axis=0)
 
 
-class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
-    """> `MapCombinator` accepts a generative function as input and provides
+class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
+    """> `VmapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
     Examples:
@@ -116,11 +112,11 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         console = genjax.console()
 
         #############################################################
-        # One way to create a `MapCombinator`: using the decorator. #
+        # One way to create a `VmapCombinator`: using the decorator. #
         #############################################################
 
 
-        @genjax.map_combinator(in_axes=(0,))
+        @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
@@ -129,7 +125,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 
         ################################################
-        # The other way: use `map_combinator` directly #
+        # The other way: use `vmap_combinator` directly #
         ################################################
 
 
@@ -140,7 +136,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
             return x + noise1 + noise2
 
 
-        mapped = genjax.map_combinator(in_axes=(0,))(add_normal_noise)
+        mapped = genjax.vmap_combinator(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
@@ -161,7 +157,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         # in `in_axes`.
         if not len(args) == len(self.in_axes):
             raise Exception(
-                f"MapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {len(self.in_axes)}"
+                f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {len(self.in_axes)}"
             )
 
     def _static_broadcast_dim_length(self, args):
@@ -195,36 +191,10 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr
 
-    @dispatch
     def importance(
         self,
         key: PRNGKey,
-        choice: VectorChoiceMap,
-        args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
-        def _importance(key, choice, args):
-            return self.kernel.importance(key, choice, args)
-
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-
-        inner = choice.inner
-        (tr, w) = jax.vmap(_importance, in_axes=(0, 0, self.in_axes))(
-            sub_keys, inner, args
-        )
-
-        w = jnp.sum(w)
-        retval = tr.get_retval()
-        scores = tr.get_score()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        return (map_tr, w)
-
-    @dispatch
-    def importance(
-        self,
-        key: PRNGKey,
-        choice: IndexedChoiceMap,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[MapTrace, FloatArray]:
         self._static_check_broadcastable(args)
@@ -244,27 +214,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w)
-
-    @dispatch
-    def importance(
-        self,
-        key: PRNGKey,
-        choice: EmptyChoice,
-        args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
-        map_tr = self.simulate(key, args)
-        w = 0.0
-        return (map_tr, w)
-
-    @dispatch
-    def importance(
-        self,
-        key: PRNGKey,
-        choice: HierarchicalChoiceMap,
-        args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
-        indchoice = IndexedChoiceMap.convert(choice)
-        return self.importance(key, indchoice, args)
 
     @dispatch
     def maybe_restore_arguments_kernel_update(
@@ -294,7 +243,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        choice: IndexedChoiceMap,
+        choice: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = Diff.tree_primal(argdiffs)
@@ -327,7 +276,6 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        discard = VectorChoiceMap(discard)
         return (map_tr, w, retval_diff, discard)
 
     @dispatch
@@ -335,7 +283,7 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: MapTrace,
-        choice: VectorChoiceMap,
+        choice: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
         args = Diff.tree_primal(argdiffs)
@@ -355,40 +303,12 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
-        discard = VectorChoiceMap(discard)
-        return (map_tr, w, retval_diff, discard)
-
-    # The choice map passed in here is empty, but
-    # the arguments have changed.
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: MapTrace,
-        choice: EmptyChoice,
-        argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
-        prev_inaxes_tree = jtu.tree_map(
-            lambda v: None if v.shape == () else 0, prev.inner
-        )
-        args = Diff.tree_primal(argdiffs)
-        original_args = prev.get_args()
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-        (tr, w, retval_diff, discard) = jax.vmap(
-            self.maybe_restore_arguments_kernel_update,
-            in_axes=(0, prev_inaxes_tree, 0, self.in_axes, self.in_axes),
-        )(sub_keys, prev.inner, choice, original_args, argdiffs)
-        w = jnp.sum(w)
-        retval = tr.get_retval()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(tr.get_score()))
         return (map_tr, w, retval_diff, discard)
 
     @typecheck
     def assess(
         self,
-        choice: VectorChoiceMap,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[ArrayLike, Any]:
         self._static_check_broadcastable(args)
@@ -418,8 +338,8 @@ class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def map_combinator(in_axes: Tuple) -> Callable[[Callable], MapCombinator]:
-    def decorator(f) -> MapCombinator:
-        return module_update_wrapper(MapCombinator(f, in_axes))
+def vmap_combinator(in_axes: Tuple) -> Callable[[Callable], VmapCombinator]:
+    def decorator(f) -> VmapCombinator:
+        return module_update_wrapper(VmapCombinator(f, in_axes))
 
     return decorator
