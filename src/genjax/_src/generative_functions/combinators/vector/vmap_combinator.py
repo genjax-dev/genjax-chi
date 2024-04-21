@@ -22,7 +22,6 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
     ChoiceMap,
@@ -49,7 +48,7 @@ from genjax._src.generative_functions.combinators.drop_arguments import (
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
-class MapTrace(Trace):
+class VmapTrace(Trace):
     gen_fn: GenerativeFunction
     inner: Trace
     args: Tuple
@@ -181,14 +180,14 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> MapTrace:
+    ) -> VmapTrace:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
         tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(sub_keys, args)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr
 
     def importance(
@@ -196,7 +195,7 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         choice: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[MapTrace, FloatArray]:
+    ) -> Tuple[VmapTrace, FloatArray]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         index_array = jnp.arange(0, broadcast_dim_length)
@@ -212,7 +211,7 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w)
 
     @dispatch
@@ -242,10 +241,10 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def update(
         self,
         key: PRNGKey,
-        prev: MapTrace,
+        prev: VmapTrace,
         choice: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[VmapTrace, FloatArray, Any, ChoiceMap]:
         args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -275,17 +274,17 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w, retval_diff, discard)
 
     @dispatch
     def update(
         self,
         key: PRNGKey,
-        prev: MapTrace,
+        prev: VmapTrace,
         choice: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[MapTrace, FloatArray, Any, ChoiceMap]:
+    ) -> Tuple[VmapTrace, FloatArray, Any, ChoiceMap]:
         args = Diff.tree_primal(argdiffs)
         original_args = prev.get_args()
         self._static_check_broadcastable(args)
@@ -302,7 +301,7 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = MapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w, retval_diff, discard)
 
     @typecheck
@@ -340,6 +339,6 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def vmap_combinator(in_axes: Tuple) -> Callable[[Callable], VmapCombinator]:
     def decorator(f) -> VmapCombinator:
-        return module_update_wrapper(VmapCombinator(f, in_axes))
+        return VmapCombinator(f, in_axes)
 
     return decorator

@@ -17,7 +17,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from rich.tree import Tree
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import (
     Choice,
     ChoiceMap,
@@ -135,18 +134,6 @@ class SwitchChoiceMap(ChoiceMap):
         return SwitchChoiceMap(self.index, list(new_submaps)), SwitchChoiceMap(
             self.index, list(new_discard)
         )
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.index, short_arrays=True)
-        tree = Tree(f"[bold](Switch,{doc})")
-        for submap in self.submaps:
-            submap_tree = submap.__rich_tree__()
-            tree.add(submap_tree)
-        return tree
 
 
 ################
