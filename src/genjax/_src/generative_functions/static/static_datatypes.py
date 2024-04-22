@@ -43,7 +43,7 @@ from genjax._src.core.typing import (
 
 
 class StaticTrace(
-    Trace,
+    Trace,  # inherits from Pytree
     SupportsPickleSerialization,
 ):
     gen_fn: GenerativeFunction
