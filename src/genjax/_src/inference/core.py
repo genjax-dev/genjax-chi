@@ -17,7 +17,7 @@ from abc import abstractmethod
 import jax
 from equinox import module_update_wrapper
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
     JAXGenerativeFunction,

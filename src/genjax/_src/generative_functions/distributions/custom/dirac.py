@@ -17,7 +17,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.generative import JAXGenerativeFunction
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 

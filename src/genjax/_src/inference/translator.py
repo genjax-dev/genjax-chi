@@ -20,7 +20,7 @@ import jax.tree_util as jtu
 from jax.experimental.checkify import check
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
     Trace,

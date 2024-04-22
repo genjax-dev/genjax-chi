@@ -17,7 +17,7 @@ import jax.numpy as jnp
 import msgpack
 import numpy as np
 
-from genjax._src.core.datatypes.generative import GenerativeFunction, Trace
+from genjax._src.core.generative import GenerativeFunction, Trace
 from genjax._src.core.interpreters.staging import (
     get_trace_data_shape,
 )

@@ -16,7 +16,7 @@ import jax  # noqa: I001
 import jax.numpy as jnp  # noqa: I001
 from genjax._src.core.pytree import Pytree
 from genjax._src.generative_functions.static.static_transforms import AddressVisitor
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     GenerativeFunction,
     Selection,
     ChoiceMap,

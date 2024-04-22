@@ -18,7 +18,7 @@ import abc
 import jax.numpy as jnp
 from jax.lax import cond
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
     Mask,

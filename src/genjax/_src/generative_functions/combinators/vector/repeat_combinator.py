@@ -17,7 +17,7 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
     JAXGenerativeFunction,

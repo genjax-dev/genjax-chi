@@ -15,7 +15,7 @@
 
 import dill as pickle
 
-from genjax._src.core.datatypes.generative import Trace
+from genjax._src.core.generative import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.serialization.backend import SerializationBackend
 from genjax._src.core.typing import Any, dispatch

@@ -20,7 +20,7 @@ The `DropArgumentsGenerativeFunction` exposes GFI methods which eliminate stored
 This is useful to avoid unnecessary allocations in e.g. `VmapCombinator` which uses `jax.vmap` as part of its implementation, causing the arguments stored in its callee's trace to be expanded and stored (unnecessarily). `DropArgumentsGenerativeFunction` eliminates the stored arguments in the callee's trace -- and allows us to retain a single copy of the arguments in the `VmapCombinator` caller's `VmapTrace`.
 """
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
     JAXGenerativeFunction,

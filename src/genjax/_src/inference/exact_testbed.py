@@ -17,7 +17,7 @@ Markov models (HMMs)."""
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.datatypes.generative import Selection
+from genjax._src.core.generative import Selection
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.vector.scan_combinator import (

@@ -32,7 +32,7 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
+from genjax._src.core.generative import JAXGenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

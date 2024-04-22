@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import blackjax
 import jax
 
-from genjax._src.core.datatypes.generative import Selection, Trace
+from genjax._src.core.generative import Selection, Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Int, PRNGKey
 from genjax._src.inference.mcmc.kernel import MCMCKernel

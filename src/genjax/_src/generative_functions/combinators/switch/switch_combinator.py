@@ -15,7 +15,7 @@
 
 import jax
 
-from genjax._src.core.datatypes.generative import (
+from genjax._src.core.generative import (
     ChoiceMap,
     JAXGenerativeFunction,
     Mask,

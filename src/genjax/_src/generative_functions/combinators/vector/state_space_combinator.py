@@ -15,7 +15,7 @@
 from dataclasses import dataclass
 from typing import Callable
 
-from genjax._src.core.datatypes.generative import ChoiceMap, GenerativeFunction, Trace
+from genjax._src.core.generative import ChoiceMap, GenerativeFunction, Trace
 from genjax._src.core.typing import (
     Any,
     FloatArray,
