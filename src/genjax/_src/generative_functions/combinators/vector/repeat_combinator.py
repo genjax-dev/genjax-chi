@@ -18,7 +18,7 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
+    ChoiceMap,
     GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
@@ -31,11 +31,7 @@ from genjax._src.core.typing import (
     Int,
     PRNGKey,
     Tuple,
-    dispatch,
     typecheck,
-)
-from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
-    VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
@@ -100,11 +96,10 @@ class RepeatCombinator(
         )(sub_keys, args)
         return RepeatTrace(self, repeated_inner_tr, args)
 
-    @dispatch
     def importance(
         self,
         key: PRNGKey,
-        choice: VectorChoiceMap,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[RepeatTrace, FloatArray]:
         sub_keys = jax.random.split(key, self.repeats)
@@ -119,15 +114,14 @@ class RepeatCombinator(
         self,
         key: PRNGKey,
         prev: RepeatTrace,
-        choice: Choice,
+        choice: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[RepeatTrace, FloatArray, Any, Choice]:
+    ) -> Tuple[RepeatTrace, FloatArray, Any, ChoiceMap]:
         pass
 
-    @dispatch
     def assess(
         self,
-        choice: VectorChoiceMap,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         inner_choice = choice.inner

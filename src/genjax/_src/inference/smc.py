@@ -24,7 +24,7 @@ from jax import tree_util as jtu
 from jax import vmap
 from jax.scipy.special import logsumexp
 
-from genjax._src.core.datatypes.generative import Choice, EmptyChoice, Trace
+from genjax._src.core.datatypes.generative import ChoiceMap, Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     ArrayLike,
@@ -39,7 +39,7 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.inference.core import ChoiceDistribution, InferenceAlgorithm, Target
+from genjax._src.inference.core import ChoiceMapDistribution, InferenceAlgorithm, Target
 from genjax._src.inference.translator import TraceTranslator
 
 
@@ -130,7 +130,7 @@ class SMCAlgorithm(InferenceAlgorithm):
     def run_csmc(
         self,
         key: PRNGKey,
-        retained: Choice,
+        retained: ChoiceMap,
     ) -> ParticleCollection:
         raise NotImplementedError
 
@@ -154,7 +154,7 @@ class SMCAlgorithm(InferenceAlgorithm):
         self,
         key: PRNGKey,
         target: Target,
-    ) -> Tuple[FloatArray, Choice]:
+    ) -> Tuple[FloatArray, ChoiceMap]:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_smc(key)
@@ -170,7 +170,7 @@ class SMCAlgorithm(InferenceAlgorithm):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Choice,
+        latent_choices: ChoiceMap,
         target: Target,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
@@ -203,7 +203,7 @@ class SMCAlgorithm(InferenceAlgorithm):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: Choice,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
@@ -220,7 +220,7 @@ class SMCAlgorithm(InferenceAlgorithm):
 
 @typecheck
 class Importance(SMCAlgorithm):
-    """Accepts as input a `target: Target` and, optionally, a proposal `q: ChoiceDistribution`.
+    """Accepts as input a `target: Target` and, optionally, a proposal `q: ChoiceMapDistribution`.
     `q` should accept a `Target` as input and return a choicemap on a subset
     of the addresses in `target.gen_fn` not in `target.constraints`.
 
@@ -231,7 +231,7 @@ class Importance(SMCAlgorithm):
     """
 
     target: Target
-    q: Optional[ChoiceDistribution] = Pytree.field(default=Pytree.const(None))
+    q: Optional[ChoiceMapDistribution] = Pytree.field(default=Pytree.const(None))
 
     def get_num_particles(self):
         return 1
@@ -246,14 +246,14 @@ class Importance(SMCAlgorithm):
             tr, target_score = self.target.importance(key, choice)
         else:
             log_weight = 0.0
-            tr, target_score = self.target.importance(key, EmptyChoice())
+            tr, target_score = self.target.importance(key, ChoiceMap.n)
         return ParticleCollection(
             jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), tr),
             jnp.array([target_score - log_weight]),
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Choice):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         key, sub_key = jrandom.split(key)
         if self.q:
             q_score = self.q.estimate_logpdf(sub_key, retained, self.target)
@@ -269,12 +269,12 @@ class Importance(SMCAlgorithm):
 
 @typecheck
 class ImportanceK(SMCAlgorithm):
-    """Given a `target: Target` and a proposal `q: ChoiceDistribution`, as well as the
+    """Given a `target: Target` and a proposal `q: ChoiceMapDistribution`, as well as the
     number of particles `k_particles: Int`, initialize a particle collection using
     importance sampling."""
 
     target: Target
-    q: Optional[ChoiceDistribution] = Pytree.field(default=Pytree.const(None))
+    q: Optional[ChoiceMapDistribution] = Pytree.field(default=Pytree.const(None))
     k_particles: Int = Pytree.static(default=2)
 
     def get_num_particles(self):
@@ -294,7 +294,7 @@ class ImportanceK(SMCAlgorithm):
         else:
             log_weights = 0.0
             trs, target_scores = vmap(self.target.importance, in_axes=(0, None))(
-                sub_keys, EmptyChoice()
+                sub_keys, ChoiceMap.n
             )
         return ParticleCollection(
             trs,
@@ -302,7 +302,7 @@ class ImportanceK(SMCAlgorithm):
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Choice):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
         if self.q:
@@ -321,7 +321,7 @@ class ImportanceK(SMCAlgorithm):
         else:
             ignored_traces, ignored_scores = vmap(
                 self.target.importance, in_axes=(0, None)
-            )(sub_keys, EmptyChoice())
+            )(sub_keys, ChoiceMap.n)
             retained_trace, retained_choice_score = self.target.importance(
                 key, retained
             )
@@ -365,7 +365,7 @@ class Resample:
     def run_smc(self, key: PRNGKey):
         pass
 
-    def run_csmc(self, key: PRNGKey, retained: Choice):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         pass
 
 
@@ -429,7 +429,7 @@ class ChangeTarget(SMCAlgorithm):
     def run_csmc(
         self,
         key: PRNGKey,
-        retained: Choice,
+        retained: ChoiceMap,
     ) -> ParticleCollection:
         collection = self.prev.run_csmc(key, retained)
 
@@ -461,7 +461,7 @@ class ChangeTarget(SMCAlgorithm):
     def run_csmc_for_normalizing_constant(
         self,
         key: PRNGKey,
-        latent_choices: Choice,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
         key, sub_key = jrandom.split(key)

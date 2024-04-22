@@ -20,14 +20,14 @@ from genjax._src.generative_functions.combinators.mask_combinator import (
     MaskCombinator,
     mask_combinator,
 )
-
-# from genjax._src.generative_functions.combinators.switch.switch_combinator import (
-#    SwitchCombinator,
-#    switch_combinator,
-# )
-# from genjax._src.generative_functions.combinators.vector.repeat_combinator import (
-#    repeat_combinator,
-# )
+from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+    SwitchCombinator,
+    switch_combinator,
+)
+from genjax._src.generative_functions.combinators.vector.repeat_combinator import (
+    RepeatCombinator,
+    repeat_combinator,
+)
 from genjax._src.generative_functions.combinators.vector.scan_combinator import (
     ScanCombinator,
     scan_combinator,
@@ -44,9 +44,10 @@ __all__ = [
     "MaskCombinator",
     "vmap_combinator",
     "VmapCombinator",
-    # "repeat_combinator",
+    "repeat_combinator",
+    "RepeatCombinator",
     "scan_combinator",
     "ScanCombinator",
-    # "switch_combinator",
-    # "SwitchCombinator",
+    "switch_combinator",
+    "SwitchCombinator",
 ]
