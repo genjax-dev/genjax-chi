@@ -1107,6 +1107,14 @@ class Trace(Pytree):
     def __getitem__(self, x):
         return self.get_choices()[x]
 
+    ###################
+    # Batch semantics #
+    ###################
+
+    @property
+    def batch_shape(self):
+        return len(self.get_score())
+
 
 # Remove all trace metadata, and just return choices.
 def strip(v):
