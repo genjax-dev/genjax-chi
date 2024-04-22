@@ -16,8 +16,7 @@
 import jax
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
-    EmptyChoice,
+    ChoiceMap,
     JAXGenerativeFunction,
     Mask,
     Trace,
@@ -163,7 +162,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     def importance(
         self,
         key: PRNGKey,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[SwitchTrace, FloatArray]:
         switch = args[0]
@@ -179,7 +178,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ):
         def _inner_update(br, key):
@@ -232,7 +231,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ):
         def _inner_importance(br, key, prev, constraints, argdiffs):
@@ -281,7 +280,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         self: "SwitchCombinator",
         key: PRNGKey,
         prev: SwitchTrace,
-        constraints: Choice,
+        constraints: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[SwitchTrace, FloatArray, Any, Any]:
         index_argdiff = argdiffs[0]
@@ -309,9 +308,9 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         _, possible_discards = discard_option.merge(possible_constraints)
 
         def _none():
-            (new_tr, w, retdiff, _) = self.update(key, prev, EmptyChoice(), argdiffs)
+            (new_tr, w, retdiff, _) = self.update(key, prev, ChoiceMap.n, argdiffs)
             if possible_discards.is_empty():
-                discard = EmptyChoice()
+                discard = ChoiceMap.n
             else:
                 # We return the possible_discards, but denote them as invalid via masking.
                 discard = Mask(False, possible_discards)
@@ -322,7 +321,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         def _some(choice):
             (new_tr, w, retdiff, _) = self.update(key, prev, choice, argdiffs)
             if possible_discards.is_empty():
-                discard = EmptyChoice()
+                discard = ChoiceMap.n
             else:
                 # The true_discards should match the Pytree type of possible_discards,
                 # but these are valid.
@@ -336,7 +335,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     @typecheck
     def assess(
         self,
-        choice: Choice,
+        choice: ChoiceMap,
         args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         switch = args[0]

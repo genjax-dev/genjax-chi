@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from genjax._src.generative_functions.combinators.drop_arguments import *
+from genjax._src.generative_functions.combinators.drop_arguments import *
 
 from .combinators import *
 from .distributions import *

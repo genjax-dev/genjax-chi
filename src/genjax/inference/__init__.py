@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax._src.inference.core import (
-    ChoiceDistribution,
+    ChoiceMapDistribution,
     InferenceAlgorithm,
     Marginal,
     Target,
@@ -28,7 +28,7 @@ from genjax.inference import (
 )
 
 __all__ = [
-    "ChoiceDistribution",
+    "ChoiceMapDistribution",
     "InferenceAlgorithm",
     "Marginal",
     "Target",

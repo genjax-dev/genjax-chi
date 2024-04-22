@@ -26,15 +26,11 @@ from beartype import beartype
 from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
     ChoiceMap,
-    EmptyChoice,
     GenerativeFunction,
-    HierarchicalChoiceMap,
     Selection,
     Trace,
 )
-from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (

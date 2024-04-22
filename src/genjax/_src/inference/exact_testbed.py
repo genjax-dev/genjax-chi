@@ -17,6 +17,7 @@ Markov models (HMMs)."""
 import jax
 import jax.numpy as jnp
 
+from genjax._src.core.datatypes.generative import Selection
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.vector.scan_combinator import (
@@ -30,7 +31,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     categorical,
 )
 from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
-from genjax._src.shortcuts import select
 
 
 class DiscreteHMMInferenceProblem(Pytree):
@@ -85,8 +85,8 @@ def build_test_against_exact_inference(
         key, sub_key = jax.random.split(key)
         initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
         tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
-        z_sel = select("z")
-        x_sel = select("x")
+        z_sel = Selection.at["z"]
+        x_sel = Selection.at["x"]
         latent_sequence = tr.filter(z_sel)["z"]
         observation_sequence = tr.filter(x_sel)["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)

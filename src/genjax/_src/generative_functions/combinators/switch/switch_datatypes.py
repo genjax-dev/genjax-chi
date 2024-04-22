@@ -18,9 +18,7 @@ import jax.tree_util as jtu
 from rich.tree import Tree
 
 from genjax._src.core.datatypes.generative import (
-    Choice,
     ChoiceMap,
-    EmptyChoice,
     GenerativeFunction,
     Mask,
     Selection,
@@ -58,12 +56,8 @@ class SwitchChoiceMap(ChoiceMap):
     submaps: Sequence[ChoiceMap]
 
     def is_empty(self):
-        # Concrete evaluation -- when possible.
-        if all(map(lambda sm: isinstance(sm, EmptyChoice), self.submaps)):
-            return True
-        else:
-            flags = jnp.array([sm.is_empty() for sm in self.submaps])
-            return flags[self.index]
+        flags = jnp.array([sm.is_empty() for sm in self.submaps])
+        return flags[self.index]
 
     def filter(
         self,
@@ -127,7 +121,7 @@ class SwitchChoiceMap(ChoiceMap):
         raise NotImplementedError
 
     @dispatch
-    def merge(self, other: Choice) -> Tuple[Choice, Choice]:
+    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
         new_submaps, new_discard = list(
             zip(*map(lambda v: v.merge(other), self.submaps))
         )

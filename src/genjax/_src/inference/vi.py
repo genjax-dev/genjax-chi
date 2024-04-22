@@ -49,7 +49,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     geometric,
     normal,
 )
-from genjax._src.inference.core import ChoiceDistribution, Target
+from genjax._src.inference.core import ChoiceMapDistribution, Target
 from genjax._src.inference.smc import Importance, ImportanceK
 
 tfd = tfp.distributions
@@ -168,7 +168,7 @@ class ExpectedValueLoss(Pytree):
 
 
 class ELBO(ExpectedValueLoss):
-    guide: ChoiceDistribution
+    guide: ChoiceMapDistribution
     make_target: Callable[[Any], Target] = Pytree.static()
 
     def grad_estimate(
@@ -189,7 +189,7 @@ class ELBO(ExpectedValueLoss):
 
 
 class IWELBO(ExpectedValueLoss):
-    proposal: ChoiceDistribution
+    proposal: ChoiceMapDistribution
     make_target: Callable[[Any], Target] = Pytree.static()
     N: Int = Pytree.static()
 

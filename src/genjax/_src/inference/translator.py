@@ -21,7 +21,6 @@ from jax.experimental.checkify import check
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.datatypes.generative import (
-    Choice,
     ChoiceMap,
     GenerativeFunction,
     Trace,
@@ -93,7 +92,7 @@ class ExtendingTraceTranslator(TraceTranslator):
     p_argdiffs: Tuple
     q_forward: GenerativeFunction
     q_forward_args: Tuple
-    new_observations: Choice
+    new_observations: ChoiceMap
 
     def value_and_jacobian_correction(self, forward, trace):
         trace_choices = trace.get_choices()
@@ -222,7 +221,7 @@ class TraceKernelTraceTranslator(TraceTranslator):
         aux_choices, K_score, new_choices = self.K.propose(
             sub_key, (prev_model_choices, self.K_args)
         )
-        assert isinstance(new_choices, Choice)
+        assert isinstance(new_choices, ChoiceMap)
         J_log_abs_det = self.value_and_jacobian_correction(
             aux_choices, prev_model_choices
         )
