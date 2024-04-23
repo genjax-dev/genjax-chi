@@ -52,6 +52,7 @@ typing_extensions = ">=4.6.0,<5"
 oryx = "^0.2.6"
 deprecated = "^1.2.14"
 penzai = "^0.1.0"
+pyobsplot = "^0.4.2"
 
 [tool.poetry.group.dev]
 optional = true
@@ -72,6 +73,8 @@ jupyterlab = "^4.1.6"
 nox = "^2024.3.2"
 nox-poetry = "^1.0.3"
 marimo = "^0.4.2"
+plotnine = "^0.13.4"
+ipython = "^8.23.0"
 
 [tool.poetry.group.docs]
 optional = true
