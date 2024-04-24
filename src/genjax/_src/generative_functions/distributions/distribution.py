@@ -20,6 +20,7 @@ from jax.lax import cond
 
 from genjax._src.core.generative import (
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
     Mask,
     Selection,
@@ -136,16 +137,15 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    @typecheck
-    def importance(
+    def _importance_choice_map(
         self,
         key: PRNGKey,
-        choice: ChoiceMap,
+        chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray]:
-        check = choice.has_value()
+    ):
+        check = chm.has_value()
         if static_check_is_concrete(check) and check:
-            v = choice.get_value()
+            v = chm.get_value()
             w = self.estimate_logpdf(key, v, *args)
             score = w
             return (DistributionTrace(self, args, v, score), w)
@@ -153,7 +153,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
             score, v = self.random_weighted(key, *args)
             return (DistributionTrace(self, args, v, score), jnp.array(0.0))
         else:
-            v = choice.get_value()
+            v = chm.get_value()
             match v:
                 case Mask(flag, value):
 
@@ -171,6 +171,19 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
 
                 case _:
                     raise Exception("Unhandled type.")
+
+    @typecheck
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Tuple,
+    ) -> Tuple[DistributionTrace, FloatArray]:
+        match constraint:
+            case ChoiceMap(_):
+                return self._importance_choice_map(key, constraint, args)
+            case _:
+                raise Exception("Unhandled constraint.")
 
     def update(
         self,

@@ -31,7 +31,6 @@ from genjax._src.core.interpreters.staging import (
     staged_err,
     staged_not,
     staged_or,
-    staged_switch,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -497,7 +496,21 @@ def safe_merge(self, other: "Sample") -> "Sample":
     return self.safe_merge(other)
 
 
-class ChoiceMap(Sample):
+###############
+# Constraints #
+###############
+
+
+class Constraint(Pytree):
+    pass
+
+
+###############
+# Choice maps #
+###############
+
+
+class ChoiceMap(Sample, Constraint):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from a generative function.
 
@@ -582,6 +595,16 @@ class ChoiceMap(Sample):
     def get_selection(self) -> Selection:
         """Convert a `ChoiceMap` to a `Selection`."""
         return select_choice_map(self)
+
+    ########################
+    # Constraint interface #
+    ########################
+
+    def get_pushforward(self):
+        return lambda v: v
+
+    def get_sample(self):
+        return self
 
     ##########################
     # AddressIndex interface #
@@ -870,6 +893,39 @@ def select_choice_map(c: ChoiceMap):
         return check, Selection.m(check, select_choice_map(c.get_submap(head)))
 
     return inner
+
+
+########################
+# Concrete constraints #
+########################
+
+
+class EqualityConstraint(Constraint):
+    """
+    An `EqualityConstraint` encodes the constraint that the value output by a
+    distribution is equal to a provided value.
+
+    Formally, `EqualityConstraint(x)` represents the constraint `(x \mapsto x, x)`.
+    """
+
+    x: Any
+
+
+class IntervalConstraint(Constraint):
+    """
+    An IntervalConstraint encodes the constraint that the value output by a
+    distribution on the reals lies within a given interval.
+
+    Formally, `IntervalConstraint(a, b)` represents the constraint `(x \mapsto a <= x <= b, True)`.
+    """
+
+    a: FloatArray
+    b: FloatArray
+
+
+class BijectiveConstraint(Constraint):
+    backward: Callable[[Any], Sample]
+    value: Any
 
 
 #########
@@ -1435,7 +1491,7 @@ class GenerativeFunction(Pytree):
     def importance(
         self: "GenerativeFunction",
         key: PRNGKey,
-        choice: Sample,
+        constraint: Constraint,
         args: Tuple,
     ) -> Tuple[Trace, FloatArray]:
         """Given a `key: PRNGKey`, a choice map indicating constraints ($u$), and
