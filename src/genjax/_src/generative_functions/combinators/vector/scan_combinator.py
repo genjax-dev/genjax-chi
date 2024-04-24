@@ -17,7 +17,6 @@ generative function can accept their previous output as input)."""
 
 import jax
 import jax.numpy as jnp
-from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,

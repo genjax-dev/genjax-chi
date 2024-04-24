@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import functools
-import itertools
 from dataclasses import dataclass
 
 import jax

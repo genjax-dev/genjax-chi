@@ -34,7 +34,6 @@ from genjax._src.core.typing import (
     dispatch,
     PRNGKey,
     List,
-    Address,
 )
 
 #########

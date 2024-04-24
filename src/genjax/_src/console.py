@@ -14,7 +14,6 @@
 
 
 import jax
-import numpy as np
 import plum
 import rich
 from penzai import pz
