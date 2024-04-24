@@ -16,12 +16,11 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-import equinox as eqx
+from dataclasses import field  # noqa: I001
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich.tree as rich_tree
+from penzai import pz
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -33,24 +32,30 @@ from genjax._src.core.typing import (
     static_check_supports_grad,
 )
 
+metaclass_of_struct = type(pz.Struct)
 
-class Pytree(eqx.Module):
+
+class PytreeMeta(metaclass_of_struct):
+    def __new__(cls, name, bases, namespace):
+        if pz.Struct not in bases and not any(
+            issubclass(base, pz.Struct) for base in bases
+        ):
+            bases = (pz.Struct,) + bases
+        new_cls = type.__new__(cls, name, bases, namespace)
+        return pz.pytree_dataclass(new_cls)
+
+
+class Pytree(metaclass=PytreeMeta):
     """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
     system."""
 
     @staticmethod
     def static(**kwargs):
-        return eqx.field(**kwargs, static=True)
+        return field(metadata={"pytree_node": False}, **kwargs)
 
     @staticmethod
     def field(**kwargs):
-        return eqx.field(**kwargs)
-
-    def tree_flatten(self):
-        return jtu.tree_flatten(self)
-
-    def tree_leaves(self):
-        return jtu.tree_leaves(self)
+        return field(**kwargs)
 
     # This exposes slicing into the struct-of-array representation,
     # taking leaves and indexing into them on the provided index,
@@ -69,18 +74,6 @@ class Pytree(eqx.Module):
         """
         return jtu.tree_map(lambda v: v[index_or_index_array], self)
 
-    ###################
-    # Pretty printing #
-    ###################
-
-    # Can be customized by Pytree mixers.
-    def __rich_tree__(self):
-        return gpp.tree_pformat(self)
-
-    # Defines default pretty printing.
-    def __rich_console__(self, console, options):
-        yield self.__rich_tree__()
-
     ##############################
     # Utility class constructors #
     ##############################
@@ -90,33 +83,33 @@ class Pytree(eqx.Module):
         # The value must be concrete!
         # It cannot be a JAX traced value.
         assert static_check_is_concrete(v)
-        if isinstance(v, PytreeConst):
+        if isinstance(v, Const):
             return v
         else:
-            return PytreeConst(v)
+            return Const(v)
 
-    # Safe: will not wrap a PytreeConst in another PytreeConst, and will not
+    # Safe: will not wrap a Const in another Const, and will not
     # wrap dynamic values.
     @staticmethod
     def tree_const(v):
         def _inner(v):
-            if isinstance(v, PytreeConst):
+            if isinstance(v, Const):
                 return v
             elif static_check_is_concrete(v):
-                return PytreeConst(v)
+                return Const(v)
             else:
                 return v
 
         return jtu.tree_map(
             _inner,
             v,
-            is_leaf=lambda v: isinstance(v, PytreeConst),
+            is_leaf=lambda v: isinstance(v, Const),
         )
 
     @staticmethod
     def tree_unwrap_const(v):
         def _inner(v):
-            if isinstance(v, PytreeConst):
+            if isinstance(v, Const):
                 return v.const
             else:
                 return v
@@ -124,12 +117,12 @@ class Pytree(eqx.Module):
         return jtu.tree_map(
             _inner,
             v,
-            is_leaf=lambda v: isinstance(v, PytreeConst),
+            is_leaf=lambda v: isinstance(v, Const),
         )
 
     @staticmethod
     def partial(*args):
-        return lambda fn: PytreeDynamicClosure(args, fn)
+        return lambda fn: Closure(args, fn)
 
     #################
     # Static checks #
@@ -147,7 +140,7 @@ class Pytree(eqx.Module):
 
     @staticmethod
     def static_check_none(v):
-        return v == PytreeConst(None)
+        return v == Const(None)
 
     @staticmethod
     def static_check_tree_leaves_have_matching_leading_dim(tree):
@@ -252,19 +245,16 @@ class Pytree(eqx.Module):
 
 
 # Wrapper for static values (can include callables).
-class PytreeConst(Pytree):
+class Const(Pytree):
     const: Any = Pytree.static()
 
     def __call__(self, *args):
         return self.const(*args)
 
-    def __rich_tree__(self):
-        return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
-
 
 # Construct for a type of closure which closes over dynamic values.
 # NOTE: experimental.
-class PytreeDynamicClosure(Pytree):
+class Closure(Pytree):
     dyn_args: Tuple
     fn: Callable = Pytree.static()
 

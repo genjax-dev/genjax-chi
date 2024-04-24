@@ -14,14 +14,16 @@
 
 
 import jax
+import numpy as np
 import plum
 import rich
+from penzai import pz
 from rich import traceback
 from rich.console import Console
 
 from genjax._src.checkify import no_checkify, yes_checkify
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Bool, Dict
+from genjax._src.core.typing import Any, Bool, Dict
 
 ###################
 # Pretty printing #
@@ -58,12 +60,40 @@ class GenJAXConsole(Pytree):
             self.rich_console.print(rich_tb)
         return True
 
-    def print(self, obj):
-        self.rich_console.print(
-            obj,
-            soft_wrap=True,
-            overflow="ellipsis",
-        )
+    def print(self, obj, roundtrip_mode=False):
+        with pz.ts.active_autovisualizer.set_scoped(pz.ts.ArrayAutovisualizer()):
+            pz.ts.display(obj, roundtrip_mode=roundtrip_mode)
+
+    def time_print(
+        self,
+        obj,
+        leading_axes=["time"],
+        roundtrip_mode=False,
+    ):
+        def temporal_autovisualizer(
+            value: Any,
+            path: tuple[Any, ...] | None,
+        ):
+            if isinstance(value, jax.Array):
+                num_provided_axes = len(leading_axes)
+                other_axes = [
+                    f"axis_{i}" for i in range(len(value.shape[num_provided_axes:]))
+                ]
+                values_over_time = pz.nx.wrap(value).tag(
+                    *leading_axes,
+                    *other_axes,
+                )
+                return pz.ts.IPythonVisualization(
+                    pz.ts.render_array(
+                        values_over_time,
+                        sliders=leading_axes,
+                        continuous=True,
+                        around_zero=False,
+                    )
+                )
+
+        with pz.ts.active_autovisualizer.set_scoped(temporal_autovisualizer):
+            pz.ts.display(obj, roundtrip_mode=roundtrip_mode)
 
     def render(self, obj):
         console = Console(soft_wrap=True, record=True)

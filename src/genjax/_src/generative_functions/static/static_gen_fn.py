@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,
@@ -257,4 +256,4 @@ class StaticGenerativeFunction(
 
 
 def static_gen_fn(f) -> StaticGenerativeFunction:
-    return module_update_wrapper(StaticGenerativeFunction(f))
+    return StaticGenerativeFunction(f)

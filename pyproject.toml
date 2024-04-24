@@ -24,7 +24,6 @@ keywords = [
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12"
@@ -35,7 +34,7 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 blackjax = { version = "^0.9.6", optional = true }
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 jax = "^0.4.25"
 numpy = "^1.26.4"
 tensorflow-probability = "^0.23.0"
@@ -52,6 +51,7 @@ tinygp = { version = "^0.2.3", optional = true }
 typing_extensions = ">=4.6.0,<5"
 oryx = "^0.2.6"
 deprecated = "^1.2.14"
+penzai = "^0.1.0"
 
 [tool.poetry.group.dev]
 optional = true
@@ -71,6 +71,7 @@ xdoctest = "^1.1.0"
 jupyterlab = "^4.1.6"
 nox = "^2024.3.2"
 nox-poetry = "^1.0.3"
+marimo = "^0.4.2"
 
 [tool.poetry.group.docs]
 optional = true

@@ -299,6 +299,6 @@ class ScanCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def scan_combinator(*, max_length):
     def _decorator(f):
-        return module_update_wrapper(ScanCombinator(f, max_length))
+        return ScanCombinator(f, max_length)
 
     return _decorator

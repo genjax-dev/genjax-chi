@@ -19,11 +19,10 @@ from operator import or_
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich.tree as rich_tree
 from jax import vmap
 from jax.experimental import checkify
+from penzai import pz
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
@@ -80,7 +79,7 @@ class classproperty:
 
 class Selection(Pytree):
     has_addr: SelectionFunction
-    level_info: String = Pytree.static()
+    info: String = Pytree.static()
 
     def __or__(self, other: "Selection") -> "Selection":
         return select_or(self, other)
@@ -141,10 +140,10 @@ class Selection(Pytree):
         return self.has(addr)
 
     def __str__(self):
-        return f"Selection({self.level_info})"
+        return f"Selection({self.info})"
 
     def __repr__(self):
-        return f"Selection({self.level_info})"
+        return f"Selection({self.info})"
 
     @classproperty
     def n(cls) -> "Selection":
@@ -323,7 +322,7 @@ def select_defer(
     flag: Union[Bool, BoolArray],
     s: Selection,
 ) -> Selection:
-    @Selection.with_info(f"Defer {s.level_info}")
+    @Selection.with_info(f"Defer {s.info}")
     @Pytree.partial(flag, s)
     @typecheck
     def inner(
@@ -340,7 +339,7 @@ def select_defer(
 
 @typecheck
 def select_complement(s: Selection) -> Selection:
-    @Selection.with_info(f"~{s.level_info}")
+    @Selection.with_info(f"~{s.info}")
     @Pytree.partial(s)
     @typecheck
     def inner(s: Selection, head: AddressComponent):
@@ -431,7 +430,7 @@ def select_slice(slc: slice) -> Selection:
 
 @typecheck
 def select_and(s1: Selection, s2: Selection) -> Selection:
-    @Selection.with_info(f"{s1.level_info} & {s2.level_info}")
+    @Selection.with_info(f"{s1.info} & {s2.info}")
     @Pytree.partial(s1, s2)
     @typecheck
     def inner(s1: Selection, s2: Selection, head: AddressComponent):
@@ -445,7 +444,7 @@ def select_and(s1: Selection, s2: Selection) -> Selection:
 
 @typecheck
 def select_or(s1: Selection, s2: Selection) -> Selection:
-    @Selection.with_info(f"{s1.level_info} | {s2.level_info}")
+    @Selection.with_info(f"{s1.info} | {s2.info}")
     @Pytree.partial(s1, s2)
     @typecheck
     def inner(s1: Selection, s2: Selection, head: AddressComponent):
@@ -462,7 +461,7 @@ def select_or(s1: Selection, s2: Selection) -> Selection:
 
 @typecheck
 def select_and_then(s1: Selection, s2: Selection) -> Selection:
-    @Selection.with_info(f"({s1.level_info} >> {s2.level_info})")
+    @Selection.with_info(f"({s1.info} >> {s2.info})")
     @Pytree.partial(s1, s2)
     @typecheck
     def inner(s1: Selection, s2: Selection, head: AddressComponent):
@@ -520,7 +519,7 @@ class ChoiceMap(Sample, Constraint):
     """
 
     choice_map_fn: "ChoiceMapFunction"
-    level_info: String = Pytree.static()
+    info: String = Pytree.static()
 
     #######################
     # Map-like interfaces #
@@ -675,10 +674,10 @@ class ChoiceMap(Sample, Constraint):
         return v
 
     def __str__(self):
-        return f"ChoiceMap({self.level_info})"
+        return f"ChoiceMap({self.info})"
 
     def __repr__(self):
-        return f"ChoiceMap({self.level_info})"
+        return f"ChoiceMap({self.info})"
 
     ################
     # Construction #
@@ -716,6 +715,13 @@ class ChoiceMap(Sample, Constraint):
     def with_info(cls, info: String):
         return lambda fn: ChoiceMap(fn, info)
 
+    ###################
+    # Pretty printing #
+    ###################
+
+    def treescope_color(self):
+        return pz.color_from_string(str(self.info))
+
 
 ChoiceMapFunction = Callable[
     [AddressComponent],
@@ -749,7 +755,7 @@ def choice_map_value(v: Any):
 
 @typecheck
 def choice_map_with_dyn_addr(addr: AddressComponent, c: ChoiceMap):
-    @ChoiceMap.with_info(f"Dynamic(... => {c.level_info})")
+    @ChoiceMap.with_info(f"Dynamic(... => {c.info})")
     @Pytree.partial(addr, c)
     def inner(addr, c, head: AddressComponent):
         check = addr == head if isinstance(head, DynamicAddressComponent) else False
@@ -760,7 +766,7 @@ def choice_map_with_dyn_addr(addr: AddressComponent, c: ChoiceMap):
 
 @typecheck
 def choice_map_with_static_addr(addr: AddressComponent, c: ChoiceMap):
-    @ChoiceMap.with_info(f"Static({addr} => {c.level_info})")
+    @ChoiceMap.with_info(f"Static({addr} => {c.info})")
     @Pytree.partial(c)
     def inner(c, head: AddressComponent):
         check = addr == head
@@ -771,7 +777,7 @@ def choice_map_with_static_addr(addr: AddressComponent, c: ChoiceMap):
 
 @typecheck
 def choice_map_selection(sel: Selection, v: Any):
-    @ChoiceMap.with_info(f"Selected({sel.level_info}) => {v}")
+    @ChoiceMap.with_info(f"Selected({sel.info}) => {v}")
     @Pytree.partial(sel, v)
     def inner(sel, v, head: AddressComponent):
         if head == ():
@@ -794,7 +800,7 @@ def choice_map_selection(sel: Selection, v: Any):
 
 @typecheck
 def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
-    @ChoiceMap.with_info(f"({c1.level_info} ⊕ {c2.level_info})")
+    @ChoiceMap.with_info(f"({c1.info} ⊕ {c2.info})")
     @Pytree.partial(c1, c2)
     def inner(c1, c2, head: AddressComponent):
         match head:
@@ -825,7 +831,7 @@ def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
 
 @typecheck
 def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
-    @ChoiceMap.with_info(f"({c1.level_info} + {c2.level_info})")
+    @ChoiceMap.with_info(f"({c1.info} + {c2.info})")
     @Pytree.partial(c1, c2)
     def inner(c1, c2, head: AddressComponent):
         match head:
@@ -851,7 +857,7 @@ def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
 
 
 def choice_map_masked(flag: BoolArray, c: ChoiceMap):
-    @ChoiceMap.with_info(f"Masked({c.level_info})")
+    @ChoiceMap.with_info(f"Masked({c.info})")
     @Pytree.partial(flag, c)
     def inner(flag, c, head: AddressComponent):
         v, check, submap = c.call(head)
@@ -867,7 +873,7 @@ def choice_map_masked(flag: BoolArray, c: ChoiceMap):
 
 @typecheck
 def choice_map_filtered(selection: Selection, c: ChoiceMap):
-    @ChoiceMap.with_info(f"Filtered({selection.level_info}, {c.level_info})")
+    @ChoiceMap.with_info(f"Filtered({selection.info}, {c.info})")
     @Pytree.partial(selection, c)
     def inner(selection, c, head: AddressComponent):
         check = head in selection
@@ -886,7 +892,7 @@ def choice_map_filtered(selection: Selection, c: ChoiceMap):
 
 @typecheck
 def select_choice_map(c: ChoiceMap):
-    @Selection.with_info(f"from ChoiceMap({c.level_info})")
+    @Selection.with_info(f"from ChoiceMap({c.info})")
     @Pytree.partial(c)
     def inner(c, head: AddressComponent):
         check = head in c
@@ -1164,6 +1170,13 @@ class Trace(Pytree):
         return self.get_choices()[x]
 
     ###################
+    # Pretty printing #
+    ###################
+
+    def treescope_color(self):
+        return self.get_gen_fn().treescope_color()
+
+    ###################
     # Batch semantics #
     ###################
 
@@ -1297,21 +1310,6 @@ class Mask(Pytree):
             lambda v: none(),
             self.value,
         )
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.flag, short_arrays=True)
-        tree = rich_tree.Tree(f"[bold](Mask, {doc})")
-        if isinstance(self.value, Pytree):
-            val_tree = self.value.__rich_tree__()
-            tree.add(val_tree)
-        else:
-            val_tree = gpp.tree_pformat(self.value, short_arrays=True)
-            tree.add(val_tree)
-        return tree
 
 
 class Sum(Pytree):

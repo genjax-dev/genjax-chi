@@ -22,7 +22,6 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,
@@ -340,6 +339,6 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 
 def vmap_combinator(in_axes: Tuple) -> Callable[[Callable], VmapCombinator]:
     def decorator(f) -> VmapCombinator:
-        return module_update_wrapper(VmapCombinator(f, in_axes))
+        return VmapCombinator(f, in_axes)
 
     return decorator
