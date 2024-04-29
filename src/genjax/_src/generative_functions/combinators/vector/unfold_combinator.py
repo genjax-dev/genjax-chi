@@ -27,12 +27,13 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
+    Selection,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -43,10 +44,8 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
-from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-    IndexedSelection,
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
@@ -83,32 +82,24 @@ class UnfoldTrace(Trace):
     def get_score(self):
         return self.score
 
-    @dispatch
     def project(
         self,
-        selection: IndexedSelection,
+        key: PRNGKey,
+        selection: Selection,
     ) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
-        return jnp.sum(
-            jnp.where(
-                selection.indices < self.dynamic_length + 1,
-                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
-                0.0,
-            )
+        length_checks = (
+            jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1
         )
 
-    @dispatch
-    def project(
-        self,
-        selection: HierarchicalSelection,
-    ) -> FloatArray:
-        return jnp.sum(
-            jnp.where(
-                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
-                self.inner.project(selection),
-                0.0,
-            )
-        )
+        def idx_check(idx, length_check, inner_slice):
+            remaining = selection.step(idx)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
+            return length_check * inner_weight
+
+        idxs = jnp.arange(0, len(self.inner.get_score()))
+        ws = jax.vmap(idx_check)(idxs, length_checks, self.inner)
+        return jnp.sum(ws, axis=0)
 
 
 #####

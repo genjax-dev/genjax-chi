@@ -79,9 +79,12 @@ def coverage(session):
         "scratch",
         "--ignore",
         "benchmarks",
+        external=True,
     )
-    session.run("poetry", "run", "coverage", "json", "--omit", "*/test*")
-    session.run("poetry", "run", "coverage", "report", "--omit", "*/test*")
+    session.run("poetry", "run", "coverage", "json", "--omit", "*/test*", external=True)
+    session.run(
+        "poetry", "run", "coverage", "report", "--omit", "*/test*", external=True
+    )
 
 
 @session(python=python_version)
@@ -142,9 +145,9 @@ def safety(session) -> None:
 
 @session(python=python_version)
 def lint(session: Session) -> None:
-    prepare(session)
-    session.run("ruff", "check", "--fix", ".")
-    session.run("ruff", "format", ".")
+    session.run_always("poetry", "install", "--with", "dev", external=True)
+    session.run("ruff", "check", "--fix", ".", external=True)
+    session.run("ruff", "format", ".", external=True)
 
 
 @session(python=python_version)

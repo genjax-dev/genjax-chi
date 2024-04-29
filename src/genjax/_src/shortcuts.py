@@ -15,20 +15,17 @@
 import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
     Choice,
     ChoiceValue,
     EmptyChoice,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     Selection,
 )
 from genjax._src.core.datatypes.trie import Trie
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, ArrayLike, Dict, Int, IntArray, typecheck
+from genjax._src.core.typing import Address, Any, ArrayLike, Dict, typecheck
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-    IndexedSelection,
     VectorChoiceMap,
 )
 
@@ -86,7 +83,7 @@ def choice_map(*vs: ChoiceMappable) -> Choice:
         if isinstance(v, Choice):
             return v
         elif isinstance(v, dict):
-            if all(isinstance(k, int) for k in v.keys()):
+            if v and all(isinstance(k, int) for k in v.keys()):
                 return IndexedChoiceMap.from_dict(v)
             else:
                 return HierarchicalChoiceMap(trie_from_dict(v))
@@ -131,20 +128,6 @@ def vector_choice_map(c: ChoiceMappable) -> VectorChoiceMap:
 
 @typecheck
 def select(
-    *addresses: Any,
+    *addresses: Address,
 ) -> Selection:
-    return HierarchicalSelection.from_addresses(*addresses)
-
-
-@typecheck
-def indexed_select(
-    idx: Int | IntArray,
-    *choices: Selection,
-) -> IndexedSelection:
-    idx = jnp.atleast_1d(idx)
-    if len(choices) == 0:
-        return IndexedSelection(idx, AllSelection())
-    elif len(choices) == 1 and isinstance(choices[0], Selection):
-        return IndexedSelection(idx, choices[0])
-    else:
-        return IndexedSelection(idx, HierarchicalSelection.from_addresses(choices))
+    return Selection.f(addresses)
