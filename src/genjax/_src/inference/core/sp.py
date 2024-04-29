@@ -19,7 +19,7 @@ from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    GenerativeFunction,
+    Constraint,
     GenerativeFunction,
     Selection,
 )
@@ -40,6 +40,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 ####################
 
 
+@Pytree.dataclass
 class Target(Pytree):
     """
     Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `ChoiceMap` object.
@@ -48,23 +49,7 @@ class Target(Pytree):
 
     p: GenerativeFunction
     args: Tuple
-    constraints: ChoiceMap
-
-    def filter_to_unconstrained(self, choice: ChoiceMap):
-        constraint_selection = self.constraints.get_selection()
-        complement = constraint_selection.complement()
-        return choice.filter(complement)
-
-    def importance(self, key: PRNGKey, choice: ChoiceMap):
-        """
-        Uses `target.p.importance` to sample an importance particle consistent with both
-        `target.constraints` and `choice`.
-        """
-        merged = self.constraints.safe_merge(choice)
-        return self.p.importance(key, merged, self.args)
-
-    def __getitem__(self, v):
-        return self.constraints[v]
+    constraint: Constraint
 
 
 #######################
@@ -72,6 +57,7 @@ class Target(Pytree):
 #######################
 
 
+@Pytree.dataclass
 class ChoiceMapDistribution(Distribution):
     """
     The abstract class `ChoiceMapDistribution` represents the type of distributions whose return value type is a `ChoiceMap`. This is the abstract base class of `InferenceAlgorithm`, as well as `Marginal`.

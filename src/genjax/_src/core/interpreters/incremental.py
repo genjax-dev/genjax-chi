@@ -236,6 +236,7 @@ def default_propagation_rule(prim, *args, **_params):
         return Diff.tree_diff_unknown_change(outval)
 
 
+@Pytree.dataclass
 class IncrementalInterpreter(Pytree):
     custom_rules: dict[jc.Primitive, Callable] = Pytree.static(default_factory=dict)
 

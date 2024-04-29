@@ -15,6 +15,7 @@
 from abc import abstractmethod
 
 import jax
+from penzai.core import formatting_util
 
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -22,25 +23,13 @@ from genjax._src.core.typing import (
     BoolArray,
     Callable,
     FloatArray,
+    List,
     PRNGKey,
     Tuple,
 )
 
 Weight = FloatArray
-ReturnValue = Any
 Retdiff = Any
-
-
-###########
-# Samples #
-###########
-
-
-class Sample(Pytree):
-    """`Sample` is the abstract base class of the type of values which can be sampled from generative functions."""
-
-    pass
-
 
 #########################
 # Update specifications #
@@ -63,9 +52,10 @@ class RegenerateSpec(UpdateSpec):
     pass
 
 
-class ChangeTargetConstraintSpec(UpdateSpec):
+@Pytree.dataclass(match_args=True)
+class ChangeTargetUpdateSpec(UpdateSpec):
     argdiffs: Tuple
-    new_constraints: "Constraint"
+    constraint: "Constraint"
 
 
 ###############
@@ -135,8 +125,24 @@ class BijectiveConstraint(Constraint):
     Formally, `BijectiveConstraint(bwd, v)` represents the constraint `(x \mapsto inverse(bwd)(x), v)`.
     """
 
-    bwd: Callable[[Any], Sample]
+    bwd: Callable[[Any], "Sample"]
     v: Any
+
+
+###########
+# Samples #
+###########
+
+
+class Sample(Constraint):
+    """`Sample` is the abstract base class of the type of values which can be sampled from generative functions."""
+
+    pass
+
+
+@Pytree.dataclass
+class EmptySample(Pytree):
+    pass
 
 
 #########
@@ -257,7 +263,7 @@ class Trace(Pytree):
         self,
         key: PRNGKey,
         spec: UpdateSpec,
-    ) -> Tuple["Trace", Weight, UpdateSpec]:
+    ) -> Tuple["Trace", Weight, Retdiff, UpdateSpec]:
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, spec)
 
@@ -285,49 +291,16 @@ class Trace(Pytree):
         return len(self.get_score())
 
 
-####################
-# Posterior target #
-####################
-
-
-@Pytree.dataclass
-class Target(Pytree):
-    """
-    A `Target` represents a constrained distribution, which may or may not be normalized.
-
-    A `Target` is created by pairing a generative function and its arguments with a `Constraint` object.
-    """
-
-    gen_fn: "GenerativeFunction"
-    constraints: Constraint
-
-    @classmethod
-    def n(cls, gen_fn) -> "Target":
-        return Target(gen_fn, EmptyConstraint())
-
-
-###########################
-# Properly weighted trace #
-###########################
-
-
-@Pytree.dataclass
-class ProperlyWeightedTrace(Pytree):
-    """
-    A `ProperlyWeightedTrace` is a triple containing an importance weight `w`, a `Trace`, and a `Target`.
-    """
-
-    w: FloatArray
-    trace: Trace
-    target: Target
-
-
 #######################
 # Generative function #
 #######################
 
 
 class GenerativeFunction(Pytree):
+    def __call__(self, key) -> Any:
+        tr = self.simulate(key)
+        return tr.get_retval()
+
     def __abstract_call__(self) -> Any:
         """Used to support JAX tracing, although this default implementation involves no
         JAX operations (it takes a fixed-key sample from the return value).
@@ -368,3 +341,34 @@ class GenerativeFunction(Pytree):
     ) -> Weight:
         _, w, _, _ = self.update(key, trace, spec)
         return w
+
+    # NOTE: Supports pretty printing in penzai.
+    def treescope_color(self):
+        type_string = str(type(self))
+        return formatting_util.color_from_string(type_string)
+
+    # NOTE: Supports callee syntax, and the ability to overload it in callers.
+    def __matmul__(self, addr):
+        return handle_off_trace_stack(addr, self)
+
+
+# NOTE: Setup a global handler stack for the `trace` callee sugar.
+# C.f. above.
+# This stack will not interact with JAX tracers at all
+# so it's safe, and will be resolved at JAX tracing time.
+GLOBAL_TRACE_HANDLER_STACK: List[Callable] = []
+
+
+def handle_off_trace_stack(addr, gen_fn: GenerativeFunction):
+    handler = GLOBAL_TRACE_HANDLER_STACK[-1]
+    return handler(addr, gen_fn)
+
+
+def push_trace_overload_stack(handler, fn):
+    def wrapped(*args):
+        GLOBAL_TRACE_HANDLER_STACK.append(handler)
+        ret = fn(*args)
+        GLOBAL_TRACE_HANDLER_STACK.pop()
+        return ret
+
+    return wrapped

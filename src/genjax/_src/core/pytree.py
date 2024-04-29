@@ -48,7 +48,10 @@ class Pytree(pz.Struct):
         /,
         **kwargs,
     ) -> type[Any] | Callable[[type[Any]], type[Any]]:
-        return pz.pytree_dataclass(incoming, **kwargs)
+        return pz.pytree_dataclass(
+            incoming,
+            **kwargs,
+        )
 
     @staticmethod
     def static(**kwargs):

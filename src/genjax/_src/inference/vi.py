@@ -32,7 +32,6 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
-from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -41,6 +40,7 @@ from genjax._src.core.typing import (
     Int,
     PRNGKey,
     Tuple,
+    typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
@@ -49,7 +49,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     geometric,
     normal,
 )
-from genjax._src.inference.core import ChoiceMapDistribution, Target
+from genjax._src.inference.core.sp import ChoiceMapDistribution, Target
 from genjax._src.inference.smc import Importance, ImportanceK
 
 tfd = tfp.distributions
@@ -60,89 +60,60 @@ tfd = tfp.distributions
 ##########################################
 
 
-@Pytree.dataclass
-class ADEVDistribution(ExactDensity):
-    """The class `ADEVDistribution` is a distribution wrapper class which exposes `sample` and
-    `logpdf` interfaces, where `sample` is expected to utilize an ADEV differentiable sampling
-    primitive, and `logpdf` is a differentiable logpdf function.
+@typecheck
+def adev_distribution(adev_primitive: ADEVPrimitive, differentiable_logpdf: Callable):
+    def inner(*args):
+        def sampler(key: PRNGKey, *args: Any) -> Any:
+            return sample_primitive(adev_primitive, key, *args)
 
-    Given a `prim: ADEVPrimitive`, a user can readily construct an `ADEVDistribution`:
+        def logpdf(v: Any, *args: Any) -> FloatArray:
+            lp = differentiable_logpdf(v, *args)
+            # Branching here is statically resolved.
+            if lp.shape:
+                return jnp.sum(lp)
+            else:
+                return lp
 
-    ```python exec="yes" source="tabbed-left"
-    import genjax
-    from genjax.adev import flip_enum
-    from genjax.inference.vi import ADEVDistribution
+        return ExactDensity(args, sampler, logpdf)
 
-    console = genjax.console()
-
-    flip_enum = ADEVDistribution(
-        flip_enum, lambda v, p: tfd.Bernoulli(probs=p).log_prob(v)
-    )
-    print(console.render(flip_enum))
-    ```
-
-    These objects can then be utilized in guide programs, and support unbiased gradient estimator automation via ADEV's gradient transformations.
-    ```
-    """
-
-    adev_primitive: ADEVPrimitive
-    differentiable_logpdf: Callable = Pytree.static()
-
-    def sample(
-        self,
-        key: PRNGKey,
-        *args: Any,
-    ) -> Any:
-        return sample_primitive(self.adev_primitive, key, *args)
-
-    def logpdf(
-        self,
-        v: Any,
-        *args: Any,
-    ) -> FloatArray:
-        lp = self.differentiable_logpdf(v, *args)
-        # Branching here is statically resolved.
-        if lp.shape:
-            return jnp.sum(lp)
-        else:
-            return lp
+    return inner
 
 
 # We import ADEV specific sampling primitives, but then wrap them in
-# ADEVDistribution, for usage inside of generative functions.
-flip_enum = ADEVDistribution(
+# adev_distribution, for usage inside of generative functions.
+flip_enum = adev_distribution(
     flip_enum,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-flip_mvd = ADEVDistribution(
+flip_mvd = adev_distribution(
     flip_mvd,
     lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
 )
 
-categorical_enum = ADEVDistribution(
+categorical_enum = adev_distribution(
     categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
 )
 
-normal_reinforce = ADEVDistribution(
+normal_reinforce = adev_distribution(
     normal_reinforce,
-    normal.logpdf,
+    lambda *args: normal(*args).logpdf,
 )
 
-normal_reparam = ADEVDistribution(
+normal_reparam = adev_distribution(
     normal_reparam,
-    normal.logpdf,
+    lambda *args: normal(*args).logpdf,
 )
 
-mv_normal_diag_reparam = ADEVDistribution(
+mv_normal_diag_reparam = adev_distribution(
     mv_normal_diag_reparam,
     lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
         loc=loc, scale_diag=scale_diag
     ).log_prob(v),
 )
 
-geometric_reinforce = ADEVDistribution(
+geometric_reinforce = adev_distribution(
     geometric_reinforce,
     lambda v, *args: geometric.logpdf(v, *args),
 )

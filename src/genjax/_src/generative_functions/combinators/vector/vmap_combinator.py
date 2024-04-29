@@ -41,7 +41,6 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 class VmapTrace(Trace):
@@ -76,7 +75,7 @@ class VmapTrace(Trace):
         pass
 
 
-class VmapCombinator(GenerativeFunction, SupportsCalleeSugar):
+class VmapCombinator(GenerativeFunction):
     """> `VmapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
@@ -191,29 +190,6 @@ class VmapCombinator(GenerativeFunction, SupportsCalleeSugar):
         scores = tr.get_score()
         map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return (map_tr, w)
-
-    @dispatch
-    def maybe_restore_arguments_kernel_update(
-        self,
-        key: PRNGKey,
-        prev: DropArgumentsTrace,
-        submap: Any,
-        original_arguments: Tuple,
-        argdiffs: Tuple,
-    ):
-        restored = prev.restore(original_arguments)
-        return self.kernel.update(key, restored, submap, argdiffs)
-
-    @dispatch
-    def maybe_restore_arguments_kernel_update(
-        self,
-        key: PRNGKey,
-        prev: Trace,
-        submap: Any,
-        original_arguments: Tuple,
-        argdiffs: Tuple,
-    ):
-        return self.kernel.update(key, prev, submap, argdiffs)
 
     @dispatch
     def update(

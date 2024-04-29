@@ -38,6 +38,7 @@ from genjax._src.core.typing import (
 #########################
 
 
+@Pytree.dataclass(match_args=True)
 class Mask(Pytree):
     """The `Mask` datatype provides access to the masking system. The masking
     system is heavily influenced by the functional `Option` monad.
@@ -146,6 +147,7 @@ class Mask(Pytree):
         )
 
 
+@Pytree.dataclass(match_args=True)
 class Sum(Pytree):
     idx: IntArray
     values: List[Any]

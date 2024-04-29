@@ -30,8 +30,6 @@ from beartype.vale import Is
 from plum import dispatch, parametric, CovariantMeta
 
 Any = btyping.Any
-Dataclass = btyping.Any
-PrettyPrintable = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
 ArrayLike = jtyping.ArrayLike
@@ -44,10 +42,6 @@ Sequence = btyping.Sequence
 Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
-Iterable = btyping.Iterable
-Generator = btyping.Generator
-Hashable = btyping.Hashable
-FrozenSet = btyping.FrozenSet
 Optional = btyping.Optional
 Type = btyping.Type
 Protocol = btyping.Protocol
@@ -59,18 +53,6 @@ Float = float
 Bool = bool
 String = str
 
-StaticAddressComponent = String
-DynamicAddressComponent = ArrayLike
-AddressComponent = Union[
-    Tuple[()],
-    EllipsisType,
-    StaticAddressComponent,
-    DynamicAddressComponent,
-]
-Address = Union[
-    AddressComponent,
-    Tuple[AddressComponent, ...],
-]
 Value = Any
 
 ############
@@ -116,8 +98,6 @@ def static_check_supports_grad(v):
 
 
 __all__ = [
-    "PrettyPrintable",
-    "Dataclass",
     "PRNGKey",
     "FloatArray",
     "BoolArray",
@@ -135,17 +115,13 @@ __all__ = [
     "Int",
     "Bool",
     "Float",
-    "Generator",
-    "Iterable",
     "Type",
     "Generic",
     "TypeVar",
+    "EllipsisType",
     "static_check_is_concrete",
     "static_check_is_array",
     "static_check_supports_grad",
-    "StaticAddressComponent",
-    "DynamicAddressComponent",
-    "Address",
     "typecheck",
     "dispatch",
     "parametric",

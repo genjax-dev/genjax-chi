@@ -12,22 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from deprecated import deprecated  # noqa: I001
-from genjax._src.generative_functions.interpreted.interpreted_gen_fn import (
-    InterpretedGenerativeFunction,
-    interpreted_gen_fn,
-    trace,
+from genjax._src.core.generative import (
+    ChoiceMap,
+    Constraint,
+    GenerativeFunction,
+    Mask,
+    Sample,
+    Selection,
+    Sum,
+    Trace,
+    UpdateSpec,
 )
 
-
-@deprecated(version="0.2.0", reason="now called @interpreted_gen_fn")
-def interpreted(f) -> InterpretedGenerativeFunction:
-    return interpreted_gen_fn(f)
-
-
 __all__ = [
-    "interpreted",
-    "interpreted_gen_fn",
-    "InterpretedGenerativeFunction",
-    "trace",
+    "Constraint",
+    "UpdateSpec",
+    "Sample",
+    "ChoiceMap",
+    "Trace",
+    "Selection",
+    "GenerativeFunction",
+    "Mask",
+    "Sum",
 ]

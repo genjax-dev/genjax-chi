@@ -29,6 +29,7 @@ from genjax._src.core.typing import Any, Bool, Dict
 ###################
 
 
+@Pytree.dataclass
 class GenJAXConsole(Pytree):
     rich_console: Console = Pytree.static()
     traceback_kwargs: Dict = Pytree.static()

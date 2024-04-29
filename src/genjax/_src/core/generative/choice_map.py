@@ -21,7 +21,8 @@ import jax.tree_util as jtu
 from jax import vmap
 from penzai import pz
 
-from genjax._src.core.generative.core import Constraint, Mask, ProjectSpec, Sample, Sum
+from genjax._src.core.generative.core import Constraint, ProjectSpec, Sample
+from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     staged_and,
     staged_err,
@@ -30,22 +31,36 @@ from genjax._src.core.interpreters.staging import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Address,
-    AddressComponent,
     Any,
+    ArrayLike,
     Bool,
     BoolArray,
     Callable,
-    DynamicAddressComponent,
     EllipsisType,
     Int,
     List,
-    StaticAddressComponent,
     String,
     Tuple,
     Union,
     typecheck,
 )
+
+#################
+# Address types #
+#################
+
+StaticAddressComponent = String
+DynamicAddressComponent = ArrayLike
+AddressComponent = Union[
+    Tuple[()],
+    EllipsisType,
+    StaticAddressComponent,
+    DynamicAddressComponent,
+]
+Address = Union[
+    AddressComponent,
+    Tuple[AddressComponent, ...],
+]
 
 ##############
 # Selections #

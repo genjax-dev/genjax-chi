@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax  # noqa: I001
-import jax.numpy as jnp
 from genjax._src.core.generative import (
+    Address,
+    ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenerativeFunction,
+    Retdiff,
     Trace,
-    Selection,
     UpdateSpec,
+    Weight,
 )
+from genjax._src.core.generative.core import push_trace_overload_stack
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -42,10 +42,6 @@ from genjax._src.generative_functions.static.static_transforms import (
     trace,
     update_transform,
 )
-from genjax._src.generative_functions.supports_callees import (
-    SupportsCalleeSugar,
-    push_trace_overload_stack,
-)
 
 #######################
 # Generative function #
@@ -55,18 +51,14 @@ from genjax._src.generative_functions.supports_callees import (
 # Callee syntactic sugar handler.
 @typecheck
 def handler_trace_with_static(
-    addr,
+    addr: Address,
     gen_fn: GenerativeFunction,
-    args: Tuple,
 ):
-    return trace(addr, gen_fn)(*args)
+    return trace(addr)(gen_fn)
 
 
 @Pytree.dataclass
-class StaticGenerativeFunction(
-    GenerativeFunction,
-    SupportsCalleeSugar,
-):
+class StaticGenerativeFunction(GenerativeFunction):
     """A `StaticGenerativeFunction` is a generative function which relies on program
     transformations applied to JAX traceable Python programs to implement the generative
     function interface.
@@ -100,37 +92,25 @@ class StaticGenerativeFunction(
         *We're aware of it, and we're working on it!*
     """
 
+    args: Tuple
     source: Callable = Pytree.static()
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
-    def __abstract_call__(self, *args) -> Any:
-        return self.source(*args)
-
-    def _stage(self, *args):
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        return stage(syntax_sugar_handled)(*args)
-
-    def _overload(self, *args):
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        return syntax_sugar_handled(*args)
+    def __abstract_call__(self) -> Any:
+        return self.source(*self.args)
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ) -> StaticTrace:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
         (args, retval, address_visitor, address_traces, score) = simulate_transform(
             syntax_sugar_handled
-        )(key, args)
+        )(key, self.args)
         return StaticTrace(
             self,
             args,
@@ -140,11 +120,11 @@ class StaticGenerativeFunction(
             score,
         )
 
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: Tuple,
     ) -> Tuple[StaticTrace, ArrayLike]:
         match constraint:
             case ChoiceMap():
@@ -160,7 +140,9 @@ class StaticGenerativeFunction(
                         address_traces,
                         score,
                     ),
-                ) = importance_transform(syntax_sugar_handled)(key, constraint, args)
+                ) = importance_transform(syntax_sugar_handled)(
+                    key, constraint, self.args
+                )
                 return (
                     StaticTrace(
                         self,
@@ -172,45 +154,25 @@ class StaticGenerativeFunction(
                     ),
                     w,
                 )
+            case _:
+                raise Exception("Not implemented")
 
+    @typecheck
     def update(
         self,
         key: PRNGKey,
-        prev: Trace,
+        trace: Trace,
         update_spec: UpdateSpec,
-    ) -> Tuple[Trace, ArrayLike, Any, ChoiceMap]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
-            case selection if isinstance(selection, Selection):
-                weight = jnp.array(0.0)
-                addresses = prev.addresses.get_visited()
-                addresses = Pytree.tree_unwrap_const(addresses)
-                for k, subtrace in zip(addresses, prev.subtraces):
-                    key, sub_key = jax.random.split(key)
-                    remaining = selection.step(k)
-                    weight += subtrace.project(sub_key, remaining)
-                return (
-                    prev,
-                    weight,
-                    Diff.tree_diff_no_change(prev.get_retval()),
-                    ChoiceMap.n,
-                )
-
-            case chm if isinstance(chm, ChoiceMap):
+            case ChoiceMap():
                 constraint = update_spec
-                prev_sample = prev.get_sample()
-                merged = constraint + prev_sample
-                selection = constraint.get_selection()
-                discarded = prev_sample.filter(selection)
-                args = prev.get_args()
-                tr, w = self.importance(key, merged, args)
-                return (
-                    tr,
-                    w - prev.get_score(),
-                    Diff.tree_diff_unknown_change(tr.get_retval()),
-                    discarded,
+                update_spec = ChangeTargetUpdateSpec(
+                    Diff.tree_diff_no_change(self.args), constraint
                 )
+                return self.update(key, trace, update_spec)
 
-            case ChangeTargetUpdateSpec():
+            case ChangeTargetUpdateSpec(argdiffs, constraint):
                 assert Diff.static_check_tree_diff(argdiffs)
                 syntax_sugar_handled = push_trace_overload_stack(
                     handler_trace_with_static, self.source
@@ -229,7 +191,7 @@ class StaticGenerativeFunction(
                         discard_choices,
                     ),
                 ) = update_transform(syntax_sugar_handled)(
-                    key, prev, constraints, argdiffs
+                    key, trace, constraint, argdiffs
                 )
 
                 def make_discard(visitor, submaps):
@@ -260,36 +222,16 @@ class StaticGenerativeFunction(
     @typecheck
     def assess(
         self,
-        choice: ChoiceMap,
-        args: Tuple,
+        sample: ChoiceMap,
     ) -> Tuple[ArrayLike, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(choice, args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(sample, self.args)
         return (score, retval)
 
     def inline(self, *args):
         return self.source(*args)
-
-    def restore_with_aux(self, interface_data, aux):
-        (original_args, retval, score, _) = interface_data
-        (address_choices,) = aux
-        return StaticTrace(
-            self,
-            original_args,
-            retval,
-            address_choices,
-            score,
-        )
-
-    @property
-    def __wrapped__(self):
-        return self.source
-
-    ###################
-    # Deserialization #
-    ###################
 
 
 #############
@@ -297,5 +239,11 @@ class StaticGenerativeFunction(
 #############
 
 
-def static_gen_fn(f) -> StaticGenerativeFunction:
-    return StaticGenerativeFunction(f)
+@typecheck
+def static_gen_fn(
+    f: Callable[[Any], Any],
+) -> Callable[[Any], StaticGenerativeFunction]:
+    def inner(*args):
+        return StaticGenerativeFunction(args, f)
+
+    return inner

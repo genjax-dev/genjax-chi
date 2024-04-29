@@ -33,7 +33,6 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 @Pytree.dataclass
@@ -87,7 +86,7 @@ class ScanTrace(Trace):
 
 
 @Pytree.dataclass
-class ScanCombinator(GenerativeFunction, SupportsCalleeSugar):
+class ScanCombinator(GenerativeFunction):
     """> `ScanCombinator` accepts a kernel generative function, as well as a static
     maximum unroll length, and provides a scan-like pattern of generative computation.
 

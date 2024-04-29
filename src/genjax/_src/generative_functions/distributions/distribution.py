@@ -15,33 +15,34 @@
 
 import abc
 
+import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from jax.lax import cond
 
 from genjax._src.core.generative import (
+    ChangeTargetUpdateSpec,
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
     Mask,
+    Retdiff,
     Selection,
     Trace,
+    UpdateSpec,
+    Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.serialization.pickle import (
-    PickleDataFormat,
-    PickleSerializationBackend,
-    SupportsPickleSerialization,
-)
 from genjax._src.core.typing import (
     Any,
+    Callable,
     FloatArray,
     PRNGKey,
     Tuple,
-    dispatch,
     static_check_is_concrete,
     typecheck,
 )
-from genjax._src.generative_functions.supports_callees import SupportsCalleeSugar
 
 #####
 # DistributionTrace
@@ -51,10 +52,8 @@ from genjax._src.generative_functions.supports_callees import SupportsCalleeSuga
 @Pytree.dataclass
 class DistributionTrace(
     Trace,
-    SupportsPickleSerialization,
 ):
     gen_fn: GenerativeFunction
-    args: Tuple
     value: Any
     score: FloatArray
 
@@ -63,9 +62,6 @@ class DistributionTrace(
 
     def get_retval(self):
         return self.value
-
-    def get_args(self):
-        return self.args
 
     def get_score(self):
         return self.score
@@ -84,38 +80,17 @@ class DistributionTrace(
     def get_value(self):
         return self.value
 
-    def set_leaf_value(self, v):
-        return DistributionTrace(self.gen_fn, self.args, v, self.score)
-
-    #################
-    # Serialization #
-    #################
-
-    @dispatch
-    def dumps(
-        self,
-        backend: PickleSerializationBackend,
-    ) -> PickleDataFormat:
-        args, value, score = self.args, self.value, self.score
-        payload = [
-            backend.dumps(args),
-            backend.dumps(value),
-            backend.dumps(score),
-        ]
-        return PickleDataFormat(payload)
-
 
 #####
 # Distribution
 #####
 
 
-class Distribution(GenerativeFunction, SupportsCalleeSugar):
+class Distribution(GenerativeFunction):
     @abc.abstractmethod
     def random_weighted(
         self,
         key: PRNGKey,
-        *args,
     ) -> Tuple[FloatArray, Any]:
         pass
 
@@ -124,7 +99,6 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         self,
         key: PRNGKey,
         v: Any,
-        *args,
     ) -> FloatArray:
         pass
 
@@ -132,88 +106,96 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ) -> DistributionTrace:
-        (w, v) = self.random_weighted(key, *args)
-        tr = DistributionTrace(self, args, v, w)
+        (w, v) = self.random_weighted(key)
+        tr = DistributionTrace(self, v, w)
         return tr
 
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
-        chm: ChoiceMap,
-        args: Tuple,
-    ):
-        check = chm.has_value()
-        if static_check_is_concrete(check) and check:
-            v = chm.get_value()
-            w = self.estimate_logpdf(key, v, *args)
-            score = w
-            return (DistributionTrace(self, args, v, score), w)
-        elif static_check_is_concrete(check):
-            score, v = self.random_weighted(key, *args)
-            return (DistributionTrace(self, args, v, score), jnp.array(0.0))
-        else:
-            v = chm.get_value()
-            match v:
-                case Mask(flag, value):
+        constraint: Constraint,
+    ) -> Tuple[Trace, Weight]:
+        match constraint:
+            case ChoiceMap():
+                chm = constraint
+                check = chm.has_value()
+                if static_check_is_concrete(check) and check:
+                    v = chm.get_value()
+                    w = self.estimate_logpdf(key, v)
+                    score = w
+                    return (DistributionTrace(self, v, score), w)
+                elif static_check_is_concrete(check):
+                    score, v = self.random_weighted(key)
+                    return (DistributionTrace(self, v, score), jnp.array(0.0))
+                else:
+                    v = chm.get_value()
+                    match v:
+                        case Mask(flag, value):
 
-                    def _simulate(key, v, args):
-                        tr = self.simulate(key, args)
-                        w = 0.0
-                        return (tr, w)
+                            def _simulate(key, v):
+                                tr = self.simulate(key)
+                                w = 0.0
+                                return (tr, w)
 
-                    def _importance(key, v, args):
-                        w = self.estimate_logpdf(key, v, *args)
-                        tr = DistributionTrace(self, args, v, w)
-                        return (tr, w)
+                            def _importance(key, v):
+                                w = self.estimate_logpdf(key, v)
+                                tr = DistributionTrace(self, v, w)
+                                return (tr, w)
 
-                    return cond(flag, _importance, _simulate, key, value, args)
+                            return cond(flag, _importance, _simulate, key, value)
 
-                case _:
-                    raise Exception("Unhandled type.")
+                        case _:
+                            raise Exception("Unhandled type.")
 
-    def update(
+    def update_change_target(
         self,
         key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: ChoiceMap,
+        trace: DistributionTrace,
         argdiffs: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
+        constraint: Constraint,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         Diff.static_check_tree_diff(argdiffs)
+        check = constraint.has_value()
         args = Diff.tree_primal(argdiffs)
-        check = constraints.has_value()
+        dist_def = jtu.tree_structure(self)
+        new_dist = jtu.tree_unflatten(dist_def, args)
         if static_check_is_concrete(check) and check:
-            v = constraints.get_value()
-            fwd = self.estimate_logpdf(key, v, *args)
-            bwd = prev.get_score()
+            v = constraint.get_value()
+            fwd = new_dist.estimate_logpdf(key, v)
+            bwd = trace.get_score()
             w = fwd - bwd
-            new_tr = DistributionTrace(self, args, v, fwd)
-            discard = prev.get_sample()
+            new_tr = DistributionTrace(self, v, fwd)
+            discard = trace.get_sample()
             retval_diff = Diff.tree_diff_unknown_change(v)
             return (new_tr, w, retval_diff, discard)
         elif static_check_is_concrete(check):
-            value_chm = prev.get_sample()
+            value_chm = trace.get_sample()
             v = value_chm.get_value()
             fwd = self.estimate_logpdf(key, v, *args)
-            bwd = prev.get_score()
+            bwd = trace.get_score()
             w = fwd - bwd
-            new_tr = DistributionTrace(self, args, v, fwd)
+            new_tr = DistributionTrace(self, v, fwd)
             retval_diff = Diff.tree_diff_no_change(v)
             return (new_tr, w, retval_diff, ChoiceMap.n)
+        else:
+            raise NotImplementedError
 
-    ###################
-    # Deserialization #
-    ###################
-
-    @dispatch
-    def loads(
+    @typecheck
+    def update(
         self,
-        data: PickleDataFormat,
-        backend: PickleSerializationBackend,
-    ) -> DistributionTrace:
-        args, value, score = backend.loads(data.payload)
-        return DistributionTrace(self, args, value, score)
+        key: PRNGKey,
+        trace: DistributionTrace,
+        update_spec: UpdateSpec,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        match update_spec:
+            case Constraint():
+                pass
+            case ChangeTargetUpdateSpec(argdiffs, constraint):
+                return self.update_change_target(key, trace, argdiffs, constraint)
+            case _:
+                raise Exception("Unhandled type.")
 
 
 #####
@@ -221,88 +203,40 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
 #####
 
 
+@Pytree.dataclass
 class ExactDensity(Distribution):
-    """> Abstract base class which extends Distribution and assumes that the implementor
-    provides an exact logpdf method (compared to one which returns _an estimate of the
-    logpdf_).
+    args: Tuple
+    sampler: Callable = Pytree.static()
+    logpdf_evaluator: Callable = Pytree.static()
+    kwargs: dict = Pytree.field(default_factory=dict)
 
-    All of the standard distributions inherit from `ExactDensity`, and
-    if you are looking to implement your own distribution, you should
-    likely use this class.
+    def __abstract_call__(self):
+        key = jax.random.PRNGKey(0)
+        return self.sampler(key, *self.args, **self.kwargs)
 
-    !!! info "`Distribution` implementors are `Pytree` implementors"
-
-        As `Distribution` extends `Pytree`, if you use this class, you must implement `flatten` as part of your class declaration.
-    """
-
-    @abc.abstractmethod
-    def sample(self, key: PRNGKey, *args: Any) -> Any:
-        """> Sample from the distribution, returning a value from the event space.
-
-        Arguments:
-            key: A `PRNGKey`.
-            *args: The arguments to the distribution invocation.
-
-        Returns:
-            v: A value from the support of the distribution.
-
-        Examples:
-            `genjax.normal` is a distribution with an exact density, which supports the `sample` interface. Here's an example of invoking `sample`.
-
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-
-            console = genjax.console()
-
-            key = jax.random.PRNGKey(314159)
-            v = genjax.normal.sample(key, 0.0, 1.0)
-            print(console.render(v))
-            ```
-
-            Note that you often do want or need to invoke `sample` directly - you'll likely want to use the generative function interface methods instead:
-
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-
-            console = genjax.console()
-
-            key = jax.random.PRNGKey(314159)
-            tr = genjax.normal.simulate(key, (0.0, 1.0))
-            print(console.render(tr))
-            ```
-        """
-
-    @abc.abstractmethod
-    def logpdf(self, v: Any, *args: Any) -> FloatArray:
-        """> Given a value from the support of the distribution, compute the log
-        probability of that value under the density (with respect to the standard base
-        measure).
-
-        Arguments:
-            v: A value from the support of the distribution.
-            *args: The arguments to the distribution invocation.
-
-        Returns:
-            logpdf: The log density evaluated at `v`, with density configured by `args`.
-        """
-
-    def random_weighted(self, key, *args):
-        v = self.sample(key, *args)
-        w = self.logpdf(v, *args)
+    def random_weighted(
+        self,
+        key: PRNGKey,
+    ) -> Tuple[FloatArray, Any]:
+        v = self.sampler(key, *self.args, **self.kwargs)
+        w = self.logpdf_evaluator(v, *self.args, **self.kwargs)
         return (w, v)
 
-    def estimate_logpdf(self, _, v, *args):
-        w = self.logpdf(v, *args)
-        return w
-
-    @typecheck
-    def assess(
+    def estimate_logpdf(
         self,
-        evaluation_point: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[FloatArray, Any]:
-        v = evaluation_point.get_value()
-        score = self.logpdf(v, *args)
-        return (score, v)
+        key: PRNGKey,
+        v: Any,
+    ) -> FloatArray:
+        w = self.logpdf_evaluator(v, *self.args, **self.kwargs)
+        if w.shape:
+            return jnp.sum(w)
+        else:
+            return w
+
+
+@typecheck
+def exact_density(sampler: Callable, logpdf: Callable):
+    def inner(*args, **kwargs):
+        return ExactDensity(args, sampler, logpdf, kwargs)
+
+    return inner

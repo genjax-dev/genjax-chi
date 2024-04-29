@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 class ComposeTrace(Trace):
@@ -62,7 +61,7 @@ class ComposeTrace(Trace):
         return self.inner.project(key, selection)
 
 
-class ComposeCombinator(GenerativeFunction, SupportsCalleeSugar):
+class ComposeCombinator(GenerativeFunction):
     inner: GenerativeFunction
     argument_pushforward: Callable = Pytree.static()
     retval_pushforward: Callable = Pytree.static()

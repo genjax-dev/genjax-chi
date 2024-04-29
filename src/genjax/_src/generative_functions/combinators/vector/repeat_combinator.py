@@ -32,7 +32,6 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 class RepeatTrace(Trace):
@@ -72,10 +71,7 @@ class RepeatTrace(Trace):
         return jnp.sum(ws, axis=0)
 
 
-class RepeatCombinator(
-    SupportsCalleeSugar,
-    GenerativeFunction,
-):
+class RepeatCombinator(GenerativeFunction):
     """The `RepeatCombinator` supports i.i.d sampling from generative functions (for
     vectorized mapping over arguments, see `VmapCombinator`)."""
 

@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
 class MaskTrace(Trace):
@@ -61,7 +60,7 @@ class MaskTrace(Trace):
         return self.check * self.inner.project(key, selection)
 
 
-class MaskCombinator(GenerativeFunction, SupportsCalleeSugar):
+class MaskCombinator(GenerativeFunction):
     """A combinator which enables dynamic masking of generative function.
     `MaskCombinator` takes a `GenerativeFunction` as a parameter, and
     returns a new `GenerativeFunction` which accepts a boolean array as the

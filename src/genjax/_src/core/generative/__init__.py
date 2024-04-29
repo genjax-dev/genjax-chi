@@ -12,26 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .choice_map import ChoiceMap, Selection
+from .choice_map import Address, ChoiceMap, Selection
 from .core import (
+    ChangeTargetUpdateSpec,
     Constraint,
     GenerativeFunction,
     ProjectSpec,
-    ProperlyWeightedTrace,
     RegenerateSpec,
+    Retdiff,
     Sample,
-    Target,
     Trace,
     UpdateSpec,
+    Weight,
 )
 from .functional_types import Mask, Sum
 
 __all__ = [
+    "Address",
+    "ChangeTargetUpdateSpec",
+    "Weight",
+    "Retdiff",
     "Sample",
     "Constraint",
     "Trace",
-    "Target",
-    "ProperlyWeightedTrace",
     "GenerativeFunction",
     "Mask",
     "Sum",

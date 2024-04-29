@@ -41,14 +41,13 @@ from genjax._src.generative_functions.combinators.switch.switch_datatypes import
     SwitchChoiceMap,
     SwitchTrace,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 #####
 # SwitchCombinator
 #####
 
 
-class SwitchCombinator(GenerativeFunction, SupportsCalleeSugar):
+class SwitchCombinator(GenerativeFunction):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching control
     flow patterns, including control flow patterns which branch on other stochastic

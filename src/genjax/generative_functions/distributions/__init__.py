@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.distributions.custom import discrete_hmm
-from genjax._src.generative_functions.distributions.custom.dirac import Dirac, dirac
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
     DiscreteHMMConfiguration,
@@ -24,8 +23,6 @@ from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    TFPDistribution,
-    TFPMixture,
     bates,
     bernoulli,
     beta,
@@ -41,7 +38,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     inverse_gamma,
     kumaraswamy,
     logit_normal,
-    mixture,
     moyal,
     multinomial,
     mv_normal,
@@ -64,9 +60,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 __all__ = [
     "Distribution",
     "ExactDensity",
-    "TFPDistribution",
-    "TFPMixture",
-    "mixture",
     "beta",
     "bates",
     "bernoulli",
@@ -103,6 +96,4 @@ __all__ = [
     "DiscreteHMM",
     "DiscreteHMMConfiguration",
     "forward_filtering_backward_sampling",
-    "Dirac",
-    "dirac",
 ]

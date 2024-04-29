@@ -20,6 +20,8 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
+    Address,
+    ChangeTargetUpdateSpec,
     ChoiceMap,
     GenerativeFunction,
     Trace,
@@ -36,7 +38,6 @@ from genjax._src.core.interpreters.incremental import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Any,
     Callable,
     FloatArray,
     List,
@@ -75,8 +76,8 @@ def static_check_address_type(addr):
 # We defer the abstract call here so that, when we
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
-def _abstract_gen_fn_call(gen_fn, _, *args):
-    return gen_fn.__abstract_call__(*args)
+def _abstract_gen_fn_call(gen_fn, _):
+    return gen_fn.__abstract_call__()
 
 
 ############################################################
@@ -84,18 +85,17 @@ def _abstract_gen_fn_call(gen_fn, _, *args):
 ############################################################
 
 
-def _trace(gen_fn, addr, *args):
+def _trace(gen_fn: GenerativeFunction, addr: Address):
     static_check_address_type(addr)
     addr = Pytree.tree_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         gen_fn,
         addr,
-        *args,
     )
 
 
 @typecheck
-def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
+def trace(addr: Address) -> Callable:
     """Invoke a generative function, binding its generative semantics with the current
     caller.
 
@@ -106,8 +106,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     Returns:
         callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
-    assert isinstance(gen_fn, GenerativeFunction)
-    return lambda *args: _trace(gen_fn, addr, *args)
+    return lambda gen_fn: _trace(gen_fn, addr)
 
 
 ######################################
@@ -116,6 +115,7 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
 
 # Usage in transforms: checks for duplicate addresses.
+@Pytree.dataclass
 class AddressVisitor(Pytree):
     visited: List = Pytree.field(default_factory=list)
 
@@ -186,11 +186,10 @@ class SimulateHandler(StaticLanguageHandler):
         in_tree = _params.get("in_tree")
         num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr, *call_args = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        gen_fn, addr = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
-        call_args = tuple(call_args)
         self.key, sub_key = jax.random.split(self.key)
-        tr = gen_fn.simulate(sub_key, call_args)
+        tr = gen_fn.simulate(sub_key)
         score = tr.get_score()
         self.address_traces.append(tr)
         self.score += score
@@ -311,22 +310,21 @@ class UpdateHandler(StaticLanguageHandler):
     def handle_trace(self, *tracers, **_params):
         in_tree = _params.get("in_tree")
         num_consts = _params.get("num_consts")
-        passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr, *argdiffs = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        argdiffs = tracers[num_consts:]
+        primals = Diff.tree_primal(argdiffs)
+        gen_fn, addr = jtu.tree_unflatten(in_tree, primals)
         self.visit(addr)
 
         # Run the update step.
         subtrace = self.get_subtrace(addr)
         subconstraints = self.get_submap(addr)
-        argdiffs = tuple(argdiffs)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, retval_diff, discard) = gen_fn.update(
-            sub_key, subtrace, subconstraints, argdiffs
-        )
+        fwd_spec = ChangeTargetUpdateSpec(argdiffs, subconstraints)
+        (tr, w, retval_diff, bwd_spec) = gen_fn.update(sub_key, subtrace, fwd_spec)
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.discard_choices.append(discard)
+        self.discard_choices.append(bwd_spec)
 
         # We have to convert the Diff back to tracers to return
         # from the primitive.

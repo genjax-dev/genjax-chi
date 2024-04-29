@@ -39,8 +39,11 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.inference.core import ChoiceMapDistribution, InferenceAlgorithm, Target
-from genjax._src.inference.translator import TraceTranslator
+from genjax._src.inference.core.sp import (
+    ChoiceMapDistribution,
+    InferenceAlgorithm,
+    Target,
+)
 
 
 # Utility, for CSMC stacking.
@@ -367,22 +370,6 @@ class Resample:
 
     def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         pass
-
-
-#####################
-# Trace translation #
-#####################
-
-
-class TraceTranslate(SMCAlgorithm):
-    prev: SMCAlgorithm
-    translator: TraceTranslator
-
-    def get_num_particles(self):
-        return self.prev.get_num_particles()
-
-    def get_final_target(self):
-        return self.prev.get_final_target()
 
 
 #################

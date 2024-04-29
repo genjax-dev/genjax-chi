@@ -15,7 +15,7 @@
 from genjax._src.inference.vi import (
     ELBO,
     IWELBO,
-    ADEVDistribution,
+    adev_distribution,
     categorical_enum,
     flip_enum,
     flip_mvd,
@@ -26,7 +26,7 @@ from genjax._src.inference.vi import (
 )
 
 __all__ = [
-    "ADEVDistribution",
+    "adev_distribution",
     "flip_enum",
     "flip_mvd",
     "normal_reinforce",
