@@ -31,7 +31,7 @@ class TestUnfoldSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         unfold_score = tr.get_score()
-        sel = genjax.Selection.a >> genjax.Selection.at["z"]
+        sel = genjax.Selection.at[..., "z"]
         assert tr.project(key, sel) == unfold_score
 
     def test_unfold_index_importance(self):
