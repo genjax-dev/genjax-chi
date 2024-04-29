@@ -17,7 +17,7 @@ import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.generative import JAXGenerativeFunction
+from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Callable, Sequence
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
@@ -25,7 +25,8 @@ from genjax._src.generative_functions.distributions.distribution import ExactDen
 tfd = tfp.distributions
 
 
-class TFPDistribution(ExactDensity, JAXGenerativeFunction):
+@Pytree.dataclass
+class TFPDistribution(ExactDensity):
     """A `GenerativeFunction` wrapper around [TensorFlow Probability distributions](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions).
 
     Implements the `ExactDensity` subclass of `genjax.Distribution` automatically using the interfaces defined for `tfp.distributions` objects.
@@ -221,6 +222,7 @@ A `TFPDistribution` generative function which wraps the [`tfd.Zipf`](https://www
 ######################
 
 
+@Pytree.dataclass
 class TFPMixture(ExactDensity):
     cat: TFPDistribution
     components: Sequence[TFPDistribution]

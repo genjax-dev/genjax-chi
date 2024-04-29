@@ -33,6 +33,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
 
 
+@Pytree.dataclass
 class DiscreteHMMInferenceProblem(Pytree):
     initial_state: IntArray
     log_posterior: FloatArray

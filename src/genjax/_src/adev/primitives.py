@@ -42,6 +42,7 @@ def zero(v):
 ################################
 
 
+@Pytree.dataclass
 class REINFORCE(ADEVPrimitive):
     sample_function: Callable = Pytree.static()
     differentiable_logpdf: Callable = Pytree.static()
@@ -77,6 +78,7 @@ def reinforce(sample_func, logpdf_func):
 ###########################
 
 
+@Pytree.dataclass
 class BernoulliEnum(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
@@ -113,6 +115,7 @@ class BernoulliEnum(ADEVPrimitive):
 flip_enum = BernoulliEnum()
 
 
+@Pytree.dataclass
 class BernoulliMVD(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
@@ -138,6 +141,7 @@ class BernoulliMVD(ADEVPrimitive):
 flip_mvd = BernoulliMVD()
 
 
+@Pytree.dataclass
 class BernoulliEnumParallel(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
@@ -170,6 +174,7 @@ class BernoulliEnumParallel(ADEVPrimitive):
 flip_enum_parallel = BernoulliEnumParallel()
 
 
+@Pytree.dataclass
 class CategoricalEnumParallel(ADEVPrimitive):
     def sample(self, key, probs):
         return tfd.Categorical(probs=probs).sample(seed=key)
@@ -215,6 +220,7 @@ normal_reinforce = reinforce(
 )
 
 
+@Pytree.dataclass
 class NormalREPARAM(ADEVPrimitive):
     def sample(self, key, loc, scale_diag):
         return tfd.Normal(loc=loc, scale=scale_diag).sample(seed=key)
@@ -245,6 +251,7 @@ class NormalREPARAM(ADEVPrimitive):
 normal_reparam = NormalREPARAM()
 
 
+@Pytree.dataclass
 class MvNormalDiagREPARAM(ADEVPrimitive):
     def sample(self, key, loc, scale_diag):
         return tfd.MultivariateNormalDiag(loc=loc, scale_diag=scale_diag).sample(
@@ -283,6 +290,7 @@ class MvNormalDiagREPARAM(ADEVPrimitive):
 mv_normal_diag_reparam = MvNormalDiagREPARAM()
 
 
+@Pytree.dataclass
 class MvNormalREPARAM(ADEVPrimitive):
     def sample(self, key, mu, sigma):
         v = tfd.MultivariateNormalFullCovariance(
@@ -318,6 +326,7 @@ class MvNormalREPARAM(ADEVPrimitive):
 mv_normal_reparam = MvNormalREPARAM()
 
 
+@Pytree.dataclass
 class Uniform(ADEVPrimitive):
     def sample(
         self,
@@ -341,6 +350,7 @@ class Uniform(ADEVPrimitive):
 uniform = Uniform()
 
 
+@Pytree.dataclass
 class Baseline(ADEVPrimitive):
     prim: ADEVPrimitive
 
@@ -397,6 +407,7 @@ def baseline(prim):
 ##################
 
 
+@Pytree.dataclass
 class AddCost(ADEVPrimitive):
     def sample(self, *args):
         pass

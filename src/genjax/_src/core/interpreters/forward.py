@@ -138,6 +138,7 @@ def initial_style_bind(prim, **params):
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
+@Pytree.dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
@@ -202,6 +203,7 @@ class StatefulHandler:
         pass
 
 
+@Pytree.dataclass
 class ForwardInterpreter(Pytree):
     def _eval_jaxpr_forward(
         self,

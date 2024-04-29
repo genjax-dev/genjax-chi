@@ -32,7 +32,7 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
-from genjax._src.core.generative import JAXGenerativeFunction
+from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -60,7 +60,8 @@ tfd = tfp.distributions
 ##########################################
 
 
-class ADEVDistribution(JAXGenerativeFunction, ExactDensity):
+@Pytree.dataclass
+class ADEVDistribution(ExactDensity):
     """The class `ADEVDistribution` is a distribution wrapper class which exposes `sample` and
     `logpdf` interfaces, where `sample` is expected to utilize an ADEV differentiable sampling
     primitive, and `logpdf` is a differentiable logpdf function.

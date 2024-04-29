@@ -20,6 +20,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
     Mask,
+    Sample,
     Selection,
     Trace,
 )
@@ -38,7 +39,7 @@ from genjax._src.core.typing import (
 ###############################
 
 #####
-# SwitchChoiceMap
+# SwitchSample
 #####
 
 # Note that the abstract/concrete semantics of `jnp.choose`
@@ -50,9 +51,9 @@ from genjax._src.core.typing import (
 # choose a fallback mode to allow tracer values.
 
 
-class SwitchChoiceMap(ChoiceMap):
+class SwitchSample(Sample):
     index: IntArray
-    submaps: Sequence[ChoiceMap]
+    submaps: Sequence[Trace]
 
     def is_empty(self):
         flags = jnp.array([sm.is_empty() for sm in self.submaps])
@@ -63,7 +64,7 @@ class SwitchChoiceMap(ChoiceMap):
         selection: Selection,
     ) -> ChoiceMap:
         filtered_submaps = map(lambda chm: chm.filter(selection), self.submaps)
-        return SwitchChoiceMap(self.index, filtered_submaps)
+        return SwitchSample(self.index, filtered_submaps)
 
     def has_submap(self, addr):
         checks = list(map(lambda v: v.has_submap(addr), self.submaps))
@@ -119,15 +120,6 @@ class SwitchChoiceMap(ChoiceMap):
     def get_selection(self):
         raise NotImplementedError
 
-    @dispatch
-    def merge(self, other: ChoiceMap) -> Tuple[ChoiceMap, ChoiceMap]:
-        new_submaps, new_discard = list(
-            zip(*map(lambda v: v.merge(other), self.submaps))
-        )
-        return SwitchChoiceMap(self.index, list(new_submaps)), SwitchChoiceMap(
-            self.index, list(new_discard)
-        )
-
 
 ################
 # Switch trace #
@@ -136,7 +128,7 @@ class SwitchChoiceMap(ChoiceMap):
 
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    choice: SwitchChoiceMap
+    choice: SwitchSample
     args: Tuple
     retval: Any
     score: FloatArray

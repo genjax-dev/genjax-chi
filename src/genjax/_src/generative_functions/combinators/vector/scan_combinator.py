@@ -20,7 +20,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    JAXGenerativeFunction,
+    GenerativeFunction,
     Selection,
     Trace,
 )
@@ -36,6 +36,7 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 
+@Pytree.dataclass
 class ScanTrace(Trace):
     scan_gen_fn: "ScanCombinator"
     inner: Trace
@@ -85,7 +86,8 @@ class ScanTrace(Trace):
 ###################
 
 
-class ScanCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
+@Pytree.dataclass
+class ScanCombinator(GenerativeFunction, SupportsCalleeSugar):
     """> `ScanCombinator` accepts a kernel generative function, as well as a static
     maximum unroll length, and provides a scan-like pattern of generative computation.
 
@@ -125,7 +127,7 @@ class ScanCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    kernel: JAXGenerativeFunction
+    kernel: GenerativeFunction
     max_length: Int = Pytree.static()
 
     # To get the type of return value, just invoke

@@ -20,13 +20,13 @@ from jax.lax import cond
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    Constraint,
     GenerativeFunction,
     Mask,
     Selection,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.serialization.pickle import (
     PickleDataFormat,
     PickleSerializationBackend,
@@ -48,6 +48,7 @@ from genjax._src.generative_functions.supports_callees import SupportsCalleeSuga
 #####
 
 
+@Pytree.dataclass
 class DistributionTrace(
     Trace,
     SupportsPickleSerialization,
@@ -69,7 +70,7 @@ class DistributionTrace(
     def get_score(self):
         return self.score
 
-    def get_choices(self):
+    def get_sample(self):
         return ChoiceMap.v(self.value)
 
     def project(
@@ -137,7 +138,7 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    def _importance_choice_map(
+    def importance(
         self,
         key: PRNGKey,
         chm: ChoiceMap,
@@ -172,19 +173,6 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
                 case _:
                     raise Exception("Unhandled type.")
 
-    @typecheck
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray]:
-        match constraint:
-            case ChoiceMap(_):
-                return self._importance_choice_map(key, constraint, args)
-            case _:
-                raise Exception("Unhandled constraint.")
-
     def update(
         self,
         key: PRNGKey,
@@ -201,11 +189,11 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
             bwd = prev.get_score()
             w = fwd - bwd
             new_tr = DistributionTrace(self, args, v, fwd)
-            discard = prev.get_choices()
+            discard = prev.get_sample()
             retval_diff = Diff.tree_diff_unknown_change(v)
             return (new_tr, w, retval_diff, discard)
         elif static_check_is_concrete(check):
-            value_chm = prev.get_choices()
+            value_chm = prev.get_sample()
             v = value_chm.get_value()
             fwd = self.estimate_logpdf(key, v, *args)
             bwd = prev.get_score()

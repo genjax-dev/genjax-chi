@@ -20,7 +20,7 @@ from equinox import module_update_wrapper
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
-    JAXGenerativeFunction,
+    GenerativeFunction,
     Selection,
 )
 from genjax._src.core.pytree import Pytree
@@ -100,7 +100,7 @@ class ChoiceMapDistribution(Distribution):
 ########################
 
 
-class InferenceAlgorithm(ChoiceMapDistribution, JAXGenerativeFunction):
+class InferenceAlgorithm(ChoiceMapDistribution):
     """The abstract class `InferenceAlgorithm` represents the type of inference
     algorithms, programs which implement interfaces for sampling from approximate
     posterior representations, and estimating the density of the approximate posterior.

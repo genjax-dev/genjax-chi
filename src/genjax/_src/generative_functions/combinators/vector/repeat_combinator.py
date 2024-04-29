@@ -20,7 +20,6 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
-    JAXGenerativeFunction,
     Selection,
     Trace,
 )
@@ -75,12 +74,12 @@ class RepeatTrace(Trace):
 
 class RepeatCombinator(
     SupportsCalleeSugar,
-    JAXGenerativeFunction,
+    GenerativeFunction,
 ):
     """The `RepeatCombinator` supports i.i.d sampling from generative functions (for
     vectorized mapping over arguments, see `VmapCombinator`)."""
 
-    inner: JAXGenerativeFunction
+    inner: GenerativeFunction
     repeats: Int = Pytree.static()
 
     @typecheck
@@ -134,8 +133,8 @@ class RepeatCombinator(
 #############
 
 
-def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
-    def decorator(f) -> JAXGenerativeFunction:
+def repeat_combinator(*, repeats) -> Callable[[Callable], GenerativeFunction]:
+    def decorator(f) -> GenerativeFunction:
         return RepeatCombinator(f, repeats)
 
     return decorator

@@ -75,6 +75,7 @@ class ChangeTangent(Pytree):
 # (namely, that it is has not changed).
 
 
+@Pytree.dataclass
 class _UnknownChange(ChangeTangent):
     def should_flatten(self):
         return False
@@ -83,6 +84,7 @@ class _UnknownChange(ChangeTangent):
 UnknownChange = _UnknownChange()
 
 
+@Pytree.dataclass
 class _NoChange(ChangeTangent):
     def should_flatten(self):
         return False
@@ -91,6 +93,7 @@ class _NoChange(ChangeTangent):
 NoChange = _NoChange()
 
 
+@Pytree.dataclass
 class IntChange(ChangeTangent):
     dv: IntArray
 
@@ -98,6 +101,7 @@ class IntChange(ChangeTangent):
         return True
 
 
+@Pytree.dataclass
 class StaticIntChange(ChangeTangent):
     dv: IntArray = Pytree.static()
 
@@ -117,6 +121,7 @@ def static_check_is_change_tangent(v):
 #############################
 
 
+@Pytree.dataclass
 class Diff(Pytree):
     primal: Any
     tangent: Any

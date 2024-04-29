@@ -81,8 +81,9 @@ mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdoc
 [tool.poetry.extras]
 tinygp = ["tinygp"]
 blackjax = ["blackjax"]
+dill = ["dill"]
 msgpack = ["msgpack"]
-all = ["blackjax", "msgpack", "tinygp"]
+all = ["blackjax", "dill", "msgpack", "tinygp"]
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]

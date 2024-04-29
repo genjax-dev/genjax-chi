@@ -4760,12 +4760,13 @@ tests-binary-strict = ["cmake (==3.21.2)", "cmake (==3.25.0)", "ninja (==1.10.2)
 tests-strict = ["pytest (==4.6.0)", "pytest (==4.6.0)", "pytest (==6.2.5)", "pytest-cov (==3.0.0)", "typing (==3.7.4)"]
 
 [extras]
-all = ["blackjax", "msgpack", "tinygp"]
+all = ["blackjax", "dill", "msgpack", "tinygp"]
 blackjax = ["blackjax"]
+dill = ["dill"]
 msgpack = ["msgpack"]
 tinygp = ["tinygp"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "889e6b2f14dab3138aa9cc26b5332ca7a9e5b4a7d2d175ed57c368acdf472596"
+content-hash = "6db21c7eef4b251d3dd0c0b6e65f632cfd06d311342f571baf7f98932b5e7bbb"

@@ -19,6 +19,7 @@ from genjax._src.core.typing import Any, Callable, Dict, List, PRNGKey, Protocol
 
 # This class is used to allow syntactic sugar (e.g. the `@` operator)
 # in languages which support callees for generative functions via a `trace` intrinsic.
+@Pytree.dataclass
 class SugaredGenerativeFunctionCall(Pytree):
     gen_fn: Callable
     args: Tuple
@@ -51,9 +52,11 @@ def push_trace_overload_stack(handler, fn):
 
 
 class CanSimulate(Protocol):
-    def simulate(self, key: PRNGKey, args: Tuple) -> Any: ...
+    def simulate(self, key: PRNGKey, args: Tuple) -> Any:
+        ...
 
-    def __call__(self, *args, **kwargs) -> Any: ...
+    def __call__(self, *args, **kwargs) -> Any:
+        ...
 
 
 # This mixin overloads the call functionality for this generative function

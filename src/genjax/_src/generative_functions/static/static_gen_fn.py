@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import jax  # noqa: I001
+import jax.numpy as jnp
 from genjax._src.core.generative import (
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
-    JAXGenerativeFunction,
+    GenerativeFunction,
     Trace,
+    Selection,
+    UpdateSpec,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import stage
@@ -58,8 +62,9 @@ def handler_trace_with_static(
     return trace(addr, gen_fn)(*args)
 
 
+@Pytree.dataclass
 class StaticGenerativeFunction(
-    JAXGenerativeFunction,
+    GenerativeFunction,
     SupportsCalleeSugar,
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on program
@@ -138,82 +143,119 @@ class StaticGenerativeFunction(
     def importance(
         self,
         key: PRNGKey,
-        choice: ChoiceMap,
+        constraint: Constraint,
         args: Tuple,
     ) -> Tuple[StaticTrace, ArrayLike]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        (
-            w,
-            (
-                args,
-                retval,
-                address_visitor,
-                address_traces,
-                score,
-            ),
-        ) = importance_transform(syntax_sugar_handled)(key, choice, args)
-        return (
-            StaticTrace(
-                self,
-                args,
-                retval,
-                address_visitor,
-                address_traces,
-                score,
-            ),
-            w,
-        )
+        match constraint:
+            case ChoiceMap():
+                syntax_sugar_handled = push_trace_overload_stack(
+                    handler_trace_with_static, self.source
+                )
+                (
+                    w,
+                    (
+                        args,
+                        retval,
+                        address_visitor,
+                        address_traces,
+                        score,
+                    ),
+                ) = importance_transform(syntax_sugar_handled)(key, constraint, args)
+                return (
+                    StaticTrace(
+                        self,
+                        args,
+                        retval,
+                        address_visitor,
+                        address_traces,
+                        score,
+                    ),
+                    w,
+                )
 
     def update(
         self,
         key: PRNGKey,
         prev: Trace,
-        constraints: ChoiceMap,
-        argdiffs: Tuple,
+        update_spec: UpdateSpec,
     ) -> Tuple[Trace, ArrayLike, Any, ChoiceMap]:
-        assert Diff.static_check_tree_diff(argdiffs)
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        (
-            (
-                retval_diffs,
-                weight,
+        match update_spec:
+            case selection if isinstance(selection, Selection):
+                weight = jnp.array(0.0)
+                addresses = prev.addresses.get_visited()
+                addresses = Pytree.tree_unwrap_const(addresses)
+                for k, subtrace in zip(addresses, prev.subtraces):
+                    key, sub_key = jax.random.split(key)
+                    remaining = selection.step(k)
+                    weight += subtrace.project(sub_key, remaining)
+                return (
+                    prev,
+                    weight,
+                    Diff.tree_diff_no_change(prev.get_retval()),
+                    ChoiceMap.n,
+                )
+
+            case chm if isinstance(chm, ChoiceMap):
+                constraint = update_spec
+                prev_sample = prev.get_sample()
+                merged = constraint + prev_sample
+                selection = constraint.get_selection()
+                discarded = prev_sample.filter(selection)
+                args = prev.get_args()
+                tr, w = self.importance(key, merged, args)
+                return (
+                    tr,
+                    w - prev.get_score(),
+                    Diff.tree_diff_unknown_change(tr.get_retval()),
+                    discarded,
+                )
+
+            case ChangeTargetUpdateSpec():
+                assert Diff.static_check_tree_diff(argdiffs)
+                syntax_sugar_handled = push_trace_overload_stack(
+                    handler_trace_with_static, self.source
+                )
                 (
-                    arg_primals,
-                    retval_primals,
-                    address_visitor,
-                    address_traces,
-                    score,
-                ),
-                discard_choices,
-            ),
-        ) = update_transform(syntax_sugar_handled)(key, prev, constraints, argdiffs)
+                    (
+                        retval_diffs,
+                        weight,
+                        (
+                            arg_primals,
+                            retval_primals,
+                            address_visitor,
+                            address_traces,
+                            score,
+                        ),
+                        discard_choices,
+                    ),
+                ) = update_transform(syntax_sugar_handled)(
+                    key, prev, constraints, argdiffs
+                )
 
-        def make_discard(visitor, submaps):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_unwrap_const(addresses)
-            chm = ChoiceMap.n
-            for addr, submap in zip(addresses, submaps):
-                chm = chm ^ ChoiceMap.a(addr, submap)
-            return chm
+                def make_discard(visitor, submaps):
+                    addresses = visitor.get_visited()
+                    addresses = Pytree.tree_unwrap_const(addresses)
+                    chm = ChoiceMap.n
+                    for addr, submap in zip(addresses, submaps):
+                        chm = chm ^ ChoiceMap.a(addr, submap)
+                    return chm
 
-        discard = make_discard(address_visitor, discard_choices)
-        return (
-            StaticTrace(
-                self,
-                arg_primals,
-                retval_primals,
-                address_visitor,
-                address_traces,
-                score,
-            ),
-            weight,
-            retval_diffs,
-            discard,
-        )
+                discard = make_discard(address_visitor, discard_choices)
+                return (
+                    StaticTrace(
+                        self,
+                        arg_primals,
+                        retval_primals,
+                        address_visitor,
+                        address_traces,
+                        score,
+                    ),
+                    weight,
+                    retval_diffs,
+                    discard,
+                )
+            case _:
+                raise NotImplementedError
 
     @typecheck
     def assess(

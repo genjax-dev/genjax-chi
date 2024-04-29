@@ -27,7 +27,7 @@ import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf, beartype
 from beartype.vale import Is
-from plum import dispatch, parametric
+from plum import dispatch, parametric, CovariantMeta
 
 Any = btyping.Any
 Dataclass = btyping.Any
@@ -151,4 +151,5 @@ __all__ = [
     "parametric",
     "Is",
     "Annotated",
+    "CovariantMeta",
 ]

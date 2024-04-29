@@ -17,7 +17,7 @@ import jax
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    JAXGenerativeFunction,
+    GenerativeFunction,
     Mask,
     Trace,
 )
@@ -48,7 +48,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 #####
 
 
-class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
+class SwitchCombinator(GenerativeFunction, SupportsCalleeSugar):
     """> `SwitchCombinator` accepts multiple generative functions as input and
     implements `GenerativeFunction` interface semantics that support branching control
     flow patterns, including control flow patterns which branch on other stochastic
@@ -91,7 +91,7 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    branches: Tuple[JAXGenerativeFunction, ...]
+    branches: Tuple[GenerativeFunction, ...]
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self, branch, *args):
@@ -356,5 +356,5 @@ class SwitchCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
 #############
 
 
-def switch_combinator(*args: JAXGenerativeFunction) -> SwitchCombinator:
+def switch_combinator(*args: GenerativeFunction) -> SwitchCombinator:
     return SwitchCombinator(args)

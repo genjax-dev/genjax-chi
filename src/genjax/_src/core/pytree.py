@@ -19,6 +19,7 @@ The Pytree interface determines how data classes behave across JAX-transformed f
 from dataclasses import field  # noqa: I001
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from typing_extensions import dataclass_transform
 from penzai import pz
 
 from genjax._src.core.typing import (
@@ -32,22 +33,22 @@ from genjax._src.core.typing import (
     static_check_supports_grad,
 )
 
-metaclass_of_struct = type(pz.Struct)
 
-
-class PytreeMeta(metaclass_of_struct):
-    def __new__(cls, name, bases, namespace):
-        if pz.Struct not in bases and not any(
-            issubclass(base, pz.Struct) for base in bases
-        ):
-            bases = (pz.Struct,) + bases
-        new_cls = type.__new__(cls, name, bases, namespace)
-        return pz.pytree_dataclass(new_cls)
-
-
-class Pytree(metaclass=PytreeMeta):
+class Pytree(pz.Struct):
     """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
     system."""
+
+    @dataclass_transform(
+        frozen_default=True,
+    )
+    @classmethod
+    def dataclass(
+        cls,
+        incoming: type[Any] | None = None,
+        /,
+        **kwargs,
+    ) -> type[Any] | Callable[[type[Any]], type[Any]]:
+        return pz.pytree_dataclass(incoming, **kwargs)
 
     @staticmethod
     def static(**kwargs):
@@ -245,6 +246,7 @@ class Pytree(metaclass=PytreeMeta):
 
 
 # Wrapper for static values (can include callables).
+@Pytree.dataclass
 class Const(Pytree):
     const: Any = Pytree.static()
 
@@ -254,6 +256,7 @@ class Const(Pytree):
 
 # Construct for a type of closure which closes over dynamic values.
 # NOTE: experimental.
+@Pytree.dataclass
 class Closure(Pytree):
     dyn_args: Tuple
     fn: Callable = Pytree.static()

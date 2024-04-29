@@ -21,6 +21,7 @@ from genjax._src.core.generative import (
     Selection,
     ChoiceMap,
     Trace,
+    Selection,
 )
 from genjax._src.core.serialization.pickle import (
     PickleDataFormat,
@@ -41,10 +42,8 @@ from genjax._src.core.typing import (
 #########
 
 
-class StaticTrace(
-    Trace,  # inherits from Pytree
-    SupportsPickleSerialization,
-):
+@Pytree.dataclass
+class StaticTrace(Trace, SupportsPickleSerialization):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -55,12 +54,12 @@ class StaticTrace(
     def get_gen_fn(self):
         return self.gen_fn
 
-    def get_choices(self):
+    def get_sample(self):
         addresses = self.addresses.get_visited()
         addresses = Pytree.tree_unwrap_const(addresses)
         chm = ChoiceMap.n
         for addr, subtrace in zip(addresses, self.subtraces):
-            chm = chm ^ ChoiceMap.a(addr, subtrace.get_choices())
+            chm = chm ^ ChoiceMap.a(addr, subtrace.get_sample())
         return chm
 
     def get_retval(self):
@@ -83,12 +82,8 @@ class StaticTrace(
         key: PRNGKey,
         selection: Selection,
     ) -> FloatArray:
-        weight = jnp.array(0.0)
-        for k, subtrace in self.address_choices.get_submaps_shallow():
-            key, sub_key = jax.random.split(key)
-            remaining = selection.step(k)
-            weight += subtrace.project(sub_key, remaining)
-        return weight
+        _, w, _, _ = self.gen_fn.update(key, self, selection)
+        return w
 
     def get_aux(self):
         return (self.address_choices,)

@@ -12,28 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .choice_map import ChoiceMap, Selection
+from .core import (
+    Constraint,
+    GenerativeFunction,
+    ProjectSpec,
+    ProperlyWeightedTrace,
+    RegenerateSpec,
+    Sample,
+    Target,
+    Trace,
+    UpdateSpec,
+)
+from .functional_types import Mask, Sum
 
-import jax
-import jax.numpy as jnp
-import jax.tree_util as jtu
-
-from genjax._src.core.generative import JAXGenerativeFunction
-from genjax._src.generative_functions.distributions.distribution import ExactDensity
-
-
-class Dirac(JAXGenerativeFunction, ExactDensity):
-    def sample(self, key, v):
-        return v
-
-    def logpdf(self, v1, v2):
-        check = jnp.all(
-            jnp.array(jtu.tree_leaves(jtu.tree_map(lambda v1, v2: v1 == v2)))
-        )
-        return jax.lax.cond(
-            check,
-            lambda _: 0.0,
-            lambda _: -jnp.inf,
-        )
-
-
-dirac = Dirac()
+__all__ = [
+    "Sample",
+    "Constraint",
+    "Trace",
+    "Target",
+    "ProperlyWeightedTrace",
+    "GenerativeFunction",
+    "Mask",
+    "Sum",
+    "UpdateSpec",
+    "ProjectSpec",
+    "RegenerateSpec",
+    "ChoiceMap",
+    "Selection",
+]

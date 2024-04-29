@@ -16,7 +16,7 @@ from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    JAXGenerativeFunction,
+    GenerativeFunction,
     Mask,
     Selection,
     Trace,
@@ -61,7 +61,7 @@ class MaskTrace(Trace):
         return self.check * self.inner.project(key, selection)
 
 
-class MaskCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
+class MaskCombinator(GenerativeFunction, SupportsCalleeSugar):
     """A combinator which enables dynamic masking of generative function.
     `MaskCombinator` takes a `GenerativeFunction` as a parameter, and
     returns a new `GenerativeFunction` which accepts a boolean array as the
@@ -73,7 +73,7 @@ class MaskCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
     If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
     """
 
-    inner: JAXGenerativeFunction
+    inner: GenerativeFunction
 
     @typecheck
     def simulate(

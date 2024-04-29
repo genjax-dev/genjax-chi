@@ -16,7 +16,7 @@ from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    JAXGenerativeFunction,
+    GenerativeFunction,
     Selection,
     Trace,
 )
@@ -62,8 +62,8 @@ class ComposeTrace(Trace):
         return self.inner.project(key, selection)
 
 
-class ComposeCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
-    inner: JAXGenerativeFunction
+class ComposeCombinator(GenerativeFunction, SupportsCalleeSugar):
+    inner: GenerativeFunction
     argument_pushforward: Callable = Pytree.static()
     retval_pushforward: Callable = Pytree.static()
 

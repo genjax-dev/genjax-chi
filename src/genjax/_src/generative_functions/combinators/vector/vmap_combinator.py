@@ -26,7 +26,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
-    JAXGenerativeFunction,
     Selection,
     Trace,
 )
@@ -41,9 +40,6 @@ from genjax._src.core.typing import (
     Tuple,
     dispatch,
     typecheck,
-)
-from genjax._src.generative_functions.combinators.drop_arguments import (
-    DropArgumentsTrace,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
@@ -72,33 +68,15 @@ class VmapTrace(Trace):
     def get_score(self):
         return self.score
 
-    def try_restore_arguments(self):
-        original_arguments = self.get_args()
-        return (
-            self.inner.restore(original_arguments)
-            if isinstance(self.inner, DropArgumentsTrace)
-            else self.inner
-        )
-
     def project(
         self,
         key: PRNGKey,
         selection: Selection,
     ) -> FloatArray:
-        inner = self.try_restore_arguments()
-
-        def idx_check(idx, inner_slice):
-            remaining = selection.step(idx)
-            sub_key = jax.random.fold_in(key, idx)
-            inner_weight = inner_slice.project(sub_key, remaining)
-            return inner_weight
-
-        idxs = jnp.arange(0, len(inner.get_score()))
-        ws = jax.vmap(idx_check)(idxs, inner)
-        return jnp.sum(ws, axis=0)
+        pass
 
 
-class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
+class VmapCombinator(GenerativeFunction, SupportsCalleeSugar):
     """> `VmapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
 
@@ -145,7 +123,7 @@ class VmapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         ```
     """
 
-    kernel: JAXGenerativeFunction
+    kernel: GenerativeFunction
     in_axes: Tuple = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
