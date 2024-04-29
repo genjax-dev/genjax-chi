@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import jax  # noqa: I001
 import jax.numpy as jnp  # noqa: I001
 from genjax._src.core.datatypes.generative import (
     GenerativeFunction,
     HierarchicalChoiceMap,
-    MapSelection,
+    Selection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -26,7 +26,7 @@ from genjax._src.core.serialization.pickle import (
     PickleSerializationBackend,
     SupportsPickleSerialization,
 )
-from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch
+from genjax._src.core.typing import Any, FloatArray, Tuple, dispatch, PRNGKey
 
 #########
 # Trace #
@@ -62,15 +62,16 @@ class StaticTrace(
     def get_subtrace(self, addr):
         return self.address_choices[addr]
 
-    @dispatch
     def project(
         self,
-        selection: MapSelection,
+        key: PRNGKey,
+        selection: Selection,
     ) -> FloatArray:
         weight = jnp.array(0.0)
         for k, subtrace in self.address_choices.get_submaps_shallow():
-            if selection.has_addr(k):
-                weight += subtrace.project(selection.get_subselection(k))
+            key, sub_key = jax.random.split(key)
+            remaining = selection.step(k)
+            weight += subtrace.project(sub_key, remaining)
         return weight
 
     def has_cached_value(self, addr):

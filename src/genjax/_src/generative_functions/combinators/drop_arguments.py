@@ -54,6 +54,9 @@ class DropArgumentsTrace(Trace):
     def get_aux(self):
         return self.aux
 
+    def project(self, key, selection):
+        raise NotImplementedError
+
     def restore(self, original_arguments: Tuple):
         interface_data = (
             original_arguments,

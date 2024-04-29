@@ -29,7 +29,6 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Selection,
     Trace,
@@ -51,7 +50,6 @@ from genjax._src.generative_functions.combinators.drop_arguments import (
 )
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-    IndexedSelection,
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
@@ -79,48 +77,30 @@ class MapTrace(Trace):
     def get_score(self):
         return self.score
 
-    @dispatch
-    def maybe_restore_arguments_project(
-        self,
-        inner: Trace,
-        selection: Selection,
-    ):
-        return inner.project(selection)
-
-    @dispatch
-    def maybe_restore_arguments_project(
-        self,
-        inner: DropArgumentsTrace,
-        selection: Selection,
-    ):
+    def try_restore_arguments(self):
         original_arguments = self.get_args()
-        # Shape of arguments doesn't matter when we project.
-        restored = inner.restore(original_arguments)
-        return restored.project(selection)
-
-    @dispatch
-    def project(
-        self,
-        selection: IndexedSelection,
-    ) -> FloatArray:
-        inner_project = self.maybe_restore_arguments_project(
-            self.inner,
-            selection.inner,
-        )
-        return jnp.sum(
-            jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0)
+        return (
+            self.inner.restore(original_arguments)
+            if isinstance(self.inner, DropArgumentsTrace)
+            else self.inner
         )
 
-    @dispatch
     def project(
         self,
-        selection: HierarchicalSelection,
+        key: PRNGKey,
+        selection: Selection,
     ) -> FloatArray:
-        inner_project = self.maybe_restore_arguments_project(
-            self.inner,
-            selection,
-        )
-        return jnp.sum(inner_project)
+        inner = self.try_restore_arguments()
+
+        def idx_check(idx, inner_slice):
+            remaining = selection.step(idx)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
+            return inner_weight
+
+        idxs = jnp.arange(0, len(inner.get_score()))
+        ws = jax.vmap(idx_check)(idxs, inner)
+        return jnp.sum(ws, axis=0)
 
 
 class MapCombinator(JAXGenerativeFunction, SupportsCalleeSugar):

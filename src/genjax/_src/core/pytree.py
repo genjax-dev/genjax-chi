@@ -128,8 +128,8 @@ class Pytree(eqx.Module):
         )
 
     @staticmethod
-    def dynamic_closure(fn, *args):
-        return DynamicClosure(args, fn)
+    def partial(*args):
+        return lambda fn: PytreeDynamicClosure(args, fn)
 
     #################
     # Static checks #
@@ -251,9 +251,12 @@ class Pytree(eqx.Module):
 ##############################
 
 
-# Wrapper for static values.
+# Wrapper for static values (can include callables).
 class PytreeConst(Pytree):
     const: Any = Pytree.static()
+
+    def __call__(self, *args):
+        return self.const(*args)
 
     def __rich_tree__(self):
         return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
@@ -261,7 +264,7 @@ class PytreeConst(Pytree):
 
 # Construct for a type of closure which closes over dynamic values.
 # NOTE: experimental.
-class DynamicClosure(Pytree):
+class PytreeDynamicClosure(Pytree):
     dyn_args: Tuple
     fn: Callable = Pytree.static()
 

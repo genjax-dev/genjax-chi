@@ -18,7 +18,6 @@ import jax
 from equinox import module_update_wrapper
 
 from genjax._src.core.datatypes.generative import (
-    AllSelection,
     Choice,
     GenerativeFunction,
     JAXGenerativeFunction,
@@ -190,7 +189,7 @@ class Marginal(ChoiceDistribution):
     """
 
     p: GenerativeFunction
-    selection: Selection = Pytree.field(default=AllSelection())
+    selection: Selection = Pytree.field(default=Selection.a)
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
@@ -203,9 +202,10 @@ class Marginal(ChoiceDistribution):
         tr = self.p.simulate(sub_key, args)
         choices = tr.get_choices()
         latent_choices = choices.filter(self.selection)
-        other_choices = choices.filter(self.selection.complement())
+        other_choices = choices.filter(~self.selection)
         target = Target(self.p, args, latent_choices)
-        weight = tr.project(self.selection)
+        key, sub_key = jax.random.split(key)
+        weight = tr.project(sub_key, self.selection)
         if self.algorithm is None:
             return weight, latent_choices
         else:
@@ -280,7 +280,7 @@ class ValueMarginal(Distribution):
 def marginal(
     gen_fn: Optional[GenerativeFunction] = None,
     *,
-    select_or_addr: Union[Selection, Any] = AllSelection(),
+    select_or_addr: Union[Selection, Any] = Selection.a,
     algorithm: Optional[InferenceAlgorithm] = None,
 ):
     """If `select_or_addr` is a `Selection`, this constructs a `Marginal` distribution
