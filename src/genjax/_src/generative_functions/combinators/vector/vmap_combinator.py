@@ -26,7 +26,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
-    Selection,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -43,19 +42,16 @@ from genjax._src.core.typing import (
 )
 
 
+@Pytree.dataclass
 class VmapTrace(Trace):
     gen_fn: GenerativeFunction
     inner: Trace
-    args: Tuple
     retval: Any
     score: FloatArray
 
-    def get_args(self):
-        return self.args
-
-    def get_choices(self):
+    def get_sample(self):
         return jax.vmap(lambda idx, submap: ChoiceMap.a(idx, submap))(
-            jnp.arange(len(self.inner.get_score())), self.inner.get_choices()
+            jnp.arange(len(self.inner.get_score())), self.inner.get_sample()
         )
 
     def get_gen_fn(self):
@@ -67,14 +63,8 @@ class VmapTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        pass
 
-
+@Pytree.dataclass
 class VmapCombinator(GenerativeFunction):
     """> `VmapCombinator` accepts a generative function as input and provides
     `vmap`-based implementations of the generative function interface methods.
@@ -122,21 +112,26 @@ class VmapCombinator(GenerativeFunction):
         ```
     """
 
-    kernel: GenerativeFunction
+    args: Tuple
     in_axes: Tuple = Pytree.static()
+    kernel: Callable[[Any], GenerativeFunction] = Pytree.static()
 
-    def __abstract_call__(self, *args) -> Any:
-        return jax.vmap(self.kernel.__abstract_call__, in_axes=self.in_axes)(*args)
+    def __abstract_call__(self) -> Any:
+        def inner(*args):
+            kernel = self.kernel(*args)
+            return kernel.__abstract_call__()
 
-    def _static_check_broadcastable(self, args):
+        return jax.vmap(inner, in_axes=self.in_axes)(*self.args)
+
+    def _static_check_broadcastable(self):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
-        if not len(args) == len(self.in_axes):
+        if not len(self.args) == len(self.in_axes):
             raise Exception(
-                f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {len(self.in_axes)}"
+                f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(self.args)} and len(self.in_axes) = {len(self.in_axes)}"
             )
 
-    def _static_broadcast_dim_length(self, args):
+    def _static_broadcast_dim_length(self):
         def find_axis_size(axis, x):
             if axis is not None:
                 leaves = jax.tree_util.tree_leaves(x)
@@ -144,7 +139,7 @@ class VmapCombinator(GenerativeFunction):
                     return leaves[0].shape[axis]
             return ()
 
-        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
+        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, self.args)
         axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
         if len(axis_sizes) == 1:
             (d_axis_size,) = axis_sizes
@@ -156,25 +151,30 @@ class VmapCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ) -> VmapTrace:
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        self._static_check_broadcastable()
+        broadcast_dim_length = self._static_broadcast_dim_length()
         sub_keys = jax.random.split(key, broadcast_dim_length)
-        tr = jax.vmap(self.kernel.simulate, in_axes=(0, self.in_axes))(sub_keys, args)
+
+        def inner(key, args):
+            kernel_gen_fn = self.kernel(*args)
+            tr = kernel_gen_fn.simulate(key)
+            return tr
+
+        tr = jax.vmap(inner, (0, self.in_axes))(sub_keys, self.args)
+
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, retval, jnp.sum(scores))
         return map_tr
 
     def importance(
         self,
         key: PRNGKey,
         choice: ChoiceMap,
-        args: Tuple,
     ) -> Tuple[VmapTrace, FloatArray]:
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        self._static_check_broadcastable()
+        broadcast_dim_length = self._static_broadcast_dim_length()
         index_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
@@ -292,7 +292,7 @@ class VmapCombinator(GenerativeFunction):
 
 
 def vmap_combinator(in_axes: Tuple) -> Callable[[Callable], VmapCombinator]:
-    def decorator(f) -> VmapCombinator:
-        return VmapCombinator(f, in_axes)
+    def decorator(f) -> Callable[[Any], VmapCombinator]:
+        return lambda *args: VmapCombinator(args, in_axes, f)
 
     return decorator
