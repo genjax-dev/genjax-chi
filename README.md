@@ -2,7 +2,6 @@
 <p align="center">
 <img src="./docs/assets/img/logo.png"/>
 </p>
-<br>
 
 <div align="center">
 
