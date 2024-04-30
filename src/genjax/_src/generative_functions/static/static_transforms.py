@@ -244,12 +244,11 @@ class ImportanceHandler(StaticLanguageHandler):
         in_tree = _params.get("in_tree")
         num_consts = _params.get("num_consts")
         passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
+        gen_fn, addr = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
         sub_map = self.get_submap(addr)
-        args = tuple(args)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w) = gen_fn.importance(sub_key, sub_map, args)
+        (tr, w) = gen_fn.importance(sub_key, sub_map)
         self.address_traces.append(tr)
         self.score += tr.get_score()
         self.weight += w

@@ -12,19 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from equinox import module_update_wrapper
-
 from genjax._src.core.generative import (
+    ChangeTargetUpdateSpec,
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
     Mask,
-    Selection,
+    Retdiff,
     Trace,
+    UpdateSpec,
+    Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     BoolArray,
+    Callable,
     FloatArray,
     PRNGKey,
     Tuple,
@@ -32,6 +36,7 @@ from genjax._src.core.typing import (
 )
 
 
+@Pytree.dataclass
 class MaskTrace(Trace):
     mask_combinator: "MaskCombinator"
     inner: Trace
@@ -40,8 +45,8 @@ class MaskTrace(Trace):
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_choices(self):
-        return ChoiceMap.m(self.check, self.inner.get_choices())
+    def get_sample(self):
+        return ChoiceMap.m(self.check, self.inner.get_sample())
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())
@@ -49,17 +54,8 @@ class MaskTrace(Trace):
     def get_score(self):
         return self.check * self.inner.get_score()
 
-    def get_args(self):
-        return (self.check, self.inner.get_args())
 
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        return self.check * self.inner.project(key, selection)
-
-
+@Pytree.dataclass
 class MaskCombinator(GenerativeFunction):
     """A combinator which enables dynamic masking of generative function.
     `MaskCombinator` takes a `GenerativeFunction` as a parameter, and
@@ -72,17 +68,18 @@ class MaskCombinator(GenerativeFunction):
     If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
     """
 
-    inner: GenerativeFunction
+    check: BoolArray
+    inner_args: Tuple
+    inner: Callable[[Any], GenerativeFunction] = Pytree.static()
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ) -> MaskTrace:
-        (check, *inner_args) = args
-        tr = self.inner.simulate(key, tuple(inner_args))
-        return MaskTrace(self, tr, check)
+        inner_gen_fn = self.inner(*self.inner_args)
+        tr = inner_gen_fn.simulate(key)
+        return MaskTrace(self, tr, self.check)
 
     @typecheck
     def assess(
@@ -98,35 +95,34 @@ class MaskCombinator(GenerativeFunction):
     def importance(
         self,
         key: PRNGKey,
-        choice: ChoiceMap,
-        args: Tuple,
+        constraint: Constraint,
     ) -> Tuple[MaskTrace, FloatArray]:
-        (check, *inner_args) = args
-        tr, w = self.inner.importance(key, choice, inner_args)
-        w = check * w
-        return MaskTrace(self, tr, check), w
+        inner_gen_fn = self.inner(*self.inner_args)
+        tr, w = inner_gen_fn.importance(key, constraint)
+        w = self.check * w
+        return MaskTrace(self, tr, self.check), w
 
     @typecheck
     def update(
         self,
         key: PRNGKey,
-        prev_trace: MaskTrace,
-        choice: ChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[MaskTrace, FloatArray, Any, ChoiceMap]:
-        (check_diff, *inner_argdiffs) = argdiffs
-        check = Diff.tree_primal(check_diff)
-        tr, w, rd, d = self.inner.update(key, prev_trace.inner, choice, inner_argdiffs)
-        return (
-            MaskTrace(self, tr, check),
-            w * check,
-            Mask.maybe(check, rd),
-            ChoiceMap.m(check, d),
-        )
-
-    @property
-    def __wrapped__(self):
-        return self.inner
+        trace: MaskTrace,
+        update_spec: UpdateSpec,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        match update_spec:
+            case ChangeTargetUpdateSpec(argdiffs, constraint):
+                inner_gen_fn = self.inner(*self.inner_args)
+                (check, _) = Diff.tree_primal(argdiffs)
+                inner_spec = ChangeTargetUpdateSpec(argdiffs[1:], constraint)
+                inner_trace, w, retdiff, bwd_spec = inner_gen_fn.update(
+                    key, trace.inner, inner_spec
+                )
+                return (
+                    MaskTrace(self, inner_trace, check),
+                    w * check,
+                    Mask.maybe(check, retdiff),
+                    UpdateSpec.maybe(check, bwd_spec),
+                )
 
 
 #############
@@ -134,5 +130,8 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-def mask_combinator(f) -> MaskCombinator:
-    return module_update_wrapper(MaskCombinator(f))
+def mask_combinator(f) -> Callable[[Any], MaskCombinator]:
+    def inner(check, *args) -> MaskCombinator:
+        return MaskCombinator(check, args, f)
+
+    return inner

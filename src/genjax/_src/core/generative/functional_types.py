@@ -57,20 +57,17 @@ class Mask(Pytree):
     flag: BoolArray
     value: Any
 
-    # If the user provides a `Mask` as the value, we merge the flags and unwrap
-    # one layer of the structure.
-    def __post_init__(self):
-        if isinstance(self.value, Mask):
-            self.flag = staged_and(self.flag, self.value.flag)
-            self.value = self.value.value
-
     @classmethod
     def maybe(cls, f: BoolArray, v: Any):
-        return (
-            v
-            if static_check_is_concrete(f) and isinstance(f, Bool) and f
-            else Mask(f, v)
-        )
+        match v:
+            case Mask(flag, value):
+                return Mask(staged_and(f, flag), value)
+            case _:
+                return (
+                    v
+                    if static_check_is_concrete(f) and isinstance(f, Bool) and f
+                    else Mask(f, v)
+                )
 
     @classmethod
     def maybe_none(cls, f: BoolArray, v: Any):

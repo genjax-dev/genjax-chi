@@ -37,6 +37,11 @@ class SMCP3Move(SMCMove):
 
 
 @Pytree.dataclass
+class Overload(SMCMove):
+    impl: Callable
+
+
+@Pytree.dataclass
 class DeferToInternal(SMCMove):
     pass
 
@@ -96,6 +101,9 @@ class AttachCombinator(GenerativeFunction):
                 tr, w, bwd = self.gen_fn.importance(key, new_latents)
                 return tr, w + w_smc, bwd
 
+            case Overload(importance_impl):
+                return importance_impl(key)
+
             case DeferToInternal():
                 return self.gen_fn.importance(key, constraint)
 
@@ -129,6 +137,9 @@ class AttachCombinator(GenerativeFunction):
                     key, gen_fn_trace, new_latents
                 )
                 return tr, w + w_smc, retdiff, bwd_spec
+
+            case Overload(update_impl):
+                return update_impl(key)
 
             case DeferToInternal():
                 return self.gen_fn.update(key, gen_fn_trace, update_spec)

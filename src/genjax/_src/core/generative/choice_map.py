@@ -334,6 +334,9 @@ class ChoiceMap(Sample, Constraint):
     choice_map_fn: "ChoiceMapFunction"
     info: String = Pytree.static()
 
+    def get_constraint(self) -> Constraint:
+        return self
+
     #######################
     # Map-like interfaces #
     #######################

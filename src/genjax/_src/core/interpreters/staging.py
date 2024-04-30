@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import jax
 import jax.numpy as jnp
 from jax import api_util, make_jaxpr
 from jax import core as jc
@@ -134,12 +135,15 @@ def trees(f):
     return wrapped
 
 
-def get_trace_data_shape(gen_fn, key, args):
-    def _apply(key, args):
-        tr = gen_fn.simulate(key, args)
+def get_trace_data_shape(gen_fn):
+    def _apply(key):
+        tr = gen_fn.simulate(key)
         return tr
 
-    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key, args)
+    # Value doesn't matter, where just using types for staging.
+    key = jax.random.PRNGKey(0)
+
+    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key)
     return trace_shape
 
 

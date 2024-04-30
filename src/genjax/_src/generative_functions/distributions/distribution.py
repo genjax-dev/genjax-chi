@@ -186,9 +186,9 @@ class Distribution(GenerativeFunction):
     def update(
         self,
         key: PRNGKey,
-        trace: DistributionTrace,
+        trace: Trace,
         update_spec: UpdateSpec,
-    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
             case Constraint():
                 pass

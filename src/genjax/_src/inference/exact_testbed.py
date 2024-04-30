@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from genjax._src.core.generative import Selection
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
-from genjax._src.generative_functions.combinators.vector.scan_combinator import (
+from genjax._src.generative_functions.combinators.scan_combinator import (
     scan_combinator,
 )
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (

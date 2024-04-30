@@ -15,21 +15,34 @@
 from abc import abstractmethod
 
 import jax
+import jax.numpy as jnp
+import jax.tree_util as jtu
 from penzai.core import formatting_util
 
+from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import get_trace_data_shape
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Annotated,
     Any,
     BoolArray,
     Callable,
     FloatArray,
+    IntArray,
+    Is,
     List,
     PRNGKey,
     Tuple,
 )
 
-Weight = FloatArray
-Retdiff = Any
+Weight = Annotated[
+    FloatArray,
+    Is[lambda arr: arr.shape == ()],
+]
+Retdiff = Annotated[
+    object,
+    Is[lambda v: Diff.static_check_tree_diff(v)],
+]
 
 #########################
 # Update specifications #
@@ -104,6 +117,18 @@ class MaybeConstraint(Constraint):
 
 
 @Pytree.dataclass
+class SwitchConstraint(Constraint):
+    """
+    A `SwitchConstraint` encodes that one of a set of possible constraints is active _at runtime_, using a provided index.
+
+    Formally, `SwitchConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint `(x \mapsto xs[idx], ys[idx])`.
+    """
+
+    idx: IntArray
+    constraint: List[Constraint]
+
+
+@Pytree.dataclass
 class IntervalConstraint(Constraint):
     """
     An IntervalConstraint encodes the constraint that the value output by a
@@ -134,15 +159,18 @@ class BijectiveConstraint(Constraint):
 ###########
 
 
-class Sample(Constraint):
+class Sample(Pytree):
     """`Sample` is the abstract base class of the type of values which can be sampled from generative functions."""
 
-    pass
+    @abstractmethod
+    def get_constraint(self) -> Constraint:
+        pass
 
 
 @Pytree.dataclass
 class EmptySample(Pytree):
-    pass
+    def get_constraint(self) -> Constraint:
+        return EmptyConstraint()
 
 
 #########
@@ -290,6 +318,25 @@ class Trace(Pytree):
     def batch_shape(self):
         return len(self.get_score())
 
+    def summary(self):
+        return TraceSummary(
+            self.get_gen_fn(),
+            self.get_sample(),
+            self.get_score(),
+            self.get_retval(),
+        )
+
+
+@Pytree.dataclass
+class TraceSummary(Pytree):
+    gen_fn: "GenerativeFunction"
+    sample: Sample
+    score: FloatArray
+    retval: Any
+
+    def treescope_color(self):
+        return self.gen_fn.treescope_color()
+
 
 #######################
 # Generative function #
@@ -308,6 +355,13 @@ class GenerativeFunction(Pytree):
         Generative functions may customize this to improve compilation time.
         """
         return self.simulate(jax.random.PRNGKey(0)).get_retval()
+
+    def get_trace_data_shape(self) -> Any:
+        return get_trace_data_shape(self)
+
+    def get_empty_trace(self) -> Trace:
+        data_shape = self.get_trace_data_shape()
+        return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @abstractmethod
     def simulate(

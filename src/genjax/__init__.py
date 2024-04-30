@@ -23,7 +23,7 @@ from importlib import metadata
 # Closed modules.
 from genjax import adev  # noqa: F401
 
-from .console import *
+from .assistant import *
 from .core import *
 from .experimental import *
 from .extras import *
