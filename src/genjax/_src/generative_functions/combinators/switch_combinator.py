@@ -17,14 +17,14 @@ import jax
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
-    Retdiff,
-    Weight,
     Constraint,
     GenerativeFunction,
+    Retdiff,
     Sample,
     SwitchConstraint,
     Trace,
     UpdateSpec,
+    Weight,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (

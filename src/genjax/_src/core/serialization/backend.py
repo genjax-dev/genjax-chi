@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from genjax._src.core.generative import GenerativeFunction, Trace
 
-"""This module contains a trace serialization interface that interacts with different backend implementations. Pickle (`pickle_serialize`) or MsgPack (`msgpack_serialize`) may be used. Note: A serialized trace using a given backend must use the same backend to deserialize.
+"""This module contains a trace serialization interface that interacts with different backend implementations.
 """
 
 

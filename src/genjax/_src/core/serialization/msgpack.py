@@ -18,9 +18,6 @@ import msgpack
 import numpy as np
 
 from genjax._src.core.generative import GenerativeFunction, Trace
-from genjax._src.core.interpreters.staging import (
-    get_trace_data_shape,
-)
 from genjax._src.core.serialization.backend import SerializationBackend
 
 
