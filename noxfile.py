@@ -56,8 +56,6 @@ def tests(session):
         "scratch",
         "--ignore",
         "notebooks",
-        "--ignore",
-        "benchmarks",
         "-n",
         "auto",
         external=True,
@@ -77,8 +75,6 @@ def coverage(session):
         "--benchmark-disable",
         "--ignore",
         "scratch",
-        "--ignore",
-        "benchmarks",
         external=True,
     )
     session.run("poetry", "run", "coverage", "json", "--omit", "*/test*", external=True)
@@ -122,7 +118,7 @@ def xdoctests(session) -> None:
 
 @session(python=python_version)
 def nbmake(session) -> None:
-    """Execute jupyter notebooks as tests"""
+    """Execute Jupyter notebooks as tests"""
     prepare(session)
     session.run(
         "poetry",
