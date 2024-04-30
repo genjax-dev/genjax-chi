@@ -39,10 +39,7 @@ class MsgPackSerializeBackend(SerializationBackend):
           msgpack-encoded bytes of the trace
         """
         data, _ = jax.tree_util.tree_flatten(trace)
-        arg_len = len(trace.args)
-        return msgpack.packb(
-            [arg_len, data], default=_msgpack_ext_pack, strict_types=True
-        )
+        return msgpack.packb([data], default=_msgpack_ext_pack, strict_types=True)
 
     def deserialize(self, encoded_trace, gen_fn: GenerativeFunction):
         """Deserialize an object using MsgPack
@@ -57,10 +54,9 @@ class MsgPackSerializeBackend(SerializationBackend):
         Returns:
           `Trace` object
         """
-        key = jax.random.PRNGKey(0)
-        arg_len, payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
-        args = tuple(payload[:arg_len])  # arg numbers
-        treedef = jax.tree_util.tree_structure(get_trace_data_shape(gen_fn, key, args))
+        payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
+        trace_data_shape = gen_fn.get_trace_data_shape()
+        treedef = jax.tree_util.tree_structure(trace_data_shape)
         return jax.tree_util.tree_unflatten(treedef, payload)
 
 

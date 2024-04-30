@@ -17,19 +17,9 @@ from genjax._src.core.serialization.msgpack import (
     MsgPackSerializeBackend,
     msgpack_serialize,
 )
-from genjax._src.core.serialization.pickle import (
-    PickleSerializationBackend,
-    SupportsPickleDeserialization,
-    SupportsPickleSerialization,
-    pickle_serialize,
-)
 
 __all__ = [
     "SerializationBackend",
-    "PickleSerializationBackend",
-    "SupportsPickleSerialization",
-    "SupportsPickleDeserialization",
-    "pickle_serialize",
     "MsgPackSerializeBackend",
     "msgpack_serialize",
 ]
