@@ -1,10 +1,10 @@
+<br>
 <p align="center">
 <img width="400px" src="./docs/assets/img/logo.png"/>
 </p>
+<br>
 
 <div align="center">
-<b><i>Probabilistic programming with Gen, built on top of JAX.</i></b>
-</div>
 
 [![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
 [![codecov](https://codecov.io/gh/probcomp/genjax/graph/badge.svg?token=I9TAV92KN7)](https://codecov.io/gh/probcomp/genjax)
