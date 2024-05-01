@@ -50,8 +50,8 @@ class ScanTrace(Trace):
 
     def get_sample(self):
         return jax.vmap(
-            lambda idx, submap: ChoiceMap.a(idx, submap),
-        )(jnp.arange(self.scan_gen_fn.max_length), self.inner.get_sample())
+            lambda idx, subtrace: ChoiceMap.a(idx, subtrace.get_sample()),
+        )(jnp.arange(self.scan_gen_fn.max_length), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -130,7 +130,8 @@ class ScanCombinator(GenerativeFunction):
         (carry, scanned_in) = self.args
 
         def _inner(carry, scanned_in):
-            v, scanned_out = self.kernel.__abstract_call__(carry, scanned_in)
+            gen_fn = self.kernel(carry, scanned_in)
+            v, scanned_out = gen_fn.__abstract_call__()
             return v, scanned_out
 
         v, scanned_out = jax.lax.scan(

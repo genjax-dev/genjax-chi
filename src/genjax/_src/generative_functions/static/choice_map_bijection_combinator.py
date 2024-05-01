@@ -14,6 +14,8 @@
 
 
 from genjax._src.core.generative import (
+    ChangeTargetUpdateSpec,
+    ChoiceMap,
     Constraint,
     GenerativeFunction,
     GenerativeFunctionClosure,
@@ -75,12 +77,46 @@ class ChoiceMapBijectionCombinator(GenerativeFunction):
         tr, w = inner.importance(key, inner_constraint)
         return ChoiceMapBijectionTrace(self, tr), w
 
+    def update_choice_map(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        chm: ChoiceMap,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        inner = self.gen_fn(*self.args)
+        inner_spec = self.inverse(chm)
+        tr, w, retdiff, spec = inner.update(key, trace.inner, inner_spec)
+        return tr, w, retdiff, self.forward(spec)
+
+    def update_change_target(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        argdiffs: Tuple,
+        subspec: UpdateSpec,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        old_gen_fn = trace.get_gen_fn()
+        inner_spec = self.inverse(subspec)
+        tr, w, retdiff, spec = old_gen_fn.update(
+            key, trace.inner, ChangeTargetUpdateSpec(argdiffs, inner_spec)
+        )
+        return tr, w, retdiff, self.forward(spec)
+
     def update(
         self,
         key: PRNGKey,
+        trace: Trace,
         update_spec: UpdateSpec,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        raise NotImplementedError
+        match update_spec:
+            case ChangeTargetUpdateSpec(argdiffs, spec):
+                return self.update_change_target(key, trace, argdiffs, spec)
+
+            case ChoiceMap():
+                return self.update_choice_map(key, trace, update_spec)
+
+            case _:
+                raise ValueError(f"Unrecognized update spec: {update_spec}")
 
 
 def choice_map_bijection_combinator(

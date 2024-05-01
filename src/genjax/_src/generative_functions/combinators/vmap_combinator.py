@@ -26,18 +26,18 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     GenerativeFunctionClosure,
     Retdiff,
+    Selection,
     Trace,
     UpdateSpec,
     Weight,
 )
-from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.generative.choice_map import RemoveSelectionUpdateSpec
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
     FloatArray,
-    IntArray,
     PRNGKey,
     Tuple,
     typecheck,
@@ -52,8 +52,9 @@ class VmapTrace(Trace):
     score: FloatArray
 
     def get_sample(self):
-        return jax.vmap(lambda idx, submap: ChoiceMap.a(idx, submap))(
-            jnp.arange(len(self.inner.get_score())), self.inner.get_sample()
+        return jax.vmap(lambda idx, subtrace: ChoiceMap.a(idx, subtrace.get_sample()))(
+            jnp.arange(len(self.inner.get_score())),
+            self.inner,
         )
 
     def get_gen_fn(self):
@@ -79,9 +80,9 @@ class VmapCombinator(GenerativeFunction):
 
         console = genjax.console()
 
-        #############################################################
+        ##############################################################
         # One way to create a `VmapCombinator`: using the decorator. #
-        #############################################################
+        ##############################################################
 
 
         @genjax.vmap_combinator(in_axes=(0,))
@@ -177,16 +178,16 @@ class VmapCombinator(GenerativeFunction):
     ) -> Tuple[VmapTrace, FloatArray]:
         self._static_check_broadcastable()
         broadcast_dim_length = self._static_broadcast_dim_length()
-        index_array = jnp.arange(0, broadcast_dim_length)
+        idx_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _importance(key, index, choice_map, args):
-            submap = choice_map.get_submap(index)
+        def _importance(key, idx, choice_map, args):
+            submap = choice_map.get_submap(idx)
             kernel_gen_fn = self.kernel(*args)
             return kernel_gen_fn.importance(key, submap)
 
         (tr, w) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
-            sub_keys, index_array, choice_map, self.args
+            sub_keys, idx_array, choice_map, self.args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
@@ -215,6 +216,33 @@ class VmapCombinator(GenerativeFunction):
     ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
         pass
 
+    def update_remove_selection(
+        self,
+        key: PRNGKey,
+        trace: VmapTrace,
+        selection: Selection,
+    ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
+        self._static_check_broadcastable()
+        broadcast_dim_length = self._static_broadcast_dim_length()
+        idx_array = jnp.arange(0, broadcast_dim_length)
+        sub_keys = jax.random.split(key, broadcast_dim_length)
+
+        def _update(key, idx, args):
+            subselection = selection.step(idx)
+            kernel_gen_fn = self.kernel(*args)
+            sub_spec = RemoveSelectionUpdateSpec(subselection)
+            tr, w, retdiff, bwd_spec = kernel_gen_fn.update(key, trace, sub_spec)
+            return tr, w, retdiff, ChoiceMap.a(idx, bwd_spec)
+
+        tr, w, retdiff, bwd_specs = jax.vmap(_update, in_axes=(0, 0, self.in_axes))(
+            sub_keys, idx_array, self.args
+        )
+        w = jnp.sum(w)
+        retval = tr.get_retval()
+        scores = tr.get_score()
+        map_tr = VmapTrace(self, tr, retval, jnp.sum(scores))
+        return map_tr, w, retdiff, bwd_specs
+
     @typecheck
     def update(
         self,
@@ -226,8 +254,11 @@ class VmapCombinator(GenerativeFunction):
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_spec)
 
+            case RemoveSelectionUpdateSpec(selection):
+                return self.update_remove_selection(key, trace, selection)
+
             case _:
-                raise NotImplementedError
+                raise Exception(f"Not implemented spec: {update_spec}")
 
     @typecheck
     def assess(
