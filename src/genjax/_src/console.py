@@ -98,9 +98,10 @@ def console(
         **pretty_kwargs,
     }
 
-    if "max_frames" in pretty_kwargs:
-        traceback_kwargs["max_frames"] = pretty_kwargs["max_frames"]
-        del pretty_kwargs["max_frames"]
+    for arg in ['max_frames', 'show_locals']:
+        if arg in pretty_kwargs:
+            traceback_kwargs[arg] = pretty_kwargs[arg]
+            del pretty_kwargs[arg]
 
     return GenJAXConsole(
         Console(soft_wrap=True, **pretty_kwargs),
