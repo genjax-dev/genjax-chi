@@ -18,6 +18,8 @@ generative function can accept their previous output as input)."""
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import rich.pretty
+import rich.tree
 from equinox import module_update_wrapper
 from jax.experimental import checkify
 
@@ -102,9 +104,6 @@ class UnfoldTrace(Trace):
         return jnp.sum(ws, axis=0)
 
     def __rich__(self):
-        import rich.pretty
-        import rich.tree
-
         tree = rich.tree.Tree(f"UnfoldTrace(dynamic_length={self.dynamic_length})")
         tree.add("unfold").add(rich.pretty.Pretty(self.unfold))
         tree.add("args").add(rich.pretty.Pretty(self.args))

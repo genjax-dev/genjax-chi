@@ -603,9 +603,6 @@ class EmptyChoice(ChoiceMap):
     def do(self, addr: Address):
         return self
 
-    def __rich_tree__(self):
-        return rich_tree.Tree("[bold](EmptyChoice)")
-
 
 class ValueLike(Choice):
     @abstractmethod
@@ -643,11 +640,6 @@ class ChoiceValue(ValueLike, ChoiceMap):
 
     def get_selection(self) -> Selection:
         return Selection.a
-
-    def __rich_tree__(self):
-        tree = rich_tree.Tree("[bold](ChoiceValue)")
-        tree.add(gpp.tree_pformat(self.value))
-        return tree
 
 
 class SelectionChoiceMap(ValueLike, ChoiceMap):
@@ -1137,9 +1129,9 @@ class Mask(ValueLike, ChoiceMap):
     ###################
 
     def __rich__(self):
-        tree = rich.tree.Tree("[bold]Mask")
-        tree.add("flag").add(rich.console.Pretty(self.flag))
-        tree.add("value").add(rich.console.Pretty(self.value))
+        tree = rich.tree.Tree("Mask")
+        tree.add("flag").add(rich.pretty.Pretty(self.flag))
+        tree.add("value").add(rich.pretty.Pretty(self.value))
         return tree
 
 
@@ -1622,6 +1614,10 @@ class HierarchicalChoiceMap(ChoiceMap):
         )
         return HierarchicalChoiceMap(self.trie.trie_insert(k, v))
 
+    ###################
+    # Pretty printing #
+    ###################
+
     def __rich__(self):
-        tree = rich.tree.Tree("[bold]HierarchicalChoiceMap")
-        return self.trie._append_to_rich_tree(tree)
+        tree = rich.tree.Tree("[bold](HierarchicalChoiceMap)")
+        self.trie._append_to_rich_tree(tree)
