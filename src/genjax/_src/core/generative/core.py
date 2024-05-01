@@ -21,11 +21,12 @@ from penzai import pz
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_data_shape
+from genjax._src.core.interpreters.staging import get_trace_data_shape, staged_and
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
     Any,
+    Bool,
     BoolArray,
     Callable,
     FloatArray,
@@ -34,6 +35,7 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
+    static_check_is_concrete,
     typecheck,
 )
 
@@ -52,28 +54,43 @@ Retdiff = Annotated[
 
 
 class UpdateSpec(Pytree):
-    @classmethod
-    def maybe(cls, check, update_spec):
-        return MaybeUpdateSpec(check, update_spec)
+    pass
+
+
+@Pytree.dataclass
+class EmptyUpdateSpec(UpdateSpec):
+    pass
 
 
 @Pytree.dataclass(match_args=True)
 class ChangeTargetUpdateSpec(UpdateSpec):
     argdiffs: Tuple
-    constraint: "Constraint"
+    update_spec: UpdateSpec
 
 
 @Pytree.dataclass(match_args=True)
-class MaybeUpdateSpec(UpdateSpec):
+class MaskUpdateSpec(UpdateSpec):
     flag: BoolArray
     spec: UpdateSpec
 
+    @classmethod
+    def maybe(cls, f: BoolArray, spec: UpdateSpec):
+        match spec:
+            case MaskUpdateSpec(flag, subspec):
+                return MaskUpdateSpec(staged_and(f, flag), subspec)
+            case _:
+                static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
+                return (
+                    spec
+                    if static_bool_check and f
+                    else EmptyUpdateSpec()
+                    if static_bool_check
+                    else MaskUpdateSpec(f, spec)
+                )
 
-class ProjectSpec(UpdateSpec):
-    pass
 
-
-class RegenerateSpec(UpdateSpec):
+@Pytree.dataclass
+class RemoveSampleUpdateSpec(UpdateSpec):
     pass
 
 
@@ -110,11 +127,11 @@ class EqualityConstraint(Constraint):
 
 
 @Pytree.dataclass
-class MaybeConstraint(Constraint):
+class MaskConstraint(Constraint):
     """
-    A `MaybeConstraint` encodes a possible constraint.
+    A `MaskConstraint` encodes a possible constraint.
 
-    Formally, `MaybeConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x \mapsto x, x))`,
+    Formally, `MaskConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x \mapsto x, x))`,
     where the None case is represented by `EmptyConstraint`.
     """
 
@@ -180,12 +197,12 @@ class EmptySample(Pytree):
 
 
 @Pytree.dataclass
-class MaybeSample(Pytree):
+class MaskSample(Pytree):
     flag: BoolArray
     sample: Sample
 
     def get_constraint(self) -> Constraint:
-        return MaybeConstraint(self.flag, self.sample.get_constraint())
+        return MaskConstraint(self.flag, self.sample.get_constraint())
 
 
 #########
@@ -415,6 +432,7 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         raise NotImplementedError
 
+    # TODO: check the math.
     def project(
         self,
         key: PRNGKey,
@@ -422,7 +440,7 @@ class GenerativeFunction(Pytree):
         spec: UpdateSpec,
     ) -> Weight:
         _, w, _, _ = self.update(key, trace, spec)
-        return w
+        return -w
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
@@ -462,7 +480,7 @@ def push_trace_overload_stack(handler, fn):
 
 @Pytree.dataclass
 class GenerativeFunctionClosure(Pytree):
-    builder: Callable[[Any], GenerativeFunction]
+    builder: Callable[[Any], GenerativeFunction] = Pytree.static()
 
     def __call__(self, *args) -> GenerativeFunction:
         return self.builder(*args)

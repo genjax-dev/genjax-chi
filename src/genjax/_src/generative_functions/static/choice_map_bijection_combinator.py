@@ -53,7 +53,7 @@ class ChoiceMapBijectionTrace(Trace):
 @Pytree.dataclass
 class ChoiceMapBijectionCombinator(GenerativeFunction):
     args: Tuple
-    gen_fn: GenerativeFunctionClosure = Pytree.static()
+    gen_fn: GenerativeFunctionClosure
     forward: Callable[[Any], Any] = Pytree.static()
     inverse: Callable[[Any], Any] = Pytree.static()
 

@@ -20,6 +20,7 @@ from genjax._src.core.generative import (
     Constraint,
     GenerativeFunction,
     GenerativeFunctionClosure,
+    RemoveSelectionUpdateSpec,
     Sample,
     Selection,
 )
@@ -48,7 +49,7 @@ class Target(Pytree):
     The target represents the unnormalized distribution on the unconstrained choices in the generative function, fixing the constraints.
     """
 
-    p: GenerativeFunction
+    p: GenerativeFunctionClosure
     args: Tuple
     constraint: Constraint
 
@@ -176,7 +177,7 @@ class Marginal(SampleDistribution):
     """
 
     args: Tuple
-    p: GenerativeFunctionClosure = Pytree.static()
+    gen_fn: GenerativeFunctionClosure
     selection: Selection = Pytree.field(default=Selection.a)
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
@@ -184,19 +185,20 @@ class Marginal(SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: Any,
     ) -> Tuple[FloatArray, Sample]:
         key, sub_key = jax.random.split(key)
-        tr = self.p.simulate(sub_key, args)
+        gen_fn = self.gen_fn(*self.args)
+        tr = gen_fn.simulate(sub_key)
         choices = tr.get_sample()
         latent_choices = choices.filter(self.selection)
-        other_choices = choices.filter(~self.selection)
-        target = Target(self.p, args, latent_choices)
         key, sub_key = jax.random.split(key)
-        weight = tr.project(sub_key, self.selection)
+        bwd_spec = RemoveSelectionUpdateSpec(~self.selection)
+        weight = tr.project(sub_key, bwd_spec)
         if self.algorithm is None:
             return weight, latent_choices
         else:
+            target = Target(self.gen_fn, self.args, latent_choices)
+            other_choices = choices.filter(~self.selection)
             Z = self.algorithm.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
@@ -207,20 +209,16 @@ class Marginal(SampleDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
-        *args: Any,
+        constraint: Constraint,
     ) -> FloatArray:
+        gen_fn = self.gen_fn(*self.args)
         if self.algorithm is None:
-            _, weight = self.p.importance(key, latent_choices, args)
+            _, weight = gen_fn.importance(key, constraint)
             return weight
         else:
-            target = Target(self.p, args, latent_choices)
+            target = Target(gen_fn, self.args, constraint)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
-
-    @property
-    def __wrapped__(self):
-        return self.p
 
 
 @Pytree.dataclass
@@ -232,7 +230,7 @@ class ValueMarginal(Distribution):
 
     args: Tuple
     addr: Any
-    p: GenerativeFunctionClosure = Pytree.static()
+    p: GenerativeFunctionClosure
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
@@ -293,16 +291,16 @@ def marginal(
             if isinstance(select_or_addr, Selection):
                 marginal = Marginal(
                     args,
+                    gen_fn_closure,
                     select_or_addr,
                     algorithm,
-                    gen_fn_closure,
                 )
             else:
                 marginal = ValueMarginal(
                     args,
+                    gen_fn_closure,
                     select_or_addr,
                     algorithm,
-                    gen_fn_closure,
                 )
             return marginal
 

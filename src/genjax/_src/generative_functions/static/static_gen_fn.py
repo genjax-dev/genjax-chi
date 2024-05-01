@@ -19,7 +19,9 @@ from genjax._src.core.generative import (
     Constraint,
     GenerativeFunction,
     GenerativeFunctionClosure,
+    RemoveSelectionUpdateSpec,
     Retdiff,
+    Selection,
     Trace,
     UpdateSpec,
     Weight,
@@ -159,6 +161,82 @@ class StaticGenerativeFunction(GenerativeFunction):
                 raise Exception("Not implemented")
 
     @typecheck
+    def update_choice_map(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        chm: ChoiceMap,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        update_spec = ChangeTargetUpdateSpec(
+            Diff.tree_diff_no_change(self.args),
+            chm,
+        )
+        return self.update(key, trace, update_spec)
+
+    @typecheck
+    def update_remove_selection(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        remove_selection_spec: RemoveSelectionUpdateSpec,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        update_spec = ChangeTargetUpdateSpec(
+            Diff.tree_diff_no_change(self.args),
+            remove_selection_spec,
+        )
+        return self.update(key, trace, update_spec)
+
+    @typecheck
+    def update_change_target(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        argdiffs: Tuple,
+        update_spec: UpdateSpec,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        assert Diff.static_check_tree_diff(argdiffs)
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            (
+                retval_diffs,
+                weight,
+                (
+                    arg_primals,
+                    retval_primals,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                bwd_specs,
+            ),
+        ) = update_transform(syntax_sugar_handled)(key, trace, update_spec, argdiffs)
+
+        def make_bwd_spec(visitor, subspecs):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.n
+            for addr, subspec in zip(addresses, subspecs):
+                chm = chm ^ ChoiceMap.a(addr, subspec)
+            return chm
+
+        bwd_spec = make_bwd_spec(address_visitor, bwd_specs)
+        return (
+            StaticTrace(
+                self,
+                arg_primals,
+                retval_primals,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+            weight,
+            retval_diffs,
+            bwd_spec,
+        )
+
+    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -167,56 +245,14 @@ class StaticGenerativeFunction(GenerativeFunction):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
             case ChoiceMap():
-                constraint = update_spec
-                update_spec = ChangeTargetUpdateSpec(
-                    Diff.tree_diff_no_change(self.args), constraint
-                )
-                return self.update(key, trace, update_spec)
+                return self.update_choice_map(key, trace, update_spec)
 
             case ChangeTargetUpdateSpec(argdiffs, constraint):
-                assert Diff.static_check_tree_diff(argdiffs)
-                syntax_sugar_handled = push_trace_overload_stack(
-                    handler_trace_with_static, self.source
-                )
-                (
-                    (
-                        retval_diffs,
-                        weight,
-                        (
-                            arg_primals,
-                            retval_primals,
-                            address_visitor,
-                            address_traces,
-                            score,
-                        ),
-                        discard_choices,
-                    ),
-                ) = update_transform(syntax_sugar_handled)(
-                    key, trace, constraint, argdiffs
-                )
+                return self.update_change_target(key, trace, argdiffs, constraint)
 
-                def make_discard(visitor, submaps):
-                    addresses = visitor.get_visited()
-                    addresses = Pytree.tree_unwrap_const(addresses)
-                    chm = ChoiceMap.n
-                    for addr, submap in zip(addresses, submaps):
-                        chm = chm ^ ChoiceMap.a(addr, submap)
-                    return chm
+            case RemoveSelectionUpdateSpec():
+                return self.update_remove_selection(key, trace, update_spec)
 
-                discard = make_discard(address_visitor, discard_choices)
-                return (
-                    StaticTrace(
-                        self,
-                        arg_primals,
-                        retval_primals,
-                        address_visitor,
-                        address_traces,
-                        score,
-                    ),
-                    weight,
-                    retval_diffs,
-                    discard,
-                )
             case _:
                 raise NotImplementedError
 

@@ -24,8 +24,12 @@ from genjax._src.core.generative import (
     ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
+    EmptyUpdateSpec,
     GenerativeFunction,
     Mask,
+    MaskUpdateSpec,
+    RemoveSampleUpdateSpec,
+    RemoveSelectionUpdateSpec,
     Retdiff,
     Selection,
     Trace,
@@ -112,58 +116,76 @@ class Distribution(GenerativeFunction):
         return tr
 
     @typecheck
+    def importance_choice_map(self, key: PRNGKey, chm: ChoiceMap):
+        check = chm.has_value()
+        if static_check_is_concrete(check) and check:
+            v = chm.get_value()
+            w = self.estimate_logpdf(key, v)
+            score = w
+            bwd_spec = RemoveSampleUpdateSpec(v)
+            return (DistributionTrace(self, v, score), w, bwd_spec)
+        elif static_check_is_concrete(check):
+            score, v = self.random_weighted(key)
+            return (
+                DistributionTrace(self, v, score),
+                jnp.array(0.0),
+                EmptyUpdateSpec(),
+            )
+        else:
+            v = chm.get_value()
+            match v:
+                case Mask(flag, value):
+
+                    def _simulate(key, v):
+                        tr = self.simulate(key)
+                        w = 0.0
+                        return (tr, w)
+
+                    def _importance(key, v):
+                        w = self.estimate_logpdf(key, v)
+                        tr = DistributionTrace(self, v, w)
+                        return (tr, w)
+
+                    tr, w = cond(flag, _importance, _simulate, key, value)
+                    bwd_spec = MaskUpdateSpec(flag, RemoveSampleUpdateSpec())
+                    return tr, w, bwd_spec
+
+                case _:
+                    raise Exception("Unhandled type.")
+
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-    ) -> Tuple[Trace, Weight]:
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
-                chm = constraint
-                check = chm.has_value()
-                if static_check_is_concrete(check) and check:
-                    v = chm.get_value()
-                    w = self.estimate_logpdf(key, v)
-                    score = w
-                    return (DistributionTrace(self, v, score), w)
-                elif static_check_is_concrete(check):
-                    score, v = self.random_weighted(key)
-                    return (DistributionTrace(self, v, score), jnp.array(0.0))
-                else:
-                    v = chm.get_value()
-                    match v:
-                        case Mask(flag, value):
+                return self.importance_choice_map(key, constraint)
+            case _:
+                raise Exception("Unhandled type.")
 
-                            def _simulate(key, v):
-                                tr = self.simulate(key)
-                                w = 0.0
-                                return (tr, w)
+    def update_empty(
+        self,
+        trace: DistributionTrace,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        return (
+            trace,
+            jnp.array(0.0),
+            Diff.tree_diff_no_change(trace.get_retval()),
+            EmptyUpdateSpec(),
+        )
 
-                            def _importance(key, v):
-                                w = self.estimate_logpdf(key, v)
-                                tr = DistributionTrace(self, v, w)
-                                return (tr, w)
-
-                            return cond(flag, _importance, _simulate, key, value)
-
-                        case _:
-                            raise Exception("Unhandled type.")
-
-    def update_change_target(
+    def update_constraint(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        argdiffs: Tuple,
         constraint: Constraint,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
-        Diff.static_check_tree_diff(argdiffs)
         check = constraint.has_value()
-        args = Diff.tree_primal(argdiffs)
-        dist_def = jtu.tree_structure(self)
-        new_dist = jtu.tree_unflatten(dist_def, args)
         if static_check_is_concrete(check) and check:
             v = constraint.get_value()
-            fwd = new_dist.estimate_logpdf(key, v)
+            fwd = self.estimate_logpdf(key, v)
             bwd = trace.get_score()
             w = fwd - bwd
             new_tr = DistributionTrace(self, v, fwd)
@@ -178,9 +200,45 @@ class Distribution(GenerativeFunction):
             w = fwd - bwd
             new_tr = DistributionTrace(self, v, fwd)
             retval_diff = Diff.tree_diff_no_change(v)
-            return (new_tr, w, retval_diff, ChoiceMap.n)
+            return (new_tr, w, retval_diff, EmptyUpdateSpec())
         else:
             raise NotImplementedError
+
+    def update_remove_sample(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        gen_fn = trace.get_gen_fn()
+        original = trace.get_score()
+        removed_value = trace.get_retval()
+        new_tr = gen_fn.simulate(key)
+        retdiff = Diff.tree_diff_unknown_change(new_tr.get_retval())
+        return new_tr, -original, retdiff, ChoiceMap.v(removed_value)
+
+    def update_remove_selection(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        selection: Selection,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        check = () in selection
+        return self.update(
+            key, trace, MaskUpdateSpec.maybe(check, RemoveSampleUpdateSpec())
+        )
+
+    def update_change_target(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        argdiffs: Tuple,
+        inner_spec: UpdateSpec,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        Diff.static_check_tree_diff(argdiffs)
+        args = Diff.tree_primal(argdiffs)
+        dist_def = jtu.tree_structure(self)
+        new_dist = jtu.tree_unflatten(dist_def, args)
+        return new_dist.update(key, trace, inner_spec)
 
     @typecheck
     def update(
@@ -190,12 +248,23 @@ class Distribution(GenerativeFunction):
         update_spec: UpdateSpec,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
+            case EmptyUpdateSpec():
+                return self.update_empty(trace)
+
             case Constraint():
-                pass
-            case ChangeTargetUpdateSpec(argdiffs, constraint):
-                return self.update_change_target(key, trace, argdiffs, constraint)
+                return self.update_constraint(key, trace, spec)
+
+            case ChangeTargetUpdateSpec(argdiffs, spec):
+                return self.update_change_target(key, trace, argdiffs, spec)
+
+            case RemoveSampleUpdateSpec():
+                return self.update_remove_sample(key, trace)
+
+            case RemoveSelectionUpdateSpec(selection):
+                return self.update_remove_selection(key, trace, selection)
+
             case _:
-                raise Exception("Unhandled type.")
+                raise Exception(f"Not implement fwd spec: {update_spec}.")
 
 
 #####

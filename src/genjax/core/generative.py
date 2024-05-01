@@ -16,7 +16,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenFn,
+    GenerativeFunctionClosure,
     Mask,
     Sample,
     Selection,
@@ -26,7 +26,6 @@ from genjax._src.core.generative import (
 )
 
 __all__ = [
-    "GenFn",
     "Constraint",
     "UpdateSpec",
     "Sample",
@@ -34,6 +33,7 @@ __all__ = [
     "Trace",
     "Selection",
     "GenerativeFunction",
+    "GenerativeFunctionClosure",
     "Mask",
     "Sum",
 ]

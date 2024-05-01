@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import functools
+from abc import abstractmethod
 from dataclasses import dataclass
 
 import jax
@@ -24,7 +25,9 @@ from genjax._src.core.generative import (
     ChangeTargetUpdateSpec,
     ChoiceMap,
     GenerativeFunction,
+    RemoveSelectionUpdateSpec,
     Trace,
+    UpdateSpec,
 )
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
@@ -135,26 +138,19 @@ class AddressVisitor(Pytree):
 
 
 # This explicitly makes assumptions about some common fields:
-# e.g. it assumes if you are using `StaticLanguageHandler.get_submap`
+# e.g. it assumes if you are using `StaticHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
 @dataclass
-class StaticLanguageHandler(StatefulHandler):
+class StaticHandler(StatefulHandler):
+    @abstractmethod
+    def handle_trace(*traces, **_params):
+        raise NotImplementedError
+
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
     # (`trace_p`, for random choices)
     def handles(self, prim):
         return prim == trace_p
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
-
-    def get_submap(self, addr):
-        addr = Pytree.tree_unwrap_const(addr)
-        return self.constraints.get_submap(addr)
-
-    def get_subtrace(self, addr):
-        addr = Pytree.tree_unwrap_const(addr)
-        return self.previous_trace.get_subtrace(addr)
 
     def dispatch(self, prim, *tracers, **_params):
         if prim == trace_p:
@@ -169,11 +165,14 @@ class StaticLanguageHandler(StatefulHandler):
 
 
 @dataclass
-class SimulateHandler(StaticLanguageHandler):
+class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: List[Trace] = Pytree.field(default_factory=list)
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
 
     def yield_state(self):
         return (
@@ -224,7 +223,7 @@ def simulate_transform(source_fn):
 
 
 @dataclass
-class ImportanceHandler(StaticLanguageHandler):
+class ImportanceHandler(StaticHandler):
     key: PRNGKey
     constraints: ChoiceMap
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -239,6 +238,13 @@ class ImportanceHandler(StaticLanguageHandler):
             self.address_visitor,
             self.address_traces,
         )
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def get_submap(self, addr):
+        addr = Pytree.tree_unwrap_const(addr)
+        return self.constraints.get_submap(addr)
 
     def handle_trace(self, *tracers, **_params):
         in_tree = _params.get("in_tree")
@@ -287,15 +293,15 @@ def importance_transform(source_fn):
 
 
 @dataclass
-class UpdateHandler(StaticLanguageHandler):
+class UpdateHandler(StaticHandler):
     key: PRNGKey
     previous_trace: Trace
-    constraints: ChoiceMap
+    fwd_spec: UpdateSpec
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    discard_choices: List[ChoiceMap] = Pytree.field(default_factory=list)
+    bwd_specs: List[ChoiceMap] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -303,8 +309,28 @@ class UpdateHandler(StaticLanguageHandler):
             self.weight,
             self.address_visitor,
             self.address_traces,
-            self.discard_choices,
+            self.bwd_specs,
         )
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def get_subspec(self, addr):
+        addr = Pytree.tree_unwrap_const(addr)
+        match self.fwd_spec:
+            case ChoiceMap():
+                return self.fwd_spec.get_submap(addr)
+
+            case RemoveSelectionUpdateSpec(selection):
+                subselection = selection.step(addr)
+                return RemoveSelectionUpdateSpec(subselection)
+
+            case _:
+                raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
+
+    def get_subtrace(self, addr):
+        addr = Pytree.tree_unwrap_const(addr)
+        return self.previous_trace.get_subtrace(addr)
 
     def handle_trace(self, *tracers, **_params):
         in_tree = _params.get("in_tree")
@@ -316,14 +342,14 @@ class UpdateHandler(StaticLanguageHandler):
 
         # Run the update step.
         subtrace = self.get_subtrace(addr)
-        subconstraints = self.get_submap(addr)
+        subspec = self.get_subspec(addr)
         self.key, sub_key = jax.random.split(self.key)
-        fwd_spec = ChangeTargetUpdateSpec(argdiffs, subconstraints)
+        fwd_spec = ChangeTargetUpdateSpec(argdiffs, subspec)
         (tr, w, retval_diff, bwd_spec) = gen_fn.update(sub_key, subtrace, fwd_spec)
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.discard_choices.append(bwd_spec)
+        self.bwd_specs.append(bwd_spec)
 
         # We have to convert the Diff back to tracers to return
         # from the primitive.
@@ -346,7 +372,7 @@ def update_transform(source_fn):
             weight,
             address_visitor,
             address_traces,
-            discard_choices,
+            bwd_specs,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -360,8 +386,8 @@ def update_transform(source_fn):
                     address_traces,
                     score,
                 ),
-                # Discard.
-                discard_choices,
+                # Backward update spec.
+                bwd_specs,
             ),
         )
 
@@ -374,7 +400,7 @@ def update_transform(source_fn):
 
 
 @dataclass
-class AssessHandler(StaticLanguageHandler):
+class AssessHandler(StaticHandler):
     constraints: ChoiceMap
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)

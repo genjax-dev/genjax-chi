@@ -24,6 +24,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     GenerativeFunction,
+    GenerativeFunctionClosure,
     Retdiff,
     Trace,
     UpdateSpec,
@@ -114,8 +115,8 @@ class VmapCombinator(GenerativeFunction):
     """
 
     args: Tuple
+    kernel: GenerativeFunctionClosure
     in_axes: Tuple = Pytree.static()
-    kernel: Callable[[Any], GenerativeFunction] = Pytree.static()
 
     def __abstract_call__(self) -> Any:
         def inner(*args):
@@ -293,6 +294,6 @@ def vmap_combinator(
     in_axes: Tuple,
 ) -> Callable[[Callable], Callable[[Any], VmapCombinator]]:
     def decorator(f) -> Callable[[Any], VmapCombinator]:
-        return lambda *args: VmapCombinator(args, in_axes, f)
+        return lambda *args: VmapCombinator(args, f, in_axes)
 
     return decorator

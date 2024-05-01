@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .choice_map import Address, ChoiceMap, Selection
+from .choice_map import Address, ChoiceMap, RemoveSelectionUpdateSpec, Selection
 from .core import (
     ChangeTargetUpdateSpec,
     Constraint,
+    EmptyUpdateSpec,
     GenerativeFunction,
     GenerativeFunctionClosure,
-    GenFn,
-    MaybeConstraint,
-    MaybeSample,
-    ProjectSpec,
-    RegenerateSpec,
+    MaskConstraint,
+    MaskSample,
+    MaskUpdateSpec,
+    RemoveSampleUpdateSpec,
     Retdiff,
     Sample,
     SwitchConstraint,
@@ -33,25 +33,26 @@ from .core import (
 from .functional_types import Mask, Sum
 
 __all__ = [
-    "GenFn",
     "Address",
     "ChangeTargetUpdateSpec",
     "Weight",
     "Retdiff",
     "Sample",
-    "MaybeSample",
+    "MaskSample",
     "Constraint",
-    "MaybeConstraint",
+    "MaskConstraint",
+    "MaskUpdateSpec",
+    "RemoveSampleUpdateSpec",
+    "RemoveSelectionUpdateSpec",
+    "EmptyUpdateSpec",
     "Trace",
     "GenerativeFunction",
     "GenerativeFunctionClosure",
     "Mask",
     "Sum",
     "UpdateSpec",
-    "ProjectSpec",
-    "RegenerateSpec",
     "ChoiceMap",
     "Selection",
     "SwitchConstraint",
-    "MaybeConstraint",
+    "MaskConstraint",
 ]

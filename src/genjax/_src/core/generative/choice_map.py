@@ -21,7 +21,7 @@ import jax.tree_util as jtu
 from jax import vmap
 from penzai import pz
 
-from genjax._src.core.generative.core import Constraint, ProjectSpec, Sample
+from genjax._src.core.generative.core import Constraint, Sample, UpdateSpec
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     staged_and,
@@ -87,7 +87,7 @@ class classproperty:
 
 
 @Pytree.dataclass
-class Selection(ProjectSpec):
+class Selection(Pytree):
     has_addr: SelectionFunction
     info: String = Pytree.static()
 
@@ -882,3 +882,13 @@ def select_and_then(s1: Selection, s2: Selection) -> Selection:
         return check1, remaining
 
     return inner
+
+
+##################################
+# Custom choice map update specs #
+##################################
+
+
+@Pytree.dataclass(match_args=True)
+class RemoveSelectionUpdateSpec(UpdateSpec):
+    selection: Selection

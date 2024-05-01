@@ -60,3 +60,9 @@ class StaticTrace(Trace):
 
     def get_args(self):
         return self.args
+
+    def get_subtrace(self, addr):
+        addresses = self.addresses.get_visited()
+        addresses = Pytree.tree_unwrap_const(addresses)
+        idx = addresses.index(addr)
+        return self.subtraces[idx]

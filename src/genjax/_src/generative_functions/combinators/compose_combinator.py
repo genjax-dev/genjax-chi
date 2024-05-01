@@ -56,7 +56,7 @@ class ComposeTrace(Trace):
 @Pytree.dataclass
 class ComposeCombinator(GenerativeFunction):
     inner_args: Tuple
-    inner: GenerativeFunctionClosure = Pytree.static()
+    inner: GenerativeFunctionClosure
     argument_pushforward: Callable = Pytree.static()
     retval_pushforward: Callable = Pytree.static()
     info: Optional[String] = Pytree.static(default=None)

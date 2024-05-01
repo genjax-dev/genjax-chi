@@ -19,6 +19,7 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Constraint,
     GenerativeFunction,
+    GenerativeFunctionClosure,
     Retdiff,
     Sample,
     SwitchConstraint,
@@ -138,7 +139,7 @@ class SwitchCombinator(GenerativeFunction):
 
     idx: IntArray
     branch_args: Tuple
-    branches: Tuple[Callable[[Any], GenerativeFunction], ...] = Pytree.static()
+    branches = Tuple[GenerativeFunctionClosure, ...]
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self):
