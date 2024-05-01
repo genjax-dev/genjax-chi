@@ -98,7 +98,7 @@ def console(
         **pretty_kwargs,
     }
 
-    for arg in ['max_frames', 'show_locals']:
+    for arg in ["max_frames", "show_locals"]:
         if arg in pretty_kwargs:
             traceback_kwargs[arg] = pretty_kwargs[arg]
             del pretty_kwargs[arg]
