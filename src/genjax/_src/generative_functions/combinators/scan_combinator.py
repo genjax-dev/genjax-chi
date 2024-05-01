@@ -121,7 +121,7 @@ class ScanCombinator(GenerativeFunction):
     """
 
     args: Tuple
-    kernel: GenerativeFunctionClosure
+    kernel_closure: GenerativeFunctionClosure
     max_length: Int = Pytree.static()
 
     # To get the type of return value, just invoke
@@ -130,7 +130,7 @@ class ScanCombinator(GenerativeFunction):
         (carry, scanned_in) = self.args
 
         def _inner(carry, scanned_in):
-            gen_fn = self.kernel(carry, scanned_in)
+            gen_fn = self.kernel_closure(carry, scanned_in)
             v, scanned_out = gen_fn.__abstract_call__()
             return v, scanned_out
 
@@ -151,7 +151,7 @@ class ScanCombinator(GenerativeFunction):
         carry, scanned_in = self.args
 
         def _inner_simulate(key, carry, scanned_in):
-            kernel_gen_fn = self.kernel(carry, scanned_in)
+            kernel_gen_fn = self.kernel_closure(carry, scanned_in)
             tr = kernel_gen_fn.simulate(key)
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
@@ -183,7 +183,7 @@ class ScanCombinator(GenerativeFunction):
         (carry, scanned_in) = self.args
 
         def _inner_importance(key, constraint, carry, scanned_in):
-            kernel_gen_fn = self.kernel(carry, scanned_in)
+            kernel_gen_fn = self.kernel_closure(carry, scanned_in)
             tr, w, bwd_spec = kernel_gen_fn.importance(key, constraint)
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
@@ -251,7 +251,7 @@ class ScanCombinator(GenerativeFunction):
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(self.args)
 
         def _inner_update(key, subtrace, subspec, carry, scanned_in):
-            kernel_gen_fn = self.kernel(carry, scanned_in)
+            kernel_gen_fn = self.kernel_closure(carry, scanned_in)
             (
                 new_subtrace,
                 w,
@@ -313,7 +313,7 @@ class ScanCombinator(GenerativeFunction):
         subspec: UpdateSpec,
     ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
         primals = Diff.tree_primal(argdiffs)
-        new_combinator = ScanCombinator(primals, self.gen_fn_closure, self.max_length)
+        new_combinator = ScanCombinator(primals, self.kernel_closure, self.max_length)
         return new_combinator.update(key, trace, subspec)
 
     @typecheck
