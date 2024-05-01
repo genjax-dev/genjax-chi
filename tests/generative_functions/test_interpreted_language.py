@@ -566,7 +566,7 @@ class TestInterpretedAddressChecks:
 
         key = jax.random.PRNGKey(314159)
         with pytest.raises(Exception):
-            _ = genjax.simulate(simple_normal_addr_tracer)(key, ())
+            _ = simple_normal_addr_tracer.simulate(key, ())
 
 
 @with_both_languages
