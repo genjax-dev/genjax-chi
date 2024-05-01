@@ -229,18 +229,22 @@ class ValueMarginal(Distribution):
     """
 
     args: Tuple
-    addr: Any
     p: GenerativeFunctionClosure
+    addr: Any
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: Any,
     ) -> Tuple[FloatArray, Any]:
-        marginal = Marginal(self.p, select(self.addr), self.algorithm)
-        Z, choice = marginal.random_weighted(key, *args)
+        marginal = Marginal(
+            self.args,
+            self.p,
+            Selection.at[self.addr],
+            self.algorithm,
+        )
+        Z, choice = marginal.random_weighted(key)
         return Z, choice[self.addr]
 
     @typecheck
@@ -248,15 +252,15 @@ class ValueMarginal(Distribution):
         self,
         key: PRNGKey,
         v: Any,
-        *args: Any,
     ) -> FloatArray:
         marginal = Marginal(
+            self.args,
             self.p,
             Selection.at[self.addr],
             self.algorithm,
         )
         latent_choice = Sample.a(self.addr, v)
-        return marginal.estimate_logpdf(key, latent_choice, *args)
+        return marginal.estimate_logpdf(key, latent_choice)
 
     @property
     def __wrapped__(self):
