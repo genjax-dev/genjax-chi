@@ -17,6 +17,7 @@ from abc import abstractmethod
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from penzai import pz
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
@@ -33,6 +34,7 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
+    typecheck,
 )
 
 Weight = Annotated[
@@ -50,25 +52,29 @@ Retdiff = Annotated[
 
 
 class UpdateSpec(Pytree):
-    pass
-
-
-class ProjectSpec(UpdateSpec):
-    """
-    A `ProjectSpec` is the reverse move for `GenerativeFunction.importance`. Denotes that a call to `Trace.update` should return a weight computation of the following form:
-    """
-
-    pass
-
-
-class RegenerateSpec(UpdateSpec):
-    pass
+    @classmethod
+    def maybe(cls, check, update_spec):
+        return MaybeUpdateSpec(check, update_spec)
 
 
 @Pytree.dataclass(match_args=True)
 class ChangeTargetUpdateSpec(UpdateSpec):
     argdiffs: Tuple
     constraint: "Constraint"
+
+
+@Pytree.dataclass(match_args=True)
+class MaybeUpdateSpec(UpdateSpec):
+    flag: BoolArray
+    spec: UpdateSpec
+
+
+class ProjectSpec(UpdateSpec):
+    pass
+
+
+class RegenerateSpec(UpdateSpec):
+    pass
 
 
 ###############
@@ -171,6 +177,15 @@ class Sample(Pytree):
 class EmptySample(Pytree):
     def get_constraint(self) -> Constraint:
         return EmptyConstraint()
+
+
+@Pytree.dataclass
+class MaybeSample(Pytree):
+    flag: BoolArray
+    sample: Sample
+
+    def get_constraint(self) -> Constraint:
+        return MaybeConstraint(self.flag, self.sample.get_constraint())
 
 
 #########
@@ -324,7 +339,7 @@ class Trace(Pytree):
             self.get_sample(),
             self.get_score(),
             self.get_retval(),
-        )
+        ).pprint()
 
 
 @Pytree.dataclass
@@ -336,6 +351,10 @@ class TraceSummary(Pytree):
 
     def treescope_color(self):
         return self.gen_fn.treescope_color()
+
+    def pprint(self):
+        with pz.ts.active_autovisualizer.set_scoped(pz.ts.ArrayAutovisualizer()):
+            pz.ts.display(self)
 
 
 #######################
@@ -355,6 +374,15 @@ class GenerativeFunction(Pytree):
         Generative functions may customize this to improve compilation time.
         """
         return self.simulate(jax.random.PRNGKey(0)).get_retval()
+
+    @property
+    def _type_tuple(self):
+        trace_shape = self.get_trace_data_shape()
+        TT = type(trace_shape)
+        ST = type(trace_shape.get_sample())
+        retval_shape = trace_shape.get_retval()
+        RT = type(jnp.zeros(retval_shape.shape, dtype=retval_shape.dtype))
+        return (RT, ST, TT)
 
     def get_trace_data_shape(self) -> Any:
         return get_trace_data_shape(self)
@@ -405,6 +433,10 @@ class GenerativeFunction(Pytree):
     def __matmul__(self, addr):
         return handle_off_trace_stack(addr, self)
 
+    @classmethod
+    def closure(cls, fn):
+        return GenerativeFunctionClosure(fn)
+
 
 # NOTE: Setup a global handler stack for the `trace` callee sugar.
 # C.f. above.
@@ -426,3 +458,17 @@ def push_trace_overload_stack(handler, fn):
         return ret
 
     return wrapped
+
+
+@Pytree.dataclass
+class GenerativeFunctionClosure(Pytree):
+    builder: Callable[[Any], GenerativeFunction]
+
+    def __call__(self, *args) -> GenerativeFunction:
+        return self.builder(*args)
+
+    @typecheck
+    def __or__(self, other: "GenerativeFunctionClosure"):
+        from genjax import switch_combinator
+
+        return switch_combinator(self, other)

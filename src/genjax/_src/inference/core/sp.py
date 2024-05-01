@@ -15,17 +15,18 @@
 from abc import abstractmethod
 
 import jax
-from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
-    ChoiceMap,
     Constraint,
     GenerativeFunction,
+    GenerativeFunctionClosure,
+    Sample,
     Selection,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Callable,
     FloatArray,
     Optional,
     PRNGKey,
@@ -43,7 +44,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 @Pytree.dataclass
 class Target(Pytree):
     """
-    Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `ChoiceMap` object.
+    Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `Sample` object.
     The target represents the unnormalized distribution on the unconstrained choices in the generative function, fixing the constraints.
     """
 
@@ -53,14 +54,14 @@ class Target(Pytree):
 
 
 #######################
-# ChoiceMap distribution #
+# Sample distribution #
 #######################
 
 
 @Pytree.dataclass
-class ChoiceMapDistribution(Distribution):
+class SampleDistribution(Distribution):
     """
-    The abstract class `ChoiceMapDistribution` represents the type of distributions whose return value type is a `ChoiceMap`. This is the abstract base class of `InferenceAlgorithm`, as well as `Marginal`.
+    The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `InferenceAlgorithm`, as well as `Marginal`.
     """
 
     @abstractmethod
@@ -68,14 +69,14 @@ class ChoiceMapDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> Tuple[FloatArray, ChoiceMap]:
+    ) -> Tuple[FloatArray, Sample]:
         raise NotImplementedError
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ChoiceMap,
+        latent_choices: Sample,
         *args: Any,
     ) -> FloatArray:
         raise NotImplementedError
@@ -86,7 +87,7 @@ class ChoiceMapDistribution(Distribution):
 ########################
 
 
-class InferenceAlgorithm(ChoiceMapDistribution):
+class InferenceAlgorithm(SampleDistribution):
     """The abstract class `InferenceAlgorithm` represents the type of inference
     algorithms, programs which implement interfaces for sampling from approximate
     posterior representations, and estimating the density of the approximate posterior.
@@ -114,10 +115,10 @@ class InferenceAlgorithm(ChoiceMapDistribution):
         self,
         key: PRNGKey,
         target: Target,
-    ) -> Tuple[FloatArray, ChoiceMap]:
+    ) -> Tuple[FloatArray, Sample]:
         """
         Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(log_w, choice)`.
-        `choice : ChoiceMap` is a choicemap on the addresses sampled at in `target.gen_fn` not in `target.constraints`;
+        `choice : Sample` is a choicemap on the addresses sampled at in `target.gen_fn` not in `target.constraints`;
         it is sampled by running the inference algorithm represented by `self`.
         `log_w` is a random weight such that $w = \exp(\texttt{log_w})$ satisfies
         $\mathbb{E}[1 / w \mid \texttt{choice}] = 1 / P(\texttt{choice} \mid \texttt{target.constraints})`, where `P` is the
@@ -129,11 +130,11 @@ class InferenceAlgorithm(ChoiceMapDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ChoiceMap,
+        latent_choices: Sample,
         target: Target,
     ) -> FloatArray:
         """
-        Given a `key: PRNGKey`, `latent_choices: ChoiceMap` and a `target: Target`, returns a random value $\log(w)$
+        Given a `key: PRNGKey`, `latent_choices: Sample` and a `target: Target`, returns a random value $\log(w)$
         such that $\mathbb{E}[w] = P(\texttt{latent_choices} \mid \texttt{target.constraints})$, where $P$
         is the distribution on choicemaps represented by `target.gen_fn`.
         """
@@ -156,7 +157,7 @@ class InferenceAlgorithm(ChoiceMapDistribution):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: ChoiceMap,
+        latent_choices: Sample,
         w: FloatArray,
     ) -> FloatArray:
         pass
@@ -167,13 +168,15 @@ class InferenceAlgorithm(ChoiceMapDistribution):
 ############
 
 
+@Pytree.dataclass
 @typecheck
-class Marginal(ChoiceMapDistribution):
+class Marginal(SampleDistribution):
     """The `Marginal` class represents the marginal distribution of a generative function over
-    a selection of addresses. The return value type is a subtype of `ChoiceMap`.
+    a selection of addresses. The return value type is a subtype of `Sample`.
     """
 
-    p: GenerativeFunction
+    args: Tuple
+    p: GenerativeFunctionClosure = Pytree.static()
     selection: Selection = Pytree.field(default=Selection.a)
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
@@ -182,10 +185,10 @@ class Marginal(ChoiceMapDistribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> Tuple[FloatArray, ChoiceMap]:
+    ) -> Tuple[FloatArray, Sample]:
         key, sub_key = jax.random.split(key)
         tr = self.p.simulate(sub_key, args)
-        choices = tr.get_choices()
+        choices = tr.get_sample()
         latent_choices = choices.filter(self.selection)
         other_choices = choices.filter(~self.selection)
         target = Target(self.p, args, latent_choices)
@@ -204,7 +207,7 @@ class Marginal(ChoiceMapDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: ChoiceMap,
+        latent_choices: Sample,
         *args: Any,
     ) -> FloatArray:
         if self.algorithm is None:
@@ -220,14 +223,16 @@ class Marginal(ChoiceMapDistribution):
         return self.p
 
 
+@Pytree.dataclass
 @typecheck
 class ValueMarginal(Distribution):
     """The `ValueMarginal` class represents the marginal distribution of a generative function over
     a single address `addr: Any`. The return value type is the type of the value at that address.
     """
 
-    p: GenerativeFunction
+    args: Tuple
     addr: Any
+    p: GenerativeFunctionClosure = Pytree.static()
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
@@ -252,7 +257,7 @@ class ValueMarginal(Distribution):
             Selection.at[self.addr],
             self.algorithm,
         )
-        latent_choice = ChoiceMap.a(self.addr, v)
+        latent_choice = Sample.a(self.addr, v)
         return marginal.estimate_logpdf(key, latent_choice, *args)
 
     @property
@@ -267,33 +272,43 @@ class ValueMarginal(Distribution):
 
 @typecheck
 def marginal(
-    gen_fn: Optional[GenerativeFunction] = None,
+    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    /,
     *,
     select_or_addr: Union[Selection, Any] = Selection.a,
     algorithm: Optional[InferenceAlgorithm] = None,
+) -> (
+    Callable[[GenerativeFunctionClosure], GenerativeFunctionClosure]
+    | GenerativeFunctionClosure
 ):
     """If `select_or_addr` is a `Selection`, this constructs a `Marginal` distribution
-    which samples `ChoiceMap` objects with addresses given in the selection.
+    which samples `Sample` objects with addresses given in the selection.
     If `select_or_addr` is an address, this constructs a `ValueMarginal` distribution
     which samples values of the type stored at the given address in `gen_fn`.
     """
 
-    def decorator(gen_fn: GenerativeFunction) -> Union[Marginal, ValueMarginal]:
-        if isinstance(select_or_addr, Selection):
-            marginal = Marginal(
-                gen_fn,
-                select_or_addr,
-                algorithm,
-            )
-        else:
-            marginal = ValueMarginal(
-                gen_fn,
-                select_or_addr,
-                algorithm,
-            )
-        return module_update_wrapper(marginal)
+    def decorator(gen_fn_closure):
+        @GenerativeFunction.closure
+        def marginal_closure(*args) -> Union[Marginal, ValueMarginal]:
+            if isinstance(select_or_addr, Selection):
+                marginal = Marginal(
+                    args,
+                    select_or_addr,
+                    algorithm,
+                    gen_fn_closure,
+                )
+            else:
+                marginal = ValueMarginal(
+                    args,
+                    select_or_addr,
+                    algorithm,
+                    gen_fn_closure,
+                )
+            return marginal
 
-    if gen_fn is not None:
-        return decorator(gen_fn)
+        return marginal_closure
+
+    if gen_fn_closure is not None:
+        return decorator(gen_fn_closure)
     else:
         return decorator

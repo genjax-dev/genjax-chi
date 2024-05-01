@@ -42,6 +42,7 @@ from genjax._src.core.typing import (
     String,
     Tuple,
     Union,
+    static_check_is_concrete,
     typecheck,
 )
 
@@ -660,17 +661,29 @@ def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
     return inner
 
 
-def choice_map_masked(flag: BoolArray, c: ChoiceMap):
-    @ChoiceMap.with_info(f"Masked({c.info})")
-    @Pytree.partial(flag, c)
-    def inner(flag, c, head: AddressComponent):
-        v, check, submap = c.call(head)
-        and_check = staged_and(flag, check)
-        return (
-            Mask.maybe_none(and_check, v),
-            and_check,
-            choice_map_masked(and_check, submap),
-        )
+def choice_map_masked(flag: Bool | BoolArray, c: ChoiceMap):
+    if static_check_is_concrete(flag):
+
+        @ChoiceMap.with_info(f"StaticMasked({c.info})")
+        @Pytree.partial(c)
+        def inner(c, head: AddressComponent):
+            v, check, submap = c.call(head)
+            and_check = staged_and(flag, check)
+            if static_check_is_concrete(and_check):
+                return_map = submap
+            else:
+                return_map = choice_map_masked(and_check, submap)
+            return (Mask.maybe_none(and_check, v), and_check, return_map)
+
+    else:
+
+        @ChoiceMap.with_info(f"Masked({c.info})")
+        @Pytree.partial(flag, c)
+        def inner(flag, c, head: AddressComponent):
+            v, check, submap = c.call(head)
+            and_check = staged_and(flag, check)
+            return_map = choice_map_masked(and_check, submap)
+            return (Mask.maybe_none(and_check, v), and_check, return_map)
 
     return inner
 

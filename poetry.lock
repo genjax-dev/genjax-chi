@@ -201,13 +201,13 @@ dev = ["freezegun (>=1.0,<2.0)", "pytest (>=6.0)", "pytest-cov"]
 
 [[package]]
 name = "beartype"
-version = "0.17.2"
+version = "0.18.5"
 description = "Unbearably fast runtime type checking in pure Python."
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "beartype-0.17.2-py3-none-any.whl", hash = "sha256:c22b21e1f785cfcf5c4d3d13070f532b6243a3ad67e68d2298ff08d539847dce"},
-    {file = "beartype-0.17.2.tar.gz", hash = "sha256:e911e1ae7de4bccd15745f7643609d8732f64de5c2fb844e89cbbed1c5a8d495"},
+    {file = "beartype-0.18.5-py3-none-any.whl", hash = "sha256:5301a14f2a9a5540fe47ec6d34d758e9cd8331d36c4760fc7a5499ab86310089"},
+    {file = "beartype-0.18.5.tar.gz", hash = "sha256:264ddc2f1da9ec94ff639141fbe33d22e12a9f75aa863b83b7046ffff1381927"},
 ]
 
 [package.extras]
@@ -1361,13 +1361,13 @@ files = [
 
 [[package]]
 name = "jsonschema"
-version = "4.21.1"
+version = "4.22.0"
 description = "An implementation of JSON Schema validation for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "jsonschema-4.21.1-py3-none-any.whl", hash = "sha256:7996507afae316306f9e2290407761157c6f78002dcf7419acb99822143d1c6f"},
-    {file = "jsonschema-4.21.1.tar.gz", hash = "sha256:85727c00279f5fa6bedbe6238d2aa6403bedd8b4864ab11207d07df3cc1b2ee5"},
+    {file = "jsonschema-4.22.0-py3-none-any.whl", hash = "sha256:ff4cfd6b1367a40e7bc6411caec72effadd3db0bbe5017de188f2d6108335802"},
+    {file = "jsonschema-4.22.0.tar.gz", hash = "sha256:5b22d434a45935119af990552c862e5d6d564e8f6601206b305a61fdf661a2b7"},
 ]
 
 [package.dependencies]
@@ -2222,13 +2222,13 @@ requests = "*"
 
 [[package]]
 name = "mkdocs-git-revision-date-localized-plugin"
-version = "1.2.4"
+version = "1.2.5"
 description = "Mkdocs plugin that enables displaying the localized date of the last git modification of a markdown file."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "mkdocs-git-revision-date-localized-plugin-1.2.4.tar.gz", hash = "sha256:08fd0c6f33c8da9e00daf40f7865943113b3879a1c621b2bbf0fa794ffe997d3"},
-    {file = "mkdocs_git_revision_date_localized_plugin-1.2.4-py3-none-any.whl", hash = "sha256:1f94eb510862ef94e982a2910404fa17a1657ecf29f45a07b0f438c00767fc85"},
+    {file = "mkdocs_git_revision_date_localized_plugin-1.2.5-py3-none-any.whl", hash = "sha256:d796a18b07cfcdb154c133e3ec099d2bb5f38389e4fd54d3eb516a8a736815b8"},
+    {file = "mkdocs_git_revision_date_localized_plugin-1.2.5.tar.gz", hash = "sha256:0c439816d9d0dba48e027d9d074b2b9f1d7cd179f74ba46b51e4da7bb3dc4b9b"},
 ]
 
 [package.dependencies]
@@ -4591,4 +4591,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "99a3b66d06dc94ba21c9b34638ee5b9e4db81baa52a21c176135613b1c68cee6"
+content-hash = "c2fb5f136c3a6961d2b9468a254a152322c50333cece8efb031acc97a636615c"

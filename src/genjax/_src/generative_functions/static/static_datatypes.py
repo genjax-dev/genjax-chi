@@ -49,6 +49,7 @@ class StaticTrace(Trace):
         chm = ChoiceMap.n
         for addr, subtrace in zip(addresses, self.subtraces):
             chm = chm ^ ChoiceMap.a(addr, subtrace.get_sample())
+
         return chm
 
     def get_retval(self):

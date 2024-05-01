@@ -12,125 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
-
-import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
     ChoiceMap,
-    GenerativeFunction,
-    Selection,
-    Trace,
+    GenerativeFunctionClosure,
 )
-from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import (
-    Any,
-    FloatArray,
-    Int,
-    PRNGKey,
-    Tuple,
-    typecheck,
+from genjax._src.core.typing import Int, IntArray, Tuple, typecheck
+from genjax._src.generative_functions.combinators.compose_combinator import (
+    compose_combinator,
+)
+from genjax._src.generative_functions.combinators.vmap_combinator import (
+    vmap_combinator,
+)
+from genjax._src.generative_functions.static import (
+    choice_map_bijection_combinator,
+    static_gen_fn,
 )
 
 
-class RepeatTrace(Trace):
-    gen_fn: GenerativeFunction
-    inner_trace: Trace
-    args: Tuple
+@typecheck
+def repeat_combinator(
+    gen_fn: GenerativeFunctionClosure,
+    num_repeats: Int,
+) -> GenerativeFunctionClosure:
+    def argument_pushforward(*args):
+        return (jnp.zeros(num_repeats), args)
 
-    def get_score(self):
-        return self.inner_trace.get_score()
+    def forward(chm):
+        return chm.get_submap("_internal")
 
-    def get_args(self):
-        return self.args
+    def inverse(chm):
+        return ChoiceMap.a("_internal", chm)
 
-    def get_choices(self):
-        return self.inner_trace.strip()
+    # This is a static generative function which an attached
+    # choice map address bijection, to collapse the `_internal`
+    # address hierarchy below.
+    # (as part of StaticGenerativeFunction.Trace interfaces)
+    @lambda gen_fn_closure: choice_map_bijection_combinator(
+        gen_fn_closure, forward, inverse
+    )
+    @static_gen_fn
+    def expanded_gen_fn(idx: IntArray, args: Tuple):
+        return gen_fn(*args) @ "_internal"
 
-    def get_retval(self):
-        return self.inner_trace.get_retval()
+    inner_combinator_closure = vmap_combinator(in_axes=(0, None))(expanded_gen_fn)
 
-    def get_gen_fn(self):
-        return self.gen_fn
+    def retval_pushforward(args, sample, retval):
+        return retval
 
-    @typecheck
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        def idx_check(idx, inner_slice):
-            remaining = selection.step(idx)
-            sub_key = jax.random.fold_in(key, idx)
-            inner_weight = inner_slice.project(sub_key, remaining)
-            return inner_weight
-
-        idxs = jnp.arange(0, len(self.inner.get_score()))
-        ws = jax.vmap(idx_check)(idxs, self.inner)
-        return jnp.sum(ws, axis=0)
-
-
-class RepeatCombinator(GenerativeFunction):
-    """The `RepeatCombinator` supports i.i.d sampling from generative functions (for
-    vectorized mapping over arguments, see `VmapCombinator`)."""
-
-    inner: GenerativeFunction
-    repeats: Int = Pytree.static()
-
-    @typecheck
-    def simulate(
-        self,
-        key: PRNGKey,
-        args: Tuple,
-    ) -> RepeatTrace:
-        sub_keys = jax.random.split(key, self.repeats)
-        repeated_inner_tr = jax.vmap(
-            self.inner.simulate,
-            in_axes=(0, None),
-        )(sub_keys, args)
-        return RepeatTrace(self, repeated_inner_tr, args)
-
-    def importance(
-        self,
-        key: PRNGKey,
-        choice: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[RepeatTrace, FloatArray]:
-        sub_keys = jax.random.split(key, self.repeats)
-        repeated_inner_tr, w = jax.vmap(
-            self.inner.importance,
-            in_axes=(0, None),
-        )(sub_keys, choice, args)
-        return RepeatTrace(self, repeated_inner_tr, args), jnp.sum(w)
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        prev: RepeatTrace,
-        choice: ChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[RepeatTrace, FloatArray, Any, ChoiceMap]:
-        pass
-
-    def assess(
-        self,
-        choice: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[FloatArray, Any]:
-        inner_choice = choice.inner
-        (ws, r) = jax.vmap(self.inner.assess, in_axes=(0, None))(inner_choice, args)
-        return jnp.sum(ws), r
-
-
-#############
-# Decorator #
-#############
-
-
-def repeat_combinator(*, repeats) -> Callable[[Callable], GenerativeFunction]:
-    def decorator(f) -> GenerativeFunction:
-        return RepeatCombinator(f, repeats)
-
-    return decorator
+    return compose_combinator(
+        inner_combinator_closure,
+        argument_pushforward,
+        retval_pushforward,
+        info="RepeatCombinator",
+    )

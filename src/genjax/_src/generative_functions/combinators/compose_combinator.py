@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from equinox import module_update_wrapper
 
 from genjax._src.core.generative import (
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
-    Selection,
+    GenerativeFunctionClosure,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff, incremental
@@ -26,23 +26,25 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    Optional,
     PRNGKey,
+    String,
     Tuple,
     typecheck,
 )
 
 
+@Pytree.dataclass
 class ComposeTrace(Trace):
     compose_combinator: "ComposeCombinator"
     inner: Trace
-    args: Tuple
     retval: Any
 
     def get_gen_fn(self):
         return self.compose_combinator
 
-    def get_choices(self):
-        return self.inner.get_choices()
+    def get_sample(self):
+        return self.inner.get_sample()
 
     def get_retval(self):
         return self.retval
@@ -50,46 +52,39 @@ class ComposeTrace(Trace):
     def get_score(self):
         return self.inner.get_score()
 
-    def get_args(self):
-        return self.args
 
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        return self.inner.project(key, selection)
-
-
+@Pytree.dataclass
 class ComposeCombinator(GenerativeFunction):
-    inner: GenerativeFunction
+    inner_args: Tuple
+    inner: GenerativeFunctionClosure = Pytree.static()
     argument_pushforward: Callable = Pytree.static()
     retval_pushforward: Callable = Pytree.static()
+    info: Optional[String] = Pytree.static(default=None)
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ) -> ComposeTrace:
-        inner_args = self.argument_pushforward(*args)
-        tr = self.inner.simulate(key, inner_args)
+        inner_args = self.argument_pushforward(*self.inner_args)
+        inner_gen_fn = self.inner(*inner_args)
+        tr = inner_gen_fn.simulate(key)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(args, inner_retval)
-        return ComposeTrace(self, tr, args, retval)
+        retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
+        return ComposeTrace(self, tr, retval)
 
     @typecheck
     def importance(
         self,
         key: PRNGKey,
-        constraints: ChoiceMap,
-        args: Tuple,
+        constraint: Constraint,
     ) -> Tuple[ComposeTrace, FloatArray]:
-        inner_args = self.argument_pushforward(*args)
-        tr, w = self.inner.importance(key, constraints, inner_args)
+        inner_args = self.argument_pushforward(*self.inner_args)
+        inner_gen_fn = self.inner(*inner_args)
+        tr, w = inner_gen_fn.importance(key, constraints)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(inner_retval)
-        return ComposeTrace(self, tr, args, retval), w
+        retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
+        return ComposeTrace(self, tr, retval), w
 
     @typecheck
     def update(
@@ -121,7 +116,6 @@ class ComposeCombinator(GenerativeFunction):
     def assess(
         self,
         constraints: ChoiceMap,
-        args: Tuple,
     ) -> Tuple[FloatArray, Any]:
         inner_args = self.argument_pushforward(*args)
         w, inner_retval = self.inner.assess(constraints, inner_args)
@@ -138,7 +132,20 @@ class ComposeCombinator(GenerativeFunction):
 #############
 
 
-def compose_combinator(f, precompose, postcompose) -> ComposeCombinator:
-    return module_update_wrapper(
-        ComposeCombinator(f, precompose, postcompose),
-    )
+def compose_combinator(
+    f: GenerativeFunctionClosure,
+    precompose: Callable,
+    postcompose: Callable,
+    info: Optional[String] = None,
+) -> GenerativeFunctionClosure:
+    @GenerativeFunction.closure
+    def inner(*args):
+        return ComposeCombinator(
+            args,
+            f,
+            precompose,
+            postcompose,
+            info,
+        )
+
+    return inner

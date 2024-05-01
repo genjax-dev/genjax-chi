@@ -18,6 +18,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     GenerativeFunction,
+    GenerativeFunctionClosure,
     Retdiff,
     Trace,
     UpdateSpec,
@@ -240,9 +241,8 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 
 @typecheck
-def static_gen_fn(
-    f: Callable[[Any], Any],
-) -> Callable[[Any], StaticGenerativeFunction]:
+def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunctionClosure:
+    @GenerativeFunction.closure
     def inner(*args):
         return StaticGenerativeFunction(args, f)
 

@@ -14,10 +14,10 @@
 
 from genjax._src.core.generative import (
     ChangeTargetUpdateSpec,
-    ChoiceMap,
     Constraint,
     GenerativeFunction,
     Mask,
+    MaybeSample,
     Retdiff,
     Trace,
     UpdateSpec,
@@ -46,7 +46,7 @@ class MaskTrace(Trace):
         return self.mask_combinator
 
     def get_sample(self):
-        return ChoiceMap.m(self.check, self.inner.get_sample())
+        return MaybeSample(self.check, self.inner.get_sample())
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())
@@ -57,7 +57,7 @@ class MaskTrace(Trace):
 
 @Pytree.dataclass
 class MaskCombinator(GenerativeFunction):
-    """A combinator which enables dynamic masking of generative function.
+    """A combinator which enables dynamic masking of generative functions.
     `MaskCombinator` takes a `GenerativeFunction` as a parameter, and
     returns a new `GenerativeFunction` which accepts a boolean array as the
     first argument denoting if the invocation of the generative function should
@@ -84,12 +84,11 @@ class MaskCombinator(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        choice: ChoiceMap,
-        args: Tuple,
+        constraint: Constraint,
     ) -> Tuple[FloatArray, Mask]:
-        (check, *inner_args) = args
-        score, retval = self.inner.assess(choice, inner_args)
-        return check * score, Mask(check, retval)
+        inner_gen_fn = self.inner(*self.inner_args)
+        score, retval = inner_gen_fn.assess(constraint)
+        return self.check * score, Mask(self.check, retval)
 
     @typecheck
     def importance(
@@ -123,6 +122,21 @@ class MaskCombinator(GenerativeFunction):
                     Mask.maybe(check, retdiff),
                     UpdateSpec.maybe(check, bwd_spec),
                 )
+
+            case Constraint():
+                inner_gen_fn = self.inner(*self.inner_args)
+                inner_trace, w, retdiff, bwd_spec = inner_gen_fn.update(
+                    key, trace.inner, update_spec
+                )
+                return (
+                    MaskTrace(self, inner_trace, self.check),
+                    w * self.check,
+                    Mask.maybe(self.check, retdiff),
+                    UpdateSpec.maybe(self.check, bwd_spec),
+                )
+
+            case _:
+                raise ValueError(f"Unsupported update spec {update_spec}")
 
 
 #############

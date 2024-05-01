@@ -21,7 +21,7 @@ from typing import Annotated  # noqa: F401, I001
 from types import EllipsisType
 
 import beartype.typing as btyping
-import jax
+from jax import core as jc
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
@@ -44,7 +44,6 @@ Dict = btyping.Dict
 List = btyping.List
 Optional = btyping.Optional
 Type = btyping.Type
-Protocol = btyping.Protocol
 
 
 # Types of Python literals.
@@ -84,12 +83,12 @@ def static_check_is_array(v):
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
-        or isinstance(v, jax.core.Tracer)
+        or isinstance(v, jc.Tracer)
     )
 
 
 def static_check_is_concrete(x):
-    return not isinstance(x, jax.core.Tracer)
+    return not isinstance(x, jc.Tracer)
 
 
 # TODO: the dtype comparison needs to be replaced with something
