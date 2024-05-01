@@ -15,6 +15,7 @@ import jax  # noqa: I001
 import jax.numpy as jnp  # noqa: I001
 import rich.console
 import rich.tree
+from rich.pretty import Pretty
 
 
 from genjax._src.core.datatypes.generative import (
@@ -116,9 +117,9 @@ class StaticTrace(
 
     def __rich__(self):
         tree = rich.tree.Tree(self.__class__.__name__)
-        tree.add("gen_fn").add(rich.console.Pretty(self.gen_fn))
-        tree.add("args").add(rich.console.Pretty(self.args))
-        tree.add("retval").add(rich.console.Pretty(self.retval))
-        tree.add("score").add(rich.console.Pretty(self.score))
+        tree.add("gen_fn").add(Pretty(self.gen_fn))
+        tree.add("args").add(Pretty(self.args))
+        tree.add("retval").add(Pretty(self.retval))
+        tree.add("score").add(Pretty(self.score))
         self.address_choices._append_to_rich_tree(tree.add("choices"))
         return tree
