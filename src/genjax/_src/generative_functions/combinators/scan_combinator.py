@@ -11,24 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module implements a generative function combinator which allows statically
-unrolled control flow for generative functions which can act as kernels (a kernel
-generative function can accept their previous output as input)."""
 
 import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
+    ChangeTargetUpdateSpec,
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
-    Selection,
+    GenerativeFunctionClosure,
+    RemoveSelectionUpdateSpec,
+    Retdiff,
     Trace,
+    UpdateSpec,
+    Weight,
 )
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
     Int,
+    IntArray,
+    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -39,17 +45,13 @@ from genjax._src.core.typing import (
 class ScanTrace(Trace):
     scan_gen_fn: "ScanCombinator"
     inner: Trace
-    args: Tuple
     retval: Any
     score: FloatArray
 
-    def get_args(self):
-        return self.args
-
-    def get_choices(self):
+    def get_sample(self):
         return jax.vmap(
             lambda idx, submap: ChoiceMap.a(idx, submap),
-        )(jnp.arange(self.scan_gen_fn.max_length), self.inner.get_choices())
+        )(jnp.arange(self.scan_gen_fn.max_length), self.inner.get_sample())
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -60,24 +62,16 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        length_checks = (
-            jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1
-        )
 
-        def idx_check(idx, length_check, inner_slice):
-            remaining = selection.step(idx)
-            sub_key = jax.random.fold_in(key, idx)
-            inner_weight = inner_slice.project(sub_key, remaining)
-            return length_check * inner_weight
+#######################
+# Custom update specs #
+#######################
 
-        idxs = jnp.arange(0, len(self.inner.get_score()))
-        ws = jax.vmap(idx_check)(idxs, length_checks, self.inner)
-        return jnp.sum(ws, axis=0)
+
+@Pytree.dataclass
+class StaticResizeUpdateSpec(UpdateSpec):
+    subspec: UpdateSpec
+    resized_length: Int = Pytree.static()
 
 
 ###################
@@ -126,35 +120,38 @@ class ScanCombinator(GenerativeFunction):
         ```
     """
 
-    kernel: GenerativeFunction
+    args: Tuple
+    kernel: GenerativeFunctionClosure
     max_length: Int = Pytree.static()
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
-    def __abstract_call__(self, *args) -> Any:
-        state = args[1]
-        static_args = args[2:]
+    def __abstract_call__(self) -> Any:
+        (carry, scanned_in) = self.args
 
-        def _inner(carry, xs):
-            state = carry
-            v = self.kernel.__abstract_call__(state, *static_args)
-            return v, v
+        def _inner(carry, scanned_in):
+            v, scanned_out = self.kernel.__abstract_call__(carry, scanned_in)
+            return v, scanned_out
 
-        _, stacked = jax.lax.scan(_inner, state, None, length=self.max_length)
+        v, scanned_out = jax.lax.scan(
+            _inner,
+            carry,
+            scanned_in,
+            length=self.max_length,
+        )
 
-        return stacked
+        return v, scanned_out
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ) -> ScanTrace:
-        initial_value = args[0]
-        scanned_over = args[1]
+        carry, scanned_in = self.args
 
-        def _inner_simulate(key, carried_value, scanned_over):
-            tr = self.kernel.simulate(key, (carried_value, scanned_over))
+        def _inner_simulate(key, carry, scanned_in):
+            kernel_gen_fn = self.kernel(carry, scanned_in)
+            tr = kernel_gen_fn.simulate(key)
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
             return (carry, score), (tr, scanned_out)
@@ -170,126 +167,173 @@ class ScanCombinator(GenerativeFunction):
 
         (_, _, carried_out), (tr, scanned_out, scores) = jax.lax.scan(
             _inner,
-            (key, 0, initial_value),
-            scanned_over,
+            (key, 0, carry),
+            scanned_in,
             length=self.max_length,
         )
 
-        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace(self, tr, (carried_out, scanned_out), jnp.sum(scores))
 
+    def importance_choice_map(
+        self,
+        key: PRNGKey,
+        constraint: ChoiceMap,
+    ) -> Tuple[ScanTrace, FloatArray, UpdateSpec]:
+        (carry, scanned_in) = self.args
+
+        def _inner_importance(key, constraint, carry, scanned_in):
+            kernel_gen_fn = self.kernel(carry, scanned_in)
+            tr, w, bwd_spec = kernel_gen_fn.importance(key, constraint)
+            (carry, scanned_out) = tr.get_retval()
+            score = tr.get_score()
+            return (carry, score), (tr, scanned_out, w, bwd_spec)
+
+        def _importance(carry, scanned_over):
+            key, idx, carried_value = carry
+            key = jax.random.fold_in(key, idx)
+            submap = constraint.get_submap(idx)
+            (carry, score), (tr, scanned_out, w, inner_bwd_spec) = _inner_importance(
+                key, submap, carried_value, scanned_over
+            )
+            bwd_spec = ChoiceMap.a(idx, inner_bwd_spec)
+
+            return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_spec)
+
+        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_specs) = jax.lax.scan(
+            _importance,
+            (key, 0, carry),
+            scanned_in,
+            length=self.max_length,
+        )
+        return (
+            ScanTrace(self, tr, (carried_out, scanned_out), jnp.sum(scores)),
+            jnp.sum(ws),
+            bwd_specs,
+        )
+
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
-        choice: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[ScanTrace, FloatArray]:
-        length = args[0]
-        state = args[1]
-        static_args = args[2:]
+        constraint: Constraint,
+    ) -> Tuple[ScanTrace, Weight, UpdateSpec]:
+        match constraint:
+            case ChoiceMap():
+                return self.importance_choice_map(key, constraint)
 
-        def _inner(carry, _):
-            count, key, state = carry
+            case _:
+                raise NotImplementedError
 
-            def _with_choice(key, count, state):
-                sub_choice_map = choice.get_submap(count)
-                key, sub_key = jax.random.split(key)
-                (tr, w) = self.kernel.importance(
-                    sub_key, sub_choice_map, (state, *static_args)
-                )
-                return key, count + 1, tr, tr.get_retval(), tr.get_score(), w
+    def _get_subspec(
+        self,
+        spec: UpdateSpec,
+        idx: IntArray,
+    ) -> UpdateSpec:
+        match spec:
+            case ChoiceMap():
+                return spec.get_submap(idx)
 
-            def _with_empty_choice(key, count, state):
-                sub_choice_map = ChoiceMap.n
-                key, sub_key = jax.random.split(key)
-                (tr, w) = self.kernel.importance(
-                    sub_key, sub_choice_map, (state, *static_args)
-                )
-                return key, count, tr, state, 0.0, 0.0
+            case RemoveSelectionUpdateSpec(selection):
+                subselection = selection.step(idx)
+                return RemoveSelectionUpdateSpec(subselection)
 
-            check = jnp.less(count, length + 1)
-            key, count, tr, state, score, w = jax.lax.cond(
-                check,
-                _with_choice,
-                _with_empty_choice,
-                key,
-                count,
-                state,
+            case _:
+                raise Exception(f"Not implemented subspec: {spec}")
+
+    @typecheck
+    def update_generic(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        spec: UpdateSpec,
+    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
+        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(self.args)
+
+        def _inner_update(key, subtrace, subspec, carry, scanned_in):
+            kernel_gen_fn = self.kernel(carry, scanned_in)
+            (
+                new_subtrace,
+                w,
+                (carry_retdiff, scanned_out_retdiff),
+                bwd_spec,
+            ) = kernel_gen_fn.update(key, subtrace, subspec)
+            score = new_subtrace.get_score()
+            return (carry_retdiff, score), (
+                new_subtrace,
+                scanned_out_retdiff,
+                w,
+                bwd_spec,
             )
 
-            return (count, key, state), (w, score, tr, state)
+        def _update(carry, scanned_over):
+            key, idx, carried_value = carry
+            (subtrace, *scanned_in) = scanned_over
+            key = jax.random.fold_in(key, idx)
+            subspec = self._get_subspec(spec, idx)
+            (
+                (carry, score),
+                (new_subtrace, scanned_out, w, inner_bwd_spec),
+            ) = _inner_update(key, subtrace, subspec, carried_value, scanned_in)
+            bwd_spec = ChoiceMap.a(idx, inner_bwd_spec)
 
-        (_, _, state), (w, score, tr, retval) = jax.lax.scan(
-            _inner,
-            (0, key, state),
-            None,
+            return (key, idx + 1, carry), (
+                new_subtrace,
+                scanned_out,
+                score,
+                w,
+                bwd_spec,
+            )
+
+        (
+            (_, _, carried_out_diff),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_specs),
+        ) = jax.lax.scan(
+            _update,
+            (key, 0, carry_diff),
+            (trace.inner, *scanned_in_diff),
             length=self.max_length,
         )
-
-        scan_gen_fn_tr = ScanTrace(
-            self,
-            tr,
-            length,
-            args,
-            retval,
-            jnp.sum(score),
+        carried_out, scanned_out = Diff.tree_primal(
+            (carried_out_diff, scanned_out_diff)
+        )
+        return (
+            ScanTrace(self, new_subtraces, (carried_out, scanned_out), jnp.sum(scores)),
+            jnp.sum(ws),
+            (carried_out_diff, scanned_out_diff),
+            bwd_specs,
         )
 
-        w = jnp.sum(w)
-        return (scan_gen_fn_tr, w)
+    @typecheck
+    def update_change_target(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace,
+        argdiffs: Tuple,
+        subspec: UpdateSpec,
+    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
+        primals = Diff.tree_primal(argdiffs)
+        new_combinator = ScanCombinator(primals, self.gen_fn_closure, self.max_length)
+        return new_combinator.update(key, trace, subspec)
 
     @typecheck
     def update(
         self,
         key: PRNGKey,
-        prev: ScanTrace,
-        choice: ChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[ScanTrace, FloatArray, Any, ChoiceMap]:
-        raise NotImplementedError
+        trace: ScanTrace,
+        update_spec: UpdateSpec,
+    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
+        match update_spec:
+            case ChangeTargetUpdateSpec(argdiffs, subspec):
+                return self.update_change_target(key, trace, argdiffs, subspec)
+
+            case _:
+                return self.update_generic(key, trace, update_spec)
 
     def assess(
         self,
-        choice: ChoiceMap,
-        args: Tuple,
+        constraint: Constraint,
     ) -> Tuple[FloatArray, Any]:
-        length = args[0]
-        state = args[1]
-        static_args = args[2:]
-
-        def _inner(carry, slice):
-            count, state = carry
-            choice = slice
-
-            check = count == choice.get_index()
-
-            (score, retval) = self.kernel.assess(choice, (state, *static_args))
-
-            check = jnp.less(count, length + 1)
-            index = jax.lax.cond(
-                check,
-                lambda *args: count,
-                lambda *args: -1,
-            )
-            count, state, score = jax.lax.cond(
-                check,
-                lambda *args: (count + 1, retval, score),
-                lambda *args: (count, state, 0.0),
-            )
-            return (count, state), (state, score, index)
-
-        (_, state), (retval, score, _) = jax.lax.scan(
-            _inner,
-            (0, state),
-            choice,
-            length=self.max_length,
-        )
-
-        score = jnp.sum(score)
-        return (score, retval)
-
-    @property
-    def __wrapped__(self):
-        return self.kernel
+        raise NotImplementedError
 
 
 #############
@@ -297,8 +341,21 @@ class ScanCombinator(GenerativeFunction):
 #############
 
 
-def scan_combinator(*, max_length):
-    def _decorator(f):
-        return ScanCombinator(f, max_length)
+@typecheck
+def scan_combinator(
+    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    /,
+    *,
+    max_length: Int,
+):
+    def decorator(f):
+        @GenerativeFunction.closure
+        def inner(*args):
+            return ScanCombinator(args, f, max_length)
 
-    return _decorator
+        return inner
+
+    if gen_fn_closure:
+        return decorator(gen_fn_closure)
+    else:
+        return decorator

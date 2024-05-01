@@ -24,6 +24,7 @@ from genjax._src.core.generative import (
     Address,
     ChangeTargetUpdateSpec,
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
     RemoveSelectionUpdateSpec,
     Trace,
@@ -225,11 +226,12 @@ def simulate_transform(source_fn):
 @dataclass
 class ImportanceHandler(StaticHandler):
     key: PRNGKey
-    constraints: ChoiceMap
+    constraint: Constraint
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: List[Trace] = Pytree.field(default_factory=list)
+    bwd_specs: List[ChoiceMap] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -237,14 +239,20 @@ class ImportanceHandler(StaticHandler):
             self.weight,
             self.address_visitor,
             self.address_traces,
+            self.bwd_specs,
         )
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    def get_submap(self, addr):
+    def get_subconstraint(self, addr):
         addr = Pytree.tree_unwrap_const(addr)
-        return self.constraints.get_submap(addr)
+        match self.constraint:
+            case ChoiceMap():
+                return self.constraint.get_submap(addr)
+
+            case _:
+                raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
 
     def handle_trace(self, *tracers, **_params):
         in_tree = _params.get("in_tree")
@@ -252,10 +260,11 @@ class ImportanceHandler(StaticHandler):
         passed_in_tracers = tracers[num_consts:]
         gen_fn, addr = jtu.tree_unflatten(in_tree, passed_in_tracers)
         self.visit(addr)
-        sub_map = self.get_submap(addr)
+        sub_map = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w) = gen_fn.importance(sub_key, sub_map)
+        tr, w, bwd_spec = gen_fn.importance(sub_key, sub_map)
         self.address_traces.append(tr)
+        self.bwd_specs.append(bwd_spec)
         self.score += tr.get_score()
         self.weight += w
         v = tr.get_retval()
@@ -272,6 +281,7 @@ def importance_transform(source_fn):
             weight,
             address_visitor,
             address_traces,
+            bwd_specs,
         ) = stateful_handler.yield_state()
         return (
             weight,
@@ -282,6 +292,7 @@ def importance_transform(source_fn):
                 address_traces,
                 score,
             ),
+            bwd_specs,
         )
 
     return wrapper

@@ -212,39 +212,8 @@ class VmapCombinator(GenerativeFunction):
         key: PRNGKey,
         prev: VmapTrace,
         choice: ChoiceMap,
-        argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
-        args = Diff.tree_primal(argdiffs)
-        original_args = prev.get_args()
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
-        index_array = jnp.arange(0, broadcast_dim_length)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-        inner_trace = prev.inner
-
-        @typecheck
-        def _update_inner(
-            key: PRNGKey,
-            index: IntArray,
-            prev: Trace,
-            choice: ChoiceMap,
-            original_args: Tuple,
-            argdiffs: Tuple,
-        ):
-            submap = choice.get_submap(index)
-            return self.maybe_restore_arguments_kernel_update(
-                key, prev, submap, original_args, argdiffs
-            )
-
-        (tr, w, retval_diff, discard) = jax.vmap(
-            _update_inner,
-            in_axes=(0, 0, 0, None, self.in_axes, self.in_axes),
-        )(sub_keys, index_array, inner_trace, choice, original_args, argdiffs)
-        w = jnp.sum(w)
-        retval = tr.get_retval()
-        scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
-        return (map_tr, w, retval_diff, discard)
+        pass
 
     @typecheck
     def update(
@@ -255,8 +224,7 @@ class VmapCombinator(GenerativeFunction):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
             case ChoiceMap():
-                choice_map: ChoiceMap = update_spec
-                return self.update_choice_map(key, trace, choice_map)
+                return self.update_choice_map(key, trace, update_spec)
 
             case _:
                 raise NotImplementedError

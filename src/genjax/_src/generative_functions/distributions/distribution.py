@@ -73,17 +73,6 @@ class DistributionTrace(
     def get_sample(self):
         return ChoiceMap.v(self.value)
 
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        check = selection[...]
-        return check * self.get_score()
-
-    def get_value(self):
-        return self.value
-
 
 #####
 # Distribution
@@ -134,6 +123,10 @@ class Distribution(GenerativeFunction):
         else:
             v = chm.get_value()
             match v:
+                case None:
+                    tr = self.simulate(key)
+                    return tr, jnp.array(0.0), EmptyUpdateSpec()
+
                 case Mask(flag, value):
 
                     def _simulate(key, v):
@@ -216,13 +209,34 @@ class Distribution(GenerativeFunction):
         retdiff = Diff.tree_diff_unknown_change(new_tr.get_retval())
         return new_tr, -original, retdiff, ChoiceMap.v(removed_value)
 
+    def update_mask_spec(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        update_spec: MaskUpdateSpec,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        old_value = trace.get_retval()
+        match update_spec:
+            case MaskUpdateSpec(flag, spec):
+                possible_trace, w, retdiff, bwd_spec = self.update(key, trace, spec)
+                new_value = possible_trace.get_retval()
+                w = w * flag
+                bwd_spec = MaskUpdateSpec(flag, bwd_spec)
+                new_trace = DistributionTrace(
+                    self,
+                    jax.lax.select(flag, new_value, old_value),
+                    jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
+                )
+
+                return new_trace, w, retdiff, bwd_spec
+
     def update_remove_selection(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
         selection: Selection,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
-        check = () in selection
+        check, _ = selection.has_addr(())
         return self.update(
             key, trace, MaskUpdateSpec.maybe(check, RemoveSampleUpdateSpec())
         )
@@ -253,6 +267,9 @@ class Distribution(GenerativeFunction):
 
             case Constraint():
                 return self.update_constraint(key, trace, spec)
+
+            case MaskUpdateSpec(flag, spec):
+                return self.update_mask_spec(key, trace, update_spec)
 
             case ChangeTargetUpdateSpec(argdiffs, spec):
                 return self.update_change_target(key, trace, argdiffs, spec)

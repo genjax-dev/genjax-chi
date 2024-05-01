@@ -124,39 +124,55 @@ class StaticGenerativeFunction(GenerativeFunction):
         )
 
     @typecheck
+    def importance_choice_map(
+        self, key: PRNGKey, chm: ChoiceMap
+    ) -> Tuple[StaticTrace, Weight, UpdateSpec]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            w,
+            (
+                args,
+                retval,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+            bwd_specs,
+        ) = importance_transform(syntax_sugar_handled)(key, chm, self.args)
+
+        def make_bwd_spec(visitor, subspecs):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.n
+            for addr, subspec in zip(addresses, subspecs):
+                chm = chm ^ ChoiceMap.a(addr, subspec)
+            return chm
+
+        bwd_spec = make_bwd_spec(address_visitor, bwd_specs)
+        return (
+            StaticTrace(
+                self,
+                args,
+                retval,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+            w,
+            bwd_spec,
+        )
+
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-    ) -> Tuple[StaticTrace, ArrayLike]:
+    ) -> Tuple[StaticTrace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
-                syntax_sugar_handled = push_trace_overload_stack(
-                    handler_trace_with_static, self.source
-                )
-                (
-                    w,
-                    (
-                        args,
-                        retval,
-                        address_visitor,
-                        address_traces,
-                        score,
-                    ),
-                ) = importance_transform(syntax_sugar_handled)(
-                    key, constraint, self.args
-                )
-                return (
-                    StaticTrace(
-                        self,
-                        args,
-                        retval,
-                        address_visitor,
-                        address_traces,
-                        score,
-                    ),
-                    w,
-                )
+                return self.importance_choice_map(key, constraint)
             case _:
                 raise Exception("Not implemented")
 
