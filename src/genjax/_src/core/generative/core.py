@@ -496,6 +496,34 @@ class GenerativeFunctionClosure(Pytree):
     def __call__(self, *args) -> GenerativeFunction:
         return self.builder(*args)
 
+    ####################################
+    # Support the old interface syntax #
+    ####################################
+
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ):
+        return self.builder(*args).simulate(key)
+
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Tuple,
+    ):
+        return self.builder(*args).importance(key, constraint)
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        spec: UpdateSpec,
+        args: Tuple,
+    ):
+        return self.builder(*args).update(key, trace, spec)
+
     ###############################################
     # Convenience: postfix syntax for combinators #
     ###############################################
@@ -526,6 +554,14 @@ class GenerativeFunctionClosure(Pytree):
         from genjax import cond_combinator
 
         return cond_combinator(self, gen_fn)
+
+    def addr_bij(
+        self,
+        address_bijection: dict,
+    ) -> "GenerativeFunctionClosure":
+        from genjax import address_bijection_combinator
+
+        return address_bijection_combinator(self, address_bijection=address_bijection)
 
     def switch(
         self, *gen_fn: "GenerativeFunctionClosure"

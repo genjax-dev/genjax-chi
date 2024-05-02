@@ -40,5 +40,5 @@ def cond_combinator(
         inner_combinator_closure,
         argument_pushforward,
         retval_pushforward,
-        info="CondCombinator",
+        info=f"Derived combinator (Cond) @ {__file__}",
     )

@@ -19,18 +19,12 @@ To support sequencing of probabilistic computations as a capability in the model
 utilize other generative functions using the exposed `trace` (or the syntactic sugared version) to create hierarchical patterns of generative computation.
 """
 
-from .choice_map_bijection_combinator import (
-    ChoiceMapBijectionCombinator,
-    choice_map_bijection_combinator,
-)
 from .static_gen_fn import StaticGenerativeFunction, static_gen_fn
 from .static_transforms import trace, trace_p
 
 __all__ = [
     "StaticGenerativeFunction",
     "static_gen_fn",
-    "ChoiceMapBijectionCombinator",
-    "choice_map_bijection_combinator",
     "trace_p",
     "trace",
 ]

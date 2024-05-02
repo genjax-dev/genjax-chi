@@ -13,9 +13,7 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.static import (
-    ChoiceMapBijectionCombinator,
     StaticGenerativeFunction,
-    choice_map_bijection_combinator,
     static_gen_fn,
     trace,
     trace_p,
@@ -26,6 +24,4 @@ __all__ = [
     "trace",
     "static_gen_fn",
     "StaticGenerativeFunction",
-    "ChoiceMapBijectionCombinator",
-    "choice_map_bijection_combinator",
 ]

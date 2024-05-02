@@ -15,20 +15,19 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
-    ChoiceMap,
     GenerativeFunctionClosure,
 )
 from genjax._src.core.typing import Callable, Int, IntArray, Optional, Tuple, typecheck
+from genjax._src.generative_functions.combinators.address_bijection_combinator import (
+    address_bijection_combinator,
+)
 from genjax._src.generative_functions.combinators.compose_combinator import (
     compose_combinator,
 )
 from genjax._src.generative_functions.combinators.vmap_combinator import (
     vmap_combinator,
 )
-from genjax._src.generative_functions.static import (
-    choice_map_bijection_combinator,
-    static_gen_fn,
-)
+from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
 
 
 @typecheck
@@ -42,33 +41,21 @@ def repeat_combinator(
         def argument_pushforward(*args):
             return (jnp.zeros(num_repeats), args)
 
-        def forward(chm):
-            return chm.get_submap("_internal")
-
-        def inverse(chm):
-            return ChoiceMap.a("_internal", chm)
-
         # This is a static generative function which an attached
         # choice map address bijection, to collapse the `_internal`
         # address hierarchy below.
         # (as part of StaticGenerativeFunction.Trace interfaces)
-        @lambda gen_fn_closure: choice_map_bijection_combinator(
-            gen_fn_closure, forward, inverse
-        )
+        @address_bijection_combinator(address_bijection={(): "_internal"})
         @static_gen_fn
         def expanded_gen_fn(idx: IntArray, args: Tuple):
             return gen_fn(*args) @ "_internal"
 
         inner_combinator_closure = vmap_combinator(in_axes=(0, None))(expanded_gen_fn)
 
-        def retval_pushforward(args, sample, retval):
-            return retval
-
         return compose_combinator(
             inner_combinator_closure,
-            argument_pushforward,
-            retval_pushforward,
-            info="RepeatCombinator",
+            pre=argument_pushforward,
+            info=f"Derived combinator (Repeat) @ {__file__}",
         )
 
     if gen_fn:
