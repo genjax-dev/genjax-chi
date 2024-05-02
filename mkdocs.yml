@@ -34,7 +34,7 @@ nav:
 
 theme:
   name: material
-  #logo: assets/img/logo.png
+  logo: assets/img/small_logo.png
   favicon: assets/img/gen-logo.png
   icon:
     repo: fontawesome/brands/github
