@@ -456,7 +456,6 @@ class ChoiceMap(Sample, Constraint):
             tail_v, tail_check, tail_submap = submap.call_recurse(tail)
             return tail_v, staged_and(check, tail_check), tail_submap
         else:
-            v, check, submap = submap.call(())
             return v, check, submap
 
     ###########
@@ -628,12 +627,12 @@ def choice_map_address_function(addr_fn: dict, c: ChoiceMap):
             return None, True, choice_map_address_function(sub_fn, c)
         else:
             new_head = addr_fn.get(head, head)
-            if head == ():
-                return c.call_recurse(new_head)
-            elif isinstance(new_head, tuple):
-                return c.call_recurse(new_head)
+            if new_head == ():
+                return None, True, c
+            elif head == ():
+                return c.call_recurse((new_head, ()))
             else:
-                return c.call(new_head)
+                return c.call_recurse(new_head)
 
     return inner
 
