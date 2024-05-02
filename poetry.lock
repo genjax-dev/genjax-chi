@@ -1265,14 +1265,14 @@ files = [
 [package.dependencies]
 ml-dtypes = ">=0.2.0"
 numpy = [
-    {version = ">=1.22", markers = "python_version < \"3.11\""},
-    {version = ">=1.23.2", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.2", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
+    {version = ">=1.22", markers = "python_version < \"3.11\""},
 ]
 opt-einsum = "*"
 scipy = [
-    {version = ">=1.9", markers = "python_version < \"3.12\""},
     {version = ">=1.11.1", markers = "python_version >= \"3.12\""},
+    {version = ">=1.9", markers = "python_version < \"3.12\""},
 ]
 
 [package.extras]
@@ -2356,9 +2356,9 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.2", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
-    {version = ">=1.23.3", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.3", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
+    {version = ">=1.21.2", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
 ]
 
 [package.extras]
@@ -2805,9 +2805,9 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.22.4", markers = "python_version < \"3.11\""},
-    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.22.4", markers = "python_version < \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -4054,6 +4054,17 @@ pure-eval = "*"
 tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
+name = "stackprinter"
+version = "0.2.12"
+description = "Debug-friendly stack traces, with variable values and semantic highlighting"
+optional = false
+python-versions = ">=3.4"
+files = [
+    {file = "stackprinter-0.2.12-py3-none-any.whl", hash = "sha256:0a0623d46a5babd7a8a9787f605f4dd4a42d6ff7aee140541d5e9291a506e8d9"},
+    {file = "stackprinter-0.2.12.tar.gz", hash = "sha256:271efc75ebdcc1554e58168ea7779f98066d54a325f57c7dc19f10fa998ef01e"},
+]
+
+[[package]]
 name = "starlette"
 version = "0.37.2"
 description = "The little ASGI library that shines."
@@ -4591,4 +4602,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "c2fb5f136c3a6961d2b9468a254a152322c50333cece8efb031acc97a636615c"
+content-hash = "df6675f10db904177a9521c4c648e050c2d6dd9681992437883454c848eea400"

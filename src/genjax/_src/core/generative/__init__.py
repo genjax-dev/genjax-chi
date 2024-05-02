@@ -16,6 +16,7 @@ from .choice_map import Address, ChoiceMap, RemoveSelectionUpdateSpec, Selection
 from .core import (
     ChangeTargetUpdateSpec,
     Constraint,
+    EmptyConstraint,
     EmptyUpdateSpec,
     GenerativeFunction,
     GenerativeFunctionClosure,
@@ -40,6 +41,7 @@ __all__ = [
     "Sample",
     "MaskSample",
     "Constraint",
+    "EmptyConstraint",
     "MaskConstraint",
     "MaskUpdateSpec",
     "RemoveSampleUpdateSpec",

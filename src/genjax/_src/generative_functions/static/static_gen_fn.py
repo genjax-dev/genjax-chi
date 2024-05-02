@@ -21,13 +21,13 @@ from genjax._src.core.generative import (
     GenerativeFunctionClosure,
     RemoveSelectionUpdateSpec,
     Retdiff,
-    Selection,
     Trace,
     UpdateSpec,
     Weight,
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -97,6 +97,12 @@ class StaticGenerativeFunction(GenerativeFunction):
 
     args: Tuple
     source: Callable = Pytree.static()
+
+    def post_init_check_source_compatible_with_arguments(self):
+        stage(self.source)(*self.args)
+
+    def __post_init__(self):
+        self.post_init_check_source_compatible_with_arguments()
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
@@ -294,7 +300,7 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 @typecheck
 def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure
+    @GenerativeFunction.closure(gen_fn_type=StaticGenerativeFunction)
     def inner(*args):
         return StaticGenerativeFunction(args, f)
 

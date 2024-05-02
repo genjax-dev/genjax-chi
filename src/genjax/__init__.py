@@ -23,7 +23,7 @@ from importlib import metadata
 # Closed modules.
 from genjax import adev  # noqa: F401
 
-from .assistant import *
+from .checkify import *
 from .core import *
 from .experimental import *
 from .generative_functions import *
@@ -31,6 +31,5 @@ from .incremental import *
 from .inference import *
 from .information import *
 from .shortcuts import *
-
 
 __version__ = metadata.version("genjax")

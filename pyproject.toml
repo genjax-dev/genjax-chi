@@ -43,6 +43,7 @@ deprecated = "^1.2.14"
 penzai = "^0.1.0"
 dill = {version="^0.3.8", optional = true}
 msgpack = {version = "^1.0.8", optional = true }
+stackprinter = "^0.2.12"
 
 [tool.poetry.group.dev]
 optional = true

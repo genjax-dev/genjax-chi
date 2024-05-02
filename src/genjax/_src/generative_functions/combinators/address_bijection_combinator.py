@@ -14,6 +14,7 @@
 
 
 from genjax._src.core.generative import (
+    Address,
     ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
@@ -29,14 +30,15 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Optional,
     PRNGKey,
     Tuple,
 )
 
 
 @Pytree.dataclass
-class ChoiceMapBijectionTrace(Trace):
-    gen_fn: "ChoiceMapBijectionCombinator"
+class AddressBijectionTrace(Trace):
+    gen_fn: "AddressBijectionCombinator"
     inner: Trace
 
     def get_gen_fn(self) -> GenerativeFunction:
@@ -46,18 +48,20 @@ class ChoiceMapBijectionTrace(Trace):
         return self.inner.get_retval()
 
     def get_sample(self) -> Sample:
-        return self.gen_fn.forward(self.inner.get_sample())
+        sample: ChoiceMap = self.inner.get_sample()
+        forward = self.gen_fn.forward
+        return ChoiceMap.address_fn(forward, sample)
 
     def get_score(self):
         return self.inner.get_score()
 
 
 @Pytree.dataclass
-class ChoiceMapBijectionCombinator(GenerativeFunction):
+class AddressBijectionCombinator(GenerativeFunction):
     args: Tuple
     gen_fn: GenerativeFunctionClosure
-    forward: Callable[[Any], Any] = Pytree.static()
-    inverse: Callable[[Any], Any] = Pytree.static()
+    forward: Callable[[Address], Address] = Pytree.static()
+    inverse: Callable[[Address], Address] = Pytree.static()
 
     def simulate(
         self,
@@ -65,17 +69,21 @@ class ChoiceMapBijectionCombinator(GenerativeFunction):
     ) -> Trace:
         inner = self.gen_fn(*self.args)
         tr = inner.simulate(key)
-        return ChoiceMapBijectionTrace(self, tr)
+        return AddressBijectionTrace(self, tr)
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
     ) -> Tuple[Trace, Weight]:
-        inner = self.gen_fn(*self.args)
-        inner_constraint = self.inverse(constraint)
-        tr, w = inner.importance(key, inner_constraint)
-        return ChoiceMapBijectionTrace(self, tr), w
+        match constraint:
+            case ChoiceMap():
+                inner = self.gen_fn(*self.args)
+                inner_constraint = ChoiceMap.address_fn(self.inverse, constraint)
+                tr, w = inner.importance(key, inner_constraint)
+                return AddressBijectionTrace(self, tr), w
+            case _:
+                raise ValueError(f"Not handled constraint: {constraint}")
 
     def update_choice_map(
         self,
@@ -119,13 +127,21 @@ class ChoiceMapBijectionCombinator(GenerativeFunction):
                 raise ValueError(f"Unrecognized update spec: {update_spec}")
 
 
-def choice_map_bijection_combinator(
-    f: GenerativeFunctionClosure,
-    forward: Callable[[Any], Any],
-    inverse: Callable[[Any], Any],
-):
-    @GenerativeFunction.closure
-    def inner(*args):
-        return ChoiceMapBijectionCombinator(args, f, forward, inverse)
+def address_bijection_combinator(
+    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    /,
+    *,
+    forward: Callable[[Address], Address],
+    inverse: Callable[[Address], Address],
+) -> Callable | GenerativeFunctionClosure:
+    def decorator(f):
+        @GenerativeFunction.closure
+        def inner(*args):
+            return AddressBijectionCombinator(args, f, forward, inverse)
 
-    return inner
+        return inner
+
+    if gen_fn_closure:
+        return decorator(gen_fn_closure)
+    else:
+        return decorator

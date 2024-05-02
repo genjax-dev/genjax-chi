@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.assistant import assistant, pprint
+from genjax._src.checkify import do_checkify
 
 __all__ = [
-    "assistant",
-    "pprint",
+    "do_checkify",
 ]

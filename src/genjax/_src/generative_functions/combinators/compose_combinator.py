@@ -182,7 +182,7 @@ def compose_combinator(
     postcompose: Callable,
     info: Optional[String] = None,
 ) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure
+    @GenerativeFunction.closure(gen_fn_type=ComposeCombinator)
     def inner(*args):
         return ComposeCombinator(
             args,

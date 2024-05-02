@@ -242,6 +242,16 @@ class Pytree(pz.Struct):
 
         return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
 
+    def pprint(self):
+        with pz.ts.active_autovisualizer.set_scoped(pz.ts.ArrayAutovisualizer()):
+            pz.ts.display(self)
+
+    def render_html(self):
+        return pz.ts.render_to_html(
+            self,
+            roundtrip_mode=True,
+        )
+
 
 ##############################
 # Associated utility classes #

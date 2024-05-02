@@ -254,7 +254,8 @@ class SwitchCombinator(GenerativeFunction):
 
 def switch_combinator(
     *f: GenerativeFunction,
-) -> Callable[[Any], SwitchCombinator]:
+) -> GenerativeFunctionClosure:
+    @GenerativeFunction.closure(gen_fn_type=SwitchCombinator)
     def inner(idx: IntArray, *args: Any) -> SwitchCombinator:
         return SwitchCombinator(idx, args, f)
 

@@ -30,13 +30,15 @@ from genjax._src.core.typing import (
     BoolArray,
     Callable,
     FloatArray,
+    Int,
     IntArray,
     Is,
     List,
+    Optional,
     PRNGKey,
     Tuple,
+    Type,
     static_check_is_concrete,
-    typecheck,
 )
 
 Weight = Annotated[
@@ -356,7 +358,7 @@ class Trace(Pytree):
             self.get_sample(),
             self.get_score(),
             self.get_retval(),
-        ).pprint()
+        )
 
 
 @Pytree.dataclass
@@ -368,10 +370,6 @@ class TraceSummary(Pytree):
 
     def treescope_color(self):
         return self.gen_fn.treescope_color()
-
-    def pprint(self):
-        with pz.ts.active_autovisualizer.set_scoped(pz.ts.ArrayAutovisualizer()):
-            pz.ts.display(self)
 
 
 #######################
@@ -452,27 +450,39 @@ class GenerativeFunction(Pytree):
         return handle_off_trace_stack(addr, self)
 
     @classmethod
-    def closure(cls, fn):
-        return GenerativeFunctionClosure(fn)
+    def closure(
+        cls, fn: Optional[Callable] = None, /, *, gen_fn_type: Optional[Type] = None
+    ):
+        def decorator(fn):
+            return GenerativeFunctionClosure(fn, gen_fn_type)
+
+        if fn:
+            return decorator(fn)
+        else:
+            return decorator
 
 
 # NOTE: Setup a global handler stack for the `trace` callee sugar.
 # C.f. above.
 # This stack will not interact with JAX tracers at all
 # so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_HANDLER_STACK: List[Callable] = []
+GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable] = []
 
 
 def handle_off_trace_stack(addr, gen_fn: GenerativeFunction):
-    handler = GLOBAL_TRACE_HANDLER_STACK[-1]
-    return handler(addr, gen_fn)
+    if GLOBAL_TRACE_OP_HANDLER_STACK:
+        handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
+        return handler(addr, gen_fn)
+    else:
+        key = jax.random.PRNGKey(0)
+        return gen_fn(key)
 
 
 def push_trace_overload_stack(handler, fn):
     def wrapped(*args):
-        GLOBAL_TRACE_HANDLER_STACK.append(handler)
+        GLOBAL_TRACE_OP_HANDLER_STACK.append(handler)
         ret = fn(*args)
-        GLOBAL_TRACE_HANDLER_STACK.pop()
+        GLOBAL_TRACE_OP_HANDLER_STACK.pop()
         return ret
 
     return wrapped
@@ -481,12 +491,45 @@ def push_trace_overload_stack(handler, fn):
 @Pytree.dataclass
 class GenerativeFunctionClosure(Pytree):
     builder: Callable[[Any], GenerativeFunction] = Pytree.static()
+    gen_fn_type: Optional[Type] = Pytree.static(default=None)
 
     def __call__(self, *args) -> GenerativeFunction:
         return self.builder(*args)
 
-    @typecheck
-    def __or__(self, other: "GenerativeFunctionClosure"):
+    ###############################################
+    # Convenience: postfix syntax for combinators #
+    ###############################################
+
+    def vmap(self, /, *, in_axes=0) -> "GenerativeFunctionClosure":
+        from genjax import vmap_combinator
+
+        return vmap_combinator(self, in_axes=in_axes)
+
+    def repeat(self, /, *, num_repeats: Int) -> "GenerativeFunctionClosure":
+        from genjax import repeat_combinator
+
+        return repeat_combinator(self, num_repeats=num_repeats)
+
+    def scan(self, /, *, max_length: Int) -> "GenerativeFunctionClosure":
+        from genjax import scan_combinator
+
+        return scan_combinator(self, max_length=max_length)
+
+    def mask(self) -> "GenerativeFunctionClosure":
+        from genjax import mask_combinator
+
+        return mask_combinator(self)
+
+    def if_else(
+        self, gen_fn: "GenerativeFunctionClosure"
+    ) -> "GenerativeFunctionClosure":
+        from genjax import cond_combinator
+
+        return cond_combinator(self, gen_fn)
+
+    def switch(
+        self, *gen_fn: "GenerativeFunctionClosure"
+    ) -> "GenerativeFunctionClosure":
         from genjax import switch_combinator
 
-        return switch_combinator(self, other)
+        return switch_combinator(self, *gen_fn)

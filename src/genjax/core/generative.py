@@ -15,9 +15,14 @@
 from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
+    EmptyConstraint,
+    EmptyUpdateSpec,
     GenerativeFunction,
     GenerativeFunctionClosure,
     Mask,
+    MaskConstraint,
+    MaskUpdateSpec,
+    RemoveSelectionUpdateSpec,
     Sample,
     Selection,
     Sum,
@@ -27,7 +32,12 @@ from genjax._src.core.generative import (
 
 __all__ = [
     "Constraint",
+    "EmptyConstraint",
+    "MaskConstraint",
     "UpdateSpec",
+    "EmptyUpdateSpec",
+    "MaskUpdateSpec",
+    "RemoveSelectionUpdateSpec",
     "Sample",
     "ChoiceMap",
     "Trace",

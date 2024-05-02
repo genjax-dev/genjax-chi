@@ -16,6 +16,7 @@ from genjax._src.core.generative import (
     ChangeTargetUpdateSpec,
     Constraint,
     GenerativeFunction,
+    GenerativeFunctionClosure,
     Mask,
     MaskSample,
     Retdiff,
@@ -144,7 +145,8 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-def mask_combinator(f) -> Callable[[Any], MaskCombinator]:
+def mask_combinator(f) -> GenerativeFunctionClosure:
+    @GenerativeFunction.closure(gen_fn_type=MaskCombinator)
     def inner(check, *args) -> MaskCombinator:
         return MaskCombinator(check, args, f)
 

@@ -350,7 +350,7 @@ def scan_combinator(
     max_length: Int,
 ):
     def decorator(f):
-        @GenerativeFunction.closure
+        @GenerativeFunction.closure(gen_fn_type=ScanCombinator)
         def inner(*args):
             return ScanCombinator(args, f, max_length)
 

@@ -38,6 +38,7 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     FloatArray,
+    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -290,9 +291,19 @@ class VmapCombinator(GenerativeFunction):
 
 
 def vmap_combinator(
+    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    /,
+    *,
     in_axes: Tuple,
-) -> Callable[[Callable], Callable[[Any], VmapCombinator]]:
-    def decorator(f) -> Callable[[Any], VmapCombinator]:
-        return lambda *args: VmapCombinator(args, f, in_axes)
+) -> Callable | GenerativeFunctionClosure:
+    def decorator(gen_fn_closure) -> GenerativeFunctionClosure:
+        @GenerativeFunction.closure(gen_fn_type=VmapCombinator)
+        def inner(*args):
+            return VmapCombinator(args, gen_fn_closure, in_axes)
 
-    return decorator
+        return inner
+
+    if gen_fn_closure:
+        return decorator(gen_fn_closure)
+    else:
+        return decorator

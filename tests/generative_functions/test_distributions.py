@@ -14,36 +14,32 @@
 
 import genjax
 import jax
-from genjax import ChoiceValue, EmptyChoice, Mask
+from genjax import ChoiceMap, EmptyConstraint, Mask
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
 class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
-        tr = genjax.normal.simulate(key, (0.0, 1.0))
-        assert tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
+        tr = genjax.normal(0.0, 1.0).simulate(key)
+        assert tr.get_score() == genjax.normal(0.0, 1.0).logpdf(tr.get_sample())
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        (tr, w) = genjax.normal.importance(key, EmptyChoice(), (0.0, 1.0))
+        (tr, w) = genjax.normal(0.0, 1.0).importance(key, EmptyConstraint())
         assert w == 0.0
 
         # Constraint, no mask.
-        (tr, w) = genjax.normal.importance(
-            key,
-            ChoiceValue(1.0),
-            (0.0, 1.0),
-        )
-        v = tr.strip().get_value()
-        assert w == genjax.normal.logpdf(v, 0.0, 1.0)
+        (tr, w) = genjax.normal(0.0, 1.0).importance(key, ChoiceMap.v(1.0))
+        v: ChoiceMap = tr.get_sample()
+        assert w == genjax.normal(0.0, 1.0).logpdf(v())
 
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
             key,
-            Mask(True, ChoiceValue(1.0)),
+            MaskConstraint(True, ChoiceMap.v(1.0)),
             (0.0, 1.0),
         )
         v = tr.strip().get_value()
