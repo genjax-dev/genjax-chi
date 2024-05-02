@@ -16,11 +16,21 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-from dataclasses import field  # noqa: I001
+import inspect
+from dataclasses import field
+
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from typing_extensions import dataclass_transform
 from penzai import pz
+from penzai.treescope import default_renderer
+from penzai.treescope.foldable_representation import (
+    basic_parts,
+    common_structures,
+    common_styles,
+    foldable_impl,
+)
+from penzai.treescope.handlers.penzai import struct_handler
+from typing_extensions import dataclass_transform
 
 from genjax._src.core.typing import (
     Any,
@@ -247,9 +257,33 @@ class Pytree(pz.Struct):
             pz.ts.display(self)
 
     def render_html(self):
+        def custom_handler(node, path, subtree_renderer):
+            if inspect.isfunction(node):
+                mod_path = node.__module__
+                return basic_parts.siblings_with_annotations(
+                    common_structures.build_one_line_tree_node(
+                        line=common_styles.AbbreviationColor(
+                            basic_parts.Text(f"<fn {node.__name__}>")
+                        ),
+                        path=None,
+                    ),
+                    foldable_impl.StringCopyButton(mod_path),
+                )
+            if isinstance(node, Pytree):
+                mod_path = node.__module__
+                inner = struct_handler.handle_structs(node, None, subtree_renderer)
+                return basic_parts.siblings_with_annotations(
+                    inner,
+                    foldable_impl.StringCopyButton(
+                        annotation="Module path: ", copy_string=mod_path
+                    ),
+                )
+            return NotImplemented
+
+        default_renderer.active_renderer.get().handlers.insert(0, custom_handler)
         return pz.ts.render_to_html(
             self,
-            roundtrip_mode=True,
+            roundtrip_mode=False,
         )
 
 

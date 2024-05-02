@@ -176,7 +176,7 @@ class VmapCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-    ) -> Tuple[VmapTrace, FloatArray]:
+    ) -> Tuple[VmapTrace, FloatArray, UpdateSpec]:
         self._static_check_broadcastable()
         broadcast_dim_length = self._static_broadcast_dim_length()
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -185,22 +185,23 @@ class VmapCombinator(GenerativeFunction):
         def _importance(key, idx, choice_map, args):
             submap = choice_map.get_submap(idx)
             kernel_gen_fn = self.kernel(*args)
-            return kernel_gen_fn.importance(key, submap)
+            tr, w, bwd_spec = kernel_gen_fn.importance(key, submap)
+            return tr, w, ChoiceMap.a(idx, bwd_spec)
 
-        (tr, w) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
+        (tr, w, bwd_spec) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
             sub_keys, idx_array, choice_map, self.args
         )
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = VmapTrace(self, tr, retval, jnp.sum(scores))
-        return (map_tr, w)
+        return map_tr, w, bwd_spec
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-    ) -> Tuple[Trace, Weight]:
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
                 choice_map: ChoiceMap = constraint

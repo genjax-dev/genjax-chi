@@ -82,13 +82,13 @@ class ComposeCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-    ) -> Tuple[ComposeTrace, FloatArray]:
+    ) -> Tuple[ComposeTrace, FloatArray, UpdateSpec]:
         inner_args = self.argument_pushforward(*self.inner_args)
         inner_gen_fn = self.inner(*inner_args)
-        tr, w = inner_gen_fn.importance(key, constraint)
+        tr, w, bwd_spec = inner_gen_fn.importance(key, constraint)
         inner_retval = tr.get_retval()
         retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
-        return ComposeTrace(self, tr, retval), w
+        return ComposeTrace(self, tr, retval), w, bwd_spec
 
     @typecheck
     def update_fallback(
@@ -177,19 +177,21 @@ class ComposeCombinator(GenerativeFunction):
 
 
 def compose_combinator(
-    f: GenerativeFunctionClosure,
-    precompose: Callable,
-    postcompose: Callable,
+    gen_fn_closure: GenerativeFunctionClosure,
+    /,
+    *,
+    pre: Callable = lambda *args: args,
+    post: Callable = lambda args, sample, retval: retval,
     info: Optional[String] = None,
-) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure(gen_fn_type=ComposeCombinator)
-    def inner(*args):
-        return ComposeCombinator(
-            args,
-            f,
-            precompose,
-            postcompose,
-            info,
-        )
+) -> Callable | GenerativeFunctionClosure:
+    def decorator(f) -> GenerativeFunctionClosure:
+        @GenerativeFunction.closure(gen_fn_type=ComposeCombinator)
+        def _gen_fn_closure(*args) -> ComposeCombinator:
+            return ComposeCombinator(args, f, pre, post, info)
 
-    return inner
+        return _gen_fn_closure
+
+    if gen_fn_closure:
+        return decorator(gen_fn_closure)
+    else:
+        return decorator

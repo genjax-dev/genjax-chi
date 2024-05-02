@@ -98,12 +98,6 @@ class StaticGenerativeFunction(GenerativeFunction):
     args: Tuple
     source: Callable = Pytree.static()
 
-    def post_init_check_source_compatible_with_arguments(self):
-        stage(self.source)(*self.args)
-
-    def __post_init__(self):
-        self.post_init_check_source_compatible_with_arguments()
-
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self) -> Any:

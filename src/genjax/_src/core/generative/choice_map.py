@@ -342,19 +342,20 @@ class ChoiceMap(Sample, Constraint):
     # Map-like interfaces #
     #######################
 
-    def call(self, addr: AddressComponent):
-        return self.choice_map_fn(addr)
-
     def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
-        _, check, submap = self.choice_map_fn(addr)
-        submap = (
-            jtu.tree_map(
-                lambda v: v[addr] if jnp.array(check, copy=False).shape else v, submap
+        if isinstance(addr, tuple) and addr == ():
+            return self.get_value()
+        else:
+            _, check, submap = self.choice_map_fn(addr)
+            submap = (
+                jtu.tree_map(
+                    lambda v: v[addr] if jnp.array(check, copy=False).shape else v,
+                    submap,
+                )
+                if isinstance(addr, DynamicAddressComponent)
+                else submap
             )
-            if isinstance(addr, DynamicAddressComponent)
-            else submap
-        )
-        return submap
+            return submap
 
     def get_value(self) -> Any:
         return self()
@@ -443,6 +444,20 @@ class ChoiceMap(Sample, Constraint):
     def at(self) -> AddressIndex:
         return ChoiceMap.AddressIndex(self, [])
 
+    def call(self, addr: AddressComponent):
+        return self.choice_map_fn(addr)
+
+    def call_recurse(self, addr: Address):
+        addr = Pytree.tree_unwrap_const(addr)
+        head = Selection.get_address_head(addr)
+        tail = Selection.get_address_tail(addr)
+        v, check, submap = self.call(head)
+        if tail:
+            tail_v, tail_check, tail_submap = submap.call_recurse(tail)
+            return tail_v, staged_and(check, tail_check), tail_submap
+        else:
+            return v, check, submap
+
     ###########
     # Dunders #
     ###########
@@ -516,6 +531,14 @@ class ChoiceMap(Sample, Constraint):
         else:
             return choice_map_with_static_addr(head, c)
 
+    # NOTE: this only allows dictionaries with static keys
+    # a.k.a. strings -- not jax.arrays -- for now.
+    def addr_fn(self, addr_fn: dict):
+        return choice_map_address_function(addr_fn, self)
+
+    def into(self, addr: Address) -> "ChoiceMap":
+        return ChoiceMap.a(addr, self)
+
     @classmethod
     def with_info(cls, info: String):
         return lambda fn: ChoiceMap(fn, info)
@@ -576,6 +599,40 @@ def choice_map_with_static_addr(addr: AddressComponent, c: ChoiceMap):
     def inner(c, head: AddressComponent):
         check = addr == head
         return None, addr == head, choice_map_masked(check, c)
+
+    return inner
+
+
+def _extract_keys(data, search_value):
+    new_dict = {}
+    for key, value in data.items():
+        if isinstance(key, tuple) and key and key[0] == search_value:
+            # Create a new key from the remaining elements of the original key
+            new_key = key[1:]
+            # If the new key is a single-element tuple, convert it to just the element
+            if len(new_key) == 1:
+                new_key = new_key[0]
+            new_dict[new_key] = value
+
+    return new_dict
+
+
+@typecheck
+def choice_map_address_function(addr_fn: dict, c: ChoiceMap):
+    @ChoiceMap.with_info(f"AddressFunction({addr_fn}, {c.info})")
+    @Pytree.partial(c)
+    def inner(c, head: StaticAddressComponent):
+        sub_fn = _extract_keys(addr_fn, head)
+        if sub_fn:
+            return None, True, choice_map_address_function(sub_fn, c)
+        else:
+            new_head = addr_fn.get(head, head)
+            if new_head == ():
+                return None, True, c
+            elif head == ():
+                return c.call_recurse((new_head, ()))
+            else:
+                return c.call_recurse(new_head)
 
     return inner
 
@@ -662,9 +719,9 @@ def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
 
 
 def choice_map_masked(flag: Bool | BoolArray, c: ChoiceMap):
-    if static_check_is_concrete(flag):
+    if static_check_is_concrete(flag) and isinstance(flag, Bool):
 
-        @ChoiceMap.with_info(f"StaticMasked({c.info})")
+        @ChoiceMap.with_info(f"StaticMasked({flag}, {c.info})")
         @Pytree.partial(c)
         def inner(c, head: AddressComponent):
             v, check, submap = c.call(head)

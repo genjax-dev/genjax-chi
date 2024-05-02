@@ -45,7 +45,6 @@ def mixture_combinator(
 
     return compose_combinator(
         mixture_model,
-        argument_pushforward,
-        retval_pushforward,
-        info="MixtureCombinator",
+        pre=argument_pushforward,
+        info=f"Derived combinator (Mixture) @ {__file__}",
     )

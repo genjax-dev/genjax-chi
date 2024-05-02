@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-site_name: Gen ⊗ JAX
+site_name: GenJAX
 site_url: https://probcomp.github.io/genjax/
 repo_url: https://github.com/probcomp/genjax
 repo_name: probcomp/genjax
@@ -20,43 +20,12 @@ edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
-  - Overview:
-    - index.md
-  - Tutorial notebooks: notebooks.md
+  - The cookbook: cookbook.md
   - Library reference:
-      - library/index.md
-      - Core:
-          - library/core/index.md
-          - Core datatypes: library/core/datatypes.md
-          - Dynamism and functional types: library/core/functional_types.md
-      # - Runtime debugger: library/core/runtime_debugger.md
-      - Generative function languages:
-          - library/generative_functions/index.md
-          - Distributions:
-              - library/generative_functions/distributions/index.md
-              - Reference: library/generative_functions/distributions/exported.md
-        # - Oryx distributions as generative functions: library/generative_functions/distributions/oryx.md
-          - Static language: library/generative_functions/static.md
-          - Combinators:
-              - library/generative_functions/combinators/index.md
-              - Masked combinator: library/generative_functions/combinators/masked.md
-              - Map combinator: library/generative_functions/combinators/map.md
-        # - Repeat combinator: library/generative_functions/combinators/repeat.md
-              - Unfold combinator: library/generative_functions/combinators/unfold.md
-              - Switch combinator: library/generative_functions/combinators/switch.md
-          - Interpreted language: library/generative_functions/interpreted.md
-      - Inference:
-          - library/inference/index.md
-          - Sequential Monte Carlo: library/inference/smc.md
-          - Variational inference:
-            - library/inference/vi.md
-            - Automatic differentiation of expected values: library/adev.md
-    # - Extension plugins:
-      # - library/extensions/index.md
-      # - Gaussian processes: library/extensions/tinygp.md
-      # - HMC/NUTS: library/extensions/blackjax.md
-  # - Autodi(GenJAX):
-    # - autodigenjax.md
+      - Core: library/core.md
+      - Generative functions: library/generative_functions.md
+      - ADEV: library/adev.md
+      - Inference: library/inference.md
   - For developers:
       - Developing: developing.md
       - Code of conduct: codeofconduct.md
@@ -65,7 +34,7 @@ nav:
 
 theme:
   name: material
-  logo: assets/img/gen-logo.png
+  #logo: assets/img/logo.png
   favicon: assets/img/gen-logo.png
   icon:
     repo: fontawesome/brands/github
@@ -119,20 +88,19 @@ plugins:
   - search
   - offline
   - markdown-exec
-  - typeset
+  - typeset:
+      enabled: true
   - git-revision-date-localized:
       enable_creation_date: true
       fallback_to_build_date: true
   - mkdocstrings:
       enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
-      custom_templates: templates
-      default_handler: python
       handlers:
         python:
           options:
-            show_source: true
+            show_source: false
             show_root_heading: true
-            show_root_full_path: false
+            show_root_full_path: true
             show_symbol_type_heading: true
             show_symbol_type_toc: true
 
@@ -163,9 +131,10 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.superfences:
       custom_fences:
-        - name: mermaid
-          class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+      - name: python
+        class: python
+        validator: !!python/name:markdown_exec.validator
+        format: !!python/name:markdown_exec.formatter
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.arithmatex:

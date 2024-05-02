@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.generative_functions.combinators.address_bijection_combinator import (
+    AddressBijectionCombinator,
+    address_bijection_combinator,
+)
 from genjax._src.generative_functions.combinators.compose_combinator import (
     ComposeCombinator,
     compose_combinator,
@@ -41,6 +45,8 @@ from genjax._src.generative_functions.combinators.vmap_combinator import (
 )
 
 __all__ = [
+    "AddressBijectionCombinator",
+    "address_bijection_combinator",
     "compose_combinator",
     "ComposeCombinator",
     "cond_combinator",
