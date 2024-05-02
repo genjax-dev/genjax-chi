@@ -2277,12 +2277,14 @@ files = [
 
 [[package]]
 name = "mkdocstrings"
-version = "0.24.0"
+version = "0.25.0"
 description = "Automatic documentation from sources, for MkDocs."
 optional = false
 python-versions = ">=3.8"
-files = []
-develop = false
+files = [
+    {file = "mkdocstrings-0.25.0-py3-none-any.whl", hash = "sha256:df1b63f26675fcde8c1b77e7ea996cd2f93220b148e06455428f676f5dc838f1"},
+    {file = "mkdocstrings-0.25.0.tar.gz", hash = "sha256:066986b3fb5b9ef2d37c4417255a808f7e63b40ff8f67f6cab8054d903fbc91d"},
+]
 
 [package.dependencies]
 click = ">=7.0"
@@ -2291,7 +2293,6 @@ Markdown = ">=3.3"
 MarkupSafe = ">=1.1"
 mkdocs = ">=1.4"
 mkdocs-autorefs = ">=0.3.1"
-mkdocstrings-python = {version = ">=0.5.2", optional = true, markers = "extra == \"python\""}
 platformdirs = ">=2.2.0"
 pymdown-extensions = ">=6.3"
 
@@ -2300,26 +2301,24 @@ crystal = ["mkdocstrings-crystal (>=0.3.4)"]
 python = ["mkdocstrings-python (>=0.5.2)"]
 python-legacy = ["mkdocstrings-python-legacy (>=0.2.1)"]
 
-[package.source]
-type = "git"
-url = "https://github.com/mkdocstrings/mkdocstrings.git"
-reference = "0.24.0"
-resolved_reference = "032e4175799ab15a329a9b05b5df7b74650cea4d"
-
 [[package]]
 name = "mkdocstrings-python"
-version = "1.8.0"
+version = "0.1.dev395+g995e505"
 description = "A Python handler for mkdocstrings."
 optional = false
 python-versions = ">=3.8"
-files = [
-    {file = "mkdocstrings_python-1.8.0-py3-none-any.whl", hash = "sha256:4209970cc90bec194568682a535848a8d8489516c6ed4adbe58bbc67b699ca9d"},
-    {file = "mkdocstrings_python-1.8.0.tar.gz", hash = "sha256:1488bddf50ee42c07d9a488dddc197f8e8999c2899687043ec5dd1643d057192"},
-]
+files = []
+develop = false
 
 [package.dependencies]
-griffe = ">=0.37"
-mkdocstrings = ">=0.20"
+griffe = ">=0.44"
+mkdocstrings = ">=0.25"
+
+[package.source]
+type = "git"
+url = "git@github.com:probcomp/mkdocstrings-python.git"
+reference = "HEAD"
+resolved_reference = "995e505236e2937828e54306ca96b9142ad1aeb3"
 
 [[package]]
 name = "ml-dtypes"
@@ -4615,4 +4614,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "438ece5c97d2af78733c3ff2c4c3a54bf5383e99eeb15c28d1a0aaa68bd9359a"
+content-hash = "e69aaed19dc7d54bb165626f00b011a9058a0f942d4afe03a43f2d565713b4b9"

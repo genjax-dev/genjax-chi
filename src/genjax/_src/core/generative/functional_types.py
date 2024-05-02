@@ -85,30 +85,9 @@ class Mask(Pytree):
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime. To enforce validity checks, use the console context `genjax.console(enforce_checkify=True)` to handle any code which utilizes `Mask.unmask` with [`jax.experimental.checkify.checkify`](https://jax.readthedocs.io/en/latest/_autosummary/jax.experimental.checkify.checkify.html).
 
         Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import jax.numpy as jnp
-            import genjax
-
-            console = genjax.console()
-
-            masked = genjax.Mask(True, jnp.ones(5))
-            print(console.render(masked.unmask()))
-            ```
 
             To enable runtime checks, the user must enable them explicitly in `genjax`.
 
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import jax.experimental.checkify as checkify
-            import jax.numpy as jnp
-            import genjax
-
-            with genjax.console(enforce_checkify=True) as console:
-                masked = genjax.Mask(False, jnp.ones(5))
-                err, _ = checkify.checkify(masked.unmask)()
-                print(console.render(err))
-            ```
         """
 
         # If a user chooses to `unmask`, require that they

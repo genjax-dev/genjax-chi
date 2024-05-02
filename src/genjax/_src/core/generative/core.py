@@ -17,7 +17,6 @@ from abc import abstractmethod
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from penzai import pz
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
@@ -232,19 +231,6 @@ class Trace(Pytree):
         Examples:
             Here's an example using `genjax.normal` (a distribution). For distributions, the return value is the same as the (only) value in the returned choice map.
 
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-
-            console = genjax.console()
-
-            key = jax.random.PRNGKey(314159)
-            tr = genjax.normal.simulate(key, (0.0, 1.0))
-            retval = tr.get_retval()
-            sample: ChoiceMap = tr.get_sample()
-            v = sample.get_value()
-            print(console.render((retval, v)))
-            ```
         """
 
     @abstractmethod
@@ -252,28 +238,6 @@ class Trace(Pytree):
         """Return the score of the `Trace`.
 
         Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-
-            console = genjax.console()
-
-
-            @genjax.static_gen_fn
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            score = tr.get_score()
-            x_score = bernoulli.logpdf(tr["x"], 0.3)
-            y_score = bernoulli.logpdf(tr["y"], 0.3)
-            print(console.render((score, x_score + y_score)))
-            ```
         """
 
     @abstractmethod
@@ -281,26 +245,6 @@ class Trace(Pytree):
         """Return a `Sample`, a representation of the sample from the measure denoted by the generative function.
 
         Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-            from genjax import bernoulli
-
-            console = genjax.console()
-
-
-            @genjax.static_gen_fn
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            choice = tr.get_sample()
-            print(console.render(choice))
-            ```
         """
 
     @abstractmethod
@@ -308,18 +252,8 @@ class Trace(Pytree):
         """Returns the generative function whose invocation created the `Trace`.
 
         Examples:
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
-
-            console = genjax.console()
-
-            key = jax.random.PRNGKey(314159)
-            tr = genjax.normal.simulate(key, (0.0, 1.0))
-            gen_fn = tr.get_gen_fn()
-            print(console.render(gen_fn))
-            ```
         """
+        raise NotImplementedError
 
     def update(
         self,
