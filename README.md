@@ -2,6 +2,11 @@
 <p align="center">
 <img width="500px" src="./docs/assets/img/logo.png"/>
 </p>
+<p align="center">
+  <strong>
+    Probabilistic programming with (parallel & differentiable) programmable inference.
+  </strong>
+</p>
 
 <div align="center">
 
@@ -25,9 +30,6 @@
 [nightly_build_status_url]: https://github.com/probcomp/genjax/actions/workflows/ci.yml?query=branch%3Anightly
 
 
-<div align="center">
-<b>(Early stage)</b> 🔪 expect sharp edges 🔪
-</div>
 
 ## 🔎 What is GenJAX?
 
