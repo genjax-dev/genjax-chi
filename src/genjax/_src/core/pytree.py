@@ -35,8 +35,9 @@ from typing_extensions import dataclass_transform
 
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
+    Int,
+    IntArray,
     List,
     Tuple,
     static_check_is_array,
@@ -47,7 +48,16 @@ from genjax._src.core.typing import (
 
 class Pytree(pz.Struct):
     """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
-    system."""
+    system. JAX's `Pytree` system tracks how data classes should behave across JAX-transformed function boundaries, like `jax.jit` or `jax.vmap`.
+
+    Inheriting this class provides the implementor with the freedom to declare how the subfields of a class should behave:
+
+    * `Pytree.static(...)`: the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant). The values of static fields are embedded in the `PyTreeDef` of any instance of the class.
+    * `Pytree.field(...)` or no annotation: the value may be a JAX traced value, and JAX will attempt to convert it to tracer values inside of its transformations.
+
+    If a field _points to another `Pytree`_, it should not be declared as `Pytree.static()`, as the `Pytree` interface will automatically handle the `Pytree` fields as dynamic fields.
+
+    """
 
     @dataclass_transform(
         frozen_default=True,
@@ -59,6 +69,31 @@ class Pytree(pz.Struct):
         /,
         **kwargs,
     ) -> type[Any] | Callable[[type[Any]], type[Any]]:
+        """
+        Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
+
+        A dataclass is to be distinguished from a "methods only" `Pytree` class, which does not have fields, but may define methods.
+        The latter cannot be instantiated, but can be inherited from, while the former can be instantiated:
+        the `Pytree.dataclass` declaration informs the system _how to instantiate_ the class as a dataclass,
+        and how to automatically define JAX's `Pytree` interfaces (`tree_flatten`, `tree_unflatten`, etc.) for the dataclass, based on the fields declared in the class, and possibly `Pytree.static(...)` or `Pytree.field(...)` annotations (or lack thereof, the default is that all fields are `Pytree.field(...)`).
+
+        All `Pytree` dataclasses support pretty printing, as well as rendering to HTML.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import Pytree
+            from genjax.typing import FloatArray, typecheck
+            import jax.numpy as jnp
+
+            @Pytree.dataclass
+            @typecheck # Enforces type annotations on instantiation.
+            class MyClass(Pytree):
+                my_static_field: int = Pytree.static()
+                my_dynamic_field: FloatArray
+
+            print(MyClass(10, jnp.array(5.0)).render_html())
+            ```
+        """
         return pz.pytree_dataclass(
             incoming,
             **kwargs,
@@ -66,28 +101,28 @@ class Pytree(pz.Struct):
 
     @staticmethod
     def static(**kwargs):
+        """Declare a field of a `Pytree` dataclass to be static. Users can provide additional keyword argument options,
+        like `default` or `default_factory`, to customize how the field is instantiated when an instance of
+        the dataclass is instantiated.` Fields which are provided with default values must come after required fields in the dataclass declaration.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            @Pytree.dataclass
+            @typecheck # Enforces type annotations on instantiation.
+            class MyClass(Pytree):
+                my_dynamic_field: FloatArray
+                my_static_field: int = Pytree.static(default=0)
+
+            print(MyClass(jnp.array(5.0)).render_html())
+            ```
+
+        """
         return field(metadata={"pytree_node": False}, **kwargs)
 
     @staticmethod
     def field(**kwargs):
+        "Declare a field of a `Pytree` dataclass to be dynamic. Alternatively, one can leave the annotation off in the declaration."
         return field(**kwargs)
-
-    # This exposes slicing into the struct-of-array representation,
-    # taking leaves and indexing into them on the provided index,
-    # returning a value with the same `Pytree` structure.
-    def slice(self, index_or_index_array: ArrayLike) -> "Pytree":
-        """Utility available to any class which mixes `Pytree` base. This method
-        supports indexing/slicing on indices when leaves are arrays.
-
-        `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
-
-        Arguments:
-            index_or_index_array: An `Int` index or an array of indices which will be used to index into the leaf arrays of the `Pytree` instance.
-
-        Returns:
-            new_instance: A `Pytree` instance of the same type, whose leaf values are the results of indexing into the leaf arrays with `index_or_index_array`.
-        """
-        return jtu.tree_map(lambda v: v[index_or_index_array], self)
 
     ##############################
     # Utility class constructors #
@@ -330,19 +365,14 @@ class Pytree(pz.Struct):
 
         def custom_handler(node, path, subtree_renderer):
             if inspect.isfunction(node):
-                mod_path = node.__module__
-                return basic_parts.siblings_with_annotations(
-                    common_structures.build_one_line_tree_node(
-                        line=common_styles.CustomTextColor(
-                            basic_parts.Text(f"<fn {node.__name__}>"),
-                            color="blue",
-                        ),
-                        path=None,
+                return common_structures.build_one_line_tree_node(
+                    line=common_styles.CustomTextColor(
+                        basic_parts.Text(f"<fn {node.__name__}>"),
+                        color="blue",
                     ),
-                    foldable_impl.StringCopyButton(mod_path),
+                    path=None,
                 )
             if isinstance(node, Pytree):
-                mod_path = node.__module__
                 return _pytree_handler(node, subtree_renderer)
             return NotImplemented
 

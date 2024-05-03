@@ -21,34 +21,36 @@ Traces are data structures which record (execution and inference) data about the
       members:
         - get_gen_fn
         - get_retval
-        - get_choices
+        - get_sample
         - get_score
         - project
 
-## Designing with JAX in mind
+::: genjax.core.Sample
+::: genjax.core.Constraint
+::: genjax.core.UpdateSpec
+
+## Frequently used types of (`Sample`, `Constraint`, `UpdateSpec`)
+
+## We ♥ JAX: everything is JAX compatible by default
 
 GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` interface. These datatypes are used as abstract base mixins for many of the key dataclasses in GenJAX.
 
 ::: genjax.core.Pytree
     options:
       members:
-        - flatten
-        - unflatten
-        - slice
-        - stack
-        - unstack
+        - dataclass
+        - static
+        - field
+        - __getitem__
 
 ### Dynamism and masking
-!!! note "Navigating the static/dynamic trade off"
 
-    This page provides an overview of several patterns used in GenJAX which navigate this _statics vs. dynamics_ trade off. Depending on the modeling and inference application, users may be required to confront this trade off. This page provides documentation on using _masking_, one technique which allows us to push static decisions to runtime, via the insertion of `jax.lax.cond` statements.
-
-**GenJAX** consists of two ingredients: Gen & JAX. The semantics of Gen are defined independently of the concerns of any particular computational substrate used in the implementation of Gen - that being said, JAX (and XLA through JAX) is a unique substrate, offering high performance, with a unique set of restrictions.
+It's in the name! GenJAX consists of two ingredients: Gen & JAX. The semantics of Gen are defined independently of any particular computational substrate or implementation - but JAX (and XLA through JAX) is a unique substrate, offering high performance, the ability to transformation code ahead-of-time via program transformations, and ... _a rather unique set of restrictions_.
 
 While not yet formally modelled, it's appropriate to think of JAX as separating computation into two phases:
 
-* The _statics_ phase (which occurs at JAX tracing time).
-* The _runtime_ phase (which occurs when a computation written in JAX is actually deployed and executed on a physical device).
+* The _statics_ phase (which occurs at JAX tracing / transformation time).
+* The _runtime_ phase (which occurs when a computation written in JAX is actually deployed via XLA and executed on a physical device somewhere in the world).
 
 JAX has different rules for handling values depending on which phase we are in e.g. JAX disallows usage of runtime values to resolve Python control flow at tracing time (intuition: we don't actually know the value yet!) and will error if the user attempts to trace through a Python program with incorrect usage of runtime values.
 
@@ -66,3 +68,5 @@ GenJAX contains a system for tagging data with flags, to indicate if the data is
         members:
           - match
           - unmask
+
+## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻

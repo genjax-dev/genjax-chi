@@ -30,7 +30,6 @@ from genjax._src.core.generative import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Callable,
     FloatArray,
     IntArray,
     List,
@@ -139,18 +138,26 @@ class SwitchCombinator(GenerativeFunction):
 
     idx: IntArray
     branch_args: Tuple
-    branches = Tuple[GenerativeFunctionClosure, ...]
+    branches: Tuple[GenerativeFunctionClosure, ...]
+
+    def get_branch_gen_fn(self, idx: int):
+        branch_closure = self.branches[idx]
+        branch_args = self.branch_args[idx]
+        return (
+            branch_closure(*branch_args)
+            if isinstance(branch_args, tuple)
+            else branch_closure(branch_args)
+        )
 
     # Optimized abstract call for tracing.
     def __abstract_call__(self):
-        first_branch = self.branches[0]
-        gen_fn = first_branch(*self.branch_args)
+        gen_fn = self.get_branch_gen_fn(0)
         return gen_fn.__abstract_call__()
 
     def _empty_trace_leaves(self):
         trace_leaves = []
-        for branch in self.branches:
-            gen_fn = branch(*self.branch_args)
+        for idx in range(len(self.branches)):
+            gen_fn = self.get_branch_gen_fn(idx)
             empty_trace = gen_fn.get_empty_trace()
             leaves = jtu.tree_leaves(empty_trace)
             trace_leaves.append(leaves)
@@ -158,15 +165,15 @@ class SwitchCombinator(GenerativeFunction):
 
     def _empty_trace_defs(self):
         trace_defs = []
-        for branch in self.branches:
-            gen_fn = branch(*self.branch_args)
+        for idx in range(len(self.branches)):
+            gen_fn = self.get_branch_gen_fn(idx)
             empty_trace = gen_fn.get_empty_trace()
             trace_def = jtu.tree_structure(empty_trace)
             trace_defs.append(trace_def)
         return trace_defs
 
-    def _simulate(self, key, branch, static_idx):
-        branch_gen_fn = branch(*self.branch_args)
+    def _simulate(self, key, static_idx):
+        branch_gen_fn = self.get_branch_gen_fn(static_idx)
         tr = branch_gen_fn.simulate(key)
         trace_leaves = self._empty_trace_leaves()
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
@@ -179,12 +186,10 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
     ) -> SwitchTrace:
-        def _inner(idx: int, branch):
-            return lambda key: self._simulate(key, branch, idx)
+        def _inner(idx: int):
+            return lambda key: self._simulate(key, idx)
 
-        branch_functions = list(
-            map(lambda args: _inner(args[0], args[1]), enumerate(self.branches))
-        )
+        branch_functions = list(map(_inner, range(len(self.branches))))
         trace_defs = self._empty_trace_defs()
         trace_leaves, (score, retval) = jax.lax.switch(self.idx, branch_functions, key)
         subtraces = list(
@@ -255,7 +260,7 @@ class SwitchCombinator(GenerativeFunction):
 def switch_combinator(
     *f: GenerativeFunction,
 ) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure(gen_fn_type=SwitchCombinator)
+    @GenerativeFunction.closure
     def inner(idx: IntArray, *args: Any) -> SwitchCombinator:
         return SwitchCombinator(idx, args, f)
 

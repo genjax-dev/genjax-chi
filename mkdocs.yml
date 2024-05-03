@@ -92,6 +92,10 @@ plugins:
             show_root_full_path: true
             show_symbol_type_heading: true
             show_symbol_type_toc: true
+            parameter_headings: true
+            separate_signature: true
+            signature_crossrefs: true
+            show_signature_annotations: true
 
 extra:
   generator: false

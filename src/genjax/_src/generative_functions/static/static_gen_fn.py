@@ -294,7 +294,7 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 @typecheck
 def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure(gen_fn_type=StaticGenerativeFunction)
+    @GenerativeFunction.closure
     def inner(*args):
         return StaticGenerativeFunction(args, f)
 

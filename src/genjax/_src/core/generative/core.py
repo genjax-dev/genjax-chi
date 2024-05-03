@@ -212,15 +212,14 @@ class MaskSample(Pytree):
 
 
 class Trace(Pytree):
-    """> Abstract base class for traces of generative functions.
+    """
+    `Trace` is the abstract superclass for traces of generative functions.
 
-    A `Trace` is a data structure used to represent sampled executions
-    of generative functions.
-
-    Traces track metadata associated with log probabilities of choices,
-    as well as other data associated with the invocation of a generative
-    function, including the arguments it was invoked with, its return
-    value, and the identity of the generative function itself.
+    A trace is a data structure used to represent sampled executions of
+    generative functions. Traces track metadata associated with
+    log probabilities of choices, as well as other data associated with
+    the invocation of a generative function, including the arguments it
+    was invoked with, its return value, and the identity of the generative function itself.
     """
 
     @abstractmethod
@@ -384,16 +383,8 @@ class GenerativeFunction(Pytree):
         return handle_off_trace_stack(addr, self)
 
     @classmethod
-    def closure(
-        cls, fn: Optional[Callable] = None, /, *, gen_fn_type: Optional[Type] = None
-    ):
-        def decorator(fn):
-            return GenerativeFunctionClosure(fn, gen_fn_type)
-
-        if fn:
-            return decorator(fn)
-        else:
-            return decorator
+    def closure(cls, fn: Callable):
+        return GenerativeFunctionClosure(fn)
 
 
 # NOTE: Setup a global handler stack for the `trace` callee sugar.
@@ -425,7 +416,6 @@ def push_trace_overload_stack(handler, fn):
 @Pytree.dataclass
 class GenerativeFunctionClosure(Pytree):
     builder: Callable[[Any], GenerativeFunction] = Pytree.static()
-    gen_fn_type: Optional[Type] = Pytree.static(default=None)
 
     def __call__(self, *args) -> GenerativeFunction:
         return self.builder(*args)
@@ -482,7 +472,7 @@ class GenerativeFunctionClosure(Pytree):
 
         return mask_combinator(self)
 
-    def if_else(
+    def or_else(
         self, gen_fn: "GenerativeFunctionClosure"
     ) -> "GenerativeFunctionClosure":
         from genjax import cond_combinator
@@ -503,3 +493,8 @@ class GenerativeFunctionClosure(Pytree):
         from genjax import switch_combinator
 
         return switch_combinator(self, *gen_fn)
+
+    def mixor(self, gen_fn: "GenerativeFunctionClosure") -> "GenerativeFunctionClosure":
+        from genjax import mixture_combinator
+
+        return mixture_combinator(self, gen_fn)

@@ -25,3 +25,7 @@ a.autorefs-external::after {
 a.autorefs-external:hover::after {
   background-color: var(--md-accent-fg-color);
 }
+
+span.doc.doc-object-name {
+  font-family: "Berkeley Mono", monospace;
+}

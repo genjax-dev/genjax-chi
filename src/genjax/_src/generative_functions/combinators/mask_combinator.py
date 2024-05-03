@@ -146,7 +146,7 @@ class MaskCombinator(GenerativeFunction):
 
 
 def mask_combinator(f) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure(gen_fn_type=MaskCombinator)
+    @GenerativeFunction.closure
     def inner(check, *args) -> MaskCombinator:
         return MaskCombinator(check, args, f)
 

@@ -55,7 +55,7 @@ def repeat_combinator(
         return compose_combinator(
             inner_combinator_closure,
             pre=argument_pushforward,
-            info=f"Derived combinator (Repeat) @ {__file__}",
+            info="Derived combinator (Repeat)",
         )
 
     if gen_fn:

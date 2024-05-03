@@ -298,7 +298,7 @@ def vmap_combinator(
     in_axes: Tuple,
 ) -> Callable | GenerativeFunctionClosure:
     def decorator(gen_fn_closure) -> GenerativeFunctionClosure:
-        @GenerativeFunction.closure(gen_fn_type=VmapCombinator)
+        @GenerativeFunction.closure
         def inner(*args):
             return VmapCombinator(args, gen_fn_closure, in_axes)
 

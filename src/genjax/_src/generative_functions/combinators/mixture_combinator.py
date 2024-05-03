@@ -40,11 +40,8 @@ def mixture_combinator(
         v = inner_combinator_closure(mix_idx, *args) @ "value"
         return v
 
-    def retval_pushforward(args, sample, retval):
-        return retval
-
     return compose_combinator(
         mixture_model,
         pre=argument_pushforward,
-        info=f"Derived combinator (Mixture) @ {__file__}",
+        info="Derived combinator (Mixture)",
     )

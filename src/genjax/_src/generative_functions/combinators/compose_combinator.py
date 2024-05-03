@@ -185,7 +185,7 @@ def compose_combinator(
     info: Optional[String] = None,
 ) -> Callable | GenerativeFunctionClosure:
     def decorator(f) -> GenerativeFunctionClosure:
-        @GenerativeFunction.closure(gen_fn_type=ComposeCombinator)
+        @GenerativeFunction.closure
         def _gen_fn_closure(*args) -> ComposeCombinator:
             return ComposeCombinator(args, f, pre, post, info)
 
