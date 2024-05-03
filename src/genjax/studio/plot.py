@@ -43,11 +43,11 @@ class benchmark(object):
 def get_address(tr, address):
     """
     Retrieve a choice value from a trace using a list of keys.
-    The "$ANY" key is for accessing the `.inner` value of a trace.
+    The "*" key is for accessing the `.inner` value of a trace.
     """
     result = tr
     for part in address:
-        if part == "$ALL":
+        if part == "*":
             result = result.inner
         else:
             result = result[part]
@@ -89,6 +89,10 @@ def apply_options(opts, plot):
 def show(marks, **opts):
     return Plot.plot({**plot_options["default"], **opts, "marks": marks})
 
+# TODO 
+# this should be a lighter-weight thing. creating ObsplotWidgets is too heavyweight.
+# some kind of "wrapped spec" / "Marks" class that creates an ObsplotWidget lazily?
+# I think creating many widgets is causing jupyter to crash.
 def scatter(xs, ys, **opts):
     """
     Create a scatter plot using the given x and y data points.
@@ -118,7 +122,7 @@ def scatter(xs, ys, **opts):
                 },
             ),
         ],
-        color={'legend': True}
+        color={'legend': True, 'scheme': 'Set1'}
     )
 
 
