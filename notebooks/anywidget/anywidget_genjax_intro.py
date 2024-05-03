@@ -1,4 +1,4 @@
-# %% 
+# %%
 
 import genjax
 import jax
@@ -11,7 +11,7 @@ from genjax import static_gen_fn
 
 key = jax.random.PRNGKey(314159)
 
-# %% 
+# %%
 
 # Two branches for a branching submodel.
 @static_gen_fn
@@ -53,71 +53,19 @@ def model(xs):
     ys = kernel(xs, coefficients) @ "ys"
     return ys
 
-# %% 
-from timeit import default_timer as timer
 
-class benchmark(object):
+# %%
+import genjax.studio.plot as plot
 
-    def __init__(self, msg, fmt="%0.3g"):
-        self.msg = msg
-        self.fmt = fmt
-
-    def __enter__(self):
-        self.start = timer()
-        return self
-
-    def __exit__(self, *args):
-        t = timer() - self.start
-        print(("%s : " + self.fmt + " seconds") % (self.msg, t))
-        self.time = t
-        
 data = jnp.arange(0, 10, 0.5)
 key, sub_key = jax.random.split(key)
-tr = jax.jit(model.simulate)(sub_key, (data,))
-chm = tr.get_choices()
-values = [chm["ys", i, "y", "value"] for i in range(len(data))]
-values
-[tr["ys", i, "y", "value"]  for i in range(len(data))]
-tr["ys" "y"]
-with benchmark("inner"):
-    tr.get_choices()["ys"].inner['y']['value']
-with benchmark("comprehension"):    
-    [chm["ys", i, "y", "value"] for i in range(len(data))]
-jitted_lambda = jax.jit(lambda v: chm["ys", v, "y", "value"])    
-with benchmark("vmap"):
-    jax.vmap(jitted_lambda)(jnp.arange(0, len(data)))    
-tr.get_choices()["ys"].inner['y']['value']
 
-# %% 
-from pyobsplot import Plot, Obsplot
-from ipywidgets import HBox
-# model.simulate(key, data)
-traces = jax.vmap(lambda k: model.simulate(k, (data,)))(jax.random.split(key, 5))
+traces = jax.vmap(lambda k: model.simulate(k, (data,)))(jax.random.split(key, 10))
 
-p = Obsplot(default={'width': 200})
+plot.small_multiples(
+    [plot.scatter(data, ys) for ys in plot.get_address(traces, ["ys", "$ALL", "y", "value"])]
+)
 
-def resolve_address(tr, address):
-    if isinstance(address, str):
-        return tr[address]
-    else:
-        result = tr
-        for part in address:
-            if part == "$ALL":
-                result = result.inner
-            else:
-                result = result[part]
-        return result
 
-def ensure_list(x):
-    if isinstance(x, list):
-        return x
-    else:
-        return x.tolist()
 
-def scatter(x, y):
-    Plot.dot({'length': len(x)}, {'x':ensure_list(x), 'y': ensure_list(y)})
-
-HBox([Plot.plot(scatter())])
-p.width = 500 
-p
 # %%
