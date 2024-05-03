@@ -41,8 +41,12 @@ from genjax._src.core.typing import (
 @Pytree.dataclass
 class ComposeTrace(Trace):
     compose_combinator: "ComposeCombinator"
+    args: Tuple
     inner: Trace
     retval: Any
+
+    def get_args(self):
+        return self.args
 
     def get_gen_fn(self):
         return self.compose_combinator
@@ -59,8 +63,7 @@ class ComposeTrace(Trace):
 
 @Pytree.dataclass
 class ComposeCombinator(GenerativeFunction):
-    inner_args: Tuple
-    inner: GenerativeFunctionClosure
+    inner: GenerativeFunction
     argument_pushforward: Callable = Pytree.static()
     retval_pushforward: Callable = Pytree.static()
     info: Optional[String] = Pytree.static(default=None)
@@ -177,21 +180,17 @@ class ComposeCombinator(GenerativeFunction):
 
 
 def compose_combinator(
-    gen_fn_closure: GenerativeFunctionClosure,
+    gen_fn: Optional[GenerativeFunction] = None,
     /,
     *,
     pre: Callable = lambda *args: args,
     post: Callable = lambda args, sample, retval: retval,
     info: Optional[String] = None,
-) -> Callable | GenerativeFunctionClosure:
-    def decorator(f) -> GenerativeFunctionClosure:
-        @GenerativeFunction.closure
-        def _gen_fn_closure(*args) -> ComposeCombinator:
-            return ComposeCombinator(args, f, pre, post, info)
+) -> Callable | ComposeCombinator:
+    def decorator(f) -> ComposeCombinator:
+        return ComposeCombinator(f, pre, post, info)
 
-        return _gen_fn_closure
-
-    if gen_fn_closure:
-        return decorator(gen_fn_closure)
+    if gen_fn:
+        return decorator(gen_fn)
     else:
         return decorator

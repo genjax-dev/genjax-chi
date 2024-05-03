@@ -40,6 +40,12 @@ class StaticTrace(Trace):
     subtraces: List[Trace]
     score: FloatArray
 
+    def get_args(self) -> Tuple:
+        return self.args
+
+    def get_retval(self):
+        return self.retval
+
     def get_gen_fn(self):
         return self.gen_fn
 
@@ -52,14 +58,8 @@ class StaticTrace(Trace):
 
         return chm
 
-    def get_retval(self):
-        return self.retval
-
     def get_score(self):
         return self.score
-
-    def get_args(self):
-        return self.args
 
     def get_subtrace(self, addr):
         addresses = self.addresses.get_visited()

@@ -14,12 +14,9 @@
 
 from genjax._src.core.generative import (
     Address,
-    ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenerativeFunctionClosure,
-    RemoveSelectionUpdateSpec,
     Retdiff,
     Trace,
     UpdateSpec,
@@ -27,7 +24,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -95,25 +91,25 @@ class StaticGenerativeFunction(GenerativeFunction):
         *We're aware of it, and we're working on it!*
     """
 
-    args: Tuple
     source: Callable = Pytree.static()
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
-    def __abstract_call__(self) -> Any:
-        return self.source(*self.args)
+    def __abstract_call__(self, *args) -> Any:
+        return self.source(*args)
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> StaticTrace:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
         (args, retval, address_visitor, address_traces, score) = simulate_transform(
             syntax_sugar_handled
-        )(key, self.args)
+        )(key, *args)
         return StaticTrace(
             self,
             args,
@@ -125,7 +121,10 @@ class StaticGenerativeFunction(GenerativeFunction):
 
     @typecheck
     def importance_choice_map(
-        self, key: PRNGKey, chm: ChoiceMap
+        self,
+        key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
     ) -> Tuple[StaticTrace, Weight, UpdateSpec]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -140,7 +139,7 @@ class StaticGenerativeFunction(GenerativeFunction):
                 score,
             ),
             bwd_specs,
-        ) = importance_transform(syntax_sugar_handled)(key, chm, self.args)
+        ) = importance_transform(syntax_sugar_handled)(key, chm, args)
 
         def make_bwd_spec(visitor, subspecs):
             addresses = visitor.get_visited()
@@ -169,46 +168,21 @@ class StaticGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[StaticTrace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
-                return self.importance_choice_map(key, constraint)
+                return self.importance_choice_map(key, constraint, args)
             case _:
                 raise Exception("Not implemented")
 
     @typecheck
-    def update_choice_map(
+    def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        chm: ChoiceMap,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        update_spec = ChangeTargetUpdateSpec(
-            Diff.tree_diff_no_change(self.args),
-            chm,
-        )
-        return self.update(key, trace, update_spec)
-
-    @typecheck
-    def update_remove_selection(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        remove_selection_spec: RemoveSelectionUpdateSpec,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        update_spec = ChangeTargetUpdateSpec(
-            Diff.tree_diff_no_change(self.args),
-            remove_selection_spec,
-        )
-        return self.update(key, trace, update_spec)
-
-    @typecheck
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        argdiffs: Tuple,
         update_spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         assert Diff.static_check_tree_diff(argdiffs)
         syntax_sugar_handled = push_trace_overload_stack(
@@ -253,34 +227,15 @@ class StaticGenerativeFunction(GenerativeFunction):
         )
 
     @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_spec: UpdateSpec,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        match update_spec:
-            case ChoiceMap():
-                return self.update_choice_map(key, trace, update_spec)
-
-            case ChangeTargetUpdateSpec(argdiffs, constraint):
-                return self.update_change_target(key, trace, argdiffs, constraint)
-
-            case RemoveSelectionUpdateSpec():
-                return self.update_remove_selection(key, trace, update_spec)
-
-            case _:
-                raise NotImplementedError
-
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,
+        args: Tuple,
     ) -> Tuple[ArrayLike, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(sample, self.args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
         return (score, retval)
 
     def inline(self, *args):
@@ -293,9 +248,5 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 
 @typecheck
-def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure
-    def inner(*args):
-        return StaticGenerativeFunction(args, f)
-
-    return inner
+def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunction:
+    return StaticGenerativeFunction(f)

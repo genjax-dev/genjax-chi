@@ -223,6 +223,12 @@ class Trace(Pytree):
     """
 
     @abstractmethod
+    def get_args(self) -> Tuple:
+        """Returns the arguments for the generative function invocation which
+        created the `Trace`.
+        """
+
+    @abstractmethod
     def get_retval(self) -> Any:
         """Returns the return value from the generative function invocation which
         created the `Trace`.
@@ -311,10 +317,6 @@ class TraceSummary(Pytree):
 
 
 class GenerativeFunction(Pytree):
-    def __call__(self, key) -> Any:
-        tr = self.simulate(key)
-        return tr.get_retval()
-
     def __abstract_call__(self) -> Any:
         """Used to support JAX tracing, although this default implementation involves no
         JAX operations (it takes a fixed-key sample from the return value).
@@ -343,6 +345,7 @@ class GenerativeFunction(Pytree):
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> Trace:
         raise NotImplementedError
 
@@ -351,6 +354,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[Trace, Weight, UpdateSpec]:
         raise NotImplementedError
 
@@ -360,6 +364,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         trace: Trace,
         update_spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         raise NotImplementedError
 
@@ -383,8 +388,55 @@ class GenerativeFunction(Pytree):
         return handle_off_trace_stack(addr, self)
 
     @classmethod
-    def closure(cls, fn: Callable):
-        return GenerativeFunctionClosure(fn)
+    def closure(cls, fn: Callable, *args):
+        return GenerativeFunctionClosure(fn, args)
+
+    ###############################################
+    # Convenience: postfix syntax for combinators #
+    ###############################################
+
+    def vmap(self, /, *, in_axes=0) -> "GenerativeFunction":
+        from genjax import vmap_combinator
+
+        return vmap_combinator(self, in_axes=in_axes)
+
+    def repeat(self, /, *, num_repeats: Int) -> "GenerativeFunction":
+        from genjax import repeat_combinator
+
+        return repeat_combinator(self, num_repeats=num_repeats)
+
+    def scan(self, /, *, max_length: Int) -> "GenerativeFunction":
+        from genjax import scan_combinator
+
+        return scan_combinator(self, max_length=max_length)
+
+    def mask(self) -> "GenerativeFunction":
+        from genjax import mask_combinator
+
+        return mask_combinator(self)
+
+    def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+        from genjax import cond_combinator
+
+        return cond_combinator(self, gen_fn)
+
+    def addr_bij(
+        self,
+        address_bijection: dict,
+    ) -> "GenerativeFunction":
+        from genjax import address_bijection_combinator
+
+        return address_bijection_combinator(self, address_bijection=address_bijection)
+
+    def switch(self, *gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+        from genjax import switch_combinator
+
+        return switch_combinator(self, *gen_fn)
+
+    def mixor(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+        from genjax import mixture_combinator
+
+        return mixture_combinator(self, gen_fn)
 
 
 # NOTE: Setup a global handler stack for the `trace` callee sugar.
@@ -415,10 +467,12 @@ def push_trace_overload_stack(handler, fn):
 
 @Pytree.dataclass
 class GenerativeFunctionClosure(Pytree):
-    builder: Callable[[Any], GenerativeFunction] = Pytree.static()
+    gen_fn: GenerativeFunction
+    args: Tuple
 
-    def __call__(self, *args) -> GenerativeFunction:
-        return self.builder(*args)
+    def __call__(self, key: PRNGKey) -> Any:
+        tr = self.gen_fn.simulate(key, self.args)
+        return tr.get_retval()
 
     ####################################
     # Support the old interface syntax #
@@ -427,74 +481,20 @@ class GenerativeFunctionClosure(Pytree):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
     ):
-        return self.builder(*args).simulate(key)
+        return self.gen_fn.simulate(key, self.args)
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: Tuple,
     ):
-        return self.builder(*args).importance(key, constraint)
+        return self.gen_fn.importance(key, constraint, self.args)
 
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
         spec: UpdateSpec,
-        args: Tuple,
     ):
-        return self.builder(*args).update(key, trace, spec)
-
-    ###############################################
-    # Convenience: postfix syntax for combinators #
-    ###############################################
-
-    def vmap(self, /, *, in_axes=0) -> "GenerativeFunctionClosure":
-        from genjax import vmap_combinator
-
-        return vmap_combinator(self, in_axes=in_axes)
-
-    def repeat(self, /, *, num_repeats: Int) -> "GenerativeFunctionClosure":
-        from genjax import repeat_combinator
-
-        return repeat_combinator(self, num_repeats=num_repeats)
-
-    def scan(self, /, *, max_length: Int) -> "GenerativeFunctionClosure":
-        from genjax import scan_combinator
-
-        return scan_combinator(self, max_length=max_length)
-
-    def mask(self) -> "GenerativeFunctionClosure":
-        from genjax import mask_combinator
-
-        return mask_combinator(self)
-
-    def or_else(
-        self, gen_fn: "GenerativeFunctionClosure"
-    ) -> "GenerativeFunctionClosure":
-        from genjax import cond_combinator
-
-        return cond_combinator(self, gen_fn)
-
-    def addr_bij(
-        self,
-        address_bijection: dict,
-    ) -> "GenerativeFunctionClosure":
-        from genjax import address_bijection_combinator
-
-        return address_bijection_combinator(self, address_bijection=address_bijection)
-
-    def switch(
-        self, *gen_fn: "GenerativeFunctionClosure"
-    ) -> "GenerativeFunctionClosure":
-        from genjax import switch_combinator
-
-        return switch_combinator(self, *gen_fn)
-
-    def mixor(self, gen_fn: "GenerativeFunctionClosure") -> "GenerativeFunctionClosure":
-        from genjax import mixture_combinator
-
-        return mixture_combinator(self, gen_fn)
+        return self.gen_fn.update(key, trace, spec, self.args)

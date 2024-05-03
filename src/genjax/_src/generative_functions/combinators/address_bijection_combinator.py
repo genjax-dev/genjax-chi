@@ -57,8 +57,7 @@ class AddressBijectionTrace(Trace):
 
 @Pytree.dataclass
 class AddressBijectionCombinator(GenerativeFunction):
-    args: Tuple
-    gen_fn: GenerativeFunctionClosure
+    gen_fn: GenerativeFunction
     address_bijection: dict = Pytree.static(default_factory=dict)
 
     def get_inverse(self) -> dict:
@@ -80,8 +79,9 @@ class AddressBijectionCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> Trace:
-        inner = self.gen_fn(*self.args)
+        inner = self.gen_fn(*args)
         tr = inner.simulate(key)
         return AddressBijectionTrace(self, tr)
 
@@ -89,12 +89,14 @@ class AddressBijectionCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[Trace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
-                inner = self.gen_fn(*self.args)
                 inner_constraint = constraint.addr_fn(self.get_inverse())
-                tr, w, inner_bwd_spec = inner.importance(key, inner_constraint)
+                tr, w, inner_bwd_spec = self.gen_fn.importance(
+                    key, inner_constraint, args
+                )
                 assert isinstance(inner_bwd_spec, ChoiceMap)
                 bwd_spec = inner_bwd_spec.addr_fn(self.address_bijection)
                 return AddressBijectionTrace(self, tr), w, bwd_spec
@@ -106,40 +108,26 @@ class AddressBijectionCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: AddressBijectionTrace,
         chm: ChoiceMap,
+        argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        inner = self.gen_fn(*self.args)
         inner_spec = chm.addr_fn(self.get_inverse())
-        tr, w, retdiff, inner_bwd_spec = inner.update(key, trace.inner, inner_spec)
+        tr, w, retdiff, inner_bwd_spec = self.gen_fn.update(
+            key, trace.inner, inner_spec, argdiffs
+        )
         assert isinstance(inner_bwd_spec, ChoiceMap)
         bwd_spec = inner_bwd_spec.addr_fn(self.address_bijection)
         return tr, w, retdiff, bwd_spec
-
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        argdiffs: Tuple,
-        subspec: UpdateSpec,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        old_gen_fn = trace.get_gen_fn()
-        inner_spec = self.inverse(subspec)
-        tr, w, retdiff, spec = old_gen_fn.update(
-            key, trace.inner, ChangeTargetUpdateSpec(argdiffs, inner_spec)
-        )
-        return tr, w, retdiff, self.forward(spec)
 
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
         update_spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
-            case ChangeTargetUpdateSpec(argdiffs, spec):
-                return self.update_change_target(key, trace, argdiffs, spec)
-
             case ChoiceMap():
-                return self.update_choice_map(key, trace, update_spec)
+                return self.update_choice_map(key, trace, update_spec, argdiffs)
 
             case _:
                 raise ValueError(f"Unrecognized update spec: {update_spec}")
@@ -147,19 +135,15 @@ class AddressBijectionCombinator(GenerativeFunction):
 
 @typecheck
 def address_bijection_combinator(
-    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    gen_fn: GenerativeFunction | None = None,
     /,
     *,
     address_bijection: dict,
-) -> Callable | GenerativeFunctionClosure:
+) -> Callable | AddressBijectionCombinator:
     def decorator(f):
-        @GenerativeFunction.closure
-        def inner(*args):
-            return AddressBijectionCombinator(args, f, address_bijection)
+        return AddressBijectionCombinator(f, address_bijection)
 
-        return inner
-
-    if gen_fn_closure:
-        return decorator(gen_fn_closure)
+    if gen_fn:
+        return decorator(gen_fn)
     else:
         return decorator

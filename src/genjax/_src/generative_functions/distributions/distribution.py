@@ -74,9 +74,9 @@ class DistributionTrace(
         return ChoiceMap.v(self.value)
 
 
-#####
-# Distribution
-#####
+################
+# Distribution #
+################
 
 
 class Distribution(GenerativeFunction):
@@ -84,6 +84,7 @@ class Distribution(GenerativeFunction):
     def random_weighted(
         self,
         key: PRNGKey,
+        *args,
     ) -> Tuple[FloatArray, Any]:
         pass
 
@@ -92,6 +93,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         v: Any,
+        *args,
     ) -> FloatArray:
         pass
 
@@ -99,22 +101,28 @@ class Distribution(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> DistributionTrace:
-        (w, v) = self.random_weighted(key)
+        (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, v, w)
         return tr
 
     @typecheck
-    def importance_choice_map(self, key: PRNGKey, chm: ChoiceMap):
+    def importance_choice_map(
+        self,
+        key: PRNGKey,
+        chm: ChoiceMap,
+        args: Tuple,
+    ):
         check = chm.has_value()
         if static_check_is_concrete(check) and check:
             v = chm.get_value()
-            w = self.estimate_logpdf(key, v)
+            w = self.estimate_logpdf(key, v, *args)
             score = w
             bwd_spec = RemoveSampleUpdateSpec(v)
             return (DistributionTrace(self, v, score), w, bwd_spec)
         elif static_check_is_concrete(check):
-            score, v = self.random_weighted(key)
+            score, v = self.random_weighted(key, *args)
             return (
                 DistributionTrace(self, v, score),
                 jnp.array(0.0),
@@ -124,18 +132,18 @@ class Distribution(GenerativeFunction):
             v = chm.get_value()
             match v:
                 case None:
-                    tr = self.simulate(key)
+                    tr = self.simulate(key, args)
                     return tr, jnp.array(0.0), EmptyUpdateSpec()
 
                 case Mask(flag, value):
 
                     def _simulate(key, v):
-                        tr = self.simulate(key)
+                        tr = self.simulate(key, args)
                         w = 0.0
                         return (tr, w)
 
                     def _importance(key, v):
-                        w = self.estimate_logpdf(key, v)
+                        w = self.estimate_logpdf(key, v, *args)
                         tr = DistributionTrace(self, v, w)
                         return (tr, w)
 
@@ -151,10 +159,11 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[Trace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
-                return self.importance_choice_map(key, constraint)
+                return self.importance_choice_map(key, constraint, args)
             case _:
                 raise Exception("Unhandled type.")
 
@@ -174,6 +183,7 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: DistributionTrace,
         constraint: Constraint,
+        argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         check = constraint.has_value()
         if static_check_is_concrete(check) and check:
@@ -201,6 +211,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: DistributionTrace,
+        argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         gen_fn = trace.get_gen_fn()
         original = trace.get_score()
