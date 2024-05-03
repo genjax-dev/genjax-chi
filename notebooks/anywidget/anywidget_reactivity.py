@@ -51,3 +51,7 @@ w.VBox(
         example,
     ]
 )
+
+# %%
+
+import genjax 
