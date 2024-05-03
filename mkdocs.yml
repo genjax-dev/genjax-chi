@@ -69,17 +69,6 @@ theme:
     - scheme: default
       accent: red
       primary: white
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-
-    # Palette toggle for dark mode
-    - scheme: slate
-      accent: red
-      primary: black
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
 
 watch:
   - src/genjax
@@ -98,7 +87,7 @@ plugins:
       handlers:
         python:
           options:
-            show_source: false
+            show_source: true
             show_root_heading: true
             show_root_full_path: true
             show_symbol_type_heading: true
